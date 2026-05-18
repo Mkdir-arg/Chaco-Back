@@ -15,8 +15,12 @@ class CiudadanoBasicoSerializer(serializers.ModelSerializer):
 
 class HistorialContactoSerializer(serializers.ModelSerializer):
     profesional_nombre = serializers.CharField(source='profesional.get_full_name', read_only=True)
-    ciudadano_nombre = serializers.CharField(source='legajo.ciudadano.__str__', read_only=True)
+    ciudadano_nombre = serializers.SerializerMethodField()
     duracion_formateada = serializers.CharField(read_only=True)
+
+    def get_ciudadano_nombre(self, obj):
+        ciudadano = getattr(obj.legajo, 'ciudadano', None)
+        return str(ciudadano) if ciudadano else ''
     
     class Meta:
         model = HistorialContacto

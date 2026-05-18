@@ -17,7 +17,8 @@ def alerta_mensaje_ciudadano(sender, instance, created, **kwargs):
 @receiver(post_save, sender=LegajoAtencion)
 def verificar_alertas_legajo(sender, instance, created, **kwargs):
     """Genera alertas automáticas al crear o modificar legajo."""
-    AlertasService.generar_alertas_ciudadano(instance.ciudadano_id)
+    if instance.ciudadano_id:
+        AlertasService.generar_alertas_ciudadano(instance.ciudadano_id)
 
 
 @receiver(pre_save, sender=LegajoAtencion)

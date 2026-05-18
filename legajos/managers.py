@@ -1,3 +1,4 @@
+from django.apps import apps
 from django.db import models
 from django.db.models import Count, Prefetch, Q
 
@@ -10,11 +11,11 @@ class OptimizedLegajoManager(models.Manager):
         return self.select_related(
             'responsable'
         ).prefetch_related(
-            'seguimientos',
+            'historial_contactos',
             'derivaciones__actividad_destino',
             'alertas'
         ).annotate(
-            seguimientos_count=Count('seguimientos'),
+            seguimientos_count=Count('historial_contactos'),
             eventos_count=Count('alertas'),
             derivaciones_count=Count('derivaciones')
         )
@@ -24,7 +25,7 @@ class OptimizedLegajoManager(models.Manager):
         return self.select_related(
             'responsable'
         ).annotate(
-            seguimientos_count=Count('seguimientos'),
+            seguimientos_count=Count('historial_contactos'),
             eventos_count=Count('alertas')
         )
     
@@ -33,7 +34,7 @@ class OptimizedLegajoManager(models.Manager):
         return self.select_related(
             'responsable'
         ).annotate(
-            seguimientos_count=Count('seguimientos')
+            seguimientos_count=Count('historial_contactos')
         )
     
     def activos(self):
@@ -56,23 +57,23 @@ class OptimizedCiudadanoManager(models.Manager):
         """Ciudadanos con información de legajos optimizada"""
         return self.prefetch_related(
             Prefetch(
-                'legajos',
-                queryset=models.get_model('legajos', 'LegajoAtencion').objects.select_related(
-                    'dispositivo', 'responsable'
+                'inscripciones_programas',
+                queryset=apps.get_model('legajos', 'InscripcionPrograma').objects.select_related(
+                    'programa', 'responsable'
                 )
             )
         ).annotate(
-            legajos_count=Count('legajos'),
+            legajos_count=Count('inscripciones_programas'),
             legajos_activos_count=Count(
-                'legajos',
-                filter=Q(legajos__estado__in=['ABIERTO', 'EN_SEGUIMIENTO'])
+                'inscripciones_programas',
+                filter=Q(inscripciones_programas__estado__in=['ACTIVO', 'EN_SEGUIMIENTO'])
             )
         )
     
     def activos(self):
         """Ciudadanos activos con optimizaciones básicas"""
         return self.filter(activo=True).annotate(
-            legajos_count=Count('legajos')
+            legajos_count=Count('inscripciones_programas')
         )
 
 

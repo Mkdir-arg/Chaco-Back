@@ -15,15 +15,15 @@ def alertas_dashboard(request):
     
     alertas_criticas = alertas_usuario.filter(
         prioridad='CRITICA'
-    ).select_related('ciudadano', 'legajo__dispositivo', 'cerrada_por').order_by('-creado')[:10]
+    ).select_related('ciudadano', 'legajo', 'cerrada_por').order_by('-creado')[:10]
     
     alertas_altas = alertas_usuario.filter(
         prioridad='ALTA'
-    ).select_related('ciudadano', 'legajo__dispositivo', 'cerrada_por').order_by('-creado')[:10]
+    ).select_related('ciudadano', 'legajo', 'cerrada_por').order_by('-creado')[:10]
     
     alertas_medias = alertas_usuario.filter(
         prioridad='MEDIA'
-    ).select_related('ciudadano', 'legajo__dispositivo', 'cerrada_por').order_by('-creado')[:10]
+    ).select_related('ciudadano', 'legajo', 'cerrada_por').order_by('-creado')[:10]
     
     # Alertas de conversaciones si el usuario tiene permisos
     alertas_conversaciones = []
@@ -88,7 +88,7 @@ def alertas_preview_ajax(request):
     try:
         # Filtrar alertas por usuario
         alertas_usuario = FiltrosUsuarioService.obtener_alertas_usuario(request.user)
-        alertas = alertas_usuario.select_related('ciudadano', 'legajo__dispositivo', 'cerrada_por').order_by('-creado')[:5]
+        alertas = alertas_usuario.select_related('ciudadano', 'legajo', 'cerrada_por').order_by('-creado')[:5]
         
         alertas_data = []
         for alerta in alertas:

@@ -14,17 +14,14 @@ class RiskPredictor:
         """
         Calcula probabilidad de abandono del tratamiento (0-100)
         """
-        from .models import LegajoAtencion
+        from .linking import get_active_legajo_for_ciudadano
         from .models_contactos import HistorialContacto
         
         score = 0
         factores = []
         
         # Obtener legajo activo
-        legajo = LegajoAtencion.objects.filter(
-            ciudadano=ciudadano,
-            estado__in=['ABIERTO', 'EN_SEGUIMIENTO']
-        ).first()
+        legajo = get_active_legajo_for_ciudadano(ciudadano)
         
         if not legajo:
             return {'score': 0, 'nivel': 'BAJO', 'factores': ['Sin legajo activo']}
@@ -119,16 +116,13 @@ class RiskPredictor:
         """
         Calcula probabilidad de evento crítico en próximos 30 días (0-100)
         """
-        from .models import LegajoAtencion
+        from .linking import get_active_legajo_for_ciudadano
         from .models_contactos import HistorialContacto
         
         score = 0
         factores = []
         
-        legajo = LegajoAtencion.objects.filter(
-            ciudadano=ciudadano,
-            estado__in=['ABIERTO', 'EN_SEGUIMIENTO']
-        ).first()
+        legajo = get_active_legajo_for_ciudadano(ciudadano)
         
         if not legajo:
             return {'score': 0, 'nivel': 'BAJO', 'factores': ['Sin legajo activo']}
@@ -202,15 +196,12 @@ class RiskPredictor:
         """
         Genera recomendaciones automáticas basadas en el análisis
         """
-        from .models import LegajoAtencion
+        from .linking import get_active_legajo_for_ciudadano
         from .models_contactos import HistorialContacto
         
         recomendaciones = []
         
-        legajo = LegajoAtencion.objects.filter(
-            ciudadano=ciudadano,
-            estado__in=['ABIERTO', 'EN_SEGUIMIENTO']
-        ).first()
+        legajo = get_active_legajo_for_ciudadano(ciudadano)
         
         if not legajo:
             return ['Considerar apertura de nuevo legajo si requiere atención']

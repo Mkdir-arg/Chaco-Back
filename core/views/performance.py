@@ -295,12 +295,12 @@ def run_phase2_tests_api(request):
         n1_detected = False
         try:
             # Query optimizada
-            legajos_opt = list(LegajoAtencion.objects.select_related('ciudadano')[:3])
+            legajos_opt = list(LegajoAtencion.objects.select_related('responsable')[:3])
             # Query no optimizada (puede generar N+1)
             legajos_no_opt = list(LegajoAtencion.objects.all()[:3])
             for legajo in legajos_no_opt:
                 try:
-                    _ = legajo.ciudadano.nombre  # Esto puede generar N+1
+                    _ = legajo.responsable.username if legajo.responsable else None
                 except:
                     pass
             

@@ -4,6 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
+from ..linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     Adjunto,
     Ciudadano,
@@ -54,8 +55,9 @@ def _serialize_adjunto(archivo, *, legajo=None, origen='ciudadano'):
 
 def build_ciudadano_actividades_payload(ciudadano_id):
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
-    legajos = LegajoAtencion.objects.filter(ciudadano=ciudadano).select_related(
-        'responsable'
+    legajos = get_legajos_queryset_for_ciudadano(
+        ciudadano,
+        LegajoAtencion.objects.select_related('responsable'),
     )
     actividades = []
 
@@ -133,7 +135,7 @@ def build_ciudadano_actividades_payload(ciudadano_id):
 
 def build_ciudadano_archivos_payload(ciudadano_id):
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
-    legajos = list(LegajoAtencion.objects.filter(ciudadano=ciudadano))
+    legajos = list(get_legajos_queryset_for_ciudadano(ciudadano))
     ciudadano_content_type = ContentType.objects.get_for_model(Ciudadano)
     legajo_content_type = ContentType.objects.get_for_model(LegajoAtencion)
 
@@ -242,7 +244,10 @@ def build_legajo_evolucion_payload(legajo_id):
 
 def build_ciudadano_timeline_payload(ciudadano_id):
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
-    legajos = LegajoAtencion.objects.filter(ciudadano=ciudadano).select_related('responsable')
+    legajos = get_legajos_queryset_for_ciudadano(
+        ciudadano,
+        LegajoAtencion.objects.select_related('responsable'),
+    )
     eventos = []
 
     for legajo in legajos:

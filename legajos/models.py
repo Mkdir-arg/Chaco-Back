@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
@@ -242,13 +244,48 @@ class LegajoAtencion(LegajoBase):
             models.Index(fields=["plan_vigente", "estado"]),
             models.Index(fields=["via_ingreso", "fecha_admision"]),
         ]
+
+    @cached_property
+    def inscripcion_programa(self):
+        from .linking import get_linked_inscripcion_for_legajo
+
+        return get_linked_inscripcion_for_legajo(self)
+
+    @property
+    def ciudadano(self):
+        inscripcion = self.inscripcion_programa
+        return inscripcion.ciudadano if inscripcion else None
+
+    @property
+    def ciudadano_id(self):
+        ciudadano = self.ciudadano
+        return ciudadano.id if ciudadano else None
+
+    @property
+    def programa(self):
+        inscripcion = self.inscripcion_programa
+        return inscripcion.programa if inscripcion else None
+
+    @property
+    def dispositivo(self):
+        return self.programa
+
+    @property
+    def seguimientos(self):
+        return self.historial_contactos
     
     def __str__(self):
-        return f"Legajo {self.codigo} - {self.ciudadano}"
+        ciudadano = self.ciudadano
+        if ciudadano:
+            return f"Legajo {self.codigo} - {ciudadano}"
+        return f"Legajo {self.codigo}"
     
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('legajos:ciudadano_detalle', kwargs={'pk': self.ciudadano_id})
+
+        if self.ciudadano_id:
+            return reverse('legajos:ciudadano_detalle', kwargs={'pk': self.ciudadano_id})
+        return reverse('legajos:lista')
     
     def puede_cerrar(self):
         """Verifica si el legajo puede cerrarse"""
@@ -258,7 +295,7 @@ class LegajoAtencion(LegajoBase):
         
         # Verificar seguimiento reciente (últimos 30 días)
         fecha_limite = datetime.now().date() - timedelta(days=30)
-        tiene_seguimiento_reciente = self.seguimientos.filter(
+        tiene_seguimiento_reciente = self.historial_contactos.filter(
             creado__date__gte=fecha_limite
         ).exists()
         

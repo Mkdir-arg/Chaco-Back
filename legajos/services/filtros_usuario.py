@@ -1,5 +1,6 @@
 from django.db.models import Q
 
+from ..linking import get_legajo_ids_for_programas, get_programa_ids_for_legajo_ids
 from ..models import AlertaCiudadano, LegajoAtencion
 
 
@@ -16,18 +17,14 @@ class FiltrosUsuarioService:
 
         filtros = Q()
 
-        legajos_responsable = LegajoAtencion.objects.filter(responsable=usuario).select_related(
-            "dispositivo"
-        )
-        if legajos_responsable.exists():
-            filtros |= Q(legajo__in=legajos_responsable)
+        legajos_responsable = LegajoAtencion.objects.filter(responsable=usuario)
+        legajo_ids_responsable = list(legajos_responsable.values_list("id", flat=True))
+        if legajo_ids_responsable:
+            filtros |= Q(legajo_id__in=legajo_ids_responsable)
 
-        dispositivo_usuario = FiltrosUsuarioService._obtener_dispositivo_usuario(usuario)
-        if dispositivo_usuario:
-            legajos_dispositivo = LegajoAtencion.objects.filter(
-                dispositivo=dispositivo_usuario
-            ).select_related("dispositivo")
-            filtros |= Q(legajo__in=legajos_dispositivo)
+        programas_usuario = FiltrosUsuarioService._obtener_programas_usuario(usuario)
+        if programas_usuario:
+            filtros |= Q(legajo_id__in=get_legajo_ids_for_programas(programas_usuario))
 
         grupos_usuario = usuario.groups.values_list("name", flat=True)
 
@@ -40,14 +37,9 @@ class FiltrosUsuarioService:
         return AlertaCiudadano.objects.filter(filtros, activa=True)
 
     @staticmethod
-    def _obtener_dispositivo_usuario(usuario):
-        legajo_responsable = LegajoAtencion.objects.filter(responsable=usuario).select_related(
-            "dispositivo"
-        ).first()
-        if legajo_responsable:
-            return legajo_responsable.dispositivo
-
-        return None
+    def _obtener_programas_usuario(usuario):
+        legajo_ids = LegajoAtencion.objects.filter(responsable=usuario).values_list("id", flat=True)
+        return list(get_programa_ids_for_legajo_ids(legajo_ids))
 
     @staticmethod
     def puede_ver_alerta(usuario, alerta):

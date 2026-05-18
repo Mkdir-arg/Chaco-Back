@@ -49,8 +49,13 @@ class AlertaCiudadanoSerializer(serializers.ModelSerializer):
     """Serializer para AlertaCiudadano"""
     ciudadano_nombre = serializers.CharField(source='ciudadano.nombre_completo', read_only=True)
     legajo_codigo = serializers.CharField(source='legajo.codigo', read_only=True)
-    dispositivo_nombre = serializers.CharField(source='legajo.dispositivo.nombre', read_only=True)
+    dispositivo_nombre = serializers.SerializerMethodField()
     cerrada_por_nombre = serializers.CharField(source='cerrada_por.get_full_name', read_only=True)
+
+    def get_dispositivo_nombre(self, obj):
+        if not obj.legajo or not obj.legajo.dispositivo:
+            return None
+        return obj.legajo.dispositivo.nombre
     
     class Meta:
         model = AlertaCiudadano

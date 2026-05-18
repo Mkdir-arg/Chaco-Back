@@ -104,7 +104,9 @@ class HistorialContacto(TimeStamped):
         ]
     
     def __str__(self):
-        return f"{self.get_tipo_contacto_display()} - {self.legajo.ciudadano} ({self.fecha_contacto.date()})"
+        ciudadano = self.legajo.ciudadano
+        referencia = ciudadano or f"Legajo {self.legajo.codigo}"
+        return f"{self.get_tipo_contacto_display()} - {referencia} ({self.fecha_contacto.date()})"
     
     @property
     def duracion_formateada(self):

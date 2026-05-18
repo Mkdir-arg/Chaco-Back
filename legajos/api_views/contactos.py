@@ -21,12 +21,12 @@ from django.contrib.auth.models import User
 
 class HistorialContactoViewSet(viewsets.ModelViewSet):
     queryset = HistorialContacto.objects.select_related(
-        'legajo__ciudadano', 'profesional'
+        'legajo', 'profesional'
     ).all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['tipo_contacto', 'estado', 'seguimiento_requerido', 'profesional']
-    search_fields = ['motivo', 'resumen', 'legajo__ciudadano__nombre', 'legajo__ciudadano__apellido']
+    search_fields = ['motivo', 'resumen', 'legajo__codigo']
     ordering_fields = ['fecha_contacto', 'creado']
     ordering = ['-fecha_contacto']
     

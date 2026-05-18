@@ -4,6 +4,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils import timezone
 
+from ..linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     AlertaCiudadano,
     Ciudadano,
@@ -21,11 +22,13 @@ class AlertasService:
         """Genera todas las alertas para un ciudadano específico."""
         try:
             ciudadano = Ciudadano.objects.get(id=ciudadano_id)
-            legajos = LegajoAtencion.objects.filter(ciudadano=ciudadano).select_related(
-                "ciudadano",
-                "dispositivo",
-                "responsable",
-            ).prefetch_related("evaluacion", "derivaciones")
+            legajos = get_legajos_queryset_for_ciudadano(
+                ciudadano,
+                LegajoAtencion.objects.select_related("responsable").prefetch_related(
+                    "derivaciones",
+                    "historial_contactos",
+                ),
+            )
 
             AlertaCiudadano.objects.filter(
                 ciudadano=ciudadano,
@@ -50,11 +53,15 @@ class AlertasService:
     def _generar_alertas_legajo(legajo):
         """Genera alertas específicas de un legajo."""
         alertas = []
+        ciudadano = legajo.ciudadano
+
+        if not ciudadano:
+            return alertas
 
         if legajo.nivel_riesgo == "ALTO":
             alertas.append(
                 AlertasService._crear_alerta(
-                    legajo.ciudadano,
+                    ciudadano,
                     legajo,
                     "RIESGO_ALTO",
                     "ALTA",
@@ -62,12 +69,13 @@ class AlertasService:
                 )
             )
 
-        if not hasattr(legajo, "evaluacion"):
+        evaluacion = getattr(legajo, "evaluacion", None)
+        if not evaluacion:
             dias_sin_eval = (timezone.now().date() - legajo.fecha_apertura).days
             if dias_sin_eval > 15:
                 alertas.append(
                     AlertasService._crear_alerta(
-                        legajo.ciudadano,
+                        ciudadano,
                         legajo,
                         "SIN_EVALUACION",
                         "MEDIA",
@@ -78,7 +86,7 @@ class AlertasService:
         if legajo.estado in ["ABIERTO", "EN_SEGUIMIENTO"] and not legajo.plan_vigente:
             alertas.append(
                 AlertasService._crear_alerta(
-                    legajo.ciudadano,
+                    ciudadano,
                     legajo,
                     "SIN_PLAN",
                     "MEDIA",
@@ -86,9 +94,7 @@ class AlertasService:
                 )
             )
 
-        ultimo_contacto = HistorialContacto.objects.filter(legajo=legajo).select_related(
-            "legajo__ciudadano"
-        ).order_by("-fecha_contacto").first()
+        ultimo_contacto = HistorialContacto.objects.filter(legajo=legajo).order_by("-fecha_contacto").first()
 
         if ultimo_contacto:
             dias_sin_contacto = (
@@ -97,7 +103,7 @@ class AlertasService:
             if dias_sin_contacto > 30:
                 alertas.append(
                     AlertasService._crear_alerta(
-                        legajo.ciudadano,
+                        ciudadano,
                         legajo,
                         "SIN_CONTACTO",
                         "ALTA",
@@ -114,7 +120,7 @@ class AlertasService:
         if contactos_fallidos >= 3:
             alertas.append(
                 AlertasService._crear_alerta(
-                    legajo.ciudadano,
+                    ciudadano,
                     legajo,
                     "CONTACTOS_FALLIDOS",
                     "MEDIA",
@@ -131,7 +137,7 @@ class AlertasService:
         if derivaciones_pendientes > 0:
             alertas.append(
                 AlertasService._crear_alerta(
-                    legajo.ciudadano,
+                    ciudadano,
                     legajo,
                     "DERIVACION_PENDIENTE",
                     "MEDIA",
@@ -259,8 +265,12 @@ class AlertasService:
         if not seguimiento or not seguimiento.legajo:
             return None
 
+        ciudadano = seguimiento.legajo.ciudadano
+        if not ciudadano:
+            return None
+
         return AlertasService._crear_alerta(
-            seguimiento.legajo.ciudadano,
+            ciudadano,
             seguimiento.legajo,
             "SEGUIMIENTO_VENCIDO",
             "ALTA",
@@ -273,8 +283,12 @@ class AlertasService:
         if not legajo:
             return None
 
+        ciudadano = legajo.ciudadano
+        if not ciudadano:
+            return None
+
         return AlertasService._crear_alerta(
-            legajo.ciudadano,
+            ciudadano,
             legajo,
             tipo_evento,
             "CRITICA",

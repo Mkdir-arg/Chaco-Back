@@ -1,1 +1,1 @@
-from .views.actividades import *  # noqa: F401,F403
+"""Compatibilidad legacy: vistas de actividades retiradas."""

@@ -54,7 +54,7 @@ class DerivacionViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar derivaciones entre dispositivos.
     """
-    queryset = Derivacion.objects.select_related('legajo__ciudadano', 'actividad_destino')
+    queryset = Derivacion.objects.select_related('legajo', 'actividad_destino')
     serializer_class = DerivacionSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
@@ -69,7 +69,7 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet para consultar alertas del sistema.
     """
-    queryset = AlertaCiudadano.objects.select_related('ciudadano', 'legajo__dispositivo')
+    queryset = AlertaCiudadano.objects.select_related('ciudadano', 'legajo', 'cerrada_por')
     serializer_class = AlertaCiudadanoSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
@@ -78,7 +78,7 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         """Filtrar alertas según el usuario autenticado"""
-        return FiltrosUsuarioService.obtener_alertas_usuario(self.request.user).select_related('ciudadano', 'legajo__dispositivo', 'cerrada_por')
+        return FiltrosUsuarioService.obtener_alertas_usuario(self.request.user).select_related('ciudadano', 'legajo', 'cerrada_por')
     
     @extend_schema(description="Obtiene contador de alertas activas")
     @action(detail=False, methods=['get'])

@@ -8,7 +8,9 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from core.decorators import group_required
+from ..linking import annotate_legajo_link_data
 from ..models import LegajoAtencion
+from ..models_programas import InscripcionPrograma
 
 @login_required
 def dashboard_contactos_simple(request):
@@ -32,7 +34,7 @@ def reportes_view(request):
     """Vista liviana de reportes para mantener operativa la navegación del backoffice."""
     hace_7_dias = timezone.now().date() - timedelta(days=7)
 
-    legajos = LegajoAtencion.objects.select_related('dispositivo')
+    legajos = annotate_legajo_link_data(LegajoAtencion.objects.all())
     stats = {
         'total_legajos': legajos.count(),
         'legajos_activos': legajos.exclude(estado='CERRADO').count(),
@@ -48,11 +50,14 @@ def reportes_view(request):
         ],
         'por_dispositivo': [
             {
-                'nombre': item['dispositivo__nombre'] or 'Sin institución',
-                'tipo_label': 'Institución',
+                'nombre': item['programa__nombre'] or 'Sin programa',
+                'tipo_label': 'Programa',
                 'total': item['total'],
             }
-            for item in legajos.values('dispositivo__nombre').order_by('dispositivo__nombre').annotate(total=models.Count('id'))[:10]
+            for item in InscripcionPrograma.objects.filter(legajo_id__isnull=False)
+            .values('programa__nombre')
+            .order_by('programa__nombre')
+            .annotate(total=models.Count('legajo_id', distinct=True))[:10]
         ],
         'por_mes': [
             {'mes': item['mes'], 'total': item['total']}
@@ -79,13 +84,13 @@ def exportar_reportes_csv(request):
     writer = csv.writer(response)
     writer.writerow(['codigo', 'apellido', 'nombre', 'dni', 'estado', 'nivel_riesgo', 'fecha_admision'])
 
-    legajos = LegajoAtencion.objects.select_related('ciudadano').order_by('-fecha_admision')[:1000]
+    legajos = annotate_legajo_link_data(LegajoAtencion.objects.all()).order_by('-fecha_admision')[:1000]
     for legajo in legajos:
         writer.writerow([
             legajo.codigo,
-            legajo.ciudadano.apellido,
-            legajo.ciudadano.nombre,
-            legajo.ciudadano.dni,
+            legajo.linked_ciudadano_apellido or '',
+            legajo.linked_ciudadano_nombre or '',
+            legajo.linked_ciudadano_dni or '',
             legajo.estado,
             legajo.nivel_riesgo,
             legajo.fecha_admision,

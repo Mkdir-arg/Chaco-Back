@@ -12,7 +12,7 @@ class CiudadanoAdmin(admin.ModelAdmin):
     readonly_fields = ("creado", "modificado")
     
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('legajos__dispositivo')
+        return super().get_queryset(request).prefetch_related('inscripciones_programas__programa')
     
     fieldsets = (
         ("Información Personal", {
@@ -39,7 +39,7 @@ class DerivacionAdmin(admin.ModelAdmin):
     date_hierarchy = 'creado'
     
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('legajo__ciudadano', 'actividad_destino')
+        return super().get_queryset(request).select_related('legajo', 'actividad_destino')
 
 
 @admin.register(Adjunto)
@@ -51,10 +51,6 @@ class AdjuntoAdmin(admin.ModelAdmin):
 
 # Registrar modelos de contactos en admin
 try:
-    from .models_contactos import (
-        HistorialContacto, VinculoFamiliar, ProfesionalTratante,
-        DispositivoVinculado, ContactoEmergencia
-    )
     from .admin_contactos import *
 except ImportError:
     pass
