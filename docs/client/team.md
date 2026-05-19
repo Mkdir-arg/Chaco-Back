@@ -10,8 +10,9 @@ Esta sección identifica al equipo asignado al proyecto y cómo se organiza el t
 | Agostina Coppola | Analista funcional | Relevamiento, definición funcional y validación de alcance |
 | Pablo Cao | Desarrollador SR | Implementación técnica y soporte de entregas |
 | Juan Kitro | Desarrollador SR | Implementación técnica y soporte de entregas |
+| Florencia Garcia | UI UX  | Diseñadora UI UX |
 
-Este equipo trabaja en coordinación con los referentes del cliente para definir prioridades, validar avances y ordenar cada sprint.
+
 
 ## Cómo se toman decisiones
 

@@ -16,7 +16,7 @@
 
 ## 1. Visión general
 
-El equipo trabaja bajo un modelo de **paquete de horas prepago**. El cliente dispone de un saldo de horas que se va consumiendo a medida que avanza el trabajo. Toda actividad —desde la reunión inicial hasta el despliegue— descuenta horas del paquete.
+El equipo trabaja bajo un modelo de **consumo de horas **. El cliente dispone de horas hombre que se va consumiendo a medida que avanza el trabajo. Toda actividad —desde la reunión inicial hasta el despliegue— descuenta horas del paquete.
 
 El proceso para cada requerimiento sigue este orden:
 
@@ -54,11 +54,11 @@ Requerimiento → Análisis → Propuesta → Confirmación del cliente
 
 El equipo utiliza dos plataformas de GitHub como eje de gestión y documentación del proyecto.
 
-### 4.1 GitHub Projects — gestión de requerimientos y tareas
+### 4.1 Jira — gestión de requerimientos y tareas
 
-**URL:** [github.com/Mkdir-arg/Chaco](https://github.com/Mkdir-arg/Chaco)
+**URL:** [Jira](https://chacoicore.atlassian.net/jira/software/projects/SCRUM/boards/1)
 
-Cada requerimiento del cliente se registra como un **Issue** en el repositorio. El tablero de proyecto (GitHub Projects) centraliza el estado de todos los ítems activos.
+Cada requerimiento del cliente se registra como un **Issue** en el repositorio. El tablero de proyecto (Jira) centraliza el estado de todos los ítems activos.
 
 | Tipo de ítem         | Se crea como                          |
 |----------------------|---------------------------------------|
@@ -89,7 +89,6 @@ GitHub Pages es el punto de acceso centralizado para toda la documentación del 
 | **Minutas de reunión**       | Resumen de cada reunión: acuerdos, responsables y fechas |
 | **Definiciones de sprint**   | Objetivo, alcance y ítems comprometidos por iteración    |
 | **Documentación funcional**  | Descripción de funcionalidades aprobadas e implementadas |
-| **Reportes de pruebas**      | Resultados de testing por criterio de aceptación         |
 | **Actas de cierre**          | Confirmación de despliegue y cierre de cada ciclo        |
 
 > Todo documento que requiera validación o referencia futura se publica en GitHub Pages para garantizar su disponibilidad y trazabilidad.
@@ -108,13 +107,16 @@ flowchart TD
     E --> F["DOCUMENTACIÓN\n(funcional y técnica)"]
     F --> G["PRESENTACIÓN\n(al cliente)"]
     G --> H{¿El cliente aprueba?}
-    H --> |SÍ| I[DESARROLLO]
+  H --> |SÍ| P["PLANIFICACIÓN DEL SPRINT\n(prioridad, capacidad y alcance)"]
     H --> |NO| Z2([Revisión de propuesta])
+  P --> I[DESARROLLO]
     I --> J[PRUEBAS]
     J --> K["CAPACITACIÓN\n(si aplica)"]
     K --> L[DESPLIEGUE]
     L --> M([✅ Cierre del ciclo])
 ```
+
+Una vez aprobado por el cliente, el requerimiento no entra automáticamente en desarrollo: primero se incorpora al backlog priorizado y se confirma en la **planificación del sprint** según prioridad, capacidad del equipo, dependencias y compromisos ya asumidos.
 
 ---
 
@@ -124,9 +126,9 @@ flowchart TD
 
 - El cliente envía el requerimiento por escrito (correo o canal oficial acordado).
 - El equipo acusa recibo dentro de las 24 horas hábiles.
-- Se crea un **Issue en GitHub Projects** con el título del requerimiento, descripción completa y label `requerimiento`.
+- Se crea un **Issue en Jira** con el título del requerimiento, descripción completa y label `requerimiento`.
 - Se asigna un responsable de análisis y el Issue pasa al estado **"En análisis"**.
-- A partir de este momento comienza el registro de horas consumidas.
+
 
 ### 6.2 Análisis
 
@@ -146,7 +148,7 @@ flowchart TD
 - Una vez confirmada la propuesta, el equipo estima las horas necesarias por etapa: desarrollo, pruebas, despliegue y capacitación.
 - La estimación se presenta como rango (ej: 8–12 horas) para contemplar variabilidad.
 - Se verifica que el cliente tenga saldo suficiente o se solicita renovación del paquete.
-- La estimación se registra en el Issue correspondiente en GitHub Projects.
+- La estimación se registra en el Issue correspondiente en Jira.
 
 ### 6.5 Documentación
 
@@ -168,7 +170,7 @@ flowchart TD
 
 - El equipo implementa la solución según lo documentado.
 - Se registran las horas consumidas por tarea.
-- El Issue avanza al estado **"En desarrollo"** en GitHub Projects.
+- El Issue avanza al estado **"En desarrollo"** en Jira.
 - Cambios de alcance durante el desarrollo requieren un nuevo ciclo de análisis y estimación.
 
 ### 6.8 Pruebas
@@ -189,7 +191,7 @@ flowchart TD
 - El equipo despliega en el entorno productivo según la ventana acordada.
 - Se verifica el correcto funcionamiento post-deploy.
 - El **acta de cierre** se publica en GitHub Pages.
-- El Issue se cierra en GitHub Projects con el consumo real de horas registrado.
+- El Issue se cierra en Jira con el consumo real de horas registrado.
 
 ---
 
@@ -197,10 +199,10 @@ flowchart TD
 
 | Etapa            | Documento generado                                  | Dónde se publica         |
 |------------------|-----------------------------------------------------|--------------------------|
-| Recepción        | Issue creado en GitHub Projects                     | GitHub Projects          |
-| Análisis         | Notas de relevamiento / acta de dudas               | GitHub Projects (Issue)  |
-| Propuesta        | Propuesta de solución (borrador)                    | GitHub Projects (Issue)  |
-| Estimación       | Planilla de estimación de horas                     | GitHub Projects (Issue)  |
+| Recepción        | Issue creado en Jira                     | Jira          |
+| Análisis         | Notas de relevamiento / acta de dudas               | Jira (Issue)  |
+| Propuesta        | Propuesta de solución (borrador)                    | Jira (Issue)  |
+| Estimación       | Planilla de estimación de horas                     | Jira (Issue)  |
 | Documentación    | Documento funcional y técnico del requerimiento     | GitHub Pages             |
 | Presentación     | Minuta de reunión + confirmación de aprobación      | GitHub Pages             |
 | Pruebas          | Reporte de pruebas por criterio de aceptación       | GitHub Pages             |
@@ -228,4 +230,4 @@ El trabajo se organiza en **sprints**: iteraciones de duración fija que agrupan
 - Al cierre de cada sprint se realiza una revisión con el cliente para presentar lo entregado, validar resultados y planificar el siguiente ciclo.
 - El consumo de horas se informa al cierre de cada sprint.
 
-La definición y el estado de cada sprint se publican en **GitHub Pages** y se gestionan como Issues en **GitHub Projects**.
+La definición y el estado de cada sprint se publican en **GitHub Pages** y se gestionan como Issues en **Jira**.

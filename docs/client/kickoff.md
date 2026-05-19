@@ -10,7 +10,7 @@ El resultado esperado de esta reunión es salir con acuerdos concretos para inic
 
 ### Situación actual
 
-- La Provincia del Chaco tiene la necesidad de digitalizar procesos y unificar la información de gestión.
+- El Ministerio de  desarrollo de la Provincia del Chaco tiene la necesidad de digitalizar procesos y unificar la información de gestión.
 - En el escenario actual, no dispone de una plataforma robusta e integral que permita resolver esa necesidad de punta a punta.
 - Existen procesos manuales y circuitos administrativos con alto nivel de dependencia operativa.
 - La información se encuentra fragmentada en distintas fuentes, lo que dificulta su trazabilidad y consistencia.
@@ -42,45 +42,8 @@ Alcance inicial del kick off:
 - Confirmar restricciones, prioridades y dependencias.
 - Definir qué condiciones deben cumplirse para iniciar el primer sprint.
 
-## 4. Equipo ejecutor
 
-### Equipo ICORE (cliente)
-
-- Referentes funcionales y operativos.
-- Referentes de decisión y aprobación.
-- Responsables de facilitar definiciones de infraestructura e identidad.
-
-### Equipo Chaco (ejecutor)
-
-- Coordinación funcional y técnica del proyecto.
-- Análisis, diseño de solución, implementación y pruebas.
-- Gestión documental y seguimiento del avance en GitHub Projects / GitHub Pages.
-
-### Responsabilidad compartida
-
-- Mantener un circuito de validación ágil.
-- Escalar bloqueos en forma temprana.
-- Sostener la planificación y revisión por sprint.
-
-## 5. Cronograma del proyecto a corto plazo y largo plazo
-
-### Corto plazo (0 a 4 semanas)
-
-- Kick off y cierre de acuerdos base.
-- Definición de arquitectura objetivo e identidad.
-- Priorización de backlog y planificación del primer sprint.
-- Inicio de ejecución de requerimientos priorizados.
-
-### Mediano y largo plazo (1 a 6 meses)
-
-- Iteraciones sucesivas por sprint con entregas incrementales.
-- Consolidación funcional por módulos priorizados.
-- Estabilización técnica, pruebas y despliegues planificados.
-- Revisión periódica de objetivos, riesgos y roadmap.
-
-Nota: la duración de los sprints y la secuencia exacta de entregas se pactarán con el cliente en cada ciclo.
-
-## 6. Necesidades inminentes
+## 4. Necesidades inminentes
 
 Para iniciar con base técnica clara necesitamos confirmar estos puntos antes o durante el kick off:
 
