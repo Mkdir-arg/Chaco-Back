@@ -1,15 +1,59 @@
-# Sprints
+# :material-sprout: Sprints
 
-Seguimiento del trabajo por sprint. Cada sprint tiene un objetivo claro, un conjunto de funcionalidades definidas y el estado de avance de cada una.
+!!! abstract "Seguimiento del trabajo por sprint"
+    Cada sprint tiene un **objetivo claro**, un conjunto de **funcionalidades definidas** y el **estado de avance** de cada una. Esta página centraliza la vista de todos los sprints, activos y cerrados.
 
-## Sprints activos
+---
 
-| Sprint | Período | Objetivo | Estado |
-|---|---|---|---|
-| [Sprint 001 — Gestión base de ciudadanos](sprint-001.md) | 12 may → 23 may 2026 | Registro y derivación de ciudadanos | 🟡 En progreso |
+## :material-progress-clock: Sprints activos
 
-## Sprints cerrados
+<div class="grid cards" markdown>
 
-| Sprint | Período | Completado | Postergado |
+-   :material-circle:{ style="color: #f59e0b" } **Sprint 001 — Gestión base de ciudadanos**
+
+    ---
+
+    :material-calendar-range: **Período:** 12 may → 23 may 2026
+    :material-bullseye-arrow: **Objetivo:** Registro y derivación de ciudadanos
+    :material-progress-check: **Estado:** En progreso
+
+    [:octicons-arrow-right-16: Ver detalle del sprint](sprint-001.md)
+
+</div>
+
+---
+
+## :material-archive-outline: Sprints cerrados
+
+!!! info "Aún no hay sprints cerrados"
+    Los sprints completados aparecerán acá con su resumen de resultados, ítems completados y postergados.
+
+| Sprint | Período | :material-check-circle-outline: Completado | :material-clock-time-eight-outline: Postergado |
 |---|---|---|---|
 | — | — | — | — |
+
+---
+
+## :material-information-outline: Cómo se organizan los sprints
+
+<div class="grid cards" markdown>
+
+-   :material-timer-outline: **Duración fija**
+
+    Se acuerda con el cliente al inicio (1, 2 o 3 semanas habitualmente).
+
+-   :material-clipboard-list-outline: **Alcance comprometido**
+
+    Se define al comenzar cada sprint con los ítems priorizados del backlog.
+
+-   :material-lock-outline: **Foco protegido**
+
+    No se aceptan cambios de alcance dentro del sprint en curso.
+
+-   :material-presentation-play: **Revisión al cierre**
+
+    Demo de lo entregado, validación de resultados y planificación del siguiente.
+
+</div>
+
+[:material-arrow-right: Ver metodología completa](../methodology.md){ .md-button }

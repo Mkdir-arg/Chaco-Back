@@ -74,7 +74,6 @@ nav:
     - Kick Off: kickoff.md
     - Equipo: team.md
     - Metodología: methodology.md
-    - Gobernanza: governance.md
     - Arquitectura: architecture.md
   - Sprints:
     - Todos los sprints: sprints/index.md

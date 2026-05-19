@@ -1,55 +1,71 @@
-# Sprint 001 — Gestión base de ciudadanos
+# :material-sprout: Sprint 001 — Gestión base de ciudadanos
 
-**Estado:** 🟡 En progreso
-**Período:** 12 de mayo → 23 de mayo de 2026
-**Objetivo:** Implementar el flujo completo de ingreso y derivación de ciudadanos: desde el registro inicial hasta la derivación a un programa con trazabilidad en el legajo.
+<div class="grid cards" markdown>
+
+-   :material-circle:{ style="color: #f59e0b" } **Estado**
+
+    En progreso
+
+-   :material-calendar-range: **Período**
+
+    12 may → 23 may 2026
+
+-   :material-counter: **Avance**
+
+    1 / 2 funcionalidades
+
+-   :material-clock-outline: **Horas estimadas**
+
+    36 hs totales
+
+</div>
+
+!!! abstract "Objetivo"
+    Implementar el flujo completo de **ingreso y derivación de ciudadanos**: desde el registro inicial hasta la derivación a un programa con trazabilidad en el legajo.
 
 ---
 
-## Alcance del sprint
+## :material-clipboard-list-outline: Alcance del sprint
 
-Este sprint cubre dos funcionalidades centrales del módulo de Legajos:
+Este sprint cubre **dos funcionalidades centrales** del módulo de Legajos:
 
-| # | Funcionalidad | Prioridad | Estado | Horas est. | Horas reales |
-|---|---|---|---|---|---|
-| 1 | [Registro de ciudadano](#registro-de-ciudadano) | Alta | ✅ Completado | 16 hs | 14 hs |
-| 2 | [Derivación a programa](#derivacion-a-programa) | Alta | 🔄 En progreso | 20 hs | — |
-
-**Total estimado:** 36 hs
-**Avance:** 1 de 2 funcionalidades completadas
+| # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
+|:-:|---|:-:|:-:|:-:|:-:|
+| 1 | [**Registro de ciudadano**](#registro-de-ciudadano) | :material-alert-octagon-outline: Alta | :material-check-circle: Completado | 16 | 14 |
+| 2 | [**Derivación a programa**](#derivacion-a-programa) | :material-alert-octagon-outline: Alta | :material-progress-clock: En progreso | 20 | — |
 
 ---
 
-## Registro de ciudadano
+## :material-account-plus-outline: Registro de ciudadano { #registro-de-ciudadano }
 
-Permite al operador registrar un ciudadano nuevo en el sistema, con verificación de duplicados y consulta automática a RENAPER para autocompletar datos.
+!!! success "Funcionalidad completada"
+    Permite al operador **registrar un ciudadano nuevo** en el sistema, con verificación de duplicados y consulta automática a **RENAPER** para autocompletar datos.
 
-### Tareas
+### :material-format-list-checks: Tareas
 
-| Tarea | Estado | Horas est. | Horas reales |
-|---|---|---|---|
-| Validación de DNI duplicado en el formulario | ✅ Completado | 3 hs | 2 hs |
-| Integración con RENAPER y autocompletado | ✅ Completado | 5 hs | 5 hs |
-| Formulario de registro manual (fallback) | ✅ Completado | 3 hs | 3 hs |
-| Estado "pendiente de verificación" para legajos sin DNI | ✅ Completado | 2 hs | 2 hs |
-| Auditoría de creación (quién y cuándo) | ✅ Completado | 1 hs | 1 hs |
-| Tests y validación | ✅ Completado | 2 hs | 1 hs |
+| Tarea | Estado | Hs est. | Hs reales |
+|---|:-:|:-:|:-:|
+| Validación de DNI duplicado en el formulario | :material-check-circle: | 3 | 2 |
+| Integración con RENAPER y autocompletado | :material-check-circle: | 5 | 5 |
+| Formulario de registro manual (fallback) | :material-check-circle: | 3 | 3 |
+| Estado "pendiente de verificación" para legajos sin DNI | :material-check-circle: | 2 | 2 |
+| Auditoría de creación (quién y cuándo) | :material-check-circle: | 1 | 1 |
+| Tests y validación | :material-check-circle: | 2 | 1 |
+| **Subtotal** | | **16** | **14** |
 
-**Subtotal:** 16 hs estimadas / 14 hs reales
-
-### Requerimientos
+### :material-clipboard-text-outline: Requerimientos
 
 | ID | Descripción | Prioridad | Estado |
-|---|---|---|---|
-| RF-001-01 | El sistema verifica si el DNI ya existe antes de crear un legajo nuevo | Alta | ✅ |
-| RF-001-02 | El sistema consulta RENAPER y autocompleta nombre, apellido y fecha de nacimiento | Alta | ✅ |
-| RF-001-03 | Si RENAPER no responde, el sistema habilita el formulario manual sin bloquear el flujo | Alta | ✅ |
-| RF-001-04 | El sistema permite registrar un ciudadano sin DNI, marcando el legajo como pendiente de verificación | Media | ✅ |
-| RF-001-05 | El formulario valida el formato del DNI antes de consultar | Alta | ✅ |
-| RF-001-06 | El sistema registra quién creó el legajo y en qué fecha | Alta | ✅ |
-| RF-001-07 | El operador puede adjuntar una foto al momento del registro | Baja | ⏸ Postergado |
+|---|---|:-:|:-:|
+| **RF-001-01** | El sistema verifica si el DNI ya existe antes de crear un legajo nuevo | Alta | :material-check-circle: |
+| **RF-001-02** | El sistema consulta RENAPER y autocompleta nombre, apellido y fecha de nacimiento | Alta | :material-check-circle: |
+| **RF-001-03** | Si RENAPER no responde, el sistema habilita el formulario manual sin bloquear el flujo | Alta | :material-check-circle: |
+| **RF-001-04** | El sistema permite registrar un ciudadano sin DNI, marcándolo como pendiente de verificación | Media | :material-check-circle: |
+| **RF-001-05** | El formulario valida el formato del DNI antes de consultar | Alta | :material-check-circle: |
+| **RF-001-06** | El sistema registra quién creó el legajo y en qué fecha | Alta | :material-check-circle: |
+| **RF-001-07** | El operador puede adjuntar una foto al momento del registro | Baja | :material-pause-circle-outline: Postergado |
 
-### Criterios de aceptación
+### :material-check-decagram-outline: Criterios de aceptación
 
 - [x] Dado un operador con permisos, cuando ingresa un DNI existente, entonces el sistema muestra el legajo existente y no crea uno nuevo.
 - [x] Dado un operador con permisos, cuando ingresa un DNI nuevo y RENAPER responde, entonces el sistema autocompleta los datos.
@@ -59,38 +75,38 @@ Permite al operador registrar un ciudadano nuevo en el sistema, con verificació
 
 ---
 
-## Derivación a programa {#derivacion-a-programa}
+## :material-account-arrow-right-outline: Derivación a programa { #derivacion-a-programa }
 
-Permite al operador derivar un ciudadano a un programa social con flujo de aceptación/rechazo por parte del dispositivo receptor y trazabilidad completa en el legajo.
+!!! info "Funcionalidad en progreso"
+    Permite al operador **derivar un ciudadano a un programa social** con flujo de aceptación/rechazo por parte del dispositivo receptor y trazabilidad completa en el legajo.
 
-### Tareas
+### :material-format-list-checks: Tareas
 
-| Tarea | Estado | Horas est. | Horas reales |
-|---|---|---|---|
-| Formulario de derivación (programa, dispositivo, motivo) | 🔄 En progreso | 4 hs | — |
-| Flujo de aceptación y rechazo por el receptor | ⏳ Pendiente | 6 hs | — |
-| Notificación interna al receptor | ⏳ Pendiente | 3 hs | — |
-| Bloqueo de derivación duplicada al mismo programa | ⏳ Pendiente | 2 hs | — |
-| Historial de derivaciones en el legajo | ⏳ Pendiente | 3 hs | — |
-| Anulación de derivación pendiente (admin) | ⏳ Pendiente | 1 hs | — |
-| Vencimiento automático por plazo configurable | ⏳ Pendiente | 1 hs | — |
+| Tarea | Estado | Hs est. | Hs reales |
+|---|:-:|:-:|:-:|
+| Formulario de derivación (programa, dispositivo, motivo) | :material-progress-clock: | 4 | — |
+| Flujo de aceptación y rechazo por el receptor | :material-clock-outline: | 6 | — |
+| Notificación interna al receptor | :material-clock-outline: | 3 | — |
+| Bloqueo de derivación duplicada al mismo programa | :material-clock-outline: | 2 | — |
+| Historial de derivaciones en el legajo | :material-clock-outline: | 3 | — |
+| Anulación de derivación pendiente (admin) | :material-clock-outline: | 1 | — |
+| Vencimiento automático por plazo configurable | :material-clock-outline: | 1 | — |
+| **Subtotal** | | **20** | **—** |
 
-**Subtotal:** 20 hs estimadas / en curso
-
-### Requerimientos
+### :material-clipboard-text-outline: Requerimientos
 
 | ID | Descripción | Prioridad | Estado |
-|---|---|---|---|
-| RF-002-01 | El operador puede iniciar una derivación desde el legajo del ciudadano | Alta | 🔄 |
-| RF-002-02 | El formulario incluye programa destino, dispositivo, motivo y observaciones | Alta | 🔄 |
-| RF-002-03 | El sistema notifica al dispositivo receptor al crear la derivación | Alta | ⏳ |
-| RF-002-04 | El receptor puede aceptar o rechazar con motivo obligatorio al rechazar | Alta | ⏳ |
-| RF-002-05 | El sistema bloquea derivar a un ciudadano ya inscripto en el mismo programa | Alta | ⏳ |
-| RF-002-06 | El legajo muestra el historial completo de derivaciones | Alta | ⏳ |
-| RF-002-07 | El administrador puede anular una derivación en estado pendiente | Media | ⏳ |
-| RF-002-08 | El sistema marca como vencida una derivación sin respuesta tras el plazo configurado | Media | ⏳ |
+|---|---|:-:|:-:|
+| **RF-002-01** | El operador puede iniciar una derivación desde el legajo del ciudadano | Alta | :material-progress-clock: |
+| **RF-002-02** | El formulario incluye programa destino, dispositivo, motivo y observaciones | Alta | :material-progress-clock: |
+| **RF-002-03** | El sistema notifica al dispositivo receptor al crear la derivación | Alta | :material-clock-outline: |
+| **RF-002-04** | El receptor puede aceptar o rechazar con motivo obligatorio al rechazar | Alta | :material-clock-outline: |
+| **RF-002-05** | El sistema bloquea derivar a un ciudadano ya inscripto en el mismo programa | Alta | :material-clock-outline: |
+| **RF-002-06** | El legajo muestra el historial completo de derivaciones | Alta | :material-clock-outline: |
+| **RF-002-07** | El administrador puede anular una derivación en estado pendiente | Media | :material-clock-outline: |
+| **RF-002-08** | El sistema marca como vencida una derivación sin respuesta tras el plazo configurado | Media | :material-clock-outline: |
 
-### Criterios de aceptación
+### :material-check-decagram-outline: Criterios de aceptación
 
 - [ ] Dado un operador con permisos, cuando inicia una derivación, entonces el sistema la registra como "Pendiente" y notifica al receptor.
 - [ ] Dado un operador receptor, cuando acepta, entonces el ciudadano queda inscripto y el estado cambia a "Aceptada".
@@ -100,10 +116,10 @@ Permite al operador derivar un ciudadano a un programa social con flujo de acept
 
 ---
 
-## Qué quedó fuera de este sprint
+## :material-package-variant-closed-remove: Qué quedó fuera de este sprint
 
 | Funcionalidad | Motivo | ¿Próximo sprint? |
-|---|---|---|
-| Adjuntar foto al registro (RF-001-07) | Baja prioridad, no bloquea el flujo principal | Sí |
-| Derivaciones entre instituciones | Requiere análisis funcional propio | A definir |
-| Reportes de derivaciones | Requiere análisis funcional propio | A definir |
+|---|---|:-:|
+| Adjuntar foto al registro (RF-001-07) | Baja prioridad, no bloquea el flujo principal | :material-check: Sí |
+| Derivaciones entre instituciones | Requiere análisis funcional propio | :material-help-circle-outline: A definir |
+| Reportes de derivaciones | Requiere análisis funcional propio | :material-help-circle-outline: A definir |
