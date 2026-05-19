@@ -1,59 +1,74 @@
-# Minuta de Reunión
+# :material-note-text-outline: Minuta de Reunión
 
-**Proyecto:** Chaco — Digitalización de procesos provinciales
-**Fecha:** <!-- YYYY-MM-DD -->
-**Hora:** <!-- HH:MM -->
-**Modalidad:** <!-- Presencial / Videollamada / Híbrida -->
-**Redactada por:** <!-- Nombre del redactor -->
+!!! abstract "Plantilla"
+    Resumen escrito de una reunión: **quién participó, qué se discutió, qué se acordó y qué pasos siguen**. Toda minuta se publica en GitHub Pages para dejar trazabilidad pública del acuerdo.
 
 ---
 
-## Participantes
+## :material-information-outline: Metadatos
+
+| Campo | Valor |
+|---|---|
+| :material-folder-outline: **Proyecto** | Chaco — Digitalización de procesos provinciales |
+| :material-calendar-outline: **Fecha** | `YYYY-MM-DD` |
+| :material-clock-outline: **Hora** | `HH:MM` |
+| :material-video-outline: **Modalidad** | Presencial / Videollamada / Híbrida |
+| :material-account-edit-outline: **Redactada por** | *Nombre del redactor* |
+
+---
+
+## :material-account-group-outline: Participantes
 
 | Nombre | Rol | Organización |
-|--------|-----|-------------|
-| <!-- nombre --> | <!-- rol --> | ICORE |
-| <!-- nombre --> | <!-- rol --> | Equipo Chaco |
+|---|---|---|
+| *Nombre* | *Rol* | ICORE |
+| *Nombre* | *Rol* | Equipo Chaco |
 
 ---
 
-## Objetivo de la reunión
+## :material-bullseye-arrow: Objetivo de la reunión
 
-<!-- Describir en una oración el propósito de la reunión -->
-
----
-
-## Temas tratados
-
-### 1. <!-- Título del tema -->
-<!-- Resumen del tema, lo que se discutió y las posiciones de cada parte -->
-
-### 2. <!-- Título del tema -->
-<!-- Resumen -->
+!!! quote ""
+    *Describir en una oración el propósito de la reunión.*
 
 ---
 
-## Acuerdos y decisiones tomadas
+## :material-forum-outline: Temas tratados
+
+### :material-numeric-1-circle-outline: *Título del tema*
+
+*Resumen del tema, lo que se discutió y las posiciones de cada parte.*
+
+### :material-numeric-2-circle-outline: *Título del tema*
+
+*Resumen.*
+
+---
+
+## :material-handshake-outline: Acuerdos y decisiones tomadas
 
 | # | Acuerdo | Responsable | Fecha límite |
-|---|---------|-------------|-------------|
-| 1 | <!-- descripción --> | <!-- nombre --> | <!-- YYYY-MM-DD --> |
-| 2 | <!-- descripción --> | <!-- nombre --> | <!-- YYYY-MM-DD --> |
+|:-:|---|---|:-:|
+| 1 | *Descripción* | *Nombre* | `YYYY-MM-DD` |
+| 2 | *Descripción* | *Nombre* | `YYYY-MM-DD` |
 
 ---
 
-## Próximos pasos
+## :material-arrow-right-bold: Próximos pasos
 
-- [ ] <!-- Acción 1 — Responsable: XXX — Fecha: YYYY-MM-DD -->
-- [ ] <!-- Acción 2 — Responsable: XXX — Fecha: YYYY-MM-DD -->
-
----
-
-## Próxima reunión
-
-**Fecha propuesta:** <!-- YYYY-MM-DD -->
-**Objetivo:** <!-- Qué se revisará en la próxima reunión -->
+- [ ] *Acción 1* — :material-account-outline: Responsable: **XXX** — :material-calendar-outline: `YYYY-MM-DD`
+- [ ] *Acción 2* — :material-account-outline: Responsable: **XXX** — :material-calendar-outline: `YYYY-MM-DD`
 
 ---
 
-*Minuta aprobada por los participantes. Publicada en: https://mkdir-arg.github.io/Chaco/*
+## :material-calendar-plus-outline: Próxima reunión
+
+| Campo | Valor |
+|---|---|
+| :material-calendar-outline: **Fecha propuesta** | `YYYY-MM-DD` |
+| :material-bullseye-arrow: **Objetivo** | *Qué se revisará en la próxima reunión* |
+
+---
+
+!!! success "Minuta aprobada"
+    Publicada en [mkdir-arg.github.io/Chaco](https://mkdir-arg.github.io/Chaco/) y validada por los participantes.
