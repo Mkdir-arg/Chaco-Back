@@ -14,6 +14,7 @@
     ---
 
     **Rol:** Project Manager
+    **Email:** [mfarina@i-core.com.ar](mailto:mfarina@i-core.com.ar)
     **Enfoque:** Seguimiento general del proyecto, coordinación y priorización.
 
 -   :material-clipboard-text-search-outline:{ .lg .middle } **Agostina Coppola**
@@ -21,6 +22,7 @@
     ---
 
     **Rol:** Analista funcional
+    **Email:** [acoppola@i-core.com.ar](mailto:acoppola@i-core.com.ar)
     **Enfoque:** Relevamiento, definición funcional y validación de alcance.
 
 -   :material-code-braces:{ .lg .middle } **Pablo Cao**
@@ -28,6 +30,7 @@
     ---
 
     **Rol:** Desarrollador Sr.
+    **Email:** [pablocao@i-core.com.ar](mailto:pablocao@i-core.com.ar)
     **Enfoque:** Implementación técnica y soporte de entregas.
 
 -   :material-code-braces:{ .lg .middle } **Juan Kitro**
@@ -35,6 +38,7 @@
     ---
 
     **Rol:** Desarrollador Sr.
+    **Email:** [jkitro@i-core.com.ar](mailto:jkitro@i-core.com.ar)
     **Enfoque:** Implementación técnica y soporte de entregas.
 
 -   :material-palette-outline:{ .lg .middle } **Florencia García**
@@ -42,6 +46,7 @@
     ---
 
     **Rol:** UI / UX Designer
+    **Email:** [fs.ux@i-core.com.ar](mailto:fs.ux@i-core.com.ar)
     **Enfoque:** Experiencia de usuario e interfaz visual del producto.
 
 </div>
