@@ -56,6 +56,7 @@ hide:
     [:octicons-arrow-right-16: Equipo](team.md)
     [:octicons-arrow-right-16: Metodología](methodology.md)
     [:octicons-arrow-right-16: Arquitectura](architecture.md)
+    [:octicons-arrow-right-16: Minutas](minutas/index.md)
 
 -   :material-sprout:{ .lg .middle } **Sprints**
 

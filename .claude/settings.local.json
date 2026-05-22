@@ -21,7 +21,8 @@
       "Bash(xargs -I{} python -c \":*)",
       "Bash(git fetch:*)",
       "Bash(git merge:*)",
-      "Bash(git commit -m \"Merge branch ''Dev'' into ABM-PROGRAMA:*)"
+      "Bash(git commit -m \"Merge branch ''Dev'' into ABM-PROGRAMA:*)",
+      "Bash(gh run *)"
     ]
   }
 }

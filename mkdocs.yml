@@ -78,6 +78,9 @@ nav:
     - Equipo: team.md
     - Metodología: methodology.md
     - Arquitectura: architecture.md
+  - Minutas:
+    - minutas/index.md
+    - Kickoff ICORE / Chaco - 2026-05-20: minutas/kickoff-2026-05-20.md
   - Sprints:
     - sprints/index.md
     - Sprint 001 — Gestión base de ciudadanos: sprints/sprint-001.md
