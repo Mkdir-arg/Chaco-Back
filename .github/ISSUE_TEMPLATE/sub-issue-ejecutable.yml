@@ -1,5 +1,5 @@
 name: "Sub-issue ejecutable"
-description: "Unidad de desarrollo gestionable, derivada de una épica y un análisis."
+description: "Tarea corta y concreta de desarrollo, derivada de un análisis. De una funcionalidad salen N."
 title: "[TASK] "
 labels: ["task"]
 assignees: []
@@ -8,8 +8,9 @@ body:
     attributes:
       value: |
         ## Sub-issue ejecutable
-        Lo que se gestiona en GitHub para desarrollar. Debe poder completarse en un sprint
-        y tener trazabilidad completa hacia su épica y su análisis de origen.
+        **Corto y concreto.** Un dev tiene que entenderlo en 30 segundos:
+        qué se quiere, qué requisitos cumplir y cuándo está aprobado.
+        Si no entra en eso, partilo en varios sub-issues.
 
   - type: input
     id: epica_padre
@@ -27,30 +28,36 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: objetivo
+  - type: textarea
+    id: que_se_quiere
     attributes:
-      label: "Objetivo"
-      placeholder: "Resultado concreto que entrega esta tarea"
+      label: "Qué se quiere"
+      description: "El objetivo concreto de esta tarea, en 1-3 líneas. Sin vueltas."
+      placeholder: "Agregar un filtro por programa en la lista de ciudadanos del backoffice."
     validations:
       required: true
 
   - type: textarea
-    id: alcance
+    id: requisitos
     attributes:
-      label: "Alcance"
+      label: "Requisitos"
+      description: "Lo que la tarea tiene que tener/cumplir. Bullets concretos."
       placeholder: |
-        - Incluye ...
-        - Incluye ...
+        - El filtro aparece arriba de la tabla, junto a los filtros existentes.
+        - Lista solo los programas activos.
+        - Al elegir un programa, la tabla se filtra sin recargar la página.
     validations:
       required: true
 
   - type: textarea
-    id: criterios_aceptacion
+    id: criterios_aprobacion
     attributes:
-      label: "Criterios de aceptación"
+      label: "Criterios de aprobación"
+      description: "Checklist verificable. Si todos se cumplen, la tarea está aprobada."
       placeholder: |
-        - [ ] Dado ..., cuando ..., entonces ...
+        - [ ] Seleccionar un programa muestra solo los ciudadanos de ese programa.
+        - [ ] Sin programa seleccionado, se ven todos.
+        - [ ] No rompe los filtros que ya existían.
     validations:
       required: true
 
@@ -58,40 +65,16 @@ body:
     id: archivos_afectados
     attributes:
       label: "Archivos / módulos afectados"
-      description: "Tomado del estado del código relevado en el análisis"
+      description: "Pista para arrancar rápido (del estado del código relevado en el análisis)."
       placeholder: |
-        - legajos/models.py — ...
-        - legajos/views.py — ...
-    validations:
-      required: true
+        - legajos/views.py
+        - templates/legajos/lista.html
 
   - type: input
     id: estimacion_horas
     attributes:
       label: "Estimación (horas)"
-      placeholder: "Ej: 6"
-    validations:
-      required: true
-
-  - type: textarea
-    id: definition_ready
-    attributes:
-      label: "Definition of Ready"
-      placeholder: |
-        - [ ] Análisis validado
-        - [ ] Criterios de aceptación claros
-        - [ ] Dependencias identificadas
-    validations:
-      required: true
-
-  - type: textarea
-    id: definition_done
-    attributes:
-      label: "Definition of Done"
-      placeholder: |
-        - [ ] Implementado
-        - [ ] PR vinculada
-        - [ ] Validado funcional / QA
+      placeholder: "Ej: 3"
     validations:
       required: true
 

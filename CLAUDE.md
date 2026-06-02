@@ -30,3 +30,10 @@ Trabajar code-first.
 - Templates del portal: extender `portal/base.html`.
 - Confirmaciones destructivas: SweetAlert2 o modal equivalente, nunca `confirm()` nativo.
 - Mantener cambios pequeños, consistentes y fáciles de validar.
+
+## Gestión en GitHub
+
+- El trabajo se organiza en Issues con el modelo: **Épica → Análisis → Sub-issues**.
+- Al crear issues, se dejan en **Backlog**.
+- **Solo el PM mueve las tareas** entre estados/columnas del Project. Ningún agente
+  ni asistente debe cambiar el estado de una tarea: como mucho crea issues en Backlog.

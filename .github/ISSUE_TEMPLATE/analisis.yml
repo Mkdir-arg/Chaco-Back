@@ -60,6 +60,19 @@ body:
       required: true
 
   - type: textarea
+    id: investigacion
+    attributes:
+      label: "Investigación: duplicidad, relacionadas e impacto crítico"
+      description: "Resultado de la búsqueda activa en código e issues. Si algo ya existe, indicar si se reusa / evoluciona / reemplaza."
+      placeholder: |
+        - Duplicidad: [ya existe X → se reusa / evoluciona / reemplaza | Sin duplicidad detectada]
+        - Funcionalidades relacionadas: [feature/módulo/#issue]
+        - Impacto crítico: [qué puede romper: modelos compartidos, permisos, migraciones, signals, integraciones]
+        - Inconsistencias con el sistema actual: [ninguna | detalle]
+    validations:
+      required: true
+
+  - type: textarea
     id: flujo_principal
     attributes:
       label: "Flujo principal"
@@ -124,8 +137,8 @@ body:
   - type: textarea
     id: dependencias_impacto
     attributes:
-      label: "Dependencias e impacto técnico"
-      description: "Qué módulos/datos externos hacen falta y qué puede afectar el cambio"
+      label: "Dependencias e impacto crítico"
+      description: "Qué módulos/datos externos hacen falta y qué puede romper el cambio (precondiciones y consecuencias técnicas)"
       placeholder: |
         - Depende de ...
         - Impacta en ...

@@ -55,15 +55,24 @@ análisis en `docs/`.
    - Si no existe, proponé crearla (objetivo de negocio, problema, funcionamiento
      general, alcance/fuera de alcance, módulo, definición de terminado).
 
-3. **Lectura de código (obligatoria, antes de definir nada).** Localizá el/los
-   módulos Django afectados (`core`, `legajos`, `configuracion`, `conversaciones`,
-   `dashboard`, `portal`, `users`, `tramites`, `healthcheck`…). Usá Glob/Grep/Read
-   sobre `models.py`, `views.py`, `forms.py`, `urls.py`, `selectors`/`services` y
-   templates. Tenés que poder responder:
-   - **Qué hay hecho hoy** para esto.
-   - **Cómo impacta** el cambio (qué se modifica, qué puede romper).
-   - **Qué podés proponer** apoyándote en lo que ya existe (no reinventar).
-   Nunca cierres un análisis sin haber leído el código real.
+3. **Investigación (obligatoria, antes de definir nada).** No alcanza con leer el
+   requerimiento: tenés que **buscar activamente** en el código real y en los
+   issues existentes. Localizá el/los módulos Django afectados (`core`, `legajos`,
+   `configuracion`, `conversaciones`, `dashboard`, `portal`, `users`, `tramites`,
+   `healthcheck`…) y revisá `models.py`, `views.py`, `forms.py`, `urls.py`,
+   `selectors`/`services` y templates con Glob/Grep/Read. Cuatro frentes, **siempre**:
+   - **Duplicidad.** ¿Esto ya existe, total o parcialmente? Buscalo en el código y
+     en las épicas/análisis ya creados (`gh issue list --label epica`,
+     `gh issue list --label analisis`). Si existe, **no se reinventa**: se decide
+     reusar, evolucionar o reemplazar, y se deja escrito.
+   - **Funcionalidades relacionadas.** Qué features tocan la misma área, datos o
+     actores; de qué depende esto y qué depende de esto. Referencialas (#issue / módulo).
+   - **Impacto crítico.** Qué puede romper: modelos compartidos, permisos,
+     migraciones, signals, integraciones y otros módulos que consumen esto.
+   - **Inconsistencias con el sistema.** Si la regla o el flujo propuesto contradice
+     algo que el sistema ya hace hoy.
+   Tenés que poder responder: qué hay hecho, cómo impacta, qué reusás y qué proponés.
+   Nunca cierres un análisis sin esta investigación.
 
 4. **Interrogatorio estructurado.** Completá cada sección del análisis. Cada hueco
    se convierte en una **pregunta concreta** al usuario. No rellenes con supuestos:
@@ -71,7 +80,12 @@ análisis en `docs/`.
 
 5. **Control de consistencia (ESTRICTO).** Antes de generar nada, verificá:
    - No quedan **preguntas abiertas** (todas resueltas o explícitamente "Ninguna").
-   - No hay **contradicciones** entre secciones (flujo vs reglas vs criterios).
+   - No hay **contradicciones** internas (flujo vs reglas vs criterios) **ni con el
+     comportamiento actual del sistema**.
+   - No hay **duplicidad sin resolver**: si algo ya existe, el análisis dice si se
+     reusa, evoluciona o reemplaza.
+   - El **impacto crítico** está identificado y contemplado.
+   - Las **funcionalidades relacionadas** están referenciadas.
    - Cada **criterio de aceptación es verificable** (se puede decir cumple/no cumple).
    - Cada **requerimiento funcional** tiene su criterio o regla asociada.
    - El alcance y el "fuera de alcance" no se pisan.
@@ -101,6 +115,7 @@ Mismo formato siempre. Coinciden con los templates de `.github/ISSUE_TEMPLATE/`.
 - **Contexto y motivación** (prosa)
 - **Actores involucrados**
 - **Estado actual del código** (qué hay, cómo impacta, riesgos) ← de tu lectura del repo
+- **Investigación** (duplicidad, funcionalidades relacionadas, impacto crítico) ← de tu búsqueda activa
 - **Flujo principal**
 - **Flujos alternativos y excepciones**
 - **Reglas de negocio**
@@ -113,37 +128,67 @@ Mismo formato siempre. Coinciden con los templates de `.github/ISSUE_TEMPLATE/`.
 - **Sub-issues propuestos**
 
 ### Sub-issue ejecutable (label `task`, título `[TASK] ...`)
+**Corto y concreto.** De una funcionalidad salen **N sub-issues chicos**. Cada uno
+tiene que entenderse en 30 segundos (los devs no leen mucho). Si no entra, partilo.
+Criterio de corte: una unidad acotada (idealmente un módulo, una vista/flujo), que
+entre en un sprint y se pueda aprobar de una.
 - **Épica padre** (#NN) / **Análisis de origen** (#NN)
-- **Objetivo**
-- **Alcance**
-- **Criterios de aceptación**
-- **Archivos / módulos afectados** (del estado del código relevado)
+- **Qué se quiere** (objetivo concreto, 1-3 líneas)
+- **Requisitos** (qué debe tener/cumplir, bullets concretos)
+- **Criterios de aprobación** (checklist verificable)
+- **Archivos / módulos afectados** (pista para arrancar, del estado del código relevado)
 - **Estimación (horas)**
-- **Definition of Ready** / **Definition of Done**
 - **PR vinculada** (se completa al implementar)
 
 ## Cómo crear los issues (gh)
 
-Prerrequisito: `gh` autenticado (`gh auth status`). Si falla, avisá al usuario que
-corra `gh auth login` y no inventes los issues.
+Prerrequisito: `gh` autenticado con scope `project` (`gh auth status`). Si falla,
+avisá al usuario y no inventes los issues. Los labels `epica`, `analisis` y `task`
+ya existen en el repo.
 
-1. Asegurá que existan los labels (crealos si faltan, sin romper si ya están):
+### Constantes del Project "Proyect Chaco" (Mkdir-arg/Chaco)
+```
+OWNER=Mkdir-arg
+PROJECT_NUMBER=1
+PROJECT_ID=PVT_kwHODLaoqM4BXQVZ
+STATUS_FIELD=PVTSSF_lAHODLaoqM4BXQVZzhSeb2Q   # opción Backlog = f75ad846
+TIPO_FIELD=PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE      # Epica=abc63c47 · Analisis=3dab4bf3 · Task=e03cf9e1
+```
+
+### Para cada issue (épica, análisis y cada sub-issue)
+1. Creá el issue con su cuerpo completo y capturá la URL (usá `--jq` integrado de
+   `gh`, no hace falta el binario `jq`):
    ```bash
-   gh label create epica   --color 6f42c1 --description "Funcionamiento general / objetivo macro" 2>/dev/null || true
-   gh label create analisis --color 0e8a16 --description "Definición, ideas y reglas del requerimiento" 2>/dev/null || true
-   gh label create task     --color 1d76db --description "Sub-issue ejecutable de desarrollo" 2>/dev/null || true
+   URL=$(gh issue create --title "[ANALISIS] ..." --label analisis --body-file <archivo>)
    ```
-2. Creá cada issue con su cuerpo completo (un archivo temporal o `--body`):
+   (`gh issue create` imprime la URL del issue; queda directo en `$URL`.)
+2. Agregalo al Project y capturá el item id con el `--jq` integrado de `gh`:
    ```bash
-   gh issue create --title "[ANALISIS] ..." --label analisis --body-file <archivo>
+   ITEM=$(gh project item-add 1 --owner Mkdir-arg --url "$URL" --format json --jq '.id')
    ```
-3. **Vinculá**: en el cuerpo del análisis referenciá la épica (`Épica padre: #NN`);
-   en cada sub-issue referenciá `Épica padre: #NN` y `Análisis de origen: #MM`.
-   Después de crear los sub-issues, editá el análisis para listar sus números en
-   "Sub-issues propuestos" como checklist (`- [ ] #KK`).
-4. Si el repo tiene un GitHub Project, agregá los issues con
-   `gh project item-add <numero> --owner <owner> --url <url-del-issue>` (si no se
-   puede, no bloquees: reportalo).
+3. Dejalo en **Backlog**:
+   ```bash
+   gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+     --field-id PVTSSF_lAHODLaoqM4BXQVZzhSeb2Q --single-select-option-id f75ad846
+   ```
+4. Seteá **Tipo** según el nivel (Epica=`abc63c47`, Analisis=`3dab4bf3`, Task=`e03cf9e1`):
+   ```bash
+   gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+     --field-id PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE --single-select-option-id <opción-del-nivel>
+   ```
+
+### Vínculos
+- En el cuerpo del análisis: `Épica padre: #NN`.
+- En cada sub-issue: `Épica padre: #NN` + `Análisis de origen: #MM`.
+- Tras crear los sub-issues, editá el análisis para listar sus números en
+  "Sub-issues propuestos" como checklist (`- [ ] #KK`) y actualizá "Análisis
+  vinculados" en la épica.
+
+**Regla de movimiento:** vos solo **creás** issues y los dejás en Backlog. **No
+movés tareas a otros estados/columnas.** Solo el PM mueve las tareas.
+
+Si algún paso del Project falla (scope, red), no bloquees el resto: creá los issues
+igual y reportá qué quedó sin asignar al Project.
 
 Confirmá siempre al final los números de issue creados y la cadena de vínculos.
 
