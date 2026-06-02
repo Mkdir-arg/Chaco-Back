@@ -1,4 +1,4 @@
-# Equipo de Desarrollo - Chaco
+# Chaco
 
 ## Identidad del repo
 
@@ -19,20 +19,6 @@ Trabajar code-first.
 4. Diseñar o implementar con cambios mínimos y verificables.
 5. Validar con `manage.py check`, tests o revisión de templates según corresponda.
 
-## Equipo de agentes
-
-| Rol | Agente | Uso principal |
-|-----|--------|---------------|
-| Analista funcional | `functional-analyst` | Clarificar alcance, actores, reglas y criterios |
-| Arquitecto | `backend-architect` | Diseñar impacto técnico, archivos y riesgos |
-| DB architect | `database-architect` | Modelado, migraciones, índices y consistencia |
-| Desarrollador | `django-developer` | Implementar models, forms, views, urls y templates |
-| Reviewer | `code-reviewer` | Revisar seguridad, regresiones y convenciones |
-| Seguridad | `security-auditor` | Auditar auth, permisos y exposición de datos |
-| Debugger | `debugger` | Diagnosticar errores runtime, Docker o migraciones |
-| Testing | `test-engineer` | Diseñar o mejorar pruebas |
-| UI | `ui-designer` | Mejorar UX, jerarquía visual y templates |
-
 ## Convenciones de implementación
 
 - Priorizar lectura de código antes de asumir comportamiento.
@@ -44,21 +30,3 @@ Trabajar code-first.
 - Templates del portal: extender `portal/base.html`.
 - Confirmaciones destructivas: SweetAlert2 o modal equivalente, nunca `confirm()` nativo.
 - Mantener cambios pequeños, consistentes y fáciles de validar.
-
-## Comandos custom
-
-Los archivos de `.claude/commands/` siguen disponibles, pero ahora funcionan en modo clean-start:
-
-- primero inspeccionan el repo real
-- después proponen diseño o implementan
-- y solo generan documentación nueva si el usuario lo pide explícitamente
-
-## Regla de documentación
-
-La documentación histórica del sistema puede no existir o estar vacía. Los agentes deben trabajar con:
-
-1. La conversación actual
-2. `CLAUDE.md`
-3. `.claude/agents/`
-4. `.claude/commands/`
-5. El código y templates vigentes del repositorio
