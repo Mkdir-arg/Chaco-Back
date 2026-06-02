@@ -84,6 +84,8 @@ nav:
   - Sprints:
     - sprints/index.md
     - Sprint 001 — Gestión base de ciudadanos: sprints/sprint-001.md
+  - Funcionalidades:
+    - funcionalidades/index.md
   - Plantillas operativas:
     - templates/index.md
     - Caso de prueba base: templates/caso-prueba-base.md
