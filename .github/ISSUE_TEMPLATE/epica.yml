@@ -1,0 +1,86 @@
+name: "Épica"
+description: "Funcionamiento general / objetivo macro. No se desarrolla directo: se baja a análisis y sub-issues."
+title: "[EPICA] "
+labels: ["epica"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Épica
+        Define el **funcionamiento general** y el "para qué". No se ejecuta en sprint:
+        se baja a uno o más **análisis funcionales**, y de ahí a **sub-issues ejecutables**.
+
+  - type: textarea
+    id: objetivo_negocio
+    attributes:
+      label: "Objetivo de negocio"
+      description: "Qué resultado se busca lograr"
+      placeholder: "En 1-2 oraciones, el resultado esperado"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: "Problema a resolver"
+      placeholder: "Qué problema existe hoy y a quién impacta"
+    validations:
+      required: true
+
+  - type: textarea
+    id: funcionamiento_general
+    attributes:
+      label: "Funcionamiento general"
+      description: "Cómo debería funcionar a alto nivel, sin entrar en detalle de implementación"
+      placeholder: |
+        - El sistema permite ...
+        - El actor X puede ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alcance
+    attributes:
+      label: "Alcance"
+      placeholder: |
+        - Incluye ...
+        - Incluye ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: fuera_de_alcance
+    attributes:
+      label: "Fuera de alcance"
+      placeholder: |
+        - No incluye ...
+    validations:
+      required: true
+
+  - type: input
+    id: modulo_principal
+    attributes:
+      label: "Módulo principal"
+      placeholder: "Ej: legajos, portal, conversaciones"
+    validations:
+      required: true
+
+  - type: textarea
+    id: definicion_terminado
+    attributes:
+      label: "Definición de terminado de la épica"
+      placeholder: |
+        - [ ] Análisis funcionales cerrados
+        - [ ] Sub-issues críticas completadas
+        - [ ] Validación funcional realizada
+    validations:
+      required: true
+
+  - type: textarea
+    id: analisis_vinculados
+    attributes:
+      label: "Análisis vinculados"
+      description: "Se completa a medida que se crean los análisis de esta épica"
+      placeholder: |
+        - #NN — [nombre del análisis]

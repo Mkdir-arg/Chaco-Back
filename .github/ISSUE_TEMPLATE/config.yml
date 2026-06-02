@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Flujo de trabajo del equipo"
+    url: "https://github.com/Mkdir-arg/Chaco/blob/main/docs/internal/workflow.md"
+    about: "Antes de abrir un issue, revisá el flujo interno (Épica → Análisis → Sub-issue)."

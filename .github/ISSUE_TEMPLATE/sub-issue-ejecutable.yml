@@ -1,0 +1,102 @@
+name: "Sub-issue ejecutable"
+description: "Unidad de desarrollo gestionable, derivada de una épica y un análisis."
+title: "[TASK] "
+labels: ["task"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Sub-issue ejecutable
+        Lo que se gestiona en GitHub para desarrollar. Debe poder completarse en un sprint
+        y tener trazabilidad completa hacia su épica y su análisis de origen.
+
+  - type: input
+    id: epica_padre
+    attributes:
+      label: "Épica padre"
+      placeholder: "Ej: #45"
+    validations:
+      required: true
+
+  - type: input
+    id: analisis_origen
+    attributes:
+      label: "Análisis de origen"
+      placeholder: "Ej: #78"
+    validations:
+      required: true
+
+  - type: input
+    id: objetivo
+    attributes:
+      label: "Objetivo"
+      placeholder: "Resultado concreto que entrega esta tarea"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alcance
+    attributes:
+      label: "Alcance"
+      placeholder: |
+        - Incluye ...
+        - Incluye ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios_aceptacion
+    attributes:
+      label: "Criterios de aceptación"
+      placeholder: |
+        - [ ] Dado ..., cuando ..., entonces ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: archivos_afectados
+    attributes:
+      label: "Archivos / módulos afectados"
+      description: "Tomado del estado del código relevado en el análisis"
+      placeholder: |
+        - legajos/models.py — ...
+        - legajos/views.py — ...
+    validations:
+      required: true
+
+  - type: input
+    id: estimacion_horas
+    attributes:
+      label: "Estimación (horas)"
+      placeholder: "Ej: 6"
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_ready
+    attributes:
+      label: "Definition of Ready"
+      placeholder: |
+        - [ ] Análisis validado
+        - [ ] Criterios de aceptación claros
+        - [ ] Dependencias identificadas
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_done
+    attributes:
+      label: "Definition of Done"
+      placeholder: |
+        - [ ] Implementado
+        - [ ] PR vinculada
+        - [ ] Validado funcional / QA
+    validations:
+      required: true
+
+  - type: input
+    id: pr_vinculada
+    attributes:
+      label: "PR vinculada"
+      placeholder: "Ej: #321"

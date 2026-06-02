@@ -1,0 +1,163 @@
+name: "Análisis funcional"
+description: "Toda definición, idea, aclaración y regla de un requerimiento. Fuente de verdad del conocimiento."
+title: "[ANALISIS] "
+labels: ["analisis"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Análisis funcional
+        Guarda **toda** la definición, idea, aclaración y regla del requerimiento.
+        No puede cerrarse (ni generar sub-issues) si quedan **preguntas abiertas**.
+
+  - type: input
+    id: epica_padre
+    attributes:
+      label: "Épica padre"
+      description: "Número o link de la épica"
+      placeholder: "Ej: #45"
+    validations:
+      required: true
+
+  - type: input
+    id: modulo
+    attributes:
+      label: "Módulo / App"
+      placeholder: "Ej: legajos"
+    validations:
+      required: true
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: "Contexto y motivación"
+      description: "Por qué existe, qué problema resuelve, quién lo pidió. En prosa."
+      placeholder: "Descripción que permita entender la funcionalidad sin conocer el sistema de antemano."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actores
+    attributes:
+      label: "Actores involucrados"
+      description: "Quién interactúa, con qué rol y qué puede hacer"
+      placeholder: |
+        - [Actor] ([rol]): [qué puede hacer]
+    validations:
+      required: true
+
+  - type: textarea
+    id: estado_codigo
+    attributes:
+      label: "Estado actual del código"
+      description: "Qué ya existe hoy en el repo para esto (models, views, forms, templates) y cómo impacta el cambio. Lo completa el analista tras leer el código."
+      placeholder: |
+        - Ya existe: ...
+        - Habría que modificar: ...
+        - Riesgo de romper: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: flujo_principal
+    attributes:
+      label: "Flujo principal"
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: flujos_alternativos
+    attributes:
+      label: "Flujos alternativos y excepciones"
+      placeholder: |
+        **[Nombre]** — Condición: ... / Comportamiento: ...
+
+  - type: textarea
+    id: reglas_negocio
+    attributes:
+      label: "Reglas de negocio"
+      description: "Restricciones y validaciones que no son obvias y el desarrollador necesita conocer"
+      placeholder: |
+        - RN-01: [regla] → [consecuencia si no se cumple]
+    validations:
+      required: true
+
+  - type: textarea
+    id: requerimientos_funcionales
+    attributes:
+      label: "Requerimientos funcionales"
+      description: "Cada uno debe ser verificable (cumple / no cumple)"
+      placeholder: |
+        - RF-01: [descripción verificable] (Prioridad: Alta/Media/Baja)
+    validations:
+      required: true
+
+  - type: textarea
+    id: requerimientos_no_funcionales
+    attributes:
+      label: "Requerimientos no funcionales"
+      placeholder: |
+        - RNF-01: [ej: la búsqueda responde en < 2s] (Performance)
+
+  - type: textarea
+    id: criterios_aceptacion
+    attributes:
+      label: "Criterios de aceptación"
+      placeholder: |
+        - [ ] Dado ..., cuando ..., entonces ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: casos_limite
+    attributes:
+      label: "Casos límite"
+      description: "Situaciones borde que el sistema debe manejar explícitamente"
+      placeholder: |
+        - [Caso] → [comportamiento esperado]
+
+  - type: textarea
+    id: dependencias_impacto
+    attributes:
+      label: "Dependencias e impacto técnico"
+      description: "Qué módulos/datos externos hacen falta y qué puede afectar el cambio"
+      placeholder: |
+        - Depende de ...
+        - Impacta en ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: fuera_de_alcance
+    attributes:
+      label: "Fuera de alcance"
+      placeholder: |
+        - No incluye ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: preguntas_abiertas
+    attributes:
+      label: "Preguntas abiertas"
+      description: "Deben estar TODAS cerradas antes de generar sub-issues. Si no hay, escribir 'Ninguna'."
+      placeholder: |
+        - [ ] [pregunta] — responsable: ... — estado: Abierta
+    validations:
+      required: true
+
+  - type: textarea
+    id: sub_issues_propuestos
+    attributes:
+      label: "Sub-issues propuestos"
+      description: "Tareas ejecutables que salen de este análisis"
+      placeholder: |
+        - [ ] [TASK] ...
+        - [ ] [TASK] ...
+    validations:
+      required: true
