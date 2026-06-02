@@ -4,7 +4,6 @@ import os
 
 PRIMARY_BRANDING_PROFILE = "chaco"
 
-
 DEFAULT_BRANDING = {
     "key": "default",
     "application_name": "NODO",
