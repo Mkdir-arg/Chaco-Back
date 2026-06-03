@@ -43,7 +43,11 @@ sin análisis de origen. La fuente de verdad es **el Issue**, no archivos `.md`.
    - **Inconsistencias con el sistema.** Si la regla o el flujo contradice algo que
      el sistema ya hace hoy.
 4. **Interrogatorio estructurado.** Completá cada sección. Cada hueco = una pregunta
-   concreta. No rellenes con supuestos.
+   concreta. **Agrupá las preguntas por sección** (no las dispares de a una suelta):
+   presentá las dudas de una sección juntas, numeradas, y mostrá el avance ("vamos por
+   Reglas de negocio, 3 de 8 secciones"). No rellenes con supuestos: si algo se da por
+   sentado, registralo explícitamente como **Asunción** (no como hecho) y, si es
+   relevante, convertilo en pregunta abierta para que el cliente lo confirme.
 5. **Control de consistencia (ESTRICTO).** Antes de generar nada, verificá:
    - No quedan **preguntas abiertas** (resueltas o explícitamente "Ninguna").
    - No hay **contradicciones** internas ni con el comportamiento actual del sistema.
@@ -65,13 +69,18 @@ Alcance / Fuera de alcance · Módulo principal · Definición de terminado ·
 Análisis vinculados (se completa a medida).
 
 ### Análisis (label `analisis`, título `[ANALISIS] ...`)
-Épica padre (#NN) · Módulo/App · Contexto y motivación (prosa) · Actores ·
-**Estado actual del código** · **Investigación** (duplicidad / relacionadas /
-impacto crítico / inconsistencias) · Flujo principal · Flujos alternativos ·
-Reglas de negocio · Requerimientos funcionales (verificables) / no funcionales ·
-Criterios de aceptación (Dado/Cuando/Entonces) · Casos límite · Dependencias e
-impacto crítico · Fuera de alcance · **Preguntas abiertas** (todas cerradas para
-generar sub-issues) · Sub-issues propuestos.
+**Estado** (`En análisis` | `Definido`) · Épica padre (#NN) · Módulo/App · Contexto
+y motivación (prosa) · Actores · **Estado actual del código** · **Investigación**
+(duplicidad / relacionadas / impacto crítico / inconsistencias) · Flujo principal ·
+Flujos alternativos · Reglas de negocio · Requerimientos funcionales (verificables) /
+no funcionales · Criterios de aceptación (Dado/Cuando/Entonces) · Casos límite ·
+**Asunciones** (lo que se da por sentado y debería confirmar el cliente) ·
+Dependencias e impacto crítico · Fuera de alcance · **Preguntas abiertas** ·
+Sub-issues propuestos.
+
+**Ciclo del análisis:** nace en `En análisis`. Pasa a `Definido` **solo** cuando no
+quedan preguntas abiertas y supera el control estricto. Los sub-issues se generan
+recién con el análisis en `Definido`.
 
 ### Sub-issue ejecutable (label `task`, título `[TASK] ...`)
 **Corto y concreto.** De una funcionalidad salen **N sub-issues chicos**. Cada uno
@@ -108,6 +117,34 @@ gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
 # 4. Tipo según nivel (Epica=abc63c47 · Analisis=3dab4bf3 · Task=e03cf9e1)
 gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
   --field-id PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE --single-select-option-id <opción-del-nivel>
+```
+
+### Campos del Project a completar (con los datos del análisis)
+No dejes la info solo en el cuerpo del issue: cargá también los **campos
+estructurados** del Project para que el PM pueda filtrar y sumar. IDs de campo:
+```
+PRIORIDAD_FIELD=PVTSSF_lAHODLaoqM4BXQVZzhSec48   # Alta=79628723 · Media=0a877460 · Baja=da944a9c
+MODULO_FIELD=PVTF_lAHODLaoqM4BXQVZzhTBIdY         # texto
+ESTHORAS_FIELD=PVTF_lAHODLaoqM4BXQVZzhTBIYY       # número
+```
+Qué campo va en cada nivel:
+
+| Campo | Épica | Análisis | Sub-issue |
+|-------|:-----:|:--------:|:---------:|
+| Prioridad (single-select) | ✔ | — | ✔ |
+| Modulo (texto) | ✔ | ✔ | ✔ |
+| EstimacionHoras (número) | — | — | ✔ |
+
+```bash
+# Prioridad (single-select)
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id PVTSSF_lAHODLaoqM4BXQVZzhSec48 --single-select-option-id <Alta|Media|Baja>
+# Modulo (texto)
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id PVTF_lAHODLaoqM4BXQVZzhTBIdY --text "legajos"
+# EstimacionHoras (número, solo sub-issue)
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id PVTF_lAHODLaoqM4BXQVZzhTBIYY --number 3
 ```
 
 ### Vínculos

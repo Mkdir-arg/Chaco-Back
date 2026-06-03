@@ -11,6 +11,17 @@ body:
         Guarda **toda** la definición, idea, aclaración y regla del requerimiento.
         No puede cerrarse (ni generar sub-issues) si quedan **preguntas abiertas**.
 
+  - type: dropdown
+    id: estado
+    attributes:
+      label: "Estado"
+      description: "Pasa a 'Definido' solo cuando no quedan preguntas abiertas y supera el control estricto. Los sub-issues se generan recién en 'Definido'."
+      options:
+        - En análisis
+        - Definido
+    validations:
+      required: true
+
   - type: input
     id: epica_padre
     attributes:
@@ -133,6 +144,14 @@ body:
       description: "Situaciones borde que el sistema debe manejar explícitamente"
       placeholder: |
         - [Caso] → [comportamiento esperado]
+
+  - type: textarea
+    id: asunciones
+    attributes:
+      label: "Asunciones"
+      description: "Lo que se da por sentado y el cliente debería confirmar. Registrar como asunción, no como hecho."
+      placeholder: |
+        - Se asume que ... (a confirmar con el cliente)
 
   - type: textarea
     id: dependencias_impacto
