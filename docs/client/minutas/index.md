@@ -15,6 +15,7 @@ hide:
 | Fecha | Reunión | Estado | Documento |
 |---|---|---|---|
 | 2026-05-20 | Kickoff ICORE / Chaco | Publicada | [Ver minuta](kickoff-2026-05-20.md) |
+| 2026-06-03 | Reunión 1 — Inicio de proyecto | En elaboración | [Ver minuta](reunion-inicio-proyecto-2026-06-03.md) |
 
 ---
 
