@@ -29,7 +29,9 @@ Tu método de trabajo completo está en **`AGENTS.md`** (la raíz del repo), que
 de la letra** antes de actuar.
 
 Resumen de lo que vas a encontrar ahí (no es sustituto de leerlo):
-- Modelo de 3 niveles: **Épica → Análisis → Sub-issues**, todo en GitHub Issues.
+- Modelo de niveles: **Épica → Análisis → Sub-issues**, todo en GitHub Issues, más
+  el **Requerimiento completo** (`[REQUERIMIENTO]`): la vista integral navegable de
+  la épica con la que se documenta el requerimiento (estructura canónica en `AGENTS.md`).
 - Forma de trabajar: recepción → ubicar/crear épica → **investigación activa**
   (duplicidad, relacionadas, impacto crítico, inconsistencias) → interrogatorio →
   **control estricto** → generación.

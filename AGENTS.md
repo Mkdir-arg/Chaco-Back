@@ -14,15 +14,22 @@ gracias a este método: misma forma de relevar, mismas estructuras, misma discip
 
 ## Modelo de 3 niveles (todo vive en GitHub Issues)
 
-| Nivel | Label | Qué guarda |
+| Nivel | Label / Título | Qué guarda |
 |-------|-------|------------|
 | **Épica** | `epica` | El funcionamiento general / objetivo macro. El "para qué". |
 | **Análisis** | `analisis` | **Toda** definición, idea, aclaración y regla. Fuente de verdad del conocimiento. |
 | **Sub-issue** | `task` | Lo que se desarrolla, con criterios de aprobación. La unidad que se gestiona. |
+| **Requerimiento** | título `[REQUERIMIENTO]` | **Vista integral navegable** de la épica: síntesis de punta a punta de todos sus análisis en un solo Issue. Es cómo se documenta y entrega el requerimiento al lector. |
 
 Cadena obligatoria: **Épica → Análisis → Sub-issues**. El análisis cuelga de una
 épica; cada sub-issue cuelga de un análisis. No hay análisis huérfanos ni sub-issues
 sin análisis de origen. La fuente de verdad es **el Issue**, no archivos `.md`.
+
+Por cada épica se crea **un Requerimiento completo** (`[REQUERIMIENTO]`): no agrega
+conocimiento nuevo (la fuente sigue siendo cada análisis), pero **consolida** la
+épica y sus análisis en un documento único, leíble de corrido, orientado a entender
+qué se pide y cómo funciona end-to-end. Es la forma estándar de documentar el
+requerimiento.
 
 ## Forma de trabajar (siempre igual, en este orden)
 
@@ -64,6 +71,9 @@ sin análisis de origen. La fuente de verdad es **el Issue**, no archivos `.md`.
    Si algo falla: **NO generes issues.** Listá qué falta y frená. No hay dudas ni inconsistencias.
 6. **Generación en GitHub.** Recién con todo cerrado, creá los issues con sus labels,
    vinculados épica ↔ análisis ↔ sub-issues, en Backlog, y reportá los números.
+7. **Requerimiento completo.** Con la épica y sus análisis cerrados, creá el Issue
+   `[REQUERIMIENTO]` que consolida todo (estructura en "Estructuras canónicas"),
+   agregalo al Project en Backlog y reportá su número junto con la cadena.
 
 ## Estructuras canónicas (coinciden con `.github/ISSUE_TEMPLATE/`)
 
@@ -95,6 +105,34 @@ y se apruebe de una.
 **Requisitos** (bullets concretos) · **Criterios de aprobación** (checklist
 verificable) · Archivos/módulos afectados · Estimación (horas) · PR vinculada.
 
+### Requerimiento completo (título `[REQUERIMIENTO] ...`)
+Síntesis integral de una épica y **todos** sus análisis en un solo Issue, leíble de
+punta a punta. **No inventa nada**: solo consolida lo ya definido. Lenguaje claro
+orientado a entender qué se pide y cómo funciona. Secciones, en este orden:
+
+1. **Encabezado** — una línea que aclara que es la vista integral y referencia la
+   épica y los análisis que sintetiza (`Épica #NN · Análisis #… `).
+2. **Objetivo** — qué se logra, en 1-2 oraciones.
+3. **Concepto / cómo se modela** — las piezas centrales del dominio y cómo se
+   relacionan (las "cosas" que maneja la funcionalidad).
+4. **Actores** — quién usa cada parte y con qué permiso de acceso.
+5. **Funcionamiento end-to-end** — el flujo completo en prosa, de principio a fin.
+6. **Pantallas / superficies, una por una** — para cada pantalla una tabla
+   **Operación → Qué hace**. En ABM, una fila por operación: **List · Detail ·
+   Create · Edit · Delete** (+ las acciones propias, p. ej. Activar/Desactivar).
+   Cada "qué hace" en una línea, que se entienda solo.
+7. **Reglas de negocio (consolidadas)** — todas las reglas juntas, sin repetir.
+8. **Reemplazo / limpieza de lo existente** — qué legacy se elimina o migra (si aplica).
+9. **Criterios de aceptación globales** — checklist verificable de la épica entera.
+10. **Fuera de alcance**.
+11. **Asunciones a confirmar** — lo que se da por sentado y debe validar el cliente.
+12. **Datos de referencia** (opcional) — catálogos/tablas que ayuden a leer el todo.
+13. **Pie** — `Épica #NN · Análisis #…` con el rol de cada uno.
+
+Regla: el Requerimiento se genera **recién con la épica y sus análisis cerrados**
+(todos en `Definido`, sin preguntas abiertas). Si un análisis cambia, se actualiza
+el Requerimiento.
+
 ## Crear los issues (gh)
 
 Prerrequisito: `gh` autenticado con scope `project`. Si falla, avisá y no inventes
@@ -122,6 +160,13 @@ gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
 gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
   --field-id PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE --single-select-option-id <opción-del-nivel>
 ```
+
+### Requerimiento completo (caso especial)
+Se crea igual (crear → item-add → Status Backlog → Prioridad + Modulo), con el
+título `[REQUERIMIENTO] ...`. **Sin opción de Tipo propia**: el campo Tipo del
+Project hoy solo tiene Epica/Analisis/Task, así que el Requerimiento se deja **sin
+Tipo** (o con "Requerimiento" si el PM agrega esa opción). No lleva label nuevo:
+alcanza con el prefijo `[REQUERIMIENTO]` en el título.
 
 ### Campos del Project a completar (con los datos del análisis)
 No dejes la info solo en el cuerpo del issue: cargá también los **campos
