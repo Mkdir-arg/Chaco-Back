@@ -47,6 +47,7 @@ htmlcov/
 # Local tooling
 .codex-linux-first/
 .claude/worktrees/
+.github/worklog/
 
 # MkDocs
 site/

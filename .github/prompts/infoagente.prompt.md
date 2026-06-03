@@ -27,6 +27,8 @@ estricto → generación); (4) los comandos disponibles en ambas herramientas:
 | Crear un análisis | `/analisis:analisis` | `/analisis-analisis` |
 | Derivar sub-issues | `/analisis:issue` | `/analisis-issue` |
 | Publicar a docs/client | `/analisis:publicar` | `/analisis-publicar` |
+| Iniciar imputación horaria | — | `/inicio-de-trabajo` |
+| Cerrar imputación y actualizar sprint | — | `/fin-de-trabajo` |
 | Este manual | `/infoagente` | `/infoagente` |
 
 (5) las reglas que no se negocian (investigación obligatoria, control estricto,
