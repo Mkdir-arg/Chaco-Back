@@ -56,9 +56,9 @@ anatomy:
       position: "right-aligned in filter row"
 
   column_header:
-    font: "Inter Medium 13px"
-    color: "text-body (#4b5563)"
-    transform: "none (NOT uppercase — differs from stat card labels)"
+    font: "Inter SemiBold 12px (text-xs font-semibold)"
+    color: "text-body-subtle (#6b7280)"
+    transform: "uppercase"
     border_bottom: "border-base (#e5e7eb) 1px"
     background: "same as table (no different bg)"
     sortable:

@@ -174,12 +174,23 @@ templates/includes/base.html                   ← Main template entry point
 
 ---
 
-### Notes on Conflicts to Resolve
+### Source Hierarchy
 
-1. **Two token systems coexist:** `NODO DS.md` uses magenta (`#FF0080`) as brand primary. `chaco-tokens.json` uses Jacaranda (`#5059BC`) as brand primary. **Resolution: Use `chaco-tokens.json` as authoritative. NODO DS.md is an earlier version.**
+**CHACO siempre gana sobre NODO.** `NODO DS.md` es la documentación del proyecto padre. En todo conflicto prevalece `CHACO_NODO_Design_Manual.md` + `chaco-tokens.json`. NODO DS.md se usa únicamente como fallback para especificaciones que CHACO no documenta (e.g., alturas exactas de botón, valores hex de badge).
 
-2. **Table header typography conflict:** CHACO_NODO_Design_Manual says `text-xs font-semibold uppercase` for column headers. NODO DS.md says `Inter Medium 13px, text-body`. **Resolution: Prefer the manual's spec (uppercase, semibold xs) for new implementations.**
+**Decisiones ya resueltas (no requieren consulta):**
+- Brand primary: `#5059BC` (Jacaranda), no magenta
+- Gradiente Brand button: `linear-gradient(45deg, #5059BC, #598DFF)`
+- Botón tertiary: `#5059BC` en border y texto
+- Sidebar active: pill `bg-brand (#5059bc)` + texto blanco
+- Asterisco requerido: `text-fg-danger` (rojo)
+- Headers de tabla: `text-xs, font-semibold, uppercase, text-body-subtle`
+- Border-radius botones: `rounded-full` (pill / 9999px)
 
-3. **Icon libraries:** New templates → Heroicons only. Legacy → Font Awesome only. Never mix.
+**Pendientes técnicos (sin conflicto, pero sin valor exacto en fuentes CHACO):**
+- Ancho exacto del sidebar: main.css dice 300px, manual dice ~205px — ver pregunta A1
+- `#598DFF` como stop final del gradiente no está en chaco-tokens.json — verificar si tiene token
 
-4. **CSS coexistence:** New templates → Tailwind CSS. Legacy → Bootstrap. Never mix in same component.
+**Coexistencia de stacks:**
+- Iconos nuevos → Heroicons. Legacy → Font Awesome. Nunca mezclar en el mismo componente.
+- CSS nuevos → Tailwind CSS. Legacy → Bootstrap. Nunca mezclar en el mismo componente.

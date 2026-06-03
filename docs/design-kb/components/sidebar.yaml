@@ -30,7 +30,7 @@ states:
     transition: "150ms ease"
 
   nav_item_active:
-    shape: "pill (rounded-full or rounded-lg: 8px)"
+    shape: "pill (rounded-full — 9999px)"
     background: "bg-brand (#5059bc)"
     text_color: "text-white (#ffffff)"
     icon_color: "text-white"

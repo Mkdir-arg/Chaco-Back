@@ -1,6 +1,7 @@
 # =============================================================
 # Component: Button
-# Source: CHACO_NODO_Design_Manual.md §7, NODO DS.md §5
+# Source: CHACO_NODO_Design_Manual.md §7
+# Note: NODO DS.md values were the parent project spec and are superseded by CHACO.
 # =============================================================
 
 purpose: >
@@ -11,20 +12,19 @@ purpose: >
 variants:
   brand:
     description: "Primary action button with gradient fill. One per section maximum."
-    background: "linear-gradient(45deg, #5059BC, #F26DF9)"
-    alternative_gradient: "linear-gradient(45deg, #7928CA, #FF0080)"
+    background: "linear-gradient(45deg, #5059BC, #598DFF)"
     text_color: "#ffffff"
     border: "none"
     states:
       default:
-        background: "linear-gradient(45deg, #5059BC, #F26DF9)"
+        background: "linear-gradient(45deg, #5059BC, #598DFF)"
         text: "#ffffff"
         border: "none"
       hover:
-        background: "linear-gradient(45deg, #5059BC, #F26DF9) + ::after overlay #000 20% opacity"
+        background: "linear-gradient(45deg, #5059BC, #598DFF) + ::after overlay #000 20% opacity"
         text: "#ffffff"
       focus:
-        background: "linear-gradient(45deg, #5059BC, #F26DF9)"
+        background: "linear-gradient(45deg, #5059BC, #598DFF)"
         border: "#5059BC 2px"
         text: "#ffffff"
         box_shadow: "0 1px 0 2px #E5E7EB"
@@ -78,26 +78,6 @@ variants:
         text: "#5059BC"
         cursor: "not-allowed"
 
-    # Alternative values from NODO DS.md (magenta-based):
-    nodo_ds_alternative:
-      default:
-        background: "#FFFFFF"
-        border: "#FF0080 1px"
-        text: "#FF0080"
-      hover:
-        background: "rgba(255,0,128,0.1)"
-        border: "#D4006A 1px"
-        text: "#D4006A"
-      focus:
-        background: "rgba(212,0,106,0.1)"
-        border: "#D4006A 1px"
-        text: "#D4006A"
-        box_shadow: "0 1px 0 2px #F3F4F6"
-      disabled:
-        background: "rgba(199,160,180,0.2)"
-        border: "#C7A0B4 1px"
-        text: "#D4006A"
-
 sizes:
   xs:
     font: "Inter Medium 12px"
@@ -105,7 +85,7 @@ sizes:
     padding_h: "12px"
     gap_icon: "6px"
     height: "32px"
-    border_radius: "12px"
+    border_radius: "rounded-full (9999px — pill shape)"
     min_width: "~128px"
 
   sm:
@@ -114,7 +94,7 @@ sizes:
     padding_h: "12px"
     gap_icon: "6px"
     height: "36px"
-    border_radius: "12px"
+    border_radius: "rounded-full (9999px — pill shape)"
     min_width: "~140px"
 
   base:
@@ -123,7 +103,7 @@ sizes:
     padding_h: "16px"
     gap_icon: "6px"
     height: "40px"
-    border_radius: "12px"
+    border_radius: "rounded-full (9999px — pill shape)"
     min_width: "~152px"
     note: "DEFAULT size"
 
@@ -133,7 +113,7 @@ sizes:
     padding_h: "20px"
     gap_icon: "6px"
     height: "48px"
-    border_radius: "12px"
+    border_radius: "rounded-full (9999px — pill shape)"
     min_width: "~166px"
 
   xl:
@@ -142,7 +122,7 @@ sizes:
     padding_h: "24px"
     gap_icon: "6px"
     height: "52px"
-    border_radius: "12px"
+    border_radius: "rounded-full (9999px — pill shape)"
     min_width: "~186px"
 
 states:

@@ -66,14 +66,14 @@ states:
 
 anatomy:
   structure: |
-    Label *               ← Inter Medium 13px, text-heading. * in text-fg-brand if required
+    Label *               ← Inter Medium 13px, text-heading. * in text-fg-danger if required
     [leading-icon]  [input text / placeholder]   ← 40px height (base size)
     [helper text or error message]               ← Inter Regular 12px, text-body-subtle / text-fg-danger
 
   label:
     font: "Inter Medium 13px"
     color: "text-heading"
-    required_indicator: "* in text-fg-brand (#ff0080)"
+    required_indicator: "* in text-fg-danger (#c70036)"
     position: "Always above the field — never inside (placeholder only for hint text)"
 
   icon_prefix:

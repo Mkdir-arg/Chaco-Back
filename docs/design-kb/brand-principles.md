@@ -93,11 +93,11 @@ The NODO logo is composed of:
 
 ## Brand Color Gradient
 
-The signature gradient — **Jacaranda → Rosa at 45°** — is the single most recognizable brand element.
+The signature gradient — **Jacaranda → Azul Claro at 45°** — es el elemento de marca más distintivo del sistema.
 
 | Format | Value |
 |--------|-------|
-| CSS | `linear-gradient(45deg, #5059BC, #F26DF9)` |
-| Alternative (NODO DS) | `linear-gradient(45deg, #7928CA, #FF0080)` |
+| CSS | `linear-gradient(45deg, #5059BC, #598DFF)` |
+| CSS variable approach | `linear-gradient(45deg, var(--color-brand-700), #598DFF)` |
 
 Used on: primary Brand buttons, sidebar logo badge, metric card icon shapes, total/summary banner backgrounds.

@@ -129,8 +129,8 @@ Each rule includes confidence level, evidence, and rationale.
 **Rationale:** This allows icons to automatically adapt to dark mode and state changes.
 **How to apply:** Apply `text-[token]` class to the icon element. Never use `fill` or `stroke` with hardcoded values.
 
-### IR-CP04: The brand color in NODO DS.md is magenta (#FF0080) while the final design tokens use Jacaranda (#5059BC) as brand
+### IR-CP04: NODO DS.md es la versión anterior del sistema (proyecto padre). CHACO_NODO_Design_Manual.md y chaco-tokens.json son la fuente autorizada
 **Confidence:** HIGH
-**Evidence:** NODO DS.md §1 states brand color = `#FF0080`. chaco-tokens.json/css uses `--color-brand-*` as Jacaranda/purple (`#5059BC`). The button gradient uses both.
-**Rationale:** There appear to be two versions of the design system — an earlier one (NODO DS.md, magenta-first) and a newer one (chaco-tokens.json, Jacaranda/purple-first). The newer token system should be considered authoritative.
-**How to apply:** Use `chaco-tokens.json` / `chaco-tokens.css` tokens as the source of truth. The gradient button in both versions uses the purple→pink combination, so both systems are consistent on that.
+**Evidence:** NODO DS.md corresponde al proyecto NODO del que derivó CHACO. Toda especificación de CHACO (chaco-tokens.json, CHACO_NODO_Design_Manual.md) supera a NODO DS.md en caso de conflicto. Donde NODO DS.md tiene datos que CHACO no documenta, se incorporan como valores de fallback.
+**Rationale:** CHACO es una adaptación de NODO con su propia identidad de marca. El color de marca es Jacaranda (#5059BC), no magenta (#FF0080). El gradiente del botón Brand es `#5059BC → #598DFF`.
+**How to apply:** Usar exclusivamente `chaco-tokens.json` / `chaco-tokens.css` / `CHACO_NODO_Design_Manual.md` como fuentes. Consultar NODO DS.md únicamente para componentes sin documentar en CHACO (tamaños exactos de botón, especificaciones de badge en hex).
