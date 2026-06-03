@@ -1,0 +1,85 @@
+# =============================================================
+# Component: Alert Panel (Critical Alerts)
+# Source: CHACO_NODO_Design_Manual.md §12.8
+# =============================================================
+
+purpose: >
+  Displays a collection of critical alerts that require the user's attention.
+  Appears on the dashboard home screen when critical conditions exist.
+  The panel is absent when there are no alerts — not rendered as empty.
+
+variants:
+  critical:
+    trigger: "When citizens with high risk, no-contact, or overdue follow-up exist"
+    container_bg: "bg-brand-softer / bg-danger-soft (rosa very soft)"
+    container_border: "border-brand-subtle or border-danger-subtle"
+    border_radius: "rounded-xl (8–12px)"
+
+states:
+  with_alerts:
+    shows: "Full panel with alert cards"
+  no_alerts:
+    shows: "Component is NOT rendered — not shown as empty"
+
+anatomy:
+  structure: |
+    ┌─────────────────────────────────────────────────┐
+    │ Alertas Críticas                   3 Alertas × │
+    │ ┌──────────────┐ ┌──────────────┐ ┌──────────┐  │
+    │ │ Juan Pérez   │ │ María García │ │ Carlos   │  │
+    │ │ Riesgo Alto  │ │ Sin Contacto │ │ Seg. Ven.│  │
+    │ │ Hace 2 horas │ │ Hace 4 horas │ │ Ayer     │  │
+    │ └──────────────┘ └──────────────┘ └──────────┘  │
+    └─────────────────────────────────────────────────┘
+
+  header:
+    title: "Alertas Críticas"
+    badge: "Count badge (e.g., '3 Alertas') — badge-danger or text-fg-danger with × dismiss"
+
+  alert_cards:
+    background: "bg-white"
+    border: "border-base"
+    border_radius: "rounded-lg (8px)"
+    content:
+      citizen_name: "text-sm, font-semibold, text-heading"
+      alert_type: "Badge — danger/warning variant matching the alert type"
+      time_ago: "text-xs, text-body-subtle, relative time format"
+    action_arrow:
+      icon: "ChevronRightIcon or ArrowRightIcon"
+      color: "text-fg-brand"
+      function: "Navigates to citizen detail"
+
+responsive_rules:
+  - "Alert cards scroll horizontally if more than 3 alerts"
+  - "Mobile behavior: UNKNOWN"
+
+accessibility_rules:
+  - "Panel title announces urgency — 'Alertas Críticas'"
+  - "Each alert card should be an accessible link to the citizen"
+  - "Dismiss (×) button has aria-label"
+  - "Alert count badge communicates quantity"
+
+allowed_usage:
+  - "Dashboard home screen only"
+  - "Rendered only when critical alerts exist"
+
+forbidden_usage:
+  - "Showing the panel in empty state"
+  - "Using this pattern for non-critical informational messages (use info banner instead)"
+  - "Hard-coding citizen names or alert counts"
+
+examples:
+  panel: |
+    <div class="alert-panel bg-brand-softer border border-brand-subtle rounded-xl p-4">
+      <div class="flex justify-between">
+        <h3 class="font-semibold text-heading">Alertas Críticas</h3>
+        <span class="badge-danger badge-sm">3 Alertas ×</span>
+      </div>
+      <div class="alert-cards flex gap-3 mt-3">
+        <!-- alert cards -->
+      </div>
+    </div>
+
+anti_examples:
+  - "An empty 'Alertas Críticas' panel with 'No hay alertas' text — omit entirely when empty"
+  - "Using blue/info color for critical alerts that need danger treatment"

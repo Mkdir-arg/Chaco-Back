@@ -1,0 +1,199 @@
+# =============================================================
+# Component: Button
+# Source: CHACO_NODO_Design_Manual.md §7, NODO DS.md §5
+# =============================================================
+
+purpose: >
+  The primary interactive element for triggering actions.
+  Three variants establish a strict visual hierarchy.
+  Only one Brand button may appear per screen section.
+
+variants:
+  brand:
+    description: "Primary action button with gradient fill. One per section maximum."
+    background: "linear-gradient(45deg, #5059BC, #F26DF9)"
+    alternative_gradient: "linear-gradient(45deg, #7928CA, #FF0080)"
+    text_color: "#ffffff"
+    border: "none"
+    states:
+      default:
+        background: "linear-gradient(45deg, #5059BC, #F26DF9)"
+        text: "#ffffff"
+        border: "none"
+      hover:
+        background: "linear-gradient(45deg, #5059BC, #F26DF9) + ::after overlay #000 20% opacity"
+        text: "#ffffff"
+      focus:
+        background: "linear-gradient(45deg, #5059BC, #F26DF9)"
+        border: "#5059BC 2px"
+        text: "#ffffff"
+        box_shadow: "0 1px 0 2px #E5E7EB"
+      disabled:
+        background: "#F3F4F6"
+        border: "#E5E7E8 1px"
+        text: "#99A1AF"
+        cursor: "not-allowed"
+
+  secondary:
+    description: "Alternative action. Less visual weight than brand, neutral outlined style."
+    states:
+      default:
+        background: "#F9FAFB"
+        border: "#E5E7EB 1px"
+        text: "#4A5565"
+      hover:
+        background: "#F3F4F6"
+        border: "#E5E7EB 1px"
+        text: "#101828"
+      focus:
+        background: "#F3F4F6"
+        border: "#E5E7EB 1px"
+        text: "#101828"
+        box_shadow: "0 1px 0 2px #F3F4F6"
+      disabled:
+        background: "#F3F4F6"
+        border: "#E5E7E8 1px"
+        text: "#99A1AF"
+        cursor: "not-allowed"
+
+  tertiary:
+    description: "Outlined brand. Secondary actions with brand identity (e.g., Back, Export)."
+    states:
+      default:
+        background: "#FFFFFF"
+        border: "#5059BC 1px"
+        text: "#5059BC"
+      hover:
+        background: "#DEE1FF"
+        border: "#5059BC 1px"
+        text: "#5059BC"
+      focus:
+        background: "#DEE1FF"
+        border: "#2331C9 1px"
+        text: "#2331C9"
+        box_shadow: "0 1px 0 2px #F3F4F6"
+      disabled:
+        background: "#F0F2FF"
+        border: "#5059BC 1px"
+        text: "#5059BC"
+        cursor: "not-allowed"
+
+    # Alternative values from NODO DS.md (magenta-based):
+    nodo_ds_alternative:
+      default:
+        background: "#FFFFFF"
+        border: "#FF0080 1px"
+        text: "#FF0080"
+      hover:
+        background: "rgba(255,0,128,0.1)"
+        border: "#D4006A 1px"
+        text: "#D4006A"
+      focus:
+        background: "rgba(212,0,106,0.1)"
+        border: "#D4006A 1px"
+        text: "#D4006A"
+        box_shadow: "0 1px 0 2px #F3F4F6"
+      disabled:
+        background: "rgba(199,160,180,0.2)"
+        border: "#C7A0B4 1px"
+        text: "#D4006A"
+
+sizes:
+  xs:
+    font: "Inter Medium 12px"
+    padding_v: "6px"
+    padding_h: "12px"
+    gap_icon: "6px"
+    height: "32px"
+    border_radius: "12px"
+    min_width: "~128px"
+
+  sm:
+    font: "Inter Medium 14px"
+    padding_v: "8px"
+    padding_h: "12px"
+    gap_icon: "6px"
+    height: "36px"
+    border_radius: "12px"
+    min_width: "~140px"
+
+  base:
+    font: "Inter Medium 14px"
+    padding_v: "10px"
+    padding_h: "16px"
+    gap_icon: "6px"
+    height: "40px"
+    border_radius: "12px"
+    min_width: "~152px"
+    note: "DEFAULT size"
+
+  l:
+    font: "Inter Medium 16px"
+    padding_v: "12px"
+    padding_h: "20px"
+    gap_icon: "6px"
+    height: "48px"
+    border_radius: "12px"
+    min_width: "~166px"
+
+  xl:
+    font: "Inter Medium 16px"
+    padding_v: "14px"
+    padding_h: "24px"
+    gap_icon: "6px"
+    height: "52px"
+    border_radius: "12px"
+    min_width: "~186px"
+
+states:
+  - default
+  - hover
+  - focus
+  - disabled
+  - loading:
+      description: "Spinner replaces label text. Button width does not change."
+
+responsive_rules:
+  - "Button width adjusts to content unless explicitly constrained"
+  - "Full-width buttons in mobile form CTAs (UNKNOWN — not fully documented)"
+
+accessibility_rules:
+  - "Focus state is always visible (2px outline/ring)"
+  - "Disabled buttons never become invisible — they use disabled styling"
+  - "Icon-only buttons require aria-label"
+  - "Brand button uses white text on gradient for WCAG contrast"
+  - "Disabled state text (#99A1AF on #F3F4F6) — contrast UNKNOWN, pending WCAG audit"
+
+allowed_usage:
+  brand:
+    - "Primary CTA for each screen or section"
+    - "Form submission (create, save, confirm)"
+    - "Key navigation trigger (Consulta Renaper, Crear Ciudadano)"
+  secondary:
+    - "Alternative actions without strong brand association"
+    - "Filter and action dropdown triggers in tables"
+  tertiary:
+    - "Back navigation (← Volver)"
+    - "Export / download actions"
+    - "Secondary form actions"
+    - "Pagination controls"
+
+forbidden_usage:
+  - "Two Brand buttons in the same screen section"
+  - "Brand button for destructive actions (use Danger-styled button)"
+  - "Creating new button color variants outside these three"
+  - "Using font-normal for button label text"
+  - "Changing gradient angles or colors from defined values"
+  - "Using opacity: 0.5 as substitute for disabled state"
+
+examples:
+  brand: '<button class="btn-brand btn-base">Crear Ciudadano →</button>'
+  secondary: '<button class="btn-secondary btn-sm">Filtrar ∨</button>'
+  tertiary: '<button class="btn-tertiary btn-base">← Volver</button>'
+  icon_only: '<button class="btn-secondary btn-base" aria-label="Exportar"><DownloadIcon /></button>'
+
+anti_examples:
+  - "Two gradient buttons side by side in the same form"
+  - "A red/danger button styled with a custom hex instead of danger tokens"
+  - "A Brand button used for 'Cancelar' or 'Eliminar'"
+  - "Button with font-size outside the scale"

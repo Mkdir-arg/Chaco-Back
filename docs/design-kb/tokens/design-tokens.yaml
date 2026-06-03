@@ -1,0 +1,419 @@
+# =============================================================
+# NODO Design System — Consolidated Design Tokens
+# Source: chaco-tokens.json (W3C Design Tokens Format)
+# Implementation: chaco-tokens.css, chaco-tailwind.config.js
+# =============================================================
+#
+# HOW TO USE:
+# - CSS: import chaco-tokens.css, reference via var(--token-name)
+# - Tailwind: extend tailwind.config.js from chaco-tailwind.config.js
+# - Style Dictionary: source chaco-tokens.json
+# - Dark mode: add data-theme="dark" or .dark class to <html>/<body>
+#
+# CRITICAL RULE:
+# Never hardcode hex values in components.
+# Always use semantic tokens. Primitive scales are internal reference only.
+#
+# NAMING CONVENTIONS:
+# bg-[role]-[modifier]    → background tokens
+# border-[role]-[modifier] → border tokens
+# text-[role]              → neutral text tokens (no -fg prefix)
+# text-fg-[role]-[modifier] → colored/semantic text tokens
+# --font-*                 → typography tokens
+# --rounded-*              → border radius tokens
+# --border-width-*         → border width tokens
+# --max-w-*                → max width layout tokens
+# --container-*            → container breakpoints
+# =============================================================
+
+meta:
+  schema: "https://design-tokens.github.io/community-group/format/"
+  product: "CHACO NODO"
+  version: "1.0"
+  source: "Figma Variables"
+  modes: [light, dark]
+  files:
+    css: "chaco-tokens.css"
+    tailwind: "chaco-tailwind.config.js"
+    json: "chaco-tokens.json"
+  dark_mode_trigger:
+    attribute: 'data-theme="dark"'
+    class: ".dark"
+
+# -------------------------------------------------------------
+# COMPLETE TOKEN INVENTORY
+# -------------------------------------------------------------
+
+# Background tokens (--bg-*)
+background_tokens:
+  # Neutral
+  - token: "bg-white"
+    css_var: "--bg-white"
+    tailwind: "bg-bg-white"
+    light: "#ffffff"
+    dark: "#ffffff"
+
+  - token: "bg-primary-soft"
+    css_var: "--bg-primary-soft"
+    tailwind: "bg-bg-primary-soft"
+    light: "#ffffff"
+    dark: "var(--color-gray-900)"
+
+  - token: "bg-primary"
+    css_var: "--bg-primary"
+    tailwind: "bg-bg-primary"
+    light: "#ffffff"
+    dark: "var(--color-gray-950)"
+
+  - token: "bg-primary-medium"
+    css_var: "--bg-primary-medium"
+    tailwind: "bg-bg-primary-medium"
+    light: "#ffffff"
+    dark: "var(--color-gray-800)"
+
+  - token: "bg-primary-strong"
+    css_var: "--bg-primary-strong"
+    tailwind: "bg-bg-primary-strong"
+    light: "#ffffff"
+    dark: "var(--color-gray-700)"
+
+  - token: "bg-secondary-soft"
+    css_var: "--bg-secondary-soft"
+    tailwind: "bg-bg-secondary-soft"
+    light: "var(--color-gray-050)"
+    dark: "var(--color-gray-900)"
+
+  - token: "bg-secondary"
+    css_var: "--bg-secondary"
+    tailwind: "bg-bg-secondary"
+    light: "var(--color-gray-050)"
+    dark: "var(--color-gray-950)"
+
+  - token: "bg-secondary-medium"
+    css_var: "--bg-secondary-medium"
+    tailwind: "bg-bg-secondary-medium"
+    light: "var(--color-gray-050)"
+    dark: "var(--color-gray-800)"
+
+  - token: "bg-secondary-strong"
+    css_var: "--bg-secondary-strong"
+    tailwind: "bg-bg-secondary-strong"
+    light: "var(--color-gray-050)"
+    dark: "var(--color-gray-700)"
+
+  - token: "bg-tertiary-soft"
+    css_var: "--bg-tertiary-soft"
+    tailwind: "bg-bg-tertiary-soft"
+    light: "var(--color-gray-100)"
+    dark: "var(--color-gray-900)"
+
+  - token: "bg-tertiary"
+    css_var: "--bg-tertiary"
+    tailwind: "bg-bg-tertiary"
+    light: "var(--color-gray-100)"
+    dark: "var(--color-gray-800)"
+
+  - token: "bg-tertiary-medium"
+    css_var: "--bg-tertiary-medium"
+    tailwind: "bg-bg-tertiary-medium"
+    light: "var(--color-gray-100)"
+    dark: "var(--color-gray-700)"
+
+  - token: "bg-quaternary"
+    css_var: "--bg-quaternary"
+    tailwind: "bg-bg-quaternary"
+    light: "var(--color-gray-200)"
+    dark: "var(--color-gray-700)"
+
+  - token: "bg-quaternary-medium"
+    css_var: "--bg-quaternary-medium"
+    tailwind: "bg-bg-quaternary-medium"
+    light: "var(--color-gray-200)"
+    dark: "var(--color-gray-600)"
+
+  - token: "bg-gray"
+    css_var: "--bg-gray"
+    tailwind: "bg-bg-gray"
+    light: "var(--color-gray-300)"
+    dark: "var(--color-gray-600)"
+
+  - token: "bg-disabled"
+    css_var: "--bg-disabled"
+    tailwind: "bg-bg-disabled"
+    light: "var(--color-gray-100)"
+    dark: "var(--color-gray-800)"
+
+  - token: "bg-dark"
+    css_var: "--bg-dark"
+    tailwind: "bg-bg-dark"
+    light: "var(--color-gray-800)"
+    dark: "var(--color-gray-800)"
+
+  - token: "bg-dark-strong"
+    css_var: "--bg-dark-strong"
+    tailwind: "bg-bg-dark-strong"
+    light: "var(--color-gray-900)"
+    dark: "var(--color-gray-800)"
+
+  # Brand
+  - token: "bg-brand-softer"
+    css_var: "--bg-brand-softer"
+    tailwind: "bg-bg-brand-softer"
+    light: "var(--color-pink-050)"
+    dark: "var(--color-brand-950)"
+
+  - token: "bg-brand-soft"
+    css_var: "--bg-brand-soft"
+    tailwind: "bg-bg-brand-soft"
+    light: "var(--color-pink-100)"
+    dark: "var(--color-brand-900)"
+
+  - token: "bg-brand-medium"
+    css_var: "--bg-brand-medium"
+    tailwind: "bg-bg-brand-medium"
+    light: "var(--color-pink-200)"
+    dark: "var(--color-brand-900)"
+
+  - token: "bg-brand"
+    css_var: "--bg-brand"
+    tailwind: "bg-bg-brand"
+    light: "var(--color-brand-700)"
+    dark: "var(--color-brand-600)"
+
+  - token: "bg-brand-strong"
+    css_var: "--bg-brand-strong"
+    tailwind: "bg-bg-brand-strong"
+    light: "var(--color-brand-800)"
+    dark: "var(--color-brand-700)"
+
+  # Success
+  - token: "bg-success-soft"
+    css_var: "--bg-success-soft"
+    tailwind: "bg-bg-success-soft"
+    light: "var(--color-emerald-050)"
+    dark: "var(--color-emerald-950)"
+
+  - token: "bg-success-medium"
+    css_var: "--bg-success-medium"
+    tailwind: "bg-bg-success-medium"
+    light: "var(--color-emerald-100)"
+    dark: "var(--color-emerald-800)"
+
+  - token: "bg-success"
+    css_var: "--bg-success"
+    tailwind: "bg-bg-success"
+    light: "var(--color-emerald-700)"
+    dark: "var(--color-emerald-600)"
+
+  - token: "bg-success-strong"
+    css_var: "--bg-success-strong"
+    tailwind: "bg-bg-success-strong"
+    light: "var(--color-emerald-800)"
+    dark: "var(--color-emerald-700)"
+
+  # Danger
+  - token: "bg-danger-soft"
+    css_var: "--bg-danger-soft"
+    tailwind: "bg-bg-danger-soft"
+    light: "var(--color-rose-050)"
+    dark: "var(--color-rose-950)"
+
+  - token: "bg-danger-medium"
+    css_var: "--bg-danger-medium"
+    tailwind: "bg-bg-danger-medium"
+    light: "var(--color-rose-100)"
+    dark: "var(--color-rose-900)"
+
+  - token: "bg-danger"
+    css_var: "--bg-danger"
+    tailwind: "bg-bg-danger"
+    light: "var(--color-rose-700)"
+    dark: "var(--color-rose-700)"
+
+  - token: "bg-danger-strong"
+    css_var: "--bg-danger-strong"
+    tailwind: "bg-bg-danger-strong"
+    light: "var(--color-rose-800)"
+    dark: "var(--color-rose-700)"
+
+  # Warning
+  - token: "bg-warning-soft"
+    css_var: "--bg-warning-soft"
+    tailwind: "bg-bg-warning-soft"
+    light: "var(--color-orange-050)"
+    dark: "#441306"
+
+  - token: "bg-warning-medium"
+    css_var: "--bg-warning-medium"
+    tailwind: "bg-bg-warning-medium"
+    light: "var(--color-orange-100)"
+    dark: "var(--color-orange-900)"
+
+  - token: "bg-warning"
+    css_var: "--bg-warning"
+    tailwind: "bg-bg-warning"
+    light: "var(--color-orange-500)"
+    dark: "var(--color-orange-600)"
+
+  - token: "bg-warning-strong"
+    css_var: "--bg-warning-strong"
+    tailwind: "bg-bg-warning-strong"
+    light: "var(--color-orange-700)"
+    dark: "UNKNOWN"
+
+  # Categorical
+  - token: "bg-purple"
+    css_var: "--bg-purple"
+    tailwind: "bg-bg-purple"
+    value: "var(--color-purple-500)"
+    use: "Data visualization only"
+
+  - token: "bg-sky"
+    css_var: "--bg-sky"
+    tailwind: "bg-bg-sky"
+    value: "var(--color-sky-500)"
+    use: "Data visualization only"
+
+  - token: "bg-teal"
+    css_var: "--bg-teal"
+    tailwind: "bg-bg-teal"
+    value: "var(--color-teal-600)"
+    use: "Data visualization only"
+
+  - token: "bg-pink"
+    css_var: "--bg-pink"
+    tailwind: "bg-bg-pink"
+    value: "var(--color-pink-600)"
+    use: "Data visualization only"
+
+  - token: "bg-cyan"
+    css_var: "--bg-cyan"
+    tailwind: "bg-bg-cyan"
+    value: "var(--color-cyan-500)"
+    use: "Data visualization only"
+
+  - token: "bg-fuchsia"
+    css_var: "--bg-fuchsia"
+    tailwind: "bg-bg-fuchsia"
+    value: "var(--color-fuchsia-600)"
+    use: "Data visualization only"
+
+  - token: "bg-indigo"
+    css_var: "--bg-indigo"
+    tailwind: "bg-bg-indigo"
+    value: "var(--color-indigo-600)"
+    use: "Data visualization only"
+
+  - token: "bg-orange"
+    css_var: "--bg-orange"
+    tailwind: "bg-bg-orange"
+    value: "var(--color-orange-400)"
+    use: "Data visualization only"
+
+# Typography tokens (--font-*)
+typography_tokens:
+  - token: "font-family-base"
+    css_var: "--font-family-base"
+    value: "'Inter', sans-serif"
+  - token: "font-family-brand"
+    css_var: "--font-family-brand"
+    value: "'Gellat', sans-serif"
+  - token: "font-size-xxs"
+    css_var: "--font-size-xxs"
+    value: "8px"
+  - token: "font-size-xs"
+    css_var: "--font-size-xs"
+    value: "12px"
+  - token: "font-size-sm"
+    css_var: "--font-size-sm"
+    value: "14px"
+  - token: "font-size-base"
+    css_var: "--font-size-base"
+    value: "16px"
+  - token: "font-size-lg"
+    css_var: "--font-size-lg"
+    value: "18px"
+  - token: "font-size-xl"
+    css_var: "--font-size-xl"
+    value: "20px"
+  - token: "font-size-2xl"
+    css_var: "--font-size-2xl"
+    value: "24px"
+  - token: "font-size-3xl"
+    css_var: "--font-size-3xl"
+    value: "30px"
+  - token: "font-size-4xl"
+    css_var: "--font-size-4xl"
+    value: "36px"
+  - token: "font-size-5xl"
+    css_var: "--font-size-5xl"
+    value: "48px"
+  - token: "font-size-6xl"
+    css_var: "--font-size-6xl"
+    value: "60px"
+  - token: "font-weight-normal"
+    css_var: "--font-weight-normal"
+    value: 400
+  - token: "font-weight-medium"
+    css_var: "--font-weight-medium"
+    value: 500
+  - token: "font-weight-semibold"
+    css_var: "--font-weight-semibold"
+    value: 600
+  - token: "font-weight-bold"
+    css_var: "--font-weight-bold"
+    value: 700
+  - token: "font-weight-extrabold"
+    css_var: "--font-weight-extrabold"
+    value: 800
+  - token: "letter-spacing-tighter"
+    css_var: "--letter-spacing-tighter"
+    value: "-0.8px"
+  - token: "letter-spacing-tight"
+    css_var: "--letter-spacing-tight"
+    value: "-0.4px"
+  - token: "letter-spacing-normal"
+    css_var: "--letter-spacing-normal"
+    value: "0px"
+
+# Border radius tokens (--rounded-*)
+border_radius_tokens:
+  - { token: "rounded-0",    css_var: "--rounded-0",    value: "0px"    }
+  - { token: "rounded-sm",   css_var: "--rounded-sm",   value: "2px"    }
+  - { token: "rounded",      css_var: "--rounded",      value: "4px"    }
+  - { token: "rounded-md",   css_var: "--rounded-md",   value: "6px"    }
+  - { token: "rounded-lg",   css_var: "--rounded-lg",   value: "8px"    }
+  - { token: "rounded-xl",   css_var: "--rounded-xl",   value: "12px"   }
+  - { token: "rounded-2xl",  css_var: "--rounded-2xl",  value: "16px"   }
+  - { token: "rounded-3xl",  css_var: "--rounded-3xl",  value: "24px"   }
+  - { token: "rounded-full", css_var: "--rounded-full", value: "9999px" }
+
+# Border width tokens (--border-width-*)
+border_width_tokens:
+  - { token: "border-width-0", css_var: "--border-width-0", value: "0px" }
+  - { token: "border-width",   css_var: "--border-width",   value: "1px" }
+  - { token: "border-width-2", css_var: "--border-width-2", value: "2px" }
+  - { token: "border-width-4", css_var: "--border-width-4", value: "4px" }
+  - { token: "border-width-8", css_var: "--border-width-8", value: "8px" }
+
+# Layout tokens
+layout_tokens:
+  max_width:
+    - { token: "max-w-xs",  css_var: "--max-w-xs",  value: "320px"  }
+    - { token: "max-w-sm",  css_var: "--max-w-sm",  value: "384px"  }
+    - { token: "max-w-md",  css_var: "--max-w-md",  value: "448px"  }
+    - { token: "max-w-lg",  css_var: "--max-w-lg",  value: "512px"  }
+    - { token: "max-w-xl",  css_var: "--max-w-xl",  value: "576px"  }
+    - { token: "max-w-2xl", css_var: "--max-w-2xl", value: "672px"  }
+    - { token: "max-w-3xl", css_var: "--max-w-3xl", value: "768px"  }
+    - { token: "max-w-4xl", css_var: "--max-w-4xl", value: "896px"  }
+    - { token: "max-w-5xl", css_var: "--max-w-5xl", value: "1024px" }
+    - { token: "max-w-6xl", css_var: "--max-w-6xl", value: "1152px" }
+    - { token: "max-w-7xl", css_var: "--max-w-7xl", value: "1280px" }
+  containers:
+    - { token: "container-xs",  css_var: "--container-xs",  value: "380px"  }
+    - { token: "container-sm",  css_var: "--container-sm",  value: "640px"  }
+    - { token: "container-md",  css_var: "--container-md",  value: "768px"  }
+    - { token: "container-lg",  css_var: "--container-lg",  value: "1024px" }
+    - { token: "container-xl",  css_var: "--container-xl",  value: "1280px" }
+    - { token: "container-2xl", css_var: "--container-2xl", value: "1563px" }

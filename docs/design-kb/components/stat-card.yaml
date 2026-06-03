@@ -1,0 +1,121 @@
+# =============================================================
+# Component: Stat Card (Metric Card)
+# Source: CHACO_NODO_Design_Manual.md §12.3, §11, NODO DS.md §11
+# =============================================================
+
+purpose: >
+  Displays a single key performance indicator (KPI) or metric.
+  Used in dashboard and list-view headers to provide quantitative
+  context before the user interacts with the detail data below.
+
+variants:
+  standard:
+    description: "Icon top-left + large number + uppercase label"
+    layout: "vertical stack"
+
+  with_alert_dot:
+    description: "Adds a red alert dot positioned top-right of the icon"
+    when_to_use: "When the metric category has active critical alerts"
+
+  metric_with_delta:
+    description: "Number + delta change (e.g., +12) + icon shape top-right"
+    source: "NODO DS.md §11 — Tarjeta de métrica"
+    layout: "label top-left + number + delta + icon shape right"
+
+states:
+  default:
+    background: "bg-primary (#ffffff)"
+    border: "border-base (#e5e7eb) 1px"
+    border_radius: "rounded-xl (12px)"
+    box_shadow: "var(--sombra-sm)"
+
+  hover:
+    box_shadow: "var(--sombra-md)"
+    transition: "300ms ease-in-out"
+
+  disabled_variant:
+    background: "bg-disabled (#f3f4f6)"
+    icon_color: "text-fg-disabled (#9ca3af)"
+    text: "text-fg-disabled"
+    delta: "text-fg-disabled"
+
+anatomy:
+  standard: |
+    ┌────────────────────────┐
+    │ [Icon]          [●]    │  ← Icon in text-fg-brand, optional alert dot in bg-danger
+    │ 0                      │  ← Large number: text-3xl/4xl, font-bold, text-heading
+    │ ETIQUETA               │  ← Label: text-xs, font-medium, uppercase, text-body-subtle
+    └────────────────────────┘
+
+  metric_with_delta: |
+    ┌──────────────────────────────────┐
+    │ Label                            │  ← Inter Regular 13px, text-body-subtle
+    │ 250 +12                  [Icon]  │  ← Number: Inter Bold 28px, text-heading
+    │                                  │    Delta: Inter Medium 12px, color by sign
+    └──────────────────────────────────┘
+
+  icon_shape:
+    type: "Square with rounded corners"
+    background: "linear-gradient(45deg, #7928CA, #FF0080) — brand gradient"
+    border_radius: "~10–12px"
+    size: "~40px"
+    icon_color: "text-white"
+    icon_library: "Font Awesome fa-lg or Heroicons w-6 h-6"
+
+  alert_dot:
+    shape: "circle"
+    background: "bg-danger (#c70036)"
+    size: "~8–10px"
+    position: "top-right of the icon area"
+
+  metric_number:
+    font: "Inter Bold (font-bold)"
+    size: "text-3xl (30px) or text-4xl (36px)"
+    color: "text-heading (#111827)"
+
+  stat_label:
+    font: "Inter Medium (font-medium)"
+    size: "text-xs (12px)"
+    transform: "uppercase"
+    color: "text-body-subtle"
+
+  delta:
+    font: "Inter Medium 12px"
+    positive: "text-fg-success (#007a55)"
+    negative: "text-fg-danger (#c70036)"
+
+responsive_rules:
+  - "Dashboard home: 4 stat cards in a horizontal grid"
+  - "Ciudadanos list: 6 stat cards in a horizontal grid"
+  - "Mobile behavior: UNKNOWN"
+
+accessibility_rules:
+  - "Metric number must have text alternative for screen readers"
+  - "Alert dot must not be the only way to communicate alerts — icon or label also communicates it"
+  - "Color of delta (positive/negative) must not be sole communicator — use + or - prefix"
+
+allowed_usage:
+  - "Dashboard KPI display (top of home screen)"
+  - "List view summary metrics (above data table)"
+  - "Entity detail view quick metrics (Asistentes, Prestaciones, etc.)"
+
+forbidden_usage:
+  - "Multiple stat cards used for navigation (they are display-only)"
+  - "Stat cards without a number — they must always show a quantitative value"
+  - "Icon without a label to explain the metric"
+
+examples:
+  standard: |
+    <div class="stat-card bg-primary border border-base rounded-xl p-5">
+      <div class="flex items-center justify-between">
+        <UserGroupIcon class="w-6 h-6 text-fg-brand" />
+        <span class="dot bg-danger rounded-full" /> <!-- optional alert -->
+      </div>
+      <p class="text-3xl font-bold text-heading">247</p>
+      <p class="text-xs font-medium uppercase text-body-subtle">CIUDADANOS ACTIVOS</p>
+    </div>
+
+anti_examples:
+  - "Stat card with no label explaining what the number represents"
+  - "Using stat card layout for navigation links"
+  - "Delta number without +/- prefix, relying only on green/red color"

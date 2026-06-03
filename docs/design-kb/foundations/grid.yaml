@@ -1,0 +1,110 @@
+# =============================================================
+# NODO Design System — Grid & Layout
+# Source: Canva brand manual (nodo-mm), CHACO_NODO_Design_Manual.md
+# =============================================================
+
+meta:
+  status: "PARTIAL — Exact grid margins and gutter values in px pending documentation"
+  layout_model: "Sidebar + Topbar + Content Area (fixed two-column)"
+
+# -------------------------------------------------------------
+# APPLICATION SHELL LAYOUT
+# -------------------------------------------------------------
+app_shell:
+  model: "sidebar-left + fixed-topbar + scrollable-content"
+
+  topbar:
+    position: "fixed top"
+    height: "72–76px"
+    content_left: "Logo (collapses with sidebar)"
+    content_right: "Notification bell + User avatar with dropdown"
+    z_index: 10
+
+  sidebar:
+    position: "fixed left"
+    width_expanded: "~290–300px"
+    width_collapsed: "UNKNOWN"
+    collapsible: true
+    collapse_trigger: "Minimizar button at sidebar footer"
+    breakpoint_behavior: "Fixed on desktop / behavior on mobile UNKNOWN"
+    background: "Gradient (var(--fondo-sidebar))"
+
+  content_area:
+    margin_left: "300px"
+    min_height: "calc(100vh - 182px)"
+    padding: "UNKNOWN"
+    overflow: "scrollable"
+
+# -------------------------------------------------------------
+# CONTENT COLUMN GRID (from Canva brand manual)
+# -------------------------------------------------------------
+content_grid:
+  column_unit: "243px"
+  sidebar_unit: "290px"
+  gap: "33px"
+  model: "Multi-column with consistent 243px column width"
+  note: >
+    The Canva brand manual shows a 3-column content grid.
+    Sidebar (290px) + gap (33px) + content columns (243px each).
+
+# -------------------------------------------------------------
+# LAYOUT PATTERNS BY SCREEN TYPE
+# -------------------------------------------------------------
+screen_layouts:
+  access_screens:
+    pattern: "split-screen"
+    left: "60% — Illustration / decorative"
+    right: "40% — Form / content"
+    note: "ONLY for login and password recovery. Never for internal screens."
+
+  internal_single_column:
+    pattern: "sidebar + full-width content"
+    examples: [home, ciudadanos-en-tratamiento]
+    content_max_width: "UNKNOWN"
+
+  internal_two_column:
+    pattern: "sidebar + content with inner two columns"
+    examples: [confirmar-datos-ciudadano]
+    left_column: "~35%"
+    right_column: "~65%"
+
+  form_screens:
+    pattern: "sidebar + centered form"
+    form_max_width: "~700px"
+    form_alignment: "centered"
+
+# -------------------------------------------------------------
+# STAT CARD GRID
+# -------------------------------------------------------------
+stat_card_grid:
+  columns: 4
+  layout: "horizontal grid"
+  gap: "UNKNOWN"
+  note: "Dashboard home shows 4 stat cards in a horizontal row"
+
+  ciudadanos_screen:
+    columns: 6
+    layout: "horizontal grid"
+    note: "Ciudadanos en Tratamiento shows 6 stat cards"
+
+# -------------------------------------------------------------
+# FORM LAYOUT RULES
+# -------------------------------------------------------------
+form_layout:
+  max_width: "~700px"
+  alignment: "centered within content area"
+  field_gap: "20px"
+  section_gap: "32px"
+  inline_fields: "DNI + Sexo fields appear in the same row"
+
+# -------------------------------------------------------------
+# RESPONSIVE RULES
+# -------------------------------------------------------------
+responsive:
+  status: "PARTIAL — Mobile behavior not fully documented"
+  sidebar_mobile: "UNKNOWN — desktop fixed, mobile behavior TBD"
+  breakpoints:
+    lg_plus: "Sidebar visible and fixed at 300px"
+    below_lg: "UNKNOWN"
+  mobile_css_files: [mobile-forms.css, mobile-modals.css, mobile-tables.css]
+  note: "Dedicated mobile CSS files exist, indicating mobile-first awareness"

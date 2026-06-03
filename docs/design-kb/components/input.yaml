@@ -1,0 +1,135 @@
+# =============================================================
+# Component: Input / Form Field
+# Source: CHACO_NODO_Design_Manual.md §12.1, NODO DS.md §13
+# =============================================================
+
+purpose: >
+  Text entry field for forms. Always paired with a visible label above.
+  Never uses placeholder as label replacement.
+  States communicate validity and interactivity clearly.
+
+variants:
+  text:
+    description: "Standard text input"
+    height: "40px"
+
+  password:
+    description: "Password input with lock icon prefix and optional visibility toggle"
+    height: "40px"
+
+  email:
+    description: "Email input with envelope icon prefix"
+    height: "40px"
+
+  select:
+    description: "Dropdown select — same visual appearance as text input"
+    chevron: "∨ aligned to the right"
+    placeholder: "Seleccionar..."
+    selected_text_color: "text-heading"
+
+states:
+  default:
+    border: "border-base (#e5e7eb) 1px"
+    border_radius: "rounded-lg (8px)"
+    background: "bg-primary (#ffffff)"
+    text: "text-heading (#111827 / #101828)"
+    placeholder_color: "text-body-subtle"
+
+  focus:
+    border: "border-brand (#5059bc) 1.5px"
+    border_radius: "rounded-lg (8px)"
+    background: "bg-primary (#ffffff)"
+    text: "text-heading"
+    note: "Focus outline must always be visible — never remove"
+
+  error:
+    border: "border-danger (#c70036) 1px"
+    border_radius: "rounded-lg (8px)"
+    background: "bg-danger-soft (#fef0f2)"
+    text: "text-heading"
+    helper_text_color: "text-fg-danger"
+    helper_icon: "fa-circle-exclamation or ExclamationCircleIcon"
+
+  disabled:
+    border: "border-base (#e5e7eb) 1px"
+    border_radius: "rounded-lg (8px)"
+    background: "bg-disabled (#f3f4f6)"
+    text: "text-fg-disabled (#9ca3af)"
+    cursor: "not-allowed"
+
+  read_only_prefilled:
+    description: "RENAPER pre-filled data — visually distinct from editable fields"
+    border: "border-base"
+    background: "bg-white"
+    helper_text: "Informational note explaining why field is locked"
+    note: "Must be visually distinguishable from editable fields"
+
+anatomy:
+  structure: |
+    Label *               ← Inter Medium 13px, text-heading. * in text-fg-brand if required
+    [leading-icon]  [input text / placeholder]   ← 40px height (base size)
+    [helper text or error message]               ← Inter Regular 12px, text-body-subtle / text-fg-danger
+
+  label:
+    font: "Inter Medium 13px"
+    color: "text-heading"
+    required_indicator: "* in text-fg-brand (#ff0080)"
+    position: "Always above the field — never inside (placeholder only for hint text)"
+
+  icon_prefix:
+    size: "w-4 h-4 (16px) or w-5 h-5 (20px)"
+    color: "text-body (#4b5563)"
+    position: "Leading (left side of input)"
+
+  helper_text:
+    font: "Inter Regular 12px"
+    color_default: "text-body-subtle"
+    color_error: "text-fg-danger"
+    position: "Below the field"
+
+responsive_rules:
+  - "Inputs stretch to container width by default"
+  - "Multiple inputs on same row (inline): DNI + Sex example — equal width columns"
+
+accessibility_rules:
+  - "Label always above field — never use placeholder as the only label"
+  - "Required fields marked with * in danger color before user interaction"
+  - "Error message appears below field with icon, not only through color"
+  - "Focus state must be visible (1.5px brand-colored border)"
+  - "Disabled state must be visually distinct from editable state"
+
+allowed_usage:
+  - "Text, email, password inputs in all forms"
+  - "Select/dropdown fields (same visual treatment)"
+  - "Search bar (with magnifying glass icon prefix)"
+  - "Read-only RENAPER data with explicit helper text"
+
+forbidden_usage:
+  - "Using placeholder as field label"
+  - "Removing the focus ring from input fields"
+  - "Mixing disabled and editable fields without visual distinction"
+  - "Input without associated label element"
+  - "Using opacity: 0.5 for disabled state"
+  - "Applying border-radius: rounded-full (pill) to text inputs"
+
+examples:
+  default: |
+    <label>Email institucional <span class="text-fg-brand">*</span></label>
+    <div class="input-wrapper">
+      <EnvelopeIcon class="w-5 h-5 text-body" />
+      <input type="email" placeholder="usuario@chaco.gov.ar" />
+    </div>
+
+  error: |
+    <label>Email institucional</label>
+    <input class="border-danger bg-danger-soft" type="email" value="invalid" />
+    <p class="text-fg-danger text-xs">El email no es válido</p>
+
+  disabled: |
+    <label>DNI</label>
+    <input class="bg-disabled text-fg-disabled" disabled value="32.456.789" />
+
+anti_examples:
+  - "Input with no label, only placeholder text as the label"
+  - "Error state shown only by changing text color with no border change"
+  - "Disabled input with opacity: 0.5 instead of bg-disabled + text-fg-disabled"
