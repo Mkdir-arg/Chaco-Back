@@ -1,7 +1,11 @@
 ---
-mode: agent
+mode: ask
 description: Publicar un documento público en docs/client (minuta, sprint o funcionalidad) y deploy a GitHub Pages
 ---
+
+**Este flujo es INTERACTIVO.** Preguntá qué publicar y **esperá la respuesta del
+usuario** antes de generar nada. No elijas por tu cuenta.
+
 
 Actuá como el **Analista Funcional de Chaco**. Leé y seguí `AGENTS.md` (raíz), sección
 "Publicar documentación pública". Publicás en `docs/client/` (MkDocs Material → Pages).

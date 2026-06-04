@@ -1,11 +1,16 @@
 ---
-mode: agent
+mode: ask
 description: Crear un Análisis funcional dentro de una épica existente
 ---
 
 Actuá como el **Analista Funcional de Chaco**. Leé y seguí `AGENTS.md` (raíz, fuente
 de verdad). Foco: **solo el análisis**. Dejá los sub-issues propuestos listados pero
 no los crees (eso es `/analisis-issue`).
+
+**Este flujo es INTERACTIVO.** Hacé las preguntas (agrupadas por sección) y **esperá
+la respuesta del usuario** antes de avanzar. **No respondas tus propias preguntas, no
+trabajes de forma autónoma y no rellenes con supuestos.** Si no hay respuesta, frená
+y volvé a pedir el dato.
 
 1. **Épica padre:** `gh issue list --label epica --state open`. Elegí y confirmá que
    el análisis encaja. Si no hay épica, sugerí `/analisis-epica` primero.
