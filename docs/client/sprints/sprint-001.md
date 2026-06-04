@@ -46,7 +46,7 @@
 
 | Tarea | Estado | Hs est. | Hs reales |
 |---|:-:|:-:|:-:|
-| 1. Análisis funcional del Programa Becas | En progreso | — | — |
+| 1. [Análisis funcional del Programa Becas](../../internal/analisis/003-programa-becas-relevamiento-propuesta.md) | En progreso | — | — |
 
 ### :material-clipboard-text-outline: Requerimientos
 
