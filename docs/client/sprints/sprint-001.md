@@ -21,7 +21,8 @@
 </div>
 
 !!! abstract "Objetivo"
-    *Definir el objetivo del sprint.*
+    Definir el funcionamiento del **Programa Becas** y del **ABM de roles y
+    permisos** para dejar el alcance acordado con el cliente.
 
 ---
 
@@ -29,48 +30,57 @@
 
 | # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
 |:-:|---|:-:|:-:|:-:|:-:|
+| 1 | Programa Becas | Alta | En análisis | — | — |
+| 2 | ABM de roles y permisos | Alta | Por iniciar | — | — |
 
 ---
 
-## :material-account-plus-outline: Funcionalidad 1 { #funcionalidad-1 }
+## :material-account-plus-outline: Funcionalidad 1 — Programa Becas { #funcionalidad-1 }
 
 !!! info "Funcionalidad"
-    *Descripción de la funcionalidad.*
+    Programa de **relevamiento territorial** para el otorgamiento de becas: los
+    equipos de campo registran a las personas, el programa valida la información y
+    administra el **cupo** disponible y la **lista de espera**.
 
 ### :material-format-list-checks: Tareas
 
 | Tarea | Estado | Hs est. | Hs reales |
 |---|:-:|:-:|:-:|
+| 1. Análisis funcional del Programa Becas | En progreso | — | — |
 
 ### :material-clipboard-text-outline: Requerimientos
 
 | ID | Descripción | Prioridad | Estado |
 |---|---|:-:|:-:|
+| RQ-01 | Relevar y dejar definido el funcionamiento del Programa Becas. | Alta | En análisis |
 
 ### :material-check-decagram-outline: Criterios de aceptación
 
-*Sin criterios cargados.*
+- [ ] El funcionamiento del programa queda documentado y validado con el cliente.
 
 ---
 
-## :material-account-arrow-right-outline: Funcionalidad 2 { #funcionalidad-2 }
+## :material-account-arrow-right-outline: Funcionalidad 2 — ABM de roles y permisos { #funcionalidad-2 }
 
 !!! info "Funcionalidad"
-    *Descripción de la funcionalidad.*
+    Gestión de **roles y permisos**: permite dar de alta, modificar y dar de baja
+    roles, y definir a qué puede acceder cada uno dentro del sistema.
 
 ### :material-format-list-checks: Tareas
 
 | Tarea | Estado | Hs est. | Hs reales |
 |---|:-:|:-:|:-:|
+| 1. Análisis funcional del ABM de roles y permisos | Por iniciar | — | — |
 
 ### :material-clipboard-text-outline: Requerimientos
 
 | ID | Descripción | Prioridad | Estado |
 |---|---|:-:|:-:|
+| RQ-01 | Administrar roles (alta, baja y modificación) y sus permisos de acceso. | Alta | Por iniciar |
 
 ### :material-check-decagram-outline: Criterios de aceptación
 
-*Sin criterios cargados.*
+- [ ] Se pueden crear, editar y eliminar roles, y asignarles permisos.
 
 ---
 

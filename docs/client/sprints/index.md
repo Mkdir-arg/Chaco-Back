@@ -9,12 +9,12 @@
 
 <div class="grid cards" markdown>
 
--   :material-circle:{ style="color: #f59e0b" } **Sprint 001 — Gestión base de ciudadanos**
+-   :material-circle:{ style="color: #f59e0b" } **Sprint 001 — Programa Becas y roles/permisos**
 
     ---
 
-    :material-calendar-range: **Período:** 12 may → 23 may 2026
-    :material-bullseye-arrow: **Objetivo:** Registro y derivación de ciudadanos
+    :material-calendar-range: **Período:** 3 jun → 18 jun 2026
+    :material-bullseye-arrow: **Objetivo:** Definir alcance funcional de Programa Becas y ABM de roles y permisos
     :material-progress-check: **Estado:** En progreso
 
     [:octicons-arrow-right-16: Ver detalle del sprint](sprint-001.md)
