@@ -34,6 +34,11 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   python manage.py migrate --run-syncdb --noinput
 fi
 
+if [ "${RUN_COLLECTSTATIC:-false}" = "true" ]; then
+  echo "Recolectando archivos estaticos..."
+  python manage.py collectstatic --noinput
+fi
+
 if [ "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_grupos crear_programas}" != "false" ]; then
   run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_grupos crear_programas}"
 fi
