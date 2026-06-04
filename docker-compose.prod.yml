@@ -1,7 +1,6 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: nodo-redis
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "350mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
@@ -18,7 +17,6 @@ services:
 
   web:
     build: .
-    container_name: nodo-web
     volumes:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
@@ -58,7 +56,6 @@ services:
 
   websocket:
     build: .
-    container_name: nodo-websocket
     volumes:
       - ./media:/app/media
       - ./logs:/app/logs
@@ -92,7 +89,6 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: nodo-nginx
     ports:
       - "80:80"
       - "443:443"
