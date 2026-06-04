@@ -154,9 +154,38 @@ disponibilidad.
 - **Lista de espera:** el admin **promueve a mano**. Al dar de baja a un beneficiario, el
   sistema dispara una **alerta proactiva** para mover a alguien de la lista.
 
-📌 *Pendiente SIS (bloque diferido):* qué es SIS, qué se le manda, qué decide su OK, qué
-devuelve, qué pasa si responde NO o si está caído, y si la asignación de cupo es
-automática o manual. Se trata en el documento del cliente (próximo paso).
+### 6.1 Hallazgos del documento del cliente (URD RQ-002 — "Tablero de Aprobación N1")
+
+El cliente entregó el documento **RQ-002** (Tablero de Aprobación de Primer Nivel e
+Integración SIS). **No resuelve el contrato técnico de SIS**, pero aporta encuadre y
+**revela contradicciones** que hay que reconciliar:
+
+**Aporta:**
+- **SIS = Sistema de Inclusión Social**, **segundo nivel de control**, recibe los datos
+  aprobados vía **API REST** y hace su propio control intermedio.
+- Aparece un **tercer sistema nuevo: "Sistema de Ayudas Sociales"** (sistema madre de
+  **liquidación**, nivel 3) que graba definitivamente para pagar el beneficio.
+- Cadena real de control: **Aprobación Nivel 1 (nuestro backoffice) → SIS (Nivel 2) →
+  Ayudas Sociales (Nivel 3, liquidación)**.
+
+**NO responde (sigue pendiente):** qué se manda exactamente (sin contrato de campos/API),
+qué valida SIS, qué devuelve, qué pasa si SIS **rechaza** (su matriz de estados **no tiene
+estado de rechazo SIS**), ni qué pasa si SIS está caído.
+
+**🔴 Contradicciones / huecos a reconciliar con el cliente:**
+- **Roles:** el doc usa **Supervisor/Operador**; nuestra propuesta usa
+  **Administrador/Territorial**. ¿Son los mismos con otro nombre?
+- **Cupo y lista de espera:** el doc **no los menciona**. En el doc, post-SIS se va directo
+  a **Liquidado**; en nuestro modelo, post-SIS recién se decide **cupo / lista de espera**.
+  ¿Cómo conviven el cupo y la cadena SIS → Ayudas Sociales?
+- **Disparo a SIS:** el doc dice "automático al aprobar" PERO su Pantalla 4 tiene botón
+  **"Enviar al SIS / Confirmar transferencia"** (manual). **Se contradice solo** (afecta
+  nuestra pregunta 6: auto vs manual).
+- **Alcance:** RQ-002 es **genérico** ("beneficios sociales", "Asignación Social X", login
+  con Google/OAuth), parece de una **plataforma más amplia**, no específico de Becas.
+
+📌 *Pendiente SIS (sigue diferido):* hace falta el **contrato técnico de SIS** (endpoint,
+campos, qué valida, qué devuelve, manejo de NO y de caída). El RQ-002 **no** lo tiene.
 
 ---
 
@@ -244,6 +273,17 @@ ofrecen hoy `apps/programas`, `apps/legajos`, `apps/ciudadanos` y `users` para n
 | 8 | "Relevamiento del día": ¿qué pasa si **no se inicia** ese día (vence/reprograma)? | Cliente |
 | 9 | ¿El admin puede **editar datos** del formulario antes de aprobar? | Cliente |
 | 10 | Legajo creado al enviar: ¿cómo se **marca** un legajo "relevado pero rechazado en Becas"? | Equipo/Cliente |
+
+> **Preguntas abiertas nuevas (a partir del documento RQ-002):**
+
+| # | Pregunta | Para |
+|---|---|---|
+| 11 | **Roles:** ¿"Supervisor/Operador" del RQ-002 son los mismos "Administrador/Territorial" de Becas, o roles distintos? | Cliente |
+| 12 | **Cadena de control:** ¿cómo conviven nuestro **cupo/lista de espera** con la cadena del RQ-002 (post-SIS → **Ayudas Sociales/Liquidado**)? ¿El cupo se decide antes o después de SIS? | Cliente |
+| 13 | **Sistema de Ayudas Sociales (nivel 3):** ¿está dentro del alcance de Becas o es otro requerimiento? ¿Becas llega hasta "ocupa cupo" o hasta "liquidado"? | Cliente |
+| 14 | **Contrato técnico de SIS:** endpoint/API, campos que se envían, qué valida, qué devuelve (OK/NO + motivo), manejo de rechazo y de caída. | Cliente/Técnico |
+| 15 | **Disparo a SIS:** el RQ-002 se contradice (auto al aprobar vs botón manual "Enviar al SIS"). ¿Cuál es? | Cliente |
+| 16 | **Alcance RQ-002:** ¿es parte de Becas o de una plataforma más amplia (login Google/OAuth, beneficios sociales genéricos)? | Cliente |
 
 ---
 

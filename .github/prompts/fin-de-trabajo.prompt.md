@@ -18,9 +18,15 @@ Pasos:
    - motivo
    - que_hare
    - inicio_iso
+   - pausada_desde_iso (si existe)
+   - pausas (si existe)
    - consumo_file
 2. Pedí al usuario una breve descripción de "qué hiciste" (1 a 3 frases). Si no responde, usá `que_hare` como fallback.
-3. Registrá hora de fin en ISO local y calculá minutos consumidos (redondeo al minuto más cercano).
+3. Registrá hora de fin en ISO local y calculá minutos consumidos (redondeo al minuto más cercano):
+   - `minutos_brutos = fin - inicio`
+   - `minutos_pausa = suma de pausas cerradas`.
+   - Si `pausada_desde_iso` está informado al cerrar, sumá además la pausa abierta `fin - pausada_desde_iso`.
+   - `minutos_consumidos = max(0, minutos_brutos - minutos_pausa)`.
 4. Asegurá que exista `consumo_file`.
    - Si no existe, crealo con estas secciones:
      - Título del sprint de consumo

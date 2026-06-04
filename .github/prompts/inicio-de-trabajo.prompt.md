@@ -28,6 +28,8 @@ Pasos:
   "motivo": "...",
   "que_hare": "...",
   "inicio_iso": "YYYY-MM-DDTHH:mm:ss",
+  "pausada_desde_iso": null,
+  "pausas": [],
   "sprint_file": "docs/client/sprints/sprint-XXX.md",
   "consumo_file": "docs/client/sprints/sprint-XXX-consumo-horas.md"
 }
