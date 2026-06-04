@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import transaction
 
-from ..models import Profile
+from core import rbac
 
 
 class UsuariosAdminService:
@@ -21,6 +21,9 @@ class UsuariosAdminService:
         UsuariosAdminService._apply_user_data(form, user)
         user.save()
         UsuariosAdminService._sync_related_data(user, form.cleaned_data)
+        # Si la edición quitó la última capacidad de administración del sistema
+        # (p. ej. el admin se sacó su propio rol), revierte la transacción.
+        rbac.asegurar_admin_restante()
         return user
 
     @staticmethod
@@ -40,7 +43,3 @@ class UsuariosAdminService:
     @staticmethod
     def _sync_related_data(user, cleaned_data):
         user.groups.set(cleaned_data.get("groups", []))
-
-        profile, _ = Profile.objects.get_or_create(user=user)
-        profile.rol = cleaned_data.get("rol")
-        profile.save()

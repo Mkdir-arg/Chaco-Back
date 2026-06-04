@@ -9,7 +9,7 @@ FIELD_MAP: Dict[str, str] = {
     "email": "email",
     "first_name": "first_name",
     "last_name": "last_name",
-    "rol": "profile__rol",
+    "rol": "groups__name",
 }
 
 FIELD_TYPES: Dict[str, str] = {

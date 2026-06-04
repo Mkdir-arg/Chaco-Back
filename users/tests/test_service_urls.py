@@ -12,4 +12,4 @@ class UsuariosServiceUrlsTests(SimpleTestCase):
         self.assertEqual(context['add_url'], '/usuarios/crear/')
         self.assertEqual(context['filters_action'], '/usuarios/')
         self.assertEqual(context['table_actions'][0]['url_name'], 'users:usuario_editar')
-        self.assertEqual(context['table_actions'][1]['url_name'], 'users:usuario_eliminar')
+        self.assertEqual(context['table_actions'][1]['url_name'], 'users:usuario_toggle')

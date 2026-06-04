@@ -15,7 +15,6 @@
         </a>
     </div>
 
-    <!-- Lista de usuarios -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         {% if users %}
             <!-- Vista de tabla para desktop -->
@@ -26,7 +25,7 @@
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Usuario</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Nombre</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Email</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Grupos</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Roles</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Estado</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Acciones</th>
                         </tr>
@@ -39,11 +38,9 @@
                             <td class="px-6 py-4 text-sm text-gray-600">{{ user.email|default:"-" }}</td>
                             <td class="px-6 py-4 text-sm">
                                 {% for group in user.groups.all %}
-                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium mr-1">
-                                        {{ group.name }}
-                                    </span>
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium mr-1">{{ group.name }}</span>
                                 {% empty %}
-                                    <span class="text-gray-400">Sin grupos</span>
+                                    <span class="text-gray-400">Sin roles</span>
                                 {% endfor %}
                             </td>
                             <td class="px-6 py-4 text-sm">
@@ -54,15 +51,18 @@
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4 text-sm">
-                                <div class="flex gap-2">
-                                    <a href="{% url 'users:usuario_editar' user.pk %}" 
-                                       class="text-green-600 hover:text-green-800">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{% url 'users:usuario_eliminar' user.pk %}" 
-                                       class="text-red-600 hover:text-red-800">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                <div class="flex gap-3 items-center">
+                                    <a href="{% url 'users:usuario_editar' user.pk %}" class="text-green-600 hover:text-green-800" title="Editar"><i class="fas fa-edit"></i></a>
+                                    {% if user.pk == request.user.pk %}
+                                        <span class="text-xs text-gray-400">Vos</span>
+                                    {% else %}
+                                        <button type="button" onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', {{ user.is_active|yesno:'true,false' }})"
+                                                class="{% if user.is_active %}text-amber-600 hover:text-amber-800{% else %}text-green-600 hover:text-green-800{% endif %}"
+                                                title="{% if user.is_active %}Desactivar{% else %}Activar{% endif %}">
+                                            <i class="fas {% if user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                                        </button>
+                                        <form id="form-toggle-user-{{ user.pk }}" method="post" action="{% url 'users:usuario_toggle' user.pk %}" class="hidden">{% csrf_token %}</form>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -70,39 +70,35 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <!-- Vista de cards para móvil -->
             <div class="md:hidden divide-y divide-gray-200">
                 {% for user in users %}
                 <div class="p-4 hover:bg-gray-50">
                     <div class="flex items-center justify-between mb-2">
                         <div class="font-medium text-gray-900">{{ user.get_full_name|default:user.username }}</div>
-                        <div class="flex gap-2">
-                            <a href="{% url 'users:usuario_editar' user.pk %}" 
-                               class="text-green-600 hover:text-green-800 p-2">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'users:usuario_eliminar' user.pk %}" 
-                               class="text-red-600 hover:text-red-800 p-2">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                        <div class="flex gap-2 items-center">
+                            <a href="{% url 'users:usuario_editar' user.pk %}" class="text-green-600 hover:text-green-800 p-2"><i class="fas fa-edit"></i></a>
+                            {% if user.pk != request.user.pk %}
+                                <button type="button" onclick="confirmarToggleUsuario('{{ user.pk }}', '{{ user.username|escapejs }}', {{ user.is_active|yesno:'true,false' }})"
+                                        class="{% if user.is_active %}text-amber-600{% else %}text-green-600{% endif %} p-2">
+                                    <i class="fas {% if user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                                </button>
+                                <form id="form-toggle-user-m-{{ user.pk }}" method="post" action="{% url 'users:usuario_toggle' user.pk %}" class="hidden">{% csrf_token %}</form>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="text-sm text-gray-600 space-y-1">
                         <div><span class="font-medium">Usuario:</span> {{ user.username }}</div>
-                        {% if user.email %}
-                        <div><span class="font-medium">Email:</span> {{ user.email }}</div>
-                        {% endif %}
-                        <div class="flex items-center gap-2 mt-2">
+                        {% if user.email %}<div><span class="font-medium">Email:</span> {{ user.email }}</div>{% endif %}
+                        <div class="flex items-center gap-2 mt-2 flex-wrap">
                             {% if user.is_active %}
                                 <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">Activo</span>
                             {% else %}
                                 <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">Inactivo</span>
                             {% endif %}
                             {% for group in user.groups.all %}
-                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                                    {{ group.name }}
-                                </span>
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">{{ group.name }}</span>
                             {% endfor %}
                         </div>
                     </div>
@@ -121,4 +117,22 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+    function confirmarToggleUsuario(pk, username, activo) {
+        ModernModal.show({
+            type: 'confirm',
+            title: activo ? 'Desactivar usuario' : 'Activar usuario',
+            message: activo
+                ? 'El usuario "' + username + '" no podrá iniciar sesión hasta que lo reactives.'
+                : 'El usuario "' + username + '" volverá a poder iniciar sesión.',
+            confirmText: activo ? 'Desactivar' : 'Activar',
+            cancelText: 'Cancelar',
+            onConfirm: function () {
+                var f = document.getElementById('form-toggle-user-' + pk) || document.getElementById('form-toggle-user-m-' + pk);
+                if (f) f.submit();
+            }
+        });
+    }
+</script>
 {% endblock %}

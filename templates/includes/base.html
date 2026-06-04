@@ -289,7 +289,7 @@
             {% endif %}
             
             <!-- Sistema de tiempo real para conversaciones -->
-            {% if websockets_enabled and 'Conversaciones' in user_groups_list or websockets_enabled and 'OperadorCharla' in user_groups_list or websockets_enabled and user.is_superuser %}
+            {% if websockets_enabled and puede_conversaciones %}
                 <script src="{% static 'custom/js/conversaciones_tiempo_real_global.js' %}"></script>
                 <script src="{% static 'custom/js/conversaciones_lista_ws.js' %}"></script>
             {% endif %}

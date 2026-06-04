@@ -94,11 +94,6 @@ class Command(BaseCommand):
                     user.set_password(raw_password)
                 user.save()
 
-                profile = getattr(user, "profile", None)
-                if profile:
-                    profile.rol = rol
-                    profile.save(update_fields=["rol"])
-
                 user.groups.set(reference_groups)
 
                 action = "creado" if created else "actualizado"

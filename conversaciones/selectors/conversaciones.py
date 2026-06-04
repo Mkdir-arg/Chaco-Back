@@ -6,14 +6,15 @@ from django.db.models import Avg, Count, Q
 from django.utils import timezone
 
 from ..models import ColaAsignacion, Conversacion, MetricasOperador
+from ..permisos import es_operador_restringido, puede_operar
 
 
 def usuario_tiene_permiso_conversaciones(user):
-    return user.groups.filter(name__in=['Conversaciones', 'OperadorCharla']).exists() or user.is_superuser
+    return puede_operar(user)
 
 
 def get_conversaciones_queryset_para_lista(user, filtros):
-    if user.groups.filter(name='OperadorCharla').exists() and not user.is_superuser:
+    if es_operador_restringido(user):
         queryset = Conversacion.objects.select_related('operador_asignado').annotate(
             mensajes_no_leidos=Count(
                 'mensajes',

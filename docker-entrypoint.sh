@@ -34,8 +34,8 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   python manage.py migrate --run-syncdb --noinput
 fi
 
-if [ "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_grupos crear_programas}" != "false" ]; then
-  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_grupos crear_programas}"
+if [ "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin seed_rbac crear_programas}" != "false" ]; then
+  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin seed_rbac crear_programas}"
 fi
 
 if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then

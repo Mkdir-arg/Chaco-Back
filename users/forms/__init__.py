@@ -1,8 +1,6 @@
 from django import forms
 from django.contrib.auth.models import Group, User
 
-from ..models import Profile
-
 
 def _normalize_groups_data(data):
     """
@@ -49,6 +47,11 @@ def _normalize_groups_args(args, kwargs):
     return args, kwargs
 
 
+def _roles_asignables_queryset():
+    """Roles asignables: solo los activos (un rol inactivo no es asignable)."""
+    return Group.objects.filter(meta__activo=True).order_by("name")
+
+
 class UserCreationForm(forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(
@@ -60,7 +63,7 @@ class UserCreationForm(forms.ModelForm):
         label="Contraseña",
     )
     groups = forms.ModelMultipleChoiceField(
-        queryset=Group.objects.all(),
+        queryset=_roles_asignables_queryset(),
         required=False,
         widget=forms.SelectMultiple(
             attrs={
@@ -69,18 +72,7 @@ class UserCreationForm(forms.ModelForm):
                 "size": "4",
             }
         ),
-        label="Grupos",
-    )
-    rol = forms.CharField(
-        max_length=100,
-        required=False,
-        label="Rol",
-        widget=forms.TextInput(
-            attrs={
-                "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                "placeholder": "Ingrese el rol",
-            }
-        ),
+        label="Roles",
     )
 
     class Meta:
@@ -92,7 +84,6 @@ class UserCreationForm(forms.ModelForm):
             "groups",
             "last_name",
             "first_name",
-            "rol",
         ]
         widgets = {
             "username": forms.TextInput(
@@ -124,6 +115,7 @@ class UserCreationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
+        self.fields["groups"].queryset = _roles_asignables_queryset()
 
 
 class CustomUserChangeForm(forms.ModelForm):
@@ -138,7 +130,7 @@ class CustomUserChangeForm(forms.ModelForm):
         required=False,
     )
     groups = forms.ModelMultipleChoiceField(
-        queryset=Group.objects.all(),
+        queryset=_roles_asignables_queryset(),
         required=False,
         widget=forms.SelectMultiple(
             attrs={
@@ -147,18 +139,7 @@ class CustomUserChangeForm(forms.ModelForm):
                 "size": "4",
             }
         ),
-        label="Grupos",
-    )
-    rol = forms.CharField(
-        max_length=100,
-        required=False,
-        label="Rol",
-        widget=forms.TextInput(
-            attrs={
-                "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                "placeholder": "Ingrese el rol",
-            }
-        ),
+        label="Roles",
     )
 
     class Meta:
@@ -170,7 +151,6 @@ class CustomUserChangeForm(forms.ModelForm):
             "groups",
             "last_name",
             "first_name",
-            "rol",
         ]
         widgets = {
             "username": forms.TextInput(
@@ -202,13 +182,11 @@ class CustomUserChangeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
+        # Incluye los roles ya asignados (aunque estén inactivos) + los activos,
+        # para no perder asignaciones existentes al editar.
+        asignables = _roles_asignables_queryset()
+        if self.instance and self.instance.pk:
+            asignables = (asignables | self.instance.groups.all()).distinct()
+        self.fields["groups"].queryset = asignables
         self._original_password_hash = self.instance.password
         self.fields["password"].initial = ""
-
-        try:
-            profile = self.instance.profile
-        except Profile.DoesNotExist:
-            profile = None
-
-        if profile:
-            self.fields["rol"].initial = profile.rol

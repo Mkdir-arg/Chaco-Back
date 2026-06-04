@@ -1,13 +1,18 @@
 from django.urls import path
 from django.contrib.auth.views import LogoutView
-from core.decorators import group_required
+
 from users.views import (
-    UsuariosLoginView,
-    UserListView,
+    RolCreateView,
+    RolDeleteView,
+    RolDetailView,
+    RolListView,
+    RolToggleActivoView,
+    RolUpdateView,
     UserCreateView,
+    UserListView,
+    UserToggleActivoView,
     UserUpdateView,
-    UserDeleteView,
-    GroupListView,
+    UsuariosLoginView,
 )
 
 app_name = "users"
@@ -15,29 +20,16 @@ app_name = "users"
 urlpatterns = [
     path("", UsuariosLoginView.as_view(), name="login"),
     path("logout", (LogoutView.as_view()), name="logout"),
-    path(
-        "usuarios/",
-        group_required(["Usuario Ver"])(UserListView.as_view()),
-        name="usuarios",
-    ),
-    path(
-        "usuarios/crear/",
-        group_required(["Usuario Crear"])(UserCreateView.as_view()),
-        name="usuario_crear",
-    ),
-    path(
-        "usuarios/editar/<int:pk>/",
-        group_required(["Usuario Editar"])(UserUpdateView.as_view()),
-        name="usuario_editar",
-    ),
-    path(
-        "usuarios/eliminar/<int:pk>/",
-        group_required(["Usuario Eliminar"])(UserDeleteView.as_view()),
-        name="usuario_eliminar",
-    ),
-    path(
-        "grupos/",
-        group_required(["Grupos Ver"])(GroupListView.as_view()),
-        name="grupos",
-    ),
+    # --- Usuarios (RBAC por capacidad: usuario.administrar, vía AdminRequiredMixin) ---
+    path("usuarios/", UserListView.as_view(), name="usuarios"),
+    path("usuarios/crear/", UserCreateView.as_view(), name="usuario_crear"),
+    path("usuarios/editar/<int:pk>/", UserUpdateView.as_view(), name="usuario_editar"),
+    path("usuarios/<int:pk>/toggle/", UserToggleActivoView.as_view(), name="usuario_toggle"),
+    # --- Roles (RBAC por capacidad: rol.administrar) ---
+    path("roles/", RolListView.as_view(), name="roles"),
+    path("roles/crear/", RolCreateView.as_view(), name="rol_crear"),
+    path("roles/<int:pk>/", RolDetailView.as_view(), name="rol_detalle"),
+    path("roles/<int:pk>/editar/", RolUpdateView.as_view(), name="rol_editar"),
+    path("roles/<int:pk>/eliminar/", RolDeleteView.as_view(), name="rol_eliminar"),
+    path("roles/<int:pk>/toggle/", RolToggleActivoView.as_view(), name="rol_toggle"),
 ]

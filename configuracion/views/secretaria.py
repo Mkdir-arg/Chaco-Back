@@ -5,21 +5,21 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from core.mixins import GroupRequiredMixin
+from core.rbac import CapacidadRequeridaMixin
 from core.models import Secretaria, Subsecretaria
 
 from ..forms_secretaria import SecretariaForm, SubsecretariaForm
 
-_GRUPOS = ['secretariaConfigurar']
+_CAPS = ['config.administrar']
 _REDIRECT = '/'
 
 
-class SecretariaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class SecretariaListView(LoginRequiredMixin, CapacidadRequeridaMixin, ListView):
     model = Secretaria
     template_name = 'configuracion/secretaria_list.html'
     context_object_name = 'secretarias'
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def get_queryset(self):
         qs = Secretaria.objects.annotate(cant_subsecretarias=Count('subsecretarias'))
@@ -34,13 +34,13 @@ class SecretariaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class SecretariaCreateView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class SecretariaCreateView(LoginRequiredMixin, CapacidadRequeridaMixin, CreateView):
     model = Secretaria
     form_class = SecretariaForm
     template_name = 'configuracion/secretaria_form.html'
     success_url = reverse_lazy('configuracion:secretarias')
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -48,13 +48,13 @@ class SecretariaCreateView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
         return response
 
 
-class SecretariaUpdateView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class SecretariaUpdateView(LoginRequiredMixin, CapacidadRequeridaMixin, UpdateView):
     model = Secretaria
     form_class = SecretariaForm
     template_name = 'configuracion/secretaria_form.html'
     success_url = reverse_lazy('configuracion:secretarias')
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -62,12 +62,12 @@ class SecretariaUpdateView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
         return response
 
 
-class SecretariaDeleteView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class SecretariaDeleteView(LoginRequiredMixin, CapacidadRequeridaMixin, DeleteView):
     model = Secretaria
     template_name = 'configuracion/secretaria_confirm_delete.html'
     success_url = reverse_lazy('configuracion:secretarias')
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -81,12 +81,12 @@ class SecretariaDeleteView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
             return redirect(self.success_url)
 
 
-class SubsecretariaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
+class SubsecretariaListView(LoginRequiredMixin, CapacidadRequeridaMixin, ListView):
     model = Subsecretaria
     template_name = 'configuracion/subsecretaria_list.html'
     context_object_name = 'subsecretarias'
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def get_queryset(self):
         qs = Subsecretaria.objects.select_related('secretaria').annotate(
@@ -104,13 +104,13 @@ class SubsecretariaListView(LoginRequiredMixin, GroupRequiredMixin, ListView):
         return context
 
 
-class SubsecretariaCreateView(LoginRequiredMixin, GroupRequiredMixin, CreateView):
+class SubsecretariaCreateView(LoginRequiredMixin, CapacidadRequeridaMixin, CreateView):
     model = Subsecretaria
     form_class = SubsecretariaForm
     template_name = 'configuracion/subsecretaria_form.html'
     success_url = reverse_lazy('configuracion:subsecretarias')
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -118,13 +118,13 @@ class SubsecretariaCreateView(LoginRequiredMixin, GroupRequiredMixin, CreateView
         return response
 
 
-class SubsecretariaUpdateView(LoginRequiredMixin, GroupRequiredMixin, UpdateView):
+class SubsecretariaUpdateView(LoginRequiredMixin, CapacidadRequeridaMixin, UpdateView):
     model = Subsecretaria
     form_class = SubsecretariaForm
     template_name = 'configuracion/subsecretaria_form.html'
     success_url = reverse_lazy('configuracion:subsecretarias')
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -132,12 +132,12 @@ class SubsecretariaUpdateView(LoginRequiredMixin, GroupRequiredMixin, UpdateView
         return response
 
 
-class SubsecretariaDeleteView(LoginRequiredMixin, GroupRequiredMixin, DeleteView):
+class SubsecretariaDeleteView(LoginRequiredMixin, CapacidadRequeridaMixin, DeleteView):
     model = Subsecretaria
     template_name = 'configuracion/subsecretaria_confirm_delete.html'
     success_url = reverse_lazy('configuracion:subsecretarias')
-    required_groups = _GRUPOS
-    redirect_url = _REDIRECT
+    capacidades_requeridas = _CAPS
+    redirect_sin_permiso = _REDIRECT
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()

@@ -13,6 +13,21 @@ from conversaciones.services_chat import (
     marcar_mensajes_ciudadano_leidos,
 )
 
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
+
+from core import rbac
+from users.models import Capacidad
+
+
+def _conceder_conversacion_operar(group):
+    """Asigna la capacidad ``conversacion.operar`` a un rol (modelo RBAC)."""
+    ct = ContentType.objects.get_for_model(Capacidad)
+    perm = Permission.objects.get(
+        content_type=ct, codename=rbac.codename_de("conversacion.operar")
+    )
+    group.permissions.add(perm)
+
 
 class IniciarConversacionFormTests(TestCase):
     def test_acepta_conversacion_personal_sin_endurecer_contrato_legacy(self):
@@ -215,6 +230,7 @@ class ConversacionesViewsContractTests(TestCase):
     @override_settings(WEBSOCKETS_ENABLED=True)
     def test_lista_renderiza_urls_para_websocket_runtime(self):
         group = Group.objects.create(name='Conversaciones')
+        _conceder_conversacion_operar(group)
         operador = User.objects.create_user(username='operador-lista', password='secret')
         operador.groups.add(group)
 
@@ -231,6 +247,7 @@ class ConversacionesViewsContractTests(TestCase):
     @override_settings(WEBSOCKETS_ENABLED=True)
     def test_detalle_renderiza_path_websocket_desde_template(self):
         group = Group.objects.create(name='Conversaciones')
+        _conceder_conversacion_operar(group)
         operador = User.objects.create_user(username='operador-detalle', password='secret')
         operador.groups.add(group)
         conversacion = Conversacion.objects.create(
@@ -248,6 +265,7 @@ class ConversacionesViewsContractTests(TestCase):
 
     def test_lista_no_expone_path_websocket_si_runtime_no_lo_soporta(self):
         group = Group.objects.create(name='Conversaciones')
+        _conceder_conversacion_operar(group)
         operador = User.objects.create_user(username='operador-lista-local', password='secret')
         operador.groups.add(group)
 

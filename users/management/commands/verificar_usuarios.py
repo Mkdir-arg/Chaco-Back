@@ -94,8 +94,8 @@ class Command(BaseCommand):
         
         # Perfil
         try:
-            perfil = usuario.profile
-            self.stdout.write(f'Rol: {perfil.rol}')
+            usuario.profile
+            self.stdout.write('Perfil: OK')
         except Profile.DoesNotExist:
             self.stdout.write(self.style.ERROR('Perfil: No existe'))
 

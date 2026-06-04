@@ -96,10 +96,9 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     import datetime
     from django.utils import timezone
 
-    puede_ver_sensible = (
-        user is not None
-        and (user.is_superuser or user.groups.filter(name='ciudadanoSensible').exists())
-    )
+    from core.rbac import puede
+
+    puede_ver_sensible = puede(user, "ciudadano.sensible")
 
     # Generar alertas on-the-fly antes de consultar (best-effort)
     try:

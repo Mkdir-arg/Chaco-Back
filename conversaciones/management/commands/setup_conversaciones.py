@@ -73,7 +73,7 @@ class Command(BaseCommand):
         
         for operador in operadores:
             # Agregar al grupo si no está
-            grupo_conversaciones = Group.objects.get(name='Conversaciones')
+            grupo_conversaciones, _ = Group.objects.get_or_create(name='Conversaciones')
             if not operador.groups.filter(name='Conversaciones').exists():
                 operador.groups.add(grupo_conversaciones)
                 self.stdout.write(f'   ✓ Usuario {operador.username} agregado al grupo Conversaciones')

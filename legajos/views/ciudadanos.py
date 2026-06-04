@@ -163,8 +163,9 @@ class CiudadanoUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'legajos/ciudadano_edit_form.html'
 
     def _puede_ver_sensible(self):
-        user = self.request.user
-        return user.is_superuser or user.groups.filter(name='ciudadanoSensible').exists()
+        from core.rbac import puede
+
+        return puede(self.request.user, "ciudadano.sensible")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

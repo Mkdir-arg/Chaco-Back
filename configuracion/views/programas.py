@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.decorators import group_required
+from core.rbac import puede, requiere
 from core.models_secretaria import Subsecretaria
 from legajos.models_programas import Programa
 
@@ -18,7 +18,6 @@ from ..forms_programas import (
     ProgramaPaso4Form,
 )
 
-_GRUPOS = ['programaConfigurar']
 _REDIRECT = 'configuracion:programas'
 
 # ---------------------------------------------------------------------------
@@ -62,10 +61,7 @@ def programa_list(request):
     if search:
         qs = qs.filter(Q(nombre__icontains=search) | Q(codigo__icontains=search))
 
-    puede_editar = (
-        request.user.is_superuser
-        or request.user.groups.filter(name__in=_GRUPOS).exists()
-    )
+    puede_editar = puede(request.user, "programa.configurar")
 
     return render(request, 'configuracion/programa_list.html', {
         'programas': qs,
@@ -83,7 +79,7 @@ def programa_list(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_wizard_paso1(request):
     data = _get_data(request)
     initial = {**data.get('paso1', {})}
@@ -109,7 +105,7 @@ def programa_wizard_paso1(request):
 
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_wizard_paso2(request):
     data = _get_data(request)
     if not data.get('paso1'):
@@ -131,7 +127,7 @@ def programa_wizard_paso2(request):
 
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_wizard_paso3(request):
     data = _get_data(request)
     if not data.get('paso2'):
@@ -156,7 +152,7 @@ def programa_wizard_paso3(request):
 
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_wizard_paso4(request):
     data = _get_data(request)
     if not data.get('paso3'):
@@ -224,7 +220,7 @@ def programa_wizard_paso4(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso1(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
     if programa.estado == Programa.Estado.INACTIVO:
@@ -264,7 +260,7 @@ def programa_editar_paso1(request, pk):
 
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso2(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
     data = _get_data(request, pk)
@@ -289,7 +285,7 @@ def programa_editar_paso2(request, pk):
 
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso3(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
     data = _get_data(request, pk)
@@ -320,7 +316,7 @@ def programa_editar_paso3(request, pk):
 
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_editar_paso4(request, pk):
     programa = get_object_or_404(Programa, pk=pk)
     data = _get_data(request, pk)
@@ -386,7 +382,7 @@ def programa_editar_paso4(request, pk):
 # ---------------------------------------------------------------------------
 
 @login_required
-@group_required(_GRUPOS, redirect_to=_REDIRECT)
+@requiere("programa.configurar", redirect_to=_REDIRECT)
 def programa_cambiar_estado(request, pk):
     if request.method != 'POST':
         return redirect('configuracion:programas')

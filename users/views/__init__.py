@@ -2,10 +2,17 @@
 
 from .admin import (  # noqa: F401
     AdminRequiredMixin,
-    GroupListView,
     UserCreateView,
-    UserDeleteView,
     UserListView,
+    UserToggleActivoView,
     UserUpdateView,
 )
 from .auth import UsuariosLoginView  # noqa: F401
+from .roles import (  # noqa: F401
+    RolCreateView,
+    RolDeleteView,
+    RolDetailView,
+    RolListView,
+    RolToggleActivoView,
+    RolUpdateView,
+)

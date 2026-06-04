@@ -1,0 +1,127 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}{% if es_edicion %}Editar{% else %}Nuevo{% endif %} rol{% endblock %}
+
+{% block main-content %}
+<div class="p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">{% if es_edicion %}Editar rol{% else %}Nuevo rol{% endif %}</h1>
+        <p class="text-gray-600 mt-1">Definí el rol y tildá las capacidades que otorga.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre del rol</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="text-red-600 text-sm mt-1">{{ form.name.errors }}</div>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                    {{ form.categoria }}
+                    {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
+                </div>
+                <div class="md:col-span-2">
+                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Capacidades</h2>
+                <span class="text-sm text-gray-500"><span id="total-seleccionadas">0</span> seleccionada(s)</span>
+            </div>
+            {% if form.capacidades.errors %}<div class="text-red-600 text-sm mb-3">{{ form.capacidades.errors }}</div>{% endif %}
+
+            <div class="space-y-3">
+                {% for modulo in form.arbol_capacidades %}
+                    <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
+                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-lg">
+                            <label class="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
+                                <input type="checkbox" class="select-all rounded border-gray-300" data-modulo="{{ modulo.modulo }}">
+                                {{ modulo.label }}
+                                <span class="text-xs font-normal text-gray-500">(<span class="contador-modulo" data-modulo="{{ modulo.modulo }}">0</span>/{{ modulo.capacidades|length }})</span>
+                            </label>
+                            <button type="button" @click="open = !open" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-chevron-down text-xs transition-transform" :class="{ 'rotate-180': open }"></i>
+                            </button>
+                        </div>
+                        <div x-show="open" x-transition class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {% for cap in modulo.capacidades %}
+                                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                    <input type="checkbox" name="capacidades" value="{{ cap.codigo }}"
+                                           class="cap-check rounded border-gray-300" data-modulo="{{ modulo.modulo }}"
+                                           {% if cap.checked %}checked{% endif %}>
+                                    <span>{{ cap.label }} <span class="text-xs text-gray-400 font-mono">{{ cap.codigo }}</span></span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 mt-6">
+            <a href="{% url 'users:roles' %}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">Cancelar</a>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Guardar</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var totalEl = document.getElementById('total-seleccionadas');
+
+        function checksDeModulo(modulo) {
+            return Array.from(document.querySelectorAll('.cap-check[data-modulo="' + modulo + '"]'));
+        }
+
+        function refrescarModulo(modulo) {
+            var checks = checksDeModulo(modulo);
+            var marcados = checks.filter(function (c) { return c.checked; });
+            var contador = document.querySelector('.contador-modulo[data-modulo="' + modulo + '"]');
+            if (contador) contador.textContent = marcados.length;
+            var selectAll = document.querySelector('.select-all[data-modulo="' + modulo + '"]');
+            if (selectAll) {
+                selectAll.checked = checks.length > 0 && marcados.length === checks.length;
+                selectAll.indeterminate = marcados.length > 0 && marcados.length < checks.length;
+            }
+        }
+
+        function refrescarTotal() {
+            totalEl.textContent = document.querySelectorAll('.cap-check:checked').length;
+        }
+
+        document.querySelectorAll('.select-all').forEach(function (sa) {
+            sa.addEventListener('change', function () {
+                var modulo = sa.getAttribute('data-modulo');
+                checksDeModulo(modulo).forEach(function (c) { c.checked = sa.checked; });
+                refrescarModulo(modulo);
+                refrescarTotal();
+            });
+        });
+
+        document.querySelectorAll('.cap-check').forEach(function (chk) {
+            chk.addEventListener('change', function () {
+                refrescarModulo(chk.getAttribute('data-modulo'));
+                refrescarTotal();
+            });
+        });
+
+        document.querySelectorAll('[data-modulo].border').forEach(function (panel) {
+            refrescarModulo(panel.getAttribute('data-modulo'));
+        });
+        refrescarTotal();
+    });
+</script>
+{% endblock %}

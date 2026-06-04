@@ -56,7 +56,7 @@
                 {% endif %}
                 
                 <div>
-                    <label for="{{ form.groups.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Grupos</label>
+                    <label for="{{ form.groups.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Roles</label>
                     <div class="space-y-3">
                         <div class="space-y-2">
                             <div class="hidden">
@@ -65,22 +65,12 @@
                             <div id="group-options" class="flex flex-wrap gap-2"></div>
                         </div>
                         <div id="selected-groups-tags" class="flex flex-wrap gap-2"></div>
-                        <p class="text-xs text-gray-500">Selecciona uno o más grupos. Puedes quitar un grupo haciendo clic en su etiqueta.</p>
+                        <p class="text-xs text-gray-500">Seleccioná uno o más roles activos. Podés quitar un rol haciendo clic en su etiqueta.</p>
                     </div>
                     {% if form.groups.errors %}
                         <div class="text-red-600 text-sm mt-1">{{ form.groups.errors }}</div>
                     {% endif %}
                 </div>
-                
-                {% if form.rol %}
-                <div>
-                    <label for="{{ form.rol.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                    {{ form.rol }}
-                    {% if form.rol.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.rol.errors }}</div>
-                    {% endif %}
-                </div>
-                {% endif %}
                 
             </div>
             
@@ -142,7 +132,7 @@
             if (selected.length === 0) {
                 const empty = document.createElement('span');
                 empty.className = 'text-gray-400 text-sm';
-                empty.textContent = 'Ningun grupo seleccionado';
+                empty.textContent = 'Ningún rol seleccionado';
                 tagsContainer.appendChild(empty);
                 return;
             }

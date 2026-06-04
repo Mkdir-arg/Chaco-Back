@@ -1,11 +1,9 @@
 from django.contrib.auth.models import User
-from django.db.models import F
 
 
 def get_usuarios_queryset():
     return (
         User.objects.select_related("profile")
-        .prefetch_related("groups", "user_permissions")
-        .annotate(rol=F("profile__rol"))
+        .prefetch_related("groups", "groups__meta", "user_permissions")
         .order_by("-id")
     )

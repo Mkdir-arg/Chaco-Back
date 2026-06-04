@@ -2,6 +2,7 @@ from django.db.models import Q
 
 from ..linking import get_legajo_ids_for_programas, get_programa_ids_for_legajo_ids
 from ..models import AlertaCiudadano, LegajoAtencion
+from core.rbac import puede
 
 
 class FiltrosUsuarioService:
@@ -26,9 +27,7 @@ class FiltrosUsuarioService:
         if programas_usuario:
             filtros |= Q(legajo_id__in=get_legajo_ids_for_programas(programas_usuario))
 
-        grupos_usuario = usuario.groups.values_list("name", flat=True)
-
-        if "Administrador" in grupos_usuario:
+        if puede(usuario, "config.administrar"):
             return AlertaCiudadano.objects.filter(activa=True)
 
         if not filtros:

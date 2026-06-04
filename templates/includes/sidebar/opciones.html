@@ -1,4 +1,4 @@
-{% load static custom_filters %}
+{% load static custom_filters rbac %}
 {% with pagina_actual=request.resolver_match.route %}
     <style>
         .sidebar-nav .text-\[\#FF0080\] {
@@ -74,7 +74,7 @@
             </div>
 
             <!-- Ciudadanos -->
-            {% if request.user|has_group:"Ciudadanos" %}
+            {% if request.user|puede:"ciudadano.ver" %}
                 <div x-data="{ open: {% if 'legajos/lista' in pagina_actual or 'legajos/ciudadanos' in pagina_actual or 'legajos/admision' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                     <template x-if="!sidebarCollapsed">
                         <div>
@@ -141,7 +141,7 @@
             </div>
 
             <!-- Conversaciones -->
-            {% if request.user|has_group:"Conversaciones" or request.user|has_group:"OperadorCharla" %}
+            {% if request.user|puede:"conversacion.operar" %}
                 <div class="relative">
                     <a href="{% url 'conversaciones:lista' %}" class="{% if 'conversaciones' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
                         <i class="fas fa-comments text-base {% if 'conversaciones' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
@@ -153,7 +153,7 @@
             {% endif %}
 
             <!-- Reportes -->
-            {% if request.user|has_group:"Ciudadanos" %}
+            {% if request.user|puede:"reporte.ver" %}
                 <div class="relative">
                     <a href="{% url 'legajos:reportes' %}" class="{% if 'reportes' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
                         <i class="fas fa-chart-bar text-base {% if 'reportes' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
@@ -165,7 +165,7 @@
             {% endif %}
 
             <!-- Configuración -->
-            {% if request.user|has_group:"Administrador" %}
+            {% if request.user|puede:"config.administrar" %}
                 <div x-data="{ open: {% if 'configuracion' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                     <template x-if="!sidebarCollapsed">
                         <div>
@@ -200,8 +200,8 @@
             {% endif %}
 
             <!-- Administración -->
-            {% if request.user|has_group:"Administrador" %}
-                <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'grupos' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
+            {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" %}
+                <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                     <template x-if="!sidebarCollapsed">
                         <div>
                             <button @click="open = !open" class="text-[#4A5565] hover:bg-[#F9FAFB] group flex w-full items-center gap-x-3 rounded-xl p-3 text-left text-sm font-semibold transition-all">
@@ -213,16 +213,16 @@
                                 <a href="{% url 'users:usuarios' %}" class="{% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
                                     <i class="fas fa-users mr-2 text-xs {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Usuarios
                                 </a>
-                                <a href="{% url 'users:grupos' %}" class="{% if 'grupos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-user-tag mr-2 text-xs {% if 'grupos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Grupos
+                                <a href="{% url 'users:roles' %}" class="{% if 'roles' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
+                                    <i class="fas fa-user-tag mr-2 text-xs {% if 'roles' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Roles
                                 </a>
                             </div>
                         </div>
                     </template>
                     
                     <template x-if="sidebarCollapsed">
-                        <a href="{% url 'users:usuarios' %}" class="{% if 'usuarios' in pagina_actual or 'grupos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center justify-center p-3 text-sm font-semibold transition-all">
-                            <i class="fas fa-cog text-base {% if 'usuarios' in pagina_actual or 'grupos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
+                        <a href="{% url 'users:usuarios' %}" class="{% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center justify-center p-3 text-sm font-semibold transition-all">
+                            <i class="fas fa-cog text-base {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
                         </a>
                     </template>
                 </div>
