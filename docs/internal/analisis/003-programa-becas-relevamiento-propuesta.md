@@ -149,10 +149,12 @@ distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 
 - El **cupo es del Programa** (no del relevamiento). El territorial releva **sin límite**.
 - El **consumo de cupo NO ocurre al aprobar**, sino tras la validación **SIS**:
-  admin confirma → consulta SIS → si OK y hay cupo → ocupa cupo; si OK y sin cupo → lista
-  de espera.
+  admin confirma (OKA en Nodo) → consulta SIS → si SIS responde **OKA** y hay cupo →
+  ocupa cupo; si SIS responde OKA y no hay cupo → lista de espera.
 - **Lista de espera:** el admin **promueve a mano**. Al dar de baja a un beneficiario, el
   sistema dispara una **alerta proactiva** para mover a alguien de la lista.
+- Si existe **OKA en Nodo + OKA en SIS**, el caso queda habilitado para pasar al
+  **sistema de liquidacion**.
 
 ### 6.1 Hallazgos del documento del equipo Ministerio (URD RQ-002 — "Tablero de Aprobación N1")
 
@@ -168,19 +170,23 @@ Integración SIS). **No resuelve el contrato técnico de SIS**, pero aporta encu
 - Cadena real de control: **Aprobación Nivel 1 (nuestro backoffice) → SIS (Nivel 2) →
   Ayudas Sociales (Nivel 3, liquidación)**.
 
-**NO responde (sigue pendiente):** qué se manda exactamente (sin contrato de campos/API),
-qué valida SIS, qué devuelve, qué pasa si SIS **rechaza** (su matriz de estados **no tiene
-estado de rechazo SIS**), ni qué pasa si SIS está caído.
+**NO responde (sigue pendiente):** qué se manda exactamente (sin contrato de campos/API)
+y qué devuelve SIS en detalle (estructura/campos). También queda pendiente definir la
+pregunta de cadena de 3 niveles para esta fase.
 
 **🔴 Contradicciones / huecos a reconciliar con el equipo Ministerio:**
-- **Roles:** el doc usa **Supervisor/Operador**; nuestra propuesta usa
-  **Administrador/Territorial**.
-- **Cupo y lista de espera:** el doc **no los menciona**. En el doc, post-SIS se va directo
-  a **Liquidado**; en nuestro modelo, post-SIS recién se decide **cupo / lista de espera**.
 - **Disparo a SIS:** el doc dice "automático al aprobar" PERO su Pantalla 4 tiene botón
   **"Enviar al SIS / Confirmar transferencia"** (manual), lo que contradice el flujo.
 - **Alcance:** RQ-002 es **genérico** ("beneficios sociales", "Asignación Social X", login
   con Google/OAuth), parece de una **plataforma más amplia**, no específico de Becas.
+
+**Definiciones acordadas en esta ronda:**
+- SIS responde **OKA** = válido. Se espera confirmación o rechazo con motivo.
+- Para ocupar cupo debe existir **OKA del administrador en Nodo + OKA de SIS**.
+- Si SIS falla por timeout en Nodo, se muestra alerta en el registro para reintentar.
+- Se mantiene el lenguaje propio: **Administrador/Territorial** =
+  **Supervisor/Operador** del RQ-002.
+- Con **OKA en SIS + OKA en Nodo**, el caso pasa a **liquidacion**.
 
 ➡️ El detalle de preguntas derivadas de estas contradicciones está consolidado en
 **Sección 16.3 (preguntas 11 a 16)**.
@@ -272,11 +278,11 @@ backoffice o un endpoint equivalente; la validación posterior en backoffice usa
 
 ### 8.1 Sistema SIS — estado
 
-El relevamiento de SIS queda **frenado del lado nuestro**: el documento RQ-002 no trae el
-contrato técnico. Hasta tener respuestas del equipo Ministerio, SIS queda como **caja negra** en la
-propuesta ("se valida contra SIS y devuelve OK/NO").
+El relevamiento de SIS sigue parcialmente abierto: ya se acordaron reglas de decisión
+(OKA/RECHAZO, doble OKA para cupo, manejo de timeout), pero falta cerrar contrato
+técnico y alcance completo de cadena.
 
-**Estado SIS:** 🔴 **Bloqueado** a la espera de respuestas del equipo Ministerio.
+**Estado SIS:** 🟠 **Parcialmente definido** (con pendientes técnicos).
 ➡️ Las preguntas concretas (S-1…S-10) están consolidadas al final, en
 **[16. Preguntas pendientes](#16-preguntas-pendientes-consolidado)**.
 
@@ -322,6 +328,10 @@ backoffice debe exponer esa acción de revalidar.
 | RN-15 | La app funciona **offline**; si se finaliza sin conexión, el relevamiento pasa a `Finalizado` **recién cuando se sincronizó todo**. |
 | RN-16 | El backoffice debe permitir **revalidar contra RENAPER** los registros marcados "No validado RENAPER". |
 | RN-17 | La app de campo **la desarrollamos nosotros** (entra en el alcance). |
+| RN-18 | SIS responde **OKA** = válido; si SIS rechaza, debe existir motivo de rechazo. |
+| RN-19 | El cupo se ocupa **solo** con doble confirmación: **OKA en Nodo + OKA en SIS**. Sin alguno de los dos, no ocupa cupo. |
+| RN-20 | Si SIS falla por **timeout en Nodo**, el sistema marca alerta en el registro para reintento posterior. |
+| RN-21 | Con **OKA en Nodo + OKA en SIS**, el caso queda habilitado para pasar al **sistema de liquidacion**. |
 
 ---
 
@@ -384,22 +394,17 @@ de equipo, con su estado).
 
 > **Todas las preguntas abiertas del análisis, juntas y al final.** Mientras existan
 > pendientes **bloqueantes**, NO se generan issues (control estricto de `AGENTS.md`).
-> Estado de cada una: 🔴 bloqueante · 🟡 no bloqueante (se asume y se confirma luego).
+> Estado de cada una: 🔴 bloqueante · 🟡 no bloqueante · ⏸️ diferida.
 
-### 16.1 Sistema SIS (🔴 bloqueante — caja negra hasta respuesta del equipo Ministerio)
+### 16.1 Sistema SIS (pendientes y diferida)
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
 | S-1 | **Contrato de API.** ¿SIS expone una API REST? ¿Endpoint, autenticación, ambiente de prueba? ¿Es síncrono o asíncrono? | Equipo Ministerio/ICORE | 🔴 |
 | S-2 | **Datos de entrada.** ¿Qué campos se le envían por persona? (DNI/CUIL, datos del beneficio, id de programa, adjuntos) | Equipo Ministerio/ICORE | 🔴 |
-| S-3 | **Qué valida SIS.** ¿Qué significa su "OK"? (elegibilidad, no estar en beneficio incompatible, cruce de datos) | Equipo Ministerio | 🔴 |
 | S-4 | **Datos de salida.** ¿Qué devuelve exactamente? (OK/NO, código, motivo de rechazo, datos) | Equipo Ministerio/ICORE | 🔴 |
 | S-5 | **Rechazo de SIS.** Si responde NO, ¿la persona queda fuera o el admin corrige y reenvía? | Equipo Ministerio | 🔴 |
-| S-6 | **Asignación de cupo.** Con SIS OK: ¿ocupa cupo automáticamente (y manda a lista de espera si no hay) o el admin confirma a mano? | Equipo Ministerio | 🔴 |
-| S-7 | **Caída / error de SIS.** Si no responde o falla, ¿queda pendiente y se reintenta? ¿Timeout / aviso? | Equipo Ministerio/ICORE | 🔴 |
-| S-8 | **Cadena de 3 niveles.** ¿Becas llega hasta "ocupa cupo" o también hasta Ayudas Sociales / Liquidado (nivel 3)? | Equipo Ministerio | 🔴 |
-| S-9 | **Roles.** ¿"Supervisor/Operador" del RQ-002 son los mismos "Administrador/Territorial" de Becas? | Equipo Ministerio | 🔴 |
-| S-10 | **Convivencia cupo ↔ cadena SIS.** En el RQ-002 post-SIS va directo a Liquidado (sin cupo). ¿Dónde encaja el cupo/lista de espera? | Equipo Ministerio | 🔴 |
+| S-8 | **Cadena de 3 niveles.** ¿Becas llega hasta "ocupa cupo" o también hasta Ayudas Sociales / Liquidado (nivel 3)? | Equipo Ministerio | ⏸️ |
 
 ### 16.2 Formulario y reglas de negocio
 
@@ -418,7 +423,6 @@ de equipo, con su estado).
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| 11 | **Roles:** ¿"Supervisor/Operador" del RQ-002 = "Administrador/Territorial" de Becas, o distintos? | Equipo Ministerio | 🔴 |
 | 12 | **Cadena de control:** ¿cómo conviven cupo/lista de espera con post-SIS → Ayudas Sociales/Liquidado? ¿El cupo se decide antes o después de SIS? | Equipo Ministerio | 🔴 |
 | 13 | **Sistema de Ayudas Sociales (nivel 3):** ¿dentro del alcance de Becas o es otro requerimiento? | Equipo Ministerio | 🔴 |
 | 14 | **Contrato técnico de SIS:** endpoint/API, campos, qué valida, qué devuelve, manejo de rechazo y caída. (= S-1…S-7) | Equipo Ministerio/ICORE | 🔴 |
