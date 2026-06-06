@@ -82,8 +82,11 @@ para no inventar un esquema paralelo.
 2. **Inicio en campo (territorial).** El territorial entra a la app, ve el **listado de
    sus relevamientos** asignados y **solo puede iniciar el relevamiento del día**.
 3. **Carga (territorial).** Dentro del relevamiento carga **un formulario tras otro**
-   (1 por persona). Al iniciar cada formulario pide **2 datos de identidad** que se
-   validan contra **RENAPER**. **No** puede dejar un formulario a medias.
+   (1 por persona). Al iniciar cada formulario, el sistema determina la **forma de
+   validar identidad** según conectividad (ver § 8.2 para detalle completo): puede
+   **escanear el DNI** (lectura directa del chip/código del documento), **validar con
+   RENAPER** (ingreso manual de DNI + sexo), o **cargar manual** si no hay conexión.
+   **No** puede dejar un formulario a medias.
 4. **Finalización y envío (territorial).** Cuando termina, **finaliza el relevamiento** y
    **todos los formularios se envían juntos** al backoffice. El territorial **termina su
    tarea** acá (no participa más). Al enviarse, cada persona se **crea/relaciona como
@@ -92,10 +95,13 @@ para no inventar un esquema paralelo.
    **listado de formularios enviados**, abre **uno por uno**, ve la información recabada y
    **aprueba** o **rechaza** (el rechazo requiere **motivo** y es **informativo**: no
    vuelve al territorial).
-6. **Validación SIS (aprobados).** Cada persona aprobada se **valida contra el Sistema
-   SIS**. Resultado: **Validado-Aprobado** o **Validado-Rechazado**.
+6. **Validación SIS (aprobados).** Si el admin **aprueba**, el sistema **automáticamente**
+   dispara la validación contra SIS (**síncrona**: el admin espera la respuesta). Si el
+   admin **rechaza**, no se envía a SIS. Resultado de SIS: **Validado-Aprobado** o
+   **Validado-Rechazado**.
 7. **Asignación de cupo.** Si SIS aprueba y **hay cupo** disponible en el programa → la
-   persona **ocupa 1 cupo**. Si el cupo está lleno → va a **lista de espera**.
+   persona **ocupa 1 cupo** en ese momento. Si el cupo está lleno → va a **lista de
+   espera**. El siguiente caso que se apruebe ya ve el cupo actualizado.
 8. **Gestión de cupo (admin).** Cuando el admin **da de baja** a un beneficiario, se
   libera un cupo y el sistema muestra una **alerta**: "se liberó un cupo, mover a
   alguien de la lista de espera". El admin **promueve a mano**.
@@ -112,13 +118,14 @@ para no inventar un esquema paralelo.
 Asignado → En curso → Finalizado → En revisión → Terminado
 ```
 
-| Estado | Significado |
-|---|---|
-| **Asignado** | El admin lo creó y se lo asignó a un territorial. |
-| **En curso** | El territorial lo inició en campo (el día asignado). |
-| **Finalizado** | El territorial lo cerró y envió todos los formularios. |
-| **En revisión** | El admin está revisando los formularios caso por caso. |
-| **Terminado** | Revisión completa cerrada. |
+| Estado | Significado | Dónde se ve |
+|---|---|---|
+| **Asignado** | El admin lo creó y se lo asignó a un territorial. | Backoffice y app de campo |
+| **En curso** | El territorial lo inició en campo (el día asignado). | Backoffice y app de campo |
+| **Sincronizando...** | El territorial presionó "Finalizar" sin conexión; los formularios están pendientes de sincronización. | **Solo app de campo** (el backoffice no lo ve hasta que sincronice) |
+| **Finalizado** | El territorial lo cerró y envió todos los formularios (ya sincronizados con el backoffice). | Backoffice y app de campo |
+| **En revisión** | El admin está revisando los formularios caso por caso. | Backoffice (el territorial ya no lo ve activo) |
+| **Terminado** | Revisión completa cerrada. | Backoffice |
 
 ### Estado del Formulario / Persona
 
@@ -149,8 +156,14 @@ distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 
 - El **cupo es del Programa** (no del relevamiento). El territorial releva **sin límite**.
 - El **consumo de cupo NO ocurre al aprobar**, sino tras la validación **SIS**:
-  admin confirma (OKA en Nodo) → consulta SIS → si SIS responde **OKA** y hay cupo →
+  admin confirma (OKA en Nodo) → **se dispara automáticamente** la consulta a SIS
+  (**síncrona**: el admin espera la respuesta) → si SIS responde **OKA** y hay cupo →
   ocupa cupo; si SIS responde OKA y no hay cupo → lista de espera.
+- **Validación SIS es síncrona y secuencial:** al aprobar un formulario, el sistema
+  consulta SIS y **bloquea** hasta recibir respuesta. Esto garantiza que no hay race
+  condition: el cupo se consume en ese momento y el siguiente caso ya ve el cupo actualizado.
+- Si el admin **rechaza** un formulario (en lugar de aprobar), **no se envía a SIS**;
+  queda directamente en estado "Rechazado" con motivo.
 - **Lista de espera:** el admin **promueve a mano**. Al dar de baja a un beneficiario, el
   sistema dispara una **alerta proactiva** para mover a alguien de la lista.
 - Si existe **OKA en Nodo + OKA en SIS**, el caso queda habilitado para pasar al
@@ -183,6 +196,8 @@ pregunta de cadena de 3 niveles para esta fase.
 **Definiciones acordadas en esta ronda:**
 - SIS responde **OKA** = válido. Se espera confirmación o rechazo con motivo.
 - Para ocupar cupo debe existir **OKA del administrador en Nodo + OKA de SIS**.
+- **Disparo a SIS:** automático y **síncrono** al aprobar (el admin espera la respuesta
+  antes de continuar). Si el admin rechaza, **no se envía a SIS**.
 - Si SIS falla por timeout en Nodo, se muestra alerta en el registro para reintentar.
 - Se mantiene el lenguaje propio: **Administrador/Territorial** =
   **Supervisor/Operador** del RQ-002.
@@ -297,9 +312,41 @@ técnico y alcance completo de cadena.
 | **Finalizar offline** | El territorial puede presionar **Finalizar sin conexión**; el sistema **finaliza recién cuando se sincronizó todo** (el envío en lote se encola y la finalización se confirma post-sincronización). |
 | **RENAPER offline** | Si no hay señal, se aplica la regla **"cargar manual + No validado RENAPER"**; el registro se envía al backoffice y el **administrador puede revalidar** ahí. |
 
-📌 *Regla nueva (RN):* "Finalizado" del relevamiento es un estado **diferido a la
-sincronización**: si se finaliza offline, el relevamiento queda pendiente de sync y solo
-pasa a `Finalizado` (con los formularios en backoffice) cuando **todo** se sincronizó.
+#### Flujo de carga de identidad en campo
+
+Al iniciar un formulario, el sistema determina el camino según conectividad y elección del territorial:
+
+```
+¿Hay conexión?
+    SÍ → el territorial elige:
+           Opción A: Escaneo DNI (cámara — barcode / QR / MRZ)
+                     → lee datos DIRECTOS del chip/código del documento físico
+                     → autocompleta todos los campos disponibles
+                     → NO consulta RENAPER (los datos vienen del DNI real)
+                     → marca: "Validado por escaneo DNI"
+           Opción B: Validación RENAPER (ingresa DNI + sexo a mano)
+                     → consulta API RENAPER
+                     → RENAPER confirma identidad y autocompleta datos
+                     → marca: "Validado RENAPER"
+                     → si RENAPER no responde → carga manual + "No validado RENAPER"
+    NO → carga manual directamente → "No validado RENAPER"
+```
+
+| Camino | Origen | Marca de validación | ¿Requiere revalidación? |
+|---|---|---|---|
+| Escaneo DNI (con conexión) | Territorial elige opción A | **Validado por escaneo DNI** | No — datos leídos directamente del documento físico |
+| RENAPER responde OK (con conexión) | Territorial elige opción B | **Validado RENAPER** | No — confirmado por API RENAPER |
+| RENAPER no responde (con conexión) | Opción B fallida → carga manual | **No validado RENAPER** | Sí — backoffice debe revalidar (RN-16) |
+| Sin conexión | Automático → carga manual | **No validado RENAPER** | Sí — backoffice debe revalidar (RN-16) |
+
+📌 *Regla crítica:* el **escaneo DNI NO consulta RENAPER** porque lee los datos directamente del chip/código del documento físico que tiene el territorial en la mano. Esto le da el mismo nivel de confianza (o mayor) que la validación remota con RENAPER.
+
+📌 *Regla:* "No validado RENAPER" tiene **dos orígenes posibles**: sin conexión (offline) o RENAPER caído con conexión. En ambos casos el tratamiento posterior es idéntico: el backoffice debe permitir revalidar (RN-16).
+
+📌 *Regla nueva (RN-15):* "Finalizado" del relevamiento es un estado **diferido a la
+sincronización**: si se finaliza offline, el relevamiento muestra **"Sincronizando..."** en
+la app (estado local) y solo aparece en el backoffice con estado `Finalizado` cuando
+**todo** se sincronizó. El admin no ve el relevamiento antes de la sincronización completa.
 
 📌 *Impacto crítico:* hay **dos momentos de validación RENAPER** — (1) en campo si hay
 señal; (2) en backoffice (revalidación) para los marcados "No validado RENAPER". El
@@ -323,15 +370,19 @@ backoffice debe exponer esa acción de revalidar.
 | RN-10 | Una persona puede pertenecer a **N programas** a la vez. |
 | RN-11 | El **rechazo** del admin requiere **motivo** y es **informativo** (no vuelve al territorial). |
 | RN-12 | El territorial **ve solo lo suyo**; el admin **ve todo** el programa. |
-| RN-13 | Identidad de la persona validada con **RENAPER** (DNI + sexo) al cargar. Si RENAPER no responde, se carga **manual** y queda **"No validado RENAPER"**, para validar luego en backoffice. |
+| RN-13 | Identidad de la persona se valida al cargar mediante **3 caminos posibles**: (A) escaneo DNI (lectura directa del chip/código del documento → marca "Validado por escaneo DNI"), (B) RENAPER (ingreso manual DNI + sexo → consulta API → marca "Validado RENAPER"), (C) carga manual si no hay conexión o RENAPER falla (marca "No validado RENAPER" → requiere revalidación posterior en backoffice). |
 | RN-14 | Trazabilidad obligatoria: quién cargó, cuándo, historial de estados (admin/SIS). |
-| RN-15 | La app funciona **offline**; si se finaliza sin conexión, el relevamiento pasa a `Finalizado` **recién cuando se sincronizó todo**. |
+| RN-15 | La app funciona **offline**; si el territorial presiona "Finalizar" sin conexión, el relevamiento muestra estado **"Sincronizando..."** en la app (solo visible localmente) hasta recuperar señal y sincronizar. El backoffice **no ve el relevamiento** hasta que se sincronicen todos los formularios; recién ahí aparece con estado `Finalizado`. |
 | RN-16 | El backoffice debe permitir **revalidar contra RENAPER** los registros marcados "No validado RENAPER". |
 | RN-17 | La app de campo **la desarrollamos nosotros** (entra en el alcance). |
 | RN-18 | SIS responde **OKA** = válido; si SIS rechaza, debe existir motivo de rechazo. |
 | RN-19 | El cupo se ocupa **solo** con doble confirmación: **OKA en Nodo + OKA en SIS**. Sin alguno de los dos, no ocupa cupo. |
 | RN-20 | Si SIS falla por **timeout en Nodo**, el sistema marca alerta en el registro para reintento posterior. |
 | RN-21 | Con **OKA en Nodo + OKA en SIS**, el caso queda habilitado para pasar al **sistema de liquidacion**. |
+| RN-24 | La validación SIS se **dispara automáticamente** al aprobar un formulario (tanto aprobación como rechazo disparan en ese momento: aprobación → envía a SIS; rechazo → no envía). La consulta a SIS es **síncrona**: el admin espera la respuesta antes de poder continuar con otro caso. Esto garantiza que el consumo de cupo es secuencial y sin race conditions. |
+| RN-25 | Si el admin **rechaza** un formulario, **no se envía a SIS**; queda directamente en estado "Rechazado" con motivo informativo. |
+| RN-22 | Si la fecha de nacimiento indica que el beneficiario es **menor de edad (< 18 años)**, se habilita obligatoriamente la sección **Apoderado** (Nombre, Apellido, Fecha de Nacimiento). El formulario no puede finalizarse sin esos datos. Si el beneficiario es mayor de edad, la sección permanece oculta. |
+| RN-23 | El territorial puede **editar los campos precargados** por escaneo o RENAPER en caso de error de lectura o domicilio desactualizado. |
 
 ---
 
@@ -387,6 +438,10 @@ de equipo, con su estado).
 | Fecha | Cambio | Motivo |
 |---|---|---|
 | 2026-06-04 | Versión inicial: consolidación backoffice (Secciones 1–7). | Pedido del usuario antes de abrir el bloque SIS. |
+| 2026-06-04 | Incorporación RQ-001: flujo de carga de identidad en campo (escaneo / RENAPER / manual), RN-22 y RN-23, pregunta 2 rebajada a 🟡 con base de campos definida. | Análisis URD RQ-001 (Registro de Beneficiarios). |
+| 2026-06-04 | Reconciliación § 4 paso 3 vs § 8.2: aclarado que escaneo DNI NO consulta RENAPER (lee datos directos del chip/código del documento) y se marca "Validado por escaneo DNI". Actualizada RN-13. | Corrección de tensión lógica detectada en análisis. |
+| 2026-06-04 | Documentado estado "Sincronizando..." (solo app de campo) en § 5 y RN-15: el backoffice no ve el relevamiento hasta que sincronice completamente. | Corrección de estado implícito detectado en análisis. |
+| 2026-06-04 | Documentado flujo síncrono de validación SIS (§ 4 pasos 6-7, § 6, RN-24, RN-25): el disparo es automático al aprobar y bloquea hasta recibir respuesta, garantizando consumo secuencial de cupo sin race conditions. | Cierre de potencial race condition detectado en análisis. |
 
 ---
 
@@ -410,7 +465,7 @@ de equipo, con su estado).
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| 2 | **Campos exactos del formulario** (aún sin definir). | Equipo Ministerio | 🔴 |
+| 2 | **Campos exactos del formulario.** RQ-001 define una base: Bloque A (DNI, Apellido, Nombre, Sexo, Estado Civil, Fecha de Nacimiento), Bloque B (Domicilio: Provincia, Localidad, Calle, Número, Piso, Departamento, Barrio), Bloque C (Celular, Mail — manual obligatorio), Bloque D (Apoderado — condicional menor de edad), Adjuntos (Foto DNI frente/dorso obligatorios; CBU y Cert. domicilio opcionales). **Pendiente confirmar con Guido** si estos son los campos definitivos o si hay campos adicionales para Becas. | Guido (Equipo Ministerio) | 🟡 |
 | 1 | ¿Finalizar un relevamiento es **reversible** para el territorial? | Equipo Ministerio | 🟡 |
 | 3 | Cupo: ¿único por programa o puede haber **por zona/localidad/convocatoria**? | Equipo Ministerio | 🟡 |
 | 4 | Lista de espera: ¿**orden/prioridad** (FIFO) o elección libre del admin? | Equipo Ministerio | 🟡 |
