@@ -95,10 +95,7 @@ para no inventar un esquema paralelo.
    **listado de formularios enviados**, abre **uno por uno**, ve la información recabada y
    **aprueba** o **rechaza** (el rechazo requiere **motivo** y es **informativo**: no
    vuelve al territorial).
-6. **Validación SIS (aprobados).** Si el admin **aprueba**, el sistema **automáticamente**
-   dispara la validación contra SIS (**síncrona**: el admin espera la respuesta). Si el
-   admin **rechaza**, no se envía a SIS. Resultado de SIS: **Validado-Aprobado** o
-   **Validado-Rechazado**.
+6. **Validación SIS (aprobados y rechazados).** Tanto si el admin **aprueba** como si **rechaza**, el sistema **automáticamente** dispara la validación contra SIS (**síncrona**: el admin espera la respuesta). Resultado de SIS: **Validado-Aprobado** o **Validado-Rechazado**.
 7. **Asignación de cupo.** Si SIS aprueba y **hay cupo** disponible en el programa → la
    persona **ocupa 1 cupo** en ese momento. Si el cupo está lleno → va a **lista de
    espera**. El siguiente caso que se apruebe ya ve el cupo actualizado.
@@ -162,8 +159,22 @@ distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 - **Validación SIS es síncrona y secuencial:** al aprobar un formulario, el sistema
   consulta SIS y **bloquea** hasta recibir respuesta. Esto garantiza que no hay race
   condition: el cupo se consume en ese momento y el siguiente caso ya ve el cupo actualizado.
-- Si el admin **rechaza** un formulario (en lugar de aprobar), **no se envía a SIS**;
-  queda directamente en estado "Rechazado" con motivo.
+
+**Flujo de revisión y validación SIS (secuencial):**
+
+```
+Admin abre formulario 1 → revisa → aprueba/rechaza → dispara validación SIS → espera respuesta de SIS
+  → (SIS responde: asigna cupo / lista de espera / rechazado)
+  → Admin cierra formulario 1
+  → Admin abre formulario 2 → revisa → aprueba/rechaza → dispara validación SIS → espera respuesta de SIS
+  → (SIS responde: asigna cupo / lista de espera / rechazado)
+  → Admin cierra formulario 2
+  → ...
+```
+
+📌 *El proceso es **estrictamente secuencial**: el admin no puede abrir/revisar otro formulario hasta que SIS responda al actual. Esto garantiza que el consumo de cupo es atómico y sin race conditions.*
+
+- Si el admin **rechaza** un formulario (en lugar de aprobar), **SÍ se envía a SIS** (ambos caminos —aprobar y rechazar— disparan validación SIS para verificar el estado en el sistema central).
 - **Lista de espera:** el admin **promueve a mano**. Al dar de baja a un beneficiario, el
   sistema dispara una **alerta proactiva** para mover a alguien de la lista.
 - Si existe **OKA en Nodo + OKA en SIS**, el caso queda habilitado para pasar al
@@ -196,8 +207,7 @@ pregunta de cadena de 3 niveles para esta fase.
 **Definiciones acordadas en esta ronda:**
 - SIS responde **OKA** = válido. Se espera confirmación o rechazo con motivo.
 - Para ocupar cupo debe existir **OKA del administrador en Nodo + OKA de SIS**.
-- **Disparo a SIS:** automático y **síncrono** al aprobar (el admin espera la respuesta
-  antes de continuar). Si el admin rechaza, **no se envía a SIS**.
+- **Disparo a SIS:** automático y **síncrono** tanto al aprobar como al rechazar (ambas acciones disparan validación SIS). El admin espera la respuesta antes de continuar.
 - Si SIS falla por timeout en Nodo, se muestra alerta en el registro para reintentar.
 - Se mantiene el lenguaje propio: **Administrador/Territorial** =
   **Supervisor/Operador** del RQ-002.
@@ -379,8 +389,8 @@ backoffice debe exponer esa acción de revalidar.
 | RN-19 | El cupo se ocupa **solo** con doble confirmación: **OKA en Nodo + OKA en SIS**. Sin alguno de los dos, no ocupa cupo. |
 | RN-20 | Si SIS falla por **timeout en Nodo**, el sistema marca alerta en el registro para reintento posterior. |
 | RN-21 | Con **OKA en Nodo + OKA en SIS**, el caso queda habilitado para pasar al **sistema de liquidacion**. |
-| RN-24 | La validación SIS se **dispara automáticamente** al aprobar un formulario (tanto aprobación como rechazo disparan en ese momento: aprobación → envía a SIS; rechazo → no envía). La consulta a SIS es **síncrona**: el admin espera la respuesta antes de poder continuar con otro caso. Esto garantiza que el consumo de cupo es secuencial y sin race conditions. |
-| RN-25 | Si el admin **rechaza** un formulario, **no se envía a SIS**; queda directamente en estado "Rechazado" con motivo informativo. |
+| RN-24 | La validación SIS se **dispara automáticamente** tanto al aprobar como al rechazar un formulario (ambas acciones envían a SIS para verificación). La consulta a SIS es **síncrona**: el admin espera la respuesta antes de poder continuar con otro caso. Esto garantiza que el consumo de cupo es secuencial y sin race conditions. |
+| RN-25 | Tanto la **aprobación** como el **rechazo** del admin envían el caso a SIS; la diferencia está en el contexto (aprobado vs rechazado en Nodo) que se envía junto con los datos. |
 | RN-22 | Si la fecha de nacimiento indica que el beneficiario es **menor de edad (< 18 años)**, se habilita obligatoriamente la sección **Apoderado** (Nombre, Apellido, Fecha de Nacimiento). El formulario no puede finalizarse sin esos datos. Si el beneficiario es mayor de edad, la sección permanece oculta. |
 | RN-23 | El territorial puede **editar los campos precargados** por escaneo o RENAPER en caso de error de lectura o domicilio desactualizado. |
 
@@ -441,7 +451,7 @@ de equipo, con su estado).
 | 2026-06-04 | Incorporación RQ-001: flujo de carga de identidad en campo (escaneo / RENAPER / manual), RN-22 y RN-23, pregunta 2 rebajada a 🟡 con base de campos definida. | Análisis URD RQ-001 (Registro de Beneficiarios). |
 | 2026-06-04 | Reconciliación § 4 paso 3 vs § 8.2: aclarado que escaneo DNI NO consulta RENAPER (lee datos directos del chip/código del documento) y se marca "Validado por escaneo DNI". Actualizada RN-13. | Corrección de tensión lógica detectada en análisis. |
 | 2026-06-04 | Documentado estado "Sincronizando..." (solo app de campo) en § 5 y RN-15: el backoffice no ve el relevamiento hasta que sincronice completamente. | Corrección de estado implícito detectado en análisis. |
-| 2026-06-04 | Documentado flujo síncrono de validación SIS (§ 4 pasos 6-7, § 6, RN-24, RN-25): el disparo es automático al aprobar y bloquea hasta recibir respuesta, garantizando consumo secuencial de cupo sin race conditions. | Cierre de potencial race condition detectado en análisis. |
+| 2026-06-04 | Documentado flujo síncrono de validación SIS (§ 4 pasos 6-7, § 6, RN-24, RN-25): el disparo es automático tanto al aprobar como al rechazar, bloquea hasta recibir respuesta, garantizando consumo secuencial de cupo sin race conditions. Agregado flujo gráfico en § 6. | Cierre de potencial race condition detectado en análisis + corrección: ambos caminos (aprobar/rechazar) envían a SIS. |
 
 ---
 
