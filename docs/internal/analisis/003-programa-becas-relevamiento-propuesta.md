@@ -264,8 +264,6 @@ convocatoria** (la convocatoria apunta a un segmento). Segmentos vigentes hoy:
 
 📌 *A confirmar (origen del catálogo, R-1.b):* si el listado de segmentos es **local** (lo
 parametrizamos) o lo **provee SIS**.
-📌 *Nomenclatura:* varios segmentos nombran "Ñachec"; confirmar si el programa es "Becas" o
-"Ñachec" (hoy §2 los trata como programas distintos).
 
 ### Dos tipos de requisitos
 
