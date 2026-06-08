@@ -35,31 +35,61 @@ backdrop:
 
 modal_card:
   background: "bg-white (#ffffff)"
-  border_radius: "rounded-xl (12px)"
+  border_radius: "rounded-2xl (16px)"
   box_shadow: "var(--sombra-xl)"
   padding: "24px"
   max_width:
-    sm: "~400px (confirmation dialogs)"
+    sm: "~380px (confirmation dialogs — compact)"
     md: "~560px (form modals)"
     lg: "~720px (information modals with content)"
   position: "Center of viewport (horizontally and vertically)"
 
-anatomy: |
-  [Backdrop rgba(209,213,219,0.7)]
-  ┌─────────────────────────────────┐
-  │ Modal title              [× ]   │  ← text-heading font-semibold + close button
-  ├─────────────────────────────────┤
-  │                                 │
-  │  Body content / form / message  │
-  │                                 │
-  ├─────────────────────────────────┤
-  │        [Cancel]  [Confirm]      │  ← action row right-aligned
-  └─────────────────────────────────┘
+anatomy:
+  confirmation_compact: |
+    [Backdrop rgba(209,213,219,0.7)]
+    ┌──────────────────────────────────┐
+    │                             [×]  │  ← XMarkIcon, text-body-subtle, top-right
+    │            ┌─────┐               │
+    │            │  !  │               │  ← neutral circle ~48px, bg-tertiary, text-body-subtle
+    │            └─────┘               │
+    │  ¿Estás seguro de que querés     │
+    │     eliminar este elemento?      │  ← Inter Regular 15px, text-heading, centered
+    │                                  │
+    │  [No, cancel]       [Confirm]    │  ← see action_buttons spec below
+    └──────────────────────────────────┘
 
-  - Title: Inter SemiBold 18px, text-heading
-  - Body: Inter Regular 14px, text-body
-  - Close (×): top-right, icon-only with aria-label="Cerrar"
-  - Action row: right-aligned, Tertiary (cancel) + Brand or Danger (primary action)
+  form_modal: |
+    ┌──────────────────────────────────┐
+    │ Título del modal            [×]  │  ← Inter SemiBold 18px, text-heading
+    ├──────────────────────────────────┤
+    │  form fields here                │  ← Inter Regular 14px, text-body
+    ├──────────────────────────────────┤
+    │              [Cancelar] [Guardar]│  ← right-aligned
+    └──────────────────────────────────┘
+
+confirmation_icon:
+  shape: "circle"
+  size: "~48px diameter"
+  background: "bg-tertiary (#f3f4f6)"
+  icon_color: "text-body-subtle (#6b7280)"
+  icon: "ExclamationCircleIcon"
+  note: "NEUTRAL GRAY — not danger red. The message communicates urgency, not the icon color."
+
+action_buttons:
+  important_note: >
+    The CONFIRM button always uses the Brand gradient — even for destructive confirmations.
+    The danger is communicated through the warning icon and the message text, NOT through
+    a red button. This is the system-confirmed pattern from design reference.
+  confirm:
+    style: "Brand gradient (linear-gradient(45deg, #5059BC, #F98DFF))"
+    text_color: "text-white"
+    shape: "rounded-full (pill)"
+    label_examples: ["Confirm", "Confirmar", "Eliminar", "Guardar"]
+  cancel:
+    style: "Secondary (bg-white, border-base)"
+    text_color: "text-body"
+    shape: "rounded-full (pill)"
+    label_examples: ["No, cancel", "Cancelar", "Volver"]
 
 positioning_css: |
   position: fixed;
@@ -78,9 +108,10 @@ destructive_confirmation_pattern:
   library: "SweetAlert2 (mandatory per Design Constitution Article VIII)"
   title: "¿Estás seguro?"
   message: "Descriptive consequence ('Este ciudadano será eliminado permanentemente.')"
-  confirm_button: "Danger style (bg-danger #c70036, text-white)"
+  confirm_button: "Brand gradient style — NOT danger red (see action_buttons spec)"
   cancel_button: "Secondary style"
-  icon: "ExclamationTriangleIcon or SweetAlert2 'warning' icon"
+  icon: "Neutral gray circle with ExclamationCircleIcon — NOT SweetAlert2 default red"
+  sweetalert_customization: "Override SweetAlert2 defaults to match design: customClass for buttons + icon"
   note: "window.confirm() is FORBIDDEN — SweetAlert2 only"
 
 accessibility_rules:

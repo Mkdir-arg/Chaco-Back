@@ -54,31 +54,57 @@ trigger:
 
 # -------------------------------------------------------------
 # DROPDOWN PANEL
-# Status: DESIGN PENDING from designer
+# Status: SPECIFIED — confirmed by designer design reference (2026-06-08)
 # -------------------------------------------------------------
 panel:
-  status: "PENDING — designer to provide Figma spec"
-  known_behavior:
-    position: "Below the trigger, left-aligned, full-width of trigger"
-    z_index: "10 (dropdown layer)"
-    animation: "fade-in (150ms ease-out)"
-  provisional_spec:
+  status: "Specified"
+  position: "Below the trigger, left-aligned"
+  width: "Min-width matches trigger; can be wider for longer labels"
+  z_index: "10 (dropdown layer)"
+  animation: "fade-in + slight scale from 97% to 100% (150ms ease-out)"
+
+  appearance:
     background: "bg-white (#ffffff)"
-    border: "border-base (#e5e7eb) 1px"
-    border_radius: "rounded-lg (8px)"
-    box_shadow: "var(--sombra-md)"
-    max_height: "~240px (scrollable if more options)"
+    border: "none (shadow provides container definition)"
+    border_radius: "rounded-2xl (16px)"
+    box_shadow: "var(--sombra-lg)"
+    padding: "8px all sides"
+    max_height: "~320px (scrollable if more options)"
+
   option_item:
-    height: "~40px"
-    padding_h: "12px"
-    font: "Inter Regular 14px"
-    text_color: "text-body"
-    hover:
-      background: "bg-tertiary (#f3f4f6)"
-    selected:
-      background: "bg-brand-soft"
-      text_color: "text-fg-brand (#5059bc)"
-      icon: "CheckIcon right-aligned, text-fg-brand"
+    height: "~50px"
+    padding_h: "16px"
+    padding_v: "12px"
+    layout: "flex items-center gap-3 (icon + label)"
+    icon:
+      size: "w-5 h-5 (20px)"
+      color: "text-body-subtle (#6b7280) — default"
+      color_destructive: "text-fg-danger (#c70036)"
+    font: "Inter Medium 15px"
+    text_color: "text-heading (#111827)"
+    border_radius_item: "rounded-lg (8px) — applied on hover/active within the panel"
+
+    states:
+      default:
+        background: "transparent"
+      hover:
+        background: "bg-tertiary (#f3f4f6)"
+        border_radius: "rounded-lg (8px)"
+      selected:
+        background: "bg-brand-soft (#fee9ff)"
+        text_color: "text-fg-brand (#5059bc)"
+        icon_color: "text-fg-brand"
+        indicator: "no CheckIcon visible in design — background is the selected indicator"
+
+    destructive_item:
+      text_color: "text-fg-danger (#c70036)"
+      icon_color: "text-fg-danger (#c70036)"
+      note: "Used for logout, delete account, or irreversible actions in the menu"
+      example: "→ Sign out"
+
+  divider:
+    usage: "NOT used between regular items — no dividers"
+    exception: "A 1px border-base divider may be used ONLY to separate the destructive item group"
 
 # -------------------------------------------------------------
 # LABEL (same rules as input component)
@@ -94,30 +120,45 @@ label:
 # -------------------------------------------------------------
 contexts:
   form_select:
-    description: "Full-width within form column, 40px height"
+    description: "Full-width within form column, 40px height — input-style trigger"
+    trigger_style: "Input-style (bg-secondary-soft, border-base) — see trigger spec above"
     example: "Sexo (M / F / X), Estado civil, Programa"
+
+  action_menu:
+    description: "Navigation / action dropdown triggered by a Brand gradient button"
+    trigger_style: "Brand gradient pill button (same as btn-brand) + ChevronDownIcon"
+    trigger_border: "2px solid border-brand (#5059bc) — stroke visible around gradient"
+    trigger_font: "Inter Medium 14px, text-white"
+    example: "User account menu, 'Acciones ∨' dropdown in tables"
+    note: "Uses the same panel design as form_select"
 
   filter_chip:
     description: "Compact variant used in table filter rows"
-    background: "bg-primary (#ffffff)"
-    border: "border-base"
-    border_radius: "rounded-md (6px)"
-    font: "text-sm font-medium"
+    trigger_style: "bg-primary, border-base, rounded-md (6px), text-sm font-medium"
     active_state:
       border: "border-brand"
       text: "text-fg-brand"
     example: "Todos los riesgos ∨, Todos los estados ∨"
 
 anatomy: |
+  FORM SELECT:
   [Label *]
   ┌────────────────────────────────┐
-  │ Seleccioná una opción     [∨]  │  ← trigger
+  │ Seleccioná una opción     [∨]  │  ← input-style trigger
   └────────────────────────────────┘
-  ┌────────────────────────────────┐  ← panel (when open)
-  │ Opción 1                       │
-  │ Opción 2                   [✓] │  ← selected
-  │ Opción 3                       │
-  └────────────────────────────────┘
+
+  ACTION MENU (open):
+  ┌──────────────────────┐
+  │ Dropdown         [∨] │  ← Brand gradient pill trigger (border-brand stroke)
+  └──────────────────────┘
+  ╔══════════════════════════════╗  ← panel (rounded-2xl, sombra-lg)
+  ║  [🧑] Account               ║
+  ║  [⚙] Settings               ║
+  ║  [🔒] Privacy               ║
+  ║  [🔔] Notifications   ←hover ║  (bg-tertiary rounded-lg on hover/active)
+  ║  [?] Help center             ║
+  ║  [→] Sign out          (red) ║  ← destructive: text-fg-danger + icon-fg-danger
+  ╚══════════════════════════════╝
 
 accessibility_rules:
   - "Use role='combobox' on trigger, role='listbox' on panel, role='option' on each item"

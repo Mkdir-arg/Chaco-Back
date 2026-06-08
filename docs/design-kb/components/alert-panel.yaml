@@ -83,3 +83,121 @@ examples:
 anti_examples:
   - "An empty 'Alertas Críticas' panel with 'No hay alertas' text — omit entirely when empty"
   - "Using blue/info color for critical alerts that need danger treatment"
+
+# -------------------------------------------------------------
+# INLINE ALERT (Error / Warning inline panel)
+# Source: Designer design reference (2026-06-08)
+# Usage: Inline within a page or section — NOT the dashboard alert panel above
+# -------------------------------------------------------------
+inline_alert:
+  purpose: >
+    A contextual alert card that appears inline within a page or section
+    when a user action fails or needs attention. Has explicit action buttons.
+    Distinct from the dashboard critical-alert panel.
+
+  variants:
+    error:
+      background: "bg-danger-soft (#fef0f2)"
+      border: "border-danger-subtle (#ffccd3) 1px"
+      icon_circle_bg: "bg-danger-medium (#ffe4e6)"
+      icon_color: "text-fg-danger (#c70036)"
+      title_color: "text-heading (#111827)"
+      body_color: "text-body (#4b5563)"
+
+    warning:
+      background: "bg-warning-soft (#fff8f1)"
+      border: "border-warning-subtle (#fcd9bd) 1px"
+      icon_circle_bg: "bg-warning-medium (#feecdc)"
+      icon_color: "text-fg-warning-subtle"
+      title_color: "text-heading"
+      body_color: "text-body"
+
+    info:
+      background: "bg-brand-softer (#fef3ff)"
+      border: "border-brand-subtle (#fee3ff) 1px"
+      icon_circle_bg: "bg-brand-soft (#fee9ff)"
+      icon_color: "text-fg-brand (#5059bc)"
+      title_color: "text-heading"
+      body_color: "text-body"
+
+  anatomy: |
+    ┌────────────────────────────────────────────────────────┐  ← bg-danger-soft, border-danger-subtle, rounded-xl
+    │ [ⓘ] Whoops! Something went wrong                       │  ← icon circle (20px) + title (font-semibold 15px)
+    │      The file format is not supported. Please upload   │  ← body text (14px, text-body)
+    │      a valid file type (PDF, JPG, PNG).                │
+    │                                                        │
+    │  [Close]  [↑ Try again]                                │  ← action buttons (left-aligned)
+    └────────────────────────────────────────────────────────┘
+
+  icon:
+    shape: "circle"
+    size: "~20px"
+    background: "variant-specific (see variants above)"
+    icon: "InformationCircleIcon or variant-specific icon"
+
+  title:
+    font: "Inter SemiBold 15px"
+    color: "text-heading"
+
+  body:
+    font: "Inter Regular 14px"
+    color: "text-body"
+
+  action_buttons:
+    close:
+      style: "Secondary (outlined)"
+      label: "Close / Cerrar"
+    primary_action:
+      style: "Danger filled (bg-danger, text-white) for error; Brand gradient for info"
+      label: "Try again / Reintentar / Ver más"
+      icon: "Relevant icon to the left of label"
+
+  border_radius: "rounded-xl (12px)"
+  padding: "16px 20px"
+
+# -------------------------------------------------------------
+# NOTIFICATION CARD (Persistent info notification)
+# Source: Designer design reference (2026-06-08)
+# Usage: Persistent notification — does NOT auto-dismiss
+# -------------------------------------------------------------
+notification_card:
+  purpose: >
+    A persistent notification card that appears in a panel or at the top of a section.
+    Unlike toast, it does NOT auto-dismiss. Used for software updates, important
+    announcements, or background task completions that require user action.
+
+  appearance:
+    background: "bg-secondary-soft (#f9fafb)"
+    border: "none (shadow or subtle background differentiates it)"
+    border_radius: "rounded-xl (12px)"
+    padding: "16px 20px"
+
+  icon_shape:
+    background: "bg-brand-soft (#fee9ff) or bg-tertiary"
+    icon_color: "text-fg-brand (#5059bc)"
+    border_radius: "rounded-lg (10–12px)"
+    size: "~40px"
+    note: "Icon shape uses brand-soft background — NOT the gradient"
+
+  close_button:
+    position: "top-right"
+    icon: "XMarkIcon"
+    color: "text-body-subtle"
+
+  anatomy: |
+    ┌──────────────────────────────────────────┐  ← bg-secondary-soft, rounded-xl
+    │ [Icon]  Update available           [×]   │  ← icon-shape (40px) + title (font-semibold) + close
+    │         The latest software version is   │  ← body text (14px, text-body-subtle)
+    │         now accessible for download.     │
+    │                                          │
+    │  [Not now]  [↓ Update]                   │  ← action buttons right-aligned
+    └──────────────────────────────────────────┘
+
+  action_buttons:
+    dismiss:
+      style: "Secondary (outlined)"
+      label: "Not now / Ahora no"
+    primary_action:
+      style: "Brand gradient pill"
+      icon: "Relevant action icon"
+      label: "Update / Actualizar / Ver más"
