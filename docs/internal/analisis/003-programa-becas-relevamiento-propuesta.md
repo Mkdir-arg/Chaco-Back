@@ -45,8 +45,8 @@ Programa  (módulo con funcionamiento propio — Becas es uno, Ñachec es otro)
 | **Convocatoria** | Agrupador dentro del programa. Un programa tiene 1..N convocatorias. | — |
 | **Relevamiento** | Campaña de campo asignada a **un solo** territorial. Se **auto-nombra** "Relevamiento XXX". | Tiene territorial, fecha/plazo y zona/localidad. Reasignable. |
 | **Formulario** | Una persona relevada. N por relevamiento. | **Campos aún no definidos** (pregunta abierta). |
-| **Persona / Legajo** | El ciudadano relevado. Se busca en `legajos`: si existe se relaciona, si no se crea. | El legajo se crea **al enviar** el formulario. Una persona puede estar en **N programas** a la vez. |
-| **Cupo** | Número de becas disponibles **por Programa**. | Se ocupa **después** de validar con SIS, no al aprobar. |
+| **Persona / Legajo** | El ciudadano relevado. Se busca en `legajos`: si existe se relaciona, si no se crea. | El legajo se crea **al enviar** el formulario. Una persona puede estar en **N programas** a la vez. La relación legajo↔programa se visualiza mediante **solapas dinámicas**: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente mostrando el estado (aprobado, rechazado, con cupo, etc.). |
+| **Cupo** | Número de becas disponibles **por Programa**. Cada programa maneja su propia parametría de cupo. | Se ocupa **después** de validar con SIS, no al aprobar. |
 | **Lista de espera** | Personas validadas-OK que no entraron por cupo lleno. | El admin promueve **a mano**. |
 
 📌 *Asunción pendiente:* la jerarquía de 4 niveles se modela explícita; "Programa" es
@@ -144,6 +144,8 @@ Enviado → Aprobado / Rechazado            (revisión del admin)
 | **Con cupo** | Ocupa una beca (había cupo disponible). |
 | **En lista de espera** | Validado-OK pero sin cupo disponible. |
 
+📌 *Nota de terminología:* el estado "Enviado" corresponde al "Pendiente de Validación" de RQ-001 (documento del equipo Ministerio). Ambos refieren al mismo momento: el formulario llegó al backoffice y está esperando revisión del admin.
+
 📌 *Asunción pendiente:* "aprobar" (admin) y "ocupar cupo" (post-SIS) son dos cosas
 distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 
@@ -173,6 +175,8 @@ Admin abre formulario 1 → revisa → aprueba/rechaza → dispara validación S
 ```
 
 📌 *El proceso es **estrictamente secuencial**: el admin no puede abrir/revisar otro formulario hasta que SIS responda al actual. Esto garantiza que el consumo de cupo es atómico y sin race conditions.*
+
+📌 **Botón manual de revalidación:** Además del disparo automático, el backoffice ofrece un botón **"Validar contra SIS"** disponible en la pantalla de revisión de formularios para casos de reintento (timeout, error de SIS, o necesidad de revalidación posterior).
 
 - Si el admin **rechaza** un formulario (en lugar de aprobar), **SÍ se envía a SIS** (ambos caminos —aprobar y rechazar— disparan validación SIS para verificar el estado en el sistema central).
 - **Lista de espera:** el admin **promueve a mano**. Al dar de baja a un beneficiario, el
@@ -227,10 +231,63 @@ Detalle de preguntas consolidado al final en **Sección 16.1 (S-1 a S-10)**.
 |---|---|
 | **Convocatorias** | ABM: listar, crear, editar, ver, (des)activar convocatorias del programa. |
 | **Relevamientos** | ABM + **asignar/reasignar** territorial, fecha/plazo, zona. Ver estado. |
-| **Revisión de relevamiento** | Entrar a un relevamiento finalizado → listado de formularios → abrir uno por uno → **aprobar/rechazar** (motivo). |
+| **Revisión de relevamiento** | Entrar a un relevamiento finalizado → listado de formularios → abrir uno por uno → **aprobar/rechazar** (motivo). Botón **"Validar contra SIS"** disponible para revalidación manual. |
 | **Beneficiarios / Cupo** | Ver ocupación de cupo, **lista de espera**, **dar de baja**, **promover** desde lista de espera. |
-| **Configuración del programa** | Definir **cupo total** del programa y parámetros. |
+| **Configuración del programa** | Definir **parametría de cupo** del programa (cupo total, reglas específicas del programa). |
 | **Reportes** | Exportar beneficiarios, lista de espera, avance de relevamientos. |
+
+---
+
+## 7.1. Campos del formulario (borrador preliminar según RQ-001)
+
+Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios). Pendiente confirmación con Guido sobre campos adicionales específicos de Becas (ver pregunta 2 en § 16.2).
+
+### Bloque A — Datos Personales (precargados por escaneo/RENAPER, editables)
+
+| Campo | Características |
+|---|---|
+| Número de DNI | Texto – Obligatorio – Solo lectura (editable si error de escaneo) |
+| Apellido | Texto – Obligatorio – Editable |
+| Nombre | Texto – Obligatorio – Editable |
+| Sexo | Lista desplegable (M / F / X) – Obligatorio |
+| Estado Civil | Lista desplegable – Obligatorio |
+| Fecha de Nacimiento | Fecha – Obligatorio – Dispara RN-22 (menor de edad → apoderado) |
+
+### Bloque B — Domicilio (precargado, editable)
+
+| Campo | Características |
+|---|---|
+| Provincia | Lista desplegable – Opcional |
+| Localidad | Texto / Lista – Opcional |
+| Calle | Texto – Opcional |
+| Número | Número – Opcional |
+| Piso | Número – Opcional |
+| Departamento / Depto | Texto – Opcional |
+| Barrio | Texto – Opcional |
+
+### Bloque C — Contacto (ingreso manual obligatorio)
+
+| Campo | Características |
+|---|---|
+| Número de celular | Numérico – Obligatorio |
+| Correo electrónico (Mail) | Email – Obligatorio – Validar formato |
+
+### Bloque D — Apoderado (visible solo si RN-22 detecta menor de edad)
+
+| Campo | Características |
+|---|---|
+| Nombre del Apoderado | Texto – Obligatorio si sección visible |
+| Apellido del Apoderado | Texto – Obligatorio si sección visible |
+| Fecha de Nacimiento del Apoderado | Fecha – Obligatorio si sección visible |
+
+### Adjuntos
+
+| Documento | Obligatoriedad | Método de Carga |
+|---|---|---|
+| Foto DNI – Frente | Obligatorio | Cámara del dispositivo |
+| Foto DNI – Dorso | Obligatorio | Cámara del dispositivo |
+| Comprobante de CBU | Opcional | Adjuntar archivo o foto |
+| Certificado de Domicilio | Opcional | Adjuntar archivo o foto |
 
 ---
 
@@ -401,7 +458,10 @@ backoffice debe exponer esa acción de revalidar.
 - **`users` / permisos:** rol nuevo "Administrador de programa", acceso por módulo según
   roles. No inventar esquema paralelo.
 - **`legajos` / `ciudadanos`:** la persona = legajo. Reusar identificación existente
-  (DNI/CUIL) y la relación legajo↔programa. Revisar duplicidad de personas.
+  (DNI/CUIL) y la relación legajo↔programa. Revisar duplicidad de personas. La relación
+  legajo↔programa se visualiza mediante **solapas dinámicas**: si el ciudadano tiene
+  registro en la tabla programas, aparece la solapa correspondiente mostrando el estado
+  (aprobado, rechazado, con cupo, en lista de espera, etc.).
 - **Integraciones externas:** SIS, RENAPER, App de campo (API).
 - **Módulo Programas (`apps/programas`):** base genérica donde se apoya Becas.
 
@@ -435,23 +495,10 @@ de equipo, con su estado).
 
 ## 14. Próximos pasos
 
-1. **Sistema SIS** — analizar el documento del equipo Ministerio y cerrar preguntas 5 y 6.
-2. **RENAPER** — relevar validación de identidad en campo.
-3. **App de campo** — online/offline, sincronización, envío en lote.
-4. **Control estricto** — cerrar todas las preguntas abiertas y verificar consistencia.
-5. **Generación en GitHub** — épica → análisis → sub-issues (recién con todo cerrado).
-
----
-
-## 15. Historial
-
-| Fecha | Cambio | Motivo |
-|---|---|---|
-| 2026-06-04 | Versión inicial: consolidación backoffice (Secciones 1–7). | Pedido del usuario antes de abrir el bloque SIS. |
-| 2026-06-04 | Incorporación RQ-001: flujo de carga de identidad en campo (escaneo / RENAPER / manual), RN-22 y RN-23, pregunta 2 rebajada a 🟡 con base de campos definida. | Análisis URD RQ-001 (Registro de Beneficiarios). |
-| 2026-06-04 | Reconciliación § 4 paso 3 vs § 8.2: aclarado que escaneo DNI NO consulta RENAPER (lee datos directos del chip/código del documento) y se marca "Validado por escaneo DNI". Actualizada RN-13. | Corrección de tensión lógica detectada en análisis. |
-| 2026-06-04 | Documentado estado "Sincronizando..." (solo app de campo) en § 5 y RN-15: el backoffice no ve el relevamiento hasta que sincronice completamente. | Corrección de estado implícito detectado en análisis. |
-| 2026-06-04 | Documentado flujo síncrono de validación SIS (§ 4 pasos 6-7, § 6, RN-24, RN-25): el disparo es automático tanto al aprobar como al rechazar, bloquea hasta recibir respuesta, garantizando consumo secuencial de cupo sin race conditions. Agregado flujo gráfico en § 6. | Cierre de potencial race condition detectado en análisis + corrección: ambos caminos (aprobar/rechazar) envían a SIS. |
+1. **Sistema SIS** — analizar el documento del equipo Ministerio y cerrar preguntas S-1, S-2, S-4, S-5.
+2. **Investigación de código** — completar C-1 (revisar módulos existentes).
+3. **Control estricto** — cerrar todas las preguntas 🔴 bloqueantes y verificar consistencia.
+4. **Generación en GitHub** — épica → análisis → sub-issues (recién con todo cerrado).
 
 ---
 
@@ -477,36 +524,36 @@ de equipo, con su estado).
 |---|---|---|:--:|
 | 2 | **Campos exactos del formulario.** RQ-001 define una base: Bloque A (DNI, Apellido, Nombre, Sexo, Estado Civil, Fecha de Nacimiento), Bloque B (Domicilio: Provincia, Localidad, Calle, Número, Piso, Departamento, Barrio), Bloque C (Celular, Mail — manual obligatorio), Bloque D (Apoderado — condicional menor de edad), Adjuntos (Foto DNI frente/dorso obligatorios; CBU y Cert. domicilio opcionales). **Pendiente confirmar con Guido** si estos son los campos definitivos o si hay campos adicionales para Becas. | Guido (Equipo Ministerio) | 🟡 |
 | 1 | ¿Finalizar un relevamiento es **reversible** para el territorial? | Equipo Ministerio | 🟡 |
-| 3 | Cupo: ¿único por programa o puede haber **por zona/localidad/convocatoria**? | Equipo Ministerio | 🟡 |
-| 4 | Lista de espera: ¿**orden/prioridad** (FIFO) o elección libre del admin? | Equipo Ministerio | 🟡 |
 | 7 | ¿Un usuario puede ser **Admin de un programa y Territorial de otro** a la vez? | Equipo Ministerio | 🟡 |
 | 8 | "Relevamiento del día": ¿qué pasa si **no se inicia** ese día (vence/reprograma)? | Equipo Ministerio | 🟡 |
 | 9 | ¿El admin puede **editar datos** del formulario antes de aprobar? | Equipo Ministerio | 🟡 |
-| 10 | Legajo creado al enviar: ¿cómo se **marca** un legajo "relevado pero rechazado en Becas"? | ICORE/Equipo Ministerio | 🟡 |
 
-### 16.3 RQ-002 / cadena de aprobación (🔴 bloqueante — contradicciones a reconciliar)
+📌 **Preguntas cerradas en esta sección:**
+- **Pregunta 3 (Cupo):** Cerrada. El cupo es único por programa; cada programa (ej: Becas) maneja su propia parametría de cupo.
+- **Pregunta 10 (Legajo rechazado):** Cerrada. El legajo usa solapas dinámicas: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente; si está rechazado en Becas, la solapa se habilita y muestra el estado "Rechazado".
+
+### 16.3 RQ-002 / cadena de aprobación
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| 12 | **Cadena de control:** ¿cómo conviven cupo/lista de espera con post-SIS → Ayudas Sociales/Liquidado? ¿El cupo se decide antes o después de SIS? | Equipo Ministerio | 🔴 |
 | 13 | **Sistema de Ayudas Sociales (nivel 3):** ¿dentro del alcance de Becas o es otro requerimiento? | Equipo Ministerio | 🔴 |
 | 14 | **Contrato técnico de SIS:** endpoint/API, campos, qué valida, qué devuelve, manejo de rechazo y caída. (= S-1…S-7) | Equipo Ministerio/ICORE | 🔴 |
-| 15 | **Disparo a SIS:** el RQ-002 se contradice (auto al aprobar vs botón manual "Enviar al SIS"). ¿Cuál es? | Equipo Ministerio | 🔴 |
-| 16 | **Alcance RQ-002:** ¿es parte de Becas o de una plataforma más amplia (login Google/OAuth, beneficios genéricos)? | Equipo Ministerio | 🔴 |
+
+📌 **Preguntas cerradas en esta sección:**
+- **Pregunta 12 (Cadena de control):** Cerrada. El cupo se decide en **Becas (nivel 1)**, no en sistemas posteriores. La cadena completa (Nodo → SIS nivel 2 → Ayudas Sociales nivel 3) se revisará hoy con el equipo Ministerio para definir alcance exacto.
+- **Pregunta 15 (Disparo a SIS):** Cerrada. El sistema implementa **ambas opciones**: (1) disparo automático y síncrono al aprobar/rechazar (el admin espera respuesta antes de continuar), y (2) botón manual "Validar contra SIS" disponible en Nodo para reintentos o validaciones posteriores.
 
 ### 16.4 Investigación de código pendiente (responsabilidad de ICORE)
 
 | # | Tarea | Estado |
 |---|---|:--:|
 | C-1 | Revisar duplicidad real en `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (qué existe hoy). | ⏳ |
-| C-2 | Revisar épicas/análisis/tasks ya creados y el backlog del Project #1 (no duplicar trabajo encolado). | ⏳ |
 
 ### 16.5 Resumen del control estricto
 
-- **No se generan issues** mientras haya 🔴 sin cerrar (SIS, campos del formulario, roles,
-  cadena cupo↔RQ-002).
+- **No se generan issues** mientras haya 🔴 sin cerrar (SIS, cadena cupo↔RQ-002).
 - Las 🟡 se pueden **asumir** y documentar como *Asunción a confirmar* sin frenar.
-- Falta cerrar la **investigación de código** (C-1, C-2) antes de generar.
+- Falta cerrar la **investigación de código** (C-1) antes de generar.
 
 ### 16.6 Asunciones pendientes de confirmación
 
