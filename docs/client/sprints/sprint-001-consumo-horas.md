@@ -12,10 +12,11 @@
 | 2026-06-05 | Matías Fariña | Continuar análisis de la propuesta | Seguir con el análisis de la propuesta | 119 min |
 | 2026-06-05 | Agostina Coppola | Continuar análisis funcional para la propuesta | Finalizar análisis | 148 min |
 | 2026-06-07 | Agostina Coppola | Análisis funcional | Análsis de los requerimientos | 85 min |
+| 2026-06-08 | Agostina Coppola | Análisis de los requerimientos | Revisión de la documentación, análisis de los nuevos requerimientos y ajuste de propuestas | 307 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **742 minutos** (12 h 22 min)
+    **1049 minutos** (17 h 29 min)
