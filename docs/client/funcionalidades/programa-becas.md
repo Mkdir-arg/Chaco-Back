@@ -8,7 +8,7 @@
 
 -   :material-shape-outline: **Programa**
 
-    Becas
+    Becas (primer programa sobre el módulo genérico de Programas)
 
 -   :material-monitor-cellphone: **Superficies**
 
@@ -20,47 +20,53 @@
 
 </div>
 
-!!! abstract "Qué resuelve"
-    El **Programa Becas** permite gestionar, de punta a punta, el otorgamiento de
-    becas a partir de un **relevamiento en territorio**: un **administrador** configura
-    las campañas y las asigna a sus **equipos de campo (territoriales)**; cada territorial
-    releva a las personas con una **app móvil**; el administrador revisa cada caso, valida
-    la información y administra el **cupo disponible** y la **lista de espera**.
+!!! abstract "Objetivo"
+    Construir, en el **backoffice**, un módulo del **Programa Becas** que permita a un
+    **administrador** configurar convocatorias y **asignar relevamientos** a sus
+    **territoriales**. El territorial, desde una **app de campo**, releva ciudadanos en
+    terreno cargando **un formulario por persona**. Al finalizar, los formularios llegan al
+    backoffice, donde el administrador los **revisa caso por caso** y los **aprueba o
+    rechaza**. Las personas aprobadas pasan por una **validación contra el Sistema SIS** y,
+    según disponibilidad de **cupo del programa**, ocupan una beca o quedan en **lista de
+    espera**.
 
 !!! info "Cómo leer este documento"
-    Esta es la **versión funcional** del programa: qué hace y cómo se usa. Algunos puntos
-    todavía se están acordando con el cliente; cuando es así, se indican como
+    Esta es la **versión funcional** del programa: qué hace y cómo se usa. Algunos puntos se
+    están terminando de acordar con el cliente; cuando es así, se indican como
     **:material-progress-question: A confirmar** y no se dan por cerrados.
 
 ---
 
-## :material-sitemap-outline: Cómo se organiza
+## :material-cube-outline: 1. Concepto / modelo del dominio
 
-El programa se estructura en cuatro niveles. El **cupo** se administra a nivel del programa.
+El programa se modela con una jerarquía de **cuatro niveles**. El **cupo** se administra a
+nivel del programa.
 
 ```mermaid
 flowchart TD
-    P["Programa<br/>(Becas)"] --> C["Convocatoria<br/>(una o varias)"]
-    C --> R["Relevamiento<br/>(campaña de campo,<br/>un territorial, fecha y zona)"]
-    R --> F["Formulario<br/>(una persona por formulario)"]
+    P["Programa<br/>(Becas es uno; puede haber otros)"] --> C["Convocatoria<br/>(una o varias dentro del programa)"]
+    C --> R["Relevamiento<br/>(campaña de campo: un territorial,<br/>fecha/plazo y zona)"]
+    R --> F["Formulario<br/>(N por relevamiento; cada uno = una persona)"]
 ```
 
-| Nivel | Qué es |
-|---|---|
-| **Programa** | El marco general. Becas es el primer programa; cada programa administra su propio **cupo**. |
-| **Convocatoria** | Un agrupador dentro del programa. Un programa puede tener una o varias. |
-| **Relevamiento** | Una campaña de campo asignada a **un** territorial, con **fecha/plazo** y **zona/localidad**. |
-| **Formulario** | Una persona relevada. Un relevamiento puede tener muchos formularios (uno por persona). |
+| Entidad | Descripción | Notas clave |
+|---|---|---|
+| **Programa** | Marco general. Becas es el primero; cada programa administra su propia parametría. | El **cupo** vive a nivel programa. |
+| **Convocatoria** | Agrupador dentro del programa. Un programa tiene una o varias convocatorias. | — |
+| **Relevamiento** | Campaña de campo asignada a **un solo** territorial. Se **auto-nombra** "Relevamiento XXX". | Tiene territorial, fecha/plazo y zona/localidad. Es **reasignable**. |
+| **Formulario** | Una persona relevada. Muchos por relevamiento. | Un formulario = un legajo. |
+| **Persona / Legajo** | El ciudadano relevado. Si ya existe se relaciona; si no, se crea **al enviar** el formulario. | Una persona puede estar en **varios programas** a la vez. |
+| **Cupo** | Número de becas disponibles **por programa**. | Se ocupa **después** de validar con SIS, no al aprobar. |
+| **Lista de espera** | Personas validadas que no entraron por cupo lleno. | El administrador promueve **a mano**. |
 
-!!! tip "La persona y su legajo"
-    Cada persona relevada queda vinculada a su **legajo**: si ya existe en el sistema se
-    relaciona, y si no, se crea al enviar el formulario. Una misma persona puede estar en
-    **varios programas** a la vez; en su legajo se muestra una **solapa por programa** con
-    el estado en cada uno (aprobado, rechazado, con cupo, en lista de espera).
+!!! tip "El legajo y sus solapas"
+    La relación entre la persona y cada programa se visualiza con **solapas dinámicas**: si
+    el ciudadano tiene registro en un programa, aparece la solapa correspondiente mostrando
+    su estado (aprobado, rechazado, con cupo, en lista de espera).
 
 ---
 
-## :material-account-group: Quién participa
+## :material-account-group: 2. Actores y roles
 
 <div class="grid cards" markdown>
 
@@ -68,63 +74,220 @@ flowchart TD
 
     ---
 
-    Trabaja desde el **backoffice** y ve **todo** el programa. Configura convocatorias y
-    relevamientos, asigna y reasigna territoriales, **revisa cada formulario** (aprueba o
-    rechaza con motivo), administra el **cupo** y la **lista de espera**, da de baja
-    beneficiarios y **exporta reportes**.
+    Trabaja en el **backoffice** y ve **todo** el programa. Crea convocatorias y
+    relevamientos, asigna/reasigna territoriales, revisa formularios (aprueba/rechaza con
+    motivo), gestiona el **cupo** y la **lista de espera**, da de baja beneficiarios y
+    **exporta reportes**.
 
--   :material-account-hard-hat: **Territorial (equipo de campo)**
+-   :material-account-hard-hat: **Territorial**
 
     ---
 
-    Trabaja desde la **app de campo** y ve **solo sus** relevamientos. Inicia el
-    relevamiento del día, **carga un formulario por persona** y, al terminar, finaliza y
-    **envía todo junto** al backoffice. Su tarea concluye con el envío.
+    Usuario con login propio. Ve **solo sus** relevamientos y formularios. Inicia el
+    relevamiento del día asignado, carga formularios (uno por persona) en la app de campo,
+    finaliza y **envía todo junto**. Su tarea termina con el envío.
 
 </div>
 
+!!! note "Alcance de roles"
+    Por ahora el programa contempla **solo** estos dos roles (sin supervisor ni
+    coordinador). El acceso al módulo depende de los roles y permisos asignados a cada
+    usuario.
+
 ---
 
-## :material-transit-connection-variant: Cómo funciona, de principio a fin
+## :material-transit-connection-variant: 3. Funcionamiento end-to-end
 
-1. **Configuración.** El administrador define el programa y su **cupo**, crea las
-   **convocatorias** y, dentro de ellas, los **relevamientos**, asignando a cada uno un
-   territorial, una fecha/plazo y una zona.
-2. **Relevamiento en campo.** El territorial ve sus relevamientos asignados e **inicia el
-   del día**. Carga un formulario por persona, validando la identidad, y completa los datos.
-3. **Envío.** Al finalizar, **todos los formularios se envían juntos** al backoffice y cada
-   persona queda vinculada a su legajo.
-4. **Revisión caso por caso.** El administrador abre el relevamiento, revisa **uno por uno**
-   los formularios y **aprueba** o **rechaza** (el rechazo lleva motivo y es informativo).
-5. **Validación.** Cada caso se valida contra el **Sistema SIS** (control de segundo nivel).
-6. **Asignación de cupo.** Si la validación es favorable y **hay cupo**, la persona **ocupa
-   una beca**; si no hay cupo, queda en **lista de espera**.
-7. **Gestión.** Cuando se da de baja a un beneficiario, se **libera un cupo** y el sistema
-   avisa para **promover** a alguien de la lista de espera.
-8. **Reportes.** El administrador **exporta** beneficiarios, lista de espera y avance de los
+1. **Configuración (administrador).** Define el **Programa Becas** con su **cupo**, crea una
+   o varias **convocatorias** y, dentro de ellas, **relevamientos**. Al crear un
+   relevamiento define **territorial asignado**, **fecha/plazo** y **zona/localidad**. El
+   relevamiento se **auto-nombra** y puede **reasignarse** a otro territorial.
+2. **Inicio en campo (territorial).** Entra a la app, ve el **listado de sus relevamientos**
+   y **solo puede iniciar el del día**.
+3. **Carga (territorial).** Dentro del relevamiento carga **un formulario tras otro** (uno
+   por persona). Al iniciar cada formulario, valida la identidad según la conectividad
+   (escaneo de DNI, RENAPER o carga manual). **No** puede dejar un formulario a medias.
+4. **Finalización y envío (territorial).** Al terminar, **finaliza el relevamiento** y
+   **todos los formularios se envían juntos** al backoffice. Cada persona se
+   **crea/relaciona como legajo**, se apruebe o no después.
+5. **Revisión caso por caso (administrador).** Entra al relevamiento finalizado, ve el
+   **listado de formularios**, abre **uno por uno**, revisa la información y **aprueba** o
+   **rechaza** (el rechazo requiere **motivo** y es **informativo**: no vuelve al territorial).
+6. **Validación SIS.** El sistema valida el caso contra el **Sistema SIS** y espera la
+   respuesta (validado o rechazado).
+7. **Asignación de cupo.** Si la validación es favorable y **hay cupo**, la persona **ocupa
+   una beca**. Si el cupo está lleno, va a **lista de espera**.
+8. **Gestión de cupo (administrador).** Al **dar de baja** a un beneficiario se libera un
+   cupo y el sistema muestra una **alerta** para mover a alguien de la lista de espera. El
+   administrador **promueve a mano**.
+9. **Reportes.** El administrador **exporta** beneficiarios, lista de espera y avance de
    relevamientos.
 
 ---
 
-## :material-fingerprint: Validación de identidad en el campo
+## :material-progress-check: 4. Estados
 
-Al cargar cada persona, la app valida la identidad por uno de tres caminos, según la
-conectividad del momento:
+=== "Relevamiento"
 
-| Camino | Cuándo se usa | Resultado |
-|---|---|---|
-| :material-line-scan: **Escaneo del DNI** | Con conexión, leyendo el documento físico | Datos tomados directamente del documento |
-| :material-card-account-details-outline: **Validación con RENAPER** | Con conexión, ingresando DNI + sexo | Identidad confirmada y datos autocompletados |
-| :material-pencil-outline: **Carga manual** | Sin conexión, o si RENAPER no responde | Queda marcado para **revalidar** luego en el backoffice |
+    ```
+    Asignado → En curso → Finalizado → En revisión → Terminado
+    ```
 
-!!! success "RENAPER ya está disponible"
-    La validación con **RENAPER** reutiliza una integración que el sistema **ya tiene
-    probada**: confirma la identidad y autocompleta los datos de la persona (apellido,
-    nombres, fecha de nacimiento, domicilio, entre otros).
+    | Estado | Significado | Dónde se ve |
+    |---|---|---|
+    | **Asignado** | El administrador lo creó y se lo asignó a un territorial. | Backoffice y app |
+    | **En curso** | El territorial lo inició en campo (el día asignado). | Backoffice y app |
+    | **Sincronizando…** | Se finalizó **sin conexión**; los formularios están pendientes de sincronizar. | **Solo app** |
+    | **Finalizado** | Cerrado y enviado (ya sincronizado con el backoffice). | Backoffice y app |
+    | **En revisión** | El administrador está revisando los formularios. | Backoffice |
+    | **Terminado** | Revisión completa cerrada. | Backoffice |
+
+=== "Formulario / Persona"
+
+    ```
+    Enviado → Aprobado / Rechazado            (revisión del administrador)
+       Aprobado → Validando (SIS)
+           → Validado-Aprobado → Con cupo / En lista de espera
+           → Validado-Rechazado
+    ```
+
+    | Estado | Significado |
+    |---|---|
+    | **Enviado** | El territorial lo mandó al finalizar el relevamiento. |
+    | **Aprobado** | El administrador lo aprobó en la revisión. |
+    | **Rechazado** | El administrador lo rechazó (con motivo, informativo). |
+    | **Validando** | Consultando al Sistema SIS. |
+    | **Validado-Aprobado** | El SIS respondió favorablemente. |
+    | **Validado-Rechazado** | El SIS respondió negativamente. |
+    | **Con cupo** | Ocupa una beca (había cupo disponible). |
+    | **En lista de espera** | Validado, pero sin cupo disponible en ese momento. |
 
 ---
 
-## :material-cellphone-arrow-down: App de campo (online / offline)
+## :material-counter: 5. Cupo, validación y lista de espera
+
+- El **cupo es del programa** (no del relevamiento). El territorial releva **sin límite**.
+- El cupo **no se consume al aprobar**, sino **después** de la validación contra el SIS: el
+  administrador confirma el caso → se valida contra SIS → si la respuesta es favorable y hay
+  cupo, la persona **ocupa cupo**; si no hay cupo, va a **lista de espera**.
+- La validación es **secuencial**: cada caso se resuelve antes de pasar al siguiente, de modo
+  que el cupo se descuenta de forma ordenada y el caso siguiente ya ve el cupo actualizado.
+- **Lista de espera:** la promoción es **manual**. Al dar de baja a un beneficiario, el
+  sistema dispara una **alerta** para mover a alguien de la lista.
+
+!!! info "Revalidación contra SIS"
+    Además de la validación automática, el backoffice ofrece una acción **"Validar contra
+    SIS"** en la pantalla de revisión, para reintentar la validación cuando haga falta.
+
+---
+
+## :material-monitor-dashboard: 6. Pantallas del backoffice
+
+| Pantalla | Operaciones principales |
+|---|---|
+| **Convocatorias** | Listar, crear, editar, ver y activar/desactivar convocatorias del programa. |
+| **Relevamientos** | Crear y administrar; asignar/reasignar territorial, fecha/plazo y zona; ver estado. |
+| **Revisión de relevamiento** | Abrir un relevamiento finalizado → listado de formularios → abrir uno por uno → aprobar/rechazar (motivo). Acción **"Validar contra SIS"** para revalidación. |
+| **Beneficiarios / Cupo** | Ver ocupación de cupo, lista de espera, **dar de baja** y **promover** desde la lista. |
+| **Configuración del programa** | Definir la **parametría de cupo** del programa. |
+| **Reportes** | Exportar beneficiarios, lista de espera y avance de relevamientos. |
+
+---
+
+## :material-form-textbox: 7. Datos del formulario
+
+!!! info "A confirmar :material-progress-question:"
+    Estos son los datos previstos para cada persona. Están **sujetos a confirmación** sobre
+    si se agregan campos específicos de Becas.
+
+=== "A — Datos personales"
+
+    Precargados por escaneo o RENAPER, editables.
+
+    | Campo | Características |
+    |---|---|
+    | Número de DNI | Obligatorio — editable si hubo error de lectura |
+    | Apellido | Obligatorio |
+    | Nombre | Obligatorio |
+    | Sexo | M / F / X — obligatorio |
+    | Estado civil | Obligatorio |
+    | Fecha de nacimiento | Obligatorio — si es menor de edad, habilita la sección Apoderado |
+
+=== "B — Domicilio"
+
+    Precargado, editable.
+
+    | Campo | Características |
+    |---|---|
+    | Provincia | Opcional |
+    | Localidad | Opcional |
+    | Calle | Opcional |
+    | Número | Opcional |
+    | Piso | Opcional |
+    | Departamento | Opcional |
+    | Barrio | Opcional |
+
+=== "C — Contacto"
+
+    Ingreso manual obligatorio.
+
+    | Campo | Características |
+    |---|---|
+    | Número de celular | Obligatorio |
+    | Correo electrónico | Obligatorio — se valida el formato |
+
+=== "D — Apoderado"
+
+    Visible **solo si la persona es menor de edad**.
+
+    | Campo | Características |
+    |---|---|
+    | Nombre del apoderado | Obligatorio si la sección está visible |
+    | Apellido del apoderado | Obligatorio si la sección está visible |
+    | Fecha de nacimiento del apoderado | Obligatorio si la sección está visible |
+
+=== "Adjuntos"
+
+    | Documento | Obligatoriedad | Carga |
+    |---|---|---|
+    | Foto DNI — frente | Obligatorio | Cámara del dispositivo |
+    | Foto DNI — dorso | Obligatorio | Cámara del dispositivo |
+    | Comprobante de CBU | Opcional | Archivo o foto |
+    | Certificado de domicilio | Opcional | Archivo o foto |
+
+---
+
+## :material-fingerprint: 8. Validación de identidad en el campo
+
+Al iniciar cada formulario, la app determina el camino según la conectividad y la elección
+del territorial:
+
+```mermaid
+flowchart TD
+    Q{¿Hay conexión?} -->|Sí| E{El territorial elige}
+    Q -->|No| M["Carga manual<br/>No validado RENAPER"]
+    E -->|Escaneo DNI| S["Lee los datos del documento<br/>Validado por escaneo DNI"]
+    E -->|RENAPER| R{¿RENAPER responde?}
+    R -->|Sí| OK["Autocompleta datos<br/>Validado RENAPER"]
+    R -->|No| M
+```
+
+| Camino | Cuándo | Marca | ¿Requiere revalidación? |
+|---|---|---|---|
+| **Escaneo del DNI** | Con conexión, leyendo el documento físico | Validado por escaneo DNI | No |
+| **RENAPER** | Con conexión, ingresando DNI + sexo | Validado RENAPER | No |
+| **Carga manual** | Sin conexión, o si RENAPER no responde | No validado RENAPER | Sí — se revalida luego en el backoffice |
+
+!!! success "RENAPER ya está disponible"
+    La validación con **RENAPER** reutiliza una integración que el sistema **ya tiene
+    probada**: confirma la identidad (con DNI + sexo) y autocompleta los datos de la persona
+    (apellido, nombres, fecha de nacimiento, domicilio, entre otros). Si no hay coincidencia
+    o no responde, se permite la carga manual y el registro queda **"No validado RENAPER"**
+    para revalidarlo después.
+
+---
+
+## :material-cellphone-arrow-down: 9. App de campo (online / offline)
 
 <div class="grid cards" markdown>
 
@@ -139,123 +302,64 @@ conectividad del momento:
 
     ---
 
-    Si finaliza sin conexión, el relevamiento muestra **"Sincronizando…"** y recién aparece
-    como **Finalizado** en el backoffice cuando se sincronizó **todo**.
+    Si finaliza sin conexión, el relevamiento muestra **"Sincronizando…"** en la app y recién
+    aparece como **Finalizado** en el backoffice cuando se sincronizó **todo**.
 
 </div>
 
 ---
 
-## :material-progress-check: Estados
-
-=== "Relevamiento"
-
-    ```
-    Asignado → En curso → Finalizado → En revisión → Terminado
-    ```
-
-    | Estado | Significado |
-    |---|---|
-    | **Asignado** | Creado y asignado a un territorial. |
-    | **En curso** | El territorial lo inició en campo. |
-    | **Finalizado** | Cerrado y enviado al backoffice (ya sincronizado). |
-    | **En revisión** | El administrador está revisando los formularios. |
-    | **Terminado** | Revisión completa cerrada. |
-
-=== "Formulario / Persona"
-
-    | Estado | Significado |
-    |---|---|
-    | **Enviado** | Llegó al backoffice y espera revisión. |
-    | **Aprobado** / **Rechazado** | Resultado de la revisión del administrador. |
-    | **Validando** | En consulta con el Sistema SIS. |
-    | **Validado** | El SIS respondió. |
-    | **Con cupo** | Ocupa una beca. |
-    | **En lista de espera** | Validado, pero sin cupo disponible en ese momento. |
-
----
-
-## :material-counter: Cupo y lista de espera
-
-- El **cupo es del programa**; el territorial releva **sin límite**.
-- Una persona **ocupa cupo** solo cuando es aprobada por el administrador **y** validada por
-  el SIS, y **siempre que haya cupo** disponible en ese momento.
-- Si no hay cupo, la persona queda en **lista de espera**.
-- La salida de la lista de espera es **manual**: cuando se libera un cupo (por una baja), el
-  sistema **avisa** y el administrador promueve a quien corresponda.
-
----
-
-## :material-monitor-dashboard: Pantallas del backoffice
-
-| Pantalla | Para qué sirve |
-|---|---|
-| **Convocatorias** | Listar, crear, editar, ver y activar/desactivar convocatorias del programa. |
-| **Relevamientos** | Crear y administrar relevamientos, asignar/reasignar territorial, fecha y zona, y ver su estado. |
-| **Revisión de relevamiento** | Abrir un relevamiento finalizado, revisar los formularios uno por uno y aprobar/rechazar. |
-| **Beneficiarios / Cupo** | Ver la ocupación de cupo y la lista de espera, dar de baja y promover. |
-| **Configuración del programa** | Definir el cupo del programa. |
-| **Reportes** | Exportar beneficiarios, lista de espera y avance de los relevamientos. |
-
----
-
-## :material-form-textbox: Datos del formulario
-
-!!! info "A confirmar :material-progress-question:"
-    Estos son los datos previstos para cada persona; **están sujetos a confirmación** sobre
-    si se agregan campos específicos de Becas.
-
-=== "Datos personales"
-
-    DNI, Apellido, Nombre, Sexo, Estado civil y Fecha de nacimiento.
-    Si la persona es **menor de edad**, se solicitan además los datos del **apoderado**.
-
-=== "Domicilio"
-
-    Provincia, Localidad, Calle, Número, Piso, Departamento y Barrio.
-
-=== "Contacto"
-
-    Número de celular y correo electrónico (de carga obligatoria).
-
-=== "Documentación"
-
-    Foto del DNI (frente y dorso) obligatoria; comprobante de CBU y certificado de
-    domicilio, opcionales.
-
----
-
-## :material-check-decagram-outline: Reglas principales
-
-- [x] El cupo es **por programa**; el territorial releva sin límite.
-- [x] El cupo se ocupa **solo** tras la aprobación del administrador y la validación del SIS, y si hay disponibilidad.
-- [x] Sin cupo disponible, la persona validada va a **lista de espera** (la promoción es manual).
-- [x] El territorial **solo** puede iniciar el relevamiento **del día asignado**.
-- [x] Un formulario se completa **entero**; no se puede dejar a medias.
-- [x] Los formularios se envían **todos juntos** al finalizar el relevamiento.
-- [x] La persona queda vinculada a su **legajo** al enviar el formulario, se apruebe o no.
-- [x] El **rechazo** del administrador requiere **motivo** y es informativo.
-- [x] El territorial **ve solo lo suyo**; el administrador **ve todo** el programa.
-- [x] Los registros cargados sin validar identidad pueden **revalidarse** después en el backoffice.
-
----
-
-## :material-connection: Integración con el Sistema SIS
+## :material-connection: 10. Integración con el Sistema SIS
 
 La validación contra el **Sistema SIS** (Sistema de Inclusión Social) es un **control de
-segundo nivel**: recibe los casos y confirma o rechaza.
+segundo nivel**: recibe el caso aprobado por el administrador, lo valida y confirma o
+rechaza. Solo con la **doble conformidad** (administrador + SIS) la persona puede ocupar cupo.
 
 !!! warning "En definición :material-progress-question:"
     El **detalle técnico** de esta integración (qué datos se intercambian y cómo) se está
-    **acordando con el equipo del Ministerio**. El comportamiento funcional descrito arriba
-    —validar para habilitar el cupo— es el acordado; el alcance fino queda **a confirmar**.
+    **acordando con el equipo del Ministerio**. El comportamiento funcional descrito
+    —validar para habilitar el cupo, manejo de reintento si no hay respuesta a tiempo— es el
+    acordado; el alcance fino queda **a confirmar**, incluido si el caso continúa hacia un
+    sistema posterior de liquidación.
 
 ---
 
-## :material-close-octagon-outline: Fuera de alcance (por ahora)
+## :material-check-decagram-outline: 11. Reglas de negocio
+
+| ID | Regla |
+|---|---|
+| RN-01 | El cupo es **por programa**; el territorial releva sin límite. |
+| RN-02 | El cupo se consume **solo** tras la validación favorable del SIS y si hay disponibilidad. |
+| RN-03 | Sin cupo disponible, la persona validada va a **lista de espera**. |
+| RN-04 | La salida de la lista de espera es **manual** (el administrador promueve). |
+| RN-05 | Al dar de baja a un beneficiario, se libera cupo y el sistema **alerta** para promover. |
+| RN-06 | El territorial **solo** puede iniciar el relevamiento **del día asignado**. |
+| RN-07 | Un formulario **no** se puede dejar a medias; se completa entero. |
+| RN-08 | Los formularios se envían **todos juntos** al finalizar el relevamiento. |
+| RN-09 | El legajo se crea/relaciona **al enviar** el formulario, se apruebe o no. |
+| RN-10 | Una persona puede pertenecer a **varios programas** a la vez. |
+| RN-11 | El **rechazo** del administrador requiere **motivo** y es **informativo** (no vuelve al territorial). |
+| RN-12 | El territorial **ve solo lo suyo**; el administrador **ve todo** el programa. |
+| RN-13 | La identidad se valida por tres caminos: escaneo de DNI, RENAPER o carga manual. |
+| RN-14 | **Trazabilidad obligatoria:** quién cargó, cuándo e historial de estados. |
+| RN-15 | La app funciona **offline**; al finalizar sin conexión, el relevamiento queda **"Sincronizando…"** hasta sincronizar todo, y recién entonces aparece como **Finalizado** en el backoffice. |
+| RN-16 | El backoffice debe permitir **revalidar contra RENAPER** los registros marcados "No validado RENAPER". |
+| RN-17 | La **app de campo** entra en el alcance (la desarrollamos nosotros). |
+| RN-18 | El SIS responde **válido/no válido**; si rechaza, debe existir motivo. |
+| RN-19 | El cupo se ocupa **solo** con doble conformidad: **administrador + SIS**. |
+| RN-20 | Si el SIS no responde a tiempo, el sistema marca una **alerta** para reintentar. |
+| RN-21 | Con la doble conformidad, el caso queda **habilitado** para el proceso de liquidación. |
+| RN-22 | Si la persona es **menor de edad (< 18)**, se habilita obligatoriamente la sección **Apoderado**; el formulario no puede finalizarse sin esos datos. |
+| RN-23 | El territorial puede **editar los datos precargados** por escaneo o RENAPER ante un error de lectura o un domicilio desactualizado. |
+| RN-24 | La validación contra el SIS se realiza de forma **secuencial**: cada caso se resuelve antes de continuar con el siguiente. |
+| RN-25 | Tanto la **aprobación** como el **rechazo** del administrador registran el contexto del caso para su validación. |
+
+---
+
+## :material-close-octagon-outline: 12. Fuera de alcance (por ahora)
 
 - Notificaciones automáticas a territoriales o ciudadanos.
-- Reproceso de las personas rechazadas por el administrador.
+- Reproceso de las personas rechazadas por el administrador (el rechazo es informativo).
 - Diseñador de formularios dinámicos: los campos son fijos.
 
 ---
