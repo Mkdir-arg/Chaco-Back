@@ -469,6 +469,8 @@ backoffice debe exponer esa acción de revalidar.
 ofrecen hoy `apps/programas`, `apps/legajos`, `apps/ciudadanos` y `users` para no duplicar.
 
 ---
+## Diagrama de Flujo
+<iframe width="768" height="640" src="https://miro.com/app/live-embed/uXjVJzk5lbQ=/?focusWidget=3458764674758430959&embedMode=view_only_without_ui&embedId=49042054955" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 
 ## 11. Fuera de alcance (por ahora)
 
