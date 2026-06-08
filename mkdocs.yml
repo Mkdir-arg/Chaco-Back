@@ -88,6 +88,7 @@ nav:
     - Sprint 001 — Detalle de consumo de horas: sprints/sprint-001-consumo-horas.md
   - Funcionalidades:
     - funcionalidades/index.md
+    - Programa Becas: funcionalidades/programa-becas.md
   - Plantillas operativas:
     - templates/index.md
     - Caso de prueba base: templates/caso-prueba-base.md
