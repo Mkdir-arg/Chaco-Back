@@ -11,32 +11,97 @@
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
             tailwind.config = {
+                darkMode: ['class', '[data-theme="dark"]'],
                 theme: {
                     extend: {
-                        colors: {
-                            // Paleta NODO
-                            'magenta': '{{ branding.colors.nodo_magenta }}',
-                            'nodo-purple': '{{ branding.colors.nodo_purple }}',
-                            'nodo-cyan': '{{ branding.colors.nodo_cyan }}',
-                            // Compatibilidad anterior
-                            'primario': '{{ branding.colors.color_primario }}',
-                            'primario-claro': '{{ branding.colors.color_primario_claro }}',
-                            'primario-oscuro': '{{ branding.colors.color_primario_oscuro }}',
-                            'secundario': '{{ branding.colors.color_secundario }}',
-                            'secundario-claro': '{{ branding.colors.color_secundario_claro }}',
-                            'secundario-oscuro': '{{ branding.colors.color_secundario_oscuro }}',
-                            'acento': '{{ branding.colors.color_acento }}',
-                            'acento-claro': '{{ branding.colors.color_acento_claro }}',
-                            'acento-oscuro': '{{ branding.colors.color_acento_oscuro }}',
-                            'arg-azul': '{{ branding.colors.color_primario }}',
-                            'arg-secundario': '{{ branding.colors.color_secundario }}',
-                            primary: '{{ branding.colors.color_primario }}',
-                            secondary: '{{ branding.colors.color_secundario }}',
-                        },
+                        // ── CHACO Design System tokens ────────────────────────────
                         fontFamily: {
-                            'lora': ['Lora', 'serif'],
-                            'montserrat': ['Montserrat', 'sans-serif'],
-                        }
+                            sans:        ['Inter', 'sans-serif'],
+                            brand:       ['Gellat', 'sans-serif'],
+                            // legacy (mantener para compatibilidad con templates existentes)
+                            lora:        ['Lora', 'serif'],
+                            montserrat:  ['Montserrat', 'sans-serif'],
+                        },
+                        fontSize: {
+                            xxs: '8px', xs: '12px', sm: '14px', base: '16px',
+                            lg: '18px', xl: '20px', '2xl': '24px', '3xl': '30px',
+                            '4xl': '36px', '5xl': '48px', '6xl': '60px',
+                        },
+                        borderRadius: {
+                            '0': '0px', sm: '2px', DEFAULT: '4px', md: '6px',
+                            lg: '8px', xl: '12px', '2xl': '16px', '3xl': '24px', full: '9999px',
+                        },
+                        maxWidth: {
+                            xs: '320px', sm: '384px', md: '448px', lg: '512px',
+                            xl: '576px', '2xl': '672px', '3xl': '768px', '4xl': '896px',
+                            '5xl': '1024px', '6xl': '1152px', '7xl': '1280px',
+                        },
+                        colors: {
+                            // ── Semantic background tokens (via CSS vars en chaco-tokens.css) ──
+                            'bg-white':             'var(--bg-white)',
+                            'bg-primary':           'var(--bg-primary)',
+                            'bg-primary-soft':      'var(--bg-primary-soft)',
+                            'bg-secondary':         'var(--bg-secondary)',
+                            'bg-secondary-soft':    'var(--bg-secondary-soft)',
+                            'bg-tertiary':          'var(--bg-tertiary)',
+                            'bg-quaternary':        'var(--bg-quaternary)',
+                            'bg-gray':              'var(--bg-gray)',
+                            'bg-brand-softer':      'var(--bg-brand-softer)',
+                            'bg-brand-soft':        'var(--bg-brand-soft)',
+                            'bg-brand-medium':      'var(--bg-brand-medium)',
+                            'bg-brand':             'var(--bg-brand)',
+                            'bg-brand-strong':      'var(--bg-brand-strong)',
+                            'bg-success-soft':      'var(--bg-success-soft)',
+                            'bg-success':           'var(--bg-success)',
+                            'bg-danger-soft':       'var(--bg-danger-soft)',
+                            'bg-danger-medium':     'var(--bg-danger-medium)',
+                            'bg-danger':            'var(--bg-danger)',
+                            'bg-warning-soft':      'var(--bg-warning-soft)',
+                            'bg-warning':           'var(--bg-warning)',
+                            'bg-dark':              'var(--bg-dark)',
+                            'bg-disabled':          'var(--bg-disabled)',
+                            'bg-pink':              'var(--bg-pink)',
+                            // ── Semantic border tokens ──
+                            'border-base':          'var(--border-base)',
+                            'border-base-soft':     'var(--border-base-soft)',
+                            'border-light':         'var(--border-light)',
+                            'border-brand':         'var(--border-brand)',
+                            'border-brand-subtle':  'var(--border-brand-subtle)',
+                            'border-brand-light':   'var(--border-brand-light)',
+                            'border-danger':        'var(--border-danger)',
+                            'border-danger-subtle': 'var(--border-danger-subtle)',
+                            'border-success':       'var(--border-success)',
+                            'border-warning':       'var(--border-warning)',
+                            // ── Semantic text tokens ──
+                            'text-heading':          'var(--text-heading)',
+                            'text-body':             'var(--text-body)',
+                            'text-body-subtle':      'var(--text-body-subtle)',
+                            'text-fg-brand':         'var(--text-fg-brand)',
+                            'text-fg-brand-subtle':  'var(--text-fg-brand-subtle)',
+                            'text-fg-brand-strong':  'var(--text-fg-brand-strong)',
+                            'text-fg-danger':        'var(--text-fg-danger)',
+                            'text-fg-danger-strong': 'var(--text-fg-danger-strong)',
+                            'text-fg-success':       'var(--text-fg-success)',
+                            'text-fg-warning':       'var(--text-fg-warning)',
+                            'text-fg-warning-subtle':'var(--text-fg-warning-subtle)',
+                            'text-fg-disabled':      'var(--text-fg-disabled)',
+                            'text-fg-info':          'var(--text-fg-info)',
+                            // ── Legacy branding (mantener para templates existentes) ──
+                            'magenta':          '{{ branding.colors.nodo_magenta }}',
+                            'nodo-purple':      '{{ branding.colors.nodo_purple }}',
+                            'nodo-cyan':        '{{ branding.colors.nodo_cyan }}',
+                            'primario':         '{{ branding.colors.color_primario }}',
+                            'primario-claro':   '{{ branding.colors.color_primario_claro }}',
+                            'primario-oscuro':  '{{ branding.colors.color_primario_oscuro }}',
+                            'secundario':       '{{ branding.colors.color_secundario }}',
+                            'secundario-claro': '{{ branding.colors.color_secundario_claro }}',
+                            'secundario-oscuro':'{{ branding.colors.color_secundario_oscuro }}',
+                            'acento':           '{{ branding.colors.color_acento }}',
+                            'acento-claro':     '{{ branding.colors.color_acento_claro }}',
+                            'acento-oscuro':    '{{ branding.colors.color_acento_oscuro }}',
+                            primary:            '{{ branding.colors.color_primario }}',
+                            secondary:          '{{ branding.colors.color_secundario }}',
+                        },
                     }
                 }
             }
@@ -45,7 +110,7 @@
         <!-- Google Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         
         <!-- Font Awesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -53,7 +118,10 @@
         <!-- Alpine.js for interactivity -->
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
         
-        <!-- Paleta de colores unificada (DEBE IR PRIMERO) -->
+        <!-- CHACO Design Tokens — DEBE IR PRIMERO (define todas las CSS variables) -->
+        <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}" />
+
+        <!-- Paleta de colores unificada (sombras, transiciones) -->
         <link rel="stylesheet" href="{% static 'custom/css/paleta-unificada.css' %}" />
         
         <!-- NODO Brand Manual de Marca -->
