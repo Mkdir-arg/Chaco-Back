@@ -10,7 +10,7 @@ purpose: >
 
 variants:
   expanded:
-    width: "~200–300px"
+    width: "288px (Tailwind w-72 — 72 × 4px)"
     shows: "Logo + nav items with labels + footer"
 
   collapsed:
@@ -75,7 +75,7 @@ anatomy:
     └──────────────────────────────────┘
 
   logo_badge:
-    background: "linear-gradient(45deg, #7928CA, #FF0080) or linear-gradient(45deg, #5059BC, #F26DF9)"
+    background: "linear-gradient(45deg, #5059BC, #F98DFF)"
     border_radius: "12px"
     padding: "16px"
     icon_color: "text-white"

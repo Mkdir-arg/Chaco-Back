@@ -49,7 +49,7 @@ For each component in `docs/design-kb/components/`, implement or update the corr
 - Verify all five sizes (xs, sm, base, l, xl) match exact measurements
 - Verify all states (default, hover, focus, disabled) match token values
 - Add loading state: spinner replaces label, width unchanged
-- Confirm gradient direction: `linear-gradient(45deg, #5059BC, #F26DF9)` (or NODO variant)
+- Confirm gradient direction: `linear-gradient(45deg, #5059BC, #F98DFF)` — Jacaranda → BG Pink (`var(--bg-brand)` → `var(--bg-pink)`)
 
 #### 2b. Badge Component
 - Implement all six variants (gray, white, brand, danger, warning, success) per `components/badge.yaml`
@@ -61,13 +61,13 @@ For each component in `docs/design-kb/components/`, implement or update the corr
 - Focus border: `border-brand 1.5px`
 - Error state: `border-danger 1px` + `bg-danger-soft` background
 - Disabled: `bg-disabled` + `text-fg-disabled`
-- Label always above field, required `*` in `text-fg-brand`
+- Label always above field, required `*` in `text-fg-danger` (#c70036)
 
 #### 2d. Sidebar Navigation
 - Active item: pill shape (rounded-full or rounded-lg), `bg-brand`, white text
 - Hover: `bg-tertiary`
 - Chevron rotation transition: 150ms ease
-- Logo badge: `linear-gradient(45deg, #7928CA, #FF0080)`, border-radius 12px
+- Logo badge: `linear-gradient(45deg, #5059BC, #F98DFF)`, border-radius 12px
 
 #### 2e. Data Table
 - No alternating row colors
@@ -180,16 +180,24 @@ templates/includes/base.html                   ← Main template entry point
 
 **Decisiones ya resueltas (no requieren consulta):**
 - Brand primary: `#5059BC` (Jacaranda), no magenta
-- Gradiente Brand button: `linear-gradient(45deg, #5059BC, #598DFF)`
+- Gradiente Brand button: `linear-gradient(45deg, #5059BC, #F98DFF)` — Jacaranda → BG Pink (`var(--bg-pink)`)
 - Botón tertiary: `#5059BC` en border y texto
 - Sidebar active: pill `bg-brand (#5059bc)` + texto blanco
 - Asterisco requerido: `text-fg-danger` (rojo)
 - Headers de tabla: `text-xs, font-semibold, uppercase, text-body-subtle`
 - Border-radius botones: `rounded-full` (pill / 9999px)
 
-**Pendientes técnicos (sin conflicto, pero sin valor exacto en fuentes CHACO):**
-- Ancho exacto del sidebar: main.css dice 300px, manual dice ~205px — ver pregunta A1
-- `#598DFF` como stop final del gradiente no está en chaco-tokens.json — verificar si tiene token
+**Decisiones adicionales — confirmadas por diseñadora (todas resueltas):**
+- Ancho sidebar: **288px** (Tailwind `w-72` — token primitivo 72 × 4px)
+- Gradiente endpoint: **`#F98DFF`** = `var(--bg-pink)` — token existe en chaco-tokens.json como `bg-pink`
+- Form max-width: **768px fijo** (`max-w-3xl`, 48rem) — uniforme en TODOS los formularios sin excepción
+- Mobile sidebar: **drawer** (panel deslizante desde izquierda) — sin prioridad, implementar solo si se requiere
+- Modal backdrop: `rgba(209, 213, 219, 0.7)` — token `bg-gray` (#d1d5db / gray-300) al 70% de opacidad
+- Toast: **centrado en pantalla**, background `rgba(75, 85, 99, 0.7)` (gray-600 al 70%), duración **10 segundos**
+- Select/Dropdown: diseño de panel personalizado pendiente (diseñadora prometió enviar — ver `components/select.yaml`)
+- Avatar: **31×31px**, circular, iniciales en `text-white font-semibold`
+- Portal dark mode: **backoffice únicamente** — portal ciudadano usa light mode exclusivamente
+- Stat cards: **solo visuales** — no son links ni botones; `cursor: default`
 
 **Coexistencia de stacks:**
 - Iconos nuevos → Heroicons. Legacy → Font Awesome. Nunca mezclar en el mismo componente.

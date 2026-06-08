@@ -1,0 +1,104 @@
+# =============================================================
+# Component: Avatar
+# Source: Designer confirmation (2026-06-08)
+# Note: Partially inferred from data-table.yaml + sidebar.yaml + direct spec
+# =============================================================
+
+purpose: >
+  Circular element representing a user or entity identity.
+  Shows initials when no photo is available.
+  Used consistently in sidebar user card, data table rows, and entity headers.
+
+variants:
+  initials:
+    description: "Circle with 1–2 uppercase initials from name"
+    when: "Default — no photo available or photo not loaded"
+
+  photo:
+    description: "Circular crop of user profile photo"
+    when: "User has uploaded a photo (system staff/users)"
+    fallback: "Always render initials variant if photo fails to load"
+
+size:
+  standard:
+    width: "31px"
+    height: "31px"
+    font: "Inter SemiBold, ~12–13px"
+    note: "Single size used throughout the system — do not create other sizes without design approval"
+
+appearance:
+  shape: "circle (border-radius: 9999px)"
+  background: "bg-brand-medium (jacaranda soft) for citizen initials"
+  text_color: "text-white (#ffffff)"
+  font_weight: "font-semibold"
+  overflow: "hidden (for photo variant)"
+
+generating_initials:
+  rule: "First letter of first name + first letter of last name"
+  example: "Carlos Martínez → CM"
+  fallback_1_letter: "If only one name: first letter only"
+  uppercase: true
+  max_characters: 2
+
+contexts:
+  sidebar_user_card:
+    position: "Left of user name and role"
+    background: "bg-brand-medium or brand gradient shape"
+    shows: "Logged-in user's initials"
+
+  data_table_row:
+    position: "First column (CIUDADANO cell)"
+    background: "bg-brand-medium (jacaranda soft)"
+    shows: "Citizen's initials"
+    example: "'CM' for Carlos Martínez"
+
+  entity_header:
+    position: "Left of entity name in detail view header"
+    background: "bg-brand-medium"
+    shows: "Entity's initials"
+
+anatomy: |
+  ┌────────┐
+  │  CM    │  ← 31×31px circle, bg-brand-medium, text-white font-semibold ~12px
+  └────────┘
+
+accessibility_rules:
+  - "Avatar must have aria-label with the person's full name"
+  - "Example: aria-label='Carlos Martínez'"
+  - "Never use alt text with just initials — screen readers need the full name"
+
+allowed_usage:
+  - "Sidebar user card (logged-in user)"
+  - "Data table CIUDADANO column"
+  - "Entity detail view header"
+  - "Comment/conversation threads (if applicable)"
+
+forbidden_usage:
+  - "Sizes other than 31×31px unless explicitly approved by designer"
+  - "Square avatars — always circular"
+  - "More than 2 initials"
+  - "Hardcoded background colors — always use `bg-brand-medium` token"
+  - "Avatar without accessible label"
+
+examples:
+  initials: |
+    <div class="avatar"
+         style="width: 31px; height: 31px; border-radius: 9999px;"
+         class="bg-brand-medium flex items-center justify-center"
+         aria-label="Carlos Martínez">
+      <span class="text-white font-semibold text-xs">CM</span>
+    </div>
+
+  tailwind: |
+    <div class="w-[31px] h-[31px] rounded-full bg-brand-medium
+                flex items-center justify-center
+                text-white font-semibold text-xs"
+         aria-label="{{ ciudadano.nombre_completo }}">
+      {{ ciudadano.iniciales }}
+    </div>
+
+anti_examples:
+  - "Avatar 40×40px when the spec is 31×31px"
+  - "Avatar with square corners"
+  - "Three initials (JMC instead of JM)"
+  - "Missing aria-label"

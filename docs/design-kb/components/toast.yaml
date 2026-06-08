@@ -1,0 +1,108 @@
+# =============================================================
+# Component: Toast / Notification
+# Source: Designer confirmation (2026-06-08)
+# Note: Not documented in CHACO_NODO_Design_Manual.md — spec confirmed directly
+# =============================================================
+
+purpose: >
+  Transient status messages that appear after a user action.
+  Toasts confirm success, warn of issues, or report errors.
+  They are temporary and do not require user interaction to dismiss.
+
+scope:
+  applies_to: "Backoffice (authenticated views) only"
+  portal: "Not used in citizen portal"
+
+variants:
+  success:
+    icon: "CheckCircleIcon"
+    label: "Acción completada"
+    example: "Ciudadano creado correctamente."
+  error:
+    icon: "ExclamationCircleIcon"
+    label: "Error"
+    example: "No se pudo guardar. Intentá de nuevo."
+  warning:
+    icon: "ExclamationTriangleIcon"
+    label: "Atención"
+    example: "El formulario tiene campos incompletos."
+  info:
+    icon: "InformationCircleIcon"
+    label: "Información"
+    example: "Los cambios se guardarán automáticamente."
+
+appearance:
+  position: "Center of viewport (horizontally and vertically)"
+  background: "rgba(75, 85, 99, 0.7)"
+  background_token: "gray-600 at 70% opacity (--color-gray-600 = #4b5563)"
+  text_color: "text-white (#ffffff)"
+  border_radius: "rounded-xl (12px)"
+  padding: "16px 20px"
+  min_width: "~280px"
+  max_width: "~480px"
+  box_shadow: "var(--sombra-lg)"
+
+timing:
+  duration: "10 seconds"
+  animation_in: "fade-in + slight scale up (150ms ease-out)"
+  animation_out: "fade-out (150ms ease-in)"
+  user_dismiss: "clicking the toast or a close (×) button dismisses early"
+
+anatomy: |
+  ┌────────────────────────────────────────┐
+  │ [Icon]  Message text here          [×] │
+  └────────────────────────────────────────┘
+
+  - Icon: w-5 h-5, text-white, matches variant semantic color
+  - Message: Inter Regular 14px, text-white
+  - Close button: optional, top-right, × icon, text-white
+
+z_index: "200 (toast layer — above modal at 100)"
+
+implementation:
+  library: "Toastr (legacy templates) or custom Alpine.js (new templates)"
+  positioning_css: |
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+
+accessibility_rules:
+  - "role='alert' or role='status' depending on urgency"
+  - "aria-live='polite' for info/success, aria-live='assertive' for error"
+  - "Toast must be announced by screen readers"
+  - "Auto-dismiss must not remove focus from the user's current element"
+  - "Color is never the only differentiator — icon + text communicates the variant"
+
+allowed_usage:
+  - "Confirmation of successful actions (create, save, delete)"
+  - "Non-blocking error feedback that does not require form correction"
+  - "Background process completion (export ready, import finished)"
+
+forbidden_usage:
+  - "Replacing inline form validation (validation errors go below the field)"
+  - "Critical errors that require user action — use a modal or inline alert instead"
+  - "Stacking multiple toasts simultaneously — show one at a time"
+  - "Toast without an icon — icon is required for accessibility"
+  - "Duration shorter than 3 seconds — user must have time to read"
+  - "Using window.alert() or browser-native notifications"
+
+examples:
+  success: |
+    <div class="toast toast-success" role="alert">
+      <CheckCircleIcon class="w-5 h-5 text-white" />
+      <span>Ciudadano creado correctamente.</span>
+      <button aria-label="Cerrar">×</button>
+    </div>
+  error: |
+    <div class="toast toast-error" role="alert" aria-live="assertive">
+      <ExclamationCircleIcon class="w-5 h-5 text-white" />
+      <span>No se pudo guardar. Intentá de nuevo.</span>
+    </div>
+
+anti_examples:
+  - "Toast positioned top-right corner (system uses center-screen)"
+  - "Toast with light background — background must be gray-600 at 70%"
+  - "Toast that auto-dismisses in 2 seconds — minimum is 10 seconds"
+  - "Using Toastr's default positioning without overriding to center"

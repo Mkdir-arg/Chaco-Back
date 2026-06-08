@@ -136,3 +136,17 @@ This is a transitional state. The long-term goal is Tailwind CSS throughout.
 - **Never mix icon libraries within the same component**
 
 Both libraries have the same color inheritance rule: icons always use text color tokens, never hardcoded values.
+
+---
+
+## Amendment III: Dark Mode Scope
+
+**Dark mode applies to the backoffice (authenticated views) only.**
+
+The citizen portal (`portal/` templates) does not implement dark mode. Portal components use light mode exclusively.
+
+- `data-theme="dark"` / `.dark` selectors: backoffice templates only
+- `localStorage` preference persistence: backoffice only
+- Dark token variants: must exist for all tokens (for design system completeness), but are only activated in backoffice contexts
+
+Article III's dark-mode requirement applies exclusively to backoffice components. When building portal components, dark-mode compliance is not required.

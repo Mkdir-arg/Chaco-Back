@@ -117,11 +117,11 @@ Each rule includes confidence level, evidence, and rationale.
 **Rationale:** Accessibility requires visible focus. UX requires hover feedback. These are non-negotiable.
 **How to apply:** When creating any clickable or focusable element, define all three states before shipping.
 
-### IR-CP02: Brand gradient always goes purple→pink, never reversed
+### IR-CP02: Brand gradient always goes Jacaranda→BG Pink, never reversed
 **Confidence:** HIGH
-**Evidence:** All documented gradients: `linear-gradient(45deg, #7928CA, #FF0080)` or `linear-gradient(45deg, #5059BC, #F26DF9)`.
+**Evidence:** Confirmed by designer: `linear-gradient(45deg, #5059BC, #F98DFF)` — Jacaranda as start, BG Pink (#F98DFF / `var(--bg-pink)`) as end.
 **Rationale:** Direction encodes brand identity. Reversing it would be inconsistent.
-**How to apply:** Always purple/jacaranda as the start color, pink/rosa as the end color. Never reversed.
+**How to apply:** Always Jacaranda (#5059BC) as the start color, BG Pink (#F98DFF) as the end color. Never reversed. CSS: `linear-gradient(45deg, var(--bg-brand), var(--bg-pink))`.
 
 ### IR-CP03: Icon color always inherits from text token, never hardcoded
 **Confidence:** HIGH
@@ -132,5 +132,5 @@ Each rule includes confidence level, evidence, and rationale.
 ### IR-CP04: NODO DS.md es la versión anterior del sistema (proyecto padre). CHACO_NODO_Design_Manual.md y chaco-tokens.json son la fuente autorizada
 **Confidence:** HIGH
 **Evidence:** NODO DS.md corresponde al proyecto NODO del que derivó CHACO. Toda especificación de CHACO (chaco-tokens.json, CHACO_NODO_Design_Manual.md) supera a NODO DS.md en caso de conflicto. Donde NODO DS.md tiene datos que CHACO no documenta, se incorporan como valores de fallback.
-**Rationale:** CHACO es una adaptación de NODO con su propia identidad de marca. El color de marca es Jacaranda (#5059BC), no magenta (#FF0080). El gradiente del botón Brand es `#5059BC → #598DFF`.
+**Rationale:** CHACO es una adaptación de NODO con su propia identidad de marca. El color de marca es Jacaranda (#5059BC), no magenta (#FF0080). El gradiente del botón Brand es `#5059BC → #F98DFF` (Jacaranda → BG Pink, confirmado por la diseñadora; token: `var(--bg-pink)`).
 **How to apply:** Usar exclusivamente `chaco-tokens.json` / `chaco-tokens.css` / `CHACO_NODO_Design_Manual.md` como fuentes. Consultar NODO DS.md únicamente para componentes sin documentar en CHACO (tamaños exactos de botón, especificaciones de badge en hex).

@@ -37,7 +37,7 @@ Forms in NODO follow a strict set of layout and validation rules to ensure consi
 ## Field Rules
 
 - Label is **always above** the field — never floating or inside
-- Required fields: `*` in `text-fg-brand` next to label text
+- Required fields: `*` in `text-fg-danger` (#c70036) next to label text
 - Placeholder: only for hint text, never as label replacement
 - Gap between fields: **20px**
 - Gap between form sections: **32px**
@@ -103,9 +103,12 @@ Pre-filled data from RENAPER must be visually distinguished:
 
 ## Form Width
 
-- **Max width: ~700px**
-- **Centered** within the content area
+- **Max width: 768px** (Tailwind `max-w-3xl` — 48rem)
+- This value is **FIXED and uniform** — it must not be adjusted per-form, per-section, or per-screen
 - Not full-width — forms that stretch 100% are a design violation
+- Not narrower than 768px — narrowing for aesthetic or content reasons creates inconsistency
+
+**Anti-pattern:** Adjusting form max-width to fit content is a common failure mode. When different forms in the same flow have different widths, the UI feels broken even if each screen looks fine in isolation. 768px is the system constant — apply it to every form, always.
 
 ---
 

@@ -32,6 +32,8 @@ states:
   hover:
     box_shadow: "var(--sombra-md)"
     transition: "300ms ease-in-out"
+    cursor: "default (not pointer — cards are NOT clickable)"
+    note: "Hover shadow is a visual richness effect only, not a clickability affordance"
 
   disabled_variant:
     background: "bg-disabled (#f3f4f6)"
@@ -56,7 +58,7 @@ anatomy:
 
   icon_shape:
     type: "Square with rounded corners"
-    background: "linear-gradient(45deg, #7928CA, #FF0080) — brand gradient"
+    background: "linear-gradient(45deg, #5059BC, #F98DFF) — brand gradient (Jacaranda → BG Pink)"
     border_radius: "~10–12px"
     size: "~40px"
     icon_color: "text-white"
@@ -100,7 +102,7 @@ allowed_usage:
   - "Entity detail view quick metrics (Asistentes, Prestaciones, etc.)"
 
 forbidden_usage:
-  - "Multiple stat cards used for navigation (they are display-only)"
+  - "Making stat cards clickable or treating them as navigation links — they are visual-only display elements"
   - "Stat cards without a number — they must always show a quantitative value"
   - "Icon without a label to explain the metric"
 

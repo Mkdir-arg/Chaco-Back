@@ -12,19 +12,19 @@ purpose: >
 variants:
   brand:
     description: "Primary action button with gradient fill. One per section maximum."
-    background: "linear-gradient(45deg, #5059BC, #598DFF)"
+    background: "linear-gradient(45deg, #5059BC, #F98DFF)"
     text_color: "#ffffff"
     border: "none"
     states:
       default:
-        background: "linear-gradient(45deg, #5059BC, #598DFF)"
+        background: "linear-gradient(45deg, #5059BC, #F98DFF)"
         text: "#ffffff"
         border: "none"
       hover:
-        background: "linear-gradient(45deg, #5059BC, #598DFF) + ::after overlay #000 20% opacity"
+        background: "linear-gradient(45deg, #5059BC, #F98DFF) + ::after overlay #000 20% opacity"
         text: "#ffffff"
       focus:
-        background: "linear-gradient(45deg, #5059BC, #598DFF)"
+        background: "linear-gradient(45deg, #5059BC, #F98DFF)"
         border: "#5059BC 2px"
         text: "#ffffff"
         box_shadow: "0 1px 0 2px #E5E7EB"

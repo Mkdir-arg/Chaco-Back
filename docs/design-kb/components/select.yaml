@@ -1,0 +1,142 @@
+# =============================================================
+# Component: Select / Dropdown
+# Source: CHACO_NODO_Design_Manual.md §12.1 (inferred), Designer (2026-06-08)
+# Status: PARTIALLY DOCUMENTED — custom panel design pending from designer
+# =============================================================
+
+purpose: >
+  Form control for selecting one value from a predefined list.
+  Appears in forms (sex, status, program type) and table filter rows.
+  Uses custom styling to match the NODO design language, not the browser default.
+
+status_note: >
+  The TRIGGER element (the visible field + chevron) is fully specified below.
+  The DROPDOWN PANEL design (the list that opens) was requested from the designer
+  on 2026-06-08. Update this file when that design is received.
+
+# -------------------------------------------------------------
+# TRIGGER (the visible input-like element)
+# -------------------------------------------------------------
+trigger:
+  appearance:
+    background: "bg-secondary-soft (#f9fafb)"
+    border: "border-base (#e5e7eb) 1px"
+    border_radius: "rounded-lg (8px)"
+    height: "40px (same as input base size)"
+    padding_h: "12px"
+    padding_v: "10px"
+    font: "Inter Regular 14px"
+    text_color: "text-body (#4b5563)"
+    placeholder_color: "text-fg-disabled (#9ca3af)"
+
+  chevron:
+    icon: "ChevronDownIcon (Heroicons)"
+    position: "right side, 12px from edge"
+    color: "text-fg-disabled"
+    rotation_when_open: "180° (transition 150ms ease)"
+
+  states:
+    default:
+      border: "border-base (#e5e7eb) 1px"
+      background: "bg-secondary-soft (#f9fafb)"
+    focus:
+      border: "border-brand (#5059bc) 1.5px"
+      background: "bg-secondary-soft"
+      outline: "none (ring via box-shadow)"
+    error:
+      border: "border-danger (#c70036) 1px"
+      background: "bg-danger-soft (#fef0f2)"
+    disabled:
+      background: "bg-disabled (#f3f4f6)"
+      text_color: "text-fg-disabled (#9ca3af)"
+      cursor: "not-allowed"
+      chevron_color: "text-fg-disabled"
+
+# -------------------------------------------------------------
+# DROPDOWN PANEL
+# Status: DESIGN PENDING from designer
+# -------------------------------------------------------------
+panel:
+  status: "PENDING — designer to provide Figma spec"
+  known_behavior:
+    position: "Below the trigger, left-aligned, full-width of trigger"
+    z_index: "10 (dropdown layer)"
+    animation: "fade-in (150ms ease-out)"
+  provisional_spec:
+    background: "bg-white (#ffffff)"
+    border: "border-base (#e5e7eb) 1px"
+    border_radius: "rounded-lg (8px)"
+    box_shadow: "var(--sombra-md)"
+    max_height: "~240px (scrollable if more options)"
+  option_item:
+    height: "~40px"
+    padding_h: "12px"
+    font: "Inter Regular 14px"
+    text_color: "text-body"
+    hover:
+      background: "bg-tertiary (#f3f4f6)"
+    selected:
+      background: "bg-brand-soft"
+      text_color: "text-fg-brand (#5059bc)"
+      icon: "CheckIcon right-aligned, text-fg-brand"
+
+# -------------------------------------------------------------
+# LABEL (same rules as input component)
+# -------------------------------------------------------------
+label:
+  position: "Always above the trigger"
+  font: "Inter Medium 14px"
+  color: "text-heading"
+  required_indicator: "* in text-fg-danger (#c70036)"
+
+# -------------------------------------------------------------
+# CONTEXT VARIANTS
+# -------------------------------------------------------------
+contexts:
+  form_select:
+    description: "Full-width within form column, 40px height"
+    example: "Sexo (M / F / X), Estado civil, Programa"
+
+  filter_chip:
+    description: "Compact variant used in table filter rows"
+    background: "bg-primary (#ffffff)"
+    border: "border-base"
+    border_radius: "rounded-md (6px)"
+    font: "text-sm font-medium"
+    active_state:
+      border: "border-brand"
+      text: "text-fg-brand"
+    example: "Todos los riesgos ∨, Todos los estados ∨"
+
+anatomy: |
+  [Label *]
+  ┌────────────────────────────────┐
+  │ Seleccioná una opción     [∨]  │  ← trigger
+  └────────────────────────────────┘
+  ┌────────────────────────────────┐  ← panel (when open)
+  │ Opción 1                       │
+  │ Opción 2                   [✓] │  ← selected
+  │ Opción 3                       │
+  └────────────────────────────────┘
+
+accessibility_rules:
+  - "Use role='combobox' on trigger, role='listbox' on panel, role='option' on each item"
+  - "aria-expanded reflects open/closed state on trigger"
+  - "aria-selected on the currently selected option"
+  - "Keyboard: Arrow keys navigate options, Enter selects, Escape closes"
+  - "Label must be associated via for/id or aria-labelledby"
+
+allowed_usage:
+  - "Form fields with a predefined list of options (sex, program, risk level)"
+  - "Table filter chips with limited value sets"
+  - "Any list with fewer than ~30 options (more than 30 → consider searchable select)"
+
+forbidden_usage:
+  - "Native browser <select> element with default styling — always use custom component"
+  - "Select for binary choices — use radio buttons or a toggle for Yes/No"
+  - "Opening the panel without proper keyboard support"
+
+anti_examples:
+  - "Unstyled browser select element with OS-default dropdown"
+  - "Select that uses the Brand gradient background on trigger"
+  - "Dropdown panel without hover state on options"
