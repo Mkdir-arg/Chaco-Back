@@ -2,55 +2,60 @@
 
 **Tipo:** Propuesta de épica (documento de trabajo interno)
 **Estado:** En análisis (borrador en construcción)
-**Fecha:** 2026-06-04
+**Fecha:** 2026-06-04 · **Última actualización:** 2026-06-08
 **Responsable (ICORE):** functional-analyst
 **Programa:** Becas (primer programa sobre el módulo genérico de Programas)
 **Módulos Django candidatos:** `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (roles/permisos)
 
-> ⚠️ **Borrador en construcción.** Este documento consolida todo lo relevado hasta el
-> cierre del backoffice (Secciones 1–7). Falta cerrar el **bloque de integraciones**
-> (SIS → RENAPER → App de campo) y el **control estricto** antes de generar issues.
-> Nada acá es definitivo: todas las **dudas y preguntas** están consolidadas al final,
-> en la **Sección 16**.
+> ⚠️ **Borrador en construcción.** Backoffice, **RENAPER** y **App de campo** ya están
+> relevados; en esta ronda se incorporaron **Segmentos** y **requisitos** (general / de
+> segmento) con **cupo por segmento**. Falta cerrar el **contrato técnico de SIS**, algunos
+> pendientes finos de segmentos/roles y el **control estricto** antes de generar issues.
+> Nada acá es definitivo: todas las **dudas y preguntas** están consolidadas al final, en
+> la **Sección 16**.
 
 ---
 
 ## 1. Objetivo
 
 Construir, en el **backoffice**, un módulo del **Programa Becas** que permita a un
-**administrador** configurar convocatorias y **asignar relevamientos** a sus
+**administrador** configurar convocatorias —cada una asociada a un **segmento** de la beca,
+con sus **requisitos** y **cupo** propios— y **asignar relevamientos** a sus
 **territoriales**. El territorial, desde una **app de campo** (externa, integrada vía
 API), releva ciudadanos en terreno cargando **un formulario por persona**. Al finalizar,
 los formularios llegan al backoffice, donde el administrador los **revisa caso por caso**
 y los **aprueba o rechaza**. Las personas aprobadas pasan por una **validación contra el
-Sistema SIS** y, según disponibilidad de **cupo del programa**, ocupan una beca o quedan
+Sistema SIS** y, según disponibilidad de **cupo del segmento**, ocupan una beca o quedan
 en **lista de espera**.
 
 ---
 
 ## 2. Concepto / modelo del dominio
 
-Jerarquía de 4 niveles (confirmada):
+Jerarquía (actualizada con **Segmento** en esta ronda):
 
 ```
-Programa  (módulo con funcionamiento propio — Becas es uno, Ñachec es otro)
-   └─ Convocatoria        (una o varias dentro del programa)
-        └─ Relevamiento   (campaña de campo, asignada a UN territorial, con fecha y zona)
-             └─ Formulario (N por relevamiento; cada uno = 1 persona / legajo)
+Programa  (Becas)
+   └─ Convocatoria              (1..N; al crearla se selecciona UN Segmento)
+        ├─ Segmento             (sub-modalidad de la beca → cupo propio + requisitos vía SIS)
+        └─ Relevamiento         (campaña de campo, asignada a UN territorial, con fecha y zona)
+             └─ Formulario       (N por relevamiento; cada uno = 1 persona / legajo)
 ```
 
 | Entidad | Descripción | Notas clave |
 |---|---|---|
-| **Programa** | Marco genérico. Becas es el primero; Ñachec es otro programa. | El **cupo** vive a nivel Programa. |
-| **Convocatoria** | Agrupador dentro del programa. Un programa tiene 1..N convocatorias. | — |
+| **Programa** | Marco genérico. Becas es el primero; Ñachec es otro programa. | El **cupo** vive a nivel **Segmento** (no a nivel Programa). |
+| **Convocatoria** | Agrupador dentro del programa. Un programa tiene 1..N convocatorias. Al crearla se **selecciona un Segmento**. | — |
+| **Segmento** | Sub-modalidad de la beca (Ladrilleros/Carboneros, Finalización de estudios "Joven", Cultural, Mamá Ñachec, Redes de Fe, Yo Deportista, Mi Casa Ñachec, Solidaria). | Define **cupo propio** y sus **requisitos específicos vienen de SIS**. |
 | **Relevamiento** | Campaña de campo asignada a **un solo** territorial. Se **auto-nombra** "Relevamiento XXX". | Tiene territorial, fecha/plazo y zona/localidad. Reasignable. |
 | **Formulario** | Una persona relevada. N por relevamiento. | **Campos aún no definidos** (pregunta abierta). |
 | **Persona / Legajo** | El ciudadano relevado. Se busca en `legajos`: si existe se relaciona, si no se crea. | El legajo se crea **al enviar** el formulario. Una persona puede estar en **N programas** a la vez. La relación legajo↔programa se visualiza mediante **solapas dinámicas**: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente mostrando el estado (aprobado, rechazado, con cupo, etc.). |
-| **Cupo** | Número de becas disponibles **por Programa**. Cada programa maneja su propia parametría de cupo. | Se ocupa **después** de validar con SIS, no al aprobar. |
+| **Cupo** | Número de becas disponibles **por Segmento** (parametría: cantidad de segmentos + cupo por segmento). *(Antes era por Programa; reabierto por R-5.)* | Se ocupa **después** de validar con SIS, no al aprobar. |
 | **Lista de espera** | Personas validadas-OK que no entraron por cupo lleno. | El admin promueve **a mano**. |
 
-📌 *Asunción pendiente:* la jerarquía de 4 niveles se modela explícita; "Programa" es
-genérico aunque hoy se arranque solo con Becas. Ver detalle al final en **Sección 16.6**.
+📌 *Asunción pendiente:* la jerarquía (Programa → Convocatoria/**Segmento** → Relevamiento →
+Formulario) se modela explícita; "Programa" es genérico aunque hoy se arranque solo con
+Becas. Ver detalle al final en **Sección 16.6**.
 
 ---
 
@@ -61,10 +66,14 @@ genérico aunque hoy se arranque solo con Becas. Ver detalle al final en **Secci
 | **Administrador del programa** | Rol **nuevo** (no existe hoy). Se apoya en el esquema de roles/permisos de `users`. | Acceso al **módulo del programa Becas**; el acceso por módulo depende de los roles asignados. Ve **todo** el programa. | Crea convocatorias y relevamientos, asigna/reasigna territoriales, revisa formularios (aprueba/rechaza con motivo), gestiona cupo y lista de espera, da de baja beneficiarios. |
 | **Territorial** | Usuario del sistema con login propio. | Ve **solo sus** relevamientos y formularios. | Inicia el relevamiento del día asignado, carga formularios (1 por persona) en la app de campo, finaliza y envía todo junto. |
 
-Por ahora **solo** estos dos roles (sin supervisor/coordinador).
+Por ahora **solo** estos dos roles. ⚠️ Sin embargo, la respuesta a "quién reprograma un
+relevamiento vencido" introdujo la figura de un **"coordinador"** — rol no contemplado
+acá. Hay que definir si se agrega como tercer rol o si es el Administrador (ver
+**16.2-bis #8.b**).
 
-📌 *Duda pendiente:* convivencia de perfiles en un mismo usuario (admin/territorial).
-Detalle consolidado al final en **Sección 16.2 (pregunta 7)**.
+📌 *Convivencia de perfiles (cerrada — pregunta 7):* un mismo usuario **sí puede tener los
+dos roles a la vez** (Admin de un programa + Territorial de otro). El acceso por
+módulo/programa depende de los roles asignados. Ver **RN-27**.
 
 📌 *Impacto crítico:* el rol "Administrador de programa" es nuevo y se apoya en el
 esquema de permisos existente en `users`. Hay que revisar cómo Chaco maneja roles hoy
@@ -74,11 +83,14 @@ para no inventar un esquema paralelo.
 
 ## 4. Funcionamiento end-to-end
 
-1. **Configuración (admin).** El administrador define el **Programa Becas** con su
-   **cupo**, crea una o varias **convocatorias** y, dentro de ellas, **relevamientos**.
-   Al crear un relevamiento define: **territorial asignado**, **fecha/plazo** y
-   **zona/localidad**. El relevamiento se **auto-nombra** "Relevamiento XXX". Puede
-   **reasignarlo** a otro territorial.
+1. **Configuración (admin).** El administrador configura el **Programa Becas**: define los
+   **segmentos** y el **cupo por segmento** (parametría) y los **requisitos generales**
+   (preguntas compartidas por todas las convocatorias). Crea una o varias **convocatorias**
+   y, al crear cada una, **selecciona el segmento** → el sistema **consulta a SIS** los
+   **requisitos específicos** de ese segmento, que quedan visibles en la convocatoria.
+   Dentro de la convocatoria crea **relevamientos**; al crear un relevamiento define:
+   **territorial asignado**, **fecha/plazo** y **zona/localidad**. El relevamiento se
+   **auto-nombra** "Relevamiento XXX". Puede **reasignarlo** a otro territorial.
 2. **Inicio en campo (territorial).** El territorial entra a la app, ve el **listado de
    sus relevamientos** asignados y **solo puede iniciar el relevamiento del día**.
 3. **Carga (territorial).** Dentro del relevamiento carga **un formulario tras otro**
@@ -96,9 +108,10 @@ para no inventar un esquema paralelo.
    **aprueba** o **rechaza** (el rechazo requiere **motivo** y es **informativo**: no
    vuelve al territorial).
 6. **Validación SIS (aprobados y rechazados).** Tanto si el admin **aprueba** como si **rechaza**, el sistema **automáticamente** dispara la validación contra SIS (**síncrona**: el admin espera la respuesta). Resultado de SIS: **Validado-Aprobado** o **Validado-Rechazado**.
-7. **Asignación de cupo.** Si SIS aprueba y **hay cupo** disponible en el programa → la
-   persona **ocupa 1 cupo** en ese momento. Si el cupo está lleno → va a **lista de
-   espera**. El siguiente caso que se apruebe ya ve el cupo actualizado.
+7. **Asignación de cupo.** Si SIS aprueba y **hay cupo** disponible en el **segmento** → la
+   persona **ocupa 1 cupo de ese segmento** en ese momento. Si el cupo del segmento está
+   lleno → va a **lista de espera**. El siguiente caso que se apruebe ya ve el cupo
+   actualizado.
 8. **Gestión de cupo (admin).** Cuando el admin **da de baja** a un beneficiario, se
   libera un cupo y el sistema muestra una **alerta**: "se liberó un cupo, mover a
   alguien de la lista de espera". El admin **promueve a mano**.
@@ -124,6 +137,11 @@ Asignado → En curso → Finalizado → En revisión → Terminado
 | **En revisión** | El admin está revisando los formularios caso por caso. | Backoffice (el territorial ya no lo ve activo) |
 | **Terminado** | Revisión completa cerrada. | Backoffice |
 
+📌 *Reversibilidad (cerrada — pregunta 1):* el paso a **Finalizado es reversible**. El
+territorial puede **reabrir el operativo** (volver de `Finalizado` a `En curso`). **Falta
+definir** el comportamiento cuando el admin ya empezó la revisión o ya disparó SIS sobre
+algunos formularios (ver **16.2-bis #1.b**, 🔴). Ver **RN-26**.
+
 ### Estado del Formulario / Persona
 
 ```
@@ -146,6 +164,9 @@ Enviado → Aprobado / Rechazado            (revisión del admin)
 
 📌 *Nota de terminología:* el estado "Enviado" corresponde al "Pendiente de Validación" de RQ-001 (documento del equipo Ministerio). Ambos refieren al mismo momento: el formulario llegó al backoffice y está esperando revisión del admin.
 
+📌 *Nota:* la validación SIS no solo confirma identidad: también **evalúa los requisitos**
+(generales + de segmento) al pedir el OKA (ver §6.2 y RN-33).
+
 📌 *Asunción pendiente:* "aprobar" (admin) y "ocupar cupo" (post-SIS) son dos cosas
 distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 
@@ -153,7 +174,8 @@ distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 
 ## 6. Cupo, validación SIS y lista de espera
 
-- El **cupo es del Programa** (no del relevamiento). El territorial releva **sin límite**.
+- El **cupo es del Segmento** (no del relevamiento ni del programa global; reabierto por
+  R-5). El territorial releva **sin límite**.
 - El **consumo de cupo NO ocurre al aprobar**, sino tras la validación **SIS**:
   admin confirma (OKA en Nodo) → **se dispara automáticamente** la consulta a SIS
   (**síncrona**: el admin espera la respuesta) → si SIS responde **OKA** y hay cupo →
@@ -221,19 +243,68 @@ pregunta de cadena de 3 niveles para esta fase.
 **Sección 16.3 (preguntas 11 a 16)**.
 
 📌 *Pendiente SIS (sigue diferido):* hace falta el **contrato técnico de SIS**.
-Detalle de preguntas consolidado al final en **Sección 16.1 (S-1 a S-10)**.
+Detalle de preguntas consolidado al final en **Sección 16.1 (S-1 a S-12)**.
 
 ---
+
+## 6.2 Segmentos y requisitos de elegibilidad (✅ relevado en esta ronda)
+
+### Segmento
+Un **Segmento** es una **sub-modalidad de la beca**. Se **selecciona al crear la
+convocatoria** (la convocatoria apunta a un segmento). Segmentos vigentes hoy:
+
+- Ladrilleros, Carboneros y pequeños productores
+- Finalización de estudios "Joven"
+- Cultural
+- Mamá Ñachec
+- Redes de Fe
+- Yo Deportista
+- Mi Casa Ñachec
+- Solidaria
+
+📌 *A confirmar (origen del catálogo, R-1.b):* si el listado de segmentos es **local** (lo
+parametrizamos) o lo **provee SIS**.
+📌 *Nomenclatura:* varios segmentos nombran "Ñachec"; confirmar si el programa es "Becas" o
+"Ñachec" (hoy §2 los trata como programas distintos).
+
+### Dos tipos de requisitos
+
+| Tipo | Origen | Configuración | Visibilidad | Quién evalúa |
+|---|---|---|---|---|
+| **Requisitos generales** | Definidos por nosotros | **Configurables** desde el panel de **Configuración del programa**. Son **preguntas compartidas por todas las convocatorias**. | — | **SIS**, al pedir el OKA |
+| **Requisitos de segmento** | **Provienen de SIS** | Al crear la convocatoria y seleccionar el segmento, el sistema **consulta a SIS** y trae los requisitos específicos de ese segmento. | Se **visualizan una vez configurada la convocatoria**; los **territoriales los ven de forma informativa** al completar el formulario. | **SIS**, al pedir el OKA |
+
+### Flujo de requisitos
+
+1. El admin **crea una convocatoria** y **selecciona el segmento**.
+2. El sistema **llama a SIS** y obtiene los **requisitos específicos del segmento**.
+3. Esos requisitos **quedan visibles** en la convocatoria configurada.
+4. En campo, el territorial los **ve de forma informativa** mientras completa el formulario
+   (no los evalúa él).
+5. En la revisión, cuando el admin **pide el OKA**, **SIS evalúa** los requisitos
+   (generales + de segmento) como parte de la validación.
+
+### Cupo por segmento (reabre pregunta 3)
+El **cupo deja de ser único por programa**: ahora se **configura por segmento**. En la
+**parametría del sistema** se define la **cantidad de segmentos** y el **cupo por
+segmento**.
+
+⚠️ *Impacto:* **reabre y reemplaza** la pregunta 3 (antes "cupo único por programa") y
+modifica RN-01/02/03/19 y el modelo (§2). El consumo de cupo (post doble-OKA) descuenta del
+**cupo del segmento** correspondiente (RN-34).
+
+➡️ Pendientes finos en **§16.7** (R-1.b, R-6, R-8, R-9) y nuevas preguntas SIS en **§16.1
+(S-11, S-12)**.
 
 ## 7. Pantallas del backoffice (mapa preliminar)
 
 | Pantalla | Operaciones principales |
 |---|---|
-| **Convocatorias** | ABM: listar, crear, editar, ver, (des)activar convocatorias del programa. |
+| **Convocatorias** | ABM + al crear **seleccionar el segmento** (dispara consulta a SIS de los requisitos del segmento, que quedan visibles en la convocatoria). Listar, editar, ver, (des)activar. |
 | **Relevamientos** | ABM + **asignar/reasignar** territorial, fecha/plazo, zona. Ver estado. |
 | **Revisión de relevamiento** | Entrar a un relevamiento finalizado → listado de formularios → abrir uno por uno → **aprobar/rechazar** (motivo). Botón **"Validar contra SIS"** disponible para revalidación manual. |
 | **Beneficiarios / Cupo** | Ver ocupación de cupo, **lista de espera**, **dar de baja**, **promover** desde lista de espera. |
-| **Configuración del programa** | Definir **parametría de cupo** del programa (cupo total, reglas específicas del programa). |
+| **Configuración del programa** | Definir **segmentos** y **cupo por segmento** (parametría). Configurar **requisitos generales** (preguntas compartidas por todas las convocatorias). |
 | **Reportes** | Exportar beneficiarios, lista de espera, avance de relevamientos. |
 
 ---
@@ -295,7 +366,7 @@ Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios
 
 | Integración | Rol en el flujo | Estado del relevamiento |
 |---|---|---|
-| **Sistema SIS** | Valida a la persona **aprobada**; su OK habilita ocupar cupo. | 🔻 En análisis (documento del equipo Ministerio pendiente). |
+| **Sistema SIS** | **Tres roles:** (1) **provee los requisitos del segmento** al configurar la convocatoria; (2) al pedir el OKA, **valida a la persona** y **evalúa los requisitos** (generales + segmento); (3) su OKA habilita **ocupar cupo**. | 🔻 En análisis (documento del equipo Ministerio pendiente). |
 | **RENAPER** | Valida la identidad (DNI + sexo) **al cargar** cada persona en campo. | ✅ **Relevada y probada** (reusa integración existente). |
 | **App de campo** | App **propia** (la desarrollamos nosotros). Funciona **online/offline**, sincroniza al recuperar señal; al finalizar offline confirma tras sync. | ✅ **Relevada** (alcance propio). |
 
@@ -365,7 +436,7 @@ El relevamiento de SIS sigue parcialmente abierto: ya se acordaron reglas de dec
 técnico y alcance completo de cadena.
 
 **Estado SIS:** 🟠 **Parcialmente definido** (con pendientes técnicos).
-➡️ Las preguntas concretas (S-1…S-10) están consolidadas al final, en
+➡️ Las preguntas concretas (S-1…S-12) están consolidadas al final, en
 **[16. Preguntas pendientes](#16-preguntas-pendientes-consolidado)**.
 
 ---
@@ -425,7 +496,7 @@ backoffice debe exponer esa acción de revalidar.
 
 | ID | Regla |
 |---|---|
-| RN-01 | El cupo es **por Programa**; el territorial releva sin límite. |
+| RN-01 | El cupo es **por Segmento** (parametría: cantidad de segmentos + cupo por segmento); el territorial releva sin límite. *(Antes por Programa; reabierto por R-5.)* |
 | RN-02 | El cupo se consume **solo** tras SIS = OK y si hay disponibilidad. |
 | RN-03 | Sin cupo disponible, la persona validada-OK va a **lista de espera**. |
 | RN-04 | La salida de lista de espera es **manual** (admin promueve). |
@@ -450,6 +521,15 @@ backoffice debe exponer esa acción de revalidar.
 | RN-25 | Tanto la **aprobación** como el **rechazo** del admin envían el caso a SIS; la diferencia está en el contexto (aprobado vs rechazado en Nodo) que se envía junto con los datos. |
 | RN-22 | Si la fecha de nacimiento indica que el beneficiario es **menor de edad (< 18 años)**, se habilita obligatoriamente la sección **Apoderado** (Nombre, Apellido, Fecha de Nacimiento). El formulario no puede finalizarse sin esos datos. Si el beneficiario es mayor de edad, la sección permanece oculta. |
 | RN-23 | El territorial puede **editar los campos precargados** por escaneo o RENAPER en caso de error de lectura o domicilio desactualizado. |
+| RN-26 | **Finalizar un relevamiento es reversible:** el territorial puede **reabrir el operativo** finalizado. *(Condiciones de reapertura cuando ya hubo revisión/SIS del admin: pendiente — ver 16.2-bis #1.b.)* |
+| RN-27 | Un usuario **puede tener múltiples roles a la vez** (ej. **Administrador** de un programa y **Territorial** de otro). El acceso por módulo/programa depende de los roles asignados. |
+| RN-28 | El relevamiento que **no se inicia el día asignado vence** y debe **reprogramarse** (nueva fecha). *(Quién reprograma: pendiente — ver 16.2-bis #8.b.)* |
+| RN-29 | El admin **puede editar los datos del formulario** desde el backoffice **antes de aprobar/rechazar**. *(Traza y campos no editables: pendiente — ver 16.2-bis #9.b.)* |
+| RN-30 | Un **Segmento** es una sub-modalidad de la beca. La **convocatoria** apunta a un segmento (se selecciona al crearla). |
+| RN-31 | **Requisitos generales:** preguntas **configurables** desde Configuración del programa, **compartidas por todas las convocatorias**. |
+| RN-32 | **Requisitos de segmento:** los **provee SIS** al seleccionar el segmento en la convocatoria; se muestran **informativos** al territorial al completar el formulario (no los evalúa él). |
+| RN-33 | La **evaluación** de requisitos (generales + de segmento) la hace **SIS** cuando el admin **pide el OKA**. |
+| RN-34 | El **cupo se descuenta del segmento** correspondiente, tras doble-OKA (Nodo + SIS). |
 
 ---
 
@@ -476,7 +556,9 @@ ofrecen hoy `apps/programas`, `apps/legajos`, `apps/ciudadanos` y `users` para n
 
 - **Notificaciones** a territoriales o ciudadanos.
 - **Reproceso** de personas rechazadas por el admin (rechazo es informativo).
-- Diseñador de formularios dinámicos (los **campos son fijos**, definidos por nosotros).
+- Diseñador de formularios dinámicos para el **formulario de la persona** (sus **campos son
+  fijos**, definidos por nosotros). *(Distinto de los **requisitos generales**, que sí son
+  configurables — ver §6.2 / RN-31.)*
 
 ---
 
@@ -497,10 +579,15 @@ de equipo, con su estado).
 
 ## 14. Próximos pasos
 
-1. **Sistema SIS** — analizar el documento del equipo Ministerio y cerrar preguntas S-1, S-2, S-4, S-5.
-2. **Investigación de código** — completar C-1 (revisar módulos existentes).
-3. **Control estricto** — cerrar todas las preguntas 🔴 bloqueantes y verificar consistencia.
-4. **Generación en GitHub** — épica → análisis → sub-issues (recién con todo cerrado).
+1. **Sistema SIS** — analizar el documento del equipo Ministerio y cerrar S-1, S-2, S-4,
+   S-5 y las nuevas **S-11/S-12** (requisitos por segmento + evaluación en el OKA).
+2. **Segmentos / requisitos** — cerrar **R-1.b** (origen del catálogo de segmentos) y la
+   cardinalidad convocatoria↔segmento (**R-8**).
+3. **Roles y flujo** — resolver **8.b** (¿rol Coordinador o es el Admin?) y **1.b**
+   (reapertura de relevamiento cuando ya hay revisión/SIS en curso).
+4. **Investigación de código** — completar C-1 (revisar módulos existentes).
+5. **Control estricto** — cerrar todas las preguntas 🔴 bloqueantes y verificar consistencia.
+6. **Generación en GitHub** — épica → análisis → sub-issues (recién con todo cerrado).
 
 ---
 
@@ -519,20 +606,30 @@ de equipo, con su estado).
 | S-4 | **Datos de salida.** ¿Qué devuelve exactamente? (OK/NO, código, motivo de rechazo, datos) | Equipo Ministerio/ICORE | 🔴 |
 | S-5 | **Rechazo de SIS.** Si responde NO, ¿la persona queda fuera o el admin corrige y reenvía? | Equipo Ministerio | 🔴 |
 | S-8 | **Cadena de 3 niveles.** ¿Becas llega hasta "ocupa cupo" o también hasta Ayudas Sociales / Liquidado (nivel 3)? | Equipo Ministerio | ⏸️ |
+| S-11 | **Requisitos por segmento (entrada).** ¿Qué endpoint/contrato expone SIS para **devolver los requisitos** de un segmento al configurar la convocatoria? | Equipo Ministerio/ICORE | 🔴 |
+| S-12 | **Evaluación de requisitos (OKA).** Al pedir el OKA, ¿cómo se le envían a SIS las respuestas de los requisitos (generales + segmento) y cómo devuelve el resultado de la evaluación? | Equipo Ministerio/ICORE | 🔴 |
 
 ### 16.2 Formulario y reglas de negocio
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
 | 2 | **Campos exactos del formulario.** RQ-001 define una base: Bloque A (DNI, Apellido, Nombre, Sexo, Estado Civil, Fecha de Nacimiento), Bloque B (Domicilio: Provincia, Localidad, Calle, Número, Piso, Departamento, Barrio), Bloque C (Celular, Mail — manual obligatorio), Bloque D (Apoderado — condicional menor de edad), Adjuntos (Foto DNI frente/dorso obligatorios; CBU y Cert. domicilio opcionales). **Pendiente confirmar con Guido** si estos son los campos definitivos o si hay campos adicionales para Becas. | Guido (Equipo Ministerio) | 🟡 |
-| 1 | ¿Finalizar un relevamiento es **reversible** para el territorial? | Equipo Ministerio | 🟡 |
-| 7 | ¿Un usuario puede ser **Admin de un programa y Territorial de otro** a la vez? | Equipo Ministerio | 🟡 |
-| 8 | "Relevamiento del día": ¿qué pasa si **no se inicia** ese día (vence/reprograma)? | Equipo Ministerio | 🟡 |
-| 9 | ¿El admin puede **editar datos** del formulario antes de aprobar? | Equipo Ministerio | 🟡 |
 
 📌 **Preguntas cerradas en esta sección:**
-- **Pregunta 3 (Cupo):** Cerrada. El cupo es único por programa; cada programa (ej: Becas) maneja su propia parametría de cupo.
+- **Pregunta 3 (Cupo):** ⚠️ **Reabierta y reemplazada por R-5.** El cupo **ya no es único por programa**: ahora es **por segmento** (parametría: cantidad de segmentos + cupo por segmento). Ver §6.2 y RN-01/34.
 - **Pregunta 10 (Legajo rechazado):** Cerrada. El legajo usa solapas dinámicas: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente; si está rechazado en Becas, la solapa se habilita y muestra el estado "Rechazado".
+- **Pregunta 1 (Reversibilidad del relevamiento):** Cerrada. Finalizar un relevamiento **es reversible**: el territorial puede **reabrir el operativo** (ver RN-26). *Sub-pregunta derivada abierta (1.b):* qué pasa con los formularios ya enviados/en revisión por el admin cuando el territorial reabre — ver §16.2-bis.
+- **Pregunta 7 (Doble rol):** Cerrada. Un usuario **sí puede tener los dos roles** simultáneamente (Admin de un programa y Territorial de otro). Ver RN-27.
+- **Pregunta 8 (Relevamiento del día no iniciado):** Cerrada en su base. Si no se inicia el día asignado, el relevamiento **vence** y **se reprograma** (ver RN-28). *Sub-pregunta derivada abierta (8.b):* quién reprograma — la respuesta menciona un **"coordinador"**, rol que **hoy el documento declara inexistente** (§3 dice "solo Admin y Territorial"). Ver §16.2-bis.
+- **Pregunta 9 (Admin edita formulario):** Cerrada. El admin **sí puede editar los datos del formulario desde el backoffice** antes de aprobar (ver RN-29).
+
+### 16.2-bis Sub-preguntas derivadas de esta ronda (nuevas)
+
+| # | Pregunta | Para | Estado |
+|---|---|---|:--:|
+| 1.b | Al **reabrir** un relevamiento finalizado: ¿se "recuperan" los formularios ya enviados al backoffice? ¿Qué pasa si el admin ya **aprobó/rechazó** o ya **disparó SIS** sobre algunos? ¿Se permite reabrir solo si la revisión no empezó? | Equipo Ministerio | 🔴 |
+| 8.b | El reprogramar lo hace un **"coordinador"**. Hoy §3 dice que **solo existen Admin y Territorial**. ¿Se agrega el rol **Coordinador** o "coordinador" = el Administrador? | Equipo Ministerio | 🔴 |
+| 9.b | Cuando el admin **edita** el formulario antes de aprobar: ¿queda **traza** (quién/cuándo/valor anterior)? ¿Hay campos no editables (ej. DNI validado por RENAPER/escaneo)? | Equipo Ministerio | 🟡 |
 
 ### 16.3 RQ-002 / cadena de aprobación
 
@@ -553,15 +650,36 @@ de equipo, con su estado).
 
 ### 16.5 Resumen del control estricto
 
-- **No se generan issues** mientras haya 🔴 sin cerrar (SIS, cadena cupo↔RQ-002).
+- **No se generan issues** mientras haya 🔴 sin cerrar: SIS (S-1/2/4/5/11/12, 13, 14),
+  cadena cupo↔RQ-002, segmentos (R-1.b), reapertura de relevamiento (1.b) y rol Coordinador (8.b).
 - Las 🟡 se pueden **asumir** y documentar como *Asunción a confirmar* sin frenar.
 - Falta cerrar la **investigación de código** (C-1) antes de generar.
+
+### 16.7 Requisitos de elegibilidad (general / segmento)
+
+📌 **Cerradas en esta ronda** (detalle en §6.2):
+- **R-1 (qué es segmento):** sub-modalidad de la beca; se selecciona al crear la
+  convocatoria. Catálogo actual: 8 segmentos (ver §6.2).
+- **R-2 (requisitos generales):** preguntas compartidas por todas las convocatorias.
+- **R-3 (requisitos de segmento):** los provee **SIS** al seleccionar el segmento; se ven
+  informativos para el territorial al completar el formulario.
+- **R-4 (quién/cuándo evalúa):** **SIS** los evalúa cuando el admin **pide el OKA**.
+- **R-5 (cupo):** **cupo por segmento** (reabre y reemplaza la pregunta 3). Parametría:
+  cantidad de segmentos + cupo por segmento.
+- **R-7 (configurabilidad generales):** configurables desde Configuración del programa.
+
+| # | Pregunta abierta | Para | Estado |
+|---|---|---|:--:|
+| R-1.b | **Origen del catálogo de segmentos:** ¿lo parametrizamos local o lo provee SIS? | Equipo Ministerio | 🔴 |
+| R-6 | **Asignación persona↔segmento:** ¿queda determinado por la convocatoria (implícito) o se asigna por persona? ¿Puede una persona estar en más de un segmento? | Equipo Ministerio | 🟡 |
+| R-8 | **Cardinalidad convocatoria↔segmento:** ¿una convocatoria apunta a **un solo** segmento o puede tener **varios**? (impacta cómo se configura el cupo por segmento) | Equipo Ministerio | 🟡 |
+| R-9 | **Requisitos generales = ¿campos del formulario?** ¿Las "preguntas" generales se responden en el formulario que carga el territorial, o son criterios que evalúa SIS sobre datos ya cargados? | Equipo Ministerio | 🟡 |
 
 ### 16.6 Asunciones pendientes de confirmación
 
 | # | Asunción / duda | Estado |
 |---|---|:--:|
-| A-1 | Jerarquía de 4 niveles explícita; "Programa" se modela genérico aunque hoy solo se use Becas. | 🟡 |
+| A-1 | Jerarquía explícita Programa → Convocatoria/**Segmento** → Relevamiento → Formulario; "Programa" se modela genérico aunque hoy solo se use Becas. | 🟡 |
 | A-2 | "Aprobar" en backoffice y "ocupar cupo" son pasos distintos (el cupo se decide después de SIS). | 🟡 |
 | A-3 | RENAPER en campo usa la misma API (o equivalente) que backoffice para validar identidad. | 🟡 |
 | A-4 | Una persona rechazada por admin conserva legajo creado (sin reproceso en el sistema). | 🟡 |
