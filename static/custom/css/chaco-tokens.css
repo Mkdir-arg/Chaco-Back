@@ -1,0 +1,356 @@
+/* ============================================================
+   CHACO NODO — Design Tokens
+   CSS Custom Properties (Light Mode default / Dark Mode override)
+   Versión 1.0 — Generado desde Figma Variables
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   PRIMITIVE COLOR SCALE (base palette — do not use directly)
+   ---------------------------------------------------------- */
+:root {
+  /* Brand (Jacaranda/Purple) */
+  --color-brand-050: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #5059bc;
+  --color-brand-600: #5059bc;
+  --color-brand-700: #5059bc;
+  --color-brand-800: #4338ca;
+  --color-brand-900: #3730a3;
+  --color-brand-950: #1e1b4b;
+
+  /* Pink (Rosa) */
+  --color-pink-050: #fef3ff;
+  --color-pink-100: #fee9ff;
+  --color-pink-200: #fee3ff;
+  --color-pink-300: #fdcfff;
+  --color-pink-400: #fcc3ff;
+  --color-pink-500: #fbafff;
+  --color-pink-600: #f98dff;
+  --color-pink-700: #f26df9;
+  --color-pink-800: #dd5fe4;
+  --color-pink-900: #bf57c4;
+  --color-pink-950: #9b499f;
+
+  /* Gray */
+  --color-gray-050: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-850: #18212f;
+  --color-gray-900: #111827;
+  --color-gray-950: #030712;
+
+  /* Emerald (Success) */
+  --color-emerald-050: #ecfdf5;
+  --color-emerald-100: #d0fae5;
+  --color-emerald-200: #a4f4cf;
+  --color-emerald-300: #5ee9b5;
+  --color-emerald-400: #00d492;
+  --color-emerald-500: #00bc7d;
+  --color-emerald-600: #009966;
+  --color-emerald-700: #007a55;
+  --color-emerald-800: #006045;
+  --color-emerald-900: #004f3b;
+  --color-emerald-950: #002c22;
+
+  /* Rose (Danger) */
+  --color-rose-050: #fef0f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #ffccd3;
+  --color-rose-300: #ffa1ad;
+  --color-rose-400: #ff637e;
+  --color-rose-500: #ff2056;
+  --color-rose-600: #ec003f;
+  --color-rose-700: #c70036;
+  --color-rose-800: #a50036;
+  --color-rose-900: #8b0836;
+  --color-rose-950: #4d0218;
+
+  /* Orange (Warning) */
+  --color-orange-050: #fff8f1;
+  --color-orange-100: #feecdc;
+  --color-orange-200: #fcd9bd;
+  --color-orange-300: #fdba8c;
+  --color-orange-400: #ff8a4c;
+  --color-orange-500: #ff5a1f;
+  --color-orange-600: #d03801;
+  --color-orange-700: #b43403;
+  --color-orange-800: #8a2c0d;
+  --color-orange-900: #771d1d;
+
+  /* Purple */
+  --color-purple-500: #a855f7;
+  --color-purple-600: #9333ea;
+
+  /* Sky */
+  --color-sky-500: #00579d;
+
+  /* Teal */
+  --color-teal-600: #c8d29c;
+
+  /* Cyan */
+  --color-cyan-500: #00b8db;
+  --color-cyan-600: #0092b8;
+
+  /* Fuchsia */
+  --color-fuchsia-600: #c800de;
+
+  /* Indigo */
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+
+  /* Yellow */
+  --color-yellow-400: #fdc700;
+
+  /* Lime */
+  --color-lime-500: #7ccf00;
+  --color-lime-600: #5ea500;
+}
+
+/* ----------------------------------------------------------
+   SEMANTIC TOKENS — LIGHT MODE (default)
+   ---------------------------------------------------------- */
+:root {
+  /* === BACKGROUND === */
+  --bg-white: #ffffff;
+  --bg-primary-soft: #ffffff;
+  --bg-primary: #ffffff;
+  --bg-primary-medium: #ffffff;
+  --bg-primary-strong: #ffffff;
+  --bg-secondary-soft: var(--color-gray-050);
+  --bg-secondary: var(--color-gray-050);
+  --bg-secondary-medium: var(--color-gray-050);
+  --bg-secondary-strong: var(--color-gray-050);
+  --bg-tertiary-soft: var(--color-gray-100);
+  --bg-tertiary: var(--color-gray-100);
+  --bg-tertiary-medium: var(--color-gray-100);
+  --bg-quaternary: var(--color-gray-200);
+  --bg-quaternary-medium: var(--color-gray-200);
+  --bg-gray: var(--color-gray-300);
+  --bg-brand-softer: var(--color-pink-050);
+  --bg-brand-soft: var(--color-pink-100);
+  --bg-brand-medium: var(--color-pink-200);
+  --bg-brand: var(--color-brand-700);
+  --bg-brand-strong: var(--color-brand-800);
+  --bg-success-soft: var(--color-emerald-050);
+  --bg-success-medium: var(--color-emerald-100);
+  --bg-success: var(--color-emerald-700);
+  --bg-success-strong: var(--color-emerald-800);
+  --bg-danger-soft: var(--color-rose-050);
+  --bg-danger-medium: var(--color-rose-100);
+  --bg-danger: var(--color-rose-700);
+  --bg-danger-strong: var(--color-rose-800);
+  --bg-warning-soft: var(--color-orange-050);
+  --bg-warning-medium: var(--color-orange-100);
+  --bg-warning: var(--color-orange-500);
+  --bg-warning-strong: var(--color-orange-700);
+  --bg-dark: var(--color-gray-800);
+  --bg-dark-strong: var(--color-gray-900);
+  --bg-disabled: var(--color-gray-100);
+  --bg-purple: var(--color-purple-500);
+  --bg-sky: var(--color-sky-500);
+  --bg-teal: var(--color-teal-600);
+  --bg-pink: var(--color-pink-600);
+  --bg-cyan: var(--color-cyan-500);
+  --bg-fuchsia: var(--color-fuchsia-600);
+  --bg-indigo: var(--color-indigo-600);
+  --bg-orange: var(--color-orange-400);
+
+  /* === BORDER === */
+  --border-dark: var(--color-gray-600);
+  --border-buffer: #ffffff;
+  --border-buffer-medium: #ffffff;
+  --border-buffer-strong: #ffffff;
+  --border-muted: var(--color-gray-050);
+  --border-light-subtle: var(--color-gray-100);
+  --border-light: var(--color-gray-100);
+  --border-light-medium: var(--color-gray-100);
+  --border-base-soft: var(--color-gray-200);
+  --border-base: var(--color-gray-200);
+  --border-base-medium: var(--color-gray-200);
+  --border-base-strong: var(--color-gray-200);
+  --border-success-subtle: var(--color-emerald-200);
+  --border-success: var(--color-emerald-700);
+  --border-danger-subtle: var(--color-rose-200);
+  --border-danger: var(--color-rose-700);
+  --border-warning-subtle: var(--color-orange-200);
+  --border-warning: var(--color-orange-600);
+  --border-brand-subtle: var(--color-pink-200);
+  --border-brand-light: var(--color-pink-600);
+  --border-brand: var(--color-brand-700);
+  --border-dark-subtle: var(--color-gray-800);
+  --border-purple: var(--color-purple-500);
+  --border-orange: var(--color-orange-400);
+
+  /* === TEXT === */
+  --text-white: #ffffff;
+  --text-black: var(--color-gray-900);
+  --text-heading: var(--color-gray-900);
+  --text-body: var(--color-gray-600);
+  --text-body-subtle: var(--color-gray-500);
+  --text-fg-brand-subtle: var(--color-pink-200);
+  --text-fg-brand: var(--color-brand-700);
+  --text-fg-brand-strong: var(--color-brand-900);
+  --text-fg-success: var(--color-emerald-700);
+  --text-fg-success-strong: var(--color-emerald-900);
+  --text-fg-danger: var(--color-rose-700);
+  --text-fg-danger-strong: var(--color-rose-900);
+  --text-fg-warning-subtle: var(--color-orange-600);
+  --text-fg-warning: var(--color-orange-900);
+  --text-fg-yellow: var(--color-yellow-400);
+  --text-fg-info: var(--color-brand-900);
+  --text-fg-disabled: var(--color-gray-400);
+  --text-fg-purple: var(--color-purple-600);
+  --text-fg-cyan: var(--color-cyan-600);
+  --text-fg-indigo: var(--color-indigo-600);
+  --text-fg-pink: var(--color-pink-600);
+  --text-fg-lime: var(--color-lime-600);
+
+  /* === TYPOGRAPHY === */
+  --font-family-base: 'Inter', sans-serif;
+  --font-family-brand: 'Gellat', sans-serif;
+  --font-size-xxs: 8px;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+  --font-size-4xl: 36px;
+  --font-size-5xl: 48px;
+  --font-size-6xl: 60px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --letter-spacing-tighter: -0.8px;
+  --letter-spacing-tight: -0.4px;
+  --letter-spacing-normal: 0px;
+
+  /* === BORDER RADIUS === */
+  --rounded-0: 0px;
+  --rounded-sm: 2px;
+  --rounded: 4px;
+  --rounded-md: 6px;
+  --rounded-lg: 8px;
+  --rounded-xl: 12px;
+  --rounded-2xl: 16px;
+  --rounded-3xl: 24px;
+  --rounded-full: 9999px;
+
+  /* === BORDER WIDTH === */
+  --border-width-0: 0px;
+  --border-width: 1px;
+  --border-width-2: 2px;
+  --border-width-4: 4px;
+  --border-width-8: 8px;
+
+  /* === MAX WIDTH === */
+  --max-w-xs: 320px;
+  --max-w-sm: 384px;
+  --max-w-md: 448px;
+  --max-w-lg: 512px;
+  --max-w-xl: 576px;
+  --max-w-2xl: 672px;
+  --max-w-3xl: 768px;
+  --max-w-4xl: 896px;
+  --max-w-5xl: 1024px;
+  --max-w-6xl: 1152px;
+  --max-w-7xl: 1280px;
+
+  /* === CONTAINERS === */
+  --container-xs: 380px;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1563px;
+}
+
+/* ----------------------------------------------------------
+   SEMANTIC TOKENS — DARK MODE OVERRIDES
+   ---------------------------------------------------------- */
+[data-theme="dark"],
+.dark {
+  --bg-white: #ffffff; /* intentionally stays white */
+  --bg-primary-soft: var(--color-gray-900);
+  --bg-primary: var(--color-gray-950);
+  --bg-primary-medium: var(--color-gray-800);
+  --bg-primary-strong: var(--color-gray-700);
+  --bg-secondary-soft: var(--color-gray-900);
+  --bg-secondary: var(--color-gray-950);
+  --bg-secondary-medium: var(--color-gray-800);
+  --bg-secondary-strong: var(--color-gray-700);
+  --bg-tertiary-soft: var(--color-gray-900);
+  --bg-tertiary: var(--color-gray-800);
+  --bg-tertiary-medium: var(--color-gray-700);
+  --bg-quaternary: var(--color-gray-700);
+  --bg-quaternary-medium: var(--color-gray-600);
+  --bg-gray: var(--color-gray-600);
+  --bg-brand-softer: var(--color-brand-950);
+  --bg-brand-soft: var(--color-brand-900);
+  --bg-brand-medium: var(--color-brand-900);
+  --bg-brand: var(--color-brand-600);
+  --bg-brand-strong: var(--color-brand-700);
+  --bg-success-soft: var(--color-emerald-950);
+  --bg-success-medium: var(--color-emerald-800);
+  --bg-success: var(--color-emerald-600);
+  --bg-success-strong: var(--color-emerald-700);
+  --bg-danger-soft: var(--color-rose-950);
+  --bg-danger-medium: var(--color-rose-900);
+  --bg-danger: var(--color-rose-700);
+  --bg-danger-strong: var(--color-rose-700);
+  --bg-warning-soft: var(--color-orange-950);
+  --bg-warning-medium: var(--color-orange-900);
+  --bg-warning: var(--color-orange-600);
+  --bg-dark: var(--color-gray-800);
+  --bg-dark-strong: var(--color-gray-800);
+  --bg-disabled: var(--color-gray-800);
+  --border-dark: var(--color-gray-600);
+  --border-buffer: var(--color-gray-950);
+  --border-buffer-medium: var(--color-gray-900);
+  --border-buffer-strong: var(--color-gray-800);
+  --border-muted: var(--color-gray-900);
+  --border-light-subtle: var(--color-gray-900);
+  --border-light: var(--color-gray-800);
+  --border-light-medium: var(--color-gray-700);
+  --border-base-soft: var(--color-gray-900);
+  --border-base: var(--color-gray-800);
+  --border-base-medium: var(--color-gray-700);
+  --border-base-strong: var(--color-gray-600);
+  --border-success-subtle: var(--color-emerald-900);
+  --border-success: var(--color-emerald-600);
+  --border-danger-subtle: var(--color-rose-900);
+  --border-danger: var(--color-rose-600);
+  --border-warning-subtle: var(--color-orange-900);
+  --border-warning: var(--color-orange-500);
+  --border-brand-subtle: var(--color-brand-900);
+  --border-brand-light: var(--color-brand-600);
+  --border-brand: var(--color-brand-500);
+  --border-dark-subtle: var(--color-gray-700);
+  --text-heading: #ffffff;
+  --text-body: var(--color-gray-400);
+  --text-body-subtle: var(--color-gray-400);
+  --text-fg-brand: var(--color-brand-500);
+  --text-fg-brand-strong: var(--color-brand-400);
+  --text-fg-success: var(--color-emerald-600);
+  --text-fg-success-strong: var(--color-emerald-300);
+  --text-fg-danger: var(--color-rose-500);
+  --text-fg-danger-strong: var(--color-rose-300);
+  --text-fg-warning-subtle: var(--color-orange-500);
+  --text-fg-warning: var(--color-orange-300);
+  --text-fg-disabled: var(--color-gray-600);
+  --text-fg-purple: var(--color-purple-500);
+  --text-fg-cyan: var(--color-cyan-500);
+  --text-fg-lime: var(--color-lime-500);
+}

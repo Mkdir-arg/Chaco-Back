@@ -1,0 +1,130 @@
+# =============================================================
+# Component: Sidebar Navigation
+# Source: CHACO_NODO_Design_Manual.md §11, NODO DS.md §8
+# =============================================================
+
+purpose: >
+  The primary navigation mechanism for the authenticated backoffice.
+  Fixed on the left side of the screen. Provides hierarchical navigation
+  with expandable groups and a clear active state indicator.
+
+variants:
+  expanded:
+    width: "288px (Tailwind w-72 — 72 × 4px)"
+    shows: "Logo + nav items with labels + footer"
+
+  collapsed:
+    width: "UNKNOWN"
+    shows: "UNKNOWN — behavior not fully documented"
+    trigger: "Minimizar button in sidebar footer"
+
+states:
+  nav_item_default:
+    background: "none"
+    text_color: "text-body (#4b5563)"
+    icon_color: "text-body (#4b5563)"
+
+  nav_item_hover:
+    background: "bg-tertiary (#f3f4f6)"
+    text_color: "text-body"
+    transition: "150ms ease"
+
+  nav_item_active:
+    shape: "pill (rounded-full — 9999px)"
+    background: "bg-brand (#5059bc)"
+    text_color: "text-white (#ffffff)"
+    icon_color: "text-white"
+    note: "Only ONE active item at any time including subitems"
+
+  subitem_default:
+    indent: "16px additional from parent"
+    no_icon: true
+    text_color: "text-body"
+
+  subitem_active:
+    background: "bg-tertiary (#f3f4f6)"
+    text_color: "text-fg-brand (#5059bc)"
+    shape: "pill/rounded"
+
+  group_expanded:
+    chevron: "rotated 180° (∧ up)"
+    subitems: "visible, indented"
+
+  group_collapsed:
+    chevron: "default (∨ down)"
+    subitems: "hidden"
+
+anatomy:
+  structure: |
+    ┌──────────────────────────────────┐
+    │ [Logo Badge]                     │  ← gradient brand 45°, border-radius 12px, padding 16px
+    │                                  │
+    │ [Avatar] User Name               │  ← User card: name + role below
+    │          Rol / Sin grupo         │
+    ├──────────────────────────────────┤
+    │ 🏠 Inicio                        │  ← nav item simple
+    │ 📊 Dashboard          ∨          │  ← collapsible group
+    │ ● Legajos             ∧          │  ← active group (expanded)
+    │    ○ Todos los...                │  ← subitem
+    │    ● [Ciudadano]                 │  ← active subitem
+    │ 📋 Programas          ∨          │
+    │ 💬 Conversaciones                │
+    │ ⚙️  Configuración      ∨          │
+    ├──────────────────────────────────┤
+    │ ‹ Minimizar                      │  ← footer
+    └──────────────────────────────────┘
+
+  logo_badge:
+    background: "linear-gradient(45deg, #5059BC, #F98DFF)"
+    border_radius: "12px"
+    padding: "16px"
+    icon_color: "text-white"
+
+  user_card:
+    position: "top of nav, below logo"
+    shows: "circular avatar + user name (font-medium) + role below (text-body-subtle)"
+
+  notification_badge:
+    example: "Mensajes [4]"
+    background: "#FF0080 or bg-brand"
+    text: "text-white"
+    shape: "circular"
+    font: "Inter Medium 12px"
+
+  footer:
+    content: "‹ Minimizar (collapse trigger)"
+    position: "bottom of sidebar"
+
+responsive_rules:
+  - "Fixed width on desktop — does not change with content"
+  - "Text truncates with ellipsis when too long — never overflows"
+  - "Mobile behavior: UNKNOWN (not documented)"
+
+accessibility_rules:
+  - "Active item must be visually clear without relying only on color (pill shape + brand color)"
+  - "Expandable groups use aria-expanded attribute"
+  - "Logo navigates to home — must have aria-label"
+  - "Sidebar navigation uses role='navigation' and aria-label"
+
+allowed_usage:
+  - "Primary navigation in all authenticated backoffice screens"
+  - "Single-level items for simple navigation destinations"
+  - "Grouped items with chevron for sections with sub-navigation"
+  - "Notification badges on items that have pending counts"
+
+forbidden_usage:
+  - "Hiding the sidebar entirely on authenticated desktop screens"
+  - "Multiple simultaneously active nav items"
+  - "Using the sidebar in portal/citizen-facing templates"
+  - "Text long enough to overflow without ellipsis"
+
+examples:
+  nav_item_active: '<li class="nav-item bg-brand rounded-lg"><HomeIcon class="text-white" /> Inicio</li>'
+  nav_item_default: '<li class="nav-item hover:bg-tertiary"><ChartBarIcon class="text-body" /> Dashboard</li>'
+  collapsible_group: '<li class="nav-group"><FolderIcon /> Legajos <ChevronDownIcon class="transition-transform" /></li>'
+
+anti_examples:
+  - "Showing all subitems always visible without a collapsible group"
+  - "Using underline or bold as the only active indicator"
+  - "Two nav items with the active pill simultaneously"
+  - "Sidebar that disappears on desktop viewport"

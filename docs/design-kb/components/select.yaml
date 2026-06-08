@@ -1,0 +1,183 @@
+# =============================================================
+# Component: Select / Dropdown
+# Source: CHACO_NODO_Design_Manual.md §12.1 (inferred), Designer (2026-06-08)
+# Status: PARTIALLY DOCUMENTED — custom panel design pending from designer
+# =============================================================
+
+purpose: >
+  Form control for selecting one value from a predefined list.
+  Appears in forms (sex, status, program type) and table filter rows.
+  Uses custom styling to match the NODO design language, not the browser default.
+
+status_note: >
+  The TRIGGER element (the visible field + chevron) is fully specified below.
+  The DROPDOWN PANEL design (the list that opens) was requested from the designer
+  on 2026-06-08. Update this file when that design is received.
+
+# -------------------------------------------------------------
+# TRIGGER (the visible input-like element)
+# -------------------------------------------------------------
+trigger:
+  appearance:
+    background: "bg-secondary-soft (#f9fafb)"
+    border: "border-base (#e5e7eb) 1px"
+    border_radius: "rounded-lg (8px)"
+    height: "40px (same as input base size)"
+    padding_h: "12px"
+    padding_v: "10px"
+    font: "Inter Regular 14px"
+    text_color: "text-body (#4b5563)"
+    placeholder_color: "text-fg-disabled (#9ca3af)"
+
+  chevron:
+    icon: "ChevronDownIcon (Heroicons)"
+    position: "right side, 12px from edge"
+    color: "text-fg-disabled"
+    rotation_when_open: "180° (transition 150ms ease)"
+
+  states:
+    default:
+      border: "border-base (#e5e7eb) 1px"
+      background: "bg-secondary-soft (#f9fafb)"
+    focus:
+      border: "border-brand (#5059bc) 1.5px"
+      background: "bg-secondary-soft"
+      outline: "none (ring via box-shadow)"
+    error:
+      border: "border-danger (#c70036) 1px"
+      background: "bg-danger-soft (#fef0f2)"
+    disabled:
+      background: "bg-disabled (#f3f4f6)"
+      text_color: "text-fg-disabled (#9ca3af)"
+      cursor: "not-allowed"
+      chevron_color: "text-fg-disabled"
+
+# -------------------------------------------------------------
+# DROPDOWN PANEL
+# Status: SPECIFIED — confirmed by designer design reference (2026-06-08)
+# -------------------------------------------------------------
+panel:
+  status: "Specified"
+  position: "Below the trigger, left-aligned"
+  width: "Min-width matches trigger; can be wider for longer labels"
+  z_index: "10 (dropdown layer)"
+  animation: "fade-in + slight scale from 97% to 100% (150ms ease-out)"
+
+  appearance:
+    background: "bg-white (#ffffff)"
+    border: "none (shadow provides container definition)"
+    border_radius: "rounded-2xl (16px)"
+    box_shadow: "var(--sombra-lg)"
+    padding: "8px all sides"
+    max_height: "~320px (scrollable if more options)"
+
+  option_item:
+    height: "~50px"
+    padding_h: "16px"
+    padding_v: "12px"
+    layout: "flex items-center gap-3 (icon + label)"
+    icon:
+      size: "w-5 h-5 (20px)"
+      color: "text-body-subtle (#6b7280) — default"
+      color_destructive: "text-fg-danger (#c70036)"
+    font: "Inter Medium 15px"
+    text_color: "text-heading (#111827)"
+    border_radius_item: "rounded-lg (8px) — applied on hover/active within the panel"
+
+    states:
+      default:
+        background: "transparent"
+      hover:
+        background: "bg-tertiary (#f3f4f6)"
+        border_radius: "rounded-lg (8px)"
+      selected:
+        background: "bg-brand-soft (#fee9ff)"
+        text_color: "text-fg-brand (#5059bc)"
+        icon_color: "text-fg-brand"
+        indicator: "no CheckIcon visible in design — background is the selected indicator"
+
+    destructive_item:
+      text_color: "text-fg-danger (#c70036)"
+      icon_color: "text-fg-danger (#c70036)"
+      note: "Used for logout, delete account, or irreversible actions in the menu"
+      example: "→ Sign out"
+
+  divider:
+    usage: "NOT used between regular items — no dividers"
+    exception: "A 1px border-base divider may be used ONLY to separate the destructive item group"
+
+# -------------------------------------------------------------
+# LABEL (same rules as input component)
+# -------------------------------------------------------------
+label:
+  position: "Always above the trigger"
+  font: "Inter Medium 14px"
+  color: "text-heading"
+  required_indicator: "* in text-fg-danger (#c70036)"
+
+# -------------------------------------------------------------
+# CONTEXT VARIANTS
+# -------------------------------------------------------------
+contexts:
+  form_select:
+    description: "Full-width within form column, 40px height — input-style trigger"
+    trigger_style: "Input-style (bg-secondary-soft, border-base) — see trigger spec above"
+    example: "Sexo (M / F / X), Estado civil, Programa"
+
+  action_menu:
+    description: "Navigation / action dropdown triggered by a Brand gradient button"
+    trigger_style: "Brand gradient pill button (same as btn-brand) + ChevronDownIcon"
+    trigger_border: "2px solid border-brand (#5059bc) — stroke visible around gradient"
+    trigger_font: "Inter Medium 14px, text-white"
+    example: "User account menu, 'Acciones ∨' dropdown in tables"
+    note: "Uses the same panel design as form_select"
+
+  filter_chip:
+    description: "Compact variant used in table filter rows"
+    trigger_style: "bg-primary, border-base, rounded-md (6px), text-sm font-medium"
+    active_state:
+      border: "border-brand"
+      text: "text-fg-brand"
+    example: "Todos los riesgos ∨, Todos los estados ∨"
+
+anatomy: |
+  FORM SELECT:
+  [Label *]
+  ┌────────────────────────────────┐
+  │ Seleccioná una opción     [∨]  │  ← input-style trigger
+  └────────────────────────────────┘
+
+  ACTION MENU (open):
+  ┌──────────────────────┐
+  │ Dropdown         [∨] │  ← Brand gradient pill trigger (border-brand stroke)
+  └──────────────────────┘
+  ╔══════════════════════════════╗  ← panel (rounded-2xl, sombra-lg)
+  ║  [🧑] Account               ║
+  ║  [⚙] Settings               ║
+  ║  [🔒] Privacy               ║
+  ║  [🔔] Notifications   ←hover ║  (bg-tertiary rounded-lg on hover/active)
+  ║  [?] Help center             ║
+  ║  [→] Sign out          (red) ║  ← destructive: text-fg-danger + icon-fg-danger
+  ╚══════════════════════════════╝
+
+accessibility_rules:
+  - "Use role='combobox' on trigger, role='listbox' on panel, role='option' on each item"
+  - "aria-expanded reflects open/closed state on trigger"
+  - "aria-selected on the currently selected option"
+  - "Keyboard: Arrow keys navigate options, Enter selects, Escape closes"
+  - "Label must be associated via for/id or aria-labelledby"
+
+allowed_usage:
+  - "Form fields with a predefined list of options (sex, program, risk level)"
+  - "Table filter chips with limited value sets"
+  - "Any list with fewer than ~30 options (more than 30 → consider searchable select)"
+
+forbidden_usage:
+  - "Native browser <select> element with default styling — always use custom component"
+  - "Select for binary choices — use radio buttons or a toggle for Yes/No"
+  - "Opening the panel without proper keyboard support"
+
+anti_examples:
+  - "Unstyled browser select element with OS-default dropdown"
+  - "Select that uses the Brand gradient background on trigger"
+  - "Dropdown panel without hover state on options"

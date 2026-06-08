@@ -1,0 +1,203 @@
+# =============================================================
+# Component: Alert Panel (Critical Alerts)
+# Source: CHACO_NODO_Design_Manual.md §12.8
+# =============================================================
+
+purpose: >
+  Displays a collection of critical alerts that require the user's attention.
+  Appears on the dashboard home screen when critical conditions exist.
+  The panel is absent when there are no alerts — not rendered as empty.
+
+variants:
+  critical:
+    trigger: "When citizens with high risk, no-contact, or overdue follow-up exist"
+    container_bg: "bg-brand-softer / bg-danger-soft (rosa very soft)"
+    container_border: "border-brand-subtle or border-danger-subtle"
+    border_radius: "rounded-xl (8–12px)"
+
+states:
+  with_alerts:
+    shows: "Full panel with alert cards"
+  no_alerts:
+    shows: "Component is NOT rendered — not shown as empty"
+
+anatomy:
+  structure: |
+    ┌─────────────────────────────────────────────────┐
+    │ Alertas Críticas                   3 Alertas × │
+    │ ┌──────────────┐ ┌──────────────┐ ┌──────────┐  │
+    │ │ Juan Pérez   │ │ María García │ │ Carlos   │  │
+    │ │ Riesgo Alto  │ │ Sin Contacto │ │ Seg. Ven.│  │
+    │ │ Hace 2 horas │ │ Hace 4 horas │ │ Ayer     │  │
+    │ └──────────────┘ └──────────────┘ └──────────┘  │
+    └─────────────────────────────────────────────────┘
+
+  header:
+    title: "Alertas Críticas"
+    badge: "Count badge (e.g., '3 Alertas') — badge-danger or text-fg-danger with × dismiss"
+
+  alert_cards:
+    background: "bg-white"
+    border: "border-base"
+    border_radius: "rounded-lg (8px)"
+    content:
+      citizen_name: "text-sm, font-semibold, text-heading"
+      alert_type: "Badge — danger/warning variant matching the alert type"
+      time_ago: "text-xs, text-body-subtle, relative time format"
+    action_arrow:
+      icon: "ChevronRightIcon or ArrowRightIcon"
+      color: "text-fg-brand"
+      function: "Navigates to citizen detail"
+
+responsive_rules:
+  - "Alert cards scroll horizontally if more than 3 alerts"
+  - "Mobile behavior: UNKNOWN"
+
+accessibility_rules:
+  - "Panel title announces urgency — 'Alertas Críticas'"
+  - "Each alert card should be an accessible link to the citizen"
+  - "Dismiss (×) button has aria-label"
+  - "Alert count badge communicates quantity"
+
+allowed_usage:
+  - "Dashboard home screen only"
+  - "Rendered only when critical alerts exist"
+
+forbidden_usage:
+  - "Showing the panel in empty state"
+  - "Using this pattern for non-critical informational messages (use info banner instead)"
+  - "Hard-coding citizen names or alert counts"
+
+examples:
+  panel: |
+    <div class="alert-panel bg-brand-softer border border-brand-subtle rounded-xl p-4">
+      <div class="flex justify-between">
+        <h3 class="font-semibold text-heading">Alertas Críticas</h3>
+        <span class="badge-danger badge-sm">3 Alertas ×</span>
+      </div>
+      <div class="alert-cards flex gap-3 mt-3">
+        <!-- alert cards -->
+      </div>
+    </div>
+
+anti_examples:
+  - "An empty 'Alertas Críticas' panel with 'No hay alertas' text — omit entirely when empty"
+  - "Using blue/info color for critical alerts that need danger treatment"
+
+# -------------------------------------------------------------
+# INLINE ALERT (Error / Warning inline panel)
+# Source: Designer design reference (2026-06-08)
+# Usage: Inline within a page or section — NOT the dashboard alert panel above
+# -------------------------------------------------------------
+inline_alert:
+  purpose: >
+    A contextual alert card that appears inline within a page or section
+    when a user action fails or needs attention. Has explicit action buttons.
+    Distinct from the dashboard critical-alert panel.
+
+  variants:
+    error:
+      background: "bg-danger-soft (#fef0f2)"
+      border: "border-danger-subtle (#ffccd3) 1px"
+      icon_circle_bg: "bg-danger-medium (#ffe4e6)"
+      icon_color: "text-fg-danger (#c70036)"
+      title_color: "text-heading (#111827)"
+      body_color: "text-body (#4b5563)"
+
+    warning:
+      background: "bg-warning-soft (#fff8f1)"
+      border: "border-warning-subtle (#fcd9bd) 1px"
+      icon_circle_bg: "bg-warning-medium (#feecdc)"
+      icon_color: "text-fg-warning-subtle"
+      title_color: "text-heading"
+      body_color: "text-body"
+
+    info:
+      background: "bg-brand-softer (#fef3ff)"
+      border: "border-brand-subtle (#fee3ff) 1px"
+      icon_circle_bg: "bg-brand-soft (#fee9ff)"
+      icon_color: "text-fg-brand (#5059bc)"
+      title_color: "text-heading"
+      body_color: "text-body"
+
+  anatomy: |
+    ┌────────────────────────────────────────────────────────┐  ← bg-danger-soft, border-danger-subtle, rounded-xl
+    │ [ⓘ] Whoops! Something went wrong                       │  ← icon circle (20px) + title (font-semibold 15px)
+    │      The file format is not supported. Please upload   │  ← body text (14px, text-body)
+    │      a valid file type (PDF, JPG, PNG).                │
+    │                                                        │
+    │  [Close]  [↑ Try again]                                │  ← action buttons (left-aligned)
+    └────────────────────────────────────────────────────────┘
+
+  icon:
+    shape: "circle"
+    size: "~20px"
+    background: "variant-specific (see variants above)"
+    icon: "InformationCircleIcon or variant-specific icon"
+
+  title:
+    font: "Inter SemiBold 15px"
+    color: "text-heading"
+
+  body:
+    font: "Inter Regular 14px"
+    color: "text-body"
+
+  action_buttons:
+    close:
+      style: "Secondary (outlined)"
+      label: "Close / Cerrar"
+    primary_action:
+      style: "Danger filled (bg-danger, text-white) for error; Brand gradient for info"
+      label: "Try again / Reintentar / Ver más"
+      icon: "Relevant icon to the left of label"
+
+  border_radius: "rounded-xl (12px)"
+  padding: "16px 20px"
+
+# -------------------------------------------------------------
+# NOTIFICATION CARD (Persistent info notification)
+# Source: Designer design reference (2026-06-08)
+# Usage: Persistent notification — does NOT auto-dismiss
+# -------------------------------------------------------------
+notification_card:
+  purpose: >
+    A persistent notification card that appears in a panel or at the top of a section.
+    Unlike toast, it does NOT auto-dismiss. Used for software updates, important
+    announcements, or background task completions that require user action.
+
+  appearance:
+    background: "bg-secondary-soft (#f9fafb)"
+    border: "none (shadow or subtle background differentiates it)"
+    border_radius: "rounded-xl (12px)"
+    padding: "16px 20px"
+
+  icon_shape:
+    background: "bg-brand-soft (#fee9ff) or bg-tertiary"
+    icon_color: "text-fg-brand (#5059bc)"
+    border_radius: "rounded-lg (10–12px)"
+    size: "~40px"
+    note: "Icon shape uses brand-soft background — NOT the gradient"
+
+  close_button:
+    position: "top-right"
+    icon: "XMarkIcon"
+    color: "text-body-subtle"
+
+  anatomy: |
+    ┌──────────────────────────────────────────┐  ← bg-secondary-soft, rounded-xl
+    │ [Icon]  Update available           [×]   │  ← icon-shape (40px) + title (font-semibold) + close
+    │         The latest software version is   │  ← body text (14px, text-body-subtle)
+    │         now accessible for download.     │
+    │                                          │
+    │  [Not now]  [↓ Update]                   │  ← action buttons right-aligned
+    └──────────────────────────────────────────┘
+
+  action_buttons:
+    dismiss:
+      style: "Secondary (outlined)"
+      label: "Not now / Ahora no"
+    primary_action:
+      style: "Brand gradient pill"
+      icon: "Relevant action icon"
+      label: "Update / Actualizar / Ver más"

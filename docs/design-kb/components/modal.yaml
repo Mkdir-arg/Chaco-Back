@@ -1,0 +1,169 @@
+# =============================================================
+# Component: Modal / Dialog
+# Source: Designer confirmation (2026-06-08)
+# Note: Partially inferred from system patterns + direct designer spec
+# =============================================================
+
+purpose: >
+  Overlays that interrupt the current flow to request user input or confirmation.
+  Used for destructive action confirmation, form-in-modal workflows, and
+  complex selections that do not warrant a new page.
+
+scope:
+  applies_to: "Backoffice (authenticated views) only"
+  portal: "Not used in citizen portal"
+
+variants:
+  confirmation:
+    description: "SweetAlert2-style — action confirmation for destructive operations"
+    trigger: "Always required before delete, archive, or irreversible actions"
+    note: "SweetAlert2 is the mandated library for this variant (Article VIII of Design Constitution)"
+
+  form_modal:
+    description: "Small form inside an overlay — for quick data entry without navigation"
+    note: "Prefer a dedicated page for forms with more than 4 fields"
+
+  information:
+    description: "Read-only content display — details panel, preview, help text"
+
+backdrop:
+  color: "#d1d5db"
+  token: "bg-gray (gray-300)"
+  opacity: "70%"
+  css: "rgba(209, 213, 219, 0.7)"
+  behavior: "clicking outside the modal closes it (unless confirmation modal)"
+
+modal_card:
+  background: "bg-white (#ffffff)"
+  border_radius: "rounded-2xl (16px)"
+  box_shadow: "var(--sombra-xl)"
+  padding: "24px"
+  max_width:
+    sm: "~380px (confirmation dialogs — compact)"
+    md: "~560px (form modals)"
+    lg: "~720px (information modals with content)"
+  position: "Center of viewport (horizontally and vertically)"
+
+anatomy:
+  confirmation_compact: |
+    [Backdrop rgba(209,213,219,0.7)]
+    ┌──────────────────────────────────┐
+    │                             [×]  │  ← XMarkIcon, text-body-subtle, top-right
+    │            ┌─────┐               │
+    │            │  !  │               │  ← neutral circle ~48px, bg-tertiary, text-body-subtle
+    │            └─────┘               │
+    │  ¿Estás seguro de que querés     │
+    │     eliminar este elemento?      │  ← Inter Regular 15px, text-heading, centered
+    │                                  │
+    │  [No, cancel]       [Confirm]    │  ← see action_buttons spec below
+    └──────────────────────────────────┘
+
+  form_modal: |
+    ┌──────────────────────────────────┐
+    │ Título del modal            [×]  │  ← Inter SemiBold 18px, text-heading
+    ├──────────────────────────────────┤
+    │  form fields here                │  ← Inter Regular 14px, text-body
+    ├──────────────────────────────────┤
+    │              [Cancelar] [Guardar]│  ← right-aligned
+    └──────────────────────────────────┘
+
+confirmation_icon:
+  shape: "circle"
+  size: "~48px diameter"
+  background: "bg-tertiary (#f3f4f6)"
+  icon_color: "text-body-subtle (#6b7280)"
+  icon: "ExclamationCircleIcon"
+  note: "NEUTRAL GRAY — not danger red. The message communicates urgency, not the icon color."
+
+action_buttons:
+  important_note: >
+    The CONFIRM button always uses the Brand gradient — even for destructive confirmations.
+    The danger is communicated through the warning icon and the message text, NOT through
+    a red button. This is the system-confirmed pattern from design reference.
+  confirm:
+    style: "Brand gradient (linear-gradient(45deg, #5059BC, #F98DFF))"
+    text_color: "text-white"
+    shape: "rounded-full (pill)"
+    label_examples: ["Confirm", "Confirmar", "Eliminar", "Guardar"]
+  cancel:
+    style: "Secondary (bg-white, border-base)"
+    text_color: "text-body"
+    shape: "rounded-full (pill)"
+    label_examples: ["No, cancel", "Cancelar", "Volver"]
+
+positioning_css: |
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+
+z_index: "100 (modal layer)"
+
+animation:
+  in: "fade-in + scale from 95% to 100% (150ms ease-out)"
+  out: "fade-out + scale to 95% (150ms ease-in)"
+
+destructive_confirmation_pattern:
+  library: "SweetAlert2 (mandatory per Design Constitution Article VIII)"
+  title: "¿Estás seguro?"
+  message: "Descriptive consequence ('Este ciudadano será eliminado permanentemente.')"
+  confirm_button: "Brand gradient style — NOT danger red (see action_buttons spec)"
+  cancel_button: "Secondary style"
+  icon: "Neutral gray circle with ExclamationCircleIcon — NOT SweetAlert2 default red"
+  sweetalert_customization: "Override SweetAlert2 defaults to match design: customClass for buttons + icon"
+  note: "window.confirm() is FORBIDDEN — SweetAlert2 only"
+
+accessibility_rules:
+  - "role='dialog' with aria-modal='true'"
+  - "aria-labelledby pointing to the modal title"
+  - "Focus is trapped inside the modal while open"
+  - "Escape key closes the modal (except confirmation dialogs — must click explicitly)"
+  - "Focus returns to the triggering element when modal closes"
+  - "Close button has aria-label='Cerrar'"
+
+allowed_usage:
+  - "Destructive action confirmation (delete, archive, revoke)"
+  - "Quick form for adding a simple item without leaving the page"
+  - "Media or document preview"
+  - "Alert/information that must be acknowledged before continuing"
+
+forbidden_usage:
+  - "Forms with more than 4–5 fields — use a dedicated page"
+  - "Nested modals (modal inside modal)"
+  - "window.confirm() — always use SweetAlert2 for destructive confirmations"
+  - "Modal without a visible title"
+  - "Modal without a close mechanism (× button or Escape key)"
+  - "Modal in the citizen portal"
+
+examples:
+  confirmation_trigger: |
+    <!-- Trigger -->
+    <button class="btn-danger btn-sm"
+            onclick="confirmDelete({{ ciudadano.id }})">
+      Eliminar
+    </button>
+
+    <!-- SweetAlert2 handler -->
+    <script>
+    function confirmDelete(id) {
+      Swal.fire({
+        title: '¿Estás seguro?',
+        text: 'Este ciudadano será eliminado permanentemente.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // execute delete
+        }
+      });
+    }
+    </script>
+
+anti_examples:
+  - "window.confirm('¿Eliminar?') — never use native browser confirm"
+  - "Delete button that executes immediately without confirmation"
+  - "Modal with backdrop opacity 100% — must be 70%"
+  - "Modal positioned top of page instead of centered"

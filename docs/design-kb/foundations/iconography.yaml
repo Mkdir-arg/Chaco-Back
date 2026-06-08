@@ -1,0 +1,238 @@
+# =============================================================
+# NODO Design System — Iconography
+# Source: CHACO_NODO_Design_Manual.md §16, NODO DS.md §10
+# =============================================================
+
+meta:
+  primary_library: "Heroicons (via Flowbite)"
+  reference_url: "https://heroicons.com"
+  npm_package: "@heroicons/react"
+  flowbite_docs: "https://flowbite.com/icons/"
+  secondary_library: "Font Awesome 6.4.0"
+  secondary_note: "Font Awesome is used in legacy templates and the CRM sidebar"
+  critical_rule: "Icons NEVER have their own color — they inherit via text color tokens"
+
+# -------------------------------------------------------------
+# ICON STYLES
+# -------------------------------------------------------------
+styles:
+  outline:
+    status: "DEFAULT"
+    use: "Navigation, actions, states — all default icon contexts"
+    heroicons_import: "@heroicons/react/24/outline"
+
+  solid:
+    status: "RESERVED"
+    use: "Active state icons only (e.g., active sidebar nav item)"
+    heroicons_import: "@heroicons/react/24/solid"
+    forbidden: "Do not use as default style throughout the UI"
+
+  mini:
+    size: "16px"
+    use: "Inline text badges, labels, small chips"
+    heroicons_import: "@heroicons/react/16/solid"
+
+# -------------------------------------------------------------
+# SIZE SCALE
+# -------------------------------------------------------------
+sizes:
+  "w-4 h-4":
+    px: "16px"
+    tailwind: "w-4 h-4"
+    use: "Inline text icons, badges, chips"
+
+  "w-5 h-5":
+    px: "20px"
+    tailwind: "w-5 h-5"
+    use: "Input prefix icons, small button icons"
+
+  "w-6 h-6":
+    px: "24px"
+    tailwind: "w-6 h-6"
+    use: "Navigation icons, stat cards, table action icons (BASE SIZE)"
+    note: "This is the default/base icon size"
+
+  "w-8 h-8":
+    px: "32px"
+    tailwind: "w-8 h-8"
+    use: "Section icons, page header icons"
+
+  "w-12 h-12":
+    px: "48px"
+    tailwind: "w-12 h-12"
+    use: "Empty state illustrations, error state illustrations"
+
+# Font Awesome sizes (legacy templates)
+font_awesome_sizes:
+  fa-sm:
+    use: "Inline icons next to text in legacy templates"
+  fa-lg:
+    use: "Standalone icons in components (metric cards, lists)"
+  fa-xl:
+    use: "Featured/highlighted icons"
+
+# -------------------------------------------------------------
+# COLOR RULES
+# -------------------------------------------------------------
+color_contexts:
+  navigation_default:
+    token: "text-body"
+    value_light: "#4b5563"
+    use: "Inactive sidebar nav items"
+
+  navigation_active:
+    token: "text-white"
+    value: "#ffffff"
+    context: "On bg-brand background"
+    use: "Active sidebar nav item icon"
+
+  input_prefix:
+    token: "text-body-subtle"
+    value_light: "#6b7280"
+    use: "Leading icon inside form inputs"
+
+  table_actions:
+    token: "text-fg-brand"
+    value_light: "#5059bc"
+    use: "Action icons in table rows (view, edit)"
+
+  success:
+    token: "text-fg-success"
+    value_light: "#007a55"
+    use: "Success state icons"
+
+  danger:
+    token: "text-fg-danger"
+    value_light: "#c70036"
+    use: "Error/critical state icons"
+
+  warning:
+    token: "text-fg-warning-subtle"
+    value_light: "#d03801"
+    use: "Warning/caution icons"
+
+  disabled:
+    token: "text-fg-disabled"
+    value_light: "#9ca3af"
+    use: "Disabled state icons"
+
+  brand_on_gradient:
+    token: "text-white"
+    value: "#ffffff"
+    use: "Icons on brand gradient backgrounds (sidebar logo, metric card icon shapes)"
+
+# -------------------------------------------------------------
+# OBSERVED ICON CATALOG (from documented screens)
+# -------------------------------------------------------------
+observed_icons:
+  BellIcon:
+    heroicon: "BellIcon"
+    use: "Notifications in topbar"
+
+  UserGroupIcon:
+    heroicon: "UserGroupIcon"
+    use: "Total citizens stat, Citizens nav item"
+
+  FolderOpenIcon:
+    heroicon: "FolderOpenIcon"
+    use: "Active case files"
+
+  BellAlertIcon:
+    heroicon: "BellAlertIcon"
+    use: "Critical alerts panel"
+
+  CalendarDaysIcon:
+    heroicon: "CalendarDaysIcon"
+    use: "Follow-up dates"
+
+  ChartBarIcon:
+    heroicon: "ChartBarIcon"
+    use: "Adherence rate metric, Reports nav item"
+
+  HeartIcon:
+    heroicon: "HeartIcon"
+    use: "High-risk cases metric"
+
+  HomeIcon:
+    heroicon: "HomeIcon"
+    use: "Home / Inicio in sidebar"
+
+  Squares2X2Icon:
+    heroicon: "Squares2X2Icon"
+    use: "Dashboard in sidebar"
+
+  EyeIcon:
+    heroicon: "EyeIcon"
+    use: "View detail action in tables"
+
+  ArrowLeftIcon:
+    heroicon: "ArrowLeftIcon"
+    use: "Back button"
+
+  PlusCircleIcon:
+    heroicon: "PlusCircleIcon"
+    use: "New record CTA, Create citizen"
+
+  ChevronRightIcon:
+    heroicon: "ChevronRightIcon"
+    use: "Breadcrumb separator, submenus"
+
+  ChevronDownIcon:
+    heroicon: "ChevronDownIcon"
+    use: "Collapsed expandable submenus"
+
+  ChevronUpIcon:
+    heroicon: "ChevronUpIcon"
+    use: "Expanded submenus"
+
+  ArrowDownTrayIcon:
+    heroicon: "ArrowDownTrayIcon"
+    use: "Export button"
+
+  ShieldCheckIcon:
+    heroicon: "ShieldCheckIcon"
+    use: "Security system status indicator"
+
+  ServerIcon:
+    heroicon: "ServerIcon"
+    use: "Server system status indicator"
+
+  EnvelopeIcon:
+    heroicon: "EnvelopeIcon"
+    use: "Email input field prefix"
+
+  LockClosedIcon:
+    heroicon: "LockClosedIcon"
+    use: "Password input field prefix"
+
+  MagnifyingGlassIcon:
+    heroicon: "MagnifyingGlassIcon"
+    use: "Search bar"
+
+  UserPencilIcon:
+    heroicon: "UserPencilIcon"
+    use: "New citizen flow"
+
+  ChatBubbleLeftRightIcon:
+    heroicon: "ChatBubbleLeftRightIcon"
+    use: "Conversations, floating chat"
+
+# -------------------------------------------------------------
+# RULES
+# -------------------------------------------------------------
+rules:
+  dos:
+    - "Use Heroicons outline style by default everywhere"
+    - "Apply color via token (text-fg-brand, text-body-subtle, etc.)"
+    - "Use w-6 h-6 as the base size for navigation and cards"
+    - "Use solid style ONLY for the active state of an icon"
+    - "Maintain Heroicons default stroke-width"
+    - "Icon-only buttons must include aria-label"
+
+  donts:
+    - "Mixing icon libraries (Font Awesome + Heroicons in the same component)"
+    - "Hardcoding color: #5059bc in SVG or element"
+    - "Scaling icons with font-size instead of width/height"
+    - "Using solid style as default throughout the UI"
+    - "Modifying stroke-width manually"
+    - "Using Font Awesome in new templates (Heroicons only)"

@@ -1,0 +1,132 @@
+# =============================================================
+# Component: Entity Card (Profile Header)
+# Source: NODO DS.md §10, §12
+# =============================================================
+
+purpose: >
+  The header component for entity detail views (Ciudadano, Comedor, Institución, etc.).
+  Provides identity information at a glance with an avatar, name, subtitle, and action icons.
+
+variants:
+  entity_header:
+    description: "Profile header with gradient avatar, name, subtitle, and action icons"
+
+  metric_card:
+    description: "KPI card showing a single metric with label, number, delta, and icon shape"
+    source: "NODO DS.md §11"
+
+  benefits_card:
+    description: "Financial summary showing direct/indirect transfers and monthly total"
+    source: "NODO DS.md §12"
+
+states:
+  default:
+    background: "bg-primary"
+    border: "border-base 1px"
+    border_radius: "rounded-xl (12px)"
+
+anatomy:
+  entity_header: |
+    ┌─────────────────────────────────────────────────────────────┐
+    │ [Avatar with gradient brand]   [Nombre]         [icons →]  │
+    │                                [Subtítulo]                  │
+    └─────────────────────────────────────────────────────────────┘
+
+  avatar:
+    shape: "square with rounded corners (border-radius 12px)"
+    background: "linear-gradient(45deg, #7928CA, #FF0080)"
+    icon: "Font Awesome — white, centered"
+    size: "~56px"
+
+  entity_name:
+    font: "Inter Semibold 18px"
+    color: "text-heading"
+
+  entity_subtitle:
+    font: "Inter Regular 13px"
+    color: "text-body-subtle"
+
+  action_icons:
+    position: "right-aligned"
+    gap: "16px between icons"
+    color: "text-body (#4b5563)"
+    hover_color: "text-fg-brand"
+    icon_size: "w-5 h-5 or w-6 h-6"
+
+  metric_card: |
+    ┌──────────────────────────────────┐
+    │ Label                            │  ← Inter Regular 13px, text-body-subtle
+    │ 250 +12                  [Icon]  │  ← Number: Inter Bold 28px, text-heading
+    └──────────────────────────────────┘
+
+  benefits_card: |
+    ┌──────────────────────────────────────────────┐
+    │ Transferencia directa                        │
+    │ [mini-card] [mini-card] [mini-card]          │
+    │ Transferencia indirecta                      │
+    │ [mini-card] [mini-card] [mini-card]          │
+    │ ┌──────────────────────────────────────────┐ │
+    │ │ Monto total Octubre 2025    $390.213     │ │  ← gradient brand
+    │ └──────────────────────────────────────────┘ │
+    └──────────────────────────────────────────────┘
+
+  benefits_mini_card:
+    border: "border-base 1px"
+    border_radius: "rounded-lg (8px)"
+    padding: "12px"
+    icon_color: "text-fg-brand"
+    icon_size: "fa-lg"
+    amount_font: "Inter Bold 16px"
+    amount_color: "text-heading"
+    label_font: "Inter Regular 12px"
+    label_color: "text-body-subtle"
+    disabled_variant:
+      background: "bg-disabled"
+      icon_and_text: "text-fg-disabled"
+
+  total_banner:
+    background: "linear-gradient(45deg, #FF0080, #7928CA)"
+    border_radius: "rounded-lg (8px)"
+    padding: "12px 16px"
+    label_font: "Inter Regular 13px, text-white"
+    amount_font: "Inter Bold 24px, text-white"
+
+responsive_rules:
+  - "Entity header always spans full width of content area"
+  - "Metric cards in grid layout — UNKNOWN exact columns"
+  - "Benefits mini-cards in 3-column row"
+
+accessibility_rules:
+  - "Avatar icon requires aria-label describing the entity type"
+  - "Metric delta must use +/- prefix, not just color"
+  - "Benefits amounts should be formatted consistently (currency format)"
+
+allowed_usage:
+  - "Top of entity detail views (Ciudadano, Comedor, Centro, Institución)"
+  - "Metric cards in entity detail dashboards"
+  - "Financial summary in citizen benefit views"
+
+forbidden_usage:
+  - "Entity header on list views (use table row instead)"
+  - "Changing gradient direction from 45°"
+  - "Total banner with non-brand colors"
+
+examples:
+  entity_header: |
+    <div class="entity-header bg-primary border border-base rounded-xl p-4 flex items-center gap-4">
+      <div class="avatar rounded-xl" style="background: linear-gradient(45deg, #7928CA, #FF0080)">
+        <UserIcon class="text-white w-8 h-8" />
+      </div>
+      <div>
+        <h2 class="font-semibold text-lg text-heading">José Gomes</h2>
+        <p class="text-sm text-body-subtle">24-31256.248-4</p>
+      </div>
+      <div class="ml-auto flex gap-4">
+        <PencilIcon class="w-5 h-5 text-body hover:text-fg-brand" />
+      </div>
+    </div>
+
+anti_examples:
+  - "Entity header without avatar/identity visual"
+  - "Total banner with a flat color instead of gradient"
+  - "Metric delta showing only color (no +/- prefix)"

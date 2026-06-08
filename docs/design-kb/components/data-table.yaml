@@ -1,0 +1,159 @@
+# =============================================================
+# Component: Data Table
+# Source: CHACO_NODO_Design_Manual.md §12.4, §12.7, NODO DS.md §9
+# =============================================================
+
+purpose: >
+  The primary way to display lists of entity records.
+  Always includes search, filters, pagination, and a defined empty state.
+  Supports row-level actions and badge-based status columns.
+
+variants:
+  standard:
+    description: "Search toolbar + filter row + column headers + rows + pagination footer"
+
+states:
+  row_default:
+    background: "bg-primary (#ffffff)"
+    border_bottom: "border-base (#e5e7eb) 1px"
+    height: "~48px"
+
+  row_hover:
+    background: "bg-tertiary (#f3f4f6)"
+    transition: "150ms ease"
+
+  row_selected:
+    description: "UNKNOWN — not documented"
+
+anatomy:
+  toolbar:
+    search_input:
+      style: "Secondary (bg #F9FAFB, border #E5E7EB)"
+      icon: "MagnifyingGlassIcon leading"
+      placeholder: "Descriptive placeholder with min character hint"
+      width: "full-width or flexible"
+    primary_action_button:
+      style: "Tertiary (outlined brand)"
+      position: "right of search, or top-right of section"
+      example: "+ Nuevo legajo"
+    secondary_buttons:
+      style: "Secondary with chevron"
+      examples: ["▼ Filtrar", "Acciones ∨"]
+
+  filter_row:
+    pattern: "Chip/button filters in a horizontal row"
+    examples: ["Todos los riesgos ∨", "Todos los estados ∨", "🔔 Con alertas", "📅 Sin plan vigente"]
+    filter_chip_style:
+      background: "bg-primary (#ffffff)"
+      border: "border-base"
+      border_radius: "rounded-md (6px)"
+      font: "text-sm, font-medium"
+      active_state:
+        border: "border-brand"
+        text: "text-fg-brand"
+    export_button:
+      style: "Tertiary with download icon"
+      position: "right-aligned in filter row"
+
+  column_header:
+    font: "Inter SemiBold 12px (text-xs font-semibold)"
+    color: "text-body-subtle (#6b7280)"
+    transform: "uppercase"
+    border_bottom: "border-base (#e5e7eb) 1px"
+    background: "same as table (no different bg)"
+    sortable:
+      shows: "sort icon (fa-sort or equivalent) to the right of label"
+
+  row_cells:
+    font: "Inter Regular 14px"
+    color: "text-body or text-heading"
+    padding_v: "12–16px"
+    border_bottom: "border-base 1px"
+    no_alternating_bg: true
+
+  avatar_cell:
+    type: "Circle with citizen initials (e.g., 'CM')"
+    background: "bg-brand-medium (jacaranda soft)"
+    text: "text-white, font-semibold"
+
+  status_badge:
+    component: "badge"
+    mapping:
+      Completa: "badge-success"
+      En_progreso: "badge-warning"
+      Sin_exito: "badge-danger"
+      BAJO: "badge-success"
+      MEDIO: "badge-warning"
+      ALTO: "badge-danger"
+      Sin_Contacto: "badge-warning"
+      Seguimiento_Vencido: "badge-danger"
+
+  actions_column:
+    position: "always last column, fixed width"
+    view_action:
+      icon: "EyeIcon (w-6 h-6)"
+      color: "text-fg-brand"
+      background: "none (default)"
+      hover_background: "bg-secondary-soft"
+      label: "no text — icon only with aria-label"
+    actions_dropdown:
+      style: "Tertiary button + chevron"
+      label: "Acciones ∨"
+    delete_action:
+      style: "Danger filled — bg #c70036, text white, trash icon"
+      requires_confirmation: true
+      confirmation_library: "SweetAlert2"
+
+  pagination_footer:
+    info_text:
+      format: "Mostrando X-Y of Z"
+      font: "Inter Regular 13px"
+      color: "text-body-subtle"
+    prev_next_buttons:
+      style: "Tertiary (outlined brand), size SM"
+    page_indicator:
+      format: "1 de 4"
+      font: "Inter Medium 13px"
+
+  empty_state:
+    required: true
+    note: "Every table must define an empty state — not a blank table"
+    pattern: "Illustration + contextual message + optional CTA"
+
+responsive_rules:
+  - "Table scrolls horizontally on mobile (UNKNOWN — not fully documented)"
+  - "Actions column always visible"
+  - "Column widths not fixed except actions column"
+
+accessibility_rules:
+  - "Sort icons indicate sortable columns — must have accessible labels"
+  - "Action icon buttons require aria-label (icon-only)"
+  - "Delete action always gated by SweetAlert2 confirmation"
+  - "Table must have defined empty state — not a blank experience"
+  - "No row-level shadows"
+
+allowed_usage:
+  - "Any list of entities (citizens, organizations, programs)"
+  - "Historical records within an entity detail view"
+  - "Paginated data with search and filter controls"
+
+forbidden_usage:
+  - "Alternating row background colors (zebra striping)"
+  - "Row shadows or elevation"
+  - "Delete action without SweetAlert2 confirmation modal"
+  - "Table without a defined empty state"
+  - "Sortable column without a visual indicator"
+
+examples:
+  columns: "CIUDADANO · DNI · DISPOSITIVO · RESPONSABLE · RIESGO · ESTADO · ALERTAS · ACCIONES"
+  toolbar: |
+    <div class="table-toolbar flex gap-2 items-center">
+      <input class="bg-secondary-soft border-base" placeholder="Buscar por nombre..." />
+      <button class="btn-tertiary btn-sm">+ Nuevo legajo</button>
+    </div>
+
+anti_examples:
+  - "Table with no empty state defined — renders as blank space"
+  - "Delete button that immediately deletes without confirmation"
+  - "Sort column header without sort icon"
+  - "Alternating gray/white rows"
