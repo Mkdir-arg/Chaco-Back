@@ -13,10 +13,15 @@
 | 2026-06-06 | Matias | Análisis funcional | Completé análisis de propuesta | 61 min |
 | 2026-06-08 | Matias | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
 | 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 30 min |
+| 2026-06-08 | Juani Portilla | Design System CHACO NODO — especificación completa e integración de tokens | Construcción del Design Knowledge Base (foundations, tokens, 13 componentes, 5 patrones, constitución de diseño). Resolución de conflictos NODO vs CHACO, coordinación con diseñadora (10 respuestas + diseños de referencia), migración de chaco-tokens.css al repo y extensión de Tailwind config en templates base. PR #56 abierto. | 360 min |
+| 2026-06-05 | Juani Portilla | RBAC del backoffice (épica #46 / #51): plan de desarrollo | Plan de desarrollo: edge cases y decisiones de diseño | 180 min |
+| 2026-06-06 | Juani Portilla | RBAC del backoffice: implementación | Modelo + motor por capacidades, seed idempotente, ABM de Roles y ABM de Usuarios | 300 min |
+| 2026-06-06 | Juani Portilla | RBAC del backoffice: reemplazo del esquema legacy | Migración transversal a capacidades, endurecimiento de vistas, API REST y portal | 240 min |
+| 2026-06-09 | Juani Portilla | RBAC del backoffice: validación y cierre | Validación en MySQL, arreglo de 15 tests preexistentes y PR #52 | 240 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **1020 minutos** (17 h 00 min)
+    **2340 minutos** (39 h 00 min)
