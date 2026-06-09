@@ -1,0 +1,78 @@
+# =============================================================
+# NODO Design System — Elevation (Shadows)
+# Source: paleta-unificada.css, Canva brand manual, NODO DS.md
+# =============================================================
+
+meta:
+  design_philosophy: >
+    Minimal, crisp shadows. Near-zero blur with small offsets and spread
+    to suggest depth without complexity. The system favors flat design with
+    subtle shadow cues. No skeumorphic or heavy drop shadows.
+  note: "Shadow tokens are defined in paleta-unificada.css. Not yet in chaco-tokens.json."
+
+# -------------------------------------------------------------
+# SHADOW SCALE
+# -------------------------------------------------------------
+shadows:
+  sm:
+    css_var: "--sombra-sm"
+    value: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+    use: "Default card shadow, minimal surface elevation"
+
+  md:
+    css_var: "--sombra-md"
+    value: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+    use: "Cards on hover, dropdowns, tooltips"
+
+  lg:
+    css_var: "--sombra-lg"
+    value: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+    use: "Modals, overlays, floating panels"
+
+  xl:
+    css_var: "--sombra-xl"
+    value: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+    use: "UNKNOWN — very large floating elements"
+
+# -------------------------------------------------------------
+# COMPONENT-SPECIFIC SHADOW SPECS (from design manual)
+# -------------------------------------------------------------
+component_shadows:
+  card_default:
+    value: "var(--sombra-sm)"
+    transition: "var(--transicion-normal)"
+    hover: "var(--sombra-md)"
+
+  button_focus_ring:
+    value: "0 1px 0 2px #E5E7EB"
+    note: "Used on brand and tertiary button focus state"
+
+  button_secondary_focus:
+    value: "0 1px 0 2px #F3F4F6"
+    note: "Secondary button focus state"
+
+# -------------------------------------------------------------
+# Z-INDEX SCALE
+# (Documented in NODO DS.md general rules)
+# -------------------------------------------------------------
+z_index:
+  base: 0
+  dropdown: 10
+  modal: 100
+  toast: 200
+  note: "Never use arbitrary z-index values outside this scale"
+
+# -------------------------------------------------------------
+# CANVA BRAND MANUAL SHADOW SPECS
+# (From nodo-mm presentation — component-level observations)
+# -------------------------------------------------------------
+brand_manual_shadows:
+  shadow_1:
+    x_offset: "0px"
+    y_offset: "1px"
+    blur_radius: "0px"
+    spread: "2px"
+    note: "Used for focus states and card accents"
+  note: >
+    The brand manual shows minimal blur (0px) and small spread (2px),
+    confirming the preference for flat design with clean, controlled depth.

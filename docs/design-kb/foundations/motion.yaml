@@ -1,0 +1,100 @@
+# =============================================================
+# NODO Design System — Motion & Animation
+# Source: paleta-unificada.css, portal-modern.css, NODO DS.md
+# =============================================================
+
+meta:
+  philosophy: >
+    Motion is used to reinforce interaction feedback (hover, focus, open/close).
+    Portal uses richer entry animations for citizen-facing screens.
+    Backoffice uses minimal transitions for state changes only.
+
+# -------------------------------------------------------------
+# TRANSITION TOKENS
+# (Defined in paleta-unificada.css)
+# -------------------------------------------------------------
+transitions:
+  fast:
+    css_var: "--transicion-rapida"
+    value: "150ms ease-in-out"
+    use: "Button hover/focus state changes, sidebar chevron rotation, icon color changes"
+
+  normal:
+    css_var: "--transicion-normal"
+    value: "300ms ease-in-out"
+    use: "Card shadow transitions (default → hover), sidebar expand/collapse"
+
+  slow:
+    css_var: "--transicion-lenta"
+    value: "500ms ease-in-out"
+    use: "UNKNOWN — larger layout transitions"
+
+# -------------------------------------------------------------
+# COMPONENT-SPECIFIC MOTION
+# (Derived from design manual and CSS inspection)
+# -------------------------------------------------------------
+component_motion:
+  button_state_change:
+    duration: "150ms"
+    easing: "ease"
+    properties: [background, color, border-color, box-shadow]
+    note: "All button state transitions use 150ms ease"
+
+  sidebar_chevron:
+    duration: "150ms"
+    easing: "ease"
+    transform: "rotate(180deg)"
+    trigger: "when parent nav group is expanded"
+
+  card_hover:
+    transition: "var(--transicion-normal)"
+    shadow_change: "var(--sombra-sm) → var(--sombra-md)"
+
+  notification_dot:
+    animation: "pulse"
+    note: "Live activity indicator uses pulsing green dot"
+
+# -------------------------------------------------------------
+# PORTAL ANIMATIONS
+# (Defined in portal-modern.css — citizen-facing surfaces only)
+# -------------------------------------------------------------
+portal_animations:
+  fadeInUp:
+    keyframes: "opacity 0→1, transform translateY(30px)→0"
+    duration: "UNKNOWN"
+    use: "Section entry on portal pages"
+
+  slideInLeft:
+    keyframes: "transform translateX(-100%)→0"
+    duration: "UNKNOWN"
+    use: "Panel entry from left"
+
+  slideInRight:
+    keyframes: "transform translateX(100%)→0"
+    duration: "UNKNOWN"
+    use: "Panel entry from right"
+
+  pulse_glow:
+    use: "Brand accent elements, CTAs on portal"
+
+  gradient_shift:
+    use: "Animated gradient backgrounds on portal hero sections"
+
+  glassmorphism:
+    use: "Card effects on portal (backdrop-filter: blur)"
+
+# -------------------------------------------------------------
+# RULES
+# -------------------------------------------------------------
+rules:
+  dos:
+    - "Use transition tokens (--transicion-rapida, etc.) — never write raw ms values"
+    - "Apply 150ms transitions to all interactive state changes"
+    - "Animate only meaningful properties (bg, border, shadow, opacity, transform)"
+    - "Use portal animations only on portal-facing templates"
+
+  donts:
+    - "Adding animations to backoffice components (reserved for portal)"
+    - "Using transitions longer than 500ms for UI interactions"
+    - "Animating layout properties (width, height) that cause reflow"
+    - "Removing transitions entirely — they provide accessibility feedback"

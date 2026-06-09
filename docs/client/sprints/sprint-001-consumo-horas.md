@@ -11,6 +11,7 @@
 | 2026-06-06 | Matías Fariña | Continuar el análisis funcional del módulo de becas | Continuación del análisis funcional del módulo de becas | 171 min |
 | 2026-06-05 | Matías Fariña | Continuar análisis de la propuesta | Seguir con el análisis de la propuesta | 119 min |
 | 2026-06-06 | Matias | Análisis funcional | Completé análisis de propuesta | 61 min |
+| 2026-06-08 | Matias | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
 | 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 30 min |
 
 ---
@@ -18,4 +19,4 @@
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **600 minutos** (10 h 00 min)
+    **1020 minutos** (17 h 00 min)

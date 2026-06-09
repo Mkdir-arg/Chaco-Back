@@ -1,0 +1,268 @@
+# =============================================================
+# NODO Design System — Typography Foundations
+# Source: chaco-tokens.json, CHACO_NODO_Design_Manual.md, NODO DS.md
+# =============================================================
+
+meta:
+  critical_rule: "Inter is the ONLY font for all UI components. Gellat is ONLY for hero headings on login/access screens."
+
+# -------------------------------------------------------------
+# FONT FAMILIES
+# -------------------------------------------------------------
+font_families:
+  base:
+    name: "Inter"
+    fallback: "sans-serif"
+    css_var: "--font-family-base"
+    tailwind: "font-sans"
+    use: "All UI components, body text, headings, labels, buttons — everything"
+    source: "Google Fonts"
+
+  brand:
+    name: "Gellat"
+    fallback: "sans-serif"
+    css_var: "--font-family-brand"
+    tailwind: "font-brand"
+    use: "EXCLUSIVELY for hero headings on login and password recovery screens"
+    forbidden: "Body text, labels, UI components, any internal screen"
+    note: "Gellat Extra Bold 42 only — text color #00203A on access screens"
+
+# -------------------------------------------------------------
+# FONT SIZES
+# -------------------------------------------------------------
+font_sizes:
+  xxs:
+    value: "8px"
+    css_var: "--font-size-xxs"
+    tailwind: "text-xxs"
+    use: "UNKNOWN — not explicitly mapped in documentation"
+  xs:
+    value: "12px"
+    css_var: "--font-size-xs"
+    tailwind: "text-xs"
+    use: "Badge labels, stat card labels (uppercase), helper text, pagination"
+  sm:
+    value: "14px"
+    css_var: "--font-size-sm"
+    tailwind: "text-sm"
+    use: "Input labels, body text in cards, link text, form helper text"
+  base:
+    value: "16px"
+    css_var: "--font-size-base"
+    tailwind: "text-base"
+    use: "Paragraphs, large buttons"
+  lg:
+    value: "18px"
+    css_var: "--font-size-lg"
+    tailwind: "text-lg"
+    use: "UNKNOWN"
+  xl:
+    value: "20px"
+    css_var: "--font-size-xl"
+    tailwind: "text-xl"
+    use: "UNKNOWN"
+  "2xl":
+    value: "24px"
+    css_var: "--font-size-2xl"
+    tailwind: "text-2xl"
+    use: "UNKNOWN"
+  "3xl":
+    value: "30px"
+    css_var: "--font-size-3xl"
+    tailwind: "text-3xl"
+    use: "Stat card numbers (large metrics)"
+  "4xl":
+    value: "36px"
+    css_var: "--font-size-4xl"
+    tailwind: "text-4xl"
+    use: "Block headings, section titles"
+  "5xl":
+    value: "48px"
+    css_var: "--font-size-5xl"
+    tailwind: "text-5xl"
+    use: "UNKNOWN"
+  "6xl":
+    value: "60px"
+    css_var: "--font-size-6xl"
+    tailwind: "text-6xl"
+    use: "Hero H1 headings"
+
+# Extended (Tailwind config only, not in token JSON)
+  "7xl":
+    value: "72px"
+    tailwind: "text-7xl"
+    use: "UNKNOWN"
+  "8xl":
+    value: "96px"
+    tailwind: "text-8xl"
+    use: "UNKNOWN"
+  "9xl":
+    value: "128px"
+    tailwind: "text-9xl"
+    use: "UNKNOWN"
+
+# -------------------------------------------------------------
+# FONT WEIGHTS
+# -------------------------------------------------------------
+font_weights:
+  normal:
+    value: 400
+    css_var: "--font-weight-normal"
+    tailwind: "font-normal"
+    use: "Paragraphs, helper texts, articles, placeholder text"
+  medium:
+    value: 500
+    css_var: "--font-weight-medium"
+    tailwind: "font-medium"
+    use: "Button labels, form labels, CTAs, some headings, badge text"
+  semibold:
+    value: 600
+    css_var: "--font-weight-semibold"
+    tailwind: "font-semibold"
+    use: "Primary headings (H1–H3 in content), table column headers"
+  bold:
+    value: 700
+    css_var: "--font-weight-bold"
+    tailwind: "font-bold"
+    use: "H1 in hero sections, stat card numbers"
+  extrabold:
+    value: 800
+    css_var: "--font-weight-extrabold"
+    tailwind: "font-extrabold"
+    use: "H1 in high-impact hero sections"
+
+# -------------------------------------------------------------
+# LETTER SPACING
+# -------------------------------------------------------------
+letter_spacing:
+  tighter:
+    value: "-0.8px"
+    css_var: "--letter-spacing-tighter"
+    tailwind: "tracking-tighter"
+    use: "Large H1s — improves readability and visual polish"
+  tight:
+    value: "-0.4px"
+    css_var: "--letter-spacing-tight"
+    tailwind: "tracking-tight"
+    use: "Section and card headings"
+  normal:
+    value: "0px"
+    css_var: "--letter-spacing-normal"
+    tailwind: "tracking-normal"
+    use: "Body text, UI labels (default)"
+  wide:
+    value: "0.4px"
+    tailwind: "tracking-wide"
+    use: "UNKNOWN"
+  wider:
+    value: "0.8px"
+    tailwind: "tracking-wider"
+    use: "UNKNOWN"
+  widest:
+    value: "1.6px"
+    tailwind: "tracking-widest"
+    use: "UNKNOWN"
+
+# -------------------------------------------------------------
+# TYPOGRAPHIC COMBINATIONS (documented patterns)
+# -------------------------------------------------------------
+combinations:
+  hero_h1:
+    font: "Gellat"
+    size: "text-6xl"
+    weight: "font-bold or font-extrabold"
+    tracking: "tracking-tighter"
+    color: "text-heading (#00203A on access screens)"
+    context: "Login, password recovery screens ONLY"
+
+  section_heading:
+    font: "Inter"
+    size: "text-4xl"
+    weight: "font-semibold"
+    tracking: "tracking-tight"
+    color: "text-heading"
+    context: "Page section titles inside the app"
+
+  stat_card_number:
+    font: "Inter"
+    size: "text-3xl or text-4xl"
+    weight: "font-bold"
+    color: "text-heading"
+    context: "Large metric numbers in stat cards"
+
+  stat_card_label:
+    font: "Inter"
+    size: "text-xs"
+    weight: "font-medium"
+    transform: "uppercase"
+    color: "text-body-subtle"
+    context: "Labels beneath stat card numbers"
+
+  button_label:
+    font: "Inter"
+    weight: "font-medium"
+    sizes:
+      xs: "12px"
+      sm: "14px"
+      base: "14px"
+      l: "16px"
+      xl: "16px"
+    context: "All button variants at all sizes"
+    forbidden: "font-normal on button labels"
+
+  table_header:
+    font: "Inter"
+    size: "text-xs"
+    weight: "font-semibold"
+    transform: "uppercase"
+    color: "text-body-subtle"
+    context: "Data table column headers"
+
+  table_body:
+    font: "Inter"
+    size: "text-sm"
+    weight: "font-normal"
+    color: "text-body or text-heading"
+    context: "Data table cell content"
+
+  input_label:
+    font: "Inter"
+    size: "text-sm"
+    weight: "font-medium"
+    color: "text-heading"
+    context: "Form field labels"
+
+  input_placeholder:
+    font: "Inter"
+    size: "text-sm"
+    weight: "font-normal"
+    color: "text-body-subtle"
+    context: "Input placeholder text"
+
+  badge:
+    font: "Inter"
+    weight: "font-medium"
+    sizes:
+      sm: "12px"
+      lg: "14px"
+    context: "Status badges"
+
+# -------------------------------------------------------------
+# DO's & DON'Ts
+# -------------------------------------------------------------
+rules:
+  dos:
+    - "Use text-6xl + font-bold for H1 hero sections"
+    - "Use tracking-tighter on large H1s"
+    - "Use Gellat Extra Bold ONLY on login/access/hero screens"
+    - "Use font-medium for button labels and CTAs"
+    - "Use text-xs + font-medium + uppercase for stat card labels"
+    - "Pair tracking-tight with section and card headings"
+
+  donts:
+    - "Using Gellat for body text or UI labels"
+    - "Using arbitrary sizes outside the defined scale"
+    - "Applying letter-spacing manually (use tokens)"
+    - "Using font-normal on button labels"
+    - "Using text-body as heading color"
+    - "Using placeholder as field label"

@@ -1,0 +1,76 @@
+# =============================================================
+# Component: Breadcrumb / Step Indicator
+# Source: CHACO_NODO_Design_Manual.md §12.9
+# =============================================================
+
+purpose: >
+  Shows the user's current location within a navigation hierarchy
+  or the current step in a multi-step flow.
+  Observed in the Confirmar Datos del Ciudadano screen.
+
+variants:
+  navigation_breadcrumb:
+    description: "Path-based breadcrumb showing hierarchy"
+    structure: "[icon] > Step 1 > Step 2 (current)"
+
+states:
+  previous_step:
+    style: "Link — clickable, text-body-subtle or text-fg-brand"
+  current_step:
+    style: "text-fg-brand or text-heading, font-medium, not a link"
+  separator:
+    character: ">"
+    color: "text-body-subtle"
+
+anatomy:
+  example: "[👥 icon]  >  Nuevo Ciudadano  >  Confirmar"
+
+  icon:
+    color: "text-fg-brand"
+    size: "w-5 h-5 or w-4 h-4"
+
+  previous_link:
+    font: "text-sm, font-normal"
+    color: "text-body-subtle (or text-fg-brand if clickable)"
+    cursor: "pointer (clickable)"
+
+  current_page:
+    font: "text-sm, font-medium"
+    color: "text-fg-brand or text-heading"
+    cursor: "default (not a link)"
+
+  separator:
+    character: ">"
+    font: "text-sm"
+    color: "text-body-subtle"
+    spacing: "small padding each side"
+
+responsive_rules:
+  - "Breadcrumb should truncate on very small screens (UNKNOWN — not documented)"
+
+accessibility_rules:
+  - "Wrap in <nav aria-label='Breadcrumb'>"
+  - "Current page must have aria-current='page'"
+  - "Previous steps should be real <a> links"
+
+allowed_usage:
+  - "Multi-step forms (Nuevo Ciudadano → Confirmar Datos)"
+  - "Deep navigation paths within an entity"
+
+forbidden_usage:
+  - "Using breadcrumb on top-level screens (Home, Ciudadanos list)"
+  - "Breadcrumb with non-clickable previous steps"
+
+examples:
+  breadcrumb: |
+    <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm">
+      <UserGroupIcon class="w-4 h-4 text-fg-brand" />
+      <span class="text-body-subtle">></span>
+      <a class="text-body-subtle hover:text-fg-brand">Nuevo Ciudadano</a>
+      <span class="text-body-subtle">></span>
+      <span class="text-fg-brand font-medium" aria-current="page">Confirmar</span>
+    </nav>
+
+anti_examples:
+  - "Breadcrumb on the home/dashboard screen"
+  - "All steps rendered as plain text (no link on navigable steps)"

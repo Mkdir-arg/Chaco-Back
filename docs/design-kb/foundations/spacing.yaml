@@ -1,0 +1,192 @@
+# =============================================================
+# NODO Design System — Spacing Foundations
+# Source: chaco-tokens.json, NODO DS.md (component specs), Canva brand manual
+# Note: No explicit spacing token scale was exported from Figma.
+# Values below are derived from component specifications.
+# =============================================================
+
+meta:
+  status: "PARTIAL — Spacing tokens not yet exported from Figma"
+  pending: "Grid margins, padding internal values in px/rem pending documentation"
+  base_unit: 4  # inferred from component specs (multiples of 4)
+
+# -------------------------------------------------------------
+# BORDER RADIUS
+# (Fully documented in design tokens)
+# -------------------------------------------------------------
+border_radius:
+  "0":
+    value: "0px"
+    css_var: "--rounded-0"
+    tailwind: "rounded-0"
+    use: "Sharp corners — no defined use case in current system"
+  sm:
+    value: "2px"
+    css_var: "--rounded-sm"
+    tailwind: "rounded-sm"
+    use: "UNKNOWN"
+  base:
+    value: "4px"
+    css_var: "--rounded"
+    tailwind: "rounded"
+    use: "Small elements"
+  md:
+    value: "6px"
+    css_var: "--rounded-md"
+    tailwind: "rounded-md"
+    use: "Badges, filter chips"
+  lg:
+    value: "8px"
+    css_var: "--rounded-lg"
+    tailwind: "rounded-lg"
+    use: "Inputs, cards, subitems in sidebar active state"
+  xl:
+    value: "12px"
+    css_var: "--rounded-xl"
+    tailwind: "rounded-xl"
+    use: "Cards (main), buttons, sidebar logo, metric cards, entity headers"
+  "2xl":
+    value: "16px"
+    css_var: "--rounded-2xl"
+    tailwind: "rounded-2xl"
+    use: "UNKNOWN"
+  "3xl":
+    value: "24px"
+    css_var: "--rounded-3xl"
+    tailwind: "rounded-3xl"
+    use: "UNKNOWN"
+  full:
+    value: "9999px"
+    css_var: "--rounded-full"
+    tailwind: "rounded-full"
+    use: "Buttons (pill shape), badges, avatars, notification dots"
+
+# -------------------------------------------------------------
+# BORDER WIDTHS
+# -------------------------------------------------------------
+border_widths:
+  "0":
+    value: "0px"
+    css_var: "--border-width-0"
+    use: "No border"
+  base:
+    value: "1px"
+    css_var: "--border-width"
+    use: "Default border for all components"
+  "2":
+    value: "2px"
+    css_var: "--border-width-2"
+    use: "Focus state outlines (button focus ring)"
+  "4":
+    value: "4px"
+    css_var: "--border-width-4"
+    use: "UNKNOWN"
+  "8":
+    value: "8px"
+    css_var: "--border-width-8"
+    use: "UNKNOWN"
+
+# -------------------------------------------------------------
+# COMPONENT SPACING (inferred from specs)
+# Documented from component anatomy in design manual
+# -------------------------------------------------------------
+component_spacing:
+  button:
+    xs: { padding_v: "6px", padding_h: "12px", gap_icon: "6px", height: "32px" }
+    sm: { padding_v: "8px", padding_h: "12px", gap_icon: "6px", height: "36px" }
+    base: { padding_v: "10px", padding_h: "16px", gap_icon: "6px", height: "40px" }
+    l: { padding_v: "12px", padding_h: "20px", gap_icon: "6px", height: "48px" }
+    xl: { padding_v: "14px", padding_h: "24px", gap_icon: "6px", height: "52px" }
+
+  badge:
+    sm: { padding_v: "2px", padding_h: "4px", gap: "2px", height: "20px" }
+    lg: { padding_v: "4px", padding_h: "6px", gap: "4px", height: "24px" }
+
+  input:
+    height: "40px"
+    padding_v: "~12px"
+    padding_h: "~16px"
+    note: "Base size — height 40px"
+
+  table_row:
+    height: "~48px"
+    padding_v: "12–16px"
+
+  card:
+    padding: "~20px"
+    border_radius: "8–12px"
+
+  module_card:
+    padding_top: "15px"
+    padding_bottom: "15px"
+    padding_left: "28px"
+    padding_right: "28px"
+    internal_spacing: "24px"
+
+  form:
+    gap_between_fields: "20px"
+    gap_between_sections: "32px"
+
+  sidebar_logo:
+    padding: "16px"
+    border_radius: "12px"
+
+# -------------------------------------------------------------
+# MAX WIDTH SCALE
+# -------------------------------------------------------------
+max_widths:
+  xs:
+    value: "320px"
+    css_var: "--max-w-xs"
+    tailwind: "max-w-xs"
+  sm:
+    value: "384px"
+    css_var: "--max-w-sm"
+    tailwind: "max-w-sm"
+  md:
+    value: "448px"
+    css_var: "--max-w-md"
+    tailwind: "max-w-md"
+  lg:
+    value: "512px"
+    css_var: "--max-w-lg"
+    tailwind: "max-w-lg"
+  xl:
+    value: "576px"
+    css_var: "--max-w-xl"
+    tailwind: "max-w-xl"
+  "2xl":
+    value: "672px"
+    css_var: "--max-w-2xl"
+    tailwind: "max-w-2xl"
+  "3xl":
+    value: "768px"
+    css_var: "--max-w-3xl"
+    tailwind: "max-w-3xl"
+  "4xl":
+    value: "896px"
+    css_var: "--max-w-4xl"
+    tailwind: "max-w-4xl"
+  "5xl":
+    value: "1024px"
+    css_var: "--max-w-5xl"
+    tailwind: "max-w-5xl"
+  "6xl":
+    value: "1152px"
+    css_var: "--max-w-6xl"
+    tailwind: "max-w-6xl"
+  "7xl":
+    value: "1280px"
+    css_var: "--max-w-7xl"
+    tailwind: "max-w-7xl"
+
+# -------------------------------------------------------------
+# CONTAINER BREAKPOINTS
+# -------------------------------------------------------------
+containers:
+  xs: { value: "380px", css_var: "--container-xs" }
+  sm: { value: "640px", css_var: "--container-sm" }
+  md: { value: "768px", css_var: "--container-md" }
+  lg: { value: "1024px", css_var: "--container-lg" }
+  xl: { value: "1280px", css_var: "--container-xl" }
+  "2xl": { value: "1563px", css_var: "--container-2xl" }

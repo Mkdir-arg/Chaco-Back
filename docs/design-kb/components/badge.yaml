@@ -1,0 +1,123 @@
+# =============================================================
+# Component: Badge
+# Source: NODO DS.md §6, Canva brand manual (badges section)
+# =============================================================
+
+purpose: >
+  Small label element for communicating status, category, or count.
+  Purely informational — not interactive unless it includes a dismiss (×) control.
+  Six color variants cover all semantic states.
+
+variants:
+  gray:
+    fill: "#F9FAFB"
+    stroke: "#101828 1px"
+    text: "#101828"
+    use: "Neutral / default state labels"
+    css_example: ".badge-gray { background:#F9FAFB; border:1px solid #101828; color:#101828; }"
+
+  white:
+    fill: "#FFFFFF"
+    stroke: "#E5E7EB 1px"
+    text: "#101828"
+    use: "White surface badges, minimal styling"
+    css_example: ".badge-white { background:#FFFFFF; border:1px solid #E5E7EB; color:#101828; }"
+
+  brand:
+    fill: "#FFB9DC"
+    stroke: "#101828 1px"
+    text: "#A11F60"
+    use: "Brand/informational — announcements, info tags"
+    css_example: ".badge-brand { background:#FFB9DC; border:1px solid #101828; color:#A11F60; }"
+
+  danger:
+    fill: "#FEF0F2"
+    stroke: "#FFCCD3 1px"
+    text: "#8B0836"
+    use: "Error state, critical risk level, overdue status"
+    css_example: ".badge-danger { background:#FEF0F2; border:1px solid #FFCCD3; color:#8B0836; }"
+
+  warning:
+    fill: "#FFF8F1"
+    stroke: "#FCD9BD 1px"
+    text: "#771D1D"
+    use: "Medium risk, pending, non-critical alerts"
+    css_example: ".badge-warning { background:#FFF8F1; border:1px solid #FCD9BD; color:#771D1D; }"
+
+  success:
+    fill: "#ECFDF5"
+    stroke: "#A4F4CF 1px"
+    text: "#006045"
+    use: "Low risk, completed, confirmed, positive status"
+    css_example: ".badge-success { background:#ECFDF5; border:1px solid #A4F4CF; color:#006045; }"
+
+  # Risk level badge mapping (from citizen table):
+  risk_levels:
+    BAJO: "success"
+    MEDIO: "warning"
+    ALTO: "danger"
+    SIN_CONTACTO: "warning"
+    SEGUIMIENTO_VENCIDO: "danger"
+
+sizes:
+  sm:
+    font: "Inter Medium 12px"
+    padding_v: "2px"
+    padding_h: "4px"
+    gap: "2px"
+    height: "20px"
+    border_radius: "6px"
+    icon_size: "optional — both leading and trailing"
+
+  lg:
+    font: "Inter Medium 14px"
+    padding_v: "4px"
+    padding_h: "6px"
+    gap: "4px"
+    height: "24px"
+    border_radius: "6px"
+    icon_size: "optional — both leading and trailing"
+
+states:
+  - display: "Default informational state"
+  - dismissible: "With × close button — indicates the badge can be removed by the user"
+
+anatomy:
+  structure: "[leading-icon/avatar/dot]  [Label text]  [Secondary text (optional)]  [× dismiss (optional)]"
+  note: >
+    The × dismiss control implies the badge can be removed by user interaction.
+    Do not include × if badge is display-only.
+
+responsive_rules:
+  - "Badge width is variable — sized to content"
+  - "Numeric badges (counts) are always circular"
+
+accessibility_rules:
+  - "Badge color alone must not be the only state indicator — label text must also communicate the state"
+  - "Dismissible badges must have an accessible × button with aria-label"
+  - "Color contrast: each variant must meet WCAG AA (pending full audit)"
+
+allowed_usage:
+  - "Risk level indicators in tables (BAJO/MEDIO/ALTO)"
+  - "Status indicators (Completa, En progreso, Sin éxito)"
+  - "Alert quantity labels (3 Alertas)"
+  - "Navigation notification counts (sidebar badge)"
+  - "Category tags in data views"
+
+forbidden_usage:
+  - "Creating badge colors outside the six defined variants"
+  - "Using badges as interactive navigation elements (use chips/buttons instead)"
+  - "Secondary text with same weight as primary label text"
+  - "Numeric badges in non-circular shapes"
+  - "Badges with hardcoded hex colors not from the system"
+
+examples:
+  risk_low: '<span class="badge-success badge-sm">BAJO</span>'
+  risk_high: '<span class="badge-danger badge-sm">ALTO</span>'
+  notification: '<span class="badge-brand badge-sm">3 Alertas ×</span>'
+  table_status: '<span class="badge-success badge-lg">Completa</span>'
+
+anti_examples:
+  - "A custom orange badge for a new state that should be warning"
+  - "A badge with only color (no text) to indicate status"
+  - "Using a badge for a clickable filter (that is a chip, not a badge)"

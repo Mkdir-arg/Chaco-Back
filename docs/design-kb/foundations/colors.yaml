@@ -1,0 +1,513 @@
+# =============================================================
+# NODO Design System — Color Foundations
+# Source: chaco-tokens.json, chaco-tokens.css, CHACO_NODO_Design_Manual.md
+# =============================================================
+
+meta:
+  product: "CHACO NODO"
+  version: "1.0"
+  source: "Figma Variables"
+  modes: [light, dark]
+  critical_rule: "NEVER hardcode hex values in components. Always reference semantic tokens."
+
+# -------------------------------------------------------------
+# BRAND COLORS (Reference only — never use directly in CSS)
+# -------------------------------------------------------------
+brand_reference:
+  azul_principal:
+    hex: "#00203A"
+    use: "Headings, high-contrast backgrounds, wordmark text"
+  jacaranda:
+    hex: "#5059BC"
+    use: "Brand color, primary buttons, links"
+  rosa:
+    hex: "#F26DF9"
+    use: "Accent, informational badges, secondary brand elements"
+  verde_oscuro:
+    hex: "#8A9A46"
+    use: "Success states, confirmation"
+  verde_claro:
+    hex: "#C8D29C"
+    use: "Positive state backgrounds, illustrations"
+
+# -------------------------------------------------------------
+# PRIMITIVE COLOR SCALES (Internal reference — prefer semantic tokens)
+# -------------------------------------------------------------
+primitives:
+  brand:
+    "050": "#f5f3ff"
+    "100": "#ede9fe"
+    "200": "#ddd6fe"
+    "300": "#c4b5fd"
+    "400": "#a78bfa"
+    "500": "#5059bc"
+    "600": "#5059bc"
+    "700": "#5059bc"
+    "800": "#4338ca"
+    "900": "#3730a3"
+    "950": "#1e1b4b"
+
+  pink:
+    "050": "#fef3ff"
+    "100": "#fee9ff"
+    "200": "#fee3ff"
+    "300": "#fdcfff"
+    "400": "#fcc3ff"
+    "500": "#fbafff"
+    "600": "#f98dff"
+    "700": "#f26df9"
+    "800": "#dd5fe4"
+    "900": "#bf57c4"
+    "950": "#9b499f"
+
+  gray:
+    "050": "#f9fafb"
+    "100": "#f3f4f6"
+    "200": "#e5e7eb"
+    "300": "#d1d5db"
+    "400": "#9ca3af"
+    "500": "#6b7280"
+    "600": "#4b5563"
+    "700": "#374151"
+    "800": "#1f2937"
+    "850": "#18212f"
+    "900": "#111827"
+    "950": "#030712"
+
+  emerald:
+    "050": "#ecfdf5"
+    "100": "#d0fae5"
+    "200": "#a4f4cf"
+    "300": "#5ee9b5"
+    "400": "#00d492"
+    "500": "#00bc7d"
+    "600": "#009966"
+    "700": "#007a55"
+    "800": "#006045"
+    "900": "#004f3b"
+    "950": "#002c22"
+
+  rose:
+    "050": "#fef0f2"
+    "100": "#ffe4e6"
+    "200": "#ffccd3"
+    "300": "#ffa1ad"
+    "400": "#ff637e"
+    "500": "#ff2056"
+    "600": "#ec003f"
+    "700": "#c70036"
+    "800": "#a50036"
+    "900": "#8b0836"
+    "950": "#4d0218"
+
+  orange:
+    "050": "#fff8f1"
+    "100": "#feecdc"
+    "200": "#fcd9bd"
+    "300": "#fdba8c"
+    "400": "#ff8a4c"
+    "500": "#ff5a1f"
+    "600": "#d03801"
+    "700": "#b43403"
+    "800": "#8a2c0d"
+    "900": "#771d1d"
+
+  categorical:
+    purple: "#a855f7"
+    sky: "#00579d"
+    teal: "#c8d29c"
+    cyan: "#00b8db"
+    fuchsia: "#c800de"
+    indigo: "#4f46e5"
+    yellow: "#fdc700"
+    lime: "#7ccf00"
+
+# -------------------------------------------------------------
+# SEMANTIC TOKENS — BACKGROUND
+# Naming: bg-[role]-[modifier?]
+# Modifiers: (none)=base, -soft=lighter, -medium=mid, -strong=stronger
+# -------------------------------------------------------------
+semantic_background:
+  neutral:
+    bg-white:
+      light: "#ffffff"
+      dark: "#ffffff"    # intentionally stays white
+      use: "Primary layout background, cards, widgets"
+    bg-primary-soft:
+      light: "#ffffff"
+      dark: "#111827"
+      use: "—"
+    bg-primary:
+      light: "#ffffff"
+      dark: "#030712"
+      use: "—"
+    bg-primary-medium:
+      light: "#ffffff"
+      dark: "#1f2937"
+      use: "—"
+    bg-primary-strong:
+      light: "#ffffff"
+      dark: "#374151"
+      use: "—"
+    bg-secondary-soft:
+      light: "#f9fafb"
+      dark: "#111827"
+      use: "Secondary buttons, dropdowns, inputs, icon shapes"
+    bg-secondary:
+      light: "#f9fafb"
+      dark: "#030712"
+      use: "—"
+    bg-secondary-medium:
+      light: "#f9fafb"
+      dark: "#1f2937"
+      use: "—"
+    bg-secondary-strong:
+      light: "#f9fafb"
+      dark: "#374151"
+      use: "—"
+    bg-tertiary-soft:
+      light: "#f3f4f6"
+      dark: "#1f2937"
+      use: "Toggles, checkboxes, input fields (elevated contrast)"
+    bg-tertiary:
+      light: "#f3f4f6"
+      dark: "#1f2937"
+      use: "—"
+    bg-tertiary-medium:
+      light: "#f3f4f6"
+      dark: "#374151"
+      use: "—"
+    bg-quaternary:
+      light: "#e5e7eb"
+      dark: "#374151"
+      use: "Progress bars, slider controls"
+    bg-quaternary-medium:
+      light: "#e5e7eb"
+      dark: "#4b5563"
+      use: "—"
+    bg-gray:
+      light: "#d1d5db"
+      dark: "#4b5563"
+      use: "Patterns, graphic elements"
+
+  brand:
+    bg-brand-softer:
+      light: "#fef3ff"
+      dark: "#1e1b4b"
+      use: "Alerts, badges, informational brand banners"
+    bg-brand-soft:
+      light: "#fee9ff"
+      dark: "#3730a3"
+      use: "—"
+    bg-brand-medium:
+      light: "#fee3ff"
+      dark: "#3730a3"
+      use: "—"
+    bg-brand:
+      light: "#5059bc"
+      dark: "#5059bc"
+      use: "Buttons, icons, brand identity elements"
+    bg-brand-strong:
+      light: "#4338ca"
+      dark: "#5059bc"
+      use: "Data visualization with brand context"
+
+  states:
+    bg-success-soft:
+      light: "#ecfdf5"
+      dark: "#002c22"
+      use: "Alerts, badges, positive feedback banners"
+    bg-success-medium:
+      light: "#d0fae5"
+      dark: "#006045"
+      use: "—"
+    bg-success:
+      light: "#007a55"
+      dark: "#009966"
+      use: "Success buttons, confirmation icons"
+    bg-success-strong:
+      light: "#006045"
+      dark: "#007a55"
+      use: "Data visualization — success"
+    bg-danger-soft:
+      light: "#fef0f2"
+      dark: "#4d0218"
+      use: "Alerts, badges, critical error banners"
+    bg-danger-medium:
+      light: "#ffe4e6"
+      dark: "#8b0836"
+      use: "—"
+    bg-danger:
+      light: "#c70036"
+      dark: "#c70036"
+      use: "Error buttons, negative feedback icons"
+    bg-danger-strong:
+      light: "#a50036"
+      dark: "#c70036"
+      use: "Data visualization — danger"
+    bg-warning-soft:
+      light: "#fff8f1"
+      dark: "#441306"
+      use: "Caution alerts, badges"
+    bg-warning-medium:
+      light: "#feecdc"
+      dark: "#771d1d"
+      use: "—"
+    bg-warning:
+      light: "#ff5a1f"
+      dark: "#d03801"
+      use: "Non-critical alert buttons, icons"
+    bg-warning-strong:
+      light: "#b43403"
+      dark: "#b43403"
+      use: "Data visualization — warning"
+
+  special:
+    bg-dark:
+      light: "#1f2937"
+      dark: "#1f2937"
+      use: "Dark buttons, icon shapes consistent in both modes"
+    bg-dark-strong:
+      light: "#111827"
+      dark: "#1f2937"
+      use: "—"
+    bg-disabled:
+      light: "#f3f4f6"
+      dark: "#1f2937"
+      use: "Non-interactive elements, read-only"
+
+  categorical:
+    bg-purple:
+      value: "#a855f7"
+      use: "Data visualization"
+    bg-sky:
+      value: "#00579d"
+      use: "Data visualization"
+    bg-teal:
+      value: "#c8d29c"
+      use: "Data visualization"
+    bg-pink:
+      value: "#f98dff"
+      use: "Data visualization"
+    bg-cyan:
+      value: "#00b8db"
+      use: "Data visualization"
+    bg-fuchsia:
+      value: "#c800de"
+      use: "Data visualization"
+    bg-indigo:
+      value: "#4f46e5"
+      use: "Data visualization"
+    bg-orange:
+      value: "#ff8a4c"
+      use: "Data visualization"
+
+# -------------------------------------------------------------
+# SEMANTIC TOKENS — BORDER
+# Naming: border-[role]-[modifier?]
+# -------------------------------------------------------------
+semantic_border:
+  base:
+    border-dark:
+      light: "#4b5563"
+      dark: "#4b5563"
+      use: "High-contrast borders for cards, inputs, buttons"
+    border-buffer:
+      light: "#ffffff"
+      dark: "#030712"
+      use: "Invisible border — same color as background (timeline icons)"
+    border-buffer-medium:
+      light: "#ffffff"
+      dark: "#111827"
+      use: "—"
+    border-buffer-strong:
+      light: "#ffffff"
+      dark: "#1f2937"
+      use: "—"
+    border-muted:
+      light: "#f9fafb"
+      dark: "#111827"
+      use: "Low-contrast — subtle dividers, avatar groups"
+    border-light-subtle:
+      light: "#f3f4f6"
+      dark: "#111827"
+      use: "—"
+    border-light:
+      light: "#f3f4f6"
+      dark: "#1f2937"
+      use: "Mid-contrast dividers, heading separators, list items"
+    border-light-medium:
+      light: "#f3f4f6"
+      dark: "#374151"
+      use: "—"
+    border-base-soft:
+      light: "#e5e7eb"
+      dark: "#111827"
+      use: "Clear visual separation — cards, buttons, avatars, inputs, timelines"
+    border-base:
+      light: "#e5e7eb"
+      dark: "#1f2937"
+      use: "MOST USED — cards, buttons, inputs, all default borders"
+    border-base-medium:
+      light: "#e5e7eb"
+      dark: "#374151"
+      use: "—"
+    border-base-strong:
+      light: "#e5e7eb"
+      dark: "#4b5563"
+      use: "—"
+    border-dark-subtle:
+      light: "#1f2937"
+      dark: "#374151"
+      use: "Dark consistent border in both modes"
+
+  states:
+    border-success-subtle:
+      light: "#a4f4cf"
+      dark: "#004f3b"
+      use: "Positive alerts, badges (subtle)"
+    border-success:
+      light: "#007a55"
+      dark: "#009966"
+      use: "Positive alerts, badges (strong)"
+    border-danger-subtle:
+      light: "#ffccd3"
+      dark: "#8b0836"
+      use: "Error alerts, badges (subtle)"
+    border-danger:
+      light: "#c70036"
+      dark: "#ec003f"
+      use: "Error alerts, badges (strong)"
+    border-warning-subtle:
+      light: "#fcd9bd"
+      dark: "#771d1d"
+      use: "Caution alerts, badges (subtle)"
+    border-warning:
+      light: "#d03801"
+      dark: "#ff5a1f"
+      use: "Caution alerts, badges (strong)"
+
+  brand:
+    border-brand-subtle:
+      light: "#fee3ff"
+      dark: "#3730a3"
+      use: "Brand alerts, badges (subtle)"
+    border-brand-light:
+      light: "#f98dff"
+      dark: "#5059bc"
+      use: "Brand border (medium)"
+    border-brand:
+      light: "#5059bc"
+      dark: "#5059bc"
+      use: "Brand border (primary)"
+
+  categorical:
+    border-purple:
+      value: "#a855f7"
+      use: "Data visualization charts/dashboards"
+    border-orange:
+      value: "#ff8a4c"
+      use: "Data visualization charts/dashboards"
+
+# -------------------------------------------------------------
+# SEMANTIC TOKENS — TEXT
+# Naming: text-fg-[role]-[modifier?]
+# Exception: text-white, text-black, text-heading, text-body, text-body-subtle (no -fg prefix)
+# RULE: Never use text-heading or text-body over colored backgrounds — use text-fg-* instead
+# -------------------------------------------------------------
+semantic_text:
+  neutral:
+    text-white:
+      light: "#ffffff"
+      dark: "#ffffff"
+      use: "White text — consistent both modes"
+    text-black:
+      light: "#111827"
+      dark: "#111827"
+      use: "Black text — consistent both modes"
+    text-heading:
+      light: "#111827"
+      dark: "#ffffff"
+      use: "Primary text: H1–H3, important CTA links"
+    text-body:
+      light: "#4b5563"
+      dark: "#9ca3af"
+      use: "Secondary text: paragraphs, helper text, secondary/tertiary buttons"
+    text-body-subtle:
+      light: "#6b7280"
+      dark: "#9ca3af"
+      use: "Low-hierarchy text: optional labels, helper text"
+
+  brand:
+    text-fg-brand-subtle:
+      light: "#fee3ff"
+      dark: "#fee3ff"
+      use: "Brand text visible on both light and dark backgrounds"
+    text-fg-brand:
+      light: "#5059bc"
+      dark: "#5059bc"
+      use: "Primary brand text: links, icons, brand-colored headings"
+    text-fg-brand-strong:
+      light: "#3730a3"
+      dark: "#a78bfa"
+      use: "Brand text inside alerts or badges with brand background"
+
+  states:
+    text-fg-success:
+      light: "#007a55"
+      dark: "#009966"
+      use: "Positive feedback, successful states, confirmations"
+    text-fg-success-strong:
+      light: "#004f3b"
+      dark: "#5ee9b5"
+      use: "Text inside success alert/badge"
+    text-fg-danger:
+      light: "#c70036"
+      dark: "#ff2056"
+      use: "Errors, critical states — requires immediate attention"
+    text-fg-danger-strong:
+      light: "#8b0836"
+      dark: "#ffa1ad"
+      use: "Text inside danger alert/badge"
+    text-fg-warning-subtle:
+      light: "#d03801"
+      dark: "#ff5a1f"
+      use: "Caution, neutral non-critical alerts"
+    text-fg-warning:
+      light: "#771d1d"
+      dark: "#fdba8c"
+      use: "Text inside warning alert/badge"
+    text-fg-yellow:
+      light: "#fdc700"
+      dark: "#fdc700"
+      use: "Rating stars, attention icons"
+    text-fg-info:
+      light: "#3730a3"
+      dark: "#f98dff"
+      use: "Neutral informational content: announcement banners"
+    text-fg-disabled:
+      light: "#9ca3af"
+      dark: "#4b5563"
+      use: "Non-interactive elements, read-only, disabled buttons/inputs"
+
+  categorical:
+    text-fg-purple:
+      light: "#9333ea"
+      dark: "#a855f7"
+      use: "Data visualization"
+    text-fg-cyan:
+      light: "#0092b8"
+      dark: "#00b8db"
+      use: "Data visualization"
+    text-fg-indigo:
+      light: "#4f46e5"
+      dark: "#6366f1"
+      use: "Data visualization"
+    text-fg-pink:
+      light: "#f98dff"
+      dark: "#f98dff"
+      use: "Data visualization"
+    text-fg-lime:
+      light: "#5ea500"
+      dark: "#7ccf00"
+      use: "Data visualization"
