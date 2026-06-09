@@ -7,7 +7,7 @@
 **Programa:** Becas (primer programa sobre el módulo genérico de Programas)
 **Módulos Django candidatos:** `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (roles/permisos)
 
-> ⚠️ **Borrador en construcción.** Última ronda: **requisitos nativos** (ya no vienen de SIS),
+> **Borrador en construcción.** Última ronda: **requisitos nativos** (ya no vienen de SIS),
 > **subsegmento**, **Coordinador** (= validador territorial), **control de incompatibilidades**,
 > regla **RENAPER/escaneo** y **catálogo oficial** de segmentos. **Permanencia/seguimiento y
 > estados extendidos → Versión 2.** Falta cerrar el **contrato técnico de SIS** y varios
@@ -47,16 +47,12 @@ Programa  (Becas)
 | **Programa** | Marco genérico. Becas es el primero; Ñachec es otro programa. | El **cupo** vive a nivel **Segmento** (no a nivel Programa). |
 | **Convocatoria** | Agrupador dentro del programa. Un programa tiene 1..N convocatorias. Al crearla se **selecciona un Segmento**. | — |
 | **Segmento** | Sub-modalidad de la beca (Producción Territorial/Fuego y Barro, Cultura/Mi Pequeño Artista, Futuro Joven, Comunidades Originarias/Mamá Ñachec, Redes de Fe, Deportes/Talento Deportivo, Vivienda/Casa Ñachec — ver §6.2). | Define **cupo propio** y sus **requisitos específicos NATIVOS** (configurables; **ya no vienen de SIS**). |
-| **Subsegmento** | Nivel **opcional configurable** dentro de un segmento (ej. **Ladrillo / Carbón** en Producción Territorial). | Configurable; puede tener requisitos propios. *(¿Cupo por subsegmento? — R-8.b.)* |
+| **Subsegmento** | Nivel **opcional configurable** dentro de un segmento (ej. **Ladrillo / Carbón** en Producción Territorial). | Configurable; puede tener requisitos propios. |
 | **Relevamiento** | Campaña de campo asignada a **un solo** territorial. Se **auto-nombra** "Relevamiento XXX". | Tiene territorial, fecha/plazo y zona/localidad. Reasignable. |
 | **Formulario** | Una persona relevada. N por relevamiento. | Campos: ver **§7.1** + requisitos generales (13 preguntas) y de segmento. |
 | **Persona / Legajo** | El ciudadano relevado. Se busca en `legajos`: si existe se relaciona, si no se crea. | El legajo se crea **al enviar** el formulario. Una persona puede estar en **N programas** a la vez. La relación legajo↔programa se visualiza mediante **solapas dinámicas**: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente mostrando el estado (aprobado, rechazado, con cupo, etc.). |
-| **Cupo** | Número de becas disponibles **por Segmento** (parametría: cantidad de segmentos + cupo por segmento). *(Antes era por Programa; reabierto por R-5.)* | Se ocupa **después** de validar con SIS, no al aprobar. |
+| **Cupo** | Número de becas disponibles **por Segmento** (parametría: cantidad de segmentos + cupo por segmento). | Se ocupa **después** de validar con SIS, no al aprobar. |
 | **Lista de espera** | Personas validadas-OK que no entraron por cupo lleno. | El admin promueve **a mano**. |
-
-📌 *Asunción pendiente:* la jerarquía (Programa → Convocatoria/**Segmento** → **Subsegmento** →
-Relevamiento → Formulario) se modela explícita; "Programa" es genérico aunque hoy se arranque solo con
-Becas. Ver detalle al final en **Sección 16.6**.
 
 ---
 
@@ -68,17 +64,15 @@ Becas. Ver detalle al final en **Sección 16.6**.
 | **Territorial** | Usuario del sistema con login propio. | Ve **solo sus** relevamientos y formularios. | Inicia el relevamiento del día asignado, carga formularios (1 por persona) en la app de campo, finaliza y envía todo junto. |
 | **Coordinador** (= validador territorial) | Rol **nuevo** (tercero). | Habilitado para validar a nivel territorial. | **Valida las postulaciones** (referentes/municipios/consorcios/autoridades operan bajo este rol) y **reprograma** relevamientos vencidos (RN-28). |
 
-Hay **tres roles**: Administrador, Territorial y **Coordinador**. ✅ *Cerrada 8.b:* el
-**"coordinador" = validador territorial** (rol nuevo); valida postulaciones y reprograma
-relevamientos vencidos. Ver **RN-36**.
+Hay **tres roles**: Administrador, Territorial y **Coordinador** (= validador territorial).
 
-📌 *Convivencia de perfiles (cerrada — pregunta 7):* un mismo usuario **sí puede tener los
-dos roles a la vez** (Admin de un programa + Territorial de otro). El acceso por
-módulo/programa depende de los roles asignados. Ver **RN-27**.
+**Convivencia de perfiles:** un mismo usuario **sí puede tener los dos roles a la vez**
+(Admin de un programa + Territorial de otro). El acceso por módulo/programa depende de los
+roles asignados. Ver **RN-27**.
 
-📌 *Impacto crítico:* el rol "Administrador de programa" es nuevo y se apoya en el
-esquema de permisos existente en `users`. Hay que revisar cómo Chaco maneja roles hoy
-para no inventar un esquema paralelo.
+**Nota de diseño:** el rol "Administrador de programa" es nuevo y se apoya en el esquema de
+permisos existente en `users`. Hay que revisar cómo Chaco maneja roles hoy para no inventar
+un esquema paralelo.
 
 ---
 
@@ -96,7 +90,7 @@ para no inventar un esquema paralelo.
    sus relevamientos** asignados y **solo puede iniciar el relevamiento del día**.
 3. **Carga (territorial).** Dentro del relevamiento carga **un formulario tras otro**
    (1 por persona). Al iniciar cada formulario, el sistema determina la **forma de
-   validar identidad** según conectividad (ver § 8.2 para detalle completo): puede
+   validar identidad** según conectividad (ver §8.2 para detalle completo): puede
    **escanear el DNI** (lectura directa del chip/código del documento), **validar con
    RENAPER** (ingreso manual de DNI + sexo), o **cargar manual** si no hay conexión. Luego
    completa lo que no autocompleta RENAPER/escaneo: **contacto, estudios, situación laboral,
@@ -140,10 +134,10 @@ Asignado → En curso → Finalizado → En revisión → Terminado
 | **En revisión** | El admin está revisando los formularios caso por caso. | Backoffice (el territorial ya no lo ve activo) |
 | **Terminado** | Revisión completa cerrada. | Backoffice |
 
-📌 *Reversibilidad (cerrada — preguntas 1 y 1.b):* el paso a **Finalizado es reversible**. El
-territorial puede **reabrir el operativo** (vuelve de `Finalizado` a `En curso`) **para sumar
-más personas**. Los **formularios ya enviados no se tocan**: conservan su estado (en revisión,
-aprobado, rechazado, validado). Al re-finalizar se **envían solo los nuevos**. Ver **RN-26**.
+**Reversibilidad:** el paso a **Finalizado es reversible**. El territorial puede **reabrir el
+operativo** (vuelve de `Finalizado` a `En curso`) **para sumar más personas**. Los
+**formularios ya enviados no se tocan**: conservan su estado (en revisión, aprobado,
+rechazado, validado). Al re-finalizar se **envían solo los nuevos**. Ver **RN-26**.
 
 ### Estado del Formulario / Persona
 
@@ -165,21 +159,20 @@ Enviado → Aprobado / Rechazado            (revisión del admin)
 | **Con cupo** | Ocupa una beca (había cupo disponible). |
 | **En lista de espera** | Validado-OK pero sin cupo disponible. |
 
-📌 *Nota de terminología:* el estado "Enviado" corresponde al "Pendiente de Validación" de RQ-001 (documento del equipo Ministerio). Ambos refieren al mismo momento: el formulario llegó al backoffice y está esperando revisión del admin.
+**Nota de terminología:** el estado "Enviado" corresponde al "Pendiente de Validación" de
+RQ-001 (documento del equipo Ministerio). Ambos refieren al mismo momento: el formulario
+llegó al backoffice y está esperando revisión del admin.
 
-📌 *Nota:* la validación SIS confirma identidad y hace el **control de incompatibilidades**
+**Nota:** la validación SIS confirma identidad y hace el **control de incompatibilidades**
 (OKA/negativa). Los **requisitos de elegibilidad** son **nativos** (configurables, §6.2): los
 valida **Nodo** (admin/coordinador); SIS solo hace las **incompatibilidades** (RN-33).
-
-📌 *Asunción pendiente:* "aprobar" (admin) y "ocupar cupo" (post-SIS) son dos cosas
-distintas. El detalle quedó consolidado al final en **Sección 16.6**.
 
 ---
 
 ## 6. Cupo, validación SIS y lista de espera
 
-- El **cupo es del Segmento** (no del relevamiento ni del programa global; reabierto por
-  R-5). El territorial releva **sin límite**.
+- El **cupo es del Segmento** (no del relevamiento ni del programa global). El territorial
+  releva **sin límite**.
 - El **consumo de cupo NO ocurre al aprobar**, sino tras la validación **SIS**:
   admin confirma (OKA en Nodo) → **se dispara automáticamente** la consulta a SIS
   (**síncrona**: el admin espera la respuesta) → si SIS responde **OKA** y hay cupo →
@@ -200,9 +193,13 @@ Admin abre formulario 1 → revisa → aprueba/rechaza → dispara validación S
   → ...
 ```
 
-📌 *El proceso es **estrictamente secuencial**: el admin no puede abrir/revisar otro formulario hasta que SIS responda al actual. Esto garantiza que el consumo de cupo es atómico y sin race conditions.*
+El proceso es **estrictamente secuencial**: el admin no puede abrir/revisar otro formulario
+hasta que SIS responda al actual. Esto garantiza que el consumo de cupo es atómico y sin
+race conditions.
 
-📌 **Botón manual de revalidación:** Además del disparo automático, el backoffice ofrece un botón **"Validar contra SIS"** disponible en la pantalla de revisión de formularios para casos de reintento (timeout, error de SIS, o necesidad de revalidación posterior).
+**Botón manual de revalidación:** además del disparo automático, el backoffice ofrece un
+botón **"Validar contra SIS"** disponible en la pantalla de revisión de formularios para
+casos de reintento (timeout, error de SIS, o necesidad de revalidación posterior).
 
 - Si el admin **rechaza** un formulario (en lugar de aprobar), **SÍ se envía a SIS** (ambos caminos —aprobar y rechazar— disparan validación SIS para verificar el estado en el sistema central).
 - **Lista de espera:** el admin **promueve a mano**. Al dar de baja a un beneficiario, el
@@ -213,26 +210,18 @@ Admin abre formulario 1 → revisa → aprueba/rechaza → dispara validación S
 ### 6.1 Hallazgos del documento del equipo Ministerio (URD RQ-002 — "Tablero de Aprobación N1")
 
 El equipo Ministerio entregó el documento **RQ-002** (Tablero de Aprobación de Primer Nivel e
-Integración SIS). **No resuelve el contrato técnico de SIS**, pero aporta encuadre y
-**revela contradicciones** que hay que reconciliar:
+Integración SIS). **No resuelve el contrato técnico de SIS**, pero aporta encuadre:
 
 **Aporta:**
 - **SIS = Sistema de Inclusión Social**, **segundo nivel de control**, recibe los datos
   aprobados vía **API REST** y hace su propio control intermedio.
-- Aparece un **tercer sistema nuevo: "Sistema de Ayudas Sociales"** (sistema madre de
+- Aparece un **tercer sistema: "Sistema de Ayudas Sociales"** (sistema madre de
   **liquidación**, nivel 3) que graba definitivamente para pagar el beneficio.
 - Cadena real de control: **Aprobación Nivel 1 (nuestro backoffice) → SIS (Nivel 2) →
   Ayudas Sociales (Nivel 3, liquidación)**.
 
 **NO responde (sigue pendiente):** qué se manda exactamente (sin contrato de campos/API)
-y qué devuelve SIS en detalle (estructura/campos). También queda pendiente definir la
-pregunta de cadena de 3 niveles para esta fase.
-
-**🔴 Contradicciones / huecos a reconciliar con el equipo Ministerio:**
-- **Disparo a SIS:** el doc dice "automático al aprobar" PERO su Pantalla 4 tiene botón
-  **"Enviar al SIS / Confirmar transferencia"** (manual), lo que contradice el flujo.
-- **Alcance:** RQ-002 es **genérico** ("beneficios sociales", "Asignación Social X", login
-  con Google/OAuth), parece de una **plataforma más amplia**, no específico de Becas.
+y qué devuelve SIS en detalle (estructura/campos).
 
 **Definiciones acordadas en esta ronda:**
 - SIS responde **OKA** = válido. Se espera confirmación o rechazo con motivo.
@@ -243,15 +232,9 @@ pregunta de cadena de 3 niveles para esta fase.
   **Supervisor/Operador** del RQ-002.
 - Con **OKA en SIS + OKA en Nodo**, el caso pasa a **liquidacion**.
 
-➡️ El detalle de preguntas derivadas de estas contradicciones está consolidado en
-**Sección 16.3 (preguntas 13 y 14)**.
-
-📌 *Pendiente SIS (sigue diferido):* hace falta el **contrato técnico de SIS**.
-Detalle de preguntas consolidado al final en **Sección 16.1 (S-1 a S-12)**.
-
 ---
 
-## 6.2 Segmentos, subsegmentos y requisitos de elegibilidad (relevado — actualizado)
+## 6.2 Segmentos, subsegmentos y requisitos de elegibilidad
 
 ### Segmento y subsegmento
 Un **Segmento** es una **sub-modalidad de la beca**; se **selecciona al crear la
@@ -268,14 +251,11 @@ convocatoria**. Un **Subsegmento** es un nivel **opcional** dentro del segmento.
 | Deportes / Talento Deportivo | — |
 | Vivienda / Casa Ñachec | — |
 
-📌 *Pendiente:* el segmento **"Solidaria"** (de la lista anterior) **no aparece** en el doc del
-Ministerio — confirmar si sigue (R-1.c). **¿Cupo por segmento o por subsegmento?** (R-8.b).
-
 ### Requisitos: ahora NATIVOS (cambio de definición)
-⚠️ **Cambio:** los **requisitos de segmento ya NO vienen de SIS.** Son **nativos** del
-sistema: se **agregan/configuran al configurar el segmento** (y subsegmento). Esto **anuló
-S-11** y resolvió R-3/R-4: los requisitos nativos los valida **Nodo** (admin/coordinador) y
-SIS solo hace el **control de incompatibilidades** (OKA/negativa).
+Los **requisitos de segmento ya NO vienen de SIS.** Son **nativos** del sistema: se
+**agregan/configuran al configurar el segmento** (y subsegmento). Los requisitos nativos los
+valida **Nodo** (admin/coordinador); SIS solo hace el **control de incompatibilidades**
+(OKA/negativa).
 
 | Tipo | Configuración | Visibilidad |
 |---|---|---|
@@ -294,24 +274,20 @@ SIS solo hace el **control de incompatibilidades** (OKA/negativa).
   incompatibles, relación de dependencia, ingresos > 3 SMVM y otras que defina la autoridad.
   Una **negativa de SIS = incompatibilidad detectada** (con motivo); sin OKA no ocupa cupo.
 - **Asignación** por segmento/subsegmento, localidad, referente y estado administrativo.
-- *(Seguimiento administrativo y estados extendidos → **Versión 2**, ver §11.1.)*
+- *(Seguimiento administrativo y estados extendidos → Versión 2, ver §11.1.)*
 
-📌 *Regla de carga (RENAPER/escaneo) — RN-37:* los datos que provee **RENAPER o el escaneo de
+**Regla de carga (RENAPER/escaneo) — RN-37:** los datos que provee **RENAPER o el escaneo de
 DNI** (apellido, nombre, fecha de nacimiento, CUIL, sexo, domicilio) **no se preguntan** —
 vienen autocompletados. **Solo se cargan a mano si no hay conexión.**
 
 ### Cupo por segmento
 El **cupo se configura por segmento** (parametría: cantidad de segmentos + cupo por segmento;
-RN-01/34). El consumo (post doble-OKA) descuenta del **cupo del segmento**. *(¿Cupo por
-subsegmento? — R-8.b.)*
+RN-01/34). El consumo (post doble-OKA) descuenta del **cupo del segmento**.
 
-➡️ Detalle de **requisitos por segmento** y el **Cuestionario social (13 preguntas)** en el
-**Anexo §6.3**. Pendientes finos en **§16.7**.
+Detalle de **requisitos por segmento** y el **Cuestionario social (13 preguntas)** en el
+**Anexo §6.3**.
 
-## 6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio, sin procesar)
-
-> Material crudo enviado por el Ministerio. Pendiente confirmar obligatoriedades (R-11) y
-> aplicar la regla RENAPER/escaneo (lo autocompletado no se pregunta).
+## 6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio)
 
 - **Producción Territorial / Fuego y Barro** (subsegmentos **Ladrillo / Carbón**): actividad
   productiva actual/reciente, lugar de trabajo/producción, **fotos del lugar**, **GPS**,
@@ -331,13 +307,13 @@ subsegmento? — R-8.b.)*
   intervención, **fotos del estado actual**, validación, acreditación del destino. Destino:
   reparaciones/mejoras habitacionales. *Permanencia (V2).*
 
-📌 **Menores de edad:** los segmentos con menores exigen **adulto responsable, autorización y
+**Menores de edad:** los segmentos con menores exigen **adulto responsable, autorización y
 documentación respaldatoria** (alinea con RN-22 / Bloque D del formulario).
 
 ### Cuestionario de Relevamiento Social (13 preguntas) = REQUISITOS GENERALES (todos los segmentos)
-✅ **Confirmado:** estas 13 preguntas **son los requisitos generales** — las **preguntas que
-responde todo beneficiario** en el formulario (sección general, compartida por todas las
-convocatorias y segmentos). Cierra R-12 y R-9.
+Estas 13 preguntas **son los requisitos generales** — las **preguntas que responde todo
+beneficiario** en el formulario (sección general, compartida por todas las convocatorias y
+segmentos).
 
 1. Tenencia de la vivienda (propia + acreditación: Escritura/RUBH/RENABAP/Boleto).
 2. Servicios básicos (luz; agua: red/pozo).
@@ -369,9 +345,12 @@ convocatorias y segmentos). Cierra R-12 y R-9.
 
 ## 7.1. Campos del formulario (borrador preliminar según RQ-001)
 
-Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios). Pendiente confirmación con Guido sobre campos adicionales específicos de Becas (ver pregunta 2 en § 16.2).
+Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios).
 
-📌 *Regla de carga (RN-37):* los campos del **Bloque A** (salvo Estado Civil) y el **Bloque B** los **autocompleta RENAPER/escaneo** → **no se preguntan**; solo se cargan a mano **sin conexión**. Del **Registro único** se suman: **estudios**, **situación laboral** y **geolocalización GPS** (según segmento).
+**Regla de carga (RN-37):** los campos del **Bloque A** (salvo Estado Civil) y el **Bloque B**
+los **autocompleta RENAPER/escaneo** → **no se preguntan**; solo se cargan a mano **sin
+conexión**. Del **Registro único** se suman: **estudios**, **situación laboral** y
+**geolocalización GPS** (según segmento).
 
 ### Bloque A — Datos Personales (precargados por escaneo/RENAPER, editables)
 
@@ -424,7 +403,8 @@ Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios
 | Comprobante de CBU | Opcional | Adjuntar archivo o foto |
 | Documentación específica del segmento (fotos del lugar, evidencias, etc.) | Según segmento | **Imágenes capturadas en el formulario** / adjuntar |
 
-📌 Algunos adjuntos por segmento son **imágenes que se capturan dentro del formulario** (fotos del lugar de producción, estado de la vivienda, evidencias artísticas/deportivas). Obligatoriedades por segmento a confirmar (R-11).
+Algunos adjuntos por segmento son **imágenes que se capturan dentro del formulario** (fotos
+del lugar de producción, estado de la vivienda, evidencias artísticas/deportivas).
 
 ---
 
@@ -432,14 +412,14 @@ Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios
 
 | Integración | Rol en el flujo | Estado del relevamiento |
 |---|---|---|
-| **Sistema SIS** | **Dos roles:** (1) al pedir el OKA, **valida a la persona** y hace el **control de incompatibilidades** → devuelve **OKA / negativa**; (2) su **OKA habilita ocupar cupo**. *(Los requisitos de elegibilidad son **nativos**, NO los provee SIS.)* | 🔻 En análisis (contrato técnico pendiente). |
-| **RENAPER** | Valida la identidad (DNI + sexo) **al cargar** cada persona en campo. | ✅ **Relevada y probada** (reusa integración existente). |
-| **App de campo** | App **propia** (la desarrollamos nosotros). Funciona **online/offline**, sincroniza al recuperar señal; al finalizar offline confirma tras sync. | ✅ **Relevada** (alcance propio). |
+| **Sistema SIS** | **Dos roles:** (1) al pedir el OKA, **valida a la persona** y hace el **control de incompatibilidades** → devuelve **OKA / negativa**; (2) su **OKA habilita ocupar cupo**. *(Los requisitos de elegibilidad son **nativos**, NO los provee SIS.)* | En análisis (contrato técnico pendiente). |
+| **RENAPER** | Valida la identidad (DNI + sexo) **al cargar** cada persona en campo. | **Relevada y probada** (reusa integración existente). |
+| **App de campo** | App **propia** (la desarrollamos nosotros). Funciona **online/offline**, sincroniza al recuperar señal; al finalizar offline confirma tras sync. | **Relevada** (alcance propio). |
 
-📌 *Impacto crítico:* offline + envío en lote + validación RENAPER en campo es alcance
-grande y depende de las 3 integraciones.
+**Impacto crítico:** offline + envío en lote + validación RENAPER en campo es alcance grande
+y depende de las 3 integraciones.
 
-### 8.0 RENAPER — integración relevada (✅ cerrada)
+### 8.0 RENAPER — integración relevada (cerrada)
 
 **Reusa la integración existente** de Chaco (no es nueva). Vive en
 `legajos/services/consulta_renaper.py` (`consultar_datos_renaper(dni, sexo)` y el cliente
@@ -456,12 +436,8 @@ credenciales por variables de entorno).
 | **Si RENAPER no responde / falla** | El sistema **permite cargar el formulario de forma manual** y marca el registro como **"No validado RENAPER"**. Ese registro queda visible en el backoffice para que el admin **lo valide en ese momento** (posteriormente). |
 | **Quién la consume** | **Ya existe** en Chaco; se **reusa** el servicio. No se desarrolla de cero. |
 
-📌 *Regla nueva (RN):* sin respuesta de RENAPER, el formulario se carga manual y queda
-**"No validado RENAPER"** → el backoffice debe ofrecer **validar a posteriori**.
-
-📌 *Asunción a confirmar:* la app de campo (externa) consume **la misma API** que el
-backoffice o un endpoint equivalente; la validación posterior en backoffice usa el mismo
-`consultar_datos_renaper`.
+**Regla:** sin respuesta de RENAPER, el formulario se carga manual y queda **"No validado
+RENAPER"** → el backoffice debe ofrecer **validar a posteriori**.
 
 **Ejemplo de respuesta real (DNI de prueba 40732138, sexo M) — para mostrar al equipo Ministerio:**
 
@@ -501,13 +477,12 @@ El relevamiento de SIS sigue parcialmente abierto: ya se acordaron reglas de dec
 (OKA/RECHAZO, doble OKA para cupo, manejo de timeout), pero falta cerrar contrato
 técnico y alcance completo de cadena.
 
-**Estado SIS:** 🟠 **Parcialmente definido** (con pendientes técnicos).
-➡️ Las preguntas concretas (S-1…S-12) están consolidadas al final, en
-**[16. Preguntas pendientes](#16-preguntas-pendientes-consolidado)**.
+**Estado SIS:** Parcialmente definido (con pendientes técnicos). Las preguntas concretas
+(S-1…S-12) están consolidadas al final, en la **Sección 16**.
 
 ---
 
-### 8.2 App de campo — integración relevada (✅ cerrada)
+### 8.2 App de campo — integración relevada (cerrada)
 
 | Punto | Definición |
 |---|---|
@@ -543,18 +518,22 @@ Al iniciar un formulario, el sistema determina el camino según conectividad y e
 | RENAPER no responde (con conexión) | Opción B fallida → carga manual | **No validado RENAPER** | Sí — backoffice debe revalidar (RN-16) |
 | Sin conexión | Automático → carga manual | **No validado RENAPER** | Sí — backoffice debe revalidar (RN-16) |
 
-📌 *Regla crítica:* el **escaneo DNI NO consulta RENAPER** porque lee los datos directamente del chip/código del documento físico que tiene el territorial en la mano. Esto le da el mismo nivel de confianza (o mayor) que la validación remota con RENAPER.
+**Regla crítica:** el **escaneo DNI NO consulta RENAPER** porque lee los datos directamente
+del chip/código del documento físico que tiene el territorial en la mano. Esto le da el mismo
+nivel de confianza (o mayor) que la validación remota con RENAPER.
 
-📌 *Regla:* "No validado RENAPER" tiene **dos orígenes posibles**: sin conexión (offline) o RENAPER caído con conexión. En ambos casos el tratamiento posterior es idéntico: el backoffice debe permitir revalidar (RN-16).
+**Regla:** "No validado RENAPER" tiene **dos orígenes posibles**: sin conexión (offline) o
+RENAPER caído con conexión. En ambos casos el tratamiento posterior es idéntico: el backoffice
+debe permitir revalidar (RN-16).
 
-📌 *Regla nueva (RN-15):* "Finalizado" del relevamiento es un estado **diferido a la
-sincronización**: si se finaliza offline, el relevamiento muestra **"Sincronizando..."** en
-la app (estado local) y solo aparece en el backoffice con estado `Finalizado` cuando
-**todo** se sincronizó. El admin no ve el relevamiento antes de la sincronización completa.
+**Regla (RN-15):** "Finalizado" del relevamiento es un estado **diferido a la sincronización**:
+si se finaliza offline, el relevamiento muestra **"Sincronizando..."** en la app (estado local)
+y solo aparece en el backoffice con estado `Finalizado` cuando **todo** se sincronizó. El admin
+no ve el relevamiento antes de la sincronización completa.
 
-📌 *Impacto crítico:* hay **dos momentos de validación RENAPER** — (1) en campo si hay
-señal; (2) en backoffice (revalidación) para los marcados "No validado RENAPER". El
-backoffice debe exponer esa acción de revalidar.
+**Impacto crítico:** hay **dos momentos de validación RENAPER** — (1) en campo si hay señal;
+(2) en backoffice (revalidación) para los marcados "No validado RENAPER". El backoffice debe
+exponer esa acción de revalidar.
 
 ---
 
@@ -562,7 +541,7 @@ backoffice debe exponer esa acción de revalidar.
 
 | ID | Regla |
 |---|---|
-| RN-01 | El cupo es **por Segmento** (parametría: cantidad de segmentos + cupo por segmento); el territorial releva sin límite. *(Antes por Programa; reabierto por R-5.)* |
+| RN-01 | El cupo es **por Segmento** (parametría: cantidad de segmentos + cupo por segmento); el territorial releva sin límite. |
 | RN-02 | El cupo se consume **solo** tras SIS = OK y si hay disponibilidad. |
 | RN-03 | Sin cupo disponible, la persona validada-OK va a **lista de espera**. |
 | RN-04 | La salida de lista de espera es **manual** (admin promueve). |
@@ -590,7 +569,7 @@ backoffice debe exponer esa acción de revalidar.
 | RN-26 | **Finalizar un relevamiento es reversible:** el territorial puede **reabrir el operativo** finalizado **para sumar más personas**. Los **formularios ya enviados no se modifican** (conservan estado/revisión/SIS); al re-finalizar se **envían solo los nuevos**. |
 | RN-27 | Un usuario **puede tener múltiples roles a la vez** (ej. **Administrador** de un programa y **Territorial** de otro). El acceso por módulo/programa depende de los roles asignados. |
 | RN-28 | El relevamiento que **no se inicia el día asignado vence** y el **Coordinador lo reprograma** (nueva fecha). |
-| RN-29 | El admin **puede editar los datos del formulario** desde el backoffice **antes de aprobar/rechazar**. *(Traza y campos no editables: pendiente — ver 16.2-bis #9.b.)* |
+| RN-29 | El admin **puede editar los datos del formulario** desde el backoffice **antes de aprobar/rechazar**. |
 | RN-30 | Un **Segmento** es una sub-modalidad de la beca. La **convocatoria** apunta a un segmento (se selecciona al crearla). |
 | RN-31 | **Requisitos generales:** preguntas **configurables** desde Configuración del programa, **compartidas por todas las convocatorias**; son el **Cuestionario social de 13 preguntas** (§6.3) y **se responden en el formulario**. |
 | RN-32 | **Requisitos de segmento/subsegmento:** son **nativos** del sistema, **configurables** al configurar el segmento (ya **no vienen de SIS**); se muestran **informativos** al territorial al completar el formulario. |
@@ -616,9 +595,6 @@ backoffice debe exponer esa acción de revalidar.
 - **Integraciones externas:** SIS, RENAPER, App de campo (API).
 - **Módulo Programas (`apps/programas`):** base genérica donde se apoya Becas.
 
-📌 *Pendiente de investigación de código* (al cerrar el interrogatorio): confirmar qué
-ofrecen hoy `apps/programas`, `apps/legajos`, `apps/ciudadanos` y `users` para no duplicar.
-
 ---
 ## Diagrama de Flujo
 <iframe width="768" height="640" src="https://miro.com/app/live-embed/uXjVJzk5lbQ=/?focusWidget=3458764674758430959&embedMode=view_only_without_ui&embedId=49042054955" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
@@ -642,28 +618,24 @@ ofrecen hoy `apps/programas`, `apps/legajos`, `apps/ciudadanos` y `users` para n
 
 ## 12. Preguntas abiertas
 
-➡️ **Todas las preguntas pendientes están consolidadas al final del documento**, en
-**[16. Preguntas pendientes](#16-preguntas-pendientes-consolidado)** (equipo Ministerio, técnicas y
-de equipo, con su estado).
+Todas las preguntas pendientes están consolidadas al final del documento, en la
+**Sección 16** (equipo Ministerio, técnicas y de equipo, con su estado).
 
 ---
 
 ## 13. Asunciones a confirmar
 
-➡️ **Asunciones y dudas pendientes** consolidadas al final en
-**[16.6 Asunciones pendientes de confirmación](#166-asunciones-pendientes-de-confirmacion)**.
+Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 
 ---
 
 ## 14. Próximos pasos
 
-1. **Sistema SIS** — cerrar S-1, S-2, S-4, S-5 y **S-12** (¿quién evalúa los requisitos
-   nativos: Nodo y/o SIS?).
-2. **Segmentos / requisitos** — confirmar **"Solidaria"** (R-1.c) y cupo por subsegmento (R-8.b).
-3. **Flujo funcional** — ✅ cerrado (reapertura 1.b resuelta). No quedan pendientes funcionales
-   nuestros; el resto depende del **contrato de SIS** (paso 1).
+1. **Sistema SIS** — cerrar S-1, S-2, S-4, S-5 y S-12 (contrato técnico del control de incompatibilidades).
+2. **Segmentos / requisitos** — confirmar "Solidaria" (R-1.c), cupo por subsegmento (R-8.b) y si los requisitos/documentación son campos del formulario o informativos (R-13).
+3. **Flujo funcional** — cerrado (reapertura 1.b resuelta). No quedan pendientes funcionales nuestros; el resto depende del **contrato de SIS** (paso 1).
 4. **Investigación de código** — completar C-1 (revisar módulos existentes).
-5. **Control estricto** — cerrar todas las preguntas 🔴 bloqueantes y verificar consistencia.
+5. **Control estricto** — cerrar todas las preguntas bloqueantes y verificar consistencia.
 6. **Generación en GitHub** — épica → análisis → sub-issues (recién con todo cerrado).
 
 ---
@@ -672,73 +644,72 @@ de equipo, con su estado).
 
 > **Todas las preguntas abiertas del análisis, juntas y al final.** Mientras existan
 > pendientes **bloqueantes**, NO se generan issues (control estricto de `AGENTS.md`).
-> Estado de cada una: 🔴 bloqueante · 🟡 no bloqueante · ⏸️ diferida.
+> Estado de cada una: Bloqueante · No bloq. · Diferida · Cerrada · Pendiente.
 
 ### 16.1 Sistema SIS (pendientes y diferida)
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| S-1 | **Contrato de API.** ¿SIS expone una API REST? ¿Endpoint, autenticación, ambiente de prueba? ¿Es síncrono o asíncrono? | Equipo Ministerio/ICORE | 🔴 |
-| S-2 | **Datos de entrada.** ¿Qué campos se le envían por persona? (DNI/CUIL, datos del beneficio, id de programa, adjuntos) | Equipo Ministerio/ICORE | 🔴 |
-| S-4 | **Datos de salida.** ¿Qué devuelve exactamente? (OK/NO, código, motivo de rechazo, datos) | Equipo Ministerio/ICORE | 🔴 |
-| S-5 | **Rechazo de SIS.** Si responde NO, ¿la persona queda fuera o el admin corrige y reenvía? | Equipo Ministerio | 🔴 |
-| S-8 | **Cadena de 3 niveles.** ¿Becas llega hasta "ocupa cupo" o también hasta Ayudas Sociales / Liquidado (nivel 3)? | Equipo Ministerio | ⏸️ |
-| S-11 | ~~Requisitos por segmento desde SIS~~ — **ANULADA:** los requisitos son **nativos**, no vienen de SIS (cambio de definición). | — | ✅ |
-| S-12 | **Contrato SIS (incompatibilidades).** Ya está claro que SIS = **control de incompatibilidades** (OKA/negativa). Falta el **detalle técnico**: qué campos se le envían y qué devuelve exactamente (se solapa con S-2/S-4). | Equipo Ministerio/ICORE | 🔴 |
+| S-1 | **Contrato de API.** ¿SIS expone una API REST? ¿Endpoint, autenticación, ambiente de prueba? ¿Es síncrono o asíncrono? | Equipo Ministerio/ICORE | Bloqueante |
+| S-2 | **Datos de entrada.** ¿Qué campos se le envían por persona? (DNI/CUIL, datos del beneficio, id de programa, adjuntos) | Equipo Ministerio/ICORE | Bloqueante |
+| S-4 | **Datos de salida.** ¿Qué devuelve exactamente? (OK/NO, código, motivo de rechazo, datos) | Equipo Ministerio/ICORE | Bloqueante |
+| S-5 | **Rechazo de SIS.** Si responde NO, ¿la persona queda fuera o el admin corrige y reenvía? | Equipo Ministerio | Bloqueante |
+| S-8 | **Cadena de 3 niveles.** ¿Becas llega hasta "ocupa cupo" o también hasta Ayudas Sociales / Liquidado (nivel 3)? | Equipo Ministerio | Diferida |
+| S-11 | ~~Requisitos por segmento desde SIS~~ — **ANULADA:** los requisitos son **nativos**, no vienen de SIS (cambio de definición). | — | Cerrada |
+| S-12 | **Contrato SIS (incompatibilidades).** Ya está claro que SIS = **control de incompatibilidades** (OKA/negativa). Falta el **detalle técnico**: qué campos se le envían y qué devuelve exactamente (se solapa con S-2/S-4). | Equipo Ministerio/ICORE | Bloqueante |
 
 ### 16.2 Formulario y reglas de negocio
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| 2 | **Campos exactos del formulario.** RQ-001 define una base: Bloque A (DNI, Apellido, Nombre, Sexo, Estado Civil, Fecha de Nacimiento), Bloque B (Domicilio: Provincia, Localidad, Calle, Número, Piso, Departamento, Barrio), Bloque C (Celular, Mail — manual obligatorio), Bloque D (Apoderado — condicional menor de edad), Adjuntos ampliados (ver §7.1: DNI, cert. domicilio, CUIL, constancia de estudios y convenio **obligatorios**; CBU opcional; + docs por segmento). **Pendiente confirmar con Guido** si hay campos adicionales para Becas. | Guido (Equipo Ministerio) | 🟡 |
+| 2 | **Campos exactos del formulario.** RQ-001 define una base: Bloque A (DNI, Apellido, Nombre, Sexo, Estado Civil, Fecha de Nacimiento), Bloque B (Domicilio: Provincia, Localidad, Calle, Número, Piso, Departamento, Barrio), Bloque C (Celular, Mail — manual obligatorio), Bloque D (Apoderado — condicional menor de edad), Adjuntos ampliados (ver §7.1: DNI, cert. domicilio, CUIL, constancia de estudios y convenio **obligatorios**; CBU opcional; + docs por segmento). **Pendiente confirmar con Guido** si hay campos adicionales para Becas. | Guido (Equipo Ministerio) | No bloq. |
 
-📌 **Preguntas cerradas en esta sección:**
-- **Pregunta 3 (Cupo):** ⚠️ **Reabierta y reemplazada por R-5.** El cupo **ya no es único por programa**: ahora es **por segmento** (parametría: cantidad de segmentos + cupo por segmento). Ver §6.2 y RN-01/34.
+**Preguntas cerradas en esta sección:**
+- **Pregunta 3 (Cupo):** Reabierta y reemplazada por R-5. El cupo **ya no es único por programa**: ahora es **por segmento** (parametría: cantidad de segmentos + cupo por segmento). Ver §6.2 y RN-01/34.
 - **Pregunta 10 (Legajo rechazado):** Cerrada. El legajo usa solapas dinámicas: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente; si está rechazado en Becas, la solapa se habilita y muestra el estado "Rechazado".
 - **Pregunta 1 (Reversibilidad del relevamiento):** Cerrada. Finalizar **es reversible**: el territorial **reabre el operativo para sumar más personas**; los formularios ya enviados no se tocan (1.b también cerrada). Ver RN-26.
 - **Pregunta 7 (Doble rol):** Cerrada. Un usuario **sí puede tener los dos roles** simultáneamente (Admin de un programa y Territorial de otro). Ver RN-27.
 - **Pregunta 8 (Relevamiento del día no iniciado):** Cerrada. Si no se inicia el día asignado, **vence** y el **Coordinador lo reprograma** (RN-28). El coordinador = validador territorial, tercer rol (8.b cerrada).
 - **Pregunta 9 (Admin edita formulario):** Cerrada. El admin **sí puede editar los datos del formulario desde el backoffice** antes de aprobar (ver RN-29).
 
-### 16.2-bis Sub-preguntas derivadas de esta ronda (nuevas)
+### 16.2-bis Sub-preguntas derivadas
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| 1.b | ✅ **Cerrada:** reabrir el relevamiento es **para sumar más personas**. Los formularios **ya enviados no se tocan** (conservan estado/revisión/SIS); al re-finalizar se envían **solo los nuevos** (RN-26). | — | ✅ |
-| 8.b | ✅ **Cerrada:** el **"coordinador" = validador territorial**, rol **nuevo (tercero)**; valida postulaciones y reprograma relevamientos vencidos (RN-36, §3). | — | ✅ |
-| 9.b | Cuando el admin **edita** el formulario antes de aprobar: ¿queda **traza** (quién/cuándo/valor anterior)? ¿Hay campos no editables (ej. DNI validado por RENAPER/escaneo)? | Equipo Ministerio | 🟡 |
+| 1.b | Cerrada: reabrir el relevamiento es **para sumar más personas**. Los formularios **ya enviados no se tocan** (conservan estado/revisión/SIS); al re-finalizar se envían **solo los nuevos** (RN-26). | — | Cerrada |
+| 8.b | Cerrada: el **"coordinador" = validador territorial**, rol **nuevo (tercero)**; valida postulaciones y reprograma relevamientos vencidos (RN-36, §3). | — | Cerrada |
+| 9.b | Cuando el admin **edita** el formulario antes de aprobar: ¿queda **traza** (quién/cuándo/valor anterior)? ¿Hay campos no editables (ej. DNI validado por RENAPER/escaneo)? | Equipo Ministerio | No bloq. |
 
 ### 16.3 RQ-002 / cadena de aprobación
 
 | # | Pregunta | Para | Estado |
 |---|---|---|:--:|
-| 13 | **Sistema de Ayudas Sociales (nivel 3):** ¿dentro del alcance de Becas o es otro requerimiento? | Equipo Ministerio | 🔴 |
-| 14 | **Contrato técnico de SIS:** endpoint/API, campos, qué valida, qué devuelve, manejo de rechazo y caída. (= S-1, S-2, S-4, S-5, S-12) | Equipo Ministerio/ICORE | 🔴 |
+| 13 | **Sistema de Ayudas Sociales (nivel 3):** ¿dentro del alcance de Becas o es otro requerimiento? | Equipo Ministerio | Bloqueante |
+| 14 | **Contrato técnico de SIS:** endpoint/API, campos, qué valida, qué devuelve, manejo de rechazo y caída. (= S-1, S-2, S-4, S-5, S-12) | Equipo Ministerio/ICORE | Bloqueante |
 
-📌 **Preguntas cerradas en esta sección:**
-- **Pregunta 12 (Cadena de control):** Cerrada. El cupo se decide en **Becas (nivel 1)**, no en sistemas posteriores. La cadena completa (Nodo → SIS nivel 2 → Ayudas Sociales nivel 3) se revisará hoy con el equipo Ministerio para definir alcance exacto.
+**Preguntas cerradas en esta sección:**
+- **Pregunta 12 (Cadena de control):** Cerrada. El cupo se decide en **Becas (nivel 1)**, no en sistemas posteriores.
 - **Pregunta 15 (Disparo a SIS):** Cerrada. El sistema implementa **ambas opciones**: (1) disparo automático y síncrono al aprobar/rechazar (el admin espera respuesta antes de continuar), y (2) botón manual "Validar contra SIS" disponible en Nodo para reintentos o validaciones posteriores.
 
 ### 16.4 Investigación de código pendiente (responsabilidad de ICORE)
 
 | # | Tarea | Estado |
 |---|---|:--:|
-| C-1 | Revisar duplicidad real en `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (qué existe hoy). | ⏳ |
+| C-1 | Revisar duplicidad real en `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (qué existe hoy). | Pendiente |
 
 ### 16.5 Resumen del control estricto
 
-- **No se generan issues** mientras haya 🔴 sin cerrar: **SIS** (S-1/2/4/5/12, 13, 14). *(Único
-  bloque pendiente: el **contrato técnico de SIS**, depende del equipo Ministerio/ICORE.)*
-- Las 🟡 se pueden **asumir** y documentar como *Asunción a confirmar* sin frenar.
+- **No se generan issues** mientras haya bloqueantes sin cerrar: **SIS** (S-1, S-2, S-4, S-5, S-12, 13, 14). Único bloque pendiente: el **contrato técnico de SIS**, depende del equipo Ministerio/ICORE.
+- Las **No bloq.** se pueden asumir y documentar como *Asunción a confirmar* sin frenar.
 - Falta cerrar la **investigación de código** (C-1) antes de generar.
 
 ### 16.7 Requisitos de elegibilidad (general / segmento)
 
-📌 **Cerradas en esta ronda** (detalle en §6.2):
+**Cerradas en esta ronda** (detalle en §6.2):
 - **R-1 (qué es segmento):** sub-modalidad de la beca; se selecciona al crear la
   convocatoria. Catálogo oficial: **7 segmentos + subsegmentos** (ver §6.2).
 - **R-2 (requisitos generales):** preguntas compartidas por todas las convocatorias.
-- **R-3 (requisitos de segmento):** ⚠️ **CAMBIADA** — ya **no vienen de SIS**; son **nativos**
+- **R-3 (requisitos de segmento):** CAMBIADA — ya **no vienen de SIS**; son **nativos**
   y **configurables** al configurar el segmento/subsegmento (RN-32).
 - **R-4 (quién/cuándo evalúa):** Cerrada — **Nodo valida los requisitos nativos**
   (admin/coordinador en la revisión) y **SIS hace el control de incompatibilidades**
@@ -757,17 +728,18 @@ de equipo, con su estado).
 
 | # | Pregunta abierta | Para | Estado |
 |---|---|---|:--:|
-| R-1.c | El segmento **"Solidaria"** no figura en el doc del Ministerio. ¿Sigue existiendo? | Equipo Ministerio | 🟡 |
-| R-6 | **Asignación persona↔segmento:** ¿queda determinado por la convocatoria (implícito) o se asigna por persona? ¿Puede una persona estar en más de un segmento? | Equipo Ministerio | 🟡 |
-| R-8 | **Cardinalidad convocatoria↔segmento:** ¿una convocatoria apunta a **un solo** segmento o puede tener **varios**? | Equipo Ministerio | 🟡 |
-| R-8.b | **¿Cupo por segmento o por subsegmento?** (ej. Ladrillo/Carbón) | Equipo Ministerio | 🟡 |
-| R-11 | **Documentación/adjuntos:** confirmar obligatoriedades por segmento y cuáles son **imágenes cargadas en el formulario**. | Equipo Ministerio | 🟡 |
+| R-1.c | El segmento **"Solidaria"** no figura en el doc del Ministerio. ¿Sigue existiendo? | Equipo Ministerio | No bloq. |
+| R-6 | **Asignación persona↔segmento:** ¿queda determinado por la convocatoria (implícito) o se asigna por persona? ¿Puede una persona estar en más de un segmento? | Equipo Ministerio | No bloq. |
+| R-8 | **Cardinalidad convocatoria↔segmento:** ¿una convocatoria apunta a **un solo** segmento o puede tener **varios**? | Equipo Ministerio | No bloq. |
+| R-8.b | **¿Cupo por segmento o por subsegmento?** (ej. Ladrillo/Carbón) | Equipo Ministerio | No bloq. |
+| R-11 | **Documentación/adjuntos:** confirmar obligatoriedades por segmento y cuáles son **imágenes cargadas en el formulario**. | Equipo Ministerio | No bloq. |
+| R-13 | **Requisitos y documentación como campos vs informativo:** los requisitos configurables y la documentación (certificado de domicilio, CUIL, constancia de estudios, convenio de confidencialidad) ¿aparecen como **campos del formulario** o son solo **a modo informativo**? | Equipo Ministerio | Por definir |
 
 ### 16.6 Asunciones pendientes de confirmación
 
 | # | Asunción / duda | Estado |
 |---|---|:--:|
-| A-1 | Jerarquía explícita Programa → Convocatoria/**Segmento** → **Subsegmento** → Relevamiento → Formulario; "Programa" se modela genérico aunque hoy solo se use Becas. | 🟡 |
-| A-2 | "Aprobar" en backoffice y "ocupar cupo" son pasos distintos (el cupo se decide después de SIS). | 🟡 |
-| A-3 | RENAPER en campo usa la misma API (o equivalente) que backoffice para validar identidad. | 🟡 |
-| A-4 | Una persona rechazada por admin conserva legajo creado (sin reproceso en el sistema). | 🟡 |
+| A-1 | Jerarquía explícita Programa → Convocatoria/**Segmento** → **Subsegmento** → Relevamiento → Formulario; "Programa" se modela genérico aunque hoy solo se use Becas. | No bloq. |
+| A-2 | "Aprobar" en backoffice y "ocupar cupo" son pasos distintos (el cupo se decide después de SIS). | No bloq. |
+| A-3 | RENAPER en campo usa la misma API (o equivalente) que backoffice para validar identidad. | No bloq. |
+| A-4 | Una persona rechazada por admin conserva legajo creado (sin reproceso en el sistema). | No bloq. |
