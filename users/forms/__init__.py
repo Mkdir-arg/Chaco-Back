@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth.models import Group, User
 
+from core import rbac
+
 
 def _normalize_groups_data(data):
     """
@@ -48,8 +50,16 @@ def _normalize_groups_args(args, kwargs):
 
 
 def _roles_asignables_queryset():
-    """Roles asignables: solo los activos (un rol inactivo no es asignable)."""
-    return Group.objects.filter(meta__activo=True).order_by("name")
+    """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
+
+    El marcador ``Ciudadanos`` (identidad del portal) no es un rol de backoffice:
+    asignárselo a un operador lo expulsaría al portal y rompería su sesión.
+    """
+    return (
+        Group.objects.filter(meta__activo=True)
+        .exclude(meta__categoria=rbac.CATEGORIA_PORTAL)
+        .order_by("name")
+    )
 
 
 class UserCreationForm(forms.ModelForm):

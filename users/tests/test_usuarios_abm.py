@@ -4,7 +4,7 @@ from django.test import Client, TestCase
 from django.urls import NoReverseMatch, reverse
 
 from core import rbac
-from users.forms import CustomUserChangeForm
+from users.forms import CustomUserChangeForm, UserCreationForm
 from users.models import Capacidad, RolMeta
 from users.services.admin import UsuariosAdminService
 
@@ -38,6 +38,18 @@ class UsuarioAccesoTests(TestCase):
     def test_no_existe_borrado_fisico(self):
         with self.assertRaises(NoReverseMatch):
             reverse("users:usuario_eliminar", args=[1])
+
+
+class RolPortalNoAsignableTests(TestCase):
+    def test_rol_categoria_portal_no_aparece_en_selector(self):
+        portal = Group.objects.create(name="Ciudadanos")
+        RolMeta.objects.create(grupo=portal, categoria="Portal", activo=True)
+        backoffice = Group.objects.create(name="Operador")
+        RolMeta.objects.create(grupo=backoffice, categoria="Backoffice", activo=True)
+
+        roles = list(UserCreationForm().fields["groups"].queryset)
+        self.assertIn(backoffice, roles)
+        self.assertNotIn(portal, roles)  # el marcador de portal no es asignable
 
 
 class UsuarioToggleTests(TestCase):

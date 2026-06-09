@@ -2,6 +2,7 @@ from django.contrib.auth.models import AnonymousUser, Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 
 from core import rbac
 from users.models import Capacidad, RolMeta
@@ -119,3 +120,63 @@ class AutoProteccionTests(TestCase):
     def test_superusuario_cuenta_como_admin(self):
         User.objects.create_superuser("root", "root@example.com", "x")
         rbac.asegurar_admin_restante()  # el superusuario alcanza
+
+
+class RolInactivoTests(TestCase):
+    def test_rol_inactivo_no_otorga_capacidad(self):
+        rol = Group.objects.create(name="Operador")
+        meta = RolMeta.objects.create(grupo=rol, categoria="Backoffice", activo=True)
+        rol.permissions.add(_perm("ciudadano.ver"))
+        user = User.objects.create_user("op", password="x")
+        user.groups.add(rol)
+
+        # Rol activo -> otorga la capacidad
+        self.assertTrue(rbac.puede(User.objects.get(pk=user.pk), "ciudadano.ver"))
+
+        # Rol desactivado -> deja de otorgarla (aunque el usuario lo conserve)
+        meta.activo = False
+        meta.save(update_fields=["activo"])
+        recargado = User.objects.get(pk=user.pk)
+        self.assertFalse(rbac.puede(recargado, "ciudadano.ver"))
+        self.assertTrue(recargado.groups.filter(name="Operador").exists())  # sigue asignado
+
+
+class VistasProtegidasPorCapacidadTests(TestCase):
+    """Las vistas (no solo el sidebar) exigen la capacidad por URL directa."""
+
+    def _user_con(self, *codigos):
+        g = Group.objects.create(name="Rol-" + "-".join(codigos or ["sin"]))
+        RolMeta.objects.create(grupo=g, categoria="Backoffice", activo=True)
+        for c in codigos:
+            g.permissions.add(_perm(c))
+        u = User.objects.create_user("u-" + "-".join(codigos or ["sin"]), password="x")
+        u.groups.add(g)
+        return u
+
+    def test_listado_ciudadanos_sin_capacidad_redirige(self):
+        self.client.force_login(User.objects.create_user("plano", password="x"))
+        self.assertEqual(self.client.get(reverse("legajos:ciudadanos")).status_code, 302)
+
+    def test_listado_ciudadanos_con_capacidad_entra(self):
+        self.client.force_login(self._user_con("ciudadano.ver"))
+        self.assertEqual(self.client.get(reverse("legajos:ciudadanos")).status_code, 200)
+
+    def test_dashboard_sin_capacidad_redirige(self):
+        self.client.force_login(self._user_con("ciudadano.ver"))  # no tiene dashboard.ver
+        self.assertEqual(
+            self.client.get(reverse("legajos:dashboard_contactos")).status_code, 302
+        )
+
+
+class PortalCiudadanoSinLegajoTests(TestCase):
+    """Un usuario con el marcador de portal pero sin legajo no debe romper (500)."""
+
+    def test_portal_sin_legajo_redirige_sin_500(self):
+        g = Group.objects.create(name=rbac.GRUPO_CIUDADANO_PORTAL)
+        RolMeta.objects.create(grupo=g, categoria="Portal", activo=True)
+        u = User.objects.create_user("laura", password="x")
+        u.groups.add(g)
+        self.client.force_login(u)
+
+        resp = self.client.get(reverse("portal:ciudadano_mi_perfil"))
+        self.assertEqual(resp.status_code, 302)  # degrada al login, no 500

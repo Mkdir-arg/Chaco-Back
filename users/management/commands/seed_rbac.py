@@ -56,7 +56,13 @@ class Command(BaseCommand):
         for group in Group.objects.all():
             categoria = _CATEGORIA_POR_GRUPO.get(group.name, rbac.CATEGORIA_BACKOFFICE)
             _, created = RolMeta.objects.get_or_create(
-                grupo=group, defaults={"categoria": categoria}
+                grupo=group,
+                defaults={
+                    "categoria": categoria,
+                    # El marcador de identidad del portal se protege para que no se
+                    # edite/elimine/desactive desde el ABM de roles.
+                    "protegido": group.name == rbac.GRUPO_CIUDADANO_PORTAL,
+                },
             )
             if created:
                 self.stdout.write(self.style.SUCCESS(f"  ✓ RolMeta creada: {group.name}"))

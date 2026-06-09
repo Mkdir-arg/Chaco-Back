@@ -6,6 +6,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from core.cache_decorators import cache_view
+from core.rbac import CapacidadRequeridaMixin
 
 from ..forms import (
     CiudadanoConfirmarForm,
@@ -22,8 +23,9 @@ from ..selectors import (
 from ..services import CiudadanosService
 
 
-@method_decorator(cache_view(timeout=300), name='dispatch')
-class CiudadanoListView(LoginRequiredMixin, ListView):
+@method_decorator(cache_view(timeout=300), name='get')
+class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    capacidades_requeridas = "ciudadano.ver"
     model = Ciudadano
     template_name = 'legajos/ciudadano_list.html'
     context_object_name = 'ciudadanos'
@@ -38,7 +40,8 @@ class CiudadanoListView(LoginRequiredMixin, ListView):
         return context
 
 
-class CiudadanoDetailView(LoginRequiredMixin, DetailView):
+class CiudadanoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
+    capacidades_requeridas = "ciudadano.ver"
     model = Ciudadano
     template_name = 'legajos/ciudadano_detail.html'
     context_object_name = 'ciudadano'
@@ -49,7 +52,8 @@ class CiudadanoDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class CiudadanoCreateView(LoginRequiredMixin, FormView):
+class CiudadanoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, FormView):
+    capacidades_requeridas = "ciudadano.crear"
     template_name = 'legajos/ciudadano_renaper_form.html'
     form_class = ConsultaRenaperForm
 
@@ -83,7 +87,8 @@ class CiudadanoCreateView(LoginRequiredMixin, FormView):
         return redirect('legajos:ciudadano_confirmar')
 
 
-class CiudadanoManualView(LoginRequiredMixin, CreateView):
+class CiudadanoManualView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView):
+    capacidades_requeridas = "ciudadano.crear"
     model = Ciudadano
     form_class = CiudadanoManualForm
     template_name = 'legajos/ciudadano_manual_form.html'
@@ -115,7 +120,8 @@ class CiudadanoManualView(LoginRequiredMixin, CreateView):
         return redirect(f'{self.success_url}?t={int(time.time())}')
 
 
-class CiudadanoConfirmarView(LoginRequiredMixin, CreateView):
+class CiudadanoConfirmarView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView):
+    capacidades_requeridas = "ciudadano.crear"
     model = Ciudadano
     form_class = CiudadanoConfirmarForm
     template_name = 'legajos/ciudadano_confirmar_form.html'
@@ -157,7 +163,8 @@ class CiudadanoConfirmarView(LoginRequiredMixin, CreateView):
         return redirect(f'{self.success_url}?t={int(time.time())}')
 
 
-class CiudadanoUpdateView(LoginRequiredMixin, UpdateView):
+class CiudadanoUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, UpdateView):
+    capacidades_requeridas = "ciudadano.editar"
     model = Ciudadano
     form_class = CiudadanoUpdateForm
     template_name = 'legajos/ciudadano_edit_form.html'

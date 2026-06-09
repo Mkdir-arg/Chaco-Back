@@ -17,11 +17,14 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 
 from core import rbac
-from users.models import Capacidad
+from users.models import Capacidad, RolMeta
 
 
 def _conceder_conversacion_operar(group):
-    """Asigna la capacidad ``conversacion.operar`` a un rol (modelo RBAC)."""
+    """Convierte el grupo en un rol ACTIVO con la capacidad conversacion.operar."""
+    RolMeta.objects.get_or_create(
+        grupo=group, defaults={"categoria": "Backoffice", "activo": True}
+    )
     ct = ContentType.objects.get_for_model(Capacidad)
     perm = Permission.objects.get(
         content_type=ct, codename=rbac.codename_de("conversacion.operar")

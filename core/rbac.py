@@ -17,7 +17,7 @@ Reglas:
 """
 from functools import wraps
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
 from django.db.models import Q
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
@@ -192,16 +192,43 @@ def arbol_capacidades(codigos_activos=()):
 # ---------------------------------------------------------------------------
 # Núcleo de autorización
 # ---------------------------------------------------------------------------
+def _capacidades_activas(user):
+    """Set de códigos de capacidad **efectivos** del usuario.
+
+    Solo cuentan las capacidades otorgadas por roles **activos** (un rol
+    desactivado deja de surtir efecto, aunque el usuario lo conserve asignado).
+    El superusuario activo tiene todas; el inactivo, ninguna. Se cachea por
+    request en el propio objeto ``user`` (una sola query por request).
+    """
+    cache = getattr(user, "_caps_activas_cache", None)
+    if cache is not None:
+        return cache
+    if not getattr(user, "is_active", False):
+        cache = frozenset()
+    elif user.is_superuser:
+        cache = frozenset(codigos_de_capacidad())
+    else:
+        codenames = set(
+            Permission.objects.filter(
+                group__user=user, group__meta__activo=True
+            )
+            .values_list("codename", flat=True)
+            .distinct()
+        )
+        cache = frozenset(c for c in codigos_de_capacidad() if codename_de(c) in codenames)
+    user._caps_activas_cache = cache
+    return cache
+
+
 def puede(user, codigo):
     """¿El usuario tiene la capacidad ``codigo`` (p. ej. ``"ciudadano.ver"``)?
 
-    Delega en ``user.has_perm``: superusuario activo siempre pasa; usuario
-    inactivo o anónimo nunca. El resultado se cachea por request en el propio
-    ``has_perm`` de Django.
+    Resuelve **solo por roles activos**: superusuario activo siempre pasa;
+    usuario inactivo, anónimo o cuyo único rol está desactivado, nunca.
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return user.has_perm(perm_de(codigo))
+    return codigo in _capacidades_activas(user)
 
 
 def puede_alguna(user, codigos):
@@ -299,8 +326,7 @@ def usuarios_que_administran(excluir_ids=()):
         .exclude(id__in=list(excluir_ids))
         .filter(
             Q(is_superuser=True)
-            | Q(groups__permissions__codename__in=codenames)
-            | Q(user_permissions__codename__in=codenames)
+            | Q(groups__meta__activo=True, groups__permissions__codename__in=codenames)
         )
         .distinct()
     )

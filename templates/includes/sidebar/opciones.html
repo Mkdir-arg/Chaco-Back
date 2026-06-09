@@ -47,6 +47,7 @@
                 </a>
             </div>
             <!-- Dashboard -->
+            {% if request.user|puede:"dashboard.ver" %}
             <div x-data="{ open: {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                 <template x-if="!sidebarCollapsed">
                     <div>
@@ -72,6 +73,7 @@
                     </a>
                 </template>
             </div>
+            {% endif %}
 
             <!-- Ciudadanos -->
             {% if request.user|puede:"ciudadano.ver" %}
@@ -103,6 +105,7 @@
             {% endif %}
 
             <!-- Programas -->
+            {% if request.user|puede:"programa.ver" %}
             <div x-data="{ open: {% if 'programas' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                 <template x-if="!sidebarCollapsed">
                     <div>
@@ -129,8 +132,10 @@
                     </a>
                 </template>
             </div>
+            {% endif %}
 
             <!-- Relevamientos -->
+            {% if request.user|puede:"relevamiento.ver" %}
             <div class="relative">
                 <a href="{% url 'core:relevamientos' %}" class="{% if 'relevamientos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
                     <i class="fas fa-clipboard-check text-base {% if 'relevamientos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
@@ -139,6 +144,7 @@
                     </template>
                 </a>
             </div>
+            {% endif %}
 
             <!-- Conversaciones -->
             {% if request.user|puede:"conversacion.operar" %}

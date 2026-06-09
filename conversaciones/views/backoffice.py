@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from ..permisos import es_operador_restringido, puede_operar
+from core.rbac import requiere
 
 from ..forms import (
     AsignarConversacionForm,
@@ -149,13 +150,13 @@ def reasignar_conversacion(request, conversacion_id):
 
 
 @login_required
-@user_passes_test(tiene_permiso_conversaciones)
+@requiere("conversacion.metricas")
 def metricas_conversaciones(request):
     return render(request, 'conversaciones/metricas.html', get_metricas_contexto())
 
 
 @login_required
-@user_passes_test(tiene_permiso_conversaciones)
+@requiere("conversacion.configurar")
 def configurar_cola(request):
     if request.method == 'POST':
         form = ConfigurarColaForm(request.POST)
