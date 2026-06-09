@@ -31,6 +31,23 @@ Trabajar code-first.
 - Confirmaciones destructivas: SweetAlert2 o modal equivalente, nunca `confirm()` nativo.
 - Mantener cambios pequeños, consistentes y fáciles de validar.
 
+## Entorno local (fuera de Docker)
+
+Para correr `manage.py check`, tests rápidos o cualquier `python` del repo sin
+Docker, usar **siempre el venv del proyecto**, nunca el Python global de la
+máquina (suele tener `django-silk` viejo incompatible con Django 4.2):
+
+```powershell
+# raíz del repo
+$env:PY_VENV = "$PWD\.venv\Scripts\python.exe"
+$env:DJANGO_SECRET_KEY = "test-key"
+& $env:PY_VENV manage.py check
+```
+
+Si `.venv/` no existe todavía, crearlo siguiendo
+[`docs/internal/venv-setup.md`](docs/internal/venv-setup.md). Ese doc también
+lista los pin-overrides aplicados y por qué.
+
 ## Gestión en GitHub
 
 - El trabajo se organiza en Issues con el modelo: **Épica → Análisis → Sub-issues**.

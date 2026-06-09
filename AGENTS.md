@@ -227,3 +227,28 @@ Minutas, Sprints, **Funcionalidades**, Plantillas. Reglas:
 - Español; mismas estructuras siempre. La consistencia entre analistas es el objetivo.
 - El analista no implementa código ni abre PRs: su salida es conocimiento, issues y
   documentación pública.
+
+---
+
+## Anexo — Entorno local (tareas técnicas, fuera del rol de analista)
+
+> Esta sección **no es parte del método de análisis funcional**. Está acá porque
+> herramientas como Codex CLI leen `AGENTS.md` como instrucciones del proyecto.
+
+Si la tarea es código, debug o validación local (`manage.py check`, tests,
+`runserver` fuera de Docker), usar **siempre el venv del repo**, nunca el Python
+global de la máquina (suele tener `django-silk` viejo que rompe con Django 4.2
+por el import deprecado de `get_storage_class`).
+
+Patrón mínimo en PowerShell desde la raíz del repo:
+
+```powershell
+$env:PY_VENV = "$PWD\.venv\Scripts\python.exe"
+$env:DJANGO_SECRET_KEY = "test-key"
+& $env:PY_VENV manage.py check
+```
+
+Si `.venv/` no existe, crearlo siguiendo
+[`docs/internal/venv-setup.md`](docs/internal/venv-setup.md). Ese doc tiene la
+receta completa (creación, dependencias, pin-overrides aplicados y por qué) y
+es la fuente de verdad del setup local.

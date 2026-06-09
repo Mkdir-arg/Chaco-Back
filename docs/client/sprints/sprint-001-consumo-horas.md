@@ -11,12 +11,12 @@
 | 2026-06-06 | Matías Fariña | Continuar el análisis funcional del módulo de becas | Continuación del análisis funcional del módulo de becas | 171 min |
 | 2026-06-05 | Matías Fariña | Continuar análisis de la propuesta | Seguir con el análisis de la propuesta | 119 min |
 | 2026-06-06 | Matias | Análisis funcional | Completé análisis de propuesta | 61 min |
-| 2026-06-08 | Juani Portilla | Design System CHACO NODO — especificación completa e integración de tokens | Construcción del Design Knowledge Base (foundations, tokens, 13 componentes, 5 patrones, constitución de diseño). Resolución de conflictos NODO vs CHACO, coordinación con diseñadora (10 respuestas + diseños de referencia), migración de chaco-tokens.css al repo y extensión de Tailwind config en templates base. PR #56 abierto. | 480 min |
 | 2026-06-08 | Matias | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
+| 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 30 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **1470 minutos** (24 h 30 min)
+    **1020 minutos** (17 h 00 min)
