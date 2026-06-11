@@ -60,3 +60,23 @@ lista los pin-overrides aplicados y por qué.
 El método completo del analista funcional (cómo relevar, estructuras de issues,
 receta `gh`, publicación) vive en **`AGENTS.md`** (raíz), fuente de verdad única
 compartida con todas las herramientas. Para tareas de análisis, seguí ese archivo.
+
+## QA
+
+El método del Agente QA (casos de prueba en el cuerpo de cada task, plan de
+pruebas `[PLAN DE PRUEBAS]` por épica, revisión de cobertura) vive en **`QA.md`**
+(raíz), hermano de `AGENTS.md`. Para tareas de QA, seguí ese archivo.
+
+## Gestión (PM Assistant)
+
+El método del PM Assistant (estado del sprint, auditoría de salud/trazabilidad,
+minutas y reportes en lenguaje cliente — **solo lectura** sobre el Project) vive
+en **`PM.md`** (raíz), hermano de `AGENTS.md` y `QA.md`.
+
+## Acceso a GitHub
+
+Todos los agentes (Analista, QA, PM Assistant) usan el **MCP de GitHub**
+(server `github` en `.mcp.json`) como vía preferida para leer issues y el
+Project #1 de `Mkdir-arg` (https://github.com/users/Mkdir-arg/projects/1/),
+con fallback a la CLI `gh`. Las escrituras estructuradas al Project usan la
+receta `gh` de `AGENTS.md`.

@@ -133,6 +133,16 @@ Regla: el Requerimiento se genera **recién con la épica y sus análisis cerrad
 (todos en `Definido`, sin preguntas abiertas). Si un análisis cambia, se actualiza
 el Requerimiento.
 
+## Acceso a GitHub: MCP + `gh`
+
+Los agentes usan el **MCP de GitHub** (server `github` en `.mcp.json`, apunta al
+server oficial) como vía preferida para **leer** issues y el Project #1 de
+`Mkdir-arg` (https://github.com/users/Mkdir-arg/projects/1/). Si el MCP no está
+disponible o autenticado en la sesión, el fallback es la CLI `gh`. Para las
+**escrituras estructuradas al Project** (agregar items, Status, Tipo, Prioridad,
+Modulo, EstimacionHoras) la receta canónica es la de abajo con `gh project
+item-edit`: es la probada con los IDs reales de los campos.
+
 ## Crear los issues (gh)
 
 Prerrequisito: `gh` autenticado con scope `project`. Si falla, avisá y no inventes
@@ -218,6 +228,17 @@ Minutas, Sprints, **Funcionalidades**, Plantillas. Reglas:
   de `mkdocs.yml`.
 - **Deploy:** `python -m mkdocs build --strict` y luego `python -m mkdocs gh-deploy`
   (requiere `pip install mkdocs-material`). Confirmar antes de deployar (publica online).
+
+## Relación con QA
+
+El método del **Agente QA** (casos de prueba por task, plan de pruebas por épica)
+vive en **`QA.md`** (raíz), archivo hermano de este. QA consume lo que el analista
+produce: deriva los casos de los criterios de aprobación de las tasks y de los
+criterios de aceptación de los análisis. Por eso, cuanto más verificables sean
+esos criterios, mejores casos salen. QA agrega una sección
+`## Casos de prueba (QA)` al cuerpo de cada task y crea un issue
+`[PLAN DE PRUEBAS]` por épica (mismo patrón que el `[REQUERIMIENTO]`). Las
+constantes del Project de este archivo son compartidas: no se duplican en `QA.md`.
 
 ## Reglas generales
 
