@@ -365,7 +365,8 @@
 
     <!-- Acciones Rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer">
+        {% if user|puede:"ciudadano.ver" %}
+        <a href="{% url 'legajos:ciudadanos' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
             <div class="flex items-center justify-between mb-3">
                 {% if branding.dashboard.quick_action_cards.icon_mode == 'uniform' %}
                     <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px; background: {{ branding.dashboard.quick_action_cards.icon_bg }};">
@@ -379,9 +380,11 @@
             </div>
             <h4 class="text-base font-semibold mb-1 text-[#252F40]">Gestionar Ciudadanos</h4>
             <p class="text-xs text-[#8C8C8C]">Ver, buscar y administrar</p>
-        </div>
+        </a>
+        {% endif %}
 
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer">
+        {% if user|puede:"ciudadano.crear" %}
+        <a href="{% url 'legajos:ciudadano_nuevo' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
             <div class="flex items-center justify-between mb-3">
                 {% if branding.dashboard.quick_action_cards.icon_mode == 'uniform' %}
                     <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px; background: {{ branding.dashboard.quick_action_cards.icon_bg }};">
@@ -395,9 +398,10 @@
             </div>
             <h4 class="text-base font-semibold mb-1 text-[#252F40]">Nuevo Registro</h4>
             <p class="text-xs text-[#8C8C8C]">Crear legajo rápido</p>
-        </div>
+        </a>
+        {% endif %}
 
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer">
+        <a href="{% url 'legajos:reportes' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
             <div class="flex items-center justify-between mb-3">
                 {% if branding.dashboard.quick_action_cards.icon_mode == 'uniform' %}
                     <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px; background: {{ branding.dashboard.quick_action_cards.icon_bg }};">
@@ -411,9 +415,9 @@
             </div>
             <h4 class="text-base font-semibold mb-1 text-[#252F40]">Reportes</h4>
             <p class="text-xs text-[#8C8C8C]">Análisis y estadísticas</p>
-        </div>
+        </a>
 
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer">
+        <a href="{% url 'configuracion:programas' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
             <div class="flex items-center justify-between mb-3">
                 {% if branding.dashboard.quick_action_cards.icon_mode == 'uniform' %}
                     <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px; background: {{ branding.dashboard.quick_action_cards.icon_bg }};">
@@ -426,8 +430,8 @@
                 {% endif %}
             </div>
             <h4 class="text-base font-semibold mb-1 text-[#252F40]">Configuración</h4>
-            <p class="text-xs text-[#8C8C8C]">Ajustes del sistema</p>
-        </div>
+            <p class="text-xs text-[#8C8C8C]">Programas y catálogos</p>
+        </a>
     </div>
 
     <!-- Estado del Sistema Avanzado -->
