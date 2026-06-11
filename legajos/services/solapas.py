@@ -13,13 +13,13 @@ class SolapasService:
     
     # Solapas estáticas (siempre visibles)
     SOLAPAS_ESTATICAS = [
-        {'id': 'resumen',          'nombre': 'Resumen',           'icono': 'tachometer-alt', 'orden': 0,   'estatica': True},
-        {'id': 'conversaciones',   'nombre': 'Conversaciones',     'icono': 'comments',       'orden': 860, 'estatica': True},
-        {'id': 'derivaciones',     'nombre': 'Derivaciones',       'icono': 'share-alt',      'orden': 870, 'estatica': True},
-        {'id': 'alertas',          'nombre': 'Alertas',            'icono': 'bell',           'orden': 880, 'estatica': True},
-        {'id': 'linea_tiempo',     'nombre': 'Línea de tiempo',    'icono': 'history',        'orden': 950, 'estatica': True},
-        {'id': 'red_familiar',     'nombre': 'Red Familiar',       'icono': 'users',          'orden': 998, 'estatica': True},
-        {'id': 'archivos',         'nombre': 'Archivos',           'icono': 'folder',         'orden': 999, 'estatica': True},
+        {'id': 'resumen',          'nombre': 'Resumen',           'icono': 'gauge-high',         'orden': 0,   'estatica': True},
+        {'id': 'conversaciones',   'nombre': 'Conversaciones',     'icono': 'comments',           'orden': 860, 'estatica': True},
+        {'id': 'derivaciones',     'nombre': 'Derivaciones',       'icono': 'share-nodes',        'orden': 870, 'estatica': True},
+        {'id': 'alertas',          'nombre': 'Alertas',            'icono': 'bell',               'orden': 880, 'estatica': True},
+        {'id': 'linea_tiempo',     'nombre': 'Línea de tiempo',    'icono': 'clock-rotate-left',  'orden': 950, 'estatica': True},
+        {'id': 'red_familiar',     'nombre': 'Red Familiar',       'icono': 'users',              'orden': 998, 'estatica': True},
+        {'id': 'archivos',         'nombre': 'Archivos',           'icono': 'folder-open',        'orden': 999, 'estatica': True},
     ]
     
     @classmethod
@@ -236,26 +236,30 @@ class SolapasService:
     @classmethod
     def _obtener_badge_programa(cls, inscripcion):
         """
-        Obtiene información de badge para mostrar en la solapa
-        
-        Args:
-            inscripcion: InscripcionPrograma
-            
-        Returns:
-            dict o None
+        Badge de la solapa de un programa. Usa la misma forma que los badges
+        de solapas estáticas: {'tipo': 'numero'|'punto', 'valor': N,
+        'color_hex': '#...', 'title': '...'} o None.
         """
-        # Ejemplo: mostrar alertas pendientes, seguimientos vencidos, etc.
-        # Esto se puede personalizar según el programa
-        
+        from django.utils import timezone
+
         if inscripcion.estado == 'PENDIENTE':
             return {
-                'texto': 'Pendiente',
-                'color': 'yellow'
+                'tipo': 'punto',
+                'color_hex': '#F59E0B',
+                'title': 'Inscripción pendiente',
             }
-        
-        # Aquí se pueden agregar más lógicas según el programa
-        # Por ejemplo, contar alertas, seguimientos vencidos, etc.
-        
+
+        # Inscripción en seguimiento sin actividad hace más de 30 días
+        modificado = getattr(inscripcion, 'modificado', None)
+        if inscripcion.estado == 'EN_SEGUIMIENTO' and modificado:
+            dias = (timezone.now() - modificado).days
+            if dias > 30:
+                return {
+                    'tipo': 'punto',
+                    'color_hex': '#F97316',
+                    'title': f'Sin actividad hace {dias} días',
+                }
+
         return None
     
     @classmethod

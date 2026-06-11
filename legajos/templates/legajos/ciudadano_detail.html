@@ -4,8 +4,45 @@
 {% block title %}{{ ciudadano.apellido }}, {{ ciudadano.nombre }}{% endblock %}
 
 {% block main-content %}
-<div class="space-y-8">
+<style>
+    .tab-button.tab-active {
+        background-color: var(--tab-color, #1d4ed8);
+        border-color: var(--tab-color, #1d4ed8);
+        color: #fff;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+    .tab-button .tab-badge {
+        background-color: var(--badge-color, #1d4ed8);
+        color: #fff;
+    }
+    .tab-button.tab-active .tab-badge {
+        background-color: #fff;
+        color: var(--badge-color, #1d4ed8);
+    }
+</style>
 
+<!-- Header compacto al scrollear -->
+<div id="sticky-header" class="fixed inset-x-0 top-0 z-40 hidden border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
+        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-900">
+            <span class="text-sm font-bold text-white">{{ ciudadano.nombre.0 }}{{ ciudadano.apellido.0 }}</span>
+        </div>
+        <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-bold text-slate-900">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</p>
+            <p class="text-xs text-slate-500">DNI {{ ciudadano.dni }}</p>
+        </div>
+        {% if alertas_ciudadano %}
+        <button onclick="cambiarTab('alertas')" class="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
+            <i class="fas fa-bell text-[10px]"></i>{{ alertas_ciudadano.count }}
+        </button>
+        {% endif %}
+        <a href="{% url 'legajos:ciudadano_editar' ciudadano.pk %}" class="inline-flex flex-shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+            <i class="fas fa-pen"></i><span class="hidden sm:inline">Editar</span>
+        </a>
+    </div>
+</div>
+
+<div class="space-y-8">
 
     <!-- Informacion personal -->
     <section class="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -29,6 +66,12 @@
                         <span class="h-2 w-2 rounded-full bg-blue-600"></span>
                         Ficha integral
                     </span>
+                    {% if linea_tiempo %}
+                    <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                        <i class="fas fa-clock-rotate-left text-[10px] text-slate-400"></i>
+                        Última actividad {{ linea_tiempo.0.fecha|date:"d/m/Y" }}
+                    </span>
+                    {% endif %}
                     {% if alertas_ciudadano %}
                     <button onclick="cambiarTab('alertas')" class="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
                         <i class="fas fa-bell text-[10px]"></i>
@@ -59,7 +102,16 @@
                             <span class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
                                 <i class="fas fa-id-card text-slate-400"></i>
                                 DNI {{ ciudadano.dni }}
+                                <button onclick="copiarDni('{{ ciudadano.dni }}')" type="button" class="text-slate-400 transition hover:text-blue-600" title="Copiar DNI" aria-label="Copiar DNI">
+                                    <i class="far fa-copy"></i>
+                                </button>
                             </span>
+                            {% if ciudadano.edad %}
+                            <span class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
+                                <i class="fas fa-cake-candles text-slate-400"></i>
+                                {{ ciudadano.edad }} años
+                            </span>
+                            {% endif %}
                             {% if ciudadano.genero %}
                             <span class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
                                 <i class="fas fa-user text-slate-400"></i>
@@ -76,11 +128,11 @@
 
                 <div class="flex flex-col gap-2 sm:flex-row xl:w-64 xl:flex-col">
                     <a href="{% url 'legajos:ciudadano_editar' ciudadano.pk %}" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-100">
-                        <i class="fas fa-edit"></i>
+                        <i class="fas fa-pen"></i>
                         <span>Editar</span>
                     </a>
                     <a href="{% url 'legajos:derivar_programa' ciudadano.pk %}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200">
-                        <i class="fas fa-share"></i>
+                        <i class="fas fa-share-nodes"></i>
                         <span>Derivar a Programa</span>
                     </a>
                 </div>
@@ -90,10 +142,10 @@
                 {% if ciudadano.fecha_nacimiento %}
                 <div class="bg-white px-4 py-3">
                     <dt class="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                        <i class="fas fa-birthday-cake text-amber-500"></i>
+                        <i class="fas fa-cake-candles text-amber-500"></i>
                         Nacimiento
                     </dt>
-                    <dd class="mt-1 text-sm font-semibold text-slate-900">{{ ciudadano.fecha_nacimiento|date:"d/m/Y" }}</dd>
+                    <dd class="mt-1 text-sm font-semibold text-slate-900">{{ ciudadano.fecha_nacimiento|date:"d/m/Y" }}{% if ciudadano.edad %} <span class="font-normal text-slate-500">({{ ciudadano.edad }} años)</span>{% endif %}</dd>
                 </div>
                 {% endif %}
                 {% if ciudadano.telefono %}
@@ -117,13 +169,34 @@
                 {% if ciudadano.domicilio %}
                 <div class="bg-white px-4 py-3">
                     <dt class="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                        <i class="fas fa-map-marker-alt text-slate-400"></i>
+                        <i class="fas fa-location-dot text-slate-400"></i>
                         Domicilio
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-slate-900">{{ ciudadano.domicilio }}</dd>
                 </div>
                 {% endif %}
             </dl>
+
+            {% if solapas_programas %}
+            <!-- Programas activos -->
+            <div class="mt-6">
+                <p class="mb-3 text-xs font-semibold uppercase text-slate-500">Programas activos</p>
+                <div class="flex flex-wrap gap-3">
+                    {% for solapa in solapas_programas %}
+                    <button onclick="cambiarTab('{{ solapa.id }}')" type="button" class="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow">
+                        <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-white" style="background-color: {{ solapa.color|default:'#3B82F6' }};">
+                            <i class="fas fa-{{ solapa.icono }}"></i>
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block truncate text-sm font-semibold text-slate-900">{{ solapa.nombre }}</span>
+                            <span class="block text-xs text-slate-500">{{ solapa.inscripcion.get_estado_display }} · desde {{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}</span>
+                        </span>
+                        <i class="fas fa-chevron-right ml-2 text-xs text-slate-300 transition group-hover:text-slate-500"></i>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </section>
 
@@ -132,15 +205,15 @@
     <!-- Perfil social -->
     {% with tiene_social=ciudadano.tipo_vivienda|add:ciudadano.situacion_laboral|add:ciudadano.nivel_educativo|add:ciudadano.dni_fisico|add:ciudadano.estado_renaper|add:ciudadano.observaciones %}
     {% if tiene_social or puede_ver_sensible %}
-    <section class="mb-8 rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div class="border-b border-gray-200 px-6 py-4">
+    <section class="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-6 py-4">
             <div class="flex items-center gap-3">
                 <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
                     <i class="fas fa-address-card"></i>
                 </span>
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Perfil social</h2>
-                    <p class="mt-1 text-sm text-gray-500">Resumen contextual para intervención, acompañamiento y seguimiento.</p>
+                    <h2 class="text-lg font-semibold text-slate-900">Perfil social</h2>
+                    <p class="mt-1 text-sm text-slate-500">Resumen contextual para intervención, acompañamiento y seguimiento.</p>
                 </div>
             </div>
         </div>
@@ -148,86 +221,86 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% if ciudadano.tipo_vivienda %}
                 <div class="rounded-2xl border border-orange-100 bg-orange-50/60 p-5">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Tipo de vivienda</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ ciudadano.get_tipo_vivienda_display }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Tipo de vivienda</p>
+                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_tipo_vivienda_display }}</p>
                     {% if ciudadano.tenencia_vivienda %}
-                    <p class="text-xs text-gray-500 mt-0.5">{{ ciudadano.get_tenencia_vivienda_display }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ ciudadano.get_tenencia_vivienda_display }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% if ciudadano.condiciones_vivienda %}
                 <div class="rounded-2xl border border-orange-100 bg-orange-50/60 p-5 md:col-span-2">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Condiciones de la vivienda</p>
-                    <p class="text-sm text-gray-700">{{ ciudadano.condiciones_vivienda }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Condiciones de la vivienda</p>
+                    <p class="text-sm text-slate-700">{{ ciudadano.condiciones_vivienda }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.situacion_laboral %}
                 <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Situación laboral</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ ciudadano.get_situacion_laboral_display }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Situación laboral</p>
+                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_situacion_laboral_display }}</p>
                     {% if ciudadano.ingreso_estimado %}
-                    <p class="text-xs text-gray-500 mt-0.5">Ingreso: {{ ciudadano.get_ingreso_estimado_display }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Ingreso: {{ ciudadano.get_ingreso_estimado_display }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% if ciudadano.obra_social %}
                 <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Obra social</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ ciudadano.obra_social }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Obra social</p>
+                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.obra_social }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.nivel_educativo %}
                 <div class="rounded-2xl border border-green-100 bg-green-50/60 p-5">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Nivel educativo</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ ciudadano.get_nivel_educativo_display }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Nivel educativo</p>
+                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_nivel_educativo_display }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.dni_fisico %}
                 <div class="rounded-2xl border border-purple-100 bg-purple-50/60 p-5">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">DNI físico</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ ciudadano.get_dni_fisico_display }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">DNI físico</p>
+                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_dni_fisico_display }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.estado_renaper %}
                 <div class="rounded-2xl border border-purple-100 bg-purple-50/60 p-5">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Estado RENAPER</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ ciudadano.get_estado_renaper_display }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Estado RENAPER</p>
+                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_estado_renaper_display }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.observaciones %}
                 <div class="rounded-2xl border border-yellow-100 bg-yellow-50/60 p-5 md:col-span-3">
-                    <p class="text-xs text-gray-500 uppercase font-medium mb-1">Observaciones</p>
-                    <p class="text-sm text-gray-700 whitespace-pre-line">{{ ciudadano.observaciones }}</p>
+                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Observaciones</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ ciudadano.observaciones }}</p>
                 </div>
                 {% endif %}
             </div>
 
             {% if puede_ver_sensible %}
-            <div class="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-6">
-                <p class="text-xs text-gray-500 font-semibold uppercase mb-4 flex items-center">
+            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p class="text-xs text-slate-500 font-semibold uppercase mb-4 flex items-center">
                     <i class="fas fa-lock mr-2"></i>Datos sensibles
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {% if ciudadano.cobertura_medica %}
-                    <div class="rounded-2xl border border-gray-200 bg-white p-4">
-                        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Cobertura médica</p>
-                        <p class="text-sm font-semibold text-gray-800">{{ ciudadano.cobertura_medica }}</p>
+                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p class="text-xs text-slate-500 uppercase font-medium mb-1">Cobertura médica</p>
+                        <p class="text-sm font-semibold text-slate-800">{{ ciudadano.cobertura_medica }}</p>
                     </div>
                     {% endif %}
                     {% if ciudadano.estado_migratorio %}
-                    <div class="rounded-2xl border border-gray-200 bg-white p-4">
-                        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Estado migratorio</p>
-                        <p class="text-sm font-semibold text-gray-800">{{ ciudadano.get_estado_migratorio_display }}</p>
+                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p class="text-xs text-slate-500 uppercase font-medium mb-1">Estado migratorio</p>
+                        <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_estado_migratorio_display }}</p>
                     </div>
                     {% endif %}
                     {% if ciudadano.medicacion_habitual %}
-                    <div class="rounded-2xl border border-gray-200 bg-white p-4 md:col-span-2">
-                        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Medicación habitual</p>
-                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ ciudadano.medicacion_habitual }}</p>
+                    <div class="rounded-2xl border border-slate-200 bg-white p-4 md:col-span-2">
+                        <p class="text-xs text-slate-500 uppercase font-medium mb-1">Medicación habitual</p>
+                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ ciudadano.medicacion_habitual }}</p>
                     </div>
                     {% endif %}
                     {% if not ciudadano.cobertura_medica and not ciudadano.estado_migratorio and not ciudadano.medicacion_habitual %}
-                    <p class="text-sm text-gray-400 col-span-3">Sin datos sensibles registrados.</p>
+                    <p class="text-sm text-slate-400 col-span-3">Sin datos sensibles registrados.</p>
                     {% endif %}
                 </div>
             </div>
@@ -254,563 +327,352 @@
     </div>
     {% endif %}
 
-    <!-- Tabs de Navegación Dinámicos -->
-    <div class="mb-8 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-            <nav class="flex flex-wrap gap-2 overflow-x-auto">
-                {% for solapa in solapas %}
-                <button
-                    onclick="cambiarTab('{{ solapa.id }}')"
-                    data-tab="{{ solapa.id }}"
-                    class="tab-button {% if forloop.first %}bg-blue-700 text-white shadow-sm{% else %}bg-white text-gray-600 border border-gray-200 hover:bg-gray-50{% endif %} inline-flex items-center rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap transition"
-                >
-                    <i class="fas fa-{{ solapa.icono }} mr-2"></i>{{ solapa.nombre }}
-                    {% if solapa.badge %}
-                        {% if solapa.badge.tipo == 'numero' %}
-                        <span class="ml-1.5 inline-flex items-center justify-center min-w-[1.2rem] h-5 px-1 text-xs font-bold rounded-full {% if forloop.first %}bg-white text-blue-700{% else %}text-white{% endif %}" style="{% if not forloop.first %}background-color: {{ solapa.badge.color_hex }};{% endif %}">{% if forloop.first %}{{ solapa.badge.valor }}{% else %}{{ solapa.badge.valor }}{% endif %}</span>
-                        {% else %}
-                        <span class="ml-2 w-2 h-2 rounded-full inline-block" style="background-color: {{ solapa.badge.color_hex }};"></span>
-                        {% endif %}
-                    {% elif not solapa.estatica %}
-                    <span class="ml-2 w-2 h-2 rounded-full inline-block" style="background-color: {{ solapa.color }};"></span>
+    <!-- Solapas de navegación -->
+    <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <nav class="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Secciones del legajo">
+            {% for solapa in solapas %}
+            <button
+                onclick="cambiarTab('{{ solapa.id }}')"
+                type="button"
+                role="tab"
+                id="tab-btn-{{ solapa.id }}"
+                data-tab="{{ solapa.id }}"
+                aria-controls="tab-{{ solapa.id }}"
+                aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                style="--tab-color: {% if solapa.estatica %}#1d4ed8{% else %}{{ solapa.color|default:'#1d4ed8' }}{% endif %};{% if solapa.badge %} --badge-color: {{ solapa.badge.color_hex|default:'#1d4ed8' }};{% endif %}"
+                class="tab-button {% if forloop.first %}tab-active{% endif %} inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+                <i class="fas fa-{{ solapa.icono }} mr-2"></i>{{ solapa.nombre }}
+                {% if solapa.badge %}
+                    {% if solapa.badge.tipo == 'numero' %}
+                    <span class="tab-badge ml-1.5 inline-flex h-5 min-w-[1.2rem] items-center justify-center rounded-full px-1 text-xs font-bold">{{ solapa.badge.valor }}</span>
+                    {% else %}
+                    <span class="ml-2 inline-block h-2 w-2 rounded-full" style="background-color: {{ solapa.badge.color_hex }};"{% if solapa.badge.title %} title="{{ solapa.badge.title }}"{% endif %}></span>
                     {% endif %}
-                </button>
-                {% endfor %}
-            </nav>
+                {% elif not solapa.estatica %}
+                <span class="ml-2 inline-block h-2 w-2 rounded-full" style="background-color: {{ solapa.color|default:'#3B82F6' }};"></span>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </nav>
     </div>
 
     <!-- Tab: Resumen -->
-    <div id="tab-resumen" class="tab-content">
-    <!-- Dashboard Resumido -->
-    <div class="mt-2 bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8 mb-10">
-        <h3 class="text-2xl font-bold text-[#252F40] mb-6 flex items-center">
-            <div class="bg-[#3B82F6] rounded-lg p-2 mr-3">
-                <i class="fas fa-chart-bar text-white text-lg"></i>
-            </div>
-            Dashboard Resumido
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <!-- Total Legajos -->
-            <div class="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-[#8C8C8C] text-sm font-medium mb-1">Total Acompañamiento</p>
-                        <p class="text-3xl font-bold text-[#252F40]" id="total-legajos">{{ acompanamientos_activos_count }}</p>
-                    </div>
-                    <div class="bg-[#3B82F6] bg-opacity-10 rounded-full p-4">
-                        <i class="fas fa-folder text-2xl text-[#3B82F6]"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center">
-                    <div class="bg-[#3B82F6] rounded-full w-2 h-2 mr-2"></div>
-                    <span class="text-xs text-[#8C8C8C]">Total de acompañamiento</span>
-                </div>
-            </div>
+    <div id="tab-resumen" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumen">
 
-            <!-- Vínculos Familiares -->
-            <div class="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-[#8C8C8C] text-sm font-medium mb-1">Vínculos Familiares</p>
-                        <p class="text-3xl font-bold text-[#252F40]" id="total-vinculos">0</p>
-                    </div>
-                    <div class="bg-[#10B981] bg-opacity-10 rounded-full p-4">
-                        <i class="fas fa-users text-2xl text-[#10B981]"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center">
-                    <div class="bg-[#10B981] rounded-full w-2 h-2 mr-2"></div>
-                    <span class="text-xs text-[#8C8C8C]">Red familiar registrada</span>
-                </div>
-            </div>
-
-            <!-- Archivos Adjuntos -->
-            <div class="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-[#8C8C8C] text-sm font-medium mb-1">Archivos Adjuntos</p>
-                        <p class="text-3xl font-bold text-[#252F40]" id="total-archivos-dash">0</p>
-                    </div>
-                    <div class="bg-[#64748B] bg-opacity-10 rounded-full p-4">
-                        <i class="fas fa-paperclip text-2xl text-[#64748B]"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center">
-                    <div class="bg-[#64748B] rounded-full w-2 h-2 mr-2"></div>
-                    <span class="text-xs text-[#8C8C8C]">Documentos disponibles</span>
-                </div>
-            </div>
-
-            <!-- Alertas Activas -->
-            <div class="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-[#8C8C8C] text-sm font-medium mb-1">Alertas Activas</p>
-                        <p class="text-3xl font-bold text-[#252F40]" id="total-alertas-dash">0</p>
-                    </div>
-                    <div class="bg-[#EF4444] bg-opacity-10 rounded-full p-4">
-                        <i class="fas fa-exclamation-triangle text-2xl text-[#EF4444]"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center">
-                    <div class="bg-[#EF4444] rounded-full w-2 h-2 mr-2"></div>
-                    <span class="text-xs text-[#8C8C8C]">Requieren atención</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Predicción de Riesgo con IA -->
-    <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8 mb-8">
-        <h3 class="text-2xl font-bold text-[#252F40] mb-6 flex items-center">
-            <div class="bg-[#64748B] rounded-lg p-2 mr-3">
-                <i class="fas fa-brain text-white text-lg"></i>
-            </div>
-            Predicción de Riesgo con IA
-            <span class="ml-3 text-xs font-normal text-[#8C8C8C] bg-[#F9FAFB] px-3 py-1 rounded-full border border-[#E5E7EB]">Beta</span>
-        </h3>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- Riesgo de Abandono -->
-            <div class="bg-white rounded-xl p-6 shadow-md">
-                <div class="flex items-center justify-between mb-4">
-                    <h4 class="font-bold text-gray-800 flex items-center">
-                        <i class="fas fa-user-slash text-orange-500 mr-2"></i>
-                        Riesgo de Abandono
-                    </h4>
-                    <span id="abandono-nivel" class="px-3 py-1 rounded-full text-xs font-bold">-</span>
-                </div>
-                <div class="mb-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm text-gray-600">Probabilidad</span>
-                        <span id="abandono-score" class="text-2xl font-bold text-gray-800">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div id="abandono-bar" class="h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div id="abandono-factores" class="space-y-2">
-                    <!-- Factores se cargarán aquí -->
-                </div>
-            </div>
-            
-            <!-- Riesgo de Evento Crítico -->
-            <div class="bg-white rounded-xl p-6 shadow-md">
-                <div class="flex items-center justify-between mb-4">
-                    <h4 class="font-bold text-gray-800 flex items-center">
-                        <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
-                        Riesgo de Evento Crítico
-                    </h4>
-                    <span id="evento-nivel" class="px-3 py-1 rounded-full text-xs font-bold">-</span>
-                </div>
-                <div class="mb-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm text-gray-600">Próximos 30 días</span>
-                        <span id="evento-score" class="text-2xl font-bold text-gray-800">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div id="evento-bar" class="h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div id="evento-factores" class="space-y-2">
-                    <!-- Factores se cargarán aquí -->
-                </div>
-            </div>
-        </div>
-        
-        <!-- Recomendaciones Automáticas -->
-        <div class="bg-white rounded-xl p-6 shadow-md">
-            <h4 class="font-bold text-gray-800 mb-4 flex items-center">
-                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
-                Recomendaciones Automáticas
-            </h4>
-            <div id="recomendaciones-container" class="space-y-3">
-                <!-- Recomendaciones se cargarán aquí -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Línea Temporal -->
-    <div class="mt-8">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="p-8">
-                <h3 class="text-2xl font-bold text-[#252F40] mb-6 flex items-center">
-                    <div class="bg-[#6366F1] rounded-lg p-2 mr-3">
-                        <i class="fas fa-calendar text-white text-lg"></i>
-                    </div>
-                    Línea Temporal
-                </h3>
-                <div id="timeline-container" class="relative">
-                    <!-- La línea temporal se cargará aquí -->
-                </div>
-                <div id="mensaje-sin-timeline" class="text-center py-12 hidden">
-                    <div class="text-gray-400 text-4xl mb-2">📅</div>
-                    <p class="text-gray-500">No hay eventos registrados</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actividad Reciente -->
-    <div class="mt-8">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="p-8">
-                <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 class="flex items-center text-2xl font-bold text-[#252F40]">
-                        <div class="bg-[#10B981] rounded-lg p-2 mr-3">
-                            <i class="fas fa-chart-bar text-white text-lg"></i>
+        <!-- Indicadores -->
+        <div class="mt-2 mb-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
+            <h3 class="mb-6 flex items-center gap-3 text-xl font-bold text-slate-900">
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                    <i class="fas fa-chart-simple"></i>
+                </span>
+                Indicadores del legajo
+            </h3>
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-slate-500">Programas activos</p>
+                            <p class="text-3xl font-bold text-slate-900">{{ programas_activos|length }}</p>
                         </div>
-                        Actividad Reciente
-                    </h3>
-                    <div class="w-fit rounded-full border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-2">
-                        <span class="text-lg font-bold text-[#252F40]" id="total-actividades">-</span>
-                        <span class="text-sm text-[#8C8C8C]">registros</span>
+                        <div class="rounded-full bg-blue-50 p-4">
+                            <i class="fas fa-layer-group text-2xl text-blue-500"></i>
+                        </div>
                     </div>
+                    <p class="mt-4 text-xs text-slate-500">Inscripciones vigentes en programas</p>
                 </div>
 
-                <div class="table-scroll-wrapper">
-                    <table class="w-full">
-                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                            <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Fecha/Hora</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Tipo</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Descripción</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Usuario</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Legajo</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-actividades" class="divide-y divide-[#E5E7EB]">
-                            <!-- Las actividades se cargarán aquí dinámicamente -->
-                        </tbody>
-                    </table>
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-slate-500">Vínculos familiares</p>
+                            <p class="text-3xl font-bold text-slate-900" id="total-vinculos">—</p>
+                        </div>
+                        <div class="rounded-full bg-emerald-50 p-4">
+                            <i class="fas fa-users text-2xl text-emerald-500"></i>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-xs text-slate-500">Red familiar registrada</p>
                 </div>
-                <div id="mensaje-sin-actividades" class="text-center py-12 hidden">
-                    <div class="text-gray-400 text-4xl mb-2">📋</div>
-                    <p class="text-gray-500">No hay actividades registradas</p>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-slate-500">Archivos adjuntos</p>
+                            <p class="text-3xl font-bold text-slate-900" id="total-archivos-dash">—</p>
+                        </div>
+                        <div class="rounded-full bg-slate-100 p-4">
+                            <i class="fas fa-paperclip text-2xl text-slate-500"></i>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-xs text-slate-500">Documentos disponibles</p>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-slate-500">Alertas activas</p>
+                            <p class="text-3xl font-bold text-slate-900">{{ alertas_ciudadano.count }}</p>
+                        </div>
+                        <div class="rounded-full bg-red-50 p-4">
+                            <i class="fas fa-triangle-exclamation text-2xl text-red-500"></i>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-xs text-slate-500">Requieren atención</p>
                 </div>
             </div>
         </div>
-    </div>
-    </div>
 
-    <!-- Tab: Acompañamiento (solo si tiene programas activos) -->
-    {% for solapa in solapas %}
-    {% if not solapa.estatica and 'ACOMPANAMIENTO' in solapa.id %}
-    <div id="tab-{{ solapa.id }}" class="tab-content hidden">
-    <div class="grid grid-cols-1 gap-8">
+        <!-- Predicción de Riesgo con IA -->
+        <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
+            <h3 class="mb-6 flex items-center gap-3 text-xl font-bold text-slate-900">
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                    <i class="fas fa-brain"></i>
+                </span>
+                Predicción de Riesgo con IA
+                <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-normal text-slate-500">Beta</span>
+            </h3>
 
-        <!-- Derivaciones al Programa -->
-        <div>
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-                <div class="p-8">
+            <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <!-- Riesgo de Abandono -->
+                <div class="rounded-xl border border-slate-200 bg-white p-6">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h4 class="flex items-center font-bold text-slate-800">
+                            <i class="fas fa-user-slash mr-2 text-orange-500"></i>
+                            Riesgo de Abandono
+                        </h4>
+                        <span id="abandono-nivel" class="rounded-full px-3 py-1 text-xs font-bold">-</span>
+                    </div>
+                    <div class="mb-4">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-sm text-slate-600">Probabilidad</span>
+                            <span id="abandono-score" class="text-2xl font-bold text-slate-800">-</span>
+                        </div>
+                        <div class="h-3 w-full rounded-full bg-slate-200">
+                            <div id="abandono-bar" class="h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="abandono-factores" class="space-y-2"></div>
+                </div>
+
+                <!-- Riesgo de Evento Crítico -->
+                <div class="rounded-xl border border-slate-200 bg-white p-6">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h4 class="flex items-center font-bold text-slate-800">
+                            <i class="fas fa-triangle-exclamation mr-2 text-red-500"></i>
+                            Riesgo de Evento Crítico
+                        </h4>
+                        <span id="evento-nivel" class="rounded-full px-3 py-1 text-xs font-bold">-</span>
+                    </div>
+                    <div class="mb-4">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-sm text-slate-600">Próximos 30 días</span>
+                            <span id="evento-score" class="text-2xl font-bold text-slate-800">-</span>
+                        </div>
+                        <div class="h-3 w-full rounded-full bg-slate-200">
+                            <div id="evento-bar" class="h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="evento-factores" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Recomendaciones Automáticas -->
+            <div class="rounded-xl border border-slate-200 bg-white p-6">
+                <h4 class="mb-4 flex items-center font-bold text-slate-800">
+                    <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                    Recomendaciones Automáticas
+                </h4>
+                <div id="recomendaciones-container" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Actividad Reciente -->
+        <div class="mt-8">
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="p-6 lg:p-8">
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h3 class="flex items-center text-2xl font-bold text-[#252F40]">
-                            <div class="bg-[#10B981] rounded-lg p-2 mr-3">
-                                <i class="fas fa-share text-white text-lg"></i>
-                            </div>
-                            Derivaciones al Programa
-                            <span class="ml-3 text-sm font-normal text-[#8C8C8C]">Historial de derivaciones</span>
+                        <h3 class="flex items-center gap-3 text-xl font-bold text-slate-900">
+                            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                                <i class="fas fa-list-check"></i>
+                            </span>
+                            Actividad Reciente
                         </h3>
+                        <div class="w-fit rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
+                            <span class="text-lg font-bold text-slate-900" id="total-actividades">-</span>
+                            <span class="text-sm text-slate-500">registros</span>
+                        </div>
                     </div>
 
                     <div class="table-scroll-wrapper">
                         <table class="w-full">
-                            <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                            <thead class="border-b border-slate-200 bg-slate-50">
                                 <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Fecha</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Programa Origen</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Motivo</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Urgencia</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Estado</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Derivado Por</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Fecha/Hora</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Tipo</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Descripción</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Usuario</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Legajo</th>
                                 </tr>
                             </thead>
-                            <tbody id="tabla-derivaciones-programa-{{ solapa.programa.id }}" class="divide-y divide-[#E5E7EB]">
-                                <!-- Las derivaciones se cargarán aquí dinámicamente -->
-                            </tbody>
+                            <tbody id="tabla-actividades" class="divide-y divide-slate-200"></tbody>
                         </table>
                     </div>
-                    <div id="mensaje-sin-derivaciones-{{ solapa.programa.id }}" class="text-center py-12 hidden">
-                        <div class="text-gray-400 text-4xl mb-2">📋</div>
-                        <p class="text-gray-500">No hay derivaciones registradas para este programa</p>
+                    <div id="mensaje-sin-actividades" class="hidden py-12 text-center">
+                        <i class="fas fa-clipboard-list mb-3 text-4xl text-slate-200"></i>
+                        <p class="text-sm text-slate-500">No hay actividades registradas</p>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Legajos -->
-        <div>
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-                <div class="p-8">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-bold text-[#252F40] flex items-center">
-                            <div class="bg-[#3B82F6] rounded-lg p-2 mr-3">
-                                <i class="fas fa-folder text-white text-lg"></i>
-                            </div>
-                            Acompañamiento
-                            <span class="ml-3 text-sm font-normal text-[#8C8C8C]">Historial completo de acompañamientos</span>
-                        </h3>
-                        <div class="bg-[#F9FAFB] px-4 py-2 rounded-full border border-[#E5E7EB]">
-                            <span class="text-lg font-bold text-[#252F40]">{{ legajos.count }}</span>
-                            <span class="text-sm text-[#8C8C8C]">acompañamiento{{ legajos.count|pluralize }}</span>
+    <!-- Tabs dinámicos de programas (genérico, server-side) -->
+    {% for solapa in solapas_programas %}
+    {% if 'NACHEC' not in solapa.id %}
+    <div id="tab-{{ solapa.id }}" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-{{ solapa.id }}">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" style="border-top: 4px solid {{ solapa.color|default:'#3B82F6' }};">
+            <div class="border-b border-slate-200 px-6 py-5">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white" style="background-color: {{ solapa.color|default:'#3B82F6' }};">
+                            <i class="fas fa-{{ solapa.icono }} text-lg"></i>
+                        </span>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">{{ solapa.programa.nombre }}</h3>
+                            <p class="text-sm text-slate-500">
+                                {{ solapa.programa.get_tipo_display|default:solapa.programa.tipo }}
+                                {% if solapa.inscripcion.codigo %} · Inscripción {{ solapa.inscripcion.codigo }}{% endif %}
+                            </p>
                         </div>
                     </div>
+                    <span class="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold
+                        {% if solapa.inscripcion.estado == 'ACTIVO' %}bg-green-100 text-green-700
+                        {% elif solapa.inscripcion.estado == 'EN_SEGUIMIENTO' %}bg-blue-100 text-blue-700
+                        {% elif solapa.inscripcion.estado == 'PENDIENTE' %}bg-amber-100 text-amber-700
+                        {% else %}bg-slate-100 text-slate-600{% endif %}">
+                        <span class="h-2 w-2 rounded-full
+                            {% if solapa.inscripcion.estado == 'ACTIVO' %}bg-green-500
+                            {% elif solapa.inscripcion.estado == 'EN_SEGUIMIENTO' %}bg-blue-500
+                            {% elif solapa.inscripcion.estado == 'PENDIENTE' %}bg-amber-500
+                            {% else %}bg-slate-400{% endif %}"></span>
+                        {{ solapa.inscripcion.get_estado_display }}
+                    </span>
+                </div>
+            </div>
 
-                    {% if legajos.count > 0 %}
-                        <div class="grid gap-6">
-                            {% for legajo in legajos %}
-                            <div class="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden hover:shadow-md hover:border-[#3B82F6] transition-all duration-300">
-                                <!-- Gráfico de Evolución del Tratamiento -->
-                                <div class="bg-[#F9FAFB] border-b border-[#E5E7EB] p-4">
-                                    <div class="flex items-center justify-between">
-                                        <h4 class="font-bold text-lg text-[#252F40] flex items-center">
-                                            <div class="bg-[#475569] rounded-lg p-2 mr-3">
-                                                <i class="fas fa-chart-line text-white text-sm"></i>
-                                            </div>
-                                            Evolución del Tratamiento
-                                        </h4>
-                                        <span class="text-xs bg-[#475569] text-white px-3 py-1 rounded-full">Legajo #{{ forloop.counter }}</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="p-8">
-                                <!-- Header del legajo -->
-                                <!-- Header del legajo -->
-                                <div class="flex justify-between items-start mb-4">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-12 h-12 bg-[#3B82F6] rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                                            {{ forloop.counter }}
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-bold text-gray-900">{{ legajo.fecha_apertura|date:"d/m/Y" }}</h3>
-                                            <p class="text-sm text-gray-500">{{ legajo.dispositivo.nombre }}</p>
-                                        </div>
-                                    </div>
-                                    <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
-                                        <i class="fas fa-eye"></i>
-                                        <span>Ver Ciudadano</span>
-                                    </a>
-                                </div>
+            <div class="p-6">
+                <dl class="grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="bg-white px-4 py-3">
+                        <dt class="text-xs font-semibold uppercase text-slate-500">Vía de ingreso</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ solapa.inscripcion.get_via_ingreso_display }}</dd>
+                    </div>
+                    <div class="bg-white px-4 py-3">
+                        <dt class="text-xs font-semibold uppercase text-slate-500">Fecha de inscripción</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}</dd>
+                    </div>
+                    <div class="bg-white px-4 py-3">
+                        <dt class="text-xs font-semibold uppercase text-slate-500">Fecha de inicio</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ solapa.inscripcion.fecha_inicio|date:"d/m/Y"|default:"—" }}</dd>
+                    </div>
+                    <div class="bg-white px-4 py-3">
+                        <dt class="text-xs font-semibold uppercase text-slate-500">Responsable</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{% if solapa.inscripcion.responsable %}{{ solapa.inscripcion.responsable.get_full_name|default:solapa.inscripcion.responsable.username }}{% else %}—{% endif %}</dd>
+                    </div>
+                </dl>
 
-                                <!-- Estados y badges -->
-                                <div class="flex flex-wrap gap-2 mb-4">
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                        {% if legajo.estado == 'ABIERTO' %}bg-green-100 text-green-800 border border-green-200
-                                        {% elif legajo.estado == 'EN_SEGUIMIENTO' %}bg-blue-100 text-blue-800 border border-blue-200
-                                        {% elif legajo.estado == 'DERIVADO' %}bg-yellow-100 text-yellow-800 border border-yellow-200
-                                        {% else %}bg-gray-100 text-gray-800 border border-gray-200{% endif %}">
-                                        <div class="w-2 h-2 rounded-full mr-2
-                                            {% if legajo.estado == 'ABIERTO' %}bg-green-500
-                                            {% elif legajo.estado == 'EN_SEGUIMIENTO' %}bg-blue-500
-                                            {% elif legajo.estado == 'DERIVADO' %}bg-yellow-500
-                                            {% else %}bg-gray-500{% endif %}"></div>
-                                        {{ legajo.get_estado_display }}
-                                    </span>
-                                    
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                        {% if legajo.nivel_riesgo == 'ALTO' %}bg-red-100 text-red-800 border border-red-200
-                                        {% elif legajo.nivel_riesgo == 'MEDIO' %}bg-orange-100 text-orange-800 border border-orange-200
-                                        {% else %}bg-green-100 text-green-800 border border-green-200{% endif %}">
-                                        {% if legajo.nivel_riesgo == 'ALTO' %}🔴
-                                        {% elif legajo.nivel_riesgo == 'MEDIO' %}🟡
-                                        {% else %}🟢{% endif %}
-                                        Riesgo {{ legajo.get_nivel_riesgo_display }}
-                                    </span>
-                                </div>
+                {% if solapa.programa.descripcion %}
+                <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                    <p class="mb-1 text-xs font-semibold uppercase text-slate-500">Sobre el programa</p>
+                    <p class="text-sm text-slate-700">{{ solapa.programa.descripcion }}</p>
+                </div>
+                {% endif %}
 
-                                <!-- Información del legajo -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="space-y-2">
-                                        <div class="flex items-center text-gray-600">
-                                            <i class="fas fa-building w-5 text-blue-500"></i>
-                                            <span class="ml-2 text-sm">{{ legajo.dispositivo.nombre }}</span>
-                                        </div>
-                                        <div class="flex items-center text-gray-600">
-                                            <i class="fas fa-calendar w-5 text-green-500"></i>
-                                            <span class="ml-2 text-sm">Apertura: {{ legajo.fecha_apertura|date:"d/m/Y" }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="space-y-2">
-                                        {% if legajo.responsable %}
-                                        <div class="flex items-center text-gray-600">
-                                            <i class="fas fa-user-md w-5 text-purple-500"></i>
-                                            <span class="ml-2 text-sm font-medium">{{ legajo.responsable.get_full_name|default:legajo.responsable.username }}</span>
-                                        </div>
-                                        {% endif %}
-                                        {% if legajo.fecha_cierre %}
-                                        <div class="flex items-center text-gray-600">
-                                            <i class="fas fa-calendar-times w-5 text-red-500"></i>
-                                            <span class="ml-2 text-sm">Cierre: {{ legajo.fecha_cierre|date:"d/m/Y" }}</span>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                {% if solapa.inscripcion.notas %}
+                <div class="mt-6 rounded-xl border border-amber-100 bg-amber-50/60 p-5">
+                    <p class="mb-1 text-xs font-semibold uppercase text-slate-500">Notas de la inscripción</p>
+                    <p class="whitespace-pre-line text-sm text-slate-700">{{ solapa.inscripcion.notas }}</p>
+                </div>
+                {% endif %}
 
-                                <!-- Timeline de Progreso -->
-                                <div class="mt-6 bg-gray-50 rounded-lg p-4">
-                                    <h5 class="text-sm font-bold text-gray-700 mb-4 flex items-center">
-                                        <i class="fas fa-route text-indigo-500 mr-2"></i>
-                                        Hitos del Tratamiento
-                                    </h5>
-                                    <div class="relative">
-                                        <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
-                                        <div class="space-y-4 relative" id="timeline-legajo-{{ legajo.id }}">
-                                            <!-- Se cargará dinámicamente -->
-                                            <div class="flex items-center">
-                                                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold z-10">
-                                                    <i class="fas fa-check"></i>
-                                                </div>
-                                                <div class="ml-4 flex-1">
-                                                    <p class="text-sm font-medium text-gray-900">Apertura</p>
-                                                    <p class="text-xs text-gray-500">{{ legajo.fecha_apertura|date:"d/m/Y" }}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Estadísticas del Legajo -->
-                                <div class="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
-                                    <div class="bg-blue-50 rounded-lg p-3 text-center">
-                                        <div class="text-2xl font-bold text-blue-600" id="seguimientos-{{ legajo.id }}">-</div>
-                                        <div class="text-xs text-gray-600">Seguimientos</div>
-                                    </div>
-                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
-                                        <div class="text-2xl font-bold text-purple-600" id="dias-activo-{{ legajo.id }}">{{ legajo.dias_desde_admision }}</div>
-                                        <div class="text-xs text-gray-600">Días Activo</div>
-                                    </div>
-                                    <div class="bg-green-50 rounded-lg p-3 text-center">
-                                        <div class="text-2xl font-bold text-green-600" id="adherencia-{{ legajo.id }}">-</div>
-                                        <div class="text-xs text-gray-600">Adherencia</div>
-                                    </div>
-                                    <div class="bg-orange-50 rounded-lg p-3 text-center">
-                                        <div class="text-2xl font-bold text-orange-600" id="objetivos-{{ legajo.id }}">-</div>
-                                        <div class="text-xs text-gray-600">Objetivos</div>
-                                    </div>
-                                </div>
-
-                                <!-- Acciones rápidas -->
-                                <div class="mt-6 pt-4 border-t border-gray-100">
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div class="flex space-x-2">
-                                            <span class="text-xs text-gray-500">Acciones rápidas:</span>
-                                        </div>
-                                        <div class="flex flex-wrap gap-3">
-                                            <button class="text-blue-600 hover:text-blue-800 text-sm" title="Historial">
-                                                <i class="fas fa-history"></i>
-                                            </button>
-                                            <button class="text-green-600 hover:text-green-800 text-sm" title="Seguimientos">
-                                                <i class="fas fa-clipboard-list"></i>
-                                            </button>
-                                            <button onclick="abrirModalArchivos('{{ legajo.id }}')" class="text-orange-600 hover:text-orange-800 text-sm" title="Subir archivos">
-                                                <i class="fas fa-paperclip"></i>
-                                            </button>
-                                            <button class="text-purple-600 hover:text-purple-800 text-sm" title="Red de contactos">
-                                                <i class="fas fa-users"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                </div>
+                <!-- Derivaciones vinculadas a este programa -->
+                <div class="mt-8">
+                    <h4 class="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+                        <i class="fas fa-share-nodes text-slate-400"></i>
+                        Derivaciones vinculadas
+                    </h4>
+                    <div class="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200">
+                        {% for deriv in derivaciones_ciudadano %}
+                        {% if deriv.programa_destino_id == solapa.programa.id or deriv.programa_origen_id == solapa.programa.id %}
+                        <div class="flex items-center justify-between bg-white px-5 py-3 transition-colors hover:bg-slate-50">
+                            <div class="min-w-0">
+                                <span class="text-sm font-semibold text-slate-900">
+                                    {% if deriv.programa_destino_id == solapa.programa.id %}Recibida{% else %}Enviada a {{ deriv.programa_destino.nombre }}{% endif %}
+                                </span>
+                                {% if deriv.programa_origen and deriv.programa_destino_id == solapa.programa.id %}
+                                <span class="ml-2 text-xs text-slate-500">desde {{ deriv.programa_origen.nombre }}</span>
+                                {% endif %}
+                                {% if deriv.motivo %}<p class="mt-0.5 truncate text-xs text-slate-500">{{ deriv.motivo|truncatechars:100 }}</p>{% endif %}
                             </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="text-center py-12">
-                            <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
-                                <i class="fas fa-folder-open text-4xl text-gray-400"></i>
+                            <div class="ml-4 flex flex-shrink-0 items-center gap-2">
+                                <span class="text-xs text-slate-500">{{ deriv.creado|date:"d/m/Y" }}</span>
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                                    {% if deriv.estado == 'PENDIENTE' %}bg-orange-100 text-orange-700
+                                    {% elif deriv.estado == 'ACEPTADA' %}bg-green-100 text-green-700
+                                    {% elif deriv.estado == 'RECHAZADA' %}bg-red-100 text-red-700
+                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ deriv.get_estado_display }}
+                                </span>
                             </div>
-                            <h3 class="text-xl font-semibold text-[#252F40] mb-2">Sin acompañamientos clínicos activos</h3>
-                            <p class="text-[#8C8C8C] max-w-md mx-auto">La ficha del ciudadano se mantiene activa con programas, conversaciones e historial general.</p>
                         </div>
-                    {% endif %}
+                        {% endif %}
+                        {% empty %}
+                        <div class="bg-white px-5 py-8 text-center">
+                            <p class="text-sm text-slate-500">Sin derivaciones vinculadas a este programa.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-
-    </div>
     </div>
     {% endif %}
     {% endfor %}
 
-    <!-- Tab: NACHEC (si la solapa dinamica existe) -->
-    {% for solapa in solapas %}
-    {% if 'NACHEC' in solapa.id or 'ACHEC' in solapa.id %}
-    <div id="tab-programa_NACHEC" class="tab-content hidden">
+    <!-- Tab: NACHEC (contenido dedicado) -->
+    {% for solapa in solapas_programas %}
+    {% if 'NACHEC' in solapa.id %}
+    <div id="tab-programa_NACHEC" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-programa_NACHEC">
         {% include 'legajos/ciudadano_nachec_detail.html' %}
     </div>
     {% endif %}
     {% endfor %}
 
-    <!-- Tab: Legajos -->
-    <div id="tab-legajos" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-[#252F40] flex items-center">
-                    <i class="fas fa-folder-open text-indigo-500 mr-2"></i>Legajos de atención
-                </h3>
-                <span class="text-sm text-[#8C8C8C]">{{ legajos.count }} expediente(s)</span>
-            </div>
-            {% if legajos %}
-            <div class="divide-y divide-[#E5E7EB]">
-                {% for legajo in legajos %}
-                <div class="px-6 py-4 hover:bg-[#F9FAFB] transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="font-mono text-sm font-semibold text-indigo-700">{{ legajo.codigo }}</span>
-                            {% if legajo.dispositivo %}
-                            <span class="ml-2 text-sm text-[#4A5565]">· {{ legajo.dispositivo.nombre }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs text-[#8C8C8C]">{{ legajo.fecha_admision|date:"d/m/Y" }}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                {% if legajo.estado == 'ABIERTO' %}bg-green-100 text-green-700
-                                {% elif legajo.estado == 'EN_SEGUIMIENTO' %}bg-blue-100 text-blue-700
-                                {% else %}bg-gray-100 text-gray-600{% endif %}">
-                                {{ legajo.get_estado_display }}
-                            </span>
-                        </div>
-                    </div>
-                    {% if legajo.notas %}
-                    <p class="mt-1 text-xs text-[#8C8C8C] truncate">{{ legajo.notas|truncatechars:120 }}</p>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center py-16">
-                <i class="fas fa-folder-open text-4xl text-gray-200 mb-3"></i>
-                <p class="text-[#8C8C8C] text-sm">No hay legajos de atención registrados para este ciudadano.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
     <!-- Tab: Conversaciones -->
-    <div id="tab-conversaciones" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="px-6 py-4 border-b border-[#E5E7EB]">
-                <h3 class="text-lg font-semibold text-[#252F40] flex items-center">
-                    <i class="fas fa-comments text-purple-500 mr-2"></i>Conversaciones
+    <div id="tab-conversaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-conversaciones">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-6 py-4">
+                <h3 class="flex items-center text-lg font-semibold text-slate-900">
+                    <i class="fas fa-comments mr-2 text-purple-500"></i>Conversaciones
                 </h3>
             </div>
             {% if conversaciones_ciudadano %}
-            <div class="divide-y divide-[#E5E7EB]">
+            <div class="divide-y divide-slate-200">
                 {% for conv in conversaciones_ciudadano %}
-                <div class="px-6 py-4 hover:bg-[#F9FAFB] transition-colors">
+                <div class="px-6 py-4 transition-colors hover:bg-slate-50">
                     <div class="flex items-center justify-between">
                         <div>
-                            <span class="text-sm font-medium text-[#252F40]">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
+                            <span class="text-sm font-medium text-slate-900">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
                             {% if conv.operador_asignado %}
-                            <span class="ml-2 text-xs text-[#8C8C8C]">· {{ conv.operador_asignado.get_full_name|default:conv.operador_asignado.username }}</span>
+                            <span class="ml-2 text-xs text-slate-500">· {{ conv.operador_asignado.get_full_name|default:conv.operador_asignado.username }}</span>
                             {% endif %}
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-[#8C8C8C]">{{ conv.fecha_inicio|date:"d/m/Y H:i" }}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                            <span class="text-xs text-slate-500">{{ conv.fecha_inicio|date:"d/m/Y H:i" }}</span>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
                                 {% if conv.estado == 'activa' %}bg-green-100 text-green-700
                                 {% elif conv.estado == 'pendiente' %}bg-yellow-100 text-yellow-700
-                                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {% else %}bg-slate-100 text-slate-600{% endif %}">
                                 {{ conv.get_estado_display|default:conv.estado }}
                             </span>
                         </div>
@@ -819,124 +681,124 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-16">
-                <i class="fas fa-comment-slash text-4xl text-gray-200 mb-3"></i>
-                <p class="text-[#8C8C8C] text-sm">No hay conversaciones registradas para este ciudadano.</p>
+            <div class="py-16 text-center">
+                <i class="fas fa-comment-slash mb-3 text-4xl text-slate-200"></i>
+                <p class="text-sm text-slate-500">No hay conversaciones registradas para este ciudadano.</p>
             </div>
             {% endif %}
         </div>
     </div>
 
     <!-- Tab: Derivaciones -->
-    <div id="tab-derivaciones" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="px-6 py-4 border-b border-[#E5E7EB]">
-                <h3 class="text-lg font-semibold text-[#252F40] flex items-center">
-                    <i class="fas fa-share-alt text-orange-500 mr-2"></i>Derivaciones
+    <div id="tab-derivaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-derivaciones">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-6 py-4">
+                <h3 class="flex items-center text-lg font-semibold text-slate-900">
+                    <i class="fas fa-share-nodes mr-2 text-orange-500"></i>Derivaciones
                 </h3>
             </div>
             {% if derivaciones_ciudadano %}
-            <div class="divide-y divide-[#E5E7EB]">
+            <div class="divide-y divide-slate-200">
                 {% for deriv in derivaciones_ciudadano %}
-                <div class="px-6 py-4 hover:bg-[#F9FAFB] transition-colors">
+                <div class="px-6 py-4 transition-colors hover:bg-slate-50">
                     <div class="flex items-center justify-between">
                         <div>
-                            <span class="text-sm font-semibold text-[#252F40]">{{ deriv.programa_destino.nombre }}</span>
+                            <span class="text-sm font-semibold text-slate-900">{{ deriv.programa_destino.nombre }}</span>
                             {% if deriv.programa_origen %}
-                            <span class="text-xs text-[#8C8C8C] ml-2">desde {{ deriv.programa_origen.nombre }}</span>
+                            <span class="ml-2 text-xs text-slate-500">desde {{ deriv.programa_origen.nombre }}</span>
                             {% endif %}
                             {% if deriv.derivado_por %}
-                            <span class="text-xs text-[#8C8C8C] ml-2">· {{ deriv.derivado_por.get_full_name|default:deriv.derivado_por.username }}</span>
+                            <span class="ml-2 text-xs text-slate-500">· {{ deriv.derivado_por.get_full_name|default:deriv.derivado_por.username }}</span>
                             {% endif %}
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-[#8C8C8C]">{{ deriv.creado|date:"d/m/Y" }}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                            <span class="text-xs text-slate-500">{{ deriv.creado|date:"d/m/Y" }}</span>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
                                 {% if deriv.estado == 'PENDIENTE' %}bg-orange-100 text-orange-700
                                 {% elif deriv.estado == 'ACEPTADA' %}bg-green-100 text-green-700
                                 {% elif deriv.estado == 'RECHAZADA' %}bg-red-100 text-red-700
-                                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {% else %}bg-slate-100 text-slate-600{% endif %}">
                                 {{ deriv.get_estado_display }}
                             </span>
                         </div>
                     </div>
                     {% if deriv.motivo %}
-                    <p class="mt-1 text-xs text-[#8C8C8C] truncate">{{ deriv.motivo|truncatechars:120 }}</p>
+                    <p class="mt-1 truncate text-xs text-slate-500">{{ deriv.motivo|truncatechars:120 }}</p>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-16">
-                <i class="fas fa-share-alt text-4xl text-gray-200 mb-3"></i>
-                <p class="text-[#8C8C8C] text-sm">No hay derivaciones registradas para este ciudadano.</p>
+            <div class="py-16 text-center">
+                <i class="fas fa-share-nodes mb-3 text-4xl text-slate-200"></i>
+                <p class="text-sm text-slate-500">No hay derivaciones registradas para este ciudadano.</p>
             </div>
             {% endif %}
         </div>
     </div>
 
     <!-- Tab: Alertas -->
-    <div id="tab-alertas" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-[#252F40] flex items-center">
-                    <i class="fas fa-bell text-red-500 mr-2"></i>Alertas activas
+    <div id="tab-alertas" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-alertas">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <h3 class="flex items-center text-lg font-semibold text-slate-900">
+                    <i class="fas fa-bell mr-2 text-red-500"></i>Alertas activas
                 </h3>
-                <span class="text-sm text-[#8C8C8C]">{{ alertas_ciudadano.count }} alerta(s)</span>
+                <span class="text-sm text-slate-500">{{ alertas_ciudadano.count }} alerta{{ alertas_ciudadano.count|pluralize }}</span>
             </div>
             {% if alertas_ciudadano %}
-            <div class="divide-y divide-[#E5E7EB]">
+            <div class="divide-y divide-slate-200">
                 {% for alerta in alertas_ciudadano %}
-                <div class="px-6 py-4 flex items-start gap-4 hover:bg-[#F9FAFB] transition-colors">
-                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0
+                <div class="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-slate-50">
+                    <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full
                         {% if alerta.prioridad == 'CRITICA' %}bg-red-100 text-red-600
                         {% elif alerta.prioridad == 'ALTA' %}bg-orange-100 text-orange-600
                         {% elif alerta.prioridad == 'MEDIA' %}bg-yellow-100 text-yellow-600
-                        {% else %}bg-gray-100 text-gray-500{% endif %}">
-                        <i class="fas fa-exclamation-triangle text-xs"></i>
+                        {% else %}bg-slate-100 text-slate-500{% endif %}">
+                        <i class="fas fa-triangle-exclamation text-xs"></i>
                     </span>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-[#252F40]">{{ alerta.get_tipo_display }}</p>
-                        <p class="text-xs text-[#8C8C8C] mt-0.5">{{ alerta.mensaje }}</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-slate-900">{{ alerta.get_tipo_display }}</p>
+                        <p class="mt-0.5 text-xs text-slate-500">{{ alerta.mensaje }}</p>
                     </div>
-                    <span class="text-xs text-[#8C8C8C] whitespace-nowrap">{{ alerta.creado|date:"d/m/Y" }}</span>
+                    <span class="whitespace-nowrap text-xs text-slate-500">{{ alerta.creado|date:"d/m/Y" }}</span>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-16">
-                <i class="fas fa-check-circle text-4xl text-green-200 mb-3"></i>
-                <p class="text-[#8C8C8C] text-sm">No hay alertas activas. Todo en orden.</p>
+            <div class="py-16 text-center">
+                <i class="fas fa-circle-check mb-3 text-4xl text-green-200"></i>
+                <p class="text-sm text-slate-500">No hay alertas activas. Todo en orden.</p>
             </div>
             {% endif %}
         </div>
     </div>
 
     <!-- Tab: Línea de tiempo -->
-    <div id="tab-linea_tiempo" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="px-6 py-4 border-b border-[#E5E7EB]">
-                <h3 class="text-lg font-semibold text-[#252F40] flex items-center">
-                    <i class="fas fa-history text-indigo-500 mr-2"></i>Línea de tiempo
+    <div id="tab-linea_tiempo" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-linea_tiempo">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-6 py-4">
+                <h3 class="flex items-center text-lg font-semibold text-slate-900">
+                    <i class="fas fa-clock-rotate-left mr-2 text-indigo-500"></i>Línea de tiempo
                 </h3>
             </div>
             {% if linea_tiempo %}
             <div class="px-6 py-6">
                 <div class="relative">
-                    <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-[#E5E7EB]"></div>
+                    <div class="absolute bottom-0 left-4 top-0 w-0.5 bg-slate-200"></div>
                     <div class="space-y-6">
                         {% for evento in linea_tiempo %}
                         <div class="relative flex items-start pl-10">
-                            <span class="absolute left-0 flex items-center justify-center w-8 h-8 rounded-full border-2 border-white shadow"
+                            <span class="absolute left-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow"
                                   style="background-color: {{ evento.color_hex }};">
-                                <i class="fas fa-{{ evento.icono }} text-white text-xs"></i>
+                                <i class="fas fa-{{ evento.icono }} text-xs text-white"></i>
                             </span>
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-[#252F40]">{{ evento.titulo }}</p>
+                                <p class="text-sm font-medium text-slate-900">{{ evento.titulo }}</p>
                                 {% if evento.descripcion %}
-                                <p class="text-xs text-[#8C8C8C] mt-0.5">{{ evento.descripcion }}</p>
+                                <p class="mt-0.5 text-xs text-slate-500">{{ evento.descripcion }}</p>
                                 {% endif %}
-                                <p class="text-xs text-[#8C8C8C] mt-1">{{ evento.fecha|date:"d/m/Y" }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ evento.fecha|date:"d/m/Y" }}</p>
                             </div>
                         </div>
                         {% endfor %}
@@ -944,108 +806,93 @@
                 </div>
             </div>
             {% else %}
-            <div class="text-center py-16">
-                <i class="fas fa-history text-4xl text-gray-200 mb-3"></i>
-                <p class="text-[#8C8C8C] text-sm">No hay eventos registrados en la línea de tiempo.</p>
+            <div class="py-16 text-center">
+                <i class="fas fa-clock-rotate-left mb-3 text-4xl text-slate-200"></i>
+                <p class="text-sm text-slate-500">No hay eventos registrados en la línea de tiempo.</p>
             </div>
             {% endif %}
         </div>
     </div>
 
     <!-- Tab: Red Familiar -->
-    <div id="tab-red_familiar" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
-            <div class="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
-                <h3 class="text-2xl font-bold text-[#252F40] flex items-center">
-                    <div class="bg-[#10B981] rounded-lg p-2 mr-3">
-                        <i class="fas fa-users text-white text-lg"></i>
-                    </div>
-                    Red Familiar Interactiva
+    <div id="tab-red_familiar" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-red_familiar">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
+            <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <h3 class="flex items-center gap-3 text-xl font-bold text-slate-900">
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                        <i class="fas fa-users"></i>
+                    </span>
+                    Red Familiar
                 </h3>
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <button onclick="abrirModalVinculo()" class="bg-white text-[#10B981] border border-[#10B981] px-4 py-2 rounded-lg hover:bg-emerald-50 transition-colors">
-                        <i class="fas fa-user-plus mr-2"></i>Agregar familiar
-                    </button>
-                    <button onclick="toggleRedFamiliar()" class="bg-[#10B981] text-white px-4 py-2 rounded-lg hover:bg-[#059669] transition-colors">
-                        <i class="fas fa-users mr-2"></i>Ver Red Completa
-                    </button>
-                </div>
+                <button onclick="abrirModalVinculo()" class="w-fit rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50">
+                    <i class="fas fa-user-plus mr-2"></i>Agregar familiar
+                </button>
             </div>
 
-            <div id="red-familiar-container">
-                <!-- Vínculos existentes -->
-                <div id="vinculos-existentes">
-                    <h3 class="text-lg font-medium text-[#252F40] mb-4">Vínculos Registrados</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                                <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Ciudadano</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Relación</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">DNI</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Teléfono</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Estado</th>
-                                    <th class="w-28 px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-vinculos" class="divide-y divide-[#E5E7EB]">
-                                <!-- Los vínculos se cargarán aquí dinámicamente -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="mensaje-sin-vinculos" class="text-center py-8 hidden">
-                        <div class="text-gray-400 text-4xl mb-2">👥</div>
-                        <p class="text-gray-500">No hay vínculos registrados</p>
-                    </div>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="border-b border-slate-200 bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Ciudadano</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Relación</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">DNI</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Teléfono</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Estado</th>
+                            <th class="w-28 px-6 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-700">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-vinculos" class="divide-y divide-slate-200"></tbody>
+                </table>
+            </div>
+            <div id="mensaje-sin-vinculos" class="hidden py-12 text-center">
+                <i class="fas fa-users mb-3 text-4xl text-slate-200"></i>
+                <p class="text-sm text-slate-500">No hay vínculos registrados</p>
             </div>
         </div>
     </div>
 
     <!-- Tab: Archivos -->
-    <div id="tab-archivos" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="p-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-2xl font-bold text-[#252F40] flex items-center">
-                        <div class="bg-[#64748B] rounded-lg p-2 mr-3">
-                            <i class="fas fa-paperclip text-white text-lg"></i>
-                        </div>
+    <div id="tab-archivos" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-archivos">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="p-6 lg:p-8">
+                <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 class="flex items-center gap-3 text-xl font-bold text-slate-900">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                            <i class="fas fa-paperclip"></i>
+                        </span>
                         Archivos
                     </h3>
-                    <div class="flex items-center space-x-4">
-                        <button onclick="abrirModalArchivosGeneral()" class="bg-[#64748B] text-white px-6 py-3 rounded-xl hover:bg-[#475569] transition-all flex items-center space-x-2">
+                    <div class="flex items-center gap-4">
+                        <button onclick="abrirModalArchivos()" class="flex items-center gap-2 rounded-xl bg-slate-700 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800">
                             <i class="fas fa-upload"></i>
                             <span>Subir Archivo</span>
                         </button>
-                        <div class="bg-[#F9FAFB] px-4 py-2 rounded-full border border-[#E5E7EB]">
-                            <span class="text-lg font-bold text-[#252F40]" id="total-archivos">-</span>
-                            <span class="text-sm text-[#8C8C8C]">archivos</span>
+                        <div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
+                            <span class="text-lg font-bold text-slate-900" id="total-archivos">-</span>
+                            <span class="text-sm text-slate-500">archivos</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                        <thead class="border-b border-slate-200 bg-slate-50">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Archivo</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Etiqueta</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Origen</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Fecha</th>
-                                <th class="w-28 px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Acciones</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Archivo</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Etiqueta</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Origen</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Fecha</th>
+                                <th class="w-28 px-6 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-700">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tabla-archivos" class="divide-y divide-[#E5E7EB]">
-                            <!-- Los archivos se cargarán aquí dinámicamente -->
-                        </tbody>
+                        <tbody id="tabla-archivos" class="divide-y divide-slate-200"></tbody>
                     </table>
                 </div>
-                <div id="mensaje-sin-archivos" class="text-center py-12 hidden">
-                    <div class="text-gray-400 text-4xl mb-4">📁</div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">No hay archivos subidos</h3>
-                    <p class="text-gray-500 mb-6">Sube documentos, imágenes y otros archivos relacionados con los legajos</p>
-                    <button onclick="abrirModalArchivosGeneral()" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2 mx-auto">
+                <div id="mensaje-sin-archivos" class="hidden py-12 text-center">
+                    <i class="fas fa-folder-open mb-4 text-4xl text-slate-200"></i>
+                    <h3 class="mb-2 text-lg font-semibold text-slate-900">No hay archivos subidos</h3>
+                    <p class="mb-6 text-slate-500">Subí documentos, imágenes y otros archivos relacionados con el legajo</p>
+                    <button onclick="abrirModalArchivos()" class="mx-auto flex items-center gap-2 rounded-lg bg-slate-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800">
                         <i class="fas fa-upload"></i>
                         <span>Subir Primer Archivo</span>
                     </button>
@@ -1053,17 +900,17 @@
             </div>
         </div>
     </div>
-</div>
 
+    </div>
 </div>
 
 <!-- Modal Nuevo Vínculo -->
-<div id="modalVinculo" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg max-w-md w-full p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Agregar Vínculo Familiar</h3>
-                <button onclick="cerrarModal('modalVinculo')" class="text-gray-400 hover:text-gray-600">
+<div id="modalVinculo" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-slate-900">Agregar Vínculo Familiar</h3>
+                <button onclick="cerrarModal('modalVinculo')" class="text-slate-400 hover:text-slate-600" aria-label="Cerrar">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1071,14 +918,14 @@
                 {% csrf_token %}
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Ciudadano</label>
-                        <input type="text" id="buscarCiudadano" placeholder="Nombre, apellido o DNI..." class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Buscar Ciudadano</label>
+                        <input type="text" id="buscarCiudadano" placeholder="Nombre, apellido o DNI..." class="w-full rounded-lg border border-slate-300 px-3 py-2" required>
                         <input type="hidden" name="ciudadano_id" id="ciudadanoSeleccionado">
                         <div id="resultadosBusqueda" class="mt-2 max-h-40 overflow-y-auto"></div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Relación</label>
-                        <select name="relacion" class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Relación</label>
+                        <select name="relacion" class="w-full rounded-lg border border-slate-300 px-3 py-2" required>
                             <option value="">Seleccionar...</option>
                             <option value="PADRE">Padre</option>
                             <option value="MADRE">Madre</option>
@@ -1091,19 +938,19 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                        <input type="text" name="telefono" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Teléfono</label>
+                        <input type="text" name="telefono" class="w-full rounded-lg border border-slate-300 px-3 py-2">
                     </div>
                     <div class="flex items-center">
                         <input type="checkbox" name="convive" class="mr-2">
-                        <label class="text-sm text-gray-700">Convive con el ciudadano</label>
+                        <label class="text-sm text-slate-700">Convive con el ciudadano</label>
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="cerrarModal('modalVinculo')" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" onclick="cerrarModal('modalVinculo')" class="rounded-lg border border-slate-300 px-4 py-2 text-slate-600 hover:bg-slate-50">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                         Guardar
                     </button>
                 </div>
@@ -1113,12 +960,12 @@
 </div>
 
 <!-- Modal Subir Archivos -->
-<div id="modalArchivos" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg max-w-md w-full p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Subir Archivos</h3>
-                <button onclick="cerrarModal('modalArchivos')" class="text-gray-400 hover:text-gray-600">
+<div id="modalArchivos" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-slate-900">Subir Archivos</h3>
+                <button onclick="cerrarModal('modalArchivos')" class="text-slate-400 hover:text-slate-600" aria-label="Cerrar">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1126,20 +973,20 @@
                 {% csrf_token %}
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Archivo</label>
-                        <input type="file" name="archivo" class="w-full border border-gray-300 rounded-lg px-3 py-2" required multiple>
-                        <p class="text-xs text-gray-500 mt-1">Formatos permitidos: PDF, DOC, DOCX, JPG, PNG (Máx. 10MB)</p>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Archivo</label>
+                        <input type="file" name="archivo" class="w-full rounded-lg border border-slate-300 px-3 py-2" required multiple>
+                        <p class="mt-1 text-xs text-slate-500">Formatos permitidos: PDF, DOC, DOCX, JPG, PNG (Máx. 10MB)</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Etiqueta/Descripción</label>
-                        <input type="text" name="etiqueta" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Informe médico, Consentimiento, etc.">
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Etiqueta/Descripción</label>
+                        <input type="text" name="etiqueta" class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Ej: Informe médico, Consentimiento, etc.">
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="cerrarModal('modalArchivos')" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" onclick="cerrarModal('modalArchivos')" class="rounded-lg border border-slate-300 px-4 py-2 text-slate-600 hover:bg-slate-50">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                    <button type="submit" class="rounded-lg bg-slate-700 px-4 py-2 text-white hover:bg-slate-800">
                         Subir Archivos
                     </button>
                 </div>
@@ -1149,501 +996,95 @@
 </div>
 
 <script>
-// Funciones para la red familiar
-// Cargar datos automáticamente al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== INICIANDO CARGA DE DATOS ===');
-    console.log('Ciudadano ID:', {{ ciudadano.id }});
-    cargarVinculos();
-    cargarActividades();
-    cargarArchivos();
-    cargarAlertas();
-    cargarLineaTemporal();
-    cargarPrediccionRiesgo();
-    actualizarDashboard();
-    
-    // Cargar derivaciones para cada programa activo
-    {% for solapa in solapas %}{% if not solapa.estatica %}
-    cargarDerivacionesPrograma({{ solapa.programa.id }}, '{{ solapa.id }}');
-    {% endif %}{% endfor %}
-});
-
-// Sistema de Tabs
+// ============================================================
+// Sistema de solapas: deep-linking por hash + accesibilidad
+// ============================================================
 function cambiarTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.add('hidden');
-    });
-    
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove('bg-blue-700', 'text-white', 'shadow-sm');
-        button.classList.add('bg-white', 'text-gray-600', 'border', 'border-gray-200');
-    });
-    
     const tabContent = document.getElementById(`tab-${tabName}`);
-    if (!tabContent) {
-        return;
-    }
+    if (!tabContent) return;
+
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('tab-active');
+        button.setAttribute('aria-selected', 'false');
+    });
+
     tabContent.classList.remove('hidden');
     const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
     if (activeButton) {
-        activeButton.classList.add('bg-blue-700', 'text-white', 'shadow-sm');
-        activeButton.classList.remove('bg-white', 'text-gray-600', 'border', 'border-gray-200');
+        activeButton.classList.add('tab-active');
+        activeButton.setAttribute('aria-selected', 'true');
+        activeButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
-    
-    // Cargar datos de legajos si se abre la pestaña de acompañamiento
-    if (tabName.startsWith('programa_ACOMPANAMIENTO')) {
-        cargarDatosLegajos();
-    }
+
+    // Deep-link: la solapa activa queda en la URL (sobrevive un F5)
+    history.replaceState(null, '', `#${tabName}`);
 }
 
-// Cargar datos de evolución de legajos
-function cargarDatosLegajos() {
-    {% for legajo in legajos %}
-    cargarEvolucionLegajo('{{ legajo.id }}');
-    {% endfor %}
-}
+// Navegación por teclado en la barra de solapas
+document.querySelector('[role="tablist"]').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const tabs = Array.from(this.querySelectorAll('[role="tab"]'));
+    const index = tabs.indexOf(document.activeElement);
+    if (index === -1) return;
+    e.preventDefault();
+    const next = e.key === 'ArrowRight' ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
+    tabs[next].focus();
+    tabs[next].click();
+});
 
-function cargarEvolucionLegajo(legajoId) {
-    fetch(`/legajos/${legajoId}/evolucion/`)
-        .then(response => response.json())
-        .then(data => {
-            // Actualizar seguimientos
-            document.getElementById(`seguimientos-${legajoId}`).textContent = data.total_seguimientos || 0;
-            
-            // Actualizar adherencia
-            const adherenciaEl = document.getElementById(`adherencia-${legajoId}`);
-            if (data.adherencia_promedio) {
-                adherenciaEl.textContent = data.adherencia_promedio + '%';
-            } else {
-                adherenciaEl.textContent = 'N/A';
-            }
-            
-            // Actualizar objetivos
-            const objetivosEl = document.getElementById(`objetivos-${legajoId}`);
-            if (data.objetivos_cumplidos !== undefined && data.objetivos_totales !== undefined) {
-                objetivosEl.textContent = `${data.objetivos_cumplidos}/${data.objetivos_totales}`;
-            } else {
-                objetivosEl.textContent = '0/0';
-            }
-            
-            // Actualizar timeline
-            const timelineEl = document.getElementById(`timeline-legajo-${legajoId}`);
-            if (data.hitos && data.hitos.length > 0) {
-                timelineEl.innerHTML = data.hitos.map(hito => {
-                    const iconConfig = getHitoIcon(hito.tipo);
-                    return `
-                        <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full ${iconConfig.bg} flex items-center justify-center text-white text-xs font-bold z-10">
-                                <i class="${iconConfig.icon}"></i>
-                            </div>
-                            <div class="ml-4 flex-1">
-                                <p class="text-sm font-medium text-gray-900">${hito.titulo}</p>
-                                <p class="text-xs text-gray-500">${new Date(hito.fecha).toLocaleDateString('es-AR')}</p>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-        })
-        .catch(error => {
-            console.error('Error cargando evolución:', error);
-        });
-}
+// Header compacto al scrollear
+const stickyHeader = document.getElementById('sticky-header');
+window.addEventListener('scroll', () => {
+    stickyHeader.classList.toggle('hidden', window.scrollY < 320);
+}, { passive: true });
 
-function getHitoIcon(tipo) {
-    const configs = {
-        'APERTURA': { icon: 'fas fa-folder-open', bg: 'bg-green-500' },
-        'EVALUACION': { icon: 'fas fa-stethoscope', bg: 'bg-purple-500' },
-        'PLAN': { icon: 'fas fa-tasks', bg: 'bg-blue-500' },
-        'SEGUIMIENTO': { icon: 'fas fa-clipboard-check', bg: 'bg-cyan-500' },
-        'DERIVACION': { icon: 'fas fa-share', bg: 'bg-yellow-500' },
-        'EVENTO': { icon: 'fas fa-exclamation-triangle', bg: 'bg-red-500' },
-        'CIERRE': { icon: 'fas fa-check-circle', bg: 'bg-gray-500' }
-    };
-    return configs[tipo] || { icon: 'fas fa-circle', bg: 'bg-gray-400' };
-}
-
-// Actualizar dashboard con métricas
-function actualizarDashboard() {
-    setTimeout(() => {
-        const totalVinculos = document.getElementById('tabla-vinculos')?.children.length || 0;
-        const totalArchivos = document.getElementById('tabla-archivos')?.children.length || 0;
-        const totalAlertas = document.getElementById('contenedor-alertas')?.children.length || 0;
-        
-        // Actualizar métricas del dashboard
-        document.getElementById('total-vinculos').textContent = totalVinculos;
-        document.getElementById('total-archivos-dash').textContent = totalArchivos;
-        document.getElementById('total-alertas-dash').textContent = totalAlertas;
-        
-        // Animación de conteo
-        animarContador('total-vinculos', totalVinculos);
-        animarContador('total-archivos-dash', totalArchivos);
-        animarContador('total-alertas-dash', totalAlertas);
-    }, 1000);
-}
-
-// Función para animar contadores
-function animarContador(elementId, valorFinal) {
-    const elemento = document.getElementById(elementId);
-    if (!elemento) return;
-    
-    let valorActual = 0;
-    const incremento = valorFinal / 20;
-    const intervalo = setInterval(() => {
-        valorActual += incremento;
-        if (valorActual >= valorFinal) {
-            elemento.textContent = valorFinal;
-            clearInterval(intervalo);
-        } else {
-            elemento.textContent = Math.floor(valorActual);
-        }
-    }, 50);
-}
-
-// Cargar alertas del ciudadano
-function cargarAlertas() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/alertas/`)
-        .then(response => response.json())
-        .then(data => {
-            const contenedor = document.getElementById('contenedor-alertas');
-            const contador = document.getElementById('contador-alertas');
-            const sinAlertas = document.getElementById('sin-alertas');
-            
-            if (data.results && data.results.length > 0) {
-                contenedor.innerHTML = data.results.map(alerta => {
-                    const icono = getIconoAlerta(alerta.tipo);
-                    return `
-                        <span class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border ${alerta.color_css}">
-                            <i class="${icono} mr-2"></i>
-                            ${alerta.mensaje}
-                            <button class="ml-2 text-gray-500 hover:text-gray-700" onclick="cerrarAlerta(${alerta.id}, this)">
-                                <i class="fas fa-times text-xs"></i>
-                            </button>
-                        </span>
-                    `;
-                }).join('');
-                contador.textContent = `${data.results.length} alerta${data.results.length > 1 ? 's' : ''}`;
-                sinAlertas.classList.add('hidden');
-            } else {
-                contenedor.innerHTML = '';
-                contador.textContent = 'Sin alertas';
-                sinAlertas.classList.remove('hidden');
-            }
-            
-            // Actualizar dashboard después de cargar alertas
-            actualizarDashboard();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('contador-alertas').textContent = 'Error al cargar';
-        });
-}
-
-// Obtener icono según tipo de alerta
-function getIconoAlerta(tipo) {
-    const iconos = {
-        'RIESGO_ALTO': 'fas fa-exclamation-triangle',
-        'RIESGO_SUICIDA': 'fas fa-skull-crossbones',
-        'VIOLENCIA': 'fas fa-fist-raised',
-        'SIN_CONTACTO': 'fas fa-phone-slash',
-        'SIN_EVALUACION': 'fas fa-stethoscope',
-        'SIN_PLAN': 'fas fa-tasks',
-        'EVENTO_CRITICO': 'fas fa-exclamation-circle',
-        'DERIVACION_PENDIENTE': 'fas fa-share',
-        'SIN_RED_FAMILIAR': 'fas fa-users',
-        'SIN_CONSENTIMIENTO': 'fas fa-file-signature',
-        'CONTACTOS_FALLIDOS': 'fas fa-phone-times',
-        'PLAN_VENCIDO': 'fas fa-clock'
-    };
-    return iconos[tipo] || 'fas fa-exclamation-triangle';
-}
-
-// Cerrar alerta individual
-function cerrarAlerta(alertaId, boton) {
-    fetch(`/legajos/alertas/${alertaId}/cerrar/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            boton.closest('span').remove();
-            // Actualizar contador
-            const contenedor = document.getElementById('contenedor-alertas');
-            const alertasRestantes = contenedor.children.length;
-            document.getElementById('contador-alertas').textContent = 
-                alertasRestantes > 0 ? `${alertasRestantes} alerta${alertasRestantes > 1 ? 's' : ''}` : 'Sin alertas';
-            
-            if (alertasRestantes === 0) {
-                document.getElementById('sin-alertas').classList.remove('hidden');
-            }
-        } else {
-            alert('Error al cerrar la alerta');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cerrar la alerta');
+// Copiar DNI al portapapeles
+function copiarDni(dni) {
+    navigator.clipboard.writeText(dni).then(() => {
+        toastr.options = { positionClass: 'toast-bottom-right' };
+        toastr.success(`DNI ${dni} copiado`);
+    }).catch(() => {
+        toastr.options = { positionClass: 'toast-bottom-right' };
+        toastr.error('No se pudo copiar el DNI');
     });
 }
 
-// Cargar archivos del ciudadano
-function cargarArchivos() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/archivos/`)
-        .then(response => response.json())
-        .then(data => {
-            const tbody = document.getElementById('tabla-archivos');
-            const mensajeSin = document.getElementById('mensaje-sin-archivos');
-            const contador = document.getElementById('total-archivos');
-            
-            if (data.results && data.results.length > 0) {
-                tbody.innerHTML = data.results.map(archivo => {
-                    const fecha = new Date(archivo.fecha_subida).toLocaleDateString('es-AR');
-                    const extension = archivo.nombre.split('.').pop().toLowerCase();
-                    const icono = getIconoArchivo(extension);
-                    
-                    return `
-                        <tr class="hover:bg-[#F9FAFB]">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <i class="${icono} text-2xl mr-3 text-gray-600"></i>
-                                    <div>
-                                        <div class="text-sm font-medium text-[#252F40]">${archivo.nombre}</div>
-                                        <div class="text-sm text-[#8C8C8C]">${formatearTamano(archivo.tamano)}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
-                                ${archivo.etiqueta || '-'}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                ${archivo.tipo_origen === 'ciudadano' ? 
-                                    '<span class="text-[#8C8C8C]">Ciudadano</span>' : 
-                                    `<a href="/legajos/${archivo.legajo_id}/" class="text-[#3B82F6] hover:text-[#2563EB]">Acompañamiento</a>`
-                                }
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
-                                ${fecha}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium align-middle">
-                                <div class="flex items-center justify-center gap-2">
-                                    <a href="${archivo.url}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#3B82F6] transition-colors hover:bg-blue-50 hover:text-[#2563EB]" title="Descargar">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                    <button onclick="eliminarArchivo(${archivo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#EF4444] transition-colors hover:bg-red-50 hover:text-[#DC2626]" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-                contador.textContent = data.results.length;
-                mensajeSin.classList.add('hidden');
-            } else {
-                tbody.innerHTML = '';
-                contador.textContent = '0';
-                mensajeSin.classList.remove('hidden');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('tabla-archivos').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-[#EF4444]">Error al cargar archivos</td></tr>';
-        });
-}
-
-// Obtener icono según extensión
-function getIconoArchivo(extension) {
-    const iconos = {
-        'pdf': 'fas fa-file-pdf text-red-500',
-        'doc': 'fas fa-file-word text-blue-500',
-        'docx': 'fas fa-file-word text-blue-500',
-        'jpg': 'fas fa-file-image text-green-500',
-        'jpeg': 'fas fa-file-image text-green-500',
-        'png': 'fas fa-file-image text-green-500'
-    };
-    return iconos[extension] || 'fas fa-file text-gray-500';
-}
-
-// Formatear tamaño de archivo
-function formatearTamano(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Eliminar archivo
-function eliminarArchivo(archivoId) {
-    Swal.fire({
-        title: '¿Eliminar archivo?',
-        text: 'Esta acción no se puede deshacer.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (!result.isConfirmed) return;
-        fetch(`/legajos/archivos/${archivoId}/eliminar/`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                cargarArchivos();
-            } else {
-                Swal.fire('Error', 'No se pudo eliminar el archivo.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Error', 'No se pudo eliminar el archivo.', 'error');
-        });
-    });
-}
-
-// Cargar actividades del ciudadano
-function cargarActividades() {
-    console.log('Cargando actividades para ciudadano {{ ciudadano.id }}...');
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/actividades/`)
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Datos recibidos:', data);
-            const tbody = document.getElementById('tabla-actividades');
-            const mensajeSin = document.getElementById('mensaje-sin-actividades');
-            const contador = document.getElementById('total-actividades');
-            
-            if (data.results && data.results.length > 0) {
-                tbody.innerHTML = data.results.map(actividad => {
-                    const fecha = new Date(actividad.fecha_hora).toLocaleString('es-AR');
-                    const tipoIcon = getTipoIcon(actividad.tipo);
-                    const tipoColor = getTipoColor(actividad.tipo);
-                    
-                    return `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ${fecha}
-                            </td>
-                            <td class="px-4 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tipoColor}">
-                                    <i class="${tipoIcon} mr-1"></i>
-                                    ${getTipoNombre(actividad.tipo)}
-                                </span>
-                            </td>
-                            <td class="px-4 py-4 text-sm text-gray-900">
-                                ${actividad.descripcion}
-                            </td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ${actividad.usuario_nombre || 'Sistema'}
-                            </td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm">
-                                <a href="/legajos/${actividad.legajo_id}/" class="text-blue-600 hover:text-blue-900">
-                                    ${actividad.legajo_codigo || actividad.legajo_id}
-                                </a>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-                contador.textContent = data.results.length;
-                mensajeSin.classList.add('hidden');
-            } else {
-                tbody.innerHTML = '';
-                contador.textContent = '0';
-                mensajeSin.classList.remove('hidden');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('tabla-actividades').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-500">Error al cargar actividades</td></tr>';
-        });
-}
-
-// Obtener icono según tipo de actividad
-function getTipoIcon(tipo) {
-    const iconos = {
-        'SEGUIMIENTO': 'fas fa-clipboard-list',
-        'EVALUACION': 'fas fa-stethoscope',
-        'PLAN': 'fas fa-tasks',
-        'DERIVACION': 'fas fa-share',
-        'EVENTO': 'fas fa-exclamation-triangle',
-        'CONTACTO': 'fas fa-phone',
-        'CHAT': 'fas fa-comments',
-        'ASIGNACION': 'fas fa-user-plus',
-        'APERTURA': 'fas fa-folder-open',
-        'CIERRE': 'fas fa-folder',
-        'VINCULO': 'fas fa-users'
-    };
-    return iconos[tipo] || 'fas fa-circle';
-}
-
-// Obtener color según tipo de actividad
-function getTipoColor(tipo) {
-    const colores = {
-        'SEGUIMIENTO': 'bg-blue-100 text-blue-800',
-        'EVALUACION': 'bg-purple-100 text-purple-800',
-        'PLAN': 'bg-green-100 text-green-800',
-        'DERIVACION': 'bg-yellow-100 text-yellow-800',
-        'EVENTO': 'bg-red-100 text-red-800',
-        'CONTACTO': 'bg-indigo-100 text-indigo-800',
-        'CHAT': 'bg-pink-100 text-pink-800',
-        'ASIGNACION': 'bg-teal-100 text-teal-800',
-        'APERTURA': 'bg-emerald-100 text-emerald-800',
-        'CIERRE': 'bg-gray-100 text-gray-800',
-        'VINCULO': 'bg-orange-100 text-orange-800'
-    };
-    return colores[tipo] || 'bg-gray-100 text-gray-800';
-}
-
-// Obtener nombre corto para tipo de actividad
-function getTipoNombre(tipo) {
-    const nombres = {
-        'SEGUIMIENTO': 'Seguimiento',
-        'EVALUACION': 'Evaluación',
-        'PLAN': 'Plan',
-        'DERIVACION': 'Derivación',
-        'EVENTO': 'Evento',
-        'CONTACTO': 'Contacto',
-        'CHAT': 'Chat',
-        'ASIGNACION': 'Asignación',
-        'APERTURA': 'Apertura',
-        'CIERRE': 'Cierre',
-        'VINCULO': 'Vínculo'
-    };
-    return nombres[tipo] || tipo;
-}
-
-function toggleRedFamiliar() {
-    // Ya no es necesario toggle, solo actualizar
+// ============================================================
+// Carga inicial de datos (solo lo que alimenta el Resumen
+// y los indicadores; el resto se renderiza del lado servidor)
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
     cargarVinculos();
-}
+    cargarActividades();
+    cargarArchivos();
+    cargarPrediccionRiesgo();
 
+    // Restaurar solapa desde la URL (deep-link)
+    const hash = window.location.hash.slice(1);
+    if (hash && document.getElementById(`tab-${hash}`)) {
+        cambiarTab(hash);
+    }
+});
+
+// ============================================================
+// Red familiar
+// ============================================================
 function abrirModalVinculo() {
     document.getElementById('modalVinculo').classList.remove('hidden');
     document.getElementById('buscarCiudadano').focus();
 }
 
-// Buscador de ciudadanos
 let timeoutBusqueda;
 document.getElementById('buscarCiudadano').addEventListener('input', function() {
     clearTimeout(timeoutBusqueda);
     const query = this.value.trim();
-    
+
     if (query.length < 2) {
         document.getElementById('resultadosBusqueda').innerHTML = '';
         return;
     }
-    
+
     timeoutBusqueda = setTimeout(() => {
         fetch(`/api/legajos/ciudadanos/?search=${encodeURIComponent(query)}`)
             .then(response => response.json())
@@ -1651,17 +1092,16 @@ document.getElementById('buscarCiudadano').addEventListener('input', function() 
                 const resultados = document.getElementById('resultadosBusqueda');
                 if (data.results && data.results.length > 0) {
                     resultados.innerHTML = data.results.map(c => `
-                        <div class="p-2 hover:bg-gray-100 cursor-pointer border-b" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
+                        <div class="cursor-pointer border-b p-2 hover:bg-slate-100" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
                             <div class="font-medium">${c.apellido}, ${c.nombre}</div>
-                            <div class="text-sm text-gray-500">DNI: ${c.dni}</div>
+                            <div class="text-sm text-slate-500">DNI: ${c.dni}</div>
                         </div>
                     `).join('');
                 } else {
-                    resultados.innerHTML = '<div class="p-2 text-gray-500">No se encontraron ciudadanos</div>';
+                    resultados.innerHTML = '<div class="p-2 text-slate-500">No se encontraron ciudadanos</div>';
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
+            .catch(() => {
                 document.getElementById('resultadosBusqueda').innerHTML = '<div class="p-2 text-red-500">Error en la búsqueda</div>';
             });
     }, 300);
@@ -1671,14 +1111,6 @@ function seleccionarCiudadano(id, nombre, dni) {
     document.getElementById('ciudadanoSeleccionado').value = id;
     document.getElementById('buscarCiudadano').value = `${nombre} (DNI: ${dni})`;
     document.getElementById('resultadosBusqueda').innerHTML = '';
-}
-
-function abrirModalProfesional() {
-    alert('Funcionalidad de profesionales en desarrollo');
-}
-
-function abrirModalEmergencia() {
-    alert('Funcionalidad de emergencias en desarrollo');
 }
 
 function cerrarModal(modalId) {
@@ -1691,51 +1123,46 @@ function cargarVinculos() {
         .then(data => {
             const tbody = document.getElementById('tabla-vinculos');
             const mensajeSin = document.getElementById('mensaje-sin-vinculos');
-            
-            if (data.results && data.results.length > 0) {
-                tbody.innerHTML = data.results.map(vinculo => {
+            const resultados = (data.results && data.results.length) ? data.results : [];
+
+            document.getElementById('total-vinculos').textContent = resultados.length;
+
+            if (resultados.length > 0) {
+                tbody.innerHTML = resultados.map(vinculo => {
                     const ciudadano = vinculo.ciudadano_vinculado_detail || vinculo.ciudadano_vinculado;
                     const nombre = ciudadano.nombre || 'N/A';
                     const apellido = ciudadano.apellido || '';
                     const dni = ciudadano.dni || 'N/A';
                     const telefono = ciudadano.telefono || vinculo.telefono_alternativo || '-';
                     const tipoVinculo = vinculo.tipo_vinculo_display || vinculo.tipo_vinculo;
-                    
+
                     const badges = [];
-                    if (vinculo.convive) badges.push('<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Convive</span>');
-                    if (vinculo.es_contacto_emergencia) badges.push('<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Emergencia</span>');
-                    if (vinculo.es_referente_tratamiento) badges.push('<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">Referente</span>');
-                    
+                    if (vinculo.convive) badges.push('<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Convive</span>');
+                    if (vinculo.es_contacto_emergencia) badges.push('<span class="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Emergencia</span>');
+                    if (vinculo.es_referente_tratamiento) badges.push('<span class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Referente</span>');
+
                     return `
-                        <tr class="hover:bg-[#F9FAFB]">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                        <tr class="hover:bg-slate-50">
+                            <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex items-center">
-                                    <div class="w-10 h-10 bg-[#3B82F6] rounded-full flex items-center justify-center mr-3">
-                                        <span class="text-white font-semibold text-sm">${nombre.charAt(0)}${apellido.charAt(0)}</span>
+                                    <div class="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500">
+                                        <span class="text-sm font-semibold text-white">${nombre.charAt(0)}${apellido.charAt(0)}</span>
                                     </div>
-                                    <div>
-                                        <div class="text-sm font-medium text-[#252F40]">${nombre} ${apellido}</div>
-                                    </div>
+                                    <div class="text-sm font-medium text-slate-900">${nombre} ${apellido}</div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-[#F9FAFB] text-[#252F40]">
-                                    ${tipoVinculo}
-                                </span>
+                            <td class="whitespace-nowrap px-6 py-4">
+                                <span class="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">${tipoVinculo}</span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">${dni}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">${telefono}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex flex-wrap gap-1">
-                                    ${badges.join('')}
-                                </div>
+                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${dni}</td>
+                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${telefono}</td>
+                            <td class="whitespace-nowrap px-6 py-4">
+                                <div class="flex flex-wrap gap-1">${badges.join('')}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium align-middle">
-                                <div class="flex items-center justify-center">
-                                    <button onclick="eliminarVinculo(${vinculo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#EF4444] transition-colors hover:bg-red-50 hover:text-[#DC2626]" title="Eliminar vínculo">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
+                            <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
+                                <button onclick="eliminarVinculo(${vinculo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar vínculo">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </td>
                         </tr>
                     `;
@@ -1746,9 +1173,8 @@ function cargarVinculos() {
                 mensajeSin.classList.remove('hidden');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-[#EF4444]">Error al cargar vínculos</td></tr>';
+        .catch(() => {
+            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-500">Error al cargar vínculos</td></tr>';
         });
 }
 
@@ -1777,26 +1203,23 @@ function eliminarVinculo(vinculoId) {
                 Swal.fire('Error', 'No se pudo eliminar el vínculo.', 'error');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Error', 'No se pudo eliminar el vínculo.', 'error');
-        });
+        .catch(() => Swal.fire('Error', 'No se pudo eliminar el vínculo.', 'error'));
     });
 }
 
-// Manejar envío del formulario
 document.getElementById('formVinculo').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     const ciudadanoId = document.getElementById('ciudadanoSeleccionado').value;
-    
+
+    toastr.options = { positionClass: 'toast-bottom-right' };
+
     if (!ciudadanoId) {
-        toastr.options = { positionClass: 'toast-bottom-right' };
         toastr.warning('Debe seleccionar un ciudadano');
         return;
     }
-    
+
     const vinculoData = {
         ciudadano_principal: {{ ciudadano.id }},
         ciudadano_vinculado: parseInt(ciudadanoId),
@@ -1805,7 +1228,7 @@ document.getElementById('formVinculo').addEventListener('submit', function(e) {
         telefono_alternativo: formData.get('telefono') || '',
         observaciones: ''
     };
-    
+
     fetch('/api/legajos/contactos/vinculos-familiares/', {
         method: 'POST',
         headers: {
@@ -1817,53 +1240,142 @@ document.getElementById('formVinculo').addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.id) {
-            toastr.options = { positionClass: 'toast-bottom-right' };
             toastr.success('Vínculo agregado exitosamente');
             cerrarModal('modalVinculo');
             this.reset();
             document.getElementById('resultadosBusqueda').innerHTML = '';
             cargarVinculos();
         } else {
-            toastr.options = { positionClass: 'toast-bottom-right' };
             toastr.error('Error al crear el vínculo');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        toastr.options = { positionClass: 'toast-bottom-right' };
-        toastr.error('Error al crear el vínculo');
-    });
+    .catch(() => toastr.error('Error al crear el vínculo'));
 });
-// Funciones para archivos
-function abrirModalArchivos(legajoId) {
+
+// ============================================================
+// Archivos
+// ============================================================
+function abrirModalArchivos() {
     document.getElementById('modalArchivos').classList.remove('hidden');
 }
 
-function abrirModalArchivosGeneral() {
-    document.getElementById('modalArchivos').classList.remove('hidden');
-}
+function cargarArchivos() {
+    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/archivos/`)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('tabla-archivos');
+            const mensajeSin = document.getElementById('mensaje-sin-archivos');
+            const contador = document.getElementById('total-archivos');
+            const resultados = (data.results && data.results.length) ? data.results : [];
 
-// Función para mostrar alertas modernas
-function showModernAlert(type, title, message) {
-    if (typeof ModernModal !== 'undefined') {
-        ModernModal.show({
-            type: type,
-            title: title,
-            message: message
+            contador.textContent = resultados.length;
+            document.getElementById('total-archivos-dash').textContent = resultados.length;
+
+            if (resultados.length > 0) {
+                tbody.innerHTML = resultados.map(archivo => {
+                    const fecha = new Date(archivo.fecha_subida).toLocaleDateString('es-AR');
+                    const extension = archivo.nombre.split('.').pop().toLowerCase();
+                    const icono = getIconoArchivo(extension);
+
+                    return `
+                        <tr class="hover:bg-slate-50">
+                            <td class="whitespace-nowrap px-6 py-4">
+                                <div class="flex items-center">
+                                    <i class="${icono} mr-3 text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm font-medium text-slate-900">${archivo.nombre}</div>
+                                        <div class="text-sm text-slate-500">${formatearTamano(archivo.tamano)}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${archivo.etiqueta || '-'}</td>
+                            <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                ${archivo.tipo_origen === 'ciudadano' ?
+                                    '<span class="text-slate-500">Ciudadano</span>' :
+                                    `<a href="/legajos/${archivo.legajo_id}/" class="text-blue-600 hover:text-blue-700">Acompañamiento</a>`
+                                }
+                            </td>
+                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${fecha}</td>
+                            <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
+                                <div class="flex items-center justify-center gap-2">
+                                    <a href="${archivo.url}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700" title="Descargar">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <button onclick="eliminarArchivo(${archivo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                mensajeSin.classList.add('hidden');
+            } else {
+                tbody.innerHTML = '';
+                mensajeSin.classList.remove('hidden');
+            }
+        })
+        .catch(() => {
+            document.getElementById('tabla-archivos').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Error al cargar archivos</td></tr>';
         });
-    } else {
-        alert(message);
-    }
 }
 
+function getIconoArchivo(extension) {
+    const iconos = {
+        'pdf': 'fas fa-file-pdf text-red-500',
+        'doc': 'fas fa-file-word text-blue-500',
+        'docx': 'fas fa-file-word text-blue-500',
+        'jpg': 'fas fa-file-image text-green-500',
+        'jpeg': 'fas fa-file-image text-green-500',
+        'png': 'fas fa-file-image text-green-500'
+    };
+    return iconos[extension] || 'fas fa-file text-slate-500';
+}
 
+function formatearTamano(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
-// Manejar envío de archivos
+function eliminarArchivo(archivoId) {
+    Swal.fire({
+        title: '¿Eliminar archivo?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        fetch(`/legajos/archivos/${archivoId}/eliminar/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cargarArchivos();
+            } else {
+                Swal.fire('Error', 'No se pudo eliminar el archivo.', 'error');
+            }
+        })
+        .catch(() => Swal.fire('Error', 'No se pudo eliminar el archivo.', 'error'));
+    });
+}
+
 document.getElementById('formArchivos').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
-    
+    toastr.options = { positionClass: 'toast-bottom-right' };
+
     fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/subir-archivos/`, {
         method: 'POST',
         body: formData,
@@ -1876,144 +1388,182 @@ document.getElementById('formArchivos').addEventListener('submit', function(e) {
         if (data.success) {
             cerrarModal('modalArchivos');
             this.reset();
-            cargarArchivos(); // Recargar tabla de archivos
-            if (typeof showModernAlert === 'function') {
-                showModernAlert('success', 'Éxito', data.mensaje || 'Archivos subidos exitosamente');
-            } else {
-                alert('Archivos subidos exitosamente');
-            }
+            cargarArchivos();
+            toastr.success(data.mensaje || 'Archivos subidos exitosamente');
         } else {
-            if (typeof showModernAlert === 'function') {
-                showModernAlert('error', 'Error', data.error || 'Error al subir archivos');
-            } else {
-                alert(data.error || 'Error al subir archivos');
-            }
+            Swal.fire('Error', data.error || 'Error al subir archivos', 'error');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al subir archivos');
-    });
+    .catch(() => Swal.fire('Error', 'Error al subir archivos', 'error'));
 });
 
-// Cargar línea temporal
-function cargarLineaTemporal() {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/timeline/`)
+// ============================================================
+// Actividad reciente (Resumen)
+// ============================================================
+function cargarActividades() {
+    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/actividades/`)
         .then(response => response.json())
         .then(data => {
-            const container = document.getElementById('timeline-container');
-            const mensajeSin = document.getElementById('mensaje-sin-timeline');
-            
-            if (data.eventos && data.eventos.length > 0) {
-                container.innerHTML = `
-                    <div class="relative border-l-4 border-indigo-200 ml-4">
-                        ${data.eventos.map((evento, index) => {
-                            const iconoConfig = getTimelineIcon(evento.tipo);
-                            return `
-                                <div class="mb-8 ml-8 relative">
-                                    <div class="absolute -left-12 mt-1.5 w-8 h-8 rounded-full ${iconoConfig.bg} flex items-center justify-center border-4 border-white shadow-lg">
-                                        <i class="${iconoConfig.icon} ${iconoConfig.color} text-sm"></i>
-                                    </div>
-                                    <div class="bg-white border border-[#E5E7EB] rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <h3 class="font-bold text-gray-900">${evento.titulo}</h3>
-                                            <span class="text-xs text-gray-500 whitespace-nowrap ml-4">${new Date(evento.fecha).toLocaleDateString('es-AR')}</span>
-                                        </div>
-                                        <p class="text-sm text-gray-700 mb-2">${evento.descripcion}</p>
-                                        ${evento.legajo_id ? `
-                                            <a href="/legajos/${evento.legajo_id}/" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                                                Ver Acompañamiento <i class="fas fa-arrow-right ml-1"></i>
-                                            </a>
-                                        ` : ''}
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
+            const tbody = document.getElementById('tabla-actividades');
+            const mensajeSin = document.getElementById('mensaje-sin-actividades');
+            const contador = document.getElementById('total-actividades');
+
+            if (data.results && data.results.length > 0) {
+                tbody.innerHTML = data.results.map(actividad => {
+                    const fecha = new Date(actividad.fecha_hora).toLocaleString('es-AR');
+                    const tipoIcon = getTipoIcon(actividad.tipo);
+                    const tipoColor = getTipoColor(actividad.tipo);
+
+                    return `
+                        <tr class="hover:bg-slate-50">
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-900">${fecha}</td>
+                            <td class="whitespace-nowrap px-4 py-4">
+                                <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${tipoColor}">
+                                    <i class="${tipoIcon} mr-1"></i>
+                                    ${getTipoNombre(actividad.tipo)}
+                                </span>
+                            </td>
+                            <td class="px-4 py-4 text-sm text-slate-900">${actividad.descripcion}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-900">${actividad.usuario_nombre || 'Sistema'}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm">
+                                <a href="/legajos/${actividad.legajo_id}/" class="text-blue-600 hover:text-blue-800">
+                                    ${actividad.legajo_codigo || actividad.legajo_id}
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                contador.textContent = data.results.length;
                 mensajeSin.classList.add('hidden');
             } else {
-                container.innerHTML = '';
+                tbody.innerHTML = '';
+                contador.textContent = '0';
                 mensajeSin.classList.remove('hidden');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('timeline-container').innerHTML = '<div class="text-center py-4 text-red-500">Error al cargar línea temporal</div>';
+        .catch(() => {
+            document.getElementById('tabla-actividades').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Error al cargar actividades</td></tr>';
         });
 }
 
-// Cargar predicción de riesgo
+function getTipoIcon(tipo) {
+    const iconos = {
+        'SEGUIMIENTO': 'fas fa-clipboard-list',
+        'EVALUACION': 'fas fa-stethoscope',
+        'PLAN': 'fas fa-list-check',
+        'DERIVACION': 'fas fa-share-nodes',
+        'EVENTO': 'fas fa-triangle-exclamation',
+        'CONTACTO': 'fas fa-phone',
+        'CHAT': 'fas fa-comments',
+        'ASIGNACION': 'fas fa-user-plus',
+        'APERTURA': 'fas fa-folder-open',
+        'CIERRE': 'fas fa-folder',
+        'VINCULO': 'fas fa-users'
+    };
+    return iconos[tipo] || 'fas fa-circle';
+}
+
+function getTipoColor(tipo) {
+    const colores = {
+        'SEGUIMIENTO': 'bg-blue-100 text-blue-800',
+        'EVALUACION': 'bg-purple-100 text-purple-800',
+        'PLAN': 'bg-green-100 text-green-800',
+        'DERIVACION': 'bg-yellow-100 text-yellow-800',
+        'EVENTO': 'bg-red-100 text-red-800',
+        'CONTACTO': 'bg-indigo-100 text-indigo-800',
+        'CHAT': 'bg-pink-100 text-pink-800',
+        'ASIGNACION': 'bg-teal-100 text-teal-800',
+        'APERTURA': 'bg-emerald-100 text-emerald-800',
+        'CIERRE': 'bg-slate-100 text-slate-800',
+        'VINCULO': 'bg-orange-100 text-orange-800'
+    };
+    return colores[tipo] || 'bg-slate-100 text-slate-800';
+}
+
+function getTipoNombre(tipo) {
+    const nombres = {
+        'SEGUIMIENTO': 'Seguimiento',
+        'EVALUACION': 'Evaluación',
+        'PLAN': 'Plan',
+        'DERIVACION': 'Derivación',
+        'EVENTO': 'Evento',
+        'CONTACTO': 'Contacto',
+        'CHAT': 'Chat',
+        'ASIGNACION': 'Asignación',
+        'APERTURA': 'Apertura',
+        'CIERRE': 'Cierre',
+        'VINCULO': 'Vínculo'
+    };
+    return nombres[tipo] || tipo;
+}
+
+// ============================================================
+// Predicción de riesgo (Resumen)
+// ============================================================
 function cargarPrediccionRiesgo() {
     fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/prediccion-riesgo/`)
         .then(response => response.json())
         .then(data => {
-            // Riesgo de Abandono
             const abandono = data.abandono;
             document.getElementById('abandono-score').textContent = abandono.score + '%';
             document.getElementById('abandono-bar').style.width = abandono.score + '%';
-            
+
             const abandonoNivel = document.getElementById('abandono-nivel');
             abandonoNivel.textContent = abandono.nivel;
-            abandonoNivel.className = 'px-3 py-1 rounded-full text-xs font-bold ' + getNivelColor(abandono.nivel);
+            abandonoNivel.className = 'rounded-full px-3 py-1 text-xs font-bold ' + getNivelColor(abandono.nivel);
             document.getElementById('abandono-bar').className = 'h-3 rounded-full transition-all duration-500 ' + getBarColor(abandono.nivel);
-            
+
             const abandonoFactores = document.getElementById('abandono-factores');
             if (abandono.factores.length > 0) {
                 abandonoFactores.innerHTML = abandono.factores.map(factor => `
-                    <div class="flex items-start text-sm text-gray-600">
-                        <i class="fas fa-circle text-xs text-gray-400 mr-2 mt-1"></i>
+                    <div class="flex items-start text-sm text-slate-600">
+                        <i class="fas fa-circle mr-2 mt-1 text-xs text-slate-400"></i>
                         <span>${factor}</span>
                     </div>
                 `).join('');
             } else {
-                abandonoFactores.innerHTML = '<p class="text-sm text-green-600">✓ Sin factores de riesgo identificados</p>';
+                abandonoFactores.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>Sin factores de riesgo identificados</p>';
             }
-            
-            // Riesgo de Evento Crítico
+
             const evento = data.evento_critico;
             document.getElementById('evento-score').textContent = evento.score + '%';
             document.getElementById('evento-bar').style.width = evento.score + '%';
-            
+
             const eventoNivel = document.getElementById('evento-nivel');
             eventoNivel.textContent = evento.nivel;
-            eventoNivel.className = 'px-3 py-1 rounded-full text-xs font-bold ' + getNivelColor(evento.nivel);
+            eventoNivel.className = 'rounded-full px-3 py-1 text-xs font-bold ' + getNivelColor(evento.nivel);
             document.getElementById('evento-bar').className = 'h-3 rounded-full transition-all duration-500 ' + getBarColor(evento.nivel);
-            
+
             const eventoFactores = document.getElementById('evento-factores');
             if (evento.factores.length > 0) {
                 eventoFactores.innerHTML = evento.factores.map(factor => `
-                    <div class="flex items-start text-sm text-gray-600">
-                        <i class="fas fa-circle text-xs text-gray-400 mr-2 mt-1"></i>
+                    <div class="flex items-start text-sm text-slate-600">
+                        <i class="fas fa-circle mr-2 mt-1 text-xs text-slate-400"></i>
                         <span>${factor}</span>
                     </div>
                 `).join('');
             } else {
-                eventoFactores.innerHTML = '<p class="text-sm text-green-600">✓ Sin factores de riesgo identificados</p>';
+                eventoFactores.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>Sin factores de riesgo identificados</p>';
             }
-            
-            // Recomendaciones
+
             const recomendaciones = document.getElementById('recomendaciones-container');
             if (data.recomendaciones.length > 0) {
                 recomendaciones.innerHTML = data.recomendaciones.map(rec => `
-                    <div class="flex items-start p-3 rounded-lg ${getPrioridadBg(rec.prioridad)} border ${getPrioridadBorder(rec.prioridad)}">
-                        <span class="text-2xl mr-3">${rec.icono}</span>
+                    <div class="flex items-start rounded-lg border p-3 ${getPrioridadBg(rec.prioridad)} ${getPrioridadBorder(rec.prioridad)}">
+                        <span class="mr-3 text-2xl">${rec.icono}</span>
                         <div class="flex-1">
-                            <span class="text-sm font-medium text-gray-800">${rec.texto}</span>
-                            <span class="ml-2 text-xs ${getPrioridadText(rec.prioridad)} font-bold">${rec.prioridad}</span>
+                            <span class="text-sm font-medium text-slate-800">${rec.texto}</span>
+                            <span class="ml-2 text-xs font-bold ${getPrioridadText(rec.prioridad)}">${rec.prioridad}</span>
                         </div>
                     </div>
                 `).join('');
             } else {
-                recomendaciones.innerHTML = '<p class="text-sm text-green-600">✓ No hay recomendaciones pendientes</p>';
+                recomendaciones.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>No hay recomendaciones pendientes</p>';
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-        });
+        .catch(() => { /* sin datos de predicción: la sección queda con sus placeholders */ });
 }
 
-// Obtener color según nivel de riesgo
 function getNivelColor(nivel) {
     const colores = {
         'CRITICO': 'bg-red-100 text-red-800',
@@ -2021,10 +1571,9 @@ function getNivelColor(nivel) {
         'MEDIO': 'bg-yellow-100 text-yellow-800',
         'BAJO': 'bg-green-100 text-green-800'
     };
-    return colores[nivel] || 'bg-gray-100 text-gray-800';
+    return colores[nivel] || 'bg-slate-100 text-slate-800';
 }
 
-// Obtener color de barra según nivel
 function getBarColor(nivel) {
     const colores = {
         'CRITICO': 'bg-red-500',
@@ -2032,10 +1581,9 @@ function getBarColor(nivel) {
         'MEDIO': 'bg-yellow-500',
         'BAJO': 'bg-green-500'
     };
-    return colores[nivel] || 'bg-gray-500';
+    return colores[nivel] || 'bg-slate-500';
 }
 
-// Obtener background según prioridad
 function getPrioridadBg(prioridad) {
     const colores = {
         'CRITICA': 'bg-red-50',
@@ -2043,10 +1591,9 @@ function getPrioridadBg(prioridad) {
         'MEDIA': 'bg-yellow-50',
         'BAJA': 'bg-blue-50'
     };
-    return colores[prioridad] || 'bg-gray-50';
+    return colores[prioridad] || 'bg-slate-50';
 }
 
-// Obtener border según prioridad
 function getPrioridadBorder(prioridad) {
     const colores = {
         'CRITICA': 'border-red-200',
@@ -2054,10 +1601,9 @@ function getPrioridadBorder(prioridad) {
         'MEDIA': 'border-yellow-200',
         'BAJA': 'border-blue-200'
     };
-    return colores[prioridad] || 'border-gray-200';
+    return colores[prioridad] || 'border-slate-200';
 }
 
-// Obtener color de texto según prioridad
 function getPrioridadText(prioridad) {
     const colores = {
         'CRITICA': 'text-red-600',
@@ -2065,102 +1611,7 @@ function getPrioridadText(prioridad) {
         'MEDIA': 'text-yellow-600',
         'BAJA': 'text-blue-600'
     };
-    return colores[prioridad] || 'text-gray-600';
-}
-
-// Cargar derivaciones de un programa específico
-function cargarDerivacionesPrograma(programaId, programaTipo) {
-    fetch(`/legajos/ciudadanos/{{ ciudadano.id }}/derivaciones-programa/${programaId}/`)
-        .then(response => response.json())
-        .then(data => {
-            const tbody = document.getElementById(`tabla-derivaciones-programa-${programaId}`);
-            const mensajeSin = document.getElementById(`mensaje-sin-derivaciones-${programaId}`);
-            
-            if (data.derivaciones && data.derivaciones.length > 0) {
-                tbody.innerHTML = data.derivaciones.map(derivacion => {
-                    const fecha = new Date(derivacion.creado).toLocaleDateString('es-AR');
-                    const estadoColor = getEstadoDerivacionColor(derivacion.estado);
-                    const urgenciaColor = getUrgenciaColor(derivacion.urgencia);
-                    
-                    return `
-                        <tr class="hover:bg-[#F9FAFB]">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
-                                ${fecha}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
-                                ${derivacion.programa_origen || '<span class="text-gray-400">Espontáneo</span>'}
-                            </td>
-                            <td class="px-6 py-4 text-sm text-[#252F40]">
-                                <div class="max-w-xs truncate" title="${derivacion.motivo}">
-                                    ${derivacion.motivo}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${urgenciaColor}">
-                                    ${derivacion.urgencia_display}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${estadoColor}">
-                                    ${derivacion.estado_display}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
-                                ${derivacion.derivado_por || '-'}
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-                mensajeSin.classList.add('hidden');
-            } else {
-                tbody.innerHTML = '';
-                mensajeSin.classList.remove('hidden');
-            }
-        })
-        .catch(error => {
-            console.error('Error cargando derivaciones:', error);
-            const tbody = document.getElementById(`tabla-derivaciones-programa-${programaId}`);
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-[#EF4444]">Error al cargar derivaciones</td></tr>';
-            }
-        });
-}
-
-// Obtener color según estado de derivación
-function getEstadoDerivacionColor(estado) {
-    const colores = {
-        'PENDIENTE': 'bg-yellow-100 text-yellow-800',
-        'ACEPTADA': 'bg-green-100 text-green-800',
-        'RECHAZADA': 'bg-red-100 text-red-800',
-        'CANCELADA': 'bg-gray-100 text-gray-800'
-    };
-    return colores[estado] || 'bg-gray-100 text-gray-800';
-}
-
-// Obtener color según urgencia
-function getUrgenciaColor(urgencia) {
-    const colores = {
-        'BAJA': 'bg-blue-100 text-blue-800',
-        'MEDIA': 'bg-yellow-100 text-yellow-800',
-        'ALTA': 'bg-red-100 text-red-800'
-    };
-    return colores[urgencia] || 'bg-gray-100 text-gray-800';
-}
-
-// Obtener configuración de icono para timeline
-function getTimelineIcon(tipo) {
-    const configs = {
-        'APERTURA': { icon: 'fas fa-folder-open', bg: 'bg-green-100', color: 'text-green-600' },
-        'EVALUACION': { icon: 'fas fa-stethoscope', bg: 'bg-purple-100', color: 'text-purple-600' },
-        'PLAN': { icon: 'fas fa-tasks', bg: 'bg-blue-100', color: 'text-blue-600' },
-        'SEGUIMIENTO': { icon: 'fas fa-clipboard-list', bg: 'bg-cyan-100', color: 'text-cyan-600' },
-        'DERIVACION': { icon: 'fas fa-share', bg: 'bg-yellow-100', color: 'text-yellow-600' },
-        'EVENTO': { icon: 'fas fa-exclamation-triangle', bg: 'bg-red-100', color: 'text-red-600' },
-        'CIERRE': { icon: 'fas fa-folder', bg: 'bg-gray-100', color: 'text-gray-600' },
-        'VINCULO': { icon: 'fas fa-users', bg: 'bg-orange-100', color: 'text-orange-600' },
-        'ALERTA': { icon: 'fas fa-bell', bg: 'bg-pink-100', color: 'text-pink-600' }
-    };
-    return configs[tipo] || { icon: 'fas fa-circle', bg: 'bg-gray-100', color: 'text-gray-600' };
+    return colores[prioridad] || 'text-slate-600';
 }
 </script>
 {% endblock %}

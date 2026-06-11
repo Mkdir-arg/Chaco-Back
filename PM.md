@@ -74,7 +74,17 @@ chequeo, cada una con la lista concreta de issues que fallan (o "✔ OK"):
    tasks (es el tracker macro: Backlog → In progress → In QA → Done);
    `[PLAN DE PRUEBAS]` en estados de flujo; Blocked sin causa escrita o con más
    de 7 días; tasks In QA sin avance en sus `- [ ] Pasa` hace más de 5 días.
-Cierre: **score de salud** (chequeos OK / total) y las 3 acciones más urgentes.
+Cierre: **score de salud** (chequeos OK / total), las 3 acciones más urgentes y
+un **Plan de remediación**: lista numerada con un renglón por error y el comando
+exacto para solucionarlo (listo para copiar y pegar):
+- Cadena rota / análisis con deuda → `/analisis:analisis #NN` (Analista).
+- Épica consolidable sin `[REQUERIMIENTO]` → `/analisis:issue #NN` (Analista).
+- Task sin casos de prueba → `/qa:casos #NN`; 3+ tasks sin cubrir → `/qa:revision`.
+- Épica cubierta sin `[PLAN DE PRUEBAS]` → `/qa:plan #NN`.
+- Campos/estados/assignees/iteraciones/Blocked → acción manual del PM humano en
+  el Project (sin comando; el informe indica qué campo o estado tocar en qué issue).
+Orden de resolución: Analista → QA → PM humano. El PM Assistant nunca ejecuta
+los comandos: solo los deja listados.
 
 ### 3. Minuta (`/pm:minuta`) — registro de reunión
 

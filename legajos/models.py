@@ -198,6 +198,17 @@ class Ciudadano(TimeStamped):
         """Retorna el nombre completo del ciudadano"""
         return f"{self.nombre} {self.apellido}"
 
+    @property
+    def edad(self):
+        """Edad en años calculada desde fecha_nacimiento (None si no hay fecha)."""
+        if not self.fecha_nacimiento:
+            return None
+        from datetime import date
+        hoy = date.today()
+        return hoy.year - self.fecha_nacimiento.year - (
+            (hoy.month, hoy.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day)
+        )
+
 
 class LegajoAtencion(LegajoBase):
     """Legajo de atención individual para ciudadanos"""

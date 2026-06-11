@@ -32,3 +32,19 @@ Contexto del usuario: `$ARGUMENTS`
 4. **Cerrá con el score** (chequeos OK / 7) y las 3 acciones más urgentes,
    indicando qué rol las ejecuta: PM humano (mover/priorizar), Analista
    (`/analisis`), o QA (`/qa:revision`, `/qa:plan`). No ejecutes ninguna vos.
+5. **Plan de remediación** (sección final obligatoria): una lista numerada con
+   **un renglón por error encontrado**, cada uno con el comando exacto a correr
+   para solucionarlo, listo para copiar y pegar. Mapeo:
+   - Cadena rota / análisis con deuda (preguntas abiertas) →
+     `/analisis:analisis #NN` (Analista: completar/cerrar el análisis).
+   - Épica con todos sus análisis `Definido` pero sin `[REQUERIMIENTO]` →
+     `/analisis:issue #NN` (Analista: derivar y consolidar).
+   - Task sin `## Casos de prueba (QA)` (incluye tasks Ready+ sin casos) →
+     `/qa:casos #NN`. Si son 3 o más tasks sin cubrir → un solo `/qa:revision`.
+   - Épica cubierta sin `[PLAN DE PRUEBAS]` → `/qa:plan #NN`.
+   - Campos del Project incompletos, estancados, épicas/`[REQUERIMIENTO]`/
+     `[PLAN DE PRUEBAS]` en estado incorrecto, Blocked sin causa, assignees o
+     iteración → **PM humano, manual en el Project** (no hay comando; decir
+     exactamente qué campo/estado tocar en qué issue).
+   Ordená la lista para resolver de a uno: primero Analista, después QA,
+   al final lo manual del PM. No ejecutes ningún comando vos.

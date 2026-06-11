@@ -127,6 +127,7 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         ],
         'programas_activos': SolapasService.obtener_programas_activos(ciudadano),
     }
+    context['solapas_programas'] = [s for s in context['solapas'] if not s['estatica']]
 
     # --- Instituciones vinculadas (vía legajos) ---
     context['instituciones_ciudadano'] = []
@@ -171,7 +172,7 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     for deriv in ciudadano.derivaciones_programas.select_related('programa_destino').order_by('-creado')[:10]:
         linea.append({
             'fecha': deriv.creado.date() if hasattr(deriv.creado, 'date') else deriv.creado,
-            'icono': 'share-alt',
+            'icono': 'share-nodes',
             'color_hex': '#F97316',
             'titulo': f'Derivación a {deriv.programa_destino.nombre}',
             'descripcion': deriv.get_estado_display(),
