@@ -1,6 +1,6 @@
 ---
 description: Explica los agentes de Chaco (Analista, QA, PM Assistant) — cuándo usar cada uno, comandos, flujo y casos (modo consulta)
-argument-hint: "[pregunta puntual, opcional]"
+argument-hint: "[pregunta o tema, opcional — ej.: quiero iniciar un análisis nuevo]"
 ---
 
 # Info de los agentes de Chaco
@@ -19,11 +19,20 @@ Contexto / pregunta del usuario: `$ARGUMENTS`
 
 ## Qué hacer
 
+- **Si el contexto describe un tema, intención o situación de trabajo**
+  (p. ej. "quiero iniciar un análisis nuevo", "llegó un pedido del cliente",
+  "tengo que probar la épica de turnos", "necesito reportar avance"), actuá
+  como **recomendador de arranque**: decí **cuál es el comando exacto que
+  tiene que ejecutar** para arrancar bien (con el argumento si aplica, p. ej.
+  `/qa:casos 87`), en qué punto del flujo Épica → Análisis → Task → QA cae su
+  situación, qué le va a pedir ese comando al arrancar, y cuál es el handoff
+  siguiente. Usá la tabla de "Casos típicos" como guía; si la situación es
+  ambigua entre dos comandos, recomendá uno y aclará cuándo convendría el otro.
 - **Si hay una pregunta puntual en el contexto**, respondela directamente
   apoyándote en la fuente de verdad que corresponda y, si conviene, en el
   código/repo. No des un volcado genérico.
-- **Si no hay pregunta**, mostrá la **explicación completa** de abajo y después
-  invitá a preguntar ("¿sobre qué querés que profundice?").
+- **Si no hay pregunta ni tema**, mostrá la **explicación completa** de abajo y
+  después invitá a preguntar ("¿sobre qué querés que profundice?").
 
 ## Explicación completa (cuando no hay pregunta puntual)
 
@@ -86,7 +95,7 @@ Presentá, en este orden y de forma legible:
    | QA | `/qa:revision` | Detectar y cubrir tasks sin casos |
    | PM | `/pm` | Flujo guiado (estado / salud / minuta / reporte) |
    | PM | `/pm:estado` | Foto del sprint: tablero, esfuerzo, horas reales |
-   | PM | `/pm:salud` | Auditoría de trazabilidad y cobertura (6 chequeos + score) |
+   | PM | `/pm:salud` | Auditoría de trazabilidad y cobertura (7 chequeos + score + plan de remediación con el comando para arreglar cada error) |
    | PM | `/pm:minuta` | Minuta de reunión → docs/client |
    | PM | `/pm:reporte` | Avance del período en lenguaje cliente |
    | — | `/infoagente` | Este manual |
@@ -111,6 +120,7 @@ Presentá, en este orden y de forma legible:
    | "Tuvimos reunión con el Ministerio, registrala" | `/pm:minuta` |
    | "Armá el avance para mandarle al cliente" | `/pm:reporte` |
    | "Empiezo/termino de trabajar" | `/inicio-de-trabajo` / `/fin-de-trabajo` |
+   | "No sé con qué comando arrancar esto" | `/infoagente <describí el tema>` |
 
 6. **Las reglas que no se negocian (compartidas por los tres):**
    - **Solo el PM humano mueve las tareas** entre estados del Project. Los
