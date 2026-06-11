@@ -39,8 +39,8 @@ if [ "${RUN_COLLECTSTATIC:-false}" = "true" ]; then
   python manage.py collectstatic --noinput
 fi
 
-if [ "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_grupos crear_programas}" != "false" ]; then
-  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_grupos crear_programas}"
+if [ "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_groups crear_programas}" != "false" ]; then
+  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin setup_groups crear_programas}"
 fi
 
 if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then
