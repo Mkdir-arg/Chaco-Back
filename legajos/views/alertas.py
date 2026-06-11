@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from ..context_processors import alertas_criticas_cache_key
 from ..models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from ..services import AlertasService, FiltrosUsuarioService
+from core.rbac import puede
 
 
 @login_required
@@ -27,7 +28,7 @@ def alertas_dashboard(request):
     
     # Alertas de conversaciones si el usuario tiene permisos
     alertas_conversaciones = []
-    if request.user.groups.filter(name__in=['Conversaciones', 'OperadorCharla']).exists():
+    if puede(request.user, "conversacion.operar"):
         from conversaciones.models import HistorialAlertaConversacion
         alertas_conversaciones = HistorialAlertaConversacion.objects.filter(
             operador=request.user
@@ -132,11 +133,7 @@ def debug_alertas(request):
     # Información del usuario
     grupos_usuario = list(request.user.groups.values_list('name', flat=True))
     es_superuser = request.user.is_superuser
-    try:
-        profile = request.user.profile
-        rol = profile.rol or 'Sin rol'
-    except:
-        rol = 'Sin perfil'
+    rol = ', '.join(grupos_usuario) if grupos_usuario else 'Sin roles'
     
     debug_info = f"""
     <h1>Debug - Sistema de Alertas</h1>

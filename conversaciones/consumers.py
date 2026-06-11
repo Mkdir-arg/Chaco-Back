@@ -5,6 +5,8 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models import Conversacion, Mensaje
+from .permisos import puede_operar
+from core import rbac
 
 
 logger = logging.getLogger(__name__)
@@ -65,7 +67,7 @@ class ConversacionConsumer(AsyncWebsocketConsumer):
             user = self.scope["user"]
             if not user.is_authenticated:
                 return False
-            return user.groups.filter(name__in=["Conversaciones", "OperadorCharla"]).exists() or user.is_superuser
+            return puede_operar(user)
         except Exception:
             logger.exception("Error validando permisos de conversacion")
             return False
@@ -199,7 +201,7 @@ class ConversacionesListConsumer(AsyncWebsocketConsumer):
             user = self.scope["user"]
             if not user.is_authenticated:
                 return False
-            return user.groups.filter(name__in=["Conversaciones", "OperadorCharla"]).exists() or user.is_superuser
+            return puede_operar(user)
         except Exception:
             logger.exception("Error validando permisos de lista de conversaciones")
             return False
@@ -241,7 +243,7 @@ class AlertasConsumer(AsyncWebsocketConsumer):
             user = self.scope["user"]
             if not user.is_authenticated:
                 return False
-            return user.groups.filter(name__in=["Legajos", "Supervisores", "Coordinadores"]).exists() or user.is_superuser
+            return rbac.puede(user, "ciudadano.ver")
         except Exception:
             logger.exception("Error validando permisos de alertas")
             return False
@@ -278,7 +280,7 @@ class AlertasConversacionesConsumer(AsyncWebsocketConsumer):
             user = self.scope["user"]
             if not user.is_authenticated:
                 return False
-            return user.groups.filter(name__in=["Conversaciones", "OperadorCharla"]).exists() or user.is_superuser
+            return puede_operar(user)
         except Exception:
             logger.exception("Error validando permisos de alertas de conversaciones")
             return False

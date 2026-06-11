@@ -5,6 +5,8 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 
+from core.rbac import es_ciudadano_portal
+
 
 class CiudadanoLoginForm(AuthenticationForm):
     username = forms.CharField(
@@ -18,7 +20,7 @@ class CiudadanoLoginForm(AuthenticationForm):
 
     def confirm_login_allowed(self, user):
         super().confirm_login_allowed(user)
-        if not user.groups.filter(name='Ciudadanos').exists():
+        if not es_ciudadano_portal(user):
             raise forms.ValidationError(
                 'Este acceso es exclusivo para ciudadanos.',
                 code='no_ciudadano',
@@ -135,7 +137,7 @@ class CiudadanoPasswordResetForm(PasswordResetForm):
 
     def get_users(self, email):
         active_users = User.objects.filter(email__iexact=email, is_active=True)
-        return (u for u in active_users if u.groups.filter(name='Ciudadanos').exists())
+        return (u for u in active_users if es_ciudadano_portal(u))
 
 
 class CiudadanoNuevaConsultaForm(forms.Form):

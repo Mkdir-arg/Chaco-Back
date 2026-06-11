@@ -2,10 +2,11 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 
 
+from core import rbac
+
+
 def es_staff(user):
-    return user.is_superuser or user.is_staff or user.groups.filter(
-        name__in=["Administrador", "Supervisor"]
-    ).exists()
+    return user.is_superuser or user.is_staff or rbac.puede(user, "config.administrar")
 
 
 @login_required

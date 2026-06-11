@@ -1,10 +1,15 @@
 import logging
 
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.contrib.auth.models import Group, User
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+from django.views import View
+from django.views.generic import CreateView, ListView, UpdateView
 
+from core import rbac
+from core.rbac import CapacidadRequeridaMixin
 from core.mixins import TimestampedSuccessUrlMixin
 from ..forms import CustomUserChangeForm, UserCreationForm
 from ..services import UsuariosService
@@ -13,11 +18,10 @@ from ..services.admin import UsuariosAdminService
 logger = logging.getLogger(__name__)
 
 
-class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.is_superuser or self.request.user.groups.filter(
-            name="Administrador"
-        ).exists()
+class AdminRequiredMixin(CapacidadRequeridaMixin):
+    """Acceso al ABM de usuarios: requiere la capacidad ``usuario.administrar``."""
+
+    capacidades_requeridas = ["usuario.administrar"]
 
 
 class UserListView(AdminRequiredMixin, ListView):
@@ -40,11 +44,6 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
     template_name = "user/user_form.html"
     success_url = reverse_lazy("users:usuarios")
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["all_groups"] = Group.objects.all().order_by("name")
-        return context
-
     def form_valid(self, form):
         try:
             self.object = UsuariosAdminService.create_user_from_form(form)
@@ -62,14 +61,12 @@ class UserUpdateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, UpdateView)
     template_name = "user/user_form.html"
     success_url = reverse_lazy("users:usuarios")
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["all_groups"] = Group.objects.all().order_by("name")
-        return context
-
     def form_valid(self, form):
         try:
             self.object = UsuariosAdminService.update_user_from_form(form)
+        except rbac.SinAdministradorError as exc:
+            form.add_error(None, str(exc))
+            return self.form_invalid(form)
         except Exception as exc:
             logger.exception("Error al actualizar usuario")
             form.add_error(None, f"Error al actualizar el usuario: {exc}")
@@ -78,19 +75,24 @@ class UserUpdateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, UpdateView)
         return self.redirect_with_timestamp()
 
 
-class UserDeleteView(AdminRequiredMixin, DeleteView):
-    model = User
-    template_name = "user/user_confirm_delete.html"
-    success_url = reverse_lazy("users:usuarios")
+class UserToggleActivoView(AdminRequiredMixin, View):
+    """Activa/desactiva un usuario (reemplaza el borrado físico)."""
 
-
-class GroupListView(AdminRequiredMixin, ListView):
-    model = Group
-    template_name = "group/group_list.html"
-    context_object_name = "groups"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["table_headers"] = [{"title": "Nombre"}]
-        context["table_fields"] = [{"name": "name"}]
-        return context
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        if user == request.user and user.is_active:
+            messages.error(request, "No podés desactivar tu propio usuario.")
+            return redirect("users:usuarios")
+        try:
+            with transaction.atomic():
+                user.is_active = not user.is_active
+                user.save(update_fields=["is_active"])
+                if not user.is_active:
+                    rbac.asegurar_admin_restante()
+        except rbac.SinAdministradorError as exc:
+            messages.error(request, str(exc))
+            return redirect("users:usuarios")
+        messages.success(
+            request, "Usuario activado." if user.is_active else "Usuario desactivado."
+        )
+        return redirect("users:usuarios")

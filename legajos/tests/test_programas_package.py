@@ -1,13 +1,11 @@
 from django.test import SimpleTestCase
 
-from legajos.views import ProgramaDetailView, ProgramaListView
-from legajos.views.programas import (
-    ProgramaDetailView as ProgramaDetailViewModule,
-    ProgramaListView as ProgramaListViewModule,
-)
+# El paquete legajos.views no reexporta símbolos a propósito (evita forzar imports
+# de módulos legacy); las vistas se consumen desde su módulo canónico.
+from legajos.views.programas import ProgramaDetailView, ProgramaListView
 
 
 class LegajosProgramasPackageTests(SimpleTestCase):
-    def test_package_expone_views_de_programas(self):
-        self.assertIs(ProgramaListView, ProgramaListViewModule)
-        self.assertIs(ProgramaDetailView, ProgramaDetailViewModule)
+    def test_views_de_programas_son_cbv(self):
+        self.assertTrue(hasattr(ProgramaListView, "as_view"))
+        self.assertTrue(hasattr(ProgramaDetailView, "as_view"))

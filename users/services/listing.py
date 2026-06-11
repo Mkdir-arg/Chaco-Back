@@ -3,7 +3,7 @@ import logging
 from django.urls import reverse
 
 from core.services.advanced_filters import AdvancedFilterEngine
-from users.selectors_usuarios import get_usuarios_queryset
+from users.selectors import get_usuarios_queryset
 from users.users_filter_config import (
     FIELD_MAP as BENEFICIARIO_FILTER_MAP,
     FIELD_TYPES as BENEFICIARIO_FIELD_TYPES,
@@ -45,14 +45,14 @@ class UsuariosService:
                 {"title": "Apellido", "width": "20%"},
                 {"title": "Username", "width": "10%"},
                 {"title": "Email", "width": "8%"},
-                {"title": "Rol", "width": "20%"},
+                {"title": "Roles", "width": "20%"},
             ],
             "table_fields": [
                 {"name": "first_name"},
                 {"name": "last_name"},
                 {"name": "username"},
                 {"name": "email"},
-                {"name": "rol"},
+                {"name": "groups"},
             ],
             "table_actions": [
                 {
@@ -62,10 +62,10 @@ class UsuariosService:
                     "class": "editar",
                 },
                 {
-                    "label": "Eliminar",
-                    "url_name": "users:usuario_eliminar",
-                    "type": "danger",
-                    "class": "eliminar",
+                    "label": "Activar/Desactivar",
+                    "url_name": "users:usuario_toggle",
+                    "type": "warning",
+                    "class": "toggle",
                 },
             ],
             "breadcrumb_items": [

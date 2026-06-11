@@ -1,12 +1,12 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
-from core.decorators import group_required
+from core.rbac import requiere
 from .selectors.ciudadanos import buscar_ciudadanos_rapido
 
 
 @login_required
-@group_required(['ciudadanoVer', 'ciudadanoCrear'])
+@requiere("ciudadano.ver", "ciudadano.crear")
 def ciudadano_buscar_api(request):
     """
     Endpoint AJAX para la búsqueda rápida de ciudadanos desde el header del backoffice.

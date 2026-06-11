@@ -10,6 +10,8 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.views import View
 
+from core.rbac import es_ciudadano_portal
+
 from ..forms import (
     CiudadanoLoginForm,
     CiudadanoPasswordResetForm,
@@ -42,7 +44,7 @@ class CiudadanoLoginView(View):
     template_name = 'portal/ciudadano/login.html'
 
     def get(self, request):
-        if request.user.is_authenticated and request.user.groups.filter(name='Ciudadanos').exists():
+        if es_ciudadano_portal(request.user):
             return redirect('portal:ciudadano_mi_perfil')
         return render(request, self.template_name, {'form': CiudadanoLoginForm()})
 

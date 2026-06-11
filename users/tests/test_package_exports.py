@@ -3,12 +3,12 @@ from django.test import SimpleTestCase
 
 class UsersPackageExportsTests(SimpleTestCase):
     def test_views_package_exports_public_symbols(self):
-        from users.views import GroupListView, UserCreateView, UserListView, UsuariosLoginView
+        from users.views import RolListView, UserCreateView, UserListView, UsuariosLoginView
 
         self.assertIsNotNone(UsuariosLoginView)
         self.assertIsNotNone(UserListView)
         self.assertIsNotNone(UserCreateView)
-        self.assertIsNotNone(GroupListView)
+        self.assertIsNotNone(RolListView)
 
     def test_services_and_selectors_packages_export_public_symbols(self):
         from users.forms import CustomUserChangeForm, UserCreationForm

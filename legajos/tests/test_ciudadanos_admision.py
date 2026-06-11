@@ -1,10 +1,13 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 
+from core import rbac
 from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
+from users.models import Capacidad, RolMeta
 
 
 class LegajosCiudadanosAdmisionTests(TestCase):
@@ -14,6 +17,14 @@ class LegajosCiudadanosAdmisionTests(TestCase):
             password="clave-segura-123",
             is_staff=True,
         )
+        # El alta de ciudadanos exige la capacidad ciudadano.crear (RBAC).
+        rol = Group.objects.create(name="Operador legajos")
+        RolMeta.objects.create(grupo=rol, categoria="Backoffice", activo=True)
+        _ct = ContentType.objects.get_for_model(Capacidad)
+        rol.permissions.add(
+            Permission.objects.get(content_type=_ct, codename=rbac.codename_de("ciudadano.crear"))
+        )
+        self.user.groups.add(rol)
         self.ciudadano = Ciudadano.objects.create(
             dni="12345678",
             nombre="Ana",

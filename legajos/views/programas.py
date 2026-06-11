@@ -10,10 +10,12 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 
+from core.rbac import CapacidadRequeridaMixin
 from ..models_programas import Programa, InscripcionPrograma
 
 
-class ProgramaListView(LoginRequiredMixin, ListView):
+class ProgramaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    capacidades_requeridas = "programa.ver"
     """
     Lista de programas que el usuario puede gestionar.
     - SuperAdmin: ve todos
@@ -35,7 +37,8 @@ class ProgramaListView(LoginRequiredMixin, ListView):
         return context
 
 
-class ProgramaDetailView(LoginRequiredMixin, DetailView):
+class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
+    capacidades_requeridas = "programa.ver"
     """
     Vista detallada de un programa con 5 solapas operativas:
     1. Dashboard Ejecutivo
@@ -54,11 +57,6 @@ class ProgramaDetailView(LoginRequiredMixin, DetailView):
         if programa.tipo in ['NACHEC', 'ÑACHEC']:
             return ['legajos/programas/programa_nachec_detail.html']
         return ['legajos/programas/programa_detail.html']
-    
-    def dispatch(self, request, *args, **kwargs):
-        # Permitir acceso a todos los usuarios autenticados temporalmente
-        # TODO: Restaurar verificación de permisos cuando se asignen coordinadores
-        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

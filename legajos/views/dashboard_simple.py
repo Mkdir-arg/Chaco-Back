@@ -7,7 +7,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
-from core.decorators import group_required
+from core.rbac import requiere
 from ..linking import annotate_legajo_link_data
 from ..models import LegajoAtencion
 from ..models_programas import InscripcionPrograma
@@ -29,7 +29,7 @@ def test_api(request):
 
 
 @login_required
-@group_required(['Ciudadanos'])
+@requiere("reporte.ver")
 def reportes_view(request):
     """Vista liviana de reportes para mantener operativa la navegación del backoffice."""
     hace_7_dias = timezone.now().date() - timedelta(days=7)
@@ -75,7 +75,7 @@ def reportes_view(request):
 
 
 @login_required
-@group_required(['Ciudadanos'])
+@requiere("reporte.ver")
 def exportar_reportes_csv(request):
     """Exportación CSV básica de legajos para no romper la acción principal de reportes."""
     response = HttpResponse(content_type='text/csv; charset=utf-8')

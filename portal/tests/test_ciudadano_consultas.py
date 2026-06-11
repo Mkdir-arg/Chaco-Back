@@ -78,7 +78,11 @@ class CiudadanoConsultasViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Conversacion.objects.count(), 0)
-        self.assertContains(response, 'Asegurate de que este valor tenga al menos 10 caracteres')
+        # No se acopla al wording exacto del validador: basta con que el form
+        # re-renderizado reporte el error de longitud mínima en 'motivo'.
+        form = response.context.get('form')
+        self.assertIsNotNone(form)
+        self.assertIn('motivo', form.errors)
 
     @patch('portal.services.consultas._notificar_grupo')
     @patch('portal.services.consultas.NotificacionService.notificar_nueva_conversacion')

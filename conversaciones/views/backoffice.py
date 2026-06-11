@@ -5,6 +5,9 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from ..permisos import es_operador_restringido, puede_operar
+from core.rbac import requiere
+
 from ..forms import (
     AsignarConversacionForm,
     ConfigurarColaForm,
@@ -42,7 +45,7 @@ def _json_payload(request):
 
 
 def tiene_permiso_conversaciones(user):
-    return user.groups.filter(name__in=['Conversaciones', 'OperadorCharla']).exists() or user.is_superuser
+    return puede_operar(user)
 
 
 @login_required
@@ -58,7 +61,7 @@ def lista_conversaciones(request):
     }
     context = {
         'conversaciones': get_conversaciones_queryset_para_lista(request.user, filtros),
-        'es_operador_charla': request.user.groups.filter(name='OperadorCharla').exists(),
+        'es_operador_charla': es_operador_restringido(request.user),
         'operadores_con_carga': get_operadores_con_carga(),
         'todos_operadores': get_todos_los_operadores(),
         'filtros': filtros,
@@ -147,13 +150,13 @@ def reasignar_conversacion(request, conversacion_id):
 
 
 @login_required
-@user_passes_test(tiene_permiso_conversaciones)
+@requiere("conversacion.metricas")
 def metricas_conversaciones(request):
     return render(request, 'conversaciones/metricas.html', get_metricas_contexto())
 
 
 @login_required
-@user_passes_test(tiene_permiso_conversaciones)
+@requiere("conversacion.configurar")
 def configurar_cola(request):
     if request.method == 'POST':
         form = ConfigurarColaForm(request.POST)

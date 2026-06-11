@@ -3,13 +3,14 @@ from rest_framework.response import Response
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from .models import Conversacion
+from .permisos import puede_operar
 
 
 @login_required
 @api_view(['GET'])
 def conversacion_detalle(request, conversacion_id):
     """Devuelve datos mínimos de una conversación para actualizar la lista en vivo"""
-    if not request.user.groups.filter(name__in=['Conversaciones', 'OperadorCharla']).exists() and not request.user.is_superuser:
+    if not puede_operar(request.user):
         return JsonResponse({'error': 'No autorizado'}, status=403)
 
     try:

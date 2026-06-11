@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
+from core.rbac import requiere
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils.dateparse import parse_datetime
@@ -88,6 +89,7 @@ def inicio_view(request):
 
 
 @login_required
+@requiere("relevamiento.ver")
 def relevamientos_view(request):
     """Vista de listado de relevamientos web."""
     query = (request.GET.get("q") or "").strip()

@@ -1,26 +1,41 @@
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
+from core import rbac
 from users.forms import CustomUserChangeForm, UserCreationForm
-from users.models import Profile
-from users.services_admin import UsuariosAdminService
+from users.models import Capacidad, RolMeta
+from users.services import UsuariosAdminService
+
+
+def _perm(codigo):
+    ct = ContentType.objects.get_for_model(Capacidad)
+    return Permission.objects.get(codename=rbac.codename_de(codigo), content_type=ct)
 
 
 class UsuariosAdminServiceTests(TestCase):
     def setUp(self):
         self.group_admin = Group.objects.create(name="Administrador")
-        self.group_view = Group.objects.create(name="Usuario Ver")
+        RolMeta.objects.create(
+            grupo=self.group_admin, categoria="Sistema", activo=True, protegido=True
+        )
+        # El rol Administrador otorga las capacidades de administración (como el seed),
+        # para que la auto-protección reconozca a sus usuarios como administradores.
+        self.group_admin.permissions.add(
+            _perm("usuario.administrar"), _perm("rol.administrar")
+        )
+        self.group_op = Group.objects.create(name="Operador")
+        RolMeta.objects.create(grupo=self.group_op, categoria="Backoffice", activo=True)
 
-    def test_create_user_from_form_persists_groups_profile_and_password(self):
+    def test_create_user_from_form_persists_roles_and_password(self):
         form = UserCreationForm(
             data={
                 "username": "operador1",
                 "email": "operador1@example.com",
                 "password": "clave-segura-123",
-                "groups[]": [str(self.group_admin.pk), str(self.group_view.pk)],
+                "groups[]": [str(self.group_admin.pk), str(self.group_op.pk)],
                 "last_name": "Perez",
                 "first_name": "Ana",
-                "rol": "Coordinadora",
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
@@ -31,9 +46,8 @@ class UsuariosAdminServiceTests(TestCase):
         self.assertTrue(user.check_password("clave-segura-123"))
         self.assertCountEqual(
             list(user.groups.values_list("name", flat=True)),
-            ["Administrador", "Usuario Ver"],
+            ["Administrador", "Operador"],
         )
-        self.assertEqual(user.profile.rol, "Coordinadora")
 
     def test_update_user_from_form_keeps_existing_password_when_blank(self):
         user = User.objects.create_user(
@@ -43,10 +57,7 @@ class UsuariosAdminServiceTests(TestCase):
             first_name="Luis",
             last_name="Gomez",
         )
-        user.groups.add(self.group_view)
-        profile = Profile.objects.create(user=user)
-        profile.rol = "Analista"
-        profile.save()
+        user.groups.add(self.group_op)
         original_password_hash = user.password
 
         form = CustomUserChangeForm(
@@ -57,7 +68,6 @@ class UsuariosAdminServiceTests(TestCase):
                 "groups": [str(self.group_admin.pk)],
                 "last_name": "Gomez",
                 "first_name": "Luis",
-                "rol": "Supervisor",
             },
             instance=user,
         )
@@ -73,4 +83,20 @@ class UsuariosAdminServiceTests(TestCase):
             list(updated_user.groups.values_list("name", flat=True)),
             ["Administrador"],
         )
-        self.assertEqual(updated_user.profile.rol, "Supervisor")
+
+    def test_rol_inactivo_no_es_asignable(self):
+        inactivo = Group.objects.create(name="RolViejo")
+        RolMeta.objects.create(grupo=inactivo, categoria="Backoffice", activo=False)
+
+        form = UserCreationForm(
+            data={
+                "username": "x",
+                "email": "x@example.com",
+                "password": "clave-segura-123",
+                "groups[]": [str(inactivo.pk)],
+                "last_name": "X",
+                "first_name": "X",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("groups", form.errors)

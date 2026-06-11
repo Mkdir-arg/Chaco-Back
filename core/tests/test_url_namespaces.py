@@ -21,7 +21,7 @@ class UrlNamespacesTests(SimpleTestCase):
         self.assertEqual(reverse('conversaciones:detalle', kwargs={'conversacion_id': 7}), '/conversaciones/7/')
 
     def test_legajos_alertas_tienen_names_unicos(self):
-        self.assertEqual(reverse('legajos:cerrar_alerta_evento'), '/legajos/cerrar-alerta/')
+        self.assertEqual(reverse('legajos:cerrar_alerta_evento'), '/legajos/alertas/eventos/cerrar/')
         self.assertEqual(
             reverse('legajos:cerrar_alerta_ciudadano', kwargs={'alerta_id': 3}),
             '/legajos/alertas/3/cerrar/',

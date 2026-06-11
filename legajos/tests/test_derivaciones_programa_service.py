@@ -38,7 +38,7 @@ class DerivacionProgramaServiceTests(TestCase):
             nombre='Programa Ñachec',
             tipo=Programa.TipoPrograma.NACHEC,
             descripcion='Programa de asistencia',
-            activo=True,
+            estado=Programa.Estado.ACTIVO,
         )
         self.derivacion = DerivacionPrograma.objects.create(
             ciudadano=self.ciudadano,
@@ -66,15 +66,9 @@ class DerivacionProgramaServiceTests(TestCase):
         self.assertTrue(context['validaciones']['tiene_contacto'])
 
     def test_accept_nachec_derivacion_creates_task_and_historial(self):
-        caso = CasoNachec.objects.create(
-            ciudadano_titular=self.ciudadano,
-            estado=EstadoCaso.DERIVADO,
-            municipio='Resistencia',
-            localidad='Centro',
-            direccion='Calle 123',
-            fecha_derivacion='2026-03-13',
-            motivo_derivacion='Ingreso previo',
-        )
+        # El CasoNachec lo crea automáticamente el signal al generar la derivación
+        # (en setUp). El test debe operar sobre ese caso, no crear uno duplicado.
+        caso = CasoNachec.objects.get(ciudadano_titular=self.ciudadano)
 
         result = DerivacionProgramaService.accept_nachec_derivacion(
             derivacion_id=self.derivacion.id,

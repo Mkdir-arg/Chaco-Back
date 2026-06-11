@@ -3,6 +3,8 @@ import time
 
 from django.shortcuts import redirect
 
+from core import rbac
+
 logger = logging.getLogger("core.requests")
 
 
@@ -17,8 +19,7 @@ class PortalCiudadanoMiddleware:
 
     def __call__(self, request):
         if (
-            request.user.is_authenticated
-            and request.user.groups.filter(name='Ciudadanos').exists()
+            rbac.es_ciudadano_portal(request.user)
             and not request.path.startswith('/portal/')
             and not request.path.startswith('/static/')
             and not request.path.startswith('/media/')

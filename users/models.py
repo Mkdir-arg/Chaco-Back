@@ -1,18 +1,70 @@
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.db import models
 from django.utils import timezone
+
+from core.rbac import (
+    CATEGORIA_BACKOFFICE,
+    CATEGORIAS_ROL_CHOICES,
+    todas_las_capacidades,
+)
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     dark_mode = models.BooleanField(default=True)
-    rol = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"Perfil de {self.user.username}"
+
+
+class RolMeta(models.Model):
+    """Metadatos de un Rol del backoffice. Un Rol = ``Group`` + ``RolMeta``.
+
+    Aporta la descripción autoexplicada, la categoría, la marca de protegido
+    (no editable/eliminable desde la UI) y el estado activo (un rol inactivo no
+    es asignable). Las capacidades se tildan sobre el ``Group`` vía
+    ``group.permissions``.
+    """
+
+    grupo = models.OneToOneField(
+        Group, on_delete=models.CASCADE, related_name="meta", verbose_name="Rol"
+    )
+    descripcion = models.TextField(blank=True, default="", verbose_name="Descripción")
+    categoria = models.CharField(
+        max_length=20,
+        choices=CATEGORIAS_ROL_CHOICES,
+        default=CATEGORIA_BACKOFFICE,
+        verbose_name="Categoría",
+    )
+    protegido = models.BooleanField(default=False, verbose_name="Protegido")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Metadato de rol"
+        verbose_name_plural = "Metadatos de roles"
+
+    def __str__(self):
+        return self.grupo.name
+
+
+class Capacidad(models.Model):
+    """Modelo ancla de las capacidades del RBAC. **No** gestiona tabla propia.
+
+    Su único objeto es aportar el ``content_type`` y la lista de ``permissions``
+    (derivada del catálogo en :mod:`core.rbac`) que Django materializa como
+    ``Permission`` reales durante ``migrate``. Esos permisos se tildan sobre los
+    roles y se consultan vía ``core.rbac.puede``.
+    """
+
+    class Meta:
+        managed = False
+        default_permissions = ()
+        permissions = todas_las_capacidades()
+        verbose_name = "Capacidad"
+        verbose_name_plural = "Capacidades"
 
 
 class SolicitudCambioEmail(models.Model):

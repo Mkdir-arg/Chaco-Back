@@ -1,48 +1,35 @@
 from functools import wraps
 
-from django.core.exceptions import PermissionDenied
+from django.shortcuts import redirect
 
-
-def group_required(group_names, redirect_to=None):
-    """
-    Permite el acceso solo a usuarios autenticados que pertenezcan a alguno de los grupos indicados,
-    o que sean superusuarios.
-
-    Si se pasa redirect_to, redirige con messages.error en lugar de lanzar PermissionDenied.
-    Sin redirect_to: comportamiento original (PermissionDenied / 403).
-    """
-
-    def in_group(user):
-        return user.is_authenticated and (
-            user.groups.filter(name__in=group_names).exists() or user.is_superuser
-        )
-
-    def decorator(view_func):
-        @wraps(view_func)
-        def _wrapped_view(request, *args, **kwargs):
-            if not in_group(request.user):
-                if redirect_to:
-                    from django.contrib import messages
-                    from django.shortcuts import redirect
-                    messages.error(request, 'No tiene permisos para acceder a esta sección.')
-                    return redirect(redirect_to)
-                raise PermissionDenied
-            return view_func(request, *args, **kwargs)
-
-        return _wrapped_view
-
-    return decorator
+from core.rbac import es_ciudadano_portal
 
 
 def ciudadano_required(view_func):
-    """Permite acceso solo a usuarios del grupo Ciudadanos. Redirige al login del portal."""
+    """Permite acceso solo a ciudadanos del portal. Redirige al login del portal.
+
+    Usa el marcador de identidad ``es_ciudadano_portal`` (no una capacidad de
+    backoffice): el portal y el backoffice quedan separados.
+    """
+
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            from django.shortcuts import redirect
+        if not es_ciudadano_portal(request.user):
             return redirect('portal:ciudadano_login')
-        if not request.user.groups.filter(name='Ciudadanos').exists():
-            from django.shortcuts import redirect
+        # Un ciudadano del portal SIN legajo vinculado es un estado inválido
+        # (p. ej. el grupo "Ciudadanos" se asignó a mano): degradar sin 500.
+        from legajos.models import Ciudadano
+
+        if not Ciudadano.objects.filter(usuario=request.user).exists():
+            from django.contrib import messages
+            from django.contrib.auth import logout
+
+            messages.error(
+                request,
+                "Tu cuenta no tiene un legajo de ciudadano asociado. Contactá al administrador.",
+            )
+            logout(request)
             return redirect('portal:ciudadano_login')
         return view_func(request, *args, **kwargs)
+
     return _wrapped_view
