@@ -13,10 +13,14 @@
 | 2026-06-06 | Matias | Análisis funcional | Completé análisis de propuesta | 61 min |
 | 2026-06-08 | Matias | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
 | 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 30 min |
+| 2026-06-10 | Matías Fariña | Reunión con el Ministerio | Revisión de legajo ciudadano, flujo final de becas y relevamiento de institución | 90 min |
+| 2026-06-10 | Agostina Coppola | Reunión con el Ministerio | Revisión de legajo ciudadano, flujo final de becas y relevamiento de institución | 90 min |
+| 2026-06-10 | Matías Fariña | Actualización a la versión 3 del flujo de becas | Sesión de trabajo para actualizar el flujo de becas a la v3 | 300 min |
+| 2026-06-10 | Agostina Coppola | Actualización a la versión 3 del flujo de becas | Sesión de trabajo para actualizar el flujo de becas a la v3 | 300 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **1020 minutos** (17 h 00 min)
+    **1800 minutos** (30 h 00 min)
