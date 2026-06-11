@@ -141,7 +141,8 @@ muestra *que* se está ejecutando).
 
 ## Auditoría (`/pm:salud`)
 
-Además de sus 6 chequeos, `/pm:salud` verifica las violaciones de esta máquina:
+El **séptimo chequeo** de `/pm:salud` (los otros 6 están en `PM.md` → "2. Salud")
+verifica las violaciones de esta máquina:
 - Tasks en Ready+ sin casos de QA, sin estimación, sin assignee único o sin iteración.
 - Análisis en Done con preguntas abiertas en el cuerpo.
 - Épicas en estados intermedios (Ready/In progress/In review/In QA): son

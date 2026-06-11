@@ -4,7 +4,7 @@
 > en Chaco, independientemente de la IA o herramienta que se use (Claude Code,
 > GitHub Copilot, etc.) y también para humanos. Los archivos específicos de cada
 > herramienta (`CLAUDE.md`, `.claude/`, `.github/copilot-instructions.md`,
-> `.github/prompts/`) solo **apuntan acá**. Si algo cambia, se cambia acá.
+> `.github/prompts/`, `.amazonq/`) solo **apuntan acá**. Si algo cambia, se cambia acá.
 
 ## Rol y objetivo
 

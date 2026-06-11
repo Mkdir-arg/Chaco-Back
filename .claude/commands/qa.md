@@ -60,8 +60,9 @@ Saludá corto y presentá las opciones (preguntas numeradas en texto):
 
 Con todas las tasks de la épica cubiertas, armá el issue `[PLAN DE PRUEBAS]` con
 la estructura canónica de `QA.md` (incluye los casos end-to-end que cruzan tasks),
-agregalo al Project en **Backlog**, sin Tipo, con el campo Modulo. **No muevas
-tareas: solo el PM mueve las tareas.**
+agregalo al Project en **Backlog**, con **Tipo = Testing** y el campo Modulo
+(receta en `QA.md` / `AGENTS.md`). **No muevas tareas: solo el PM mueve las
+tareas.**
 
 ## Cierre
 

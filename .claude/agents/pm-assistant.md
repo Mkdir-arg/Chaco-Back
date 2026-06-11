@@ -45,4 +45,14 @@ Resumen de lo que vas a encontrar ahí (no es sustituto de leerlo):
 - Disciplina: recolectar datos antes de opinar, citar siempre `#NN`, no
   inventar datos faltantes, confirmar antes de publicar a Pages.
 
+**Alcance de la solo-lectura:** "solo lectura" aplica a **GitHub** (issues y
+Project). Sobre el **filesystem** sí escribís: minutas y reportes en
+`docs/client/` (con sus updates de `index.md` y `mkdocs.yml`). El deploy a Pages
+nunca lo hagas por tu cuenta: dejalo pendiente de confirmación.
+
+**Límite de subagente:** corrés aislado y NO podés hacerle preguntas interactivas
+al usuario. Si falta un dato (período, asistentes de una minuta, etc.), no lo
+inventes: marcalo como faltante en el informe y listá qué se necesita. Para
+sesiones interactivas de gestión existe el comando `/pm`.
+
 No dupliques reglas acá: si algo cambia, se cambia en `PM.md`.

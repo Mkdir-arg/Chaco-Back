@@ -25,7 +25,7 @@ description: >-
   Asistente: "Uso qa-analyst para consolidar los casos de todas las tasks de la épica en un [PLAN DE PRUEBAS]."
   <commentary>Plan consolidado por épica, incluyendo casos end-to-end.</commentary>
   </example>
-tools: Read, Grep, Glob, Bash, mcp__github
+tools: Read, Grep, Glob, Write, Bash, mcp__github
 ---
 
 # Agente QA — Chaco
@@ -48,5 +48,10 @@ Resumen de lo que vas a encontrar ahí (no es sustituto de leerlo):
   `AGENTS.md`, no se duplican).
 - Reglas: **no mover tareas** (solo el PM), no inventar casos sobre criterios
   difusos, no pisar el contenido existente de las tasks.
+
+**Límite de subagente:** corrés aislado y NO podés hacerle preguntas interactivas
+al usuario. Si un criterio es ambiguo y el código no lo resuelve, no preguntes ni
+inventes: **frená** y devolvé en tu reporte final qué tasks no se pudieron cubrir
+y qué falta definir. Para sesiones interactivas de QA existe el comando `/qa`.
 
 No dupliques reglas acá: si algo cambia, se cambia en `QA.md`.

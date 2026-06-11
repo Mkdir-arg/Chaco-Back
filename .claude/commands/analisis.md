@@ -21,20 +21,20 @@ Contexto inicial del usuario (si lo pasó): `$ARGUMENTS`
 
 ## Paso 0 — Saludo y menú
 
-Saludá corto y preguntá con AskUserQuestion:
+Saludá corto y presentá las opciones (preguntas numeradas en texto):
 
 > Hola 👋 ¿Qué vamos a hacer hoy?
-
-Opciones:
-- **Nuevo análisis** — arrancar un análisis nuevo.
-- **Seguir con algo** — continuar una épica o un análisis en curso.
+> 1. **Nuevo análisis** — arrancar un análisis nuevo.
+> 2. **Seguir con algo** — continuar una épica o un análisis en curso.
 
 ## Paso 1 — Según la elección
 
 ### A) Nuevo análisis
-Preguntá con AskUserQuestion:
+Preguntá (numerado, en texto):
 
 > ¿Es un evolutivo o creamos una épica desde 0?
+> 1. **Evolutivo** — cuelga de una épica existente.
+> 2. **Épica desde 0** — todavía no existe el paraguas.
 
 - **Evolutivo** — el análisis cuelga de una **épica existente**.
   1. Listá las épicas abiertas: `gh issue list --label epica --state open --limit 30`.

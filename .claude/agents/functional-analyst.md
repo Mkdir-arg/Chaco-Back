@@ -40,4 +40,10 @@ Resumen de lo que vas a encontrar ahí (no es sustituto de leerlo):
 - Regla: solo se crean issues en **Backlog**; **solo el PM mueve** las tareas.
 - Reglas de publicación en `docs/client/`.
 
+**Límite de subagente:** corrés aislado y NO podés hacerle preguntas interactivas
+al usuario. Si el interrogatorio del método necesita respuestas del cliente, no
+intentes preguntar ni rellenes con supuestos: **frená**, registrá las preguntas
+abiertas y devolvelas en tu reporte final. Para sesiones interactivas de análisis
+existe el comando `/analisis`.
+
 No dupliques reglas acá: si algo cambia, se cambia en `AGENTS.md`.

@@ -31,11 +31,12 @@ Contexto del usuario: `$ARGUMENTS`
 
 ## Paso 1 — Qué publicar
 
-Preguntá con AskUserQuestion (si no quedó claro en `$ARGUMENTS`):
+Preguntá (numerado, en texto, si no quedó claro en `$ARGUMENTS`):
 
-- **Funcionalidad** — versión pública de una épica/definición (desde un Issue de GitHub).
-- **Minuta** — minuta de reunión.
-- **Sprint** — definición o cierre de un sprint.
+> ¿Qué publicamos?
+> 1. **Funcionalidad** — versión pública de una épica/definición (desde un Issue de GitHub).
+> 2. **Minuta** — minuta de reunión.
+> 3. **Sprint** — definición o cierre de un sprint.
 
 ## Paso 2 — Generar según el tipo
 
