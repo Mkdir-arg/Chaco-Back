@@ -1,14 +1,13 @@
 {% extends "includes/base.html" %}
 {% load static %}
 {% load custom_filters %}
+{% load rbac %}
 
 {% block title %}Dashboard Ejecutivo{% endblock %}
 
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'custom/css/inicio.css' %}" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
     .inicio-highlight-gradient {
         background: var(--ui-highlight-gradient);
@@ -60,17 +59,19 @@
                        class="inicio-search-input w-full pl-12 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#101828] placeholder-[#8C8C8C] focus:outline-none focus:ring-2 focus:border-transparent transition-all"
                        x-model="busqueda" @input="buscarCiudadano()">
             </div>
-            <button class="px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#4A5565] font-medium transition-all hover:bg-[#F3F4F6] hover:text-[#101828] focus:bg-[#F3F4F6] focus:text-[#101828] focus:shadow-[0_1px_0_2px_#F3F4F6] disabled:bg-[#F3F4F6] disabled:border-[#E5E7E8] disabled:text-[#99A1AF] flex items-center gap-2">
+            {% if user|puede:"ciudadano.crear" %}
+            <a href="{% url 'legajos:ciudadano_nuevo' %}" class="px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#4A5565] font-medium transition-all hover:bg-[#F3F4F6] hover:text-[#101828] focus:bg-[#F3F4F6] focus:text-[#101828] focus:shadow-[0_1px_0_2px_#F3F4F6] flex items-center gap-2">
                 <i class="fas fa-plus"></i>
                 <span>Nuevo Legajo</span>
-            </button>
+            </a>
+            {% endif %}
         </div>
         <div x-show="resultadosBusqueda.length > 0" class="mt-4 bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
             <template x-for="resultado in resultadosBusqueda">
-                <div class="p-3 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                <a :href="'/legajos/ciudadanos/' + resultado.id + '/'" class="block p-3 hover:bg-white rounded-lg cursor-pointer transition-colors">
                     <div class="font-medium" x-text="resultado.nombre"></div>
                     <div class="text-sm text-gray-500" x-text="'DNI: ' + resultado.dni"></div>
-                </div>
+                </a>
             </template>
         </div>
     </div>
@@ -89,18 +90,18 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <template x-for="alerta in alertasCriticas">
-                <div class="bg-[#FFFFFF] border border-[#FFCCD3] rounded-xl p-4 hover:shadow-md transition-shadow" style="box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 12px;">
+                <a :href="alerta.ciudadano_id ? '/legajos/ciudadanos/' + alerta.ciudadano_id + '/#alertas' : '#'" class="block bg-[#FFFFFF] border border-[#FFCCD3] rounded-xl p-4 hover:shadow-md transition-shadow" style="box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 12px;">
                     <div class="flex items-start justify-between">
                         <div>
                             <div class="font-semibold text-[#000000] text-[16px]" style="font-family: Inter, sans-serif;" x-text="alerta.ciudadano"></div>
                             <div class="text-[14px] font-bold text-[#D03801]" style="font-family: Inter, sans-serif;" x-text="alerta.tipo"></div>
                             <div class="text-[14px] font-semibold text-[#6A7282]" style="font-family: Inter, sans-serif;" x-text="alerta.fecha"></div>
                         </div>
-                        <button class="text-[#D03801] hover:text-red-800">
+                        <span class="text-[#D03801]">
                             <i class="fas fa-arrow-right"></i>
-                        </button>
+                        </span>
                     </div>
-                </div>
+                </a>
             </template>
         </div>
     </div>
@@ -166,6 +167,75 @@
     </div>
     {% endwith %}
 
+    <!-- Mi trabajo de hoy -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Derivaciones pendientes de aceptar -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-share-nodes mr-2 text-orange-500"></i>
+                    Derivaciones pendientes de aceptar
+                </h3>
+                <span class="inline-flex items-center justify-center min-w-[1.6rem] h-6 px-2 rounded-full text-xs font-bold {% if derivaciones_pendientes_count %}bg-orange-100 text-orange-700{% else %}bg-gray-100 text-gray-500{% endif %}">{{ derivaciones_pendientes_count }}</span>
+            </div>
+            {% if derivaciones_pendientes %}
+            <div class="divide-y divide-[#E5E7EB] max-h-80 overflow-y-auto">
+                {% for deriv in derivaciones_pendientes %}
+                <a href="{% url 'legajos:ciudadano_detalle' deriv.ciudadano_id %}#derivaciones" class="block px-6 py-3 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="min-w-0">
+                            <span class="text-sm font-medium text-gray-900">{{ deriv.ciudadano.apellido }}, {{ deriv.ciudadano.nombre }}</span>
+                            <span class="ml-2 text-xs text-gray-500">→ {{ deriv.programa_destino.nombre }}</span>
+                        </div>
+                        <span class="text-xs text-gray-500 flex-shrink-0 ml-3">{{ deriv.creado|date:"d/m/Y" }}</span>
+                    </div>
+                    {% if deriv.motivo %}<p class="mt-0.5 truncate text-xs text-gray-500">{{ deriv.motivo|truncatechars:90 }}</p>{% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-10 text-center">
+                <i class="fas fa-circle-check text-3xl text-green-200 mb-2"></i>
+                <p class="text-sm text-gray-500">No hay derivaciones pendientes. Todo al día.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Conversaciones sin asignar -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-comments mr-2 text-purple-500"></i>
+                    Conversaciones sin asignar
+                </h3>
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center min-w-[1.6rem] h-6 px-2 rounded-full text-xs font-bold {% if conversaciones_sin_asignar_count %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}">{{ conversaciones_sin_asignar_count }}</span>
+                    <a href="{% url 'conversaciones:lista' %}" class="text-xs font-medium text-purple-600 hover:text-purple-800">Ver todas</a>
+                </div>
+            </div>
+            {% if conversaciones_sin_asignar %}
+            <div class="divide-y divide-[#E5E7EB] max-h-80 overflow-y-auto">
+                {% for conv in conversaciones_sin_asignar %}
+                <a href="{% url 'conversaciones:detalle' conv.pk %}" class="block px-6 py-3 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="min-w-0">
+                            <span class="text-sm font-medium text-gray-900">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
+                            {% if conv.dni_ciudadano %}<span class="ml-2 text-xs text-gray-500">DNI {{ conv.dni_ciudadano }}</span>{% endif %}
+                        </div>
+                        <span class="text-xs text-gray-500 flex-shrink-0 ml-3">{{ conv.fecha_inicio|date:"d/m H:i" }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-10 text-center">
+                <i class="fas fa-circle-check text-3xl text-green-200 mb-2"></i>
+                <p class="text-sm text-gray-500">No hay conversaciones esperando operador.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Dashboard Principal -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         <!-- Gráfico de Tendencias -->
@@ -219,7 +289,7 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <div class="w-3 h-3 bg-magenta rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">Derivados</span>
+                        <span class="text-sm text-gray-600">Derivaciones pendientes</span>
                     </div>
                     <span class="text-sm font-medium" x-text="estadosLegajos.derivados"></span>
                 </div>
@@ -234,21 +304,30 @@
         </div>
     </div>
 
-    <!-- Mapa de Calor y Actividad -->
+    <!-- Programas y Actividad -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Mapa de Distribución -->
+        <!-- Inscripciones por programa -->
         <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-semibold text-gray-900 mb-6">Distribución Geográfica</h3>
-            <div id="mapa" class="h-80 rounded-lg"></div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-6">Inscripciones activas por programa</h3>
+            {% if programas_chart %}
+            <div class="h-80">
+                <canvas id="chartProgramas" class="w-full h-full"></canvas>
+            </div>
+            {% else %}
+            <div class="h-80 flex flex-col items-center justify-center">
+                <i class="fas fa-layer-group text-4xl text-gray-200 mb-3"></i>
+                <p class="text-sm text-gray-500">No hay inscripciones activas en programas.</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Timeline de Actividad -->
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-900">Actividad en Tiempo Real</h3>
+                <h3 class="text-xl font-semibold text-gray-900">Actividad Reciente</h3>
                 <div class="flex items-center space-x-2">
                     <div class="w-2 h-2 bg-nodo-cyan rounded-full animate-pulse"></div>
-                    <span class="text-sm text-gray-500">En vivo</span>
+                    <span class="text-sm text-gray-500">Se actualiza cada 30 s</span>
                 </div>
             </div>
             <div class="space-y-4 max-h-80 overflow-y-auto">

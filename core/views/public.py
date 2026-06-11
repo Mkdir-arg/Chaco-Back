@@ -64,8 +64,9 @@ def inicio_view(request):
     """Vista para la página de inicio del sistema"""
     from datetime import timedelta
 
+    from django.db.models import Count, Q
     from django.utils import timezone
-    from legajos.models_programas import InscripcionPrograma
+    from legajos.models_programas import DerivacionPrograma, InscripcionPrograma, Programa
 
     User = get_user_model()
     ahora = timezone.now()
@@ -84,7 +85,43 @@ def inicio_view(request):
         'seguimientos_hoy': contar_seguimientos_hoy(),
         'alertas_activas': contar_alertas_activas(),
     }
-    
+
+    # --- Mi trabajo de hoy ---
+    derivaciones_pendientes = (
+        DerivacionPrograma.objects.filter(estado='PENDIENTE')
+        .select_related('ciudadano', 'programa_origen', 'programa_destino')
+        .order_by('-creado')
+    )
+    context['derivaciones_pendientes_count'] = derivaciones_pendientes.count()
+    context['derivaciones_pendientes'] = derivaciones_pendientes[:8]
+
+    try:
+        from conversaciones.models import Conversacion
+        conversaciones_sin_asignar = (
+            Conversacion.objects.filter(estado='pendiente', operador_asignado__isnull=True)
+            .order_by('-fecha_inicio')
+        )
+        context['conversaciones_sin_asignar_count'] = conversaciones_sin_asignar.count()
+        context['conversaciones_sin_asignar'] = conversaciones_sin_asignar[:8]
+    except Exception:
+        context['conversaciones_sin_asignar_count'] = 0
+        context['conversaciones_sin_asignar'] = []
+
+    # --- Inscripciones activas por programa (gráfico) ---
+    context['programas_chart'] = [
+        {
+            'nombre': p.nombre,
+            'color': p.color or '#3B82F6',
+            'count': p.inscripciones_activas,
+        }
+        for p in Programa.objects.annotate(
+            inscripciones_activas=Count(
+                'inscripciones',
+                filter=Q(inscripciones__estado__in=['ACTIVO', 'EN_SEGUIMIENTO']),
+            )
+        ).filter(inscripciones_activas__gt=0).order_by('-inscripciones_activas')[:10]
+    ]
+
     return render(request, "inicio.html", context)
 
 

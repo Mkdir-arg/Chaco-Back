@@ -423,6 +423,52 @@
             </div>
         </div>
 
+        {% if historial_programas %}
+        <!-- Historial de programas -->
+        <div class="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <h3 class="flex items-center gap-3 text-lg font-semibold text-slate-900">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                        <i class="fas fa-box-archive"></i>
+                    </span>
+                    Historial de programas
+                </h3>
+                <span class="text-sm text-slate-500">{{ historial_programas|length }} inscripci{{ historial_programas|length|pluralize:"ón,ones" }} finalizada{{ historial_programas|length|pluralize }}</span>
+            </div>
+            <div class="divide-y divide-slate-200">
+                {% for inscripcion in historial_programas %}
+                <div class="px-6 py-4 transition-colors hover:bg-slate-50">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <span class="h-3 w-3 flex-shrink-0 rounded-full" style="background-color: {{ inscripcion.programa.color|default:'#94A3B8' }};"></span>
+                            <div class="min-w-0">
+                                <span class="text-sm font-semibold text-slate-900">{{ inscripcion.programa.nombre }}</span>
+                                {% if inscripcion.responsable %}
+                                <span class="ml-2 text-xs text-slate-500">· {{ inscripcion.responsable.get_full_name|default:inscripcion.responsable.username }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="flex flex-shrink-0 items-center gap-2">
+                            <span class="text-xs text-slate-500">
+                                {{ inscripcion.fecha_inscripcion|date:"d/m/Y" }}{% if inscripcion.fecha_cierre %} → {{ inscripcion.fecha_cierre|date:"d/m/Y" }}{% endif %}
+                            </span>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                                {% if inscripcion.estado == 'CERRADO' %}bg-slate-100 text-slate-600
+                                {% elif inscripcion.estado == 'SUSPENDIDO' %}bg-amber-100 text-amber-700
+                                {% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ inscripcion.get_estado_display }}
+                            </span>
+                        </div>
+                    </div>
+                    {% if inscripcion.motivo_cierre %}
+                    <p class="mt-1 truncate pl-6 text-xs text-slate-500">{{ inscripcion.motivo_cierre|truncatechars:140 }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Predicción de Riesgo con IA -->
         <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
             <h3 class="mb-6 flex items-center gap-3 text-xl font-bold text-slate-900">
@@ -829,6 +875,20 @@
                 </button>
             </div>
 
+            <!-- Grafo navegable de la red familiar -->
+            <div id="grafo-red-wrapper" class="mb-8 hidden">
+                <div class="mb-3 flex items-center justify-between">
+                    <h4 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
+                        <i class="fas fa-circle-nodes text-slate-400"></i>
+                        Grafo de la red
+                    </h4>
+                    <span class="text-xs text-slate-500">
+                        <i class="fas fa-hand-pointer mr-1"></i>Clic en un familiar para abrir su legajo · arrastrá para reorganizar
+                    </span>
+                </div>
+                <div id="grafo-red-familiar" class="h-96 w-full rounded-xl border border-slate-200 bg-slate-50"></div>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="border-b border-slate-200 bg-slate-50">
@@ -995,6 +1055,7 @@
     </div>
 </div>
 
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
 <script>
 // ============================================================
 // Sistema de solapas: deep-linking por hash + accesibilidad
@@ -1019,6 +1080,11 @@ function cambiarTab(tabName) {
 
     // Deep-link: la solapa activa queda en la URL (sobrevive un F5)
     history.replaceState(null, '', `#${tabName}`);
+
+    // El grafo se crea con la solapa oculta (tamaño 0): reajustar al mostrarla
+    if (tabName === 'red_familiar' && redFamiliarNetwork) {
+        setTimeout(() => { redFamiliarNetwork.redraw(); redFamiliarNetwork.fit(); }, 50);
+    }
 }
 
 // Navegación por teclado en la barra de solapas
@@ -1126,6 +1192,7 @@ function cargarVinculos() {
             const resultados = (data.results && data.results.length) ? data.results : [];
 
             document.getElementById('total-vinculos').textContent = resultados.length;
+            renderizarGrafoRed(resultados);
 
             if (resultados.length > 0) {
                 tbody.innerHTML = resultados.map(vinculo => {
@@ -1176,6 +1243,91 @@ function cargarVinculos() {
         .catch(() => {
             document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-500">Error al cargar vínculos</td></tr>';
         });
+}
+
+// Grafo navegable de la red familiar (vis-network).
+// Nodo central = este ciudadano; clic en un familiar abre su legajo.
+let redFamiliarNetwork = null;
+function renderizarGrafoRed(vinculos) {
+    const wrapper = document.getElementById('grafo-red-wrapper');
+    const container = document.getElementById('grafo-red-familiar');
+
+    if (redFamiliarNetwork) {
+        redFamiliarNetwork.destroy();
+        redFamiliarNetwork = null;
+    }
+
+    if (!vinculos.length || typeof vis === 'undefined') {
+        wrapper.classList.add('hidden');
+        return;
+    }
+    wrapper.classList.remove('hidden');
+
+    const nodes = [{
+        id: 'central',
+        label: '{{ ciudadano.apellido|escapejs }}, {{ ciudadano.nombre|escapejs }}',
+        title: 'DNI {{ ciudadano.dni }} (este legajo)',
+        shape: 'box',
+        margin: 10,
+        color: { background: '#0f172a', border: '#0f172a' },
+        font: { color: '#ffffff', size: 14, face: 'sans-serif' },
+        fixed: false
+    }];
+    const edges = [];
+
+    vinculos.forEach(vinculo => {
+        const det = vinculo.ciudadano_vinculado_detail || {};
+        const nodeId = `c-${det.id || vinculo.id}`;
+        const esEmergencia = vinculo.es_contacto_emergencia;
+
+        nodes.push({
+            id: nodeId,
+            label: `${det.nombre || ''} ${det.apellido || ''}`.trim() || 'Sin nombre',
+            title: `DNI ${det.dni || 's/d'} · ${vinculo.tipo_vinculo_display || vinculo.tipo_vinculo}${vinculo.convive ? ' · Convive' : ''}${esEmergencia ? ' · Contacto de emergencia' : ''}\nClic para abrir su legajo`,
+            shape: 'box',
+            margin: 8,
+            color: {
+                background: esEmergencia ? '#fef2f2' : '#ecfdf5',
+                border: esEmergencia ? '#ef4444' : '#10b981',
+                highlight: { background: '#dbeafe', border: '#3b82f6' }
+            },
+            font: { color: '#0f172a', size: 13, face: 'sans-serif' },
+            ciudadanoId: det.id || null
+        });
+
+        edges.push({
+            from: 'central',
+            to: nodeId,
+            label: vinculo.tipo_vinculo_display || vinculo.tipo_vinculo,
+            font: { size: 11, color: '#64748b', strokeWidth: 4, strokeColor: '#f8fafc' },
+            color: { color: '#94a3b8', highlight: '#3b82f6' },
+            dashes: !vinculo.convive,
+            width: vinculo.convive ? 2 : 1
+        });
+    });
+
+    redFamiliarNetwork = new vis.Network(container, {
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(edges)
+    }, {
+        physics: {
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: { gravitationalConstant: -60, springLength: 140 },
+            stabilization: { iterations: 120 }
+        },
+        interaction: { hover: true, zoomView: true, dragView: true },
+        edges: { smooth: { type: 'continuous' } }
+    });
+
+    redFamiliarNetwork.on('hoverNode', () => { container.style.cursor = 'pointer'; });
+    redFamiliarNetwork.on('blurNode', () => { container.style.cursor = 'default'; });
+    redFamiliarNetwork.on('click', params => {
+        if (!params.nodes.length || params.nodes[0] === 'central') return;
+        const node = redFamiliarNetwork.body.data.nodes.get(params.nodes[0]);
+        if (node && node.ciudadanoId) {
+            window.location.href = `/legajos/ciudadanos/${node.ciudadanoId}/#red_familiar`;
+        }
+    });
 }
 
 function eliminarVinculo(vinculoId) {

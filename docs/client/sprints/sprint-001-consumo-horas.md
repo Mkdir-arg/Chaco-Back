@@ -20,10 +20,11 @@
 | 2026-06-11 | Juani Portilla | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Pablo Cao | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Agostina Coppola | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
+| 2026-06-11 | mkdir | analisis legajo ciudadano | Epica Legajo ciudadano , ajuste de documentacion | 181 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **1860 minutos** (31 h 00 min)
+    **2041 minutos** (34 h 01 min)

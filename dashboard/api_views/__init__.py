@@ -44,7 +44,7 @@ def metricas_dashboard(request):
             "estados_legajos": {
                 "abiertos": estados_dict.get("ACTIVO", 0),
                 "seguimiento": estados_dict.get("EN_SEGUIMIENTO", 0),
-                "derivados": estados_dict.get("PENDIENTE", 0),
+                "derivados": DerivacionPrograma.objects.filter(estado="PENDIENTE").count(),
                 "cerrados": estados_dict.get("CERRADO", 0),
             },
             "usuarios_conectados": usuarios_activos,
@@ -96,6 +96,7 @@ def alertas_criticas(request):
             alertas_data.append(
                 {
                     "id": alerta.id,
+                    "ciudadano_id": alerta.ciudadano_id,
                     "ciudadano": ciudadano_nombre,
                     "tipo": alerta.get_tipo_display(),
                     "prioridad": alerta.prioridad,

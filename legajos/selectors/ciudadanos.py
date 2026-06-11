@@ -129,6 +129,15 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     }
     context['solapas_programas'] = [s for s in context['solapas'] if not s['estatica']]
 
+    # Historial de programas: inscripciones que ya no están vigentes
+    context['historial_programas'] = SolapasService.obtener_historial_programas(ciudadano).filter(
+        estado__in=[
+            InscripcionPrograma.Estado.CERRADO,
+            InscripcionPrograma.Estado.SUSPENDIDO,
+            InscripcionPrograma.Estado.DADO_DE_BAJA,
+        ]
+    )
+
     # --- Instituciones vinculadas (vía legajos) ---
     context['instituciones_ciudadano'] = []
 
