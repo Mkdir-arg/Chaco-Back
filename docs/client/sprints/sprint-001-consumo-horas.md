@@ -10,8 +10,8 @@
 | 2026-06-05 | Matías Fariña | Continuar el análisis funcional del módulo de becas | Cierre temporal de la sesión de análisis del módulo de becas | 87 min |
 | 2026-06-06 | Matías Fariña | Continuar el análisis funcional del módulo de becas | Continuación del análisis funcional del módulo de becas | 171 min |
 | 2026-06-05 | Matías Fariña | Continuar análisis de la propuesta | Seguir con el análisis de la propuesta | 119 min |
-| 2026-06-06 | Matias | Análisis funcional | Completé análisis de propuesta | 61 min |
-| 2026-06-08 | Matias | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
+| 2026-06-06 | Matías Fariña | Análisis funcional | Completé análisis de propuesta | 61 min |
+| 2026-06-08 | Matías Fariña | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
 | 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 30 min |
 | 2026-06-10 | Matías Fariña | Reunión con el Ministerio | Revisión de legajo ciudadano, flujo final de becas y relevamiento de institución | 90 min |
 | 2026-06-10 | Agostina Coppola | Reunión con el Ministerio | Revisión de legajo ciudadano, flujo final de becas y relevamiento de institución | 90 min |
@@ -20,11 +20,11 @@
 | 2026-06-11 | Juani Portilla | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Pablo Cao | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Agostina Coppola | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
-| 2026-06-11 | mkdir | analisis legajo ciudadano | Epica Legajo ciudadano , ajuste de documentacion | 181 min |
+| 2026-06-11 | Matías Fariña | analisis legajo ciudadano | Epica Legajo ciudadano , ajuste de documentacion | 181 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **2041 minutos** (34 h 01 min)
+    **2161 minutos** (36 h 01 min)
