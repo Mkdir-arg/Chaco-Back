@@ -41,9 +41,13 @@ detecta las que no la tienen y las cubre.
    `gh issue view`. El caso de prueba sale de los criterios + el contexto funcional
    completo (actores, reglas de negocio, flujos alternativos, casos límite del
    análisis), no solo del texto de la task.
-3. **Code-first si hay ambigüedad.** Si un criterio es ambiguo o no se entiende el
-   flujo real, inspeccioná el código (views, forms, templates, urls del módulo)
-   antes de asumir comportamiento.
+3. **Code-first (obligatorio, no solo ante ambigüedad).** Antes de derivar un solo
+   caso, inspeccioná el código que la task declara afectado **y su capa de
+   enforcement** (views, decoradores/mixins, urls, motor de permisos): los casos
+   prueban el **comportamiento del sistema**, no el diff de la task. Del código
+   salen los escenarios que los criterios no mencionan (bypasses, ramas de
+   template, estados especiales). Si un criterio sigue ambiguo después de leer
+   el código, aplicá el punto 4 y frená.
 4. **Control estricto de entrada.** Antes de generar casos verificá:
    - La task tiene **criterios de aprobación** concretos y verificables.
    - El análisis de origen está **Definido** y **sin preguntas abiertas**.
@@ -59,6 +63,34 @@ detecta las que no la tienen y las cubre.
    - **Casos negativos / validaciones** — datos inválidos, campos vacíos, formatos.
    - **Casos límite** — bordes de rango, listas vacías, duplicados, concurrencia si aplica.
    - **Permisos por actor** — quién puede y quién NO puede (cada actor del análisis).
+
+   La derivación es **adversarial, no literal**: un set de casos que solo
+   reformula los criterios de aprobación no agrega valor de QA. Por cada
+   criterio preguntate *"¿cómo podría cumplirse este criterio al pie de la
+   letra y aun así estar roto el sistema?"* y cubrí esa grieta. Heurísticas
+   obligatorias:
+   - **Ocultar no es bloquear.** Si un criterio dice que algo "no se ve"
+     (ítem de menú, botón, columna), agregá el caso `negativo` de **acceso
+     directo** (URL, POST, API): el resultado esperado sale del enforcement
+     real del código, no del template.
+   - **Permisos se prueban por ambos lados y por sus bypasses.** Además del
+     actor sin permiso, cubrí los caminos especiales del motor RBAC
+     (`core/rbac.py`): **superusuario** (bypass total, distinto del rol
+     Administrador), **múltiples roles** (las capacidades se unen),
+     **rol desactivado** (deja de surtir efecto aunque siga asignado),
+     usuario inactivo.
+   - **Listas restrictivas son cerradas.** Si el criterio enumera qué debe
+     verse, el Entonces dice "exactamente estos y ningún otro", no solo la
+     lista positiva.
+   - **Una rama de template = un caso.** Si la UI tocada tiene variantes
+     (sidebar expandido/colapsado, mobile, estado vacío), cada rama
+     modificada tiene su caso.
+   - **Los gates de build no son casos.** `manage.py check`, migraciones o
+     linters son criterios de aprobación de la task / CI; no van en la
+     sección de QA porque nadie los "tilda" en una sesión de prueba.
+   - Si una categoría no aplica, dejalo explícito al final de la sección
+     (`**Categorías no aplicables:** <cuáles y por qué>`): considerar cada
+     categoría es obligatorio; cubrirla, solo si aplica.
 6. **Publicación.** Agregá la sección al cuerpo de la task (sin tocar el contenido
    existente) y, si corresponde, creá/actualizá el `[PLAN DE PRUEBAS]` de la épica.
 7. **Reporte.** Informá qué tasks quedaron cubiertas, cuántos casos por categoría,
