@@ -102,8 +102,16 @@ se entiende en 30 segundos (los devs no leen mucho). Si no entra, partilo. Crite
 de corte: una unidad acotada (un módulo / una vista o flujo), que entre en un sprint
 y se apruebe de una.
 Épica padre (#NN) · Análisis de origen (#NN) · **Qué se quiere** (1-3 líneas) ·
-**Requisitos** (bullets concretos) · **Criterios de aprobación** (checklist
-verificable) · Archivos/módulos afectados · Estimación (horas) · PR vinculada.
+**Requisitos** (bullets concretos) · **Interfaz recomendada** (si la task toca
+UI: qué pantalla/sección se agrega o modifica, cómo se agrupa/muestra la
+información — describir el armado, no diseñarlo en detalle) ·
+**Criterios de aprobación** (checklist verificable) · Archivos/módulos
+afectados · Estimación (horas) · PR vinculada.
+
+Para tasks técnicas sin UI (modelo, motor, servicios) que puedan resultar
+abstractas, agregar un bloque breve de **Ejemplo** (antes/después en código o
+uso concreto) dentro de "Qué se quiere" o "Requisitos", para que se entiendan
+sin tener que leer el análisis completo.
 
 ### Requerimiento completo (título `[REQUERIMIENTO] ...`)
 Síntesis integral de una épica y **todos** sus análisis en un solo Issue, leíble de
