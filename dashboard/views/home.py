@@ -3,10 +3,8 @@ from datetime import timedelta
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
 from django.utils import timezone
-from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 
-from core.cache_decorators import cache_view
 from legajos.models import AlertaCiudadano, Ciudadano
 from legajos.models_programas import InscripcionPrograma
 from users.models import User
@@ -14,7 +12,12 @@ from users.models import User
 from dashboard.utils import contar_ciudadanos, contar_usuarios
 
 
-@method_decorator(cache_view(timeout=60), name="dispatch")
+# NOTA: esta vista NO se cachea con cache_page/cache_view. Era una página
+# autenticada y cache_page (como decorador de vista) genera la clave de cache
+# antes de que el middleware agregue ``Vary: Cookie``, por lo que cacheaba la
+# página COMPLETA cross-user (sidebar con datos del usuario incluido). Las
+# métricas son COUNTs baratos; si hiciera falta optimizar, cachear los cálculos
+# a nivel de datos (no la página).
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "dashboard.html"
 
