@@ -1,6 +1,6 @@
 from django import forms
 from legajos.models_programas import Programa
-from core.models_secretaria import Secretaria, Subsecretaria
+from core.models import Secretaria, Subsecretaria
 
 
 class ProgramaPaso1Form(forms.Form):

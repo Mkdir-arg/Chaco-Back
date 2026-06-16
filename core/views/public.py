@@ -50,7 +50,7 @@ def load_localidad(request):
 @require_GET
 def load_subsecretarias(request):
     """Carga subsecretarías activas filtradas por secretaría."""
-    from ..models_secretaria import Subsecretaria
+    from ..models import Subsecretaria
     secretaria_id = request.GET.get("secretaria")
     qs = Subsecretaria.objects.filter(activo=True).order_by('nombre')
     if secretaria_id:

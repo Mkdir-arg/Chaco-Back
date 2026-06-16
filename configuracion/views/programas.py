@@ -8,10 +8,10 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.rbac import puede, requiere
-from core.models_secretaria import Subsecretaria
+from core.models import Subsecretaria
 from legajos.models_programas import Programa
 
-from ..forms_programas import (
+from ..forms.programas import (
     ProgramaPaso1Form,
     ProgramaPaso2Form,
     ProgramaPaso3Form,

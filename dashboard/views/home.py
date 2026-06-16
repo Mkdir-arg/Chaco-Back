@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 
-from core.cache_decorators import cache_view
+from core.services.cache import cache_view
 from legajos.models import AlertaCiudadano, Ciudadano
 from legajos.models_programas import InscripcionPrograma
 from users.models import User

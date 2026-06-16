@@ -10,7 +10,7 @@ from ..models.contactos import (
     HistorialContacto,
     VinculoFamiliar,
 )
-from ..serializers_contactos import (
+from ..serializers.contactos import (
     HistorialContactoSerializer, HistorialContactoListSerializer,
     VinculoFamiliarSerializer,
     CiudadanoBasicoSerializer, UserBasicoSerializer

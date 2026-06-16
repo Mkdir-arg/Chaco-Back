@@ -1,6 +1,6 @@
 from django.db.models import OuterRef, Subquery
 
-from .models_programas import InscripcionPrograma
+from programas.models import InscripcionPrograma
 
 
 def get_linked_inscripcion_for_legajo(legajo):
@@ -21,7 +21,7 @@ def get_legajo_ids_for_ciudadano(ciudadano):
 
 def get_legajos_queryset_for_ciudadano(ciudadano, base_queryset=None):
     if base_queryset is None:
-        from .models import LegajoAtencion
+        from ..models import LegajoAtencion
 
         base_queryset = LegajoAtencion.objects.all()
 
@@ -55,7 +55,7 @@ def annotate_legajo_link_data(queryset):
 
 
 def get_active_legajo_for_ciudadano(ciudadano):
-    from .models import LegajoAtencion
+    from ..models import LegajoAtencion
 
     return get_legajos_queryset_for_ciudadano(
         ciudadano,

@@ -4,10 +4,10 @@ URLs para transiciones de estado Ñachec
 
 from django.urls import path
 
-from .views.nachec_cierre import cerrar_caso_nachec, reabrir_caso_nachec
-from .views.nachec_dashboard import dashboard_nachec
-from .views.nachec_decisiones import activar_plan, cerrar_caso, evaluar_caso, pasar_a_seguimiento
-from .views.nachec_operacion import (
+from ..views.nachec_cierre import cerrar_caso_nachec, reabrir_caso_nachec
+from ..views.nachec_dashboard import dashboard_nachec
+from ..views.nachec_decisiones import activar_plan, cerrar_caso, evaluar_caso, pasar_a_seguimiento
+from ..views.nachec_operacion import (
     adjuntar_evidencias,
     asignar_territorial,
     autosave_relevamiento,
@@ -20,7 +20,7 @@ from .views.nachec_operacion import (
     reasignar_territorial,
     ver_tarea_validacion,
 )
-from .views.nachec_prestaciones import (
+from ..views.nachec_prestaciones import (
     cancelar_prestacion,
     confirmar_entrega_prestacion,
     iniciar_prestacion,

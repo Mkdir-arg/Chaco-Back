@@ -1,6 +1,6 @@
 from django.db import models
 
-from .models import TimeStamped
+from .base import TimeStamped
 
 
 class Secretaria(TimeStamped):

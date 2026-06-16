@@ -258,7 +258,7 @@ class LegajoAtencion(LegajoBase):
 
     @cached_property
     def inscripcion_programa(self):
-        from ..linking import get_linked_inscripcion_for_legajo
+        from ..services.linking import get_linked_inscripcion_for_legajo
 
         return get_linked_inscripcion_for_legajo(self)
 

@@ -3,7 +3,7 @@ Admin para Programa Ñachec
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from .models.nachec import (
+from ..models.nachec import (
     CasoNachec, RelevamientoNachec, EvaluacionVulnerabilidad,
     PlanIntervencionNachec, PrestacionNachec, TareaNachec,
     SeguimientoTerritorial, HistorialEstadoCaso
@@ -22,7 +22,7 @@ class CasoNachecAdmin(admin.ModelAdmin):
         'ciudadano_titular__dni', 'municipio', 'localidad'
     ]
     readonly_fields = ['creado', 'modificado']
-    
+
     fieldsets = (
         ('Ciudadano', {
             'fields': ('ciudadano_titular',)
@@ -37,7 +37,7 @@ class CasoNachecAdmin(admin.ModelAdmin):
             'fields': ('operador_admision', 'coordinador', 'territorial', 'referente_programa')
         }),
         ('Fechas', {
-            'fields': ('fecha_derivacion', 'fecha_asignacion', 'fecha_relevamiento', 
+            'fields': ('fecha_derivacion', 'fecha_asignacion', 'fecha_relevamiento',
                       'fecha_evaluacion', 'fecha_cierre')
         }),
         ('Motivos', {
@@ -54,7 +54,7 @@ class CasoNachecAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def estado_badge(self, obj):
         colors = {
             'DERIVADO': 'gray',
@@ -77,7 +77,7 @@ class CasoNachecAdmin(admin.ModelAdmin):
             color, obj.get_estado_display()
         )
     estado_badge.short_description = 'Estado'
-    
+
     def prioridad_badge(self, obj):
         colors = {
             'BAJA': '#10b981',
@@ -100,7 +100,7 @@ class RelevamientoNachecAdmin(admin.ModelAdmin):
     list_filter = ['completado', 'tipo_vivienda', 'acceso_alimentos', 'urgencia_alimentaria']
     search_fields = ['caso__ciudadano_titular__nombre', 'caso__ciudadano_titular__apellido']
     readonly_fields = ['creado', 'modificado']
-    
+
     fieldsets = (
         ('Caso', {
             'fields': ('caso', 'territorial')
@@ -142,18 +142,16 @@ class EvaluacionVulnerabilidadAdmin(admin.ModelAdmin):
     list_filter = ['categoria_final']
     search_fields = ['caso__ciudadano_titular__nombre', 'caso__ciudadano_titular__apellido']
     readonly_fields = ['fecha_evaluacion']
-    
+
     fieldsets = (
         ('Caso', {
             'fields': ('caso', 'relevamiento', 'evaluador')
         }),
         ('Scoring', {
-            'fields': ('score_total', 'score_composicion_familiar', 'score_ingresos',
-                      'score_vivienda', 'score_salud', 'score_educacion',
-                      'score_alimentacion', 'score_riesgos')
+            'fields': ('score_total', 'score_version', 'categoria_sugerida')
         }),
         ('Dictamen', {
-            'fields': ('categoria_final', 'dictamen', 'recomendaciones')
+            'fields': ('categoria_final', 'dictamen', 'override_categoria', 'justificacion_override')
         }),
     )
 
@@ -163,7 +161,7 @@ class PlanIntervencionNachecAdmin(admin.ModelAdmin):
     list_display = ['caso', 'referente', 'vigente', 'fecha_inicio', 'horizonte_dias']
     list_filter = ['vigente', 'incluye_alimentacion', 'incluye_vivienda', 'incluye_empleo']
     search_fields = ['caso__ciudadano_titular__nombre', 'caso__ciudadano_titular__apellido']
-    
+
     fieldsets = (
         ('Caso', {
             'fields': ('caso', 'referente')
@@ -193,7 +191,7 @@ class PrestacionNachecAdmin(admin.ModelAdmin):
     list_filter = ['tipo', 'estado', 'frecuencia']
     search_fields = ['caso__ciudadano_titular__nombre', 'descripcion']
     inlines = [TareaNachecInline]
-    
+
     fieldsets = (
         ('Prestación', {
             'fields': ('plan', 'caso', 'tipo', 'subtipo', 'descripcion')
@@ -221,7 +219,7 @@ class TareaNachecAdmin(admin.ModelAdmin):
     list_display = ['titulo', 'caso', 'tipo', 'asignado_a', 'estado', 'prioridad', 'fecha_vencimiento']
     list_filter = ['tipo', 'estado', 'prioridad']
     search_fields = ['titulo', 'descripcion', 'caso__ciudadano_titular__nombre']
-    
+
     fieldsets = (
         ('Tarea', {
             'fields': ('caso', 'prestacion', 'tipo', 'titulo', 'descripcion')
@@ -246,7 +244,7 @@ class SeguimientoTerritorialAdmin(admin.ModelAdmin):
     list_display = ['caso', 'tipo', 'territorial', 'resultado', 'fecha_seguimiento']
     list_filter = ['tipo', 'resultado']
     search_fields = ['caso__ciudadano_titular__nombre', 'cambios_detectados']
-    
+
     fieldsets = (
         ('Seguimiento', {
             'fields': ('caso', 'territorial', 'tipo', 'fecha_seguimiento')
@@ -266,9 +264,9 @@ class HistorialEstadoCasoAdmin(admin.ModelAdmin):
     list_filter = ['estado_anterior', 'estado_nuevo']
     search_fields = ['caso__ciudadano_titular__nombre', 'observacion']
     readonly_fields = ['timestamp']
-    
+
     def has_add_permission(self, request):
         return False
-    
+
     def has_change_permission(self, request, obj=None):
         return False

@@ -4,7 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
-from ..linking import get_legajos_queryset_for_ciudadano
+from ..services.linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     Adjunto,
     Ciudadano,

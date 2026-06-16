@@ -8,7 +8,7 @@ from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 from core.rbac import CapacidadRequeridaMixin
 from core.models import Secretaria, Subsecretaria
 
-from ..forms_secretaria import SecretariaForm, SubsecretariaForm
+from ..forms.secretaria import SecretariaForm, SubsecretariaForm
 
 _CAPS = ['config.administrar']
 _REDIRECT = '/'

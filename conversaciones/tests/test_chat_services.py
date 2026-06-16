@@ -4,10 +4,10 @@ from django.contrib.auth.models import Group, User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from conversaciones.forms_chat import IniciarConversacionForm, MensajeConversacionForm
+from conversaciones.forms.chat import IniciarConversacionForm, MensajeConversacionForm
 from conversaciones.models import Conversacion, HistorialAlertaConversacion, Mensaje
-from conversaciones.selectors_conversaciones import get_alertas_conversaciones_count
-from conversaciones.services_chat import (
+from conversaciones.selectors.conversaciones import get_alertas_conversaciones_count
+from conversaciones.services.chat import (
     crear_mensaje_operador,
     iniciar_conversacion_publica,
     marcar_mensajes_ciudadano_leidos,

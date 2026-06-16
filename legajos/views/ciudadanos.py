@@ -5,7 +5,7 @@ from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from core.cache_decorators import cache_view
+from core.services.cache import cache_view
 from core.rbac import CapacidadRequeridaMixin
 
 from ..forms import (

@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from core.rbac import requiere
-from ..linking import annotate_legajo_link_data
+from ..services.linking import annotate_legajo_link_data
 from ..models import LegajoAtencion
 from ..models_programas import InscripcionPrograma
 

@@ -2,14 +2,14 @@ from rest_framework.decorators import api_view
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from ..models import Conversacion
-from ..selectors_conversaciones import (
+from ..selectors.conversaciones import (
     get_alertas_conversaciones_count,
     get_alertas_preview_mensajes,
     get_alertas_preview_nuevas_conversaciones,
     get_conversacion_asignada_a_operador,
     usuario_tiene_permiso_conversaciones,
 )
-from ..services_chat import marcar_mensajes_ciudadano_leidos
+from ..services.chat import marcar_mensajes_ciudadano_leidos
 
 
 @login_required

@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
 from core.rbac import requiere
-from .selectors.ciudadanos import buscar_ciudadanos_rapido
+from ..selectors.ciudadanos import buscar_ciudadanos_rapido
 
 
 @login_required

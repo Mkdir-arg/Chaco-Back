@@ -1,7 +1,7 @@
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from core.cache_decorators import invalidate_cache_pattern
+from core.services.cache import invalidate_cache_pattern
 
 from ..models import Ciudadano, Derivacion, LegajoAtencion
 

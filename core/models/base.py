@@ -121,46 +121,45 @@ class Sexo(models.Model):
         verbose_name_plural = "Sexos"
 
 
-# Modelos base para sistema de legajos
 class TimeStamped(models.Model):
     """Modelo abstracto para timestamps automáticos"""
     creado = models.DateTimeField(auto_now_add=True)
     modificado = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         abstract = True
 
 
 class LegajoBase(TimeStamped):
     """Modelo base abstracto para todos los tipos de legajos"""
-    
+
     class Estado(models.TextChoices):
         ABIERTO = "ABIERTO", "Abierto"
         EN_SEGUIMIENTO = "EN_SEGUIMIENTO", "En seguimiento"
         DERIVADO = "DERIVADO", "Derivado"
         CERRADO = "CERRADO", "Cerrado"
-    
+
     class Confidencialidad(models.TextChoices):
         NORMAL = "NORMAL", "Normal"
         RESTRINGIDA = "RESTRINGIDA", "Restringida"
-    
+
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     codigo = models.CharField(max_length=36, unique=True, default=generate_codigo)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTO)
     fecha_apertura = models.DateField(auto_now_add=True)
     fecha_cierre = models.DateField(null=True, blank=True)
     responsable = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.PROTECT, 
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
         related_name="legajos_responsable"
     )
     confidencialidad = models.CharField(
-        max_length=20, 
-        choices=Confidencialidad.choices, 
+        max_length=20,
+        choices=Confidencialidad.choices,
         default=Confidencialidad.NORMAL
     )
     notas = models.TextField(blank=True)
-    
+
     class Meta:
         abstract = True
         indexes = [
@@ -168,10 +167,3 @@ class LegajoBase(TimeStamped):
             models.Index(fields=["fecha_apertura"]),
             models.Index(fields=["responsable"]),
         ]
-
-
-
-
-
-# Re-exportar para que `from core.models import Secretaria` funcione
-from .models_secretaria import Secretaria, Subsecretaria  # noqa: E402, F401

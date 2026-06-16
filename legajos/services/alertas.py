@@ -4,7 +4,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils import timezone
 
-from ..linking import get_legajos_queryset_for_ciudadano
+from .linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     AlertaCiudadano,
     Ciudadano,

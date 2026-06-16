@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from ..models import Conversacion
-from ..selectors_conversaciones import get_conversacion_api_detalle, usuario_tiene_permiso_conversaciones
+from ..selectors.conversaciones import get_conversacion_api_detalle, usuario_tiene_permiso_conversaciones
 
 
 @login_required

@@ -1,14 +1,14 @@
 from django.urls import include, path
 
-from .views import alertas as views_alertas
-from .views import ciudadanos as views_ciudadanos
-from .views import contactos_api as views_contactos_api
-from .views import contactos_panel as views_contactos_panel
-from .views import dashboard_simple as views_simple
-from .views import derivacion as views_derivacion
-from .views import derivacion_programa as views_derivacion_programa
-from .views import programas as views_programas
-from . import views_ciudadanos_api
+from ..views import alertas as views_alertas
+from ..views import ciudadanos as views_ciudadanos
+from ..views import contactos_api as views_contactos_api
+from ..views import contactos_panel as views_contactos_panel
+from ..views import dashboard_simple as views_simple
+from ..views import derivacion as views_derivacion
+from ..views import derivacion_programa as views_derivacion_programa
+from ..views import programas as views_programas
+from ..views import ciudadanos_api as views_ciudadanos_api
 
 app_name = "legajos"
 
@@ -24,7 +24,7 @@ urlpatterns = [
     path("ciudadanos/<int:pk>/editar/", views_ciudadanos.CiudadanoUpdateView.as_view(), name="ciudadano_editar"),
     path("programas/", views_programas.ProgramaListView.as_view(), name="programas"),
     path("programas/<int:pk>/", views_programas.ProgramaDetailView.as_view(), name="programa_detalle"),
-    path("nachec/", include("legajos.urls_nachec")),
+    path("nachec/", include("legajos.urls.nachec")),
     path(
         "ciudadanos/<int:ciudadano_id>/derivar-programa/",
         views_derivacion.derivar_programa_view,
