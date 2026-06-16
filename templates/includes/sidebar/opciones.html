@@ -176,7 +176,7 @@
             {% endif %}
 
             <!-- Administración -->
-            {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" %}
+            {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
                 <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                     <template x-if="!sidebarCollapsed">
                         <div>

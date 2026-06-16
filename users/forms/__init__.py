@@ -49,17 +49,24 @@ def _normalize_groups_args(args, kwargs):
     return args, kwargs
 
 
-def _roles_asignables_queryset():
+def _roles_asignables_queryset(operador=None):
     """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
 
     El marcador ``Ciudadanos`` (identidad del portal) no es un rol de backoffice:
     asignárselo a un operador lo expulsaría al portal y rompería su sesión.
+
+    Si ``operador`` es un **admin de programa** (no global), se acota a los roles
+    de los programas que administra; un admin global (o sin operador) ve todos.
     """
-    return (
+    qs = (
         Group.objects.filter(meta__activo=True)
         .exclude(meta__categoria=rbac.CATEGORIA_PORTAL)
         .order_by("name")
     )
+    if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
+        return qs
+    from users.selectors.roles import programas_administrables
+    return qs.filter(meta__programa__in=programas_administrables(operador))
 
 
 class UserCreationForm(forms.ModelForm):
@@ -122,10 +129,10 @@ class UserCreationForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, operador=None, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
-        self.fields["groups"].queryset = _roles_asignables_queryset()
+        self.fields["groups"].queryset = _roles_asignables_queryset(operador)
 
 
 class CustomUserChangeForm(forms.ModelForm):
@@ -189,13 +196,20 @@ class CustomUserChangeForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, operador=None, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
-        # Incluye los roles ya asignados (aunque estén inactivos) + los activos,
-        # para no perder asignaciones existentes al editar.
-        asignables = _roles_asignables_queryset()
-        if self.instance and self.instance.pk:
+        es_global = (
+            operador is None
+            or operador.is_superuser
+            or rbac.puede(operador, "usuario.administrar")
+        )
+        asignables = _roles_asignables_queryset(operador)
+        # Admin global: incluye los roles ya asignados (aunque estén inactivos)
+        # para no perder asignaciones al editar. Admin de programa: NO se unen los
+        # roles fuera de su alcance (no debe verlos ni tocarlos); igual se
+        # preservan en el guardado scoped del servicio.
+        if es_global and self.instance and self.instance.pk:
             asignables = (asignables | self.instance.groups.all()).distinct()
         self.fields["groups"].queryset = asignables
         self._original_password_hash = self.instance.password

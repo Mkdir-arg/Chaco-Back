@@ -14,14 +14,27 @@ from core.mixins import TimestampedSuccessUrlMixin
 from ..forms import CustomUserChangeForm, UserCreationForm
 from ..services import UsuariosService
 from ..services.admin import UsuariosAdminService
+from ..selectors.usuarios import (
+    alcance_roles_ids,
+    puede_gestionar_usuario,
+    usuarios_visibles_para,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class AdminRequiredMixin(CapacidadRequeridaMixin):
-    """Acceso al ABM de usuarios: requiere la capacidad ``usuario.administrar``."""
+class _ScopeDenied(Exception):
+    """El operador (admin de programa) intentó acceder a un usuario fuera de alcance."""
 
-    capacidades_requeridas = ["usuario.administrar"]
+
+class AdminRequiredMixin(CapacidadRequeridaMixin):
+    """Acceso al ABM de usuarios.
+
+    Entra el admin global (``usuario.administrar``) y también el admin de programa
+    (``programa.configurar`` en algún programa). El alcance fino lo aplica cada vista.
+    """
+
+    capacidades_requeridas = ["usuario.administrar", "programa.configurar"]
 
 
 class UserListView(AdminRequiredMixin, ListView):
@@ -30,7 +43,7 @@ class UserListView(AdminRequiredMixin, ListView):
     context_object_name = "users"
 
     def get_queryset(self):
-        return UsuariosService.get_filtered_usuarios(self.request)
+        return UsuariosService.get_filtered_usuarios(self.request, operador=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -44,9 +57,16 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
     template_name = "user/user_form.html"
     success_url = reverse_lazy("users:usuarios")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["operador"] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         try:
-            self.object = UsuariosAdminService.create_user_from_form(form)
+            self.object = UsuariosAdminService.create_user_from_form(
+                form, alcance_group_ids=alcance_roles_ids(self.request.user)
+            )
         except Exception as exc:
             logger.exception("Error al crear usuario")
             form.add_error(None, f"Error al guardar el usuario: {exc}")
@@ -61,9 +81,29 @@ class UserUpdateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, UpdateView)
     template_name = "user/user_form.html"
     success_url = reverse_lazy("users:usuarios")
 
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except _ScopeDenied:
+            messages.error(request, "No tiene permisos para acceder a esta sección.")
+            return redirect("users:usuarios")
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not puede_gestionar_usuario(self.request.user, obj):
+            raise _ScopeDenied
+        return obj
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["operador"] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         try:
-            self.object = UsuariosAdminService.update_user_from_form(form)
+            self.object = UsuariosAdminService.update_user_from_form(
+                form, alcance_group_ids=alcance_roles_ids(self.request.user)
+            )
         except rbac.SinAdministradorError as exc:
             form.add_error(None, str(exc))
             return self.form_invalid(form)
@@ -80,15 +120,26 @@ class UserToggleActivoView(AdminRequiredMixin, View):
 
     def post(self, request, pk):
         user = get_object_or_404(User, pk=pk)
+        if not puede_gestionar_usuario(request.user, user):
+            messages.error(request, "No tiene permisos para acceder a esta sección.")
+            return redirect("users:usuarios")
         if user == request.user and user.is_active:
             messages.error(request, "No podés desactivar tu propio usuario.")
             return redirect("users:usuarios")
         try:
             with transaction.atomic():
+                # Programas que administra (antes de desactivar): no dejarlos huérfanos.
+                programas = (
+                    UsuariosAdminService._programas_que_administra(user)
+                    if user.is_active
+                    else set()
+                )
                 user.is_active = not user.is_active
                 user.save(update_fields=["is_active"])
                 if not user.is_active:
                     rbac.asegurar_admin_restante()
+                    for programa_id in programas:
+                        rbac.asegurar_admin_restante(programa=programa_id)
         except rbac.SinAdministradorError as exc:
             messages.error(request, str(exc))
             return redirect("users:usuarios")
