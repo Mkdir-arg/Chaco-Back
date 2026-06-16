@@ -6,7 +6,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
-from users.tests.test_rbac import render_sidebar
+from users.models import RolMeta
+from users.tests.test_rbac import _perm, render_sidebar
 
 _CAPS_OPERADOR = [
     "ciudadano.ver", "programa.ver", "reporte.ver",
@@ -66,3 +67,30 @@ class MenuRestringidoTests(TestCase):
         self.assertNotIn(reverse("legajos:ciudadanos"), html)
         self.assertNotIn(reverse("users:usuarios"), html)
         self.assertIn(reverse("core:inicio"), html)  # Inicio siempre visible
+
+
+class CiudadanoListBotonNuevoTests(TestCase):
+    """#59 — el botón 'Nuevo Ciudadano' del LISTADO también se gatea por ciudadano.crear.
+
+    (El enforcement por URL ya existía; esto evita el ítem visible que rebota.)
+    """
+
+    def _user(self, *codigos):
+        g = Group.objects.create(name="rol-" + "-".join(codigos))
+        RolMeta.objects.create(grupo=g, categoria="Backoffice", activo=True)
+        for c in codigos:
+            g.permissions.add(_perm(c))
+        u = User.objects.create_user("u-" + "-".join(codigos), password="x")
+        u.groups.add(g)
+        return u
+
+    def test_sin_crear_no_ve_boton(self):
+        self.client.force_login(self._user("ciudadano.ver"))
+        resp = self.client.get(reverse("legajos:ciudadanos"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Nuevo Ciudadano")
+
+    def test_con_crear_ve_boton(self):
+        self.client.force_login(self._user("ciudadano.ver", "ciudadano.crear"))
+        resp = self.client.get(reverse("legajos:ciudadanos"))
+        self.assertContains(resp, "Nuevo Ciudadano")

@@ -2,10 +2,8 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
-from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from core.cache_decorators import cache_view
 from core.rbac import CapacidadRequeridaMixin
 
 from ..forms import (
@@ -23,7 +21,6 @@ from ..selectors import (
 from ..services import CiudadanosService
 
 
-@method_decorator(cache_view(timeout=300), name='get')
 class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     capacidades_requeridas = "ciudadano.ver"
     model = Ciudadano

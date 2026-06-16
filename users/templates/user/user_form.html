@@ -12,6 +12,11 @@
     <div class="bg-white rounded-lg shadow p-6">
         <form method="post">
             {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md p-4 mb-6">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre de usuario</label>
