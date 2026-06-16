@@ -3,7 +3,7 @@ Admin para Programa Ñachec
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from .models_nachec import (
+from .models.nachec import (
     CasoNachec, RelevamientoNachec, EvaluacionVulnerabilidad,
     PlanIntervencionNachec, PrestacionNachec, TareaNachec,
     SeguimientoTerritorial, HistorialEstadoCaso

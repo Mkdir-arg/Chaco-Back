@@ -12,12 +12,12 @@ from core.models import TimeStamped, LegajoBase
 
 class Ciudadano(TimeStamped):
     """Modelo para ciudadanos del sistema de legajos"""
-    
+
     class Genero(models.TextChoices):
         MASCULINO = "M", "Masculino"
         FEMENINO = "F", "Femenino"
         NO_BINARIO = "X", "No binario"
-    
+
     dni = models.CharField(max_length=20, unique=True, db_index=True)
     nombre = models.CharField(max_length=120, db_index=True)
     apellido = models.CharField(max_length=120, db_index=True)
@@ -26,7 +26,7 @@ class Ciudadano(TimeStamped):
     telefono = models.CharField(max_length=40, blank=True, db_index=True)
     email = models.EmailField(blank=True, db_index=True)
     domicilio = models.CharField(max_length=240, blank=True)
-    
+
     # Datos territoriales
     provincia = models.ForeignKey(
         'core.Provincia',
@@ -49,7 +49,7 @@ class Ciudadano(TimeStamped):
         blank=True,
         related_name='ciudadanos'
     )
-    
+
     activo = models.BooleanField(default=True, db_index=True)
 
     usuario = models.OneToOneField(
@@ -186,13 +186,13 @@ class Ciudadano(TimeStamped):
             models.Index(fields=["nivel_educativo"]),
             models.Index(fields=["estado_renaper"]),
         ]
-    
+
     def __str__(self):
         return f"{self.apellido}, {self.nombre} ({self.dni})"
-    
+
     # Managers
     objects = models.Manager()  # Manager por defecto
-    
+
     @property
     def nombre_completo(self):
         """Retorna el nombre completo del ciudadano"""
@@ -212,13 +212,13 @@ class Ciudadano(TimeStamped):
 
 class LegajoAtencion(LegajoBase):
     """Legajo de atención individual para ciudadanos"""
-    
+
     class ViaIngreso(models.TextChoices):
         ESPONTANEA = "ESPONTANEA", "Consulta espontánea"
         DERIVACION = "DERIVACION", "Derivación"
         JUDICIAL = "JUDICIAL", "Judicial"
         HOSPITAL = "HOSPITAL", "Hospital/Guardia"
-    
+
     responsable = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -230,22 +230,22 @@ class LegajoAtencion(LegajoBase):
         help_text="Usuario con rol de Responsable asignado al legajo"
     )
     via_ingreso = models.CharField(
-        max_length=20, 
-        choices=ViaIngreso.choices, 
+        max_length=20,
+        choices=ViaIngreso.choices,
         default=ViaIngreso.ESPONTANEA,
         db_index=True
     )
     fecha_admision = models.DateField(auto_now_add=True, db_index=True)
     plan_vigente = models.BooleanField(default=False, db_index=True)
     nivel_riesgo = models.CharField(
-        max_length=20, 
+        max_length=20,
         default="BAJO",
         db_index=True
     )
-    
+
     # Historial de cambios
     # history = HistoricalRecords()  # Comentado temporalmente
-    
+
     class Meta:
         verbose_name = "Acompañamiento"
         verbose_name_plural = "Acompañamientos"
@@ -258,7 +258,7 @@ class LegajoAtencion(LegajoBase):
 
     @cached_property
     def inscripcion_programa(self):
-        from .linking import get_linked_inscripcion_for_legajo
+        from ..linking import get_linked_inscripcion_for_legajo
 
         return get_linked_inscripcion_for_legajo(self)
 
@@ -284,44 +284,44 @@ class LegajoAtencion(LegajoBase):
     @property
     def seguimientos(self):
         return self.historial_contactos
-    
+
     def __str__(self):
         ciudadano = self.ciudadano
         if ciudadano:
             return f"Legajo {self.codigo} - {ciudadano}"
         return f"Legajo {self.codigo}"
-    
+
     def get_absolute_url(self):
         from django.urls import reverse
 
         if self.ciudadano_id:
             return reverse('legajos:ciudadano_detalle', kwargs={'pk': self.ciudadano_id})
         return reverse('legajos:lista')
-    
+
     def puede_cerrar(self):
         """Verifica si el legajo puede cerrarse"""
         from datetime import datetime, timedelta
         if self.estado == 'CERRADO':
             return False, "El legajo ya está cerrado"
-        
+
         # Verificar seguimiento reciente (últimos 30 días)
         fecha_limite = datetime.now().date() - timedelta(days=30)
         tiene_seguimiento_reciente = self.historial_contactos.filter(
             creado__date__gte=fecha_limite
         ).exists()
-        
+
         if self.plan_vigente and not tiene_seguimiento_reciente:
             return False, "Requiere seguimiento reciente o justificación para cerrar"
-        
+
         return True, "Puede cerrarse"
-    
+
     def cerrar(self, motivo_cierre=None, usuario=None):
         """Cierra el legajo"""
         from datetime import datetime
         puede, mensaje = self.puede_cerrar()
         if not puede and not motivo_cierre:
             raise ValidationError(mensaje)
-        
+
         self.estado = 'CERRADO'
         self.fecha_cierre = datetime.now().date()
         if motivo_cierre:
@@ -330,12 +330,12 @@ class LegajoAtencion(LegajoBase):
             else:
                 self.notas += f"\n\nMotivo de cierre: {motivo_cierre}"
         self.save()
-    
+
     def reabrir(self, motivo_reapertura=None, usuario=None):
         """Reabre el legajo"""
         if self.estado != 'CERRADO':
             raise ValidationError("Solo se pueden reabrir legajos cerrados")
-        
+
         self.estado = 'EN_SEGUIMIENTO'
         self.fecha_cierre = None
         if motivo_reapertura:
@@ -344,16 +344,16 @@ class LegajoAtencion(LegajoBase):
             else:
                 self.notas += f"\n\nMotivo de reapertura: {motivo_reapertura}"
         self.save()
-    
+
     @property
     def dias_desde_admision(self):
         """Días transcurridos desde la admisión"""
         from datetime import datetime
         return (datetime.now().date() - self.fecha_admision).days
-    
+
     # Managers
     objects = models.Manager()  # Manager por defecto
-    
+
     @property
     def tiempo_primer_contacto(self):
         """Días hasta el primer seguimiento"""
@@ -362,24 +362,24 @@ class LegajoAtencion(LegajoBase):
 
 class Derivacion(TimeStamped):
     """Derivaciones entre dispositivos"""
-    
+
     class Urgencia(models.TextChoices):
         BAJA = "BAJA", "Baja"
         MEDIA = "MEDIA", "Media"
         ALTA = "ALTA", "Alta"
-    
+
     class Estado(models.TextChoices):
         PENDIENTE = "PENDIENTE", "Pendiente"
         ACEPTADA = "ACEPTADA", "Aceptada"
         RECHAZADA = "RECHAZADA", "Rechazada"
-    
+
     legajo = models.ForeignKey(
-        LegajoAtencion, 
-        on_delete=models.CASCADE, 
+        LegajoAtencion,
+        on_delete=models.CASCADE,
         related_name="derivaciones"
     )
     actividad_destino = models.ForeignKey(
-        'legajos.Programa',
+        'programas.Programa',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -388,8 +388,8 @@ class Derivacion(TimeStamped):
     )
     motivo = models.TextField()
     urgencia = models.CharField(
-        max_length=20, 
-        choices=Urgencia.choices, 
+        max_length=20,
+        choices=Urgencia.choices,
         default=Urgencia.MEDIA,
         db_index=True
     )
@@ -401,7 +401,7 @@ class Derivacion(TimeStamped):
     )
     respuesta = models.CharField(max_length=120, blank=True)
     fecha_aceptacion = models.DateField(null=True, blank=True, db_index=True)
-    
+
     class Meta:
         verbose_name = "Derivación"
         verbose_name_plural = "Derivaciones"
@@ -411,23 +411,23 @@ class Derivacion(TimeStamped):
             models.Index(fields=["urgencia"]),
             models.Index(fields=["estado", "urgencia"]),
         ]
-    
+
     def __str__(self):
         return f"Derivación de legajo {self.legajo_id}"
-    
+
     def clean(self):
         pass
 
 
 class Adjunto(TimeStamped):
     """Adjuntos genéricos para cualquier modelo"""
-    
+
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.UUIDField()
     content_object = GenericForeignKey("content_type", "object_id")
     archivo = models.FileField(upload_to="adjuntos/")
     etiqueta = models.CharField(max_length=120, blank=True)
-    
+
     class Meta:
         verbose_name = "Adjunto"
         verbose_name_plural = "Adjuntos"
@@ -435,14 +435,14 @@ class Adjunto(TimeStamped):
         indexes = [
             models.Index(fields=["content_type", "object_id"]),
         ]
-    
+
     def __str__(self):
         return f"Adjunto - {self.etiqueta or self.archivo.name}"
 
 
 class AlertaCiudadano(TimeStamped):
     """Sistema de alertas automáticas para ciudadanos"""
-    
+
     class TipoAlerta(models.TextChoices):
         RIESGO_ALTO = "RIESGO_ALTO", "Riesgo Alto"
         RIESGO_SUICIDA = "RIESGO_SUICIDA", "Riesgo Suicida"
@@ -456,13 +456,13 @@ class AlertaCiudadano(TimeStamped):
         SIN_CONSENTIMIENTO = "SIN_CONSENTIMIENTO", "Sin Consentimiento"
         CONTACTOS_FALLIDOS = "CONTACTOS_FALLIDOS", "Contactos Fallidos"
         PLAN_VENCIDO = "PLAN_VENCIDO", "Plan Vencido"
-    
+
     class Prioridad(models.TextChoices):
         CRITICA = "CRITICA", "Crítica"
         ALTA = "ALTA", "Alta"
         MEDIA = "MEDIA", "Media"
         BAJA = "BAJA", "Baja"
-    
+
     ciudadano = models.ForeignKey(
         Ciudadano,
         on_delete=models.CASCADE,
@@ -487,7 +487,7 @@ class AlertaCiudadano(TimeStamped):
         blank=True,
         related_name="alertas_cerradas"
     )
-    
+
     class Meta:
         verbose_name = "Alerta de Ciudadano"
         verbose_name_plural = "Alertas de Ciudadanos"
@@ -499,17 +499,18 @@ class AlertaCiudadano(TimeStamped):
             models.Index(fields=["activa", "prioridad", "-creado"]),
             models.Index(fields=["cerrada_por", "fecha_cierre"]),
         ]
-    
+
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.ciudadano}"
-    
+
     def cerrar(self, usuario=None):
         """Cerrar la alerta"""
+        from django.utils import timezone
         self.activa = False
         self.fecha_cierre = timezone.now()
         self.cerrada_por = usuario
         self.save()
-    
+
     @property
     def color_css(self):
         """Retorna las clases CSS según la prioridad"""
@@ -520,9 +521,3 @@ class AlertaCiudadano(TimeStamped):
             'BAJA': 'bg-blue-100 text-blue-800 border-blue-200',
         }
         return colores.get(self.prioridad, 'bg-gray-100 text-gray-800 border-gray-200')
-
-
-
-# Importar modelos modulares al namespace de `legajos.models` para que
-# Django los descubra durante `makemigrations`.
-from .models_nachec import *  # noqa: F401,F403,E402

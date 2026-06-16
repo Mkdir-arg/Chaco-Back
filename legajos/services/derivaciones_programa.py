@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from ..models_nachec import CasoNachec, HistorialEstadoCaso, TareaNachec
+from ..models.nachec import CasoNachec, HistorialEstadoCaso, TareaNachec
 from ..models_programas import DerivacionPrograma
 
 

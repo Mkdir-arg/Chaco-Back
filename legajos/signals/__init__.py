@@ -8,5 +8,4 @@ from .core import (  # noqa: F401
     invalidate_derivacion_cache,
     invalidate_legajo_cache,
 )
-# DEPRECATED: Historial signals were removed with SEDRONAR
 from .nachec import crear_caso_nachec_desde_derivacion  # noqa: F401

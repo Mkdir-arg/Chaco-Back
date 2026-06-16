@@ -4,14 +4,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from ..models_nachec import CasoNachec, HistorialEstadoCaso, TareaNachec
+from ..models.nachec import CasoNachec, HistorialEstadoCaso, TareaNachec
 
 
 @login_required
 def cerrar_caso_nachec(request, caso_id):
     """EN_SEGUIMIENTO → CERRADO con validaciones y cierre de plan"""
     from django.http import HttpResponseForbidden
-    from ..models_nachec import PlanIntervencionNachec, PrestacionNachec
+    from ..models.nachec import PlanIntervencionNachec, PrestacionNachec
 
     caso = get_object_or_404(CasoNachec, id=caso_id)
 
@@ -156,7 +156,7 @@ Informe de cierre:
 def reabrir_caso_nachec(request, caso_id):
     """CERRADO → EN_SEGUIMIENTO/EVALUADO/PLAN_DEFINIDO según tipo de reapertura"""
     from django.http import HttpResponseForbidden
-    from ..models_nachec import PlanIntervencionNachec, PrestacionNachec
+    from ..models.nachec import PlanIntervencionNachec, PrestacionNachec
 
     caso = get_object_or_404(CasoNachec, id=caso_id)
 

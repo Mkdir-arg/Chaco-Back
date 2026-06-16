@@ -5,7 +5,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.db.models import Q
 from ..models import LegajoAtencion
-from ..models_contactos import HistorialContacto
+from ..models.contactos import HistorialContacto
 from ..forms import HistorialContactoForm
 
 

@@ -15,7 +15,7 @@ class RiskPredictor:
         Calcula probabilidad de abandono del tratamiento (0-100)
         """
         from .linking import get_active_legajo_for_ciudadano
-        from .models_contactos import HistorialContacto
+        from .models.contactos import HistorialContacto
         
         score = 0
         factores = []
@@ -117,7 +117,7 @@ class RiskPredictor:
         Calcula probabilidad de evento crítico en próximos 30 días (0-100)
         """
         from .linking import get_active_legajo_for_ciudadano
-        from .models_contactos import HistorialContacto
+        from .models.contactos import HistorialContacto
         
         score = 0
         factores = []
@@ -197,7 +197,7 @@ class RiskPredictor:
         Genera recomendaciones automáticas basadas en el análisis
         """
         from .linking import get_active_legajo_for_ciudadano
-        from .models_contactos import HistorialContacto
+        from .models.contactos import HistorialContacto
         
         recomendaciones = []
         
@@ -261,7 +261,7 @@ class RiskPredictor:
             })
         
         # Recomendación 4: Red de apoyo
-        from .models_contactos import VinculoFamiliar
+        from .models.contactos import VinculoFamiliar
         vinculos = VinculoFamiliar.objects.filter(ciudadano_principal=ciudadano).count()
         
         if vinculos == 0:

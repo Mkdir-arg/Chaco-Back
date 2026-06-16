@@ -2,42 +2,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseGone
-from django.views.decorators.http import require_http_methods
 
 from ..models_programas import DerivacionPrograma
 from ..services import DerivacionProgramaService
-
-
-# ============================================================================
-# VISTAS ACTIVAS — operan sobre DerivacionCiudadano (US-012)
-# ============================================================================
-
-@login_required
-@require_http_methods(["POST"])
-def aceptar_derivacion_ciudadano(request, derivacion_id):
-    """DEPRECATED: flujo legacy removido junto con models_institucional."""
-    return HttpResponseGone(
-        'DEPRECATED: aceptar_derivacion_ciudadano fue retirado tras la limpieza de SEDRONAR.'
-    )
-
-
-@login_required
-def rechazar_derivacion_ciudadano(request, derivacion_id):
-    """DEPRECATED: flujo legacy removido junto con models_institucional."""
-    return HttpResponseGone(
-        'DEPRECATED: rechazar_derivacion_ciudadano fue retirado tras la limpieza de SEDRONAR.'
-    )
-
-
-def _redirect_programa_ciudadano(derivacion):
-    # DEPRECATED: helper mantenido temporalmente por compatibilidad de imports.
-    return redirect('legajos:programas')
-
-
-# ============================================================================
-# VISTAS LEGACY — operan sobre DerivacionPrograma (Ñachec — no tocar)
-# ============================================================================
 
 @login_required
 def aceptar_derivacion_programa(request, derivacion_id):

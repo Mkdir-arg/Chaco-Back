@@ -64,7 +64,7 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
         
         # Si es Ñachec, cargar datos específicos
         if programa.tipo in ['NACHEC', 'ÑACHEC']:
-            from ..models_nachec import CasoNachec
+            from ..models.nachec import CasoNachec
             from ..models_programas import DerivacionPrograma
             
             # Filtros
@@ -106,7 +106,7 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
             }
             
             # Casos Ñachec para otras pestañas
-            from ..models_nachec import TareaNachec
+            from ..models.nachec import TareaNachec
             casos_nachec = CasoNachec.objects.select_related(
                 'ciudadano_titular', 'operador_admision', 'territorial'
             ).order_by('-fecha_derivacion')
@@ -120,7 +120,7 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
             
             # Métricas del dashboard analítico
             from django.db.models import Avg
-            from ..models_nachec import PrestacionNachec, PlanIntervencionNachec, EvaluacionVulnerabilidad, RelevamientoNachec
+            from ..models.nachec import PrestacionNachec, PlanIntervencionNachec, EvaluacionVulnerabilidad, RelevamientoNachec
             from datetime import timedelta
             
             hoy = timezone.now().date()
@@ -187,7 +187,7 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
             }
             
             # PASO 8: Prestaciones activas
-            from ..models_nachec import PrestacionNachec
+            from ..models.nachec import PrestacionNachec
             
             # Filtrar prestaciones donde el usuario es responsable o coordinador del caso
             prestaciones_qs = PrestacionNachec.objects.filter(

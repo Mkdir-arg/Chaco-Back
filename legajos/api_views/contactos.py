@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from datetime import datetime, timedelta
 
-from ..models_contactos import (
+from ..models.contactos import (
     HistorialContacto,
     VinculoFamiliar,
 )

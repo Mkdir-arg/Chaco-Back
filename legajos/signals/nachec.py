@@ -3,7 +3,7 @@ from django.dispatch import receiver
 
 from django.utils import timezone
 
-from ..models_nachec import CasoNachec
+from ..models.nachec import CasoNachec
 from ..models_programas import DerivacionPrograma
 
 

@@ -13,7 +13,7 @@ from ..models import (
 )
 
 try:
-    from ..models_contactos import HistorialContacto, VinculoFamiliar
+    from ..models.contactos import HistorialContacto, VinculoFamiliar
 except ImportError:  # pragma: no cover - compatibilidad legacy
     HistorialContacto = None
     VinculoFamiliar = None

@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from ..models_nachec import CasoNachec, HistorialEstadoCaso, RelevamientoNachec, TareaNachec
+from ..models.nachec import CasoNachec, HistorialEstadoCaso, RelevamientoNachec, TareaNachec
 
 
 @login_required
@@ -76,7 +76,7 @@ def _confirmar_evaluacion(request, caso, relevamiento, tarea_evaluacion):
     from django.db import transaction
     from django.utils import timezone
 
-    from ..models_nachec import EvaluacionVulnerabilidad, PlanIntervencionNachec
+    from ..models.nachec import EvaluacionVulnerabilidad, PlanIntervencionNachec
 
     dictamen = request.POST.get('dictamen', '').strip()
     categoria_final = request.POST.get('categoria_final')
@@ -304,7 +304,7 @@ def activar_plan(request, caso_id):
     from django.db import transaction
     from django.utils import timezone
 
-    from ..models_nachec import PlanIntervencionNachec, PrestacionNachec
+    from ..models.nachec import PlanIntervencionNachec, PrestacionNachec
 
     caso = get_object_or_404(CasoNachec, id=caso_id)
 

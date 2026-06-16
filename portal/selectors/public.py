@@ -26,7 +26,3 @@ def get_portal_home_context():
             "Mesa de ayuda especializada",
         ],
     }
-
-
-def get_tramites_by_email(email):
-    return Programa.objects.none()

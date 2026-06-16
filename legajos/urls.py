@@ -79,7 +79,6 @@ urlpatterns = [
     ),
     path("<uuid:legajo_id>/evolucion/", views_contactos_api.evolucion_legajo_api, name="evolucion_legajo"),
     path("alertas/", views_alertas.alertas_dashboard, name="alertas_dashboard"),
-    path("alertas/eventos/cerrar/", views_alertas.cerrar_alerta_evento, name="cerrar_alerta_evento"),
     path("alertas/<int:alerta_id>/cerrar-ajax/", views_alertas.cerrar_alerta_ajax, name="cerrar_alerta_ajax"),
     path("alertas/count/", views_alertas.alertas_count_ajax, name="alertas_count_ajax"),
     path("alertas/preview/", views_alertas.alertas_preview_ajax, name="alertas_preview_ajax"),

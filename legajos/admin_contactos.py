@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models_contactos import HistorialContacto, VinculoFamiliar
+from .models.contactos import HistorialContacto, VinculoFamiliar
 
 
 @admin.register(HistorialContacto)

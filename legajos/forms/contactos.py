@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from datetime import datetime
-from ..models_contactos import HistorialContacto, TipoContacto, EstadoContacto
+from ..models.contactos import HistorialContacto, TipoContacto, EstadoContacto
 
 
 class HistorialContactoForm(forms.ModelForm):

@@ -11,7 +11,7 @@ from ..models import (
     Derivacion,
     LegajoAtencion,
 )
-from ..models_contactos import HistorialContacto, VinculoFamiliar
+from ..models.contactos import HistorialContacto, VinculoFamiliar
 
 
 class AlertasService:

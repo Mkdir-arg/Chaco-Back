@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models_contactos import (
+from .models.contactos import (
     HistorialContacto,
     VinculoFamiliar,
 )

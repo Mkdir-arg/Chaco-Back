@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from core.models import TimeStamped
-from .models import Ciudadano, LegajoAtencion
+from .base import Ciudadano, LegajoAtencion
 
 
 class TipoContacto(models.TextChoices):
@@ -26,7 +26,7 @@ class EstadoContacto(models.TextChoices):
 
 class HistorialContacto(TimeStamped):
     """Historial de todos los contactos con el ciudadano"""
-    
+
     legajo = models.ForeignKey(
         LegajoAtencion,
         on_delete=models.CASCADE,
@@ -38,7 +38,7 @@ class HistorialContacto(TimeStamped):
     )
     fecha_contacto = models.DateTimeField()
     duracion_minutos = models.PositiveIntegerField(
-        null=True, 
+        null=True,
         blank=True,
         help_text="Duración en minutos (para llamadas/reuniones)"
     )
@@ -91,7 +91,7 @@ class HistorialContacto(TimeStamped):
         blank=True,
         help_text="Fecha sugerida para próximo contacto"
     )
-    
+
     class Meta:
         verbose_name = "Historial de Contacto"
         verbose_name_plural = "Historial de Contactos"
@@ -102,12 +102,12 @@ class HistorialContacto(TimeStamped):
             models.Index(fields=["profesional", "-fecha_contacto"]),
             models.Index(fields=["seguimiento_requerido"]),
         ]
-    
+
     def __str__(self):
         ciudadano = self.legajo.ciudadano
         referencia = ciudadano or f"Legajo {self.legajo.codigo}"
         return f"{self.get_tipo_contacto_display()} - {referencia} ({self.fecha_contacto.date()})"
-    
+
     @property
     def duracion_formateada(self):
         """Retorna la duración en formato legible"""
@@ -143,7 +143,7 @@ class TipoVinculo(models.TextChoices):
 
 class VinculoFamiliar(TimeStamped):
     """Vínculos familiares y referentes del ciudadano"""
-    
+
     ciudadano_principal = models.ForeignKey(
         Ciudadano,
         on_delete=models.CASCADE,
@@ -184,7 +184,7 @@ class VinculoFamiliar(TimeStamped):
         default=True,
         help_text="Vínculo activo"
     )
-    
+
     class Meta:
         verbose_name = "Vínculo Familiar"
         verbose_name_plural = "Vínculos Familiares"
@@ -194,10 +194,10 @@ class VinculoFamiliar(TimeStamped):
             models.Index(fields=["es_contacto_emergencia"]),
             models.Index(fields=["es_referente_tratamiento"]),
         ]
-    
+
     def __str__(self):
         return f"{self.ciudadano_principal} - {self.get_tipo_vinculo_display()}: {self.ciudadano_vinculado}"
-    
+
     def clean(self):
         if self.ciudadano_principal == self.ciudadano_vinculado:
             raise ValidationError("Un ciudadano no puede vincularse consigo mismo")

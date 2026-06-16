@@ -1,6 +1,5 @@
 from django.contrib import admin
 from .models import Ciudadano, Derivacion, Adjunto
-from .models_programas import Programa, InscripcionPrograma, DerivacionPrograma
 
 
 @admin.register(Ciudadano)
@@ -55,11 +54,6 @@ try:
 except ImportError:
     pass
 
-# Registrar modelos de programas en admin
-try:
-    from .admin_programas import *
-except ImportError:
-    pass
 
 # Registrar modelos de Ñachec en admin
 try:

@@ -58,15 +58,6 @@ def cerrar_alerta_ajax(request, alerta_id):
     return JsonResponse({'success': False})
 
 
-@login_required
-def cerrar_alerta_evento(request):
-    """Endpoint legacy mantenido por compatibilidad; no realiza acciones."""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Metodo no permitido'}, status=405)
-
-    cache.delete(alertas_criticas_cache_key(request.user.id))
-    return JsonResponse({'success': True})
-
 
 @login_required
 def alertas_count_ajax(request):

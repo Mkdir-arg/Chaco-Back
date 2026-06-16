@@ -519,7 +519,135 @@ flowchart LR
 
 ---
 
-## 13. Glosario técnico
+## 13. Arquitectura mínima recomendada para 50 usuarios
+
+### 13.1 Premisas de dimensionamiento
+
+- **Usuarios concurrentes**: estimación de 50 operadores simultáneos en horario pico (8 a.m. - 6 p.m.)
+- **Carga esperada**: 10-15 requests HTTP/s promedio, picos de hasta 50 req/s, 5-10 conexiones WebSocket activas
+- **Volumen de datos inicial**: hasta 100.000 ciudadanos, 50.000 derivaciones, 1.000 conversaciones/mes
+- **Disponibilidad objetivo**: 99% mensual (máx. 7 h downtime/mes)
+
+### 13.2 Topología mínima
+
+```mermaid
+flowchart TD
+    subgraph Host["Servidor único · Ubuntu 22.04 LTS"]
+        NGINX["Nginx<br/>TLS · reverse proxy"]
+        WEB["Django Web<br/>Gunicorn · 4 workers"]
+        WS["Django WebSocket<br/>Daphne · 2 workers"]
+        MYSQL[("MySQL 8")]
+        REDIS[("Redis 7")]
+    end
+
+    USERS["50 usuarios"] --> NGINX
+    NGINX --> WEB
+    NGINX --> WS
+    WEB --> MYSQL
+    WEB --> REDIS
+    WS --> MYSQL
+    WS --> REDIS
+```
+
+### 13.3 Especificación del servidor
+
+| Componente | Mínimo | Recomendado | Notas |
+|---|---|---|---|
+| **CPU** | 4 vCPUs | 6 vCPUs | Intel/AMD x64, o equivalente ARM |
+| **RAM** | 8 GB | 12 GB | 4 GB MySQL + 1 GB Redis + 3 GB Django + 2 GB SO + buffer |
+| **Disco** | 80 GB SSD | 120 GB SSD | IOPS > 3000, para logs y backups locales |
+| **Red** | 100 Mbps | 1 Gbps | Latencia < 10 ms a usuarios finales |
+| **SO** | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS | Kernel actualizado, `unattended-upgrades` activo |
+
+### 13.4 Asignación de recursos
+
+=== "Gunicorn (HTTP)"
+
+    ```bash
+    gunicorn config.wsgi:application \
+      --bind 0.0.0.0:8001 \
+      --workers 4 \
+      --worker-class gevent \
+      --worker-connections 1000 \
+      --timeout 60 \
+      --max-requests 5000 \
+      --max-requests-jitter 500
+    ```
+
+    - **4 workers**: regla general `(2 × CPU) + 1` para I/O-bound
+    - **1000 conexiones/worker**: gevent permite atender múltiples requests por worker sin bloqueo
+    - **Capacidad efectiva**: ~4000 conexiones simultáneas
+
+=== "Daphne (WebSocket)"
+
+    ```bash
+    daphne config.asgi:application \
+      --bind 0.0.0.0:8002 \
+      --verbosity 1 \
+      --access-log - \
+      --proxy-headers
+    ```
+
+    - **2 instancias** (gestionadas por systemd o Docker Compose con `replicas: 2`)
+    - **Capacidad**: 50-100 WebSocket concurrentes por instancia → 100-200 total
+
+=== "MySQL"
+
+    ```ini
+    [mysqld]
+    max_connections = 200
+    innodb_buffer_pool_size = 3G          # ~75% de RAM asignada a MySQL
+    innodb_log_file_size = 512M
+    innodb_flush_log_at_trx_commit = 2    # trade-off: rendimiento vs durabilidad
+    query_cache_type = 0                   # deshabilitado en MySQL 8+
+    character-set-server = utf8mb4
+    collation-server = utf8mb4_unicode_ci
+    sql_mode = STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+    ```
+
+=== "Redis"
+
+    ```conf
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    save ""                                # desactivar snapshots para menor latencia
+    appendonly no                          # no persistir; cache volátil
+    tcp-backlog 511
+    timeout 300
+    ```
+
+### 13.5 Consideraciones de escalamiento horizontal
+
+Si el crecimiento supera los 50 usuarios:
+
+| Límite | Acción |
+|---|---|
+| **80 usuarios** | Escalar verticalmente: 8 vCPUs, 16 GB RAM, 6 workers Gunicorn |
+| **150 usuarios** | Separar MySQL a servidor dedicado (4 vCPUs, 8 GB RAM, SSD) |
+| **300 usuarios** | Cluster de 2 nodos web + load balancer (Nginx como balanceador) + MySQL dedicado + Redis Sentinel |
+| **500+ usuarios** | Considerar CDN para estáticos, MySQL replicado (read replicas), Redis Cluster, separación de servicios por dominio |
+
+### 13.6 Backup y recuperación
+
+- **MySQL**: dump diario comprimido (`mysqldump --single-transaction`) retenido por 7 días, semanal por 4 semanas
+- **Media files**: rsync diario a almacenamiento secundario (NAS, S3, Backblaze)
+- **Código**: tag Git por cada release, `.env` versionado en vault (Ansible Vault, AWS Secrets Manager)
+- **RTO objetivo**: < 4 horas
+- **RPO objetivo**: < 24 horas
+
+### 13.7 Monitoreo básico
+
+- **Métricas de sistema**: CPU, RAM, disco, IOPS → agregar `node_exporter` + Prometheus + Grafana (o solución cloud: Datadog, New Relic)
+- **Aplicación**: logs estructurados parseados por `promtail` o `fluentd`, alertas en errores 5xx > 5/min
+- **Disponibilidad**: `uptime-kuma` o `Pingdom` verificando `/health/` cada 60 s
+- **Alertas**: email/Slack cuando:
+    - CPU sostenida > 80% por 5 min
+    - Disco > 85%
+    - MySQL conexiones > 150
+
+---
+
+## 14. Glosario técnico
 
 `ASGI`
 :   Asynchronous Server Gateway Interface — protocolo Python para servidores asincrónicos (WebSocket, HTTP/2).

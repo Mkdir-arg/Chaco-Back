@@ -4,14 +4,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from ..models_nachec import HistorialEstadoCaso, TareaNachec
+from ..models.nachec import HistorialEstadoCaso, TareaNachec
 
 
 @login_required
 def iniciar_prestacion(request, prestacion_id):
     """PROGRAMADA → EN_PROCESO"""
     from django.http import HttpResponseForbidden
-    from ..models_nachec import PrestacionNachec
+    from ..models.nachec import PrestacionNachec
 
     prestacion = get_object_or_404(PrestacionNachec, id=prestacion_id)
 
@@ -64,7 +64,7 @@ def confirmar_entrega_prestacion(request, prestacion_id):
     from django.contrib.contenttypes.models import ContentType
     from django.http import HttpResponseForbidden, JsonResponse
     from legajos.models import Adjunto
-    from ..models_nachec import PrestacionNachec
+    from ..models.nachec import PrestacionNachec
 
     prestacion = get_object_or_404(PrestacionNachec, id=prestacion_id)
 
@@ -291,7 +291,7 @@ Plan vigente: {prestacion.plan.id}
 def reprogramar_prestacion(request, prestacion_id):
     """Reprogramar fecha y recalcular SLA"""
     from django.http import HttpResponseForbidden
-    from ..models_nachec import PrestacionNachec
+    from ..models.nachec import PrestacionNachec
 
     prestacion = get_object_or_404(PrestacionNachec, id=prestacion_id)
 
@@ -392,7 +392,7 @@ Detalle: {detalle}"""
 def cancelar_prestacion(request, prestacion_id):
     """Cancelar prestación y tarea asociada"""
     from django.http import HttpResponseForbidden
-    from ..models_nachec import PrestacionNachec
+    from ..models.nachec import PrestacionNachec
 
     prestacion = get_object_or_404(PrestacionNachec, id=prestacion_id)
 
