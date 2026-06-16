@@ -82,6 +82,36 @@ class Command(BaseCommand):
         admin_group.permissions.set(list(codename_a_perm.values()))
         self.stdout.write(self.style.SUCCESS("  ✓ Administrador con todas las capacidades"))
 
+        # 3b. Rol restringido "Operador de backoffice" (#59): menú acotado, sin
+        # módulos operativos (Dashboard/Relevamientos/Conversaciones) ni alta de
+        # ciudadanos. Idempotente: ``set`` deja exactamente estas 6 capacidades.
+        self.stdout.write(self.style.MIGRATE_LABEL("\nRol Operador de backoffice..."))
+        caps_operador = [
+            "ciudadano.ver",
+            "programa.ver",
+            "reporte.ver",
+            "config.administrar",
+            "usuario.administrar",
+            "rol.administrar",
+        ]
+        op_group, _ = Group.objects.get_or_create(name="Operador de backoffice")
+        RolMeta.objects.update_or_create(
+            grupo=op_group,
+            defaults={
+                "descripcion": (
+                    "Backoffice sin módulos operativos: sin Dashboard, Relevamientos, "
+                    "Conversaciones ni alta de ciudadanos."
+                ),
+                "categoria": rbac.CATEGORIA_BACKOFFICE,
+                "protegido": False,
+                "activo": True,
+            },
+        )
+        op_group.permissions.set(
+            [codename_a_perm[rbac.codename_de(c)] for c in caps_operador]
+        )
+        self.stdout.write(self.style.SUCCESS("  ✓ Operador de backoffice con 6 capacidades"))
+
         # 4. Asignar Administrador a los superusuarios (garantiza acceso post-deploy).
         superusers = User.objects.filter(is_superuser=True)
         for su in superusers:
