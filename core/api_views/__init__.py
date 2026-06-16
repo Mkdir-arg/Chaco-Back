@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from ..models import Provincia, Municipio, Localidad, Sexo, Mes, Dia, Turno
+from ..models import Provincia, Municipio, Localidad, Sexo, Mes, Dia
 from ..serializers import (
     ProvinciaSerializer,
     MunicipioSerializer,
@@ -12,7 +12,6 @@ from ..serializers import (
     SexoSerializer,
     MesSerializer,
     DiaSerializer,
-    TurnoSerializer,
 )
 
 
@@ -136,14 +135,3 @@ class DiaViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
-@extend_schema_view(
-    list=extend_schema(description="Lista todos los turnos"),
-    retrieve=extend_schema(description="Obtiene un turno específico")
-)
-class TurnoViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet de solo lectura para turnos.
-    """
-    queryset = Turno.objects.all()
-    serializer_class = TurnoSerializer
-    permission_classes = [IsAuthenticated]

@@ -1,4 +1,4 @@
-# Create your views here.
+﻿# Create your views here.
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -66,7 +66,7 @@ def inicio_view(request):
 
     from django.db.models import Count, Q
     from django.utils import timezone
-    from legajos.models_programas import DerivacionPrograma, InscripcionPrograma, Programa
+    from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
     User = get_user_model()
     ahora = timezone.now()

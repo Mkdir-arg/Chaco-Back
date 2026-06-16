@@ -1,5 +1,5 @@
-from django import forms
-from legajos.models_programas import Programa
+﻿from django import forms
+from programas.models import Programa
 from core.models import Secretaria, Subsecretaria
 
 

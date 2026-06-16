@@ -1,4 +1,4 @@
-"""
+﻿"""
 Vistas para Gestión Operativa de Programas
 """
 from django.shortcuts import render, get_object_or_404, redirect
@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 
 from core.rbac import CapacidadRequeridaMixin
-from ..models_programas import Programa, InscripcionPrograma
+from programas.models import Programa, InscripcionPrograma
 
 
 class ProgramaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
@@ -65,7 +65,7 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
         # Si es Ñachec, cargar datos específicos
         if programa.tipo in ['NACHEC', 'ÑACHEC']:
             from ..models.nachec import CasoNachec
-            from ..models_programas import DerivacionPrograma
+            from programas.models import DerivacionPrograma
             
             # Filtros
             estado_filtro = self.request.GET.get('estado')

@@ -1,5 +1,5 @@
-from django.core.management.base import BaseCommand
-from core.database_partitioning import DatabasePartitioner
+﻿from django.core.management.base import BaseCommand
+from core.performance.database_partitioning import DatabasePartitioner
 
 class Command(BaseCommand):
     help = 'Optimiza la base de datos creando particiones y archivando datos antiguos'

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    Provincia, Municipio, Localidad, Sexo, Mes, Dia, Turno
+    Provincia, Municipio, Localidad, Sexo, Mes, Dia
 )
 
 
@@ -55,9 +55,3 @@ class DiaSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre']
 
 
-class TurnoSerializer(serializers.ModelSerializer):
-    """Serializer para el modelo Turno"""
-    
-    class Meta:
-        model = Turno
-        fields = ['id', 'nombre']

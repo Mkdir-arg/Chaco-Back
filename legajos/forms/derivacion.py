@@ -1,7 +1,7 @@
-from django import forms
+﻿from django import forms
 from django.db import transaction
 
-from ..models_programas import DerivacionPrograma, InscripcionPrograma, Programa
+from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
 
 class DerivarProgramaForm(forms.Form):

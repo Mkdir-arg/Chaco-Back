@@ -52,19 +52,6 @@ class Dia(models.Model):
         verbose_name_plural = "Dias"
 
 
-class Turno(models.Model):
-
-    nombre = models.CharField(max_length=255)
-
-    def __str__(self):
-        return str(self.nombre)
-
-    class Meta:
-        ordering = ["id"]
-        verbose_name = "Turno"
-        verbose_name_plural = "Turnos"
-
-
 class Municipio(models.Model):
     """
     Guardado de los municipios de los vecinos y vecinas registrados.

@@ -1,8 +1,8 @@
-from django.core.management.base import BaseCommand
+﻿from django.core.management.base import BaseCommand
 from django.conf import settings
 import logging
 
-from core.phase2_manager import phase2_manager
+from core.performance.phase2_manager import phase2_manager
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class Command(BaseCommand):
             # Crear índices automáticamente si se solicita
             if options['auto_create_indexes']:
                 self.stdout.write('🔍 Creando índices recomendados...')
-                from core.intelligent_indexing import index_manager
+                from core.performance.intelligent_indexing import index_manager
                 created = index_manager.create_recommended_indexes(auto_create=True)
                 self.stdout.write(
                     self.style.SUCCESS(f'✅ Creados {len(created)} índices automáticamente')

@@ -1,4 +1,4 @@
-from legajos.models_programas import Programa
+from programas.models import Programa
 
 
 def build_institucion_detail_context(institucion):

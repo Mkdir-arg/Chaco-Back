@@ -1,4 +1,4 @@
-"""
+﻿"""
 Vista de ejemplo para el sistema de solapas dinámicas
 """
 from django.shortcuts import render, get_object_or_404, redirect
@@ -8,7 +8,7 @@ from django.views.generic import DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from ..models import Ciudadano
-from ..models_programas import Programa, InscripcionPrograma, DerivacionPrograma
+from programas.models import Programa, InscripcionPrograma, DerivacionPrograma
 from ..services import SolapasService
 
 

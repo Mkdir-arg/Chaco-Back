@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+﻿from datetime import datetime, timedelta
 
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from legajos.models import AlertaCiudadano, Ciudadano
-from legajos.models_programas import DerivacionPrograma, InscripcionPrograma
+from programas.models import DerivacionPrograma, InscripcionPrograma
 from users.models import User
 
 import logging

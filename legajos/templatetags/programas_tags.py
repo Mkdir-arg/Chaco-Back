@@ -1,5 +1,5 @@
-from django import template
-from legajos.models_programas import Programa
+﻿from django import template
+from programas.models import Programa
 
 register = template.Library()
 

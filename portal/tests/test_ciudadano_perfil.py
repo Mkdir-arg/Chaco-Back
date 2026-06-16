@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from legajos.models import Ciudadano
-from legajos.models_programas import InscripcionPrograma, Programa
+from programas.models import InscripcionPrograma, Programa
 from users.models import SolicitudCambioEmail
 
 

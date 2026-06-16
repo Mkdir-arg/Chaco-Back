@@ -1,9 +1,9 @@
-from datetime import date
+﻿from datetime import date
 
 from django.db.models import Q
 
 from ..models import AlertaCiudadano, Ciudadano, LegajoAtencion
-from ..models_programas import DerivacionPrograma, InscripcionPrograma, Programa
+from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 from ..models.nachec import (
     CasoNachec,
     EvaluacionVulnerabilidad,

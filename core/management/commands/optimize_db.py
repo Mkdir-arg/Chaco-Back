@@ -1,5 +1,5 @@
-from django.core.management.base import BaseCommand
-from core.database_optimizations import DatabaseOptimizer
+﻿from django.core.management.base import BaseCommand
+from core.performance.database_optimizations import DatabaseOptimizer
 
 class Command(BaseCommand):
     help = 'Optimiza la base de datos para mejor performance'

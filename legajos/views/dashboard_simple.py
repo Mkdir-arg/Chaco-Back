@@ -1,4 +1,4 @@
-import csv
+﻿import csv
 from datetime import timedelta
 
 from django.db import models
@@ -10,7 +10,7 @@ from django.utils import timezone
 from core.rbac import requiere
 from ..services.linking import annotate_legajo_link_data
 from ..models import LegajoAtencion
-from ..models_programas import InscripcionPrograma
+from programas.models import InscripcionPrograma
 
 @login_required
 def dashboard_contactos_simple(request):

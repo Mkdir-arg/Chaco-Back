@@ -1,9 +1,9 @@
-from django.shortcuts import get_object_or_404, redirect, render
+﻿from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 
-from ..models_programas import DerivacionPrograma
+from programas.models import DerivacionPrograma
 from ..services import DerivacionProgramaService
 
 @login_required

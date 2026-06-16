@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
@@ -8,7 +8,7 @@ from django.views.generic import TemplateView
 
 from core.services.cache import cache_view
 from legajos.models import AlertaCiudadano, Ciudadano
-from legajos.models_programas import InscripcionPrograma
+from programas.models import InscripcionPrograma
 from users.models import User
 
 from dashboard.utils import contar_ciudadanos, contar_usuarios

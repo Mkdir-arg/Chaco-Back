@@ -70,24 +70,12 @@ class RiskPredictor:
                 score += 15
                 factores.append('Contactabilidad irregular')
 
-        # Factor 3: Derivaciones recientes (peso: 20%)
-        derivaciones_recientes = legajo.derivaciones.filter(
-            creado__gte=hace_30_dias
-        ).count()
-
-        if derivaciones_recientes >= 2:
-            score += 20
-            factores.append(f'{derivaciones_recientes} derivaciones recientes')
-        elif derivaciones_recientes == 1:
-            score += 10
-            factores.append('Derivación reciente')
-
-        # Factor 4: Falta de plan vigente (peso: 10%)
+        # Factor 3: Falta de plan vigente (peso: 10%)
         if not legajo.plan_vigente:
             score += 10
             factores.append('Sin plan de intervención vigente')
 
-        # Factor 5: Nivel de riesgo del legajo (peso: 10%)
+        # Factor 4: Nivel de riesgo del legajo (peso: 10%)
         if legajo.nivel_riesgo == 'ALTO':
             score += 10
             factores.append('Nivel de riesgo alto')
@@ -129,22 +117,7 @@ class RiskPredictor:
         hace_90_dias = ahora - timedelta(days=90)
         hace_30_dias = ahora - timedelta(days=30)
 
-        # Factor 1: Historial de derivaciones (peso: 40%)
-        derivaciones_historicas = legajo.derivaciones.filter(
-            creado__gte=hace_90_dias
-        ).count()
-
-        if derivaciones_historicas >= 3:
-            score += 40
-            factores.append(f'{derivaciones_historicas} derivaciones en últimos 90 días')
-        elif derivaciones_historicas >= 2:
-            score += 30
-            factores.append('Múltiples derivaciones recientes')
-        elif derivaciones_historicas == 1:
-            score += 15
-            factores.append('Derivación reciente')
-
-        # Factor 2: Evaluación de riesgo (peso: 30%)
+        # Factor 1: Evaluación de riesgo (peso: 30%)
         try:
             evaluacion = legajo.evaluacion
             if evaluacion.riesgo_suicida:
@@ -156,14 +129,14 @@ class RiskPredictor:
         except:
             pass
 
-        # Factor 3: Nivel de riesgo del legajo (peso: 20%)
+        # Factor 2: Nivel de riesgo del legajo (peso: 20%)
         if legajo.nivel_riesgo == 'ALTO':
             score += 20
             factores.append('Clasificación de riesgo alto')
         elif legajo.nivel_riesgo == 'MEDIO':
             score += 10
 
-        # Factor 4: Falta de seguimiento (peso: 10%)
+        # Factor 3: Falta de seguimiento (peso: 10%)
         seguimientos_recientes = HistorialContacto.objects.filter(
             legajo=legajo,
             fecha_contacto__gte=hace_30_dias
@@ -195,7 +168,6 @@ class RiskPredictor:
         """
         from .linking import get_active_legajo_for_ciudadano
         from ..models.contactos import HistorialContacto, VinculoFamiliar
-        from ..models import Derivacion
 
         recomendaciones = []
 
@@ -266,19 +238,6 @@ class RiskPredictor:
                 'prioridad': 'MEDIA',
                 'icono': '👥',
                 'texto': 'Identificar y registrar red de apoyo familiar'
-            })
-
-        # Recomendación 5: Derivaciones pendientes
-        derivaciones_pendientes = Derivacion.objects.filter(
-            legajo=legajo,
-            estado='PENDIENTE'
-        ).count()
-
-        if derivaciones_pendientes > 0:
-            recomendaciones.append({
-                'prioridad': 'MEDIA',
-                'icono': '🔄',
-                'texto': f'Seguir {derivaciones_pendientes} derivación(es) pendiente(s)'
             })
 
         return recomendaciones[:5]

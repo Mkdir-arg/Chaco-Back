@@ -1,5 +1,5 @@
-from legajos.models import Ciudadano
-from legajos.models_programas import InscripcionPrograma, Programa
+﻿from legajos.models import Ciudadano
+from programas.models import InscripcionPrograma, Programa
 
 
 def get_portal_home_context():

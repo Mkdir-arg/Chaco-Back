@@ -4,9 +4,9 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import connection
 from django.utils import timezone
 from datetime import timedelta
-from ..performance_analyzer import PerformanceAnalyzer
-from ..monitoring import system_monitor
-from ..phase2_manager import phase2_manager
+from ..performance.performance_analyzer import PerformanceAnalyzer
+from ..performance.monitoring import system_monitor
+from ..performance.phase2_manager import phase2_manager
 import json
 
 from core import rbac
@@ -248,8 +248,8 @@ def phase2_metrics_api(request):
 def run_phase2_tests_api(request):
     """Ejecuta todas las pruebas de Fase 2 automáticamente"""
     try:
-        from core.intelligent_indexing import index_manager
-        from core.advanced_partitioning import partition_manager
+        from core.performance.intelligent_indexing import index_manager
+        from core.performance.advanced_partitioning import partition_manager
         from django.contrib.auth.models import User
         from legajos.models import LegajoAtencion
         from django.db import connection

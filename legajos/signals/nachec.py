@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from ..models.nachec import CasoNachec
-from ..models_programas import DerivacionPrograma
+from programas.models import DerivacionPrograma
 
 
 @receiver(post_save, sender=DerivacionPrograma)

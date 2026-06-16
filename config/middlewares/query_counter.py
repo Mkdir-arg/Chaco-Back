@@ -1,8 +1,8 @@
-import logging
+﻿import logging
 from django.db import connection
 from django.conf import settings
 from django.utils import timezone
-from core.performance_analyzer import PerformanceAnalyzer
+from core.performance.performance_analyzer import PerformanceAnalyzer
 
 logger = logging.getLogger(__name__)
 
