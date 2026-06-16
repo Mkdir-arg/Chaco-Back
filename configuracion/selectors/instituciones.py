@@ -1,4 +1,3 @@
-from legajos.models import Derivacion
 from legajos.models_programas import Programa
 
 
@@ -36,16 +35,9 @@ def build_institucion_detail_context(institucion):
 
 
 def build_actividad_detail_context(actividad):
-    derivaciones = Derivacion.objects.filter(
-        actividad_destino=actividad,
-    ).exclude(estado="ACEPTADA").select_related(
-        "legajo",
-        "actividad_destino",
-    ).order_by("-creado")
-
     return {
         "staff": [],
-        "derivaciones": derivaciones,
+        "derivaciones": [],
         "nomina": [],
         "total_staff_activo": 0,
         "total_inscriptos_activos": 0,

@@ -7,12 +7,10 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from django.db.models import Count
 from ..models import (
     Ciudadano,
-    Derivacion,
     AlertaCiudadano,
 )
 from ..serializers import (
     CiudadanoSerializer,
-    DerivacionSerializer,
     AlertaCiudadanoSerializer,
 )
 from ..services import AlertasService, FiltrosUsuarioService
@@ -41,25 +39,6 @@ class CiudadanoViewSet(viewsets.ModelViewSet):
     ordering_fields = ['apellido', 'nombre', 'creado']
     ordering = ['apellido', 'nombre']
 
-
-@extend_schema_view(
-    list=extend_schema(description="Lista todas las derivaciones"),
-    create=extend_schema(description="Crea una nueva derivación"),
-    retrieve=extend_schema(description="Obtiene una derivación específica"),
-    update=extend_schema(description="Actualiza una derivación"),
-    partial_update=extend_schema(description="Actualiza parcialmente una derivación"),
-    destroy=extend_schema(description="Elimina una derivación")
-)
-class DerivacionViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gestionar derivaciones entre dispositivos.
-    """
-    queryset = Derivacion.objects.select_related('legajo', 'actividad_destino')
-    serializer_class = DerivacionSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['estado', 'urgencia', 'actividad_destino']
-    ordering = ['-creado']
 
 
 @extend_schema_view(

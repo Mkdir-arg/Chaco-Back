@@ -2,7 +2,6 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from ..models import (
     Ciudadano,
-    Derivacion,
     AlertaCiudadano,
 )
 
@@ -31,18 +30,6 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email']
 
-
-class DerivacionSerializer(serializers.ModelSerializer):
-    """Serializer para Derivacion"""
-    actividad_destino_nombre = serializers.CharField(source='actividad_destino.nombre', read_only=True)
-
-    class Meta:
-        model = Derivacion
-        fields = [
-            'id', 'legajo', 'actividad_destino', 'actividad_destino_nombre', 'motivo', 'urgencia',
-            'estado', 'respuesta', 'fecha_aceptacion', 'creado', 'modificado'
-        ]
-        read_only_fields = ['id', 'creado', 'modificado']
 
 
 class AlertaCiudadanoSerializer(serializers.ModelSerializer):

@@ -115,17 +115,3 @@ class OptimizedAlertaManager(models.Manager):
         return self.por_prioridad('CRITICA')
 
 
-class OptimizedDerivacionManager(models.Manager):
-    """Manager optimizado para Derivacion"""
-
-    def with_full_relations(self):
-        return self.select_related(
-            'legajo',
-            'actividad_destino'
-        )
-
-    def pendientes(self):
-        return self.with_full_relations().filter(estado='PENDIENTE')
-
-    def por_urgencia(self, urgencia):
-        return self.with_full_relations().filter(urgencia=urgencia)

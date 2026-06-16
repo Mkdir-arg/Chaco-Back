@@ -360,63 +360,6 @@ class LegajoAtencion(LegajoBase):
         return None
 
 
-class Derivacion(TimeStamped):
-    """Derivaciones entre dispositivos"""
-
-    class Urgencia(models.TextChoices):
-        BAJA = "BAJA", "Baja"
-        MEDIA = "MEDIA", "Media"
-        ALTA = "ALTA", "Alta"
-
-    class Estado(models.TextChoices):
-        PENDIENTE = "PENDIENTE", "Pendiente"
-        ACEPTADA = "ACEPTADA", "Aceptada"
-        RECHAZADA = "RECHAZADA", "Rechazada"
-
-    legajo = models.ForeignKey(
-        LegajoAtencion,
-        on_delete=models.CASCADE,
-        related_name="derivaciones"
-    )
-    actividad_destino = models.ForeignKey(
-        'programas.Programa',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="derivaciones",
-        verbose_name="Programa destino"
-    )
-    motivo = models.TextField()
-    urgencia = models.CharField(
-        max_length=20,
-        choices=Urgencia.choices,
-        default=Urgencia.MEDIA,
-        db_index=True
-    )
-    estado = models.CharField(
-        max_length=20,
-        choices=Estado.choices,
-        default=Estado.PENDIENTE,
-        db_index=True
-    )
-    respuesta = models.CharField(max_length=120, blank=True)
-    fecha_aceptacion = models.DateField(null=True, blank=True, db_index=True)
-
-    class Meta:
-        verbose_name = "Derivación"
-        verbose_name_plural = "Derivaciones"
-        ordering = ["-creado"]
-        indexes = [
-            models.Index(fields=["legajo", "estado"]),
-            models.Index(fields=["urgencia"]),
-            models.Index(fields=["estado", "urgencia"]),
-        ]
-
-    def __str__(self):
-        return f"Derivación de legajo {self.legajo_id}"
-
-    def clean(self):
-        pass
 
 
 class Adjunto(TimeStamped):

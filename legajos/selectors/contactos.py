@@ -8,7 +8,6 @@ from ..services.linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     Adjunto,
     Ciudadano,
-    Derivacion,
     LegajoAtencion,
 )
 
@@ -83,23 +82,6 @@ def build_ciudadano_actividades_payload(ciudadano_id):
                     'fecha_hora': legajo.fecha_cierre.isoformat(),
                     'tipo': 'CIERRE',
                     'descripcion': 'Acompañamiento cerrado',
-                    'usuario_nombre': 'Sistema',
-                    'legajo_id': str(legajo.id),
-                    'legajo_codigo': _format_legajo_codigo(legajo),
-                }
-            )
-
-        derivaciones = Derivacion.objects.filter(legajo=legajo).select_related('actividad_destino')
-        for derivacion in derivaciones:
-            actividades.append(
-                {
-                    'fecha_hora': derivacion.creado.isoformat(),
-                    'tipo': 'DERIVACION',
-                    'descripcion': (
-                        f'Derivación a '
-                        f'{derivacion.actividad_destino.nombre if derivacion.actividad_destino else "destino no especificado"}'
-                        f' - Estado: {derivacion.get_estado_display()}'
-                    ),
                     'usuario_nombre': 'Sistema',
                     'legajo_id': str(legajo.id),
                     'legajo_codigo': _format_legajo_codigo(legajo),
@@ -211,18 +193,6 @@ def build_legajo_evolucion_payload(legajo_id):
                 'fecha': ultimo_seguimiento.fecha_contacto.isoformat(),
             }
         )
-    derivacion_reciente = Derivacion.objects.filter(legajo=legajo).order_by('-creado').first()
-    if derivacion_reciente:
-        hitos.append(
-            {
-                'tipo': 'DERIVACION',
-                'titulo': (
-                    f'Derivación a '
-                    f'{derivacion_reciente.actividad_destino.nombre if derivacion_reciente.actividad_destino else "destino no especificado"}'
-                ),
-                'fecha': derivacion_reciente.creado.isoformat(),
-            }
-        )
     if legajo.fecha_cierre:
         hitos.append(
             {
@@ -284,21 +254,6 @@ def build_ciudadano_timeline_payload(ciudadano_id):
                     'tipo': 'SEGUIMIENTO',
                     'titulo': 'Seguimiento',
                     'descripcion': seguimiento.resumen[:150] if seguimiento.resumen else 'Sin descripción',
-                    'legajo_id': str(legajo.id),
-                }
-            )
-
-        for derivacion in Derivacion.objects.filter(legajo=legajo).select_related('actividad_destino'):
-            eventos.append(
-                {
-                    'fecha': derivacion.creado.isoformat(),
-                    'tipo': 'DERIVACION',
-                    'titulo': 'Derivación',
-                    'descripcion': (
-                        f'Derivado a '
-                        f'{derivacion.actividad_destino.nombre if derivacion.actividad_destino else "destino no especificado"}'
-                        f' - {derivacion.get_estado_display()}'
-                    ),
                     'legajo_id': str(legajo.id),
                 }
             )
