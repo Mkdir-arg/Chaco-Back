@@ -18,7 +18,7 @@ module.exports = {
       // FONT FAMILY
       // --------------------------------------------------------
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Manrope', 'sans-serif'],
         brand: ['Gellat', 'sans-serif'], // Solo para hero headings
       },
 

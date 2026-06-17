@@ -19,7 +19,7 @@ Authentication screens (login, password recovery) use the **split-screen pattern
 
 **Form content (top to bottom):**
 1. Heading: "Bienvenido a Nodo, tu Sistema Integral" — Gellat Extra Bold, `text-heading (#00203A)`
-2. Subheading: "Inicia Sesion" — Inter, smaller size
+2. Subheading: "Inicia Sesion" — Manrope, smaller size
 3. Email field: input with EnvelopeIcon prefix, label "Email institucional"
 4. Password field: input with LockClosedIcon prefix, label "Contraseña"
 5. "¿Olvidaste tu contraseña?" link — `text-fg-brand`, `text-sm`
