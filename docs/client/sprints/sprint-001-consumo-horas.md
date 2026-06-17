@@ -36,4 +36,4 @@
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **3601 minutos** (60 h 01 min)
+    **3016 minutos** (50 h 16 min)
