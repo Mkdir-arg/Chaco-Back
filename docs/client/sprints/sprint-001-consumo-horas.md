@@ -27,16 +27,20 @@
 | 2026-06-11 | Agostina Coppola | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Matías Fariña | analisis legajo ciudadano | Epica Legajo ciudadano , ajuste de documentacion | 181 min |
 | 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #64 — modelo `RolMeta.programa` + categoría "Programa" + catálogo "de programa" + migración | 60 min |
-| 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #65 — motor `puede/puede_alguna(..., programa=)` retrocompatible + template tag + tests | 90 min |
-| 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #66 — ABM de Roles con alcance (selectores, RolForm con operador, vistas, templates) | 90 min |
-| 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #67 — ABM de Usuarios con alcance + guardado scoped que no pierde roles fuera de alcance | 120 min |
+| 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #65 — motor `puede/puede_alguna(..., programa=)` retrocompatible + template tag + tests | 60 min |
+| 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #66 — ABM de Roles con alcance (selectores, RolForm con operador, vistas, templates) | 60 min |
+| 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #67 — ABM de Usuarios con alcance + guardado scoped que no pierde roles fuera de alcance | 60 min |
 | 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #68 — validación "programa sin administrador" + sidebar; PR #71 | 60 min |
-| 2026-06-17 | Juani Portilla | RBAC menú acotado (#59) | gates del sidebar (ciudadano.crear / conversacion.configurar) + rol "Operador de backoffice" por seed | 60 min |
-| 2026-06-17 | Juani Portilla | RBAC review/QA y fixes | Review adversarial + testeo manual; fix de cache cross-user (listado de ciudadanos + dashboard), gating del botón del listado y visibilidad de errores | 60 min |
+| 2026-06-17 | Juani Portilla | RBAC menú acotado (#59) | gates del sidebar (ciudadano.crear / conversacion.configurar) + rol "Operador de backoffice" por seed | 30 min |
+| 2026-06-17 | Juani Portilla | RBAC review/QA y fixes | Review adversarial + testeo manual; fix de cache cross-user (listado de ciudadanos + dashboard), gating del botón del listado y visibilidad de errores | 30 min |
+| 2026-06-17 | Juani Portilla | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
+| 2026-06-17 | Pablo Cao | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
+| 2026-06-17 | Agostina Coppola | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
+| 2026-06-17 | Matías Fariña | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **4141 minutos** (69 h 01 min)
+    **4201 minutos** (70 h 01 min)
