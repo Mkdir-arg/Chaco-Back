@@ -153,7 +153,7 @@
   },
   "typography": {
     "fontFamily": {
-      "base":  { "$type": "fontFamily", "$value": ["Inter", "sans-serif"] },
+      "base":  { "$type": "fontFamily", "$value": ["Manrope", "sans-serif"] },
       "brand": { "$type": "fontFamily", "$value": ["Gellat", "sans-serif"], "$description": "Solo para hero headings en pantallas de acceso" }
     },
     "fontSize": {

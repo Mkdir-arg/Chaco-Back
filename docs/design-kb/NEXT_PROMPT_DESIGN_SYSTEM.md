@@ -72,7 +72,7 @@ For each component in `docs/design-kb/components/`, implement or update the corr
 #### 2e. Data Table
 - No alternating row colors
 - Row hover: `bg-tertiary`
-- Column headers: `text-xs, font-semibold, uppercase, text-body-subtle` (wait — cross-reference: CHACO_NODO_Design_Manual says `text-xs font-semibold uppercase`, NODO DS says `Inter Medium 13px, text-body` — reconcile and pick one)
+- Column headers: `text-xs, font-semibold, uppercase, text-body-subtle` (wait — cross-reference: CHACO_NODO_Design_Manual says `text-xs font-semibold uppercase`, NODO DS says `Manrope Medium 13px, text-body` — reconcile and pick one)
 - Pagination: Tertiary buttons (outlined brand)
 - Empty state: required for every table
 

@@ -314,7 +314,7 @@ background_tokens:
 typography_tokens:
   - token: "font-family-base"
     css_var: "--font-family-base"
-    value: "'Inter', sans-serif"
+    value: "'Manrope', sans-serif"
   - token: "font-family-brand"
     css_var: "--font-family-brand"
     value: "'Gellat', sans-serif"
