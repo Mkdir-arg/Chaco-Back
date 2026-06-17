@@ -26,6 +26,11 @@
 | 2026-06-11 | Pablo Cao | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Agostina Coppola | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Matías Fariña | analisis legajo ciudadano | Epica Legajo ciudadano , ajuste de documentacion | 181 min |
+| 2026-06-12 | Agostina Coppola | analisis legajo ciudadano | Revision de tareas, flujos, responsabilidades, etc. | 240 min |
+| 2026-06-13 | Agostina Coppola | analisis legajo ciudadano v2 | Revision de tareas, flujos, responsabilidades, etc. | 350 min |
+| 2026-06-14 | Agostina Coppola | analisis legajo ciudadano v3| Revision de tareas, flujos, responsabilidades, etc. | 180 min |
+| 2026-06-17 | Matías Fariña | Becas| Creacion de tareas propuesta | 300 min |
+| 2026-06-16 | Agostina Coppola | Becas| Creacion de tareas propuesta | 300 min |
 
 ---
 
