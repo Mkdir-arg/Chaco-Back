@@ -259,7 +259,7 @@ valida **Nodo** (admin/coordinador); SIS solo hace el **control de incompatibili
 | Tipo | Configuración | Visibilidad |
 |---|---|---|
 | **Requisitos generales** | Configurables en **Configuración del programa**; aplican a **todos los segmentos**. Son el **Cuestionario social de 13 preguntas** (§6.3). | **Se responden en el formulario** por todo beneficiario. |
-| **Requisitos de segmento / subsegmento** | **Nativos, configurables** al configurar el segmento/subsegmento. | Quedan visibles en la convocatoria; informativos para el territorial. |
+| **Requisitos de segmento / subsegmento** | **Nativos, configurables** al configurar el segmento/subsegmento. Cada requisito tiene un tipo de campo (STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO). | **Generan campos obligatorios en el formulario del territorial** (no son meramente informativos). Los adjuntos específicos del segmento se modelan como requisitos tipo ARCHIVO. |
 
 ### Requisitos generales del sistema (doc Ministerio — todos los segmentos)
 - **Registro único** del beneficiario: datos personales, domicilio, CUIL, **estudios**,
@@ -574,7 +574,7 @@ exponer esa acción de revalidar.
 | RN-29 | El admin **puede editar los datos del formulario** desde el backoffice **antes de aprobar/rechazar**. |
 | RN-30 | La convocatoria requiere un **segmento** (siempre). Opcionalmente se puede seleccionar un **subsegmento** del segmento elegido; para elegirlo el segmento debe estar seleccionado primero. Si la convocatoria tiene subsegmento, el cupo se descuenta del subsegmento; si no, del segmento. |
 | RN-31 | **Requisitos generales:** preguntas **configurables** desde Configuración del programa, **compartidas por todas las convocatorias**; son el **Cuestionario social de 13 preguntas** (§6.3) y **se responden en el formulario**. |
-| RN-32 | **Requisitos de segmento/subsegmento:** son **nativos** del sistema, **configurables** al configurar el segmento (ya **no vienen de SIS**); se muestran **informativos** al territorial al completar el formulario. |
+| RN-32 | **Requisitos de segmento/subsegmento:** son **nativos** del sistema, **configurables** al configurar el segmento (ya **no vienen de SIS**); **generan campos obligatorios en el formulario del territorial** (cada requisito tiene un tipo — STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO). Los requisitos tipo ARCHIVO generan una sección de adjunto obligatorio. Los requisitos del segmento padre son heredados por los formularios de sus subsegmentos (herencia por query). |
 | RN-33 | La **evaluación** se reparte: **Nodo** valida los **requisitos nativos** (admin/coordinador en la revisión) y **SIS** hace el **control de incompatibilidades** (devuelve **OKA / negativa**). |
 | RN-34 | El **cupo se descuenta del segmento** correspondiente, tras doble-OKA (Nodo + SIS). |
 | RN-35 | Existe el nivel **Subsegmento** (opcional, configurable) dentro de un segmento (ej. Ladrillo/Carbón en Producción Territorial). |
@@ -635,7 +635,7 @@ Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 ## 14. Próximos pasos
 
 1. **Sistema SIS** — cerrar S-1, S-2, S-4, S-5 y S-12 (contrato técnico del control de incompatibilidades).
-2. **Segmentos / requisitos** — confirmar "Solidaria" (R-1.c) y si los requisitos/documentación son campos del formulario o informativos (R-13). *(R-8.b cerrada: ver RN-40)*
+2. **Segmentos / requisitos** — confirmar "Solidaria" (R-1.c). *(R-13 cerrada: los requisitos son campos del formulario — ver RN-32. R-8.b cerrada: ver RN-40.)*
 3. **Flujo funcional** — cerrado (reapertura 1.b resuelta). No quedan pendientes funcionales nuestros; el resto depende del **contrato de SIS** (paso 1).
 4. **Investigación de código** — completar C-1 (revisar módulos existentes).
 5. **Control estricto** — cerrar todas las preguntas bloqueantes y verificar consistencia.
@@ -736,7 +736,7 @@ Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 | R-8 | ~~Cardinalidad convocatoria↔segmento~~ **Cerrada:** una convocatoria apunta a un solo segmento (requerido) y opcionalmente a un subsegmento de ese segmento. No puede tener varios segmentos. | — | **Cerrada** |
 | ~~R-8.b~~ | ~~¿Cupo por segmento o por subsegmento?~~ **Cerrada:** los subsegmentos tienen su propio `cupo_maximo`; la suma no puede superar el del segmento. Sin subsegmentos, el cupo del segmento es el total (ver RN-40). | — | **Cerrada** |
 | R-11 | **Documentación/adjuntos:** confirmar obligatoriedades por segmento y cuáles son **imágenes cargadas en el formulario**. | Equipo Ministerio | No bloq. |
-| R-13 | **Requisitos y documentación como campos vs informativo:** los requisitos configurables y la documentación (certificado de domicilio, CUIL, constancia de estudios, convenio de confidencialidad) ¿aparecen como **campos del formulario** o son solo **a modo informativo**? | Equipo Ministerio | Por definir |
+| ~~R-13~~ | ~~Requisitos y documentación como campos vs informativo.~~ **CERRADA:** los requisitos de segmento/subsegmento **generan campos obligatorios en el formulario del territorial** (tipo STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO). Los adjuntos generales (DNI, cert. domicilio, constancia, convenio) se modelan como `PreguntaGlobal` tipo `ARCHIVO`. Ver RN-32 actualizado. | — | **Cerrada** |
 
 ### 16.6 Asunciones pendientes de confirmación
 
