@@ -21,6 +21,23 @@ def puede(user, codigo):
         return False
 
 
+@register.simple_tag(name="puede_en")
+def puede_en(user, codigo, programa=None):
+    """Variante con alcance de Programa del filtro :func:`puede`.
+
+    Uso en template::
+
+        {% puede_en request.user "relevamiento.gestionar" programa=obj.programa as ok %}
+        {% if ok %} ... {% endif %}
+
+    Con ``programa`` nulo equivale a ``request.user|puede:codigo``.
+    """
+    try:
+        return rbac.puede(user, codigo, programa=programa)
+    except Exception:
+        return False
+
+
 @register.filter(name="es_ciudadano_portal")
 def es_ciudadano_portal(user):
     """¿El usuario es un ciudadano del portal? (marcador de identidad)."""

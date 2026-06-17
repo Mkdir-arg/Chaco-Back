@@ -43,6 +43,7 @@ CATALOGO = [
     {
         "modulo": "programas",
         "label": "Programas",
+        "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("programa.ver", "Ver programas"),
             ("programa.operar", "Operar programas"),
@@ -52,6 +53,7 @@ CATALOGO = [
     {
         "modulo": "relevamientos",
         "label": "Relevamientos",
+        "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("relevamiento.ver", "Ver relevamientos"),
             ("relevamiento.gestionar", "Gestionar relevamientos"),
@@ -111,11 +113,15 @@ CATEGORIA_BACKOFFICE = "Backoffice"
 CATEGORIA_INSTITUCION = "Institución"
 CATEGORIA_PORTAL = "Portal"
 CATEGORIA_SISTEMA = "Sistema"
+# Categoría de roles con alcance de Programa: si un Rol la tiene, su
+# ``RolMeta.programa`` es obligatorio (y solo en esta categoría puede no ser nulo).
+CATEGORIA_PROGRAMA = "Programa"
 CATEGORIAS_ROL = [
     CATEGORIA_BACKOFFICE,
     CATEGORIA_INSTITUCION,
     CATEGORIA_PORTAL,
     CATEGORIA_SISTEMA,
+    CATEGORIA_PROGRAMA,
 ]
 CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
 
@@ -129,6 +135,14 @@ GRUPO_CIUDADANO_PORTAL = "Ciudadanos"
 
 class SinAdministradorError(Exception):
     """La operación dejaría al sistema sin ningún usuario que pueda administrar."""
+
+
+class SinAdministradorProgramaError(SinAdministradorError):
+    """La operación dejaría a un **programa** sin ningún administrador.
+
+    Subclase de :class:`SinAdministradorError` para que los ``except`` ya
+    existentes la sigan capturando.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -162,30 +176,55 @@ def codigos_de_capacidad():
     ]
 
 
+def codigos_de_programa():
+    """Códigos de capacidad de los módulos "de programa" (``alcance == "programa"``).
+
+    Estas son las únicas capacidades que se evalúan con alcance de Programa; el
+    resto son globales y el parámetro ``programa`` las ignora (ver :func:`puede`).
+    """
+    return {
+        codigo
+        for modulo in CATALOGO
+        if modulo.get("alcance") == "programa"
+        for (codigo, _etiqueta) in modulo["capacidades"]
+    }
+
+
+def es_codigo_de_programa(codigo):
+    """¿La capacidad ``codigo`` pertenece a un módulo "de programa"?"""
+    return codigo in codigos_de_programa()
+
+
 def capacidades_de_grupo(group):
     """Códigos de capacidad (``"ciudadano.ver"``...) que tiene tildados un rol."""
     codenames = set(group.permissions.values_list("codename", flat=True))
     return [c for c in codigos_de_capacidad() if codename_de(c) in codenames]
 
 
-def arbol_capacidades(codigos_activos=()):
+def arbol_capacidades(codigos_activos=(), solo_programa=False):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
 
         [{"modulo", "label", "capacidades": [{"codigo", "label", "checked"}]}]
+
+    Con ``solo_programa=True`` se limita a los módulos "de programa"
+    (``alcance == "programa"``), para roles de categoría ``"Programa"``. El
+    default es retrocompatible: devuelve el catálogo completo.
     """
     activos = set(codigos_activos)
     return [
         {
             "modulo": modulo["modulo"],
             "label": modulo["label"],
+            "alcance": modulo.get("alcance"),
             "capacidades": [
                 {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
                 for (codigo, etiqueta) in modulo["capacidades"]
             ],
         }
         for modulo in CATALOGO
+        if not solo_programa or modulo.get("alcance") == "programa"
     ]
 
 
@@ -220,20 +259,73 @@ def _capacidades_activas(user):
     return cache
 
 
-def puede(user, codigo):
+def _capacidades_activas_en_programa(user, programa):
+    """Set de códigos "de programa" efectivos del usuario **para un Programa**.
+
+    Cuentan los roles **activos** del usuario cuyo ``RolMeta.programa`` es el
+    programa indicado **o** es nulo (roles globales que igual tengan la
+    capacidad — RN-3). Superusuario activo tiene todas; inactivo, ninguna. Se
+    cachea por request y por programa en ``user._caps_programa_cache``.
+    """
+    programa_pk = getattr(programa, "pk", programa)
+    cache = getattr(user, "_caps_programa_cache", None)
+    if cache is None:
+        cache = {}
+        user._caps_programa_cache = cache
+    if programa_pk in cache:
+        return cache[programa_pk]
+
+    de_programa = codigos_de_programa()
+    if not getattr(user, "is_active", False):
+        resultado = frozenset()
+    elif user.is_superuser:
+        resultado = frozenset(de_programa)
+    else:
+        codenames_programa = {codename_de(c) for c in de_programa}
+        # IMPORTANTE: todas las condiciones sobre ``group`` van en un ÚNICO
+        # ``filter`` para que apunten a la MISMA fila de Group (el rol que tiene
+        # la capacidad debe ser, él mismo, del programa X o global y del usuario y
+        # activo). Partirlo en dos ``filter`` crea joins separados y daría falsos
+        # positivos (p. ej. una cap de otro programa "se cuela" porque un rol
+        # global cualquiera la tiene).
+        codenames = set(
+            Permission.objects.filter(
+                Q(group__meta__programa=programa_pk)
+                | Q(group__meta__programa__isnull=True),
+                group__user=user,
+                group__meta__activo=True,
+                codename__in=codenames_programa,
+            )
+            .values_list("codename", flat=True)
+            .distinct()
+        )
+        resultado = frozenset(c for c in de_programa if codename_de(c) in codenames)
+    cache[programa_pk] = resultado
+    return resultado
+
+
+def puede(user, codigo, programa=None):
     """¿El usuario tiene la capacidad ``codigo`` (p. ej. ``"ciudadano.ver"``)?
 
     Resuelve **solo por roles activos**: superusuario activo siempre pasa;
     usuario inactivo, anónimo o cuyo único rol está desactivado, nunca.
+
+    ``programa`` (opcional) acota la evaluación cuando ``codigo`` es de un módulo
+    "de programa": solo cuentan los roles con ``RolMeta.programa`` igual a ese
+    programa (o globales que tengan la capacidad). **Retrocompatible:** con
+    ``programa=None`` —y para capacidades globales, que ignoran el alcance— el
+    resultado es idéntico al comportamiento histórico.
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return codigo in _capacidades_activas(user)
+    if programa is None or not es_codigo_de_programa(codigo):
+        return codigo in _capacidades_activas(user)
+    return codigo in _capacidades_activas_en_programa(user, programa)
 
 
-def puede_alguna(user, codigos):
-    """¿Tiene al menos una de las capacidades indicadas?"""
-    return any(puede(user, c) for c in codigos)
+def puede_alguna(user, codigos, programa=None):
+    """¿Tiene al menos una de las capacidades indicadas? (con alcance opcional)."""
+    return any(puede(user, c, programa=programa) for c in codigos)
 
 
 def es_ciudadano_portal(user):
@@ -332,15 +424,49 @@ def usuarios_que_administran(excluir_ids=()):
     )
 
 
-def asegurar_admin_restante():
-    """Lanza :class:`SinAdministradorError` si ya no queda ningún administrador.
+def usuarios_que_administran_programa(programa, excluir_ids=()):
+    """Usuarios **activos** que administran un programa concreto.
+
+    Cuenta a quien tiene un rol **activo** con ``RolMeta.programa = programa`` y
+    la capacidad ``programa.configurar``, más los **superusuarios** activos
+    (acceso de emergencia, igual que el check global).
+    """
+    programa_pk = getattr(programa, "pk", programa)
+    codename = codename_de("programa.configurar")
+    return (
+        User.objects.filter(is_active=True)
+        .exclude(id__in=list(excluir_ids))
+        .filter(
+            Q(is_superuser=True)
+            | Q(
+                groups__meta__activo=True,
+                groups__meta__programa=programa_pk,
+                groups__permissions__codename=codename,
+            )
+        )
+        .distinct()
+    )
+
+
+def asegurar_admin_restante(programa=None):
+    """Lanza si una operación dejaría al sistema —o a un programa— sin administrador.
 
     Pensado para llamarse **dentro** de ``transaction.atomic`` tras aplicar un
     cambio (quitar rol, desactivar usuario, quitar capacidad de un rol, borrar
-    rol): si dejaría al sistema sin admins, la excepción revierte la transacción.
+    rol): si dejaría sin admins, la excepción revierte la transacción.
+
+    **Retrocompatible:** sin ``programa`` realiza el check **global** histórico.
+    Con ``programa`` realiza el check acotado a ese programa (RN-8).
     """
-    if not usuarios_que_administran().exists():
-        raise SinAdministradorError(
-            "La operación dejaría al sistema sin ningún usuario con permisos de "
-            "administración. Asigná las capacidades a otro usuario antes de continuar."
+    if programa is None:
+        if not usuarios_que_administran().exists():
+            raise SinAdministradorError(
+                "La operación dejaría al sistema sin ningún usuario con permisos de "
+                "administración. Asigná las capacidades a otro usuario antes de continuar."
+            )
+        return
+    if not usuarios_que_administran_programa(programa).exists():
+        raise SinAdministradorProgramaError(
+            f"La operación dejaría al programa «{programa}» sin ningún administrador. "
+            "Asigná un rol de administración de ese programa a otro usuario antes de continuar."
         )

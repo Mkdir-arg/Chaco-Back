@@ -89,9 +89,11 @@
                                 <a href="{% url 'legajos:ciudadanos' %}" class="{% if 'legajos/ciudadanos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
                                     <i class="fas fa-users mr-2 text-xs {% if 'legajos/ciudadanos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Ciudadanos
                                 </a>
+                                {% if request.user|puede:"ciudadano.crear" %}
                                 <a href="{% url 'legajos:ciudadano_nuevo' %}" class="{% if 'legajos/admision' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
                                     <i class="fas fa-user-plus mr-2 text-xs {% if 'legajos/admision' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Nuevo ciudadano
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                     </template>
@@ -160,9 +162,11 @@
                                 <a href="{% url 'configuracion:localidades' %}" class="{% if 'localidades' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
                                     <i class="fas fa-map-marker-alt mr-2 text-xs {% if 'localidades' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Localidades
                                 </a>
+                                {% if request.user|puede:"conversacion.configurar" %}
                                 <a href="{% url 'conversaciones:configurar_cola' %}" class="{% if 'conversaciones/configurar-cola' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
                                     <i class="fas fa-users-cog mr-2 text-xs {% if 'conversaciones/configurar-cola' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Cola Conversaciones
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                     </template>
@@ -176,7 +180,7 @@
             {% endif %}
 
             <!-- Administración -->
-            {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" %}
+            {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
                 <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
                     <template x-if="!sidebarCollapsed">
                         <div>

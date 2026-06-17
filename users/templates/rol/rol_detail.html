@@ -13,7 +13,7 @@
                 {% if meta and not meta.activo %}<span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium">Inactivo</span>{% else %}<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium">Activo</span>{% endif %}
             </div>
             <p class="text-gray-600 mt-1">{{ meta.descripcion|default:"Sin descripción" }}</p>
-            <p class="text-sm text-gray-500 mt-1">Categoría: {{ meta.categoria|default:"—" }} · {{ num_usuarios }} usuario(s)</p>
+            <p class="text-sm text-gray-500 mt-1">Categoría: {{ meta.categoria|default:"—" }}{% if meta.programa %} · <i class="fas fa-folder mr-1"></i>Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
         </div>
         <div class="flex gap-3">
             <a href="{% url 'users:roles' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">Volver</a>

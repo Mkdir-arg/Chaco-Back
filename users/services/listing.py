@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from core.services.advanced_filters import AdvancedFilterEngine
 from users.selectors import get_usuarios_queryset
+from users.selectors.usuarios import usuarios_visibles_para
 from users.users_filter_config import (
     FIELD_MAP as BENEFICIARIO_FILTER_MAP,
     FIELD_TYPES as BENEFICIARIO_FIELD_TYPES,
@@ -26,9 +27,17 @@ BENEFICIARIO_ADVANCED_FILTER = AdvancedFilterEngine(
 
 class UsuariosService:
     @staticmethod
-    def get_filtered_usuarios(request_or_get):
-        """Aplica filtros combinables sobre el listado de usuarios."""
-        base_qs = get_usuarios_queryset()
+    def get_filtered_usuarios(request_or_get, operador=None):
+        """Aplica filtros combinables sobre el listado de usuarios.
+
+        Con ``operador`` se acota el listado al alcance del operador (admin de
+        programa ve solo usuarios con algún rol de sus programas).
+        """
+        base_qs = (
+            usuarios_visibles_para(operador)
+            if operador is not None
+            else get_usuarios_queryset()
+        )
         return BENEFICIARIO_ADVANCED_FILTER.filter_queryset(base_qs, request_or_get)
 
     @staticmethod

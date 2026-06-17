@@ -11,12 +11,22 @@ from django.views.generic import TemplateView
 from core import rbac
 from core.rbac import CapacidadRequeridaMixin
 from users.forms.roles import RolForm
-from users.selectors.roles import roles_por_categoria
+from users.selectors.roles import (
+    puede_gestionar_rol,
+    roles_visibles_para,
+)
 from users.services.roles import RolesAdminService, RolProtegidoError
 
 
 class _RolesPermMixin(CapacidadRequeridaMixin):
-    capacidades_requeridas = "rol.administrar"
+    # Entra el admin global (rol.administrar) y también el admin de programa
+    # (programa.configurar en algún programa). El alcance fino lo aplica cada vista.
+    capacidades_requeridas = ["rol.administrar", "programa.configurar"]
+
+
+def _fuera_de_alcance(request):
+    messages.error(request, "No tiene permisos para acceder a esta sección.")
+    return redirect("users:roles")
 
 
 class RolListView(_RolesPermMixin, TemplateView):
@@ -24,13 +34,17 @@ class RolListView(_RolesPermMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["roles_por_categoria"] = roles_por_categoria()
+        context["roles"] = roles_visibles_para(self.request.user)
         return context
 
 
 class RolDetailView(_RolesPermMixin, View):
     def get(self, request, pk):
-        group = get_object_or_404(Group.objects.select_related("meta"), pk=pk)
+        group = get_object_or_404(
+            Group.objects.select_related("meta", "meta__programa"), pk=pk
+        )
+        if not puede_gestionar_rol(request.user, group):
+            return _fuera_de_alcance(request)
         return render(
             request,
             "rol/rol_detail.html",
@@ -46,11 +60,13 @@ class RolDetailView(_RolesPermMixin, View):
 class RolCreateView(_RolesPermMixin, View):
     def get(self, request):
         return render(
-            request, "rol/rol_form.html", {"form": RolForm(), "es_edicion": False}
+            request,
+            "rol/rol_form.html",
+            {"form": RolForm(operador=request.user), "es_edicion": False},
         )
 
     def post(self, request):
-        form = RolForm(request.POST)
+        form = RolForm(request.POST, operador=request.user)
         if form.is_valid():
             RolesAdminService.crear(form)
             messages.success(request, "Rol creado correctamente.")
@@ -62,10 +78,14 @@ class RolCreateView(_RolesPermMixin, View):
 
 class RolUpdateView(_RolesPermMixin, View):
     def _get_group(self, pk):
-        return get_object_or_404(Group.objects.select_related("meta"), pk=pk)
+        return get_object_or_404(
+            Group.objects.select_related("meta", "meta__programa"), pk=pk
+        )
 
     def get(self, request, pk):
         group = self._get_group(pk)
+        if not puede_gestionar_rol(request.user, group):
+            return _fuera_de_alcance(request)
         meta = getattr(group, "meta", None)
         if meta and meta.protegido:
             messages.error(request, "El rol está protegido y no puede editarse.")
@@ -73,12 +93,18 @@ class RolUpdateView(_RolesPermMixin, View):
         return render(
             request,
             "rol/rol_form.html",
-            {"form": RolForm(instance=group), "es_edicion": True, "group": group},
+            {
+                "form": RolForm(instance=group, operador=request.user),
+                "es_edicion": True,
+                "group": group,
+            },
         )
 
     def post(self, request, pk):
         group = self._get_group(pk)
-        form = RolForm(request.POST, instance=group)
+        if not puede_gestionar_rol(request.user, group):
+            return _fuera_de_alcance(request)
+        form = RolForm(request.POST, instance=group, operador=request.user)
         if form.is_valid():
             try:
                 RolesAdminService.actualizar(form, group)
@@ -96,7 +122,11 @@ class RolUpdateView(_RolesPermMixin, View):
 
 class RolDeleteView(_RolesPermMixin, View):
     def post(self, request, pk):
-        group = get_object_or_404(Group, pk=pk)
+        group = get_object_or_404(
+            Group.objects.select_related("meta", "meta__programa"), pk=pk
+        )
+        if not puede_gestionar_rol(request.user, group):
+            return _fuera_de_alcance(request)
         try:
             RolesAdminService.eliminar(group)
         except (RolProtegidoError, rbac.SinAdministradorError) as exc:
@@ -108,7 +138,11 @@ class RolDeleteView(_RolesPermMixin, View):
 
 class RolToggleActivoView(_RolesPermMixin, View):
     def post(self, request, pk):
-        group = get_object_or_404(Group, pk=pk)
+        group = get_object_or_404(
+            Group.objects.select_related("meta", "meta__programa"), pk=pk
+        )
+        if not puede_gestionar_rol(request.user, group):
+            return _fuera_de_alcance(request)
         try:
             activo = RolesAdminService.toggle_activo(group)
         except RolProtegidoError as exc:
