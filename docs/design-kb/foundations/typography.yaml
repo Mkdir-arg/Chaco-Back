@@ -4,14 +4,14 @@
 # =============================================================
 
 meta:
-  critical_rule: "Inter is the ONLY font for all UI components. Gellat is ONLY for hero headings on login/access screens."
+  critical_rule: "Manrope is the ONLY font for all UI components. Gellat is ONLY for hero headings on login/access screens."
 
 # -------------------------------------------------------------
 # FONT FAMILIES
 # -------------------------------------------------------------
 font_families:
   base:
-    name: "Inter"
+    name: "Manrope"
     fallback: "sans-serif"
     css_var: "--font-family-base"
     tailwind: "font-sans"
@@ -176,7 +176,7 @@ combinations:
     context: "Login, password recovery screens ONLY"
 
   section_heading:
-    font: "Inter"
+    font: "Manrope"
     size: "text-4xl"
     weight: "font-semibold"
     tracking: "tracking-tight"
@@ -184,14 +184,14 @@ combinations:
     context: "Page section titles inside the app"
 
   stat_card_number:
-    font: "Inter"
+    font: "Manrope"
     size: "text-3xl or text-4xl"
     weight: "font-bold"
     color: "text-heading"
     context: "Large metric numbers in stat cards"
 
   stat_card_label:
-    font: "Inter"
+    font: "Manrope"
     size: "text-xs"
     weight: "font-medium"
     transform: "uppercase"
@@ -199,7 +199,7 @@ combinations:
     context: "Labels beneath stat card numbers"
 
   button_label:
-    font: "Inter"
+    font: "Manrope"
     weight: "font-medium"
     sizes:
       xs: "12px"
@@ -211,7 +211,7 @@ combinations:
     forbidden: "font-normal on button labels"
 
   table_header:
-    font: "Inter"
+    font: "Manrope"
     size: "text-xs"
     weight: "font-semibold"
     transform: "uppercase"
@@ -219,28 +219,28 @@ combinations:
     context: "Data table column headers"
 
   table_body:
-    font: "Inter"
+    font: "Manrope"
     size: "text-sm"
     weight: "font-normal"
     color: "text-body or text-heading"
     context: "Data table cell content"
 
   input_label:
-    font: "Inter"
+    font: "Manrope"
     size: "text-sm"
     weight: "font-medium"
     color: "text-heading"
     context: "Form field labels"
 
   input_placeholder:
-    font: "Inter"
+    font: "Manrope"
     size: "text-sm"
     weight: "font-normal"
     color: "text-body-subtle"
     context: "Input placeholder text"
 
   badge:
-    font: "Inter"
+    font: "Manrope"
     weight: "font-medium"
     sizes:
       sm: "12px"

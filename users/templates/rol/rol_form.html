@@ -23,11 +23,34 @@
                     {{ form.name }}
                     {% if form.name.errors %}<div class="text-red-600 text-sm mt-1">{{ form.name.errors }}</div>{% endif %}
                 </div>
+                {% if form.es_admin_global %}
                 <div>
                     <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
                     {{ form.categoria }}
                     {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
                 </div>
+                <div id="campo-programa" class="{% if form.categoria.value != 'Programa' %}hidden{% endif %}">
+                    <label for="{{ form.programa.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
+                    {{ form.programa }}
+                    {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
+                </div>
+                {% else %}
+                <input type="hidden" name="categoria" value="Programa">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                    <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700">Programa</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
+                    {% if form.programa_fijo %}
+                        <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
+                        <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
+                    {% else %}
+                        {{ form.programa }}
+                    {% endif %}
+                    {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
+                </div>
+                {% endif %}
                 <div class="md:col-span-2">
                     <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
                     {{ form.descripcion }}
@@ -45,7 +68,7 @@
 
             <div class="space-y-3">
                 {% for modulo in form.arbol_capacidades %}
-                    <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
+                    <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}" data-alcance="{{ modulo.alcance|default:'' }}">
                         <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-lg">
                             <label class="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
                                 <input type="checkbox" class="select-all rounded border-gray-300" data-modulo="{{ modulo.modulo }}">
@@ -122,6 +145,25 @@
             refrescarModulo(panel.getAttribute('data-modulo'));
         });
         refrescarTotal();
+    });
+</script>
+<script>
+    // Admin global: el combo "Programa" y el árbol se ajustan según la categoría.
+    document.addEventListener('DOMContentLoaded', function () {
+        var catSelect = document.getElementById('id_categoria');
+        if (!catSelect) return;  // admin de programa: campos fijos, sin JS
+        var campoPrograma = document.getElementById('campo-programa');
+
+        function aplicarCategoria() {
+            var esPrograma = catSelect.value === 'Programa';
+            if (campoPrograma) campoPrograma.classList.toggle('hidden', !esPrograma);
+            document.querySelectorAll('.border[data-alcance]').forEach(function (panel) {
+                var dePrograma = panel.getAttribute('data-alcance') === 'programa';
+                panel.classList.toggle('hidden', esPrograma && !dePrograma);
+            });
+        }
+        catSelect.addEventListener('change', aplicarCategoria);
+        aplicarCategoria();
     });
 </script>
 {% endblock %}

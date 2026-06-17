@@ -51,9 +51,9 @@ anatomy:
 
   metric_with_delta: |
     ┌──────────────────────────────────┐
-    │ Label                            │  ← Inter Regular 13px, text-body-subtle
-    │ 250 +12                  [Icon]  │  ← Number: Inter Bold 28px, text-heading
-    │                                  │    Delta: Inter Medium 12px, color by sign
+    │ Label                            │  ← Manrope Regular 13px, text-body-subtle
+    │ 250 +12                  [Icon]  │  ← Number: Manrope Bold 28px, text-heading
+    │                                  │    Delta: Manrope Medium 12px, color by sign
     └──────────────────────────────────┘
 
   icon_shape:
@@ -71,18 +71,18 @@ anatomy:
     position: "top-right of the icon area"
 
   metric_number:
-    font: "Inter Bold (font-bold)"
+    font: "Manrope Bold (font-bold)"
     size: "text-3xl (30px) or text-4xl (36px)"
     color: "text-heading (#111827)"
 
   stat_label:
-    font: "Inter Medium (font-medium)"
+    font: "Manrope Medium (font-medium)"
     size: "text-xs (12px)"
     transform: "uppercase"
     color: "text-body-subtle"
 
   delta:
-    font: "Inter Medium 12px"
+    font: "Manrope Medium 12px"
     positive: "text-fg-success (#007a55)"
     negative: "text-fg-danger (#c70036)"
 

@@ -54,7 +54,7 @@ anatomy: |
   └────────────────────────────────────────┘
 
   - Icon: w-5 h-5, text-white, matches variant semantic color
-  - Message: Inter Regular 14px, text-white
+  - Message: Manrope Regular 14px, text-white
   - Close button: optional, top-right, × icon, text-white
 
 z_index: "200 (toast layer — above modal at 100)"

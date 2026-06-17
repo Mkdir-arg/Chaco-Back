@@ -25,7 +25,7 @@ Sos un Senior Frontend Engineer implementando el Design System de NODO para el G
 - `static/custom/css/chaco-tokens.css` → copiado al repo ✅
 - `static/custom/js/chaco-tailwind.config.js` → copiado al repo ✅
 - `docs/design-kb/tokens/chaco-tokens.json` → copiado al repo ✅
-- `templates/includes/base.html` → chaco-tokens.css wired como primer import, tailwind.config extendido con todos los semantic tokens, Inter agregado a Google Fonts ✅
+- `templates/includes/base.html` → chaco-tokens.css wired como primer import, tailwind.config extendido con todos los semantic tokens, Manrope agregado a Google Fonts ✅
 - `portal/templates/portal/base.html` → chaco-tokens.css wired ✅
 - `docs/design-kb/` → Knowledge Base completo (foundations, tokens, 13 components, 5 patterns, constitution) ✅
 

@@ -2,11 +2,13 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 from core.rbac import (
     CATEGORIA_BACKOFFICE,
+    CATEGORIA_PROGRAMA,
     CATEGORIAS_ROL_CHOICES,
     todas_las_capacidades,
 )
@@ -41,6 +43,15 @@ class RolMeta(models.Model):
     )
     protegido = models.BooleanField(default=False, verbose_name="Protegido")
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    programa = models.ForeignKey(
+        "programas.Programa",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="roles_meta",
+        verbose_name="Programa",
+        help_text="Solo para roles de categoría 'Programa': acota el rol a ese programa.",
+    )
 
     class Meta:
         verbose_name = "Metadato de rol"
@@ -48,6 +59,18 @@ class RolMeta(models.Model):
 
     def __str__(self):
         return self.grupo.name
+
+    def clean(self):
+        """RN-1: ``categoria == "Programa"`` ⇔ ``programa`` no nulo."""
+        super().clean()
+        if self.categoria == CATEGORIA_PROGRAMA and self.programa_id is None:
+            raise ValidationError(
+                {"programa": "Un rol de categoría 'Programa' requiere seleccionar un Programa."}
+            )
+        if self.categoria != CATEGORIA_PROGRAMA and self.programa_id is not None:
+            raise ValidationError(
+                {"programa": "Solo los roles de categoría 'Programa' pueden tener un Programa asociado."}
+            )
 
 
 class Capacidad(models.Model):
