@@ -26,10 +26,11 @@
 | 2026-06-11 | Pablo Cao | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Agostina Coppola | Reunion interna | Revision de tareas, flujos, responsabilidades, etc. | 60 min |
 | 2026-06-11 | Matías Fariña | analisis legajo ciudadano | Epica Legajo ciudadano , ajuste de documentacion | 181 min |
+| 2026-06-17 | Juani Portilla | Migración fuente Inter → Manrope (DS v1.1) | Actualización de tokens CSS, Tailwind config, templates y design-kb. PR #84. | 15 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **3601 minutos** (60 h 01 min)
+    **3616 minutos** (60 h 16 min)
