@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from core.cache_decorators import invalidate_cache_pattern
+from core.services.cache import invalidate_cache_pattern
 from ..models import Conversacion, Mensaje
 
 @receiver([post_save, post_delete], sender=Conversacion)

@@ -1,4 +1,4 @@
-"""Utilidades básicas de dashboard."""
+﻿"""Utilidades básicas de dashboard."""
 
 import logging
 from django.conf import settings
@@ -8,7 +8,7 @@ from django.db import connection
 from django.db.utils import OperationalError, ProgrammingError
 from django.contrib.auth.models import User
 from legajos.models import Ciudadano
-from legajos.models_programas import DerivacionPrograma, InscripcionPrograma
+from programas.models import DerivacionPrograma, InscripcionPrograma
 
 logger = logging.getLogger(__name__)
 

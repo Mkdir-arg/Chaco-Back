@@ -21,12 +21,6 @@ class PortalRegistroService:
         return user
 
     @staticmethod
-    @transaction.atomic
-    def create_institucion_from_form(form, pending_user=None, authenticated_user=None):
-        # DEPRECATED: flujo de registro institucional retirado.
-        return None
-
-    @staticmethod
     def get_pending_user(pending_user_id):
         if not pending_user_id:
             return None

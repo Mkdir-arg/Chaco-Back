@@ -1,4 +1,4 @@
-# Create your views here.
+﻿# Create your views here.
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -50,7 +50,7 @@ def load_localidad(request):
 @require_GET
 def load_subsecretarias(request):
     """Carga subsecretarías activas filtradas por secretaría."""
-    from ..models_secretaria import Subsecretaria
+    from ..models import Subsecretaria
     secretaria_id = request.GET.get("secretaria")
     qs = Subsecretaria.objects.filter(activo=True).order_by('nombre')
     if secretaria_id:
@@ -66,7 +66,7 @@ def inicio_view(request):
 
     from django.db.models import Count, Q
     from django.utils import timezone
-    from legajos.models_programas import DerivacionPrograma, InscripcionPrograma, Programa
+    from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
     User = get_user_model()
     ahora = timezone.now()

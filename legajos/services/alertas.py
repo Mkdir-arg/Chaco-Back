@@ -4,14 +4,13 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils import timezone
 
-from ..linking import get_legajos_queryset_for_ciudadano
+from .linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     AlertaCiudadano,
     Ciudadano,
-    Derivacion,
     LegajoAtencion,
 )
-from ..models_contactos import HistorialContacto, VinculoFamiliar
+from ..models.contactos import HistorialContacto, VinculoFamiliar
 
 
 class AlertasService:
@@ -25,7 +24,6 @@ class AlertasService:
             legajos = get_legajos_queryset_for_ciudadano(
                 ciudadano,
                 LegajoAtencion.objects.select_related("responsable").prefetch_related(
-                    "derivaciones",
                     "historial_contactos",
                 ),
             )
@@ -125,23 +123,6 @@ class AlertasService:
                     "CONTACTOS_FALLIDOS",
                     "MEDIA",
                     f"{contactos_fallidos} contactos fallidos en el último mes",
-                )
-            )
-
-        derivaciones_pendientes = Derivacion.objects.filter(
-            legajo=legajo,
-            estado="PENDIENTE",
-            creado__lte=timezone.now() - timedelta(days=7),
-        ).count()
-
-        if derivaciones_pendientes > 0:
-            alertas.append(
-                AlertasService._crear_alerta(
-                    ciudadano,
-                    legajo,
-                    "DERIVACION_PENDIENTE",
-                    "MEDIA",
-                    f"{derivaciones_pendientes} derivación(es) pendiente(s)",
                 )
             )
 

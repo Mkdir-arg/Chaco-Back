@@ -1,6 +1,6 @@
 import re
 
-from core.cache_decorators import invalidate_cache_pattern
+from core.services.cache import invalidate_cache_pattern
 
 from .consulta_renaper import consultar_datos_renaper
 

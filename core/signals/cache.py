@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from ..cache_decorators import invalidate_cache_pattern
+from ..services.cache import invalidate_cache_pattern
 
 @receiver([post_save, post_delete], sender='legajos.LegajoAtencion')
 def invalidate_legajos_cache(sender, **kwargs):

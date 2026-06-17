@@ -1,9 +1,9 @@
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from core.cache_decorators import invalidate_cache_pattern
+from core.services.cache import invalidate_cache_pattern
 
-from ..models import Ciudadano, Derivacion, LegajoAtencion
+from ..models import Ciudadano, LegajoAtencion
 
 
 @receiver([post_save, post_delete], sender=Ciudadano)
@@ -21,11 +21,5 @@ def invalidate_legajo_cache(sender, **kwargs):
     invalidate_cache_pattern("reportes")
     invalidate_cache_pattern("dashboard")
 
-
-@receiver([post_save, post_delete], sender=Derivacion)
-def invalidate_derivacion_cache(sender, **kwargs):
-    """Invalida cache cuando se modifica una derivación."""
-    invalidate_cache_pattern("derivacion")
-    invalidate_cache_pattern("reportes")
 
 

@@ -2,7 +2,7 @@
 
 **Tipo:** Propuesta de épica (documento de trabajo interno)
 **Estado:** En análisis (borrador en construcción)
-**Fecha:** 2026-06-04 · **Última actualización:** 2026-06-08
+**Fecha:** 2026-06-04 · **Última actualización:** 2026-06-16
 **Responsable (ICORE):** functional-analyst
 **Programa:** Becas (primer programa sobre el módulo genérico de Programas)
 **Módulos Django candidatos:** `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (roles/permisos)
@@ -35,9 +35,9 @@ Jerarquía (actualizada: se agrega **Subsegmento**; los requisitos de segmento p
 
 ```
 Programa  (Becas)
-   └─ Convocatoria              (1..N; al crearla se selecciona UN Segmento)
+   └─ Convocatoria              (1..N; segmento requerido + subsegmento opcional)
         ├─ Segmento             (sub-modalidad de la beca → cupo propio + requisitos NATIVOS configurables)
-        │     └─ Subsegmento    (nivel opcional configurable, ej. Ladrillo / Carbón en Producción Territorial)
+        │     └─ Subsegmento    (nivel opcional; tiene cupo propio; para seleccionarlo el segmento debe estar elegido)
         └─ Relevamiento         (campaña de campo, asignada a UN territorial, con fecha y zona)
              └─ Formulario       (N por relevamiento; cada uno = 1 persona / legajo)
 ```
@@ -45,13 +45,13 @@ Programa  (Becas)
 | Entidad | Descripción | Notas clave |
 |---|---|---|
 | **Programa** | Marco genérico. Becas es el primero; Ñachec es otro programa. | El **cupo** vive a nivel **Segmento** (no a nivel Programa). |
-| **Convocatoria** | Agrupador dentro del programa. Un programa tiene 1..N convocatorias. Al crearla se **selecciona un Segmento**. | — |
+| **Convocatoria** | Agrupador dentro del programa. Un programa tiene 1..N convocatorias. Al crearla se **selecciona un Segmento** (requerido) y opcionalmente un **Subsegmento** de ese segmento. Para elegir un subsegmento el segmento debe estar seleccionado primero. | Si tiene subsegmento, el cupo se descuenta del subsegmento; si no, del segmento. |
 | **Segmento** | Sub-modalidad de la beca (Producción Territorial/Fuego y Barro, Cultura/Mi Pequeño Artista, Futuro Joven, Comunidades Originarias/Mamá Ñachec, Redes de Fe, Deportes/Talento Deportivo, Vivienda/Casa Ñachec — ver §6.2). | Define **cupo propio** y sus **requisitos específicos NATIVOS** (configurables; **ya no vienen de SIS**). |
-| **Subsegmento** | Nivel **opcional configurable** dentro de un segmento (ej. **Ladrillo / Carbón** en Producción Territorial). | Configurable; puede tener requisitos propios. |
+| **Subsegmento** | Nivel **opcional configurable** dentro de un segmento (ej. **Ladrillo / Carbón** en Producción Territorial). | Tiene **`cupo_maximo` propio** y puede tener requisitos propios. La suma de cupos de los subsegmentos de un segmento no puede superar el cupo del segmento (RN-40). |
 | **Relevamiento** | Campaña de campo asignada a **un solo** territorial. Se **auto-nombra** "Relevamiento XXX". | Tiene territorial, fecha/plazo y zona/localidad. Reasignable. |
 | **Formulario** | Una persona relevada. N por relevamiento. | Campos: ver **§7.1** + requisitos generales (13 preguntas) y de segmento. |
 | **Persona / Legajo** | El ciudadano relevado. Se busca en `legajos`: si existe se relaciona, si no se crea. | El legajo se crea **al enviar** el formulario. Una persona puede estar en **N programas** a la vez. La relación legajo↔programa se visualiza mediante **solapas dinámicas**: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente mostrando el estado (aprobado, rechazado, con cupo, etc.). |
-| **Cupo** | Número de becas disponibles **por Segmento** (parametría: cantidad de segmentos + cupo por segmento). | Se ocupa **después** de validar con SIS, no al aprobar. |
+| **Cupo** | Número de becas disponibles **por Segmento**. Si el segmento **no tiene subsegmentos**, el cupo del segmento es el total. Si **tiene subsegmentos**, el cupo se distribuye: cada uno tiene su propio `cupo_maximo` y `sum(subsegmentos.cupo_maximo) <= segmento.cupo_maximo` (RN-40). | Se ocupa **después** de validar con SIS, no al aprobar. |
 | **Lista de espera** | Personas validadas-OK que no entraron por cupo lleno. | El admin promueve **a mano**. |
 
 ---
@@ -83,7 +83,7 @@ un esquema paralelo.
    los **requisitos generales** (compartidos por todas las convocatorias) y los **requisitos
    de cada segmento** (**nativos, configurables**; ya no vienen de SIS). Crea una o varias
    **convocatorias** y, al crear cada una, **selecciona el segmento**; sus requisitos quedan
-   visibles en la convocatoria. Dentro de la convocatoria crea **relevamientos**; al crear un
+   visibles en la convocatoria. Dentro de la convocatoria, si corresponde, también puede **seleccionar el subsegmento** del segmento elegido (para elegirlo primero debe estar el segmento). Dentro de la convocatoria crea **relevamientos**; al crear un
    relevamiento define: **territorial asignado**, **fecha/plazo** y **zona/localidad**. El
    relevamiento se **auto-nombra** "Relevamiento XXX". Puede **reasignarlo** a otro territorial.
 2. **Inicio en campo (territorial).** El territorial entra a la app, ve el **listado de
@@ -171,8 +171,7 @@ valida **Nodo** (admin/coordinador); SIS solo hace las **incompatibilidades** (R
 
 ## 6. Cupo, validación SIS y lista de espera
 
-- El **cupo es del Segmento** (no del relevamiento ni del programa global). El territorial
-  releva **sin límite**.
+- El **cupo es del Segmento** (no del relevamiento ni del programa global). Si el segmento **no tiene subsegmentos**, el cupo del segmento es el total. Si **tiene subsegmentos**, cada uno tiene su propio `cupo_maximo`; la suma no puede superar el del segmento (RN-40). El territorial releva **sin límite**.
 - El **consumo de cupo NO ocurre al aprobar**, sino tras la validación **SIS**:
   admin confirma (OKA en Nodo) → **se dispara automáticamente** la consulta a SIS
   (**síncrona**: el admin espera la respuesta) → si SIS responde **OKA** y hay cupo →
@@ -260,7 +259,7 @@ valida **Nodo** (admin/coordinador); SIS solo hace el **control de incompatibili
 | Tipo | Configuración | Visibilidad |
 |---|---|---|
 | **Requisitos generales** | Configurables en **Configuración del programa**; aplican a **todos los segmentos**. Son el **Cuestionario social de 13 preguntas** (§6.3). | **Se responden en el formulario** por todo beneficiario. |
-| **Requisitos de segmento / subsegmento** | **Nativos, configurables** al configurar el segmento/subsegmento. | Quedan visibles en la convocatoria; informativos para el territorial. |
+| **Requisitos de segmento / subsegmento** | **Nativos, configurables** al configurar el segmento/subsegmento. Cada requisito tiene un tipo de campo (STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO). | **Generan campos obligatorios en el formulario del territorial** (no son meramente informativos). Los adjuntos específicos del segmento se modelan como requisitos tipo ARCHIVO. |
 
 ### Requisitos generales del sistema (doc Ministerio — todos los segmentos)
 - **Registro único** del beneficiario: datos personales, domicilio, CUIL, **estudios**,
@@ -280,9 +279,12 @@ valida **Nodo** (admin/coordinador); SIS solo hace el **control de incompatibili
 DNI** (apellido, nombre, fecha de nacimiento, CUIL, sexo, domicilio) **no se preguntan** —
 vienen autocompletados. **Solo se cargan a mano si no hay conexión.**
 
-### Cupo por segmento
-El **cupo se configura por segmento** (parametría: cantidad de segmentos + cupo por segmento;
-RN-01/34). El consumo (post doble-OKA) descuenta del **cupo del segmento**.
+### Cupo por segmento y subsegmento
+El **cupo se configura por segmento** (parametría; RN-01/34/40). Regla:
+- **Sin subsegmentos:** el `cupo_maximo` del segmento es el cupo total.
+- **Con subsegmentos:** cada subsegmento tiene su propio `cupo_maximo`; la suma no puede superar el del segmento (`sum(subsegmentos.cupo_maximo) <= segmento.cupo_maximo`). El sistema valida esta restricción al crear o editar el cupo de un subsegmento (RN-40).
+
+El consumo (post doble-OKA) descuenta del **cupo del subsegmento** (si aplica) o del **segmento**.
 
 Detalle de **requisitos por segmento** y el **Cuestionario social (13 preguntas)** en el
 **Anexo §6.3**.
@@ -333,7 +335,7 @@ segmentos).
 
 | Pantalla | Operaciones principales |
 |---|---|
-| **Convocatorias** | ABM + al crear **seleccionar el segmento**; sus requisitos (nativos del segmento) quedan visibles en la convocatoria. Listar, editar, ver, (des)activar. |
+| **Convocatorias** | ABM + al crear **seleccionar el segmento** (requerido) y opcionalmente el **subsegmento** (filtrado por segmento; bloqueado hasta elegir segmento; oculto si el segmento no tiene subsegmentos). Los requisitos nativos del segmento y del subsegmento quedan visibles en el detalle. Listar, editar, ver, (des)activar. |
 | **Relevamientos** | ABM + **asignar/reasignar** territorial, fecha/plazo, zona. Ver estado. |
 | **Revisión de relevamiento** | Entrar a un relevamiento finalizado → listado de formularios → abrir uno por uno → **aprobar/rechazar** (motivo). Botón **"Validar contra SIS"** disponible para revalidación manual. |
 | **Validación territorial (Coordinador)** | El coordinador **valida las postulaciones** del territorio y **reprograma** relevamientos vencidos. |
@@ -541,7 +543,7 @@ exponer esa acción de revalidar.
 
 | ID | Regla |
 |---|---|
-| RN-01 | El cupo es **por Segmento** (parametría: cantidad de segmentos + cupo por segmento); el territorial releva sin límite. |
+| RN-01 | El cupo es **por Segmento** (parametría). Si el segmento **no tiene subsegmentos**, su `cupo_maximo` es el cupo total. Si **tiene subsegmentos**, el cupo se distribuye por subsegmento (ver RN-40). El territorial releva sin límite. |
 | RN-02 | El cupo se consume **solo** tras SIS = OK y si hay disponibilidad. |
 | RN-03 | Sin cupo disponible, la persona validada-OK va a **lista de espera**. |
 | RN-04 | La salida de lista de espera es **manual** (admin promueve). |
@@ -570,9 +572,9 @@ exponer esa acción de revalidar.
 | RN-27 | Un usuario **puede tener múltiples roles a la vez** (ej. **Administrador** de un programa y **Territorial** de otro). El acceso por módulo/programa depende de los roles asignados. |
 | RN-28 | El relevamiento que **no se inicia el día asignado vence** y el **Coordinador lo reprograma** (nueva fecha). |
 | RN-29 | El admin **puede editar los datos del formulario** desde el backoffice **antes de aprobar/rechazar**. |
-| RN-30 | Un **Segmento** es una sub-modalidad de la beca. La **convocatoria** apunta a un segmento (se selecciona al crearla). |
+| RN-30 | La convocatoria requiere un **segmento** (siempre). Opcionalmente se puede seleccionar un **subsegmento** del segmento elegido; para elegirlo el segmento debe estar seleccionado primero. Si la convocatoria tiene subsegmento, el cupo se descuenta del subsegmento; si no, del segmento. |
 | RN-31 | **Requisitos generales:** preguntas **configurables** desde Configuración del programa, **compartidas por todas las convocatorias**; son el **Cuestionario social de 13 preguntas** (§6.3) y **se responden en el formulario**. |
-| RN-32 | **Requisitos de segmento/subsegmento:** son **nativos** del sistema, **configurables** al configurar el segmento (ya **no vienen de SIS**); se muestran **informativos** al territorial al completar el formulario. |
+| RN-32 | **Requisitos de segmento/subsegmento:** son **nativos** del sistema, **configurables** al configurar el segmento (ya **no vienen de SIS**); **generan campos obligatorios en el formulario del territorial** (cada requisito tiene un tipo — STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO). Los requisitos tipo ARCHIVO generan una sección de adjunto obligatorio. Los requisitos del segmento padre son heredados por los formularios de sus subsegmentos (herencia por query). |
 | RN-33 | La **evaluación** se reparte: **Nodo** valida los **requisitos nativos** (admin/coordinador en la revisión) y **SIS** hace el **control de incompatibilidades** (devuelve **OKA / negativa**). |
 | RN-34 | El **cupo se descuenta del segmento** correspondiente, tras doble-OKA (Nodo + SIS). |
 | RN-35 | Existe el nivel **Subsegmento** (opcional, configurable) dentro de un segmento (ej. Ladrillo/Carbón en Producción Territorial). |
@@ -580,6 +582,7 @@ exponer esa acción de revalidar.
 | RN-37 | Los datos que provee **RENAPER o escaneo de DNI** (personales, CUIL, domicilio) **no se preguntan** en el formulario; **solo se cargan a mano sin conexión**. |
 | RN-38 | El **control de incompatibilidades lo realiza SIS** (es el **OKA / negativa** de la integración): fuera de Chaco, planta/contrato estatal, otros programas, relación de dependencia, ingresos > 3 SMVM, etc. **Negativa de SIS = incompatibilidad** (con motivo); sin OKA no ocupa cupo. |
 | RN-39 | **Documentación obligatoria** general: DNI, certificado de domicilio, CUIL, constancia de estudios y convenio de confidencialidad/uso de imagen; más la **documentación específica por segmento**. |
+| RN-40 | Al crear o editar el `cupo_maximo` de un subsegmento, el sistema valida que `sum(hermanos.cupo_maximo) + nuevo_cupo <= segmento.cupo_maximo`. Si la validación falla, la operación es rechazada con mensaje de error indicando el máximo disponible. |
 
 ---
 
@@ -632,7 +635,7 @@ Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 ## 14. Próximos pasos
 
 1. **Sistema SIS** — cerrar S-1, S-2, S-4, S-5 y S-12 (contrato técnico del control de incompatibilidades).
-2. **Segmentos / requisitos** — confirmar "Solidaria" (R-1.c), cupo por subsegmento (R-8.b) y si los requisitos/documentación son campos del formulario o informativos (R-13).
+2. **Segmentos / requisitos** — confirmar "Solidaria" (R-1.c). *(R-13 cerrada: los requisitos son campos del formulario — ver RN-32. R-8.b cerrada: ver RN-40.)*
 3. **Flujo funcional** — cerrado (reapertura 1.b resuelta). No quedan pendientes funcionales nuestros; el resto depende del **contrato de SIS** (paso 1).
 4. **Investigación de código** — completar C-1 (revisar módulos existentes).
 5. **Control estricto** — cerrar todas las preguntas bloqueantes y verificar consistencia.
@@ -730,10 +733,10 @@ Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 |---|---|---|:--:|
 | R-1.c | El segmento **"Solidaria"** no figura en el doc del Ministerio. ¿Sigue existiendo? | Equipo Ministerio | No bloq. |
 | R-6 | **Asignación persona↔segmento:** ¿queda determinado por la convocatoria (implícito) o se asigna por persona? ¿Puede una persona estar en más de un segmento? | Equipo Ministerio | No bloq. |
-| R-8 | **Cardinalidad convocatoria↔segmento:** ¿una convocatoria apunta a **un solo** segmento o puede tener **varios**? | Equipo Ministerio | No bloq. |
-| R-8.b | **¿Cupo por segmento o por subsegmento?** (ej. Ladrillo/Carbón) | Equipo Ministerio | No bloq. |
+| R-8 | ~~Cardinalidad convocatoria↔segmento~~ **Cerrada:** una convocatoria apunta a un solo segmento (requerido) y opcionalmente a un subsegmento de ese segmento. No puede tener varios segmentos. | — | **Cerrada** |
+| ~~R-8.b~~ | ~~¿Cupo por segmento o por subsegmento?~~ **Cerrada:** los subsegmentos tienen su propio `cupo_maximo`; la suma no puede superar el del segmento. Sin subsegmentos, el cupo del segmento es el total (ver RN-40). | — | **Cerrada** |
 | R-11 | **Documentación/adjuntos:** confirmar obligatoriedades por segmento y cuáles son **imágenes cargadas en el formulario**. | Equipo Ministerio | No bloq. |
-| R-13 | **Requisitos y documentación como campos vs informativo:** los requisitos configurables y la documentación (certificado de domicilio, CUIL, constancia de estudios, convenio de confidencialidad) ¿aparecen como **campos del formulario** o son solo **a modo informativo**? | Equipo Ministerio | Por definir |
+| ~~R-13~~ | ~~Requisitos y documentación como campos vs informativo.~~ **CERRADA:** los requisitos de segmento/subsegmento **generan campos obligatorios en el formulario del territorial** (tipo STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO). Los adjuntos generales (DNI, cert. domicilio, constancia, convenio) se modelan como `PreguntaGlobal` tipo `ARCHIVO`. Ver RN-32 actualizado. | — | **Cerrada** |
 
 ### 16.6 Asunciones pendientes de confirmación
 

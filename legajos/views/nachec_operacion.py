@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
-from ..models_nachec import CasoNachec, HistorialEstadoCaso, RelevamientoNachec, TareaNachec
+from ..models.nachec import CasoNachec, HistorialEstadoCaso, RelevamientoNachec, TareaNachec
 from ..services import ServicioOperacionNachec
 
 

@@ -1,0 +1,57 @@
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from ..models import (
+    Ciudadano,
+    AlertaCiudadano,
+)
+
+
+class CiudadanoSerializer(serializers.ModelSerializer):
+    """Serializer para el modelo Ciudadano"""
+    legajos_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Ciudadano
+        fields = [
+            'id', 'dni', 'nombre', 'apellido', 'fecha_nacimiento',
+            'genero', 'telefono', 'email', 'domicilio', 'activo',
+            'legajos_count', 'creado', 'modificado'
+        ]
+        read_only_fields = ['id', 'creado', 'modificado']
+
+    def get_legajos_count(self, obj):
+        return getattr(obj, 'legajos_count', obj.inscripciones_programas.count())
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Serializer básico para User"""
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email']
+
+
+
+class AlertaCiudadanoSerializer(serializers.ModelSerializer):
+    """Serializer para AlertaCiudadano"""
+    ciudadano_nombre = serializers.CharField(source='ciudadano.nombre_completo', read_only=True)
+    legajo_codigo = serializers.CharField(source='legajo.codigo', read_only=True)
+    dispositivo_nombre = serializers.SerializerMethodField()
+    cerrada_por_nombre = serializers.CharField(source='cerrada_por.get_full_name', read_only=True)
+
+    def get_dispositivo_nombre(self, obj):
+        if not obj.legajo or not obj.legajo.dispositivo:
+            return None
+        return obj.legajo.dispositivo.nombre
+
+    class Meta:
+        model = AlertaCiudadano
+        fields = [
+            'id', 'ciudadano', 'ciudadano_nombre', 'legajo', 'legajo_codigo',
+            'dispositivo_nombre', 'tipo', 'prioridad', 'mensaje', 'activa',
+            'fecha_cierre', 'cerrada_por', 'cerrada_por_nombre', 'creado', 'modificado'
+        ]
+        read_only_fields = ['id', 'creado', 'modificado']
+
+
+from .contactos import *  # noqa: F401,F403,E402

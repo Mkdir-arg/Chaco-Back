@@ -1,4 +1,4 @@
-"""
+﻿"""
 Vista de ejemplo para el sistema de solapas dinámicas
 """
 from django.shortcuts import render, get_object_or_404, redirect
@@ -8,7 +8,7 @@ from django.views.generic import DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from ..models import Ciudadano
-from ..models_programas import Programa, InscripcionPrograma, DerivacionPrograma
+from programas.models import Programa, InscripcionPrograma, DerivacionPrograma
 from ..services import SolapasService
 
 
@@ -68,7 +68,7 @@ def derivar_a_programa(request, ciudadano_id):
         messages.error(request, 'Debe seleccionar un programa destino')
         return redirect('legajos:ciudadano_detalle', ciudadano_id=ciudadano_id)
     
-    programa_destino = get_object_or_404(Programa, id=programa_destino_id, activo=True)
+    programa_destino = get_object_or_404(Programa, id=programa_destino_id, estado=Programa.Estado.ACTIVO)
     
     # Obtener programa origen (si existe)
     programa_origen = None
@@ -122,7 +122,7 @@ def inscribir_a_programa(request, ciudadano_id):
         programa_id = request.POST.get('programa')
         notas = request.POST.get('notas', '')
         
-        programa = get_object_or_404(Programa, id=programa_id, activo=True)
+        programa = get_object_or_404(Programa, id=programa_id, estado=Programa.Estado.ACTIVO)
         
         try:
             inscripcion = SolapasService.crear_inscripcion_directa(

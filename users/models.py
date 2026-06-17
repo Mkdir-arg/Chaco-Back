@@ -44,7 +44,7 @@ class RolMeta(models.Model):
     protegido = models.BooleanField(default=False, verbose_name="Protegido")
     activo = models.BooleanField(default=True, verbose_name="Activo")
     programa = models.ForeignKey(
-        "legajos.Programa",
+        "programas.Programa",
         on_delete=models.PROTECT,
         null=True,
         blank=True,

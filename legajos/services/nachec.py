@@ -5,7 +5,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from ..models_nachec import (
+from ..models.nachec import (
     CasoNachec,
     EstadoCaso,
     EstadoTarea,

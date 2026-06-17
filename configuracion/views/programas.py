@@ -1,4 +1,4 @@
-"""
+﻿"""
 Wizard de configuración de programas sociales (US-005).
 4 pasos con estado en sesión. Requiere grupo programaConfigurar.
 """
@@ -8,10 +8,10 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.rbac import puede, requiere
-from core.models_secretaria import Subsecretaria
-from legajos.models_programas import Programa
+from core.models import Subsecretaria
+from programas.models import Programa
 
-from ..forms_programas import (
+from ..forms.programas import (
     ProgramaPaso1Form,
     ProgramaPaso2Form,
     ProgramaPaso3Form,

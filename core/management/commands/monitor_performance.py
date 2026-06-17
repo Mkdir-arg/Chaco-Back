@@ -1,6 +1,6 @@
-from django.core.management.base import BaseCommand
+﻿from django.core.management.base import BaseCommand
 from django.db import connection
-from core.performance_analyzer import PerformanceAnalyzer
+from core.performance.performance_analyzer import PerformanceAnalyzer
 import time
 import logging
 

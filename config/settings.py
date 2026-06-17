@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     "conversaciones",
     "portal",
     "tramites",
+    "programas",
     "healthcheck",
 ]
 
@@ -103,6 +104,7 @@ if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
         "configuracion": None,
         "conversaciones": None,
         "portal": None,
+        "programas": None,
     }
 
 MIDDLEWARE = [

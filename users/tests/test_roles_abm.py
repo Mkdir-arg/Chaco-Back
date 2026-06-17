@@ -1,10 +1,10 @@
-from django.contrib.auth.models import Group, Permission, User
+﻿from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
-from legajos.models_programas import Programa
+from programas.models import Programa
 from users.forms.roles import RolForm
 from users.models import Capacidad, RolMeta
 from users.selectors.roles import roles_visibles_para
@@ -17,7 +17,7 @@ def _perm(codigo):
 
 
 def _rol_admin(nombre="Admins"):
-    """Crea un rol activo con capacidades de administración + un usuario activo."""
+    """Crea un rol activo con capacidades de administraciÃ³n + un usuario activo."""
     g = Group.objects.create(name=nombre)
     RolMeta.objects.create(grupo=g, categoria="Sistema", activo=True)
     g.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
@@ -86,7 +86,7 @@ class RolesServiceTests(TestCase):
             RolesAdminService.actualizar(form, g)
 
     def test_eliminar_rol_desvincula_usuarios(self):
-        _rol_admin()  # otro admin para no disparar la auto-protección
+        _rol_admin()  # otro admin para no disparar la auto-protecciÃ³n
         g = Group.objects.create(name="Temporal")
         RolMeta.objects.create(grupo=g, categoria="Backoffice")
         u = User.objects.create_user("user-temp", password="x")
@@ -112,7 +112,7 @@ class RolesServiceTests(TestCase):
         self.assertTrue(RolesAdminService.toggle_activo(g))
 
     def test_auto_bloqueo_al_quitar_capacidad_del_unico_rol_admin(self):
-        g, _u = _rol_admin()  # único rol con administración
+        g, _u = _rol_admin()  # Ãºnico rol con administraciÃ³n
         form = RolForm(
             data={"name": g.name, "categoria": "Sistema", "capacidades": ["ciudadano.ver"]},
             instance=g,
@@ -120,13 +120,13 @@ class RolesServiceTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         with self.assertRaises(rbac.SinAdministradorError):
             RolesAdminService.actualizar(form, g)
-        # La transacción se revierte: el rol conserva la capacidad de administración
+        # La transacciÃ³n se revierte: el rol conserva la capacidad de administraciÃ³n
         g.refresh_from_db()
         self.assertIn("usuario.administrar", rbac.capacidades_de_grupo(g))
 
 
 class RolProgramaFormTests(TestCase):
-    """#64 — categoría 'Programa' + FK programa con validación cruzada RN-1."""
+    """#64 â€” categorÃ­a 'Programa' + FK programa con validaciÃ³n cruzada RN-1."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -174,11 +174,11 @@ class RolProgramaFormTests(TestCase):
 
 
 class RolAlcanceTests(TestCase):
-    """#66 — ABM de Roles con alcance de Programa."""
+    """#66 â€” ABM de Roles con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ñachec")
+        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
 
         # Rol administrador de Becas (programa.configurar) + su usuario.
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
@@ -190,13 +190,13 @@ class RolAlcanceTests(TestCase):
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
-        # Otro rol de Becas, un rol de Ñachec y un rol global.
+        # Otro rol de Becas, un rol de Ã‘achec y un rol global.
         self.rol_becas = Group.objects.create(name="Territorial Becas")
         RolMeta.objects.create(
             grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA,
             programa=self.becas, activo=True,
         )
-        self.rol_nachec = Group.objects.create(name="Territorial Ñachec")
+        self.rol_nachec = Group.objects.create(name="Territorial Ã‘achec")
         RolMeta.objects.create(
             grupo=self.rol_nachec, categoria=rbac.CATEGORIA_PROGRAMA,
             programa=self.nachec, activo=True,
@@ -206,13 +206,13 @@ class RolAlcanceTests(TestCase):
 
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
-    # --- Listado / agrupación ---
+    # --- Listado / agrupaciÃ³n ---
     def test_listado_global_ve_todo(self):  # TC-66-01 / TC-66-10
         data = roles_visibles_para(self.su)
         cats = {c for c, _ in data["categorias"]}
         self.assertIn("Backoffice", cats)
         progs = {p.nombre for p, _ in data["programas"]}
-        self.assertEqual(progs, {"Becas", "Ñachec"})
+        self.assertEqual(progs, {"Becas", "Ã‘achec"})
 
     def test_listado_admin_programa_solo_su_subseccion(self):  # TC-66-02
         data = roles_visibles_para(self.admin_becas)
@@ -223,9 +223,9 @@ class RolAlcanceTests(TestCase):
         self.assertEqual(nombres, {"Admin Becas", "Territorial Becas"})
 
     def test_programa_sin_roles_no_subseccion(self):  # TC-66-11
-        Programa.objects.create(codigo="VACIO", nombre="Vacío")
+        Programa.objects.create(codigo="VACIO", nombre="VacÃ­o")
         progs = {p.nombre for p, _ in roles_visibles_para(self.su)["programas"]}
-        self.assertNotIn("Vacío", progs)
+        self.assertNotIn("VacÃ­o", progs)
 
     # --- Formulario ---
     def test_form_admin_programa_fija_programa_y_arbol(self):  # TC-66-03
@@ -250,11 +250,11 @@ class RolAlcanceTests(TestCase):
             data={"name": "Coord Becas 2", "capacidades": ["relevamiento.gestionar", "ciudadano.ver"]},
             operador=self.admin_becas,
         )
-        self.assertFalse(form.is_valid())  # ciudadano.ver no está en las choices acotadas
+        self.assertFalse(form.is_valid())  # ciudadano.ver no estÃ¡ en las choices acotadas
 
     def test_form_global_programa_combo(self):  # TC-66-04
         form = RolForm(
-            data={"name": "Rol Ñachec", "categoria": rbac.CATEGORIA_PROGRAMA,
+            data={"name": "Rol Ã‘achec", "categoria": rbac.CATEGORIA_PROGRAMA,
                   "programa": self.nachec.pk, "capacidades": ["relevamiento.gestionar"]},
             operador=self.su,
         )

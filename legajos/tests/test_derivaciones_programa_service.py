@@ -1,11 +1,11 @@
-from django.contrib.auth.models import User
+﻿from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from core.models import Localidad, Municipio, Provincia
 from legajos.models import Ciudadano
-from legajos.models_nachec import CasoNachec, EstadoCaso, HistorialEstadoCaso, TareaNachec
-from legajos.models_programas import DerivacionPrograma, Programa
+from legajos.models.nachec import CasoNachec, EstadoCaso, HistorialEstadoCaso, TareaNachec
+from programas.models import DerivacionPrograma, Programa
 from legajos.services import DerivacionProgramaService
 
 

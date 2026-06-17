@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
-from ..ml_predictor import RiskPredictor
+from ..services.ml_predictor import RiskPredictor
 from ..models import Ciudadano, LegajoAtencion
 from ..selectors import (
     build_ciudadano_actividades_payload,

@@ -1,10 +1,10 @@
-import datetime
+﻿import datetime
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from conversaciones.models import Conversacion
-from legajos.models_programas import DerivacionPrograma, InscripcionPrograma
+from programas.models import DerivacionPrograma, InscripcionPrograma
 
 
 def get_ciudadano_perfil_context(*, user, ciudadano):

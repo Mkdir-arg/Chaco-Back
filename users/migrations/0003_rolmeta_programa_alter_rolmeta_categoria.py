@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('legajos', '0001_initial'),
+        ('programas', '0001_initial'),
         ('users', '0002_capacidad_remove_profile_rol_rolmeta'),
     ]
 
@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='rolmeta',
             name='programa',
-            field=models.ForeignKey(blank=True, help_text="Solo para roles de categoría 'Programa': acota el rol a ese programa.", null=True, on_delete=django.db.models.deletion.PROTECT, related_name='roles_meta', to='legajos.programa', verbose_name='Programa'),
+            field=models.ForeignKey(blank=True, help_text="Solo para roles de categoría 'Programa': acota el rol a ese programa.", null=True, on_delete=django.db.models.deletion.PROTECT, related_name='roles_meta', to='programas.programa', verbose_name='Programa'),
         ),
         migrations.AlterField(
             model_name='rolmeta',

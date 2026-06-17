@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from core.models import Municipio
 
-from ..models_nachec import CasoNachec, EvaluacionVulnerabilidad, PlanIntervencionNachec, PrestacionNachec, RelevamientoNachec, TareaNachec
+from ..models.nachec import CasoNachec, EvaluacionVulnerabilidad, PlanIntervencionNachec, PrestacionNachec, RelevamientoNachec, TareaNachec
 
 
 @login_required

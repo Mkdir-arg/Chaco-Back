@@ -1,7 +1,7 @@
-"""Comando idempotente para garantizar programas base en desarrollo local."""
+﻿"""Comando idempotente para garantizar programas base en desarrollo local."""
 from django.core.management.base import BaseCommand
 
-from legajos.models_programas import Programa
+from programas.models import Programa
 
 
 class Command(BaseCommand):

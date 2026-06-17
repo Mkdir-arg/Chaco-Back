@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.html import escape
 
-from core.cache_decorators import invalidate_cache_pattern
+from core.services.cache import invalidate_cache_pattern
 
 from ..models import Conversacion, Mensaje
 from ..selectors import get_conversaciones_sin_asignar

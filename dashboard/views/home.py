@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.views.generic import TemplateView
 
 from legajos.models import AlertaCiudadano, Ciudadano
-from legajos.models_programas import InscripcionPrograma
+from programas.models import InscripcionPrograma
 from users.models import User
 
 from dashboard.utils import contar_ciudadanos, contar_usuarios

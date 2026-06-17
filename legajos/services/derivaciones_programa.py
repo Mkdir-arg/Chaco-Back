@@ -1,12 +1,12 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from ..models_nachec import CasoNachec, HistorialEstadoCaso, TareaNachec
-from ..models_programas import DerivacionPrograma
+from ..models.nachec import CasoNachec, HistorialEstadoCaso, TareaNachec
+from programas.models import DerivacionPrograma
 
 
 @dataclass(frozen=True)

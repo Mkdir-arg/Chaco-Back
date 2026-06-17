@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from ..linking import get_legajo_ids_for_programas, get_programa_ids_for_legajo_ids
+from .linking import get_legajo_ids_for_programas, get_programa_ids_for_legajo_ids
 from ..models import AlertaCiudadano, LegajoAtencion
 from core.rbac import puede
 

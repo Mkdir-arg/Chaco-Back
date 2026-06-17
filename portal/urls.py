@@ -1,9 +1,9 @@
 from django.urls import path
 
-from .views_public import (
+from .views.public import (
     PortalHomeView,
 )
-from .views_ciudadano import (
+from .views.ciudadano import (
     CiudadanoLoginView,
     CiudadanoLogoutView,
     CiudadanoPasswordResetCompleteView,

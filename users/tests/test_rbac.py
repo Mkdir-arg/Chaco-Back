@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AnonymousUser, Group, Permission, User
+﻿from django.contrib.auth.models import AnonymousUser, Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.template.loader import render_to_string
@@ -6,7 +6,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from core import rbac
-from legajos.models_programas import Programa
+from programas.models import Programa
 from users.models import Capacidad, RolMeta
 
 
@@ -18,8 +18,8 @@ def _perm(codigo):
 def render_sidebar(user):
     """Renderiza el sidebar del backoffice para ``user`` de forma aislada.
 
-    Evita falsos positivos: el cuerpo de las páginas (p. ej. ``core:inicio``)
-    puede contener enlaces/textos que en el menú están gateados por capacidad.
+    Evita falsos positivos: el cuerpo de las pÃ¡ginas (p. ej. ``core:inicio``)
+    puede contener enlaces/textos que en el menÃº estÃ¡n gateados por capacidad.
     """
     req = RequestFactory().get("/")
     req.user = user
@@ -199,11 +199,11 @@ class PortalCiudadanoSinLegajoTests(TestCase):
 
 
 class MotorPuedeProgramaTests(TestCase):
-    """#65 — puede()/puede_alguna() con alcance de Programa (retrocompatible)."""
+    """#65 â€” puede()/puede_alguna() con alcance de Programa (retrocompatible)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ñachec")
+        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
         self.rol = Group.objects.create(name="Territorial Becas")
         RolMeta.objects.create(
             grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
@@ -275,29 +275,29 @@ class MotorPuedeProgramaTests(TestCase):
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
 
     def test_no_falso_positivo_por_rol_global_ajeno(self):
-        # Regresión: un rol global (programa=null) con la cap, al que el usuario NO
-        # pertenece, no debe otorgársela en un programa donde no la tiene.
+        # RegresiÃ³n: un rol global (programa=null) con la cap, al que el usuario NO
+        # pertenece, no debe otorgÃ¡rsela en un programa donde no la tiene.
         glob = Group.objects.create(name="Admin total ajeno")
         RolMeta.objects.create(grupo=glob, categoria="Sistema", activo=True, programa=None)
-        glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en glob
+        glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en glob
         u = self._u()
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
         self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
 
     def test_no_falso_positivo_por_cap_en_otro_programa(self):
-        # Regresión: la cap del user está en Becas; que un rol AJENO de Ñachec tenga
-        # la misma cap no debe hacer que puede(..., programa=ñachec) dé True.
-        otro = Group.objects.create(name="Territorial Ñachec ajeno")
+        # RegresiÃ³n: la cap del user estÃ¡ en Becas; que un rol AJENO de Ã‘achec tenga
+        # la misma cap no debe hacer que puede(..., programa=Ã±achec) dÃ© True.
+        otro = Group.objects.create(name="Territorial Ã‘achec ajeno")
         RolMeta.objects.create(
             grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True
         )
-        otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en otro
+        otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en otro
         u = self._u()
         self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
 
 
 class AutoProteccionProgramaTests(TestCase):
-    """#68 — asegurar_admin_restante(programa) (RN-8) + superusuario cuenta."""
+    """#68 â€” asegurar_admin_restante(programa) (RN-8) + superusuario cuenta."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -329,7 +329,7 @@ class AutoProteccionProgramaTests(TestCase):
         with self.assertRaises(rbac.SinAdministradorProgramaError):
             rbac.asegurar_admin_restante(programa=self.becas)
 
-    def test_superusuario_cuenta(self):  # decisión PM: el superuser cuenta
+    def test_superusuario_cuenta(self):  # decisiÃ³n PM: el superuser cuenta
         self.maria.delete()
         User.objects.create_superuser("root", "root@example.com", "x")
         rbac.asegurar_admin_restante(programa=self.becas)  # no lanza
@@ -340,13 +340,13 @@ class AutoProteccionProgramaTests(TestCase):
         )
 
     def test_check_global_retrocompatible_sin_programa(self):
-        # Sin programa sigue siendo el check global (no hay admin global → lanza).
+        # Sin programa sigue siendo el check global (no hay admin global â†’ lanza).
         with self.assertRaises(rbac.SinAdministradorError):
             rbac.asegurar_admin_restante()
 
 
 class CatalogoProgramaTests(TestCase):
-    """#64 — el catálogo distingue módulos 'de programa' de los globales."""
+    """#64 â€” el catÃ¡logo distingue mÃ³dulos 'de programa' de los globales."""
 
     def test_modulos_de_programa_cerrados(self):  # TC-64-05
         de_programa = {m["modulo"] for m in rbac.CATALOGO if m.get("alcance") == "programa"}

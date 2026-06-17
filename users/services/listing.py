@@ -5,7 +5,7 @@ from django.urls import reverse
 from core.services.advanced_filters import AdvancedFilterEngine
 from users.selectors import get_usuarios_queryset
 from users.selectors.usuarios import usuarios_visibles_para
-from users.users_filter_config import (
+from .filter_config import (
     FIELD_MAP as BENEFICIARIO_FILTER_MAP,
     FIELD_TYPES as BENEFICIARIO_FIELD_TYPES,
     NUM_OPS as BENEFICIARIO_NUM_OPS,

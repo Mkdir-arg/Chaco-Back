@@ -1,4 +1,4 @@
-"""
+﻿"""
 Servicios para gestión operativa de programas sociales.
 """
 from django.db import transaction
@@ -22,7 +22,7 @@ class BajaProgramaService:
         Raises:
             ValueError: si la inscripción no existe o no está en estado válido.
         """
-        from ..models_programas import InscripcionPrograma
+        from programas.models import InscripcionPrograma
 
         try:
             inscripcion = InscripcionPrograma.objects.select_for_update().get(

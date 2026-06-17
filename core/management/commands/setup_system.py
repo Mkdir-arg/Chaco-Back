@@ -1,6 +1,6 @@
-from django.core.management.base import BaseCommand
+﻿from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from core.database_optimizations import DatabaseOptimizer
+from core.performance.database_optimizations import DatabaseOptimizer
 
 class Command(BaseCommand):
     help = 'Configura el sistema completo con todas las optimizaciones'

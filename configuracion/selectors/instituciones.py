@@ -1,16 +1,7 @@
-from django.db.models import Q
-from legajos.models import Derivacion
-from legajos.models_programas import Programa
-
-
-def get_instituciones_queryset_for_user(user, search=""):
-    return []
+from programas.models import Programa
 
 
 def build_institucion_detail_context(institucion):
-    # Contexto simplificado tras retiro de modelos institucionales legacy.
-    planes = Programa.objects.none()
-
     solapas = [
         {
             "id": "resumen",
@@ -35,7 +26,7 @@ def build_institucion_detail_context(institucion):
         "solapas": solapas,
         "personal": [],
         "evaluaciones": [],
-        "planes": planes,
+        "planes": Programa.objects.none(),
         "indicadores": [],
         "total_programas_activos": 0,
         "total_derivaciones_pendientes": 0,
@@ -44,23 +35,12 @@ def build_institucion_detail_context(institucion):
 
 
 def build_actividad_detail_context(actividad):
-    derivaciones = Derivacion.objects.filter(
-        actividad_destino=actividad,
-    ).exclude(estado="ACEPTADA").select_related(
-        "legajo",
-        "actividad_destino",
-    ).order_by("-creado")
-
     return {
         "staff": [],
-        "derivaciones": derivaciones,
+        "derivaciones": [],
         "nomina": [],
         "total_staff_activo": 0,
         "total_inscriptos_activos": 0,
         "cupo_disponible": True,
         "cupos_restantes": None,
     }
-
-
-def search_personal_for_actividad(actividad, query=""):
-    return []

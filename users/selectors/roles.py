@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from django.db.models import Count
 
 from core import rbac
-from legajos.models_programas import Programa
+from programas.models import Programa
 
 
 def _capacidades_desde_prefetch(group):

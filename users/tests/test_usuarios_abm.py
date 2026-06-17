@@ -1,10 +1,10 @@
-from django.contrib.auth.models import Group, Permission, User
+﻿from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
 from django.urls import NoReverseMatch, reverse
 
 from core import rbac
-from legajos.models_programas import Programa
+from programas.models import Programa
 from users.forms import CustomUserChangeForm, UserCreationForm
 from users.models import Capacidad, RolMeta
 from users.selectors.usuarios import (
@@ -86,11 +86,11 @@ class UsuarioToggleTests(TestCase):
 
 
 class UsuarioAlcanceProgramaTests(TestCase):
-    """#67 — ABM de Usuarios con alcance de Programa."""
+    """#67 â€” ABM de Usuarios con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ñachec")
+        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
 
         # Admin de programa Becas (programa.configurar).
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
@@ -105,12 +105,12 @@ class UsuarioAlcanceProgramaTests(TestCase):
         # Roles operativos por programa + un rol global.
         self.rol_becas = Group.objects.create(name="Operador Becas")
         RolMeta.objects.create(grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
-        self.rol_nachec = Group.objects.create(name="Operador Ñachec")
+        self.rol_nachec = Group.objects.create(name="Operador Ã‘achec")
         RolMeta.objects.create(grupo=self.rol_nachec, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True)
         self.rol_global = Group.objects.create(name="Backoffice X")
         RolMeta.objects.create(grupo=self.rol_global, categoria="Backoffice", activo=True)
 
-        # Superusuario: admin global presente para que la auto-protección global no salte.
+        # Superusuario: admin global presente para que la auto-protecciÃ³n global no salte.
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
     def test_listado_filtrado_por_programa(self):  # TC-67-01 / TC-67-09
@@ -134,9 +134,9 @@ class UsuarioAlcanceProgramaTests(TestCase):
         form = CustomUserChangeForm(operador=self.admin_becas, instance=user)
         roles = set(form.fields["groups"].queryset)
         self.assertIn(self.rol_becas, roles)
-        self.assertNotIn(self.rol_nachec, roles)  # el rol de Ñachec no aparece
+        self.assertNotIn(self.rol_nachec, roles)  # el rol de Ã‘achec no aparece
 
-    def test_guardar_no_pierde_roles_fuera_de_alcance(self):  # TC-67-05 (crítico)
+    def test_guardar_no_pierde_roles_fuera_de_alcance(self):  # TC-67-05 (crÃ­tico)
         user = User.objects.create_user("multi2", password="x")
         user.groups.add(self.rol_becas, self.rol_nachec)
         form = CustomUserChangeForm(
@@ -149,7 +149,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
             form, alcance_group_ids=alcance_roles_ids(self.admin_becas)
         )
         nombres = set(user.groups.values_list("name", flat=True))
-        self.assertIn("Operador Ñachec", nombres)   # rol fuera de alcance preservado
+        self.assertIn("Operador Ã‘achec", nombres)   # rol fuera de alcance preservado
         self.assertNotIn("Operador Becas", nombres)  # rol en alcance, deseleccionado
 
     def test_editar_datos_generales_afecta_la_cuenta(self):  # TC-67-04
@@ -166,7 +166,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         )
         user.refresh_from_db()
         self.assertEqual(user.email, "nuevo@x.com")
-        self.assertTrue(user.groups.filter(name="Operador Ñachec").exists())
+        self.assertTrue(user.groups.filter(name="Operador Ã‘achec").exists())
 
     def test_acceso_directo_a_usuario_fuera_de_alcance_redirige(self):  # TC-67-06
         u_nachec = User.objects.create_user("solo-nachec", password="x")
@@ -188,7 +188,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertEqual(self.client.get(reverse("users:usuarios")).status_code, 302)
 
     def test_usuario_con_rol_de_programa_inactivo_no_visible(self):
-        # Consistencia de alcance: un usuario cuyo único vínculo con Becas es un rol
+        # Consistencia de alcance: un usuario cuyo Ãºnico vÃ­nculo con Becas es un rol
         # INACTIVO no debe ser visible ni gestionable por el admin de Becas.
         inactivo = Group.objects.create(name="Becas inactivo")
         RolMeta.objects.create(
@@ -202,7 +202,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
 
 
 class ProgramaSinAdminTests(TestCase):
-    """#68 — no dejar un programa sin administrador (flujos de Usuarios)."""
+    """#68 â€” no dejar un programa sin administrador (flujos de Usuarios)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -212,7 +212,7 @@ class ProgramaSinAdminTests(TestCase):
         self.rol_global.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
         self.jefe = User.objects.create_user("jefe", password="x")
         self.jefe.groups.add(self.rol_global)
-        # María, única administradora de Becas.
+        # MarÃ­a, Ãºnica administradora de Becas.
         self.rol_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
         self.rol_becas.permissions.add(_perm("programa.configurar"))
@@ -247,11 +247,11 @@ class ProgramaSinAdminTests(TestCase):
         self.client.force_login(self.jefe)
         self.client.post(reverse("users:usuario_toggle", args=[self.maria.pk]))
         self.maria.refresh_from_db()
-        self.assertTrue(self.maria.is_active)  # la operación se revierte
+        self.assertTrue(self.maria.is_active)  # la operaciÃ³n se revierte
 
 
 class SidebarAdministracionTests(TestCase):
-    """#68 — la sección Administración del sidebar respeta programa.configurar."""
+    """#68 â€” la secciÃ³n AdministraciÃ³n del sidebar respeta programa.configurar."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -263,7 +263,7 @@ class SidebarAdministracionTests(TestCase):
 
     def test_admin_programa_ve_administracion(self):  # TC-68-04
         html = render_sidebar(User.objects.get(pk=self.maria.pk))
-        self.assertIn(reverse("users:usuarios"), html)  # sección Administración visible
+        self.assertIn(reverse("users:usuarios"), html)  # secciÃ³n AdministraciÃ³n visible
         self.assertIn(reverse("users:roles"), html)
 
     def test_sin_capacidades_no_ve_administracion(self):  # TC-68-05
@@ -275,7 +275,7 @@ class SidebarAdministracionTests(TestCase):
 
 class UsuarioAutoProteccionTests(TestCase):
     def test_quitarse_el_ultimo_rol_admin_revierte(self):
-        admin = _admin("solo")  # único administrador (no superusuario)
+        admin = _admin("solo")  # Ãºnico administrador (no superusuario)
         form = CustomUserChangeForm(
             data={
                 "username": "solo",
