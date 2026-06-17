@@ -89,7 +89,7 @@ anatomy:
     background: "#FF0080 or bg-brand"
     text: "text-white"
     shape: "circular"
-    font: "Inter Medium 12px"
+    font: "Manrope Medium 12px"
 
   footer:
     content: "‹ Minimizar (collapse trigger)"
