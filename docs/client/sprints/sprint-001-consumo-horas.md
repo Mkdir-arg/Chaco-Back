@@ -10,14 +10,14 @@
 | 2026-06-05 | Matías Fariña | Continuar el análisis funcional del módulo de becas | Cierre temporal de la sesión de análisis del módulo de becas | 87 min |
 | 2026-06-06 | Matías Fariña | Continuar el análisis funcional del módulo de becas | Continuación del análisis funcional del módulo de becas | 171 min |
 | 2026-06-05 | Matías Fariña | Continuar análisis de la propuesta | Seguir con el análisis de la propuesta | 119 min |
-| 2026-06-05 | Juani Portilla | RBAC | Plan de desarrollo: edge cases y decisiones de diseño | 180 min
-| 2026-06-06 | Juani Portilla | RBAC | implementación (modelo, motor, ABMs) | 300 min
-| 2026-06-06 | Juani Portilla | RBAC | reemplazo del esquema legacy | 240 min
+| 2026-06-05 | Juani Portilla | RBAC | Plan de desarrollo: edge cases y decisiones de diseño | 60 min
+| 2026-06-06 | Juani Portilla | RBAC | implementación (modelo, motor, ABMs) | 120 min
+| 2026-06-06 | Juani Portilla | RBAC | reemplazo del esquema legacy | 90 min
 | 2026-06-06 | Matías Fariña | Análisis funcional | Completé análisis de propuesta | 61 min |
 | 2026-06-08 | Matías Fariña | Finalizar el analisis de la proupuesta | Finalizar el analisis de la proupuesta | 420 min |
-| 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 30 min |
-| 2026-06-08 | Juani Portilla | Design System CHACO NODO — especificación completa e integración de tokens | Construcción del Design Knowledge Base (foundations, tokens, 13 componentes, 5 patrones, constitución de diseño). Resolución de conflictos NODO vs CHACO, coordinación con diseñadora (10 respuestas + diseños de referencia), migración de chaco-tokens.css al repo y extensión de Tailwind config en templates base. PR #56 abierto. | 480 min |
-| 2026-06-09 | Juani Portilla | RBAC | Validación en MySQL, tests y PR #52 | 240 min
+| 2026-06-08 | Juani Portilla | Setup de entorno local para agentes IA | Venv aislado fijado al `requirements.txt` del repo + secciones nuevas en `CLAUDE.md` y `AGENTS.md` para que Claude Code y Codex CLI usen el intérprete del venv en vez del Python global de la máquina al validar con `manage.py check`. PR #58 abierto. | 15 min |
+| 2026-06-08 | Juani Portilla | Design System CHACO NODO — especificación completa e integración de tokens | Construcción del Design Knowledge Base (foundations, tokens, 13 componentes, 5 patrones, constitución de diseño). Resolución de conflictos NODO vs CHACO, coordinación con diseñadora (10 respuestas + diseños de referencia), migración de chaco-tokens.css al repo y extensión de Tailwind config en templates base. PR #56 abierto. | 240 min |
+| 2026-06-09 | Juani Portilla | RBAC | Validación en MySQL, tests y PR #52 | 120 min
 | 2026-06-10 | Matías Fariña | Reunión con el Ministerio | Revisión de legajo ciudadano, flujo final de becas y relevamiento de institución | 90 min |
 | 2026-06-10 | Agostina Coppola | Reunión con el Ministerio | Revisión de legajo ciudadano, flujo final de becas y relevamiento de institución | 90 min |
 | 2026-06-10 | Matías Fariña | Actualización a la versión 3 del flujo de becas | Sesión de trabajo para actualizar el flujo de becas a la v3 | 300 min |
@@ -43,4 +43,4 @@
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **4201 minutos** (70 h 01 min)
+    **3316 minutos** (55 h 16 min)
