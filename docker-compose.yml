@@ -34,7 +34,6 @@ services:
 
   app:
     build: .
-    entrypoint: ["/usr/local/bin/sistemso-entrypoint"]
     depends_on:
       mysql:
         condition: service_healthy

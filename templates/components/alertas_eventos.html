@@ -81,13 +81,13 @@ function cerrarAlerta(eventoId) {
         return;
     }
     
-    fetch('{% url "legajos:cerrar_alerta_evento" %}', {
+    fetch('{% url "legajos:cerrar_alerta_ajax" 0 %}'.replace('0', eventoId), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-CSRFToken': csrfToken
         },
-        body: 'evento_id=' + eventoId
+        body: ''
     })
     .then(response => response.json())
     .then(data => {
