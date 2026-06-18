@@ -11,12 +11,12 @@
 
 | Concepto | Horas |
 |---|---:|
-| Desarrollo | 159 |
+| Desarrollo | 166 |
 | Diseño UX/UI | 25 |
-| Pruebas funcionales y QA | 82 |
+| Pruebas funcionales y QA | 84 |
 | Despliegue a ambiente QA | 14 |
 | Capacitación | 20 |
-| **Total** | **300** |
+| **Total** | **309** |
 
 > Las horas corresponden a esfuerzo técnico neto. No incluyen reuniones de seguimiento, gestión de proyecto ni la integración con el Sistema SIS (Análisis B, pendiente de contrato técnico — ver §6).
 
@@ -35,12 +35,12 @@
 | T-05 | Revisión de formularios | Pantalla de revisión caso a caso: aprobación, rechazo con motivo, edición de datos con trazabilidad completa (quién / cuándo / valor anterior). | 6 |
 | T-06 | Gestión de cupo | Vista de cupo por segmento, lista de beneficiarios activos, lista de espera, baja manual y promoción manual. | 5 |
 | T-07 | Roles y autorización | Creación de roles Admin, Territorial y Coordinador integrados al motor RBAC existente. Control de acceso por segmento asignado para el rol Coordinador. | 5 |
-| T-08 | Solapa Becas en legajo | Pestaña dinámica "Becas" en el legajo del ciudadano: estado, datos del formulario, vínculo con la pantalla de revisión. | 3 |
+| T-08 | Solapa Becas en legajo | Pestaña dinámica "Becas" en el legajo del ciudadano: estado, datos del formulario, vínculo con la pantalla de revisión. | 10 |
 | T-09 | Reportes | Exportación CSV/Excel de beneficiarios activos, lista de espera y avance de relevamientos, con filtros por segmento y convocatoria. | 4 |
 | T-10 | API para app de campo | Endpoints REST para la app territorial: autenticación, listado de relevamientos con definición dinámica del formulario (tipos de campo y opciones), carga de formularios, sincronización offline y finalización en lote. | 8 |
 | T-11 | Validación RENAPER | Integración de los 3 caminos de validación de identidad (escaneo de DNI / RENAPER online / carga manual). Revalidación diferida desde el backoffice. | 4 |
 | T-12 | App de campo (React Native) | App Expo/React Native para el agente territorial: autenticación JWT con persistencia de sesión, listado de relevamientos asignados, motor de formulario dinámico (6 tipos de campo: STRING / INT / SELECTOR / SELECTOR_MULTIPLE / DATE / ARCHIVO), captura GPS automática, escaneo y validación de DNI (3 caminos RENAPER), carga de adjuntos con cámara, almacenamiento offline con sync automático al reconectar, finalización de relevamiento. EAS Build para Android e iOS. | 64 |
-| | **Subtotal desarrollo** | | **159** |
+| | **Subtotal desarrollo** | | **166** |
 
 ### 2.2 Detalle de la app de campo (T-12)
 
@@ -60,11 +60,11 @@
 
 | Perfil | Módulos | Horas |
 |---|---|---:|
-| Desarrollador fullstack | T-01 a T-09 | 66 |
+| Desarrollador fullstack | T-01 a T-09 | 73 |
 | Desarrollador backend / API | T-10, T-11 | 15 |
 | Desarrollador React Native | T-12 | 73 |
 | Revisión técnica / code review | Todos | 5 |
-| **Total** | | **159** |
+| **Total** | | **166** |
 
 ---
 
@@ -74,12 +74,12 @@
 
 | Concepto | Horas |
 |---|---:|
-| Escritura de casos de prueba documentados (módulos T-01 a T-11) | 12 |
+| Escritura de casos de prueba documentados (módulos T-01 a T-11) | 14 |
 | Ejecución de pruebas por módulo | 18 |
 | Pruebas de flujo end-to-end (relevamiento completo: desde configuración hasta cupo asignado) | 10 |
 | Pruebas de la API (Postman o herramienta equivalente) | 5 |
 | Registro de defectos, re-test y cierre | 5 |
-| **Subtotal QA backoffice** | **50** |
+| **Subtotal QA backoffice** | **52** |
 
 ### 3.2 Alcance — app de campo (React Native)
 
@@ -92,7 +92,7 @@
 | Registro de defectos, re-test y cierre | 2 |
 | **Subtotal QA app** | **32** |
 
-| **Total QA** | **82** |
+| **Total QA** | **84** |
 |---|---:|
 
 ### 3.3 Escenarios críticos cubiertos
@@ -158,20 +158,20 @@
 ## 8. Resumen por fase
 
 ```
-Desarrollo ················· 159 h  ████████████████████████████████████░░░░
+Desarrollo ················· 166 h  ████████████████████████████████████░░░░
 Diseño UX/UI ················ 25 h  ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-Pruebas y QA ················ 82 h  ██████████████████████░░░░░░░░░░░░░░░░░
+Pruebas y QA ················ 84 h  ██████████████████████░░░░░░░░░░░░░░░░░
 Despliegue a QA ·············· 14 h  ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 Capacitación ················ 20 h  █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 
-Total                       300 h
+Total                       309 h
 ```
 
 | | Horas | % |
 |---|---:|---:|
-| Desarrollo | 159 | 53 % |
+| Desarrollo | 166 | 54 % |
 | Diseño UX/UI | 25 | 8 % |
-| Pruebas y QA | 82 | 27 % |
+| Pruebas y QA | 84 | 27 % |
 | Despliegue | 14 | 5 % |
-| Capacitación | 20 | 7 % |
-| **Total** | **300** | **100 %** |
+| Capacitación | 20 | 6 % |
+| **Total** | **309** | **100 %** |
