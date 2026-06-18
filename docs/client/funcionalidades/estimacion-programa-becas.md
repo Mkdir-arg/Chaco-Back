@@ -158,7 +158,61 @@
 
 ---
 
-## 8. Resumen por fase
+## 8. Cronograma — Gantt
+
+**Inicio:** Lunes 23 de junio de 2026  
+**Equipo:** 1 Backend, 1 Frontend, 1 React Native, 1 Diseñador, 1 QA  
+**Supuesto:** 8 horas/día por persona
+
+```mermaid
+gantt
+    title Programa Becas — Cronograma de desarrollo
+    dateFormat YYYY-MM-DD
+    
+    section Diseño
+    Diseño UX/UI (126h)           :design, 2026-06-23, 16d
+    
+    section Backend
+    T-01 Modelo de datos (21h)      :backend1, 2026-06-23, 3d
+    T-02 Config programa (32h)      :backend2, after backend1, 4d
+    T-07 Roles RBAC (13h)           :backend3, after backend2, 2d
+    T-10 API app campo (29h)        :backend4, after backend3, 4d
+    T-11 Validación RENAPER (19h)   :backend5, after backend4, 3d
+    Backend mixto T-03 a T-09 (54h) :backend6, after backend5, 7d
+    
+    section Frontend
+    Frontend mixto T-02 a T-09 (52h):frontend, after backend2, 7d
+    
+    section App React Native
+    T-12 App de campo (158h)        :app, 2026-06-23, 20d
+    
+    section QA
+    QA Backoffice (73h)             :qa1, after backend6, 10d
+    QA App React Native (32h)       :qa2, after app, 4d
+    
+    section Despliegue
+    Despliegue a QA (30h)           :deploy, after qa1, 4d
+    
+    section Capacitación
+    Capacitación (15h)              :training, after deploy, 2d
+```
+
+**Duración estimada:** ~7 semanas (35 días hábiles)  
+**Fecha tentativa de finalización:** 7 de agosto de 2026
+
+### Notas del cronograma
+
+- El diseño arranca en paralelo con desarrollo y cubre mockups, flujos y componentes.
+- El backend avanza secuencialmente por dependencias (modelo → config → roles → API).
+- La app React Native arranca en paralelo apenas el diseño entrega primeros assets.
+- El frontend arranca cuando el backend tiene endpoints listos (T-02 en adelante).
+- QA arranca cuando cada módulo está completo (backend/app).
+- El despliegue a QA requiere que QA backoffice esté completo.
+- La capacitación se realiza sobre el ambiente de QA desplegado.
+
+---
+
+## 9. Resumen por fase
 
 ```
 Desarrollo Backend ············ 168 h  ████████████████████████████░░░░░░░░
