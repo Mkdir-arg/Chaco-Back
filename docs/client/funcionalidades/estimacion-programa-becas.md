@@ -31,7 +31,7 @@
 ### 2.1 Detalle por módulo
 
 | Ref | Módulo | Descripción | Horas | Perfil |
-|---|---|---|---:|
+|---|---|---|---:|---|
 | T-01 | Modelo de datos | Modelos del dominio Becas: Segmento, Subsegmento, Convocatoria, Relevamiento, PreguntaGlobal, RequisitoNativo, AsignacionCoordinador, Formulario, TracaFormulario, ListaEspera. Migraciones y admin básico. | 21 | Backend |
 | T-02 | Configuración del programa | ABM de segmentos, subsegmentos con validación de cupo, asignación de coordinadores por segmento, ABM de requisitos nativos con tipo de campo (texto / número / selector / fecha / archivo) y ABM del cuestionario social (13 preguntas globales con toggle activo). | 32 | Backend + Frontend |
 | T-03 | Convocatorias | ABM de convocatorias con selección dinámica de segmento y subsegmento (Alpine.js). Visualización de requisitos configurados. | 13 | Backend + Frontend |
