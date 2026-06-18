@@ -44,6 +44,7 @@
 | 2026-06-17 | Agostina Coppola | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 | 2026-06-17 | Matías Fariña | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 | 2026-06-17 | Matías Fariña | Creacion de Estimacion y documentacion | Creacion de Estimacion y documentacion sobre al propuesta v1 Becas | 300 min |
+| 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 222 min |
 
 ---
 
