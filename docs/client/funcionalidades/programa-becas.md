@@ -743,3 +743,9 @@ Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 | A-2 | "Aprobar" en backoffice y "ocupar cupo" son pasos distintos (el cupo se decide después de SIS). | No bloq. |
 | A-3 | RENAPER en campo usa la misma API (o equivalente) que backoffice para validar identidad. | No bloq. |
 | A-4 | Una persona rechazada por admin conserva legajo creado (sin reproceso en el sistema). | No bloq. |
+
+---
+
+## Documentos relacionados
+
+- [Estimación de horas — Programa Becas](../../../docs/internal/analisis/004-estimacion-programa-becas.md)
