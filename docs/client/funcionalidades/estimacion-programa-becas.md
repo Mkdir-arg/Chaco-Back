@@ -164,38 +164,44 @@
 **Equipo:** 1 Backend, 1 Frontend, 1 React Native, 1 Diseñador, 1 QA  
 **Supuesto:** 8 horas/día por persona
 
+<div style="width: 100%; overflow-x: auto;">
+
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'16px'}}}%%
 gantt
     title Programa Becas — Cronograma de desarrollo
     dateFormat YYYY-MM-DD
+    axisFormat %d/%m
     
     section Diseño
-    Diseño UX/UI (126h)           :design, 2026-06-23, 16d
+    Diseño UX/UI 126h - 16 días           :design, 2026-06-23, 16d
     
     section Backend
-    T-01 Modelo de datos (21h)      :backend1, 2026-06-23, 3d
-    T-02 Config programa (32h)      :backend2, after backend1, 4d
-    T-07 Roles RBAC (13h)           :backend3, after backend2, 2d
-    T-10 API app campo (29h)        :backend4, after backend3, 4d
-    T-11 Validación RENAPER (19h)   :backend5, after backend4, 3d
-    Backend mixto T-03 a T-09 (54h) :backend6, after backend5, 7d
+    T-01 Modelo datos 21h - 3d              :backend1, 2026-06-23, 3d
+    T-02 Config programa 32h - 4d           :backend2, after backend1, 4d
+    T-07 Roles RBAC 13h - 2d                :backend3, after backend2, 2d
+    T-10 API app campo 29h - 4d             :backend4, after backend3, 4d
+    T-11 RENAPER 19h - 3d                   :backend5, after backend4, 3d
+    T-03 a T-09 mixto 54h - 7d              :backend6, after backend5, 7d
     
     section Frontend
-    Frontend mixto T-02 a T-09 (52h):frontend, after backend2, 7d
+    T-02 a T-09 Frontend 52h - 7d           :frontend, after backend2, 7d
     
     section App React Native
-    T-12 App de campo (158h)        :app, 2026-06-23, 20d
+    T-12 App campo 158h - 20d               :app, 2026-06-23, 20d
     
     section QA
-    QA Backoffice (73h)             :qa1, after backend6, 10d
-    QA App React Native (32h)       :qa2, after app, 4d
+    QA Backoffice 73h - 10d                 :qa1, after backend6, 10d
+    QA App 32h - 4d                         :qa2, after app, 4d
     
     section Despliegue
-    Despliegue a QA (30h)           :deploy, after qa1, 4d
+    Despliegue QA 30h - 4d                  :deploy, after qa1, 4d
     
     section Capacitación
-    Capacitación (15h)              :training, after deploy, 2d
+    Capacitación 15h - 2d                   :training, after deploy, 2d
 ```
+
+</div>
 
 **Duración estimada:** ~7 semanas (35 días hábiles)  
 **Fecha tentativa de finalización:** 7 de agosto de 2026
