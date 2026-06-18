@@ -748,4 +748,4 @@ Asunciones y dudas pendientes consolidadas al final en la **Sección 16.6**.
 
 ## Documentos relacionados
 
-- [Estimación de horas — Programa Becas](../../../docs/internal/analisis/004-estimacion-programa-becas.md)
+- **Estimación de horas — Programa Becas:** `docs/internal/analisis/004-estimacion-programa-becas.md` (documento interno del repositorio)
