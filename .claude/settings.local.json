@@ -24,5 +24,12 @@
       "Bash(git commit -m \"Merge branch ''Dev'' into ABM-PROGRAMA:*)",
       "Bash(gh run *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "n8n-mcp",
+    "railway",
+    "filesystem",
+    "memory",
+    "github"
+  ]
 }

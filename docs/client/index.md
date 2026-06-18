@@ -20,23 +20,31 @@ hide:
 
     :material-circle:{ .lg .middle style="color: #f59e0b" } **En ejecución**
 
-    Sprint activo en curso, entregas iterativas confirmadas.
+    Versión activa en curso, entregas iterativas confirmadas.
 
--   :material-rocket-launch-outline: **Sprint activo**
+-   :material-rocket-launch-outline: **Versión activa**
 
     ---
 
-    [**Sprint 001**](sprints/sprint-001.md) — Gestión base de ciudadanos
+    [**Versión 001**](versiones/version-001.md) — Programa Becas y RBAC
 
-    Registro y derivación de ciudadanos.
+    Gestión de roles y análisis funcional del Programa Becas.
+
+-   :material-cash-check-outline: **Estado financiero**
+
+    ---
+
+    **Junio 2026:** 60h consumidas | 654h estimadas | 0h saldo
+
+    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-06.md)
 
 -   :material-calendar-clock: **Última actualización**
 
     ---
 
-    **Mayo 2026**
+    **17 de junio 2026**
 
-    Documentación viva — se actualiza al cierre de cada sprint.
+    Documentación viva — se actualiza al cierre de cada versión.
 
 </div>
 
@@ -58,14 +66,23 @@ hide:
     [:octicons-arrow-right-16: Arquitectura](architecture.md)
     [:octicons-arrow-right-16: Minutas](minutas/index.md)
 
--   :material-sprout:{ .lg .middle } **Sprints**
+-   :material-package-variant-closed:{ .lg .middle } **Versiones**
 
     ---
 
     Planificación y seguimiento de entregas iterativas.
 
-    [:octicons-arrow-right-16: Todos los sprints](sprints/index.md)
-    [:octicons-arrow-right-16: Sprint actual](sprints/sprint-001.md)
+    [:octicons-arrow-right-16: Todas las versiones](versiones/index.md)
+    [:octicons-arrow-right-16: Versión actual](versiones/version-001.md)
+
+-   :material-cash-multiple:{ .lg .middle } **Financiero**
+
+    ---
+
+    Presupuesto, consumo y estimaciones mensuales.
+
+    [:octicons-arrow-right-16: Dashboard financiero](financiero/index.md)
+    [:octicons-arrow-right-16: Junio 2026](financiero/mes-2026-06.md)
 
 -   :material-file-document-multiple-outline:{ .lg .middle } **Plantillas operativas**
 
@@ -139,6 +156,6 @@ flowchart LR
 ## :material-map-marker-path: Navegación recomendada
 
 !!! tip "Si recién empezás"
-    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Sprint actual**](sprints/sprint-001.md)
+    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión actual**](versiones/version-001.md)
 
     Tres páginas y tenés el contexto completo para participar.

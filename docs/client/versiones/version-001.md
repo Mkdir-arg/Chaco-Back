@@ -1,4 +1,4 @@
-# :material-sprout: Sprint 001
+# :material-package-variant-closed: Versión 001
 
 <div class="grid cards" markdown>
 
@@ -14,24 +14,23 @@
 
     —
 
--   :material-clock-outline: **Horas estimadas**
+-   :material-clock-outline: **Horas consumidas**
 
-    —
+    60h 26min
 
 </div>
 
 !!! abstract "Objetivo"
-    Definir el funcionamiento del **Programa Becas** y del **ABM de roles y
-    permisos** para dejar el alcance acordado con el cliente.
+    Definir el funcionamiento del **Programa Becas** y desarrollar el **motor RBAC base** para dejar el sistema de permisos operativo.
 
 ---
 
-## :material-clipboard-list-outline: Alcance del sprint
+## :material-clipboard-list-outline: Alcance de la versión
 
 | # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
 |:-:|---|:-:|:-:|:-:|:-:|
-| 1 | Programa Becas | Alta | En análisis | — | — |
-| 2 | ABM de roles y permisos | Alta | Por iniciar | — | — |
+| 1 | Programa Becas (análisis) | Alta | En análisis | — | 28h |
+| 2 | Motor RBAC base | Alta | Completado | — | 28h |
 
 ---
 
@@ -84,9 +83,9 @@
 
 ---
 
-## :material-package-variant-closed-remove: Qué quedó fuera de este sprint
+## :material-package-variant-closed-remove: Qué quedó fuera de esta versión
 
-| Funcionalidad | Motivo | ¿Próximo sprint? |
+| Funcionalidad | Motivo | ¿Próxima versión? |
 |---|---|:-:|
 
 ---
@@ -101,6 +100,6 @@
 
 ## :material-timer-sand-complete: Detalle de consumo de horas
 
-Consulta el detalle de consumo por persona y motivo del Sprint 001.
+Consulta el detalle de consumo por persona y motivo de la Versión 001.
 
-[:material-table-arrow-right: Ver detalle de consumo](sprint-001-consumo-horas.md){ .md-button .md-button--primary }
+[:material-table-arrow-right: Ver detalle de consumo](version-001-consumo-horas.md){ .md-button .md-button--primary }
