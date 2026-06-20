@@ -48,6 +48,11 @@ htmlcov/
 .codex-linux-first/
 .claude/worktrees/
 .github/worklog/
+awslabs-mcp/
+
+# Scratch / notas de trabajo temporales
+.tmp_*
+.t.md
 
 # MkDocs
 site/
