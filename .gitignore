@@ -54,5 +54,12 @@ awslabs-mcp/
 .tmp_*
 .t.md
 
+# Certificados / claves TLS (no versionar claves privadas)
+*.key
+*.crt
+*.pem
+nginx-selfsigned.crt
+nginx-selfsigned.key
+
 # MkDocs
 site/

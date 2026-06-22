@@ -82,7 +82,6 @@ INSTALLED_APPS = [
     "health_check",
     "health_check.db",
     "health_check.cache",
-    "silk",
     "users",
     "core",
     "dashboard",
@@ -94,6 +93,10 @@ INSTALLED_APPS = [
     "programas",
     "healthcheck",
 ]
+
+# Silk (profiling): solo en desarrollo, nunca en producción.
+if DEBUG:
+    INSTALLED_APPS += ["silk"]
 
 if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
     MIGRATION_MODULES = {
