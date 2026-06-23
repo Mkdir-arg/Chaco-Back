@@ -554,6 +554,17 @@ class Relevamiento(TimeStamped):
     def segmento(self):
         return self.convocatoria.segmento
 
+    @property
+    def esta_vencido(self):
+        """Vencido = sigue abierto en campo y la fecha asignada ya pasó."""
+        from django.utils import timezone
+
+        return (
+            self.estado in (self.Estado.ASIGNADO, self.Estado.EN_CURSO)
+            and self.fecha_asignada is not None
+            and self.fecha_asignada < timezone.localdate()
+        )
+
 
 class PreguntaGlobal(TimeStamped):
     """Pregunta del cuestionario social (requisito general); aplica a todos los

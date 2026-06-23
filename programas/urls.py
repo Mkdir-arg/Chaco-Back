@@ -2,6 +2,7 @@
 from django.urls import path
 
 from programas.views import configuracion as cfg
+from programas.views import relevamientos as rel
 
 app_name = "becas"
 
@@ -33,4 +34,15 @@ urlpatterns = [
     path("config/preguntas/<int:pk>/editar/", cfg.PreguntaGlobalUpdateView.as_view(), name="pregunta_editar"),
     path("config/preguntas/<int:pk>/toggle/", cfg.pregunta_toggle_activo, name="pregunta_toggle"),
     path("config/preguntas/<int:pk>/eliminar/", cfg.pregunta_eliminar, name="pregunta_eliminar"),
+
+    # --- Convocatorias ---
+    path("convocatorias/", rel.ConvocatoriaListView.as_view(), name="convocatorias"),
+    path("convocatorias/nueva/", rel.ConvocatoriaCreateView.as_view(), name="convocatoria_crear"),
+
+    # --- Relevamientos ---
+    path("relevamientos/", rel.RelevamientoListView.as_view(), name="relevamientos"),
+    path("relevamientos/nuevo/", rel.RelevamientoCreateView.as_view(), name="relevamiento_crear"),
+    path("relevamientos/<int:pk>/", rel.RelevamientoDetailView.as_view(), name="relevamiento_detalle"),
+    path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
+    path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
 ]

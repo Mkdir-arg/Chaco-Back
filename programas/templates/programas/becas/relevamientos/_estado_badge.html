@@ -1,0 +1,11 @@
+{% with e=rel.estado %}
+<span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium
+  {% if e == 'ASIGNADO' %}bg-gray text-body-subtle
+  {% elif e == 'EN_CURSO' %}bg-warning-soft text-fg-warning
+  {% elif e == 'FINALIZANDO' %}bg-warning-soft text-fg-warning
+  {% elif e == 'FINALIZADO' %}bg-brand-softer text-fg-brand
+  {% elif e == 'EN_REVISION' %}bg-brand-soft text-fg-brand-strong
+  {% elif e == 'TERMINADO' %}bg-success-soft text-fg-success
+  {% else %}bg-gray text-body-subtle{% endif %}">{{ rel.get_estado_display }}</span>
+{% if rel.esta_vencido %}<span class="ml-1 inline-flex rounded-full bg-danger-soft px-2 py-0.5 text-xs font-medium text-fg-danger">Vencido</span>{% endif %}
+{% endwith %}

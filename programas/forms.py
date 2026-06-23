@@ -219,3 +219,10 @@ class ReasignarTerritorialForm(forms.Form):
         self.fields["territorial"].queryset = User.objects.filter(
             groups__name=ROL_TERRITORIAL, is_active=True
         ).distinct().order_by("username")
+
+
+class ReprogramarForm(forms.Form):
+    fecha_asignada = forms.DateField(
+        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+        label="Nueva fecha asignada",
+    )
