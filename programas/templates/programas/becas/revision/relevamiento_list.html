@@ -3,31 +3,41 @@
 
 {% block main-content %}
 <div class="mb-8">
+
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Revisión de formularios</span>
+  </nav>
   <div class="mb-6">
-    <h1 class="text-2xl sm:text-3xl font-bold text-heading">Revisión de formularios</h1>
-    <p class="text-body-subtle mt-1 text-sm">Relevamientos finalizados, listos para revisar caso a caso</p>
+    <h1 class="text-3xl font-extrabold text-heading tracking-tight">Revisión de formularios</h1>
+    <p class="text-sm text-body-subtle mt-1">Relevamientos finalizados, listos para revisar caso a caso</p>
   </div>
 
-  <div class="rounded-xl border border-base bg-primary overflow-hidden">
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
     {% if relevamientos %}
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-secondary-soft text-body-subtle"><tr>
-          <th class="px-5 py-3 text-left font-semibold">RELEVAMIENTO</th>
-          <th class="px-5 py-3 text-left font-semibold">SEGMENTO</th>
-          <th class="px-5 py-3 text-left font-semibold">TERRITORIAL</th>
-          <th class="px-5 py-3 text-left font-semibold">ESTADO</th>
-          <th class="px-5 py-3 text-right font-semibold"></th>
-        </tr></thead>
-        <tbody class="divide-y divide-[color:var(--border-base)]">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamiento</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
+          </tr>
+        </thead>
+        <tbody>
           {% for rel in relevamientos %}
-          <tr class="hover:bg-secondary-soft">
-            <td class="px-5 py-3 font-medium text-heading">{{ rel.nombre }}</td>
-            <td class="px-5 py-3">{{ rel.convocatoria.segmento.nombre }}</td>
-            <td class="px-5 py-3">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
-            <td class="px-5 py-3">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
-            <td class="px-5 py-3 text-right">
-              <a href="{% url 'becas:revision_formularios' rel.pk %}" class="text-fg-brand hover:underline">Revisar →</a>
+          <tr class="hover:bg-[#F9FAFB]">
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">{{ rel.nombre }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.convocatoria.segmento.nombre }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+              <a href="{% url 'becas:revision_formularios' rel.pk %}" class="btn-nodo btn-tertiary btn-sm">
+                Revisar <i class="fas fa-arrow-right"></i>
+              </a>
             </td>
           </tr>
           {% endfor %}
@@ -35,10 +45,10 @@
       </table>
     </div>
     {% else %}
-    <div class="p-12 text-center">
-      <i class="fas fa-clipboard-list text-5xl text-body-subtle/40 mb-4"></i>
-      <h3 class="text-lg font-semibold text-heading mb-1">No hay relevamientos para revisar</h3>
-      <p class="text-body-subtle text-sm">Aparecerán acá cuando el territorial finalice su carga.</p>
+    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+      <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+      <p class="text-[17px] font-bold text-heading">No hay relevamientos para revisar</p>
+      <p class="text-sm text-body max-w-xs">Aparecerán acá cuando el territorial finalice su carga.</p>
     </div>
     {% endif %}
   </div>

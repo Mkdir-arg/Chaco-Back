@@ -3,49 +3,72 @@
 
 {% block main-content %}
 <div class="mb-8">
-  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Cuestionario social</span>
+  </nav>
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
-      <h1 class="text-2xl sm:text-3xl font-bold text-heading">Cuestionario social</h1>
-      <p class="text-body-subtle mt-1 text-sm">Preguntas globales (requisitos generales) del formulario</p>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Cuestionario social</h1>
+      <p class="text-sm text-body-subtle mt-1">Preguntas globales (requisitos generales) que aparecen en todos los formularios</p>
     </div>
-    <a href="{% url 'becas:pregunta_crear' %}" class="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">
+    <a href="{% url 'becas:pregunta_crear' %}" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nueva pregunta
     </a>
   </div>
 
-  <div class="rounded-xl border border-base bg-primary overflow-hidden">
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
     {% if preguntas %}
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-secondary-soft text-body-subtle"><tr>
-          <th class="px-5 py-3 text-right font-semibold">ORDEN</th>
-          <th class="px-5 py-3 text-left font-semibold">TEXTO</th>
-          <th class="px-5 py-3 text-left font-semibold">TIPO</th>
-          <th class="px-5 py-3 text-center font-semibold">OBLIGATORIO</th>
-          <th class="px-5 py-3 text-center font-semibold">ACTIVO</th>
-          <th class="px-5 py-3 text-right font-semibold">ACCIONES</th>
-        </tr></thead>
-        <tbody class="divide-y divide-[color:var(--border-base)]">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Texto</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
           {% for p in preguntas %}
-          <tr class="hover:bg-secondary-soft">
-            <td class="px-5 py-3 text-right">{{ p.orden }}</td>
-            <td class="px-5 py-3 text-heading">{{ p.texto }}</td>
-            <td class="px-5 py-3"><span class="inline-flex rounded-full bg-brand-softer px-2 py-0.5 text-xs text-fg-brand">{{ p.get_tipo_display }}</span></td>
-            <td class="px-5 py-3 text-center">{% if p.obligatorio %}<i class="fas fa-check text-fg-success"></i>{% else %}<i class="fas fa-minus text-body-subtle"></i>{% endif %}</td>
-            <td class="px-5 py-3 text-center">
-              {% if p.activo %}<span class="inline-flex rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-fg-success">Activa</span>
-              {% else %}<span class="inline-flex rounded-full bg-gray px-2.5 py-0.5 text-xs font-medium text-body-subtle">Inactiva</span>{% endif %}
+          <tr class="hover:bg-[#F9FAFB]">
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle text-right font-semibold">{{ p.orden }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">{{ p.texto }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+              <span class="badge badge-brand">{{ p.get_tipo_display }}</span>
             </td>
-            <td class="px-5 py-3 text-right">
-              <div class="flex items-center justify-end gap-3">
-                <a href="{% url 'becas:pregunta_editar' p.pk %}" class="text-body-subtle hover:text-heading" title="Editar"><i class="fas fa-edit"></i></a>
-                <button type="button" class="text-body-subtle hover:text-fg-warning" title="Activar/Desactivar"
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+              {% if p.obligatorio %}
+                <span class="badge badge-success">Obligatorio</span>
+              {% else %}
+                <span class="badge badge-gray">Opcional</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+              {% if p.activo %}
+                <span class="badge badge-success badge-dot">Activa</span>
+              {% else %}
+                <span class="badge badge-gray">Inactiva</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+              <div class="flex items-center justify-end gap-2">
+                <a href="{% url 'becas:pregunta_editar' p.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
+                <button type="button" class="text-body-subtle hover:text-fg-warning p-1" title="Activar/Desactivar"
                         data-confirm-url="{% url 'becas:pregunta_toggle' p.pk %}"
                         data-confirm-title="{% if p.activo %}¿Desactivar pregunta?{% else %}¿Activar pregunta?{% endif %}"
-                        data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí"><i class="fas fa-power-off"></i></button>
-                <button type="button" class="text-body-subtle hover:text-fg-danger" title="Eliminar"
+                        data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí">
+                  <i class="fas fa-power-off"></i>
+                </button>
+                <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
                         data-confirm-url="{% url 'becas:pregunta_eliminar' p.pk %}"
-                        data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar"><i class="fas fa-trash"></i></button>
+                        data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar">
+                  <i class="fas fa-trash"></i>
+                </button>
               </div>
             </td>
           </tr>
@@ -54,10 +77,13 @@
       </table>
     </div>
     {% else %}
-    <div class="p-12 text-center">
-      <i class="fas fa-clipboard-list text-5xl text-body-subtle/40 mb-4"></i>
-      <h3 class="text-lg font-semibold text-heading mb-1">No hay preguntas configuradas</h3>
-      <a href="{% url 'becas:pregunta_crear' %}" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong"><i class="fas fa-plus"></i> Nueva pregunta</a>
+    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+      <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+      <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
+      <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
+      <a href="{% url 'becas:pregunta_crear' %}" class="btn-nodo btn-brand btn-base mt-2">
+        <i class="fas fa-plus"></i> Nueva pregunta
+      </a>
     </div>
     {% endif %}
   </div>

@@ -3,25 +3,42 @@
 
 {% block main-content %}
 <div class="max-w-5xl mx-auto space-y-6">
+
+  {# Header #}
   <div>
-    <a href="{% url 'becas:revision_formularios' relevamiento.pk %}" class="text-xs text-body-subtle hover:underline">← {{ relevamiento.nombre }}</a>
-    <div class="flex items-center gap-3">
-      <h1 class="text-2xl font-bold text-heading">Formulario #{{ formulario.pk }}</h1>
-      {% if formulario.estado == 'APROBADO' %}<span class="inline-flex rounded-full bg-success-soft px-3 py-0.5 text-xs font-medium text-fg-success">Aprobado</span>
-      {% elif formulario.estado == 'RECHAZADO' %}<span class="inline-flex rounded-full bg-danger-soft px-3 py-0.5 text-xs font-medium text-fg-danger">Rechazado</span>
-      {% else %}<span class="inline-flex rounded-full bg-warning-soft px-3 py-0.5 text-xs font-medium text-fg-warning">Enviado</span>{% endif %}
+    <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+      <span>Programa Becas</span>
+      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+      <a href="{% url 'becas:revision' %}" class="hover:underline">Revisión</a>
+      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+      <a href="{% url 'becas:revision_formularios' relevamiento.pk %}" class="hover:underline">{{ relevamiento.nombre }}</a>
+      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+      <span class="font-semibold text-body">Formulario #{{ formulario.pk }}</span>
+    </nav>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario #{{ formulario.pk }}</h1>
+      {% if formulario.estado == 'APROBADO' %}
+        <span class="badge badge-success badge-dot">Aprobado</span>
+      {% elif formulario.estado == 'RECHAZADO' %}
+        <span class="badge badge-danger badge-dot">Rechazado</span>
+      {% else %}
+        <span class="badge badge-warning badge-dot">Enviado</span>
+      {% endif %}
     </div>
   </div>
 
+  {# Rechazo alert #}
   {% if formulario.estado == 'RECHAZADO' and formulario.motivo_rechazo %}
-  <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger"><strong>Motivo de rechazo:</strong> {{ formulario.motivo_rechazo }}</div>
+  <div class="rounded-xl bg-danger-soft border border-[#FFCCD3] p-4 text-sm text-fg-danger">
+    <strong>Motivo de rechazo:</strong> {{ formulario.motivo_rechazo }}
+  </div>
   {% endif %}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Identidad + SIS -->
+    {# Identidad + SIS #}
     <div class="space-y-4">
-      <div class="rounded-xl border border-base bg-primary p-5 text-sm space-y-1">
-        <h3 class="font-semibold text-heading mb-2">Identidad</h3>
+      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5 text-sm space-y-2">
+        <h3 class="font-bold text-heading mb-3">Identidad</h3>
         {% if formulario.ciudadano %}
           <p class="text-heading font-medium">{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}</p>
           <p class="text-body-subtle">DNI {{ formulario.ciudadano.dni }}</p>
@@ -31,59 +48,80 @@
         {% else %}
           <p class="text-body-subtle">Sin identificar</p>
         {% endif %}
-        <p class="pt-2">RENAPER:
-          {% if formulario.validado_renaper %}<span class="text-fg-success">validado</span>{% else %}<span class="text-body-subtle">pendiente</span>{% endif %}
-        </p>
+        <div class="pt-2 border-t border-[#F3F4F6] flex items-center gap-2">
+          <span class="text-body-subtle">RENAPER:</span>
+          {% if formulario.validado_renaper %}
+            <span class="badge badge-success">Validado</span>
+          {% else %}
+            <span class="badge badge-gray">Pendiente</span>
+          {% endif %}
+        </div>
       </div>
-      <div class="rounded-xl border border-dashed border-base bg-secondary-soft p-5 text-sm">
-        <h3 class="font-semibold text-heading mb-1"><i class="fas fa-plug mr-1"></i> Resultado SIS</h3>
-        <p class="text-body-subtle">Integración pendiente. La validación socioeconómica y la asignación de cupo se resolverán cuando el SIS esté disponible.</p>
+      <div class="bg-white rounded-xl border border-dashed border-[#E5E7EB] p-5 text-sm">
+        <h3 class="font-bold text-heading mb-1"><i class="fas fa-plug mr-1 text-fg-brand"></i> Resultado SIS</h3>
+        <p class="text-body-subtle text-sm mt-1">Integración pendiente. La validación socioeconómica y la asignación de cupo se resolverán cuando el SIS esté disponible.</p>
       </div>
     </div>
 
-    <!-- Edición contacto/apoderado -->
+    {# Edición contacto/apoderado #}
     <div class="lg:col-span-2">
-      <form method="post" class="rounded-xl border border-base bg-primary p-6">
+      <form method="post" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
         {% csrf_token %}
-        <h3 class="font-semibold text-heading mb-4">Datos de contacto y apoderado</h3>
-        {% if form.non_field_errors %}<div class="mb-3 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <h3 class="font-bold text-heading mb-4">Datos de contacto y apoderado</h3>
+        {% if form.non_field_errors %}
+          <div class="mb-3 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {% for field in form %}<div>{% include "programas/becas/_field.html" %}</div>{% endfor %}
         </div>
         <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
-        <div class="text-right mt-4">
-          <button type="submit" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">Guardar cambios</button>
+        <div class="flex justify-end mt-4 pt-3 border-t border-[#F3F4F6]">
+          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar cambios</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Respuestas del cuestionario -->
+  {# Respuestas #}
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-    <div class="rounded-xl border border-base bg-primary p-5">
-      <h3 class="font-semibold text-heading mb-3">Cuestionario social</h3>
-      {% if globales_list %}<dl class="space-y-2 text-sm">
-        {% for label, valor in globales_list %}<div><dt class="text-body-subtle">{{ label }}</dt><dd class="text-heading">{{ valor }}</dd></div>{% endfor %}
-      </dl>{% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
+    <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+      <h3 class="font-bold text-heading mb-3">Cuestionario social</h3>
+      {% if globales_list %}
+      <dl class="space-y-3 text-sm">
+        {% for label, valor in globales_list %}
+        <div class="border-b border-[#F3F4F6] pb-2 last:border-0">
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ label }}</dt>
+          <dd class="text-heading">{{ valor }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
     </div>
-    <div class="rounded-xl border border-base bg-primary p-5">
-      <h3 class="font-semibold text-heading mb-3">Requisitos del segmento</h3>
-      {% if requisitos_list %}<dl class="space-y-2 text-sm">
-        {% for label, valor in requisitos_list %}<div><dt class="text-body-subtle">{{ label }}</dt><dd class="text-heading">{{ valor }}</dd></div>{% endfor %}
-      </dl>{% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
+    <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+      <h3 class="font-bold text-heading mb-3">Requisitos del segmento</h3>
+      {% if requisitos_list %}
+      <dl class="space-y-3 text-sm">
+        {% for label, valor in requisitos_list %}
+        <div class="border-b border-[#F3F4F6] pb-2 last:border-0">
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ label }}</dt>
+          <dd class="text-heading">{{ valor }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
     </div>
   </div>
 
-  <!-- Acciones de revisión -->
+  {# Acciones de revisión #}
   {% if formulario.estado == 'ENVIADO' %}
   <div class="flex justify-end gap-3">
-    <button type="button" id="btn-rechazar" class="rounded-xl bg-danger px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-      <i class="fas fa-times mr-1"></i> Rechazar
+    <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
+      <i class="fas fa-times"></i> Rechazar
     </button>
     <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}" id="form-aprobar">
       {% csrf_token %}
-      <button type="button" id="btn-aprobar" class="rounded-xl bg-success px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-        <i class="fas fa-check mr-1"></i> Aprobar
+      <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-check"></i> Aprobar
       </button>
     </form>
   </div>
@@ -92,16 +130,18 @@
   </form>
   {% endif %}
 
-  <!-- Traza -->
-  <div class="rounded-xl border border-base bg-primary p-5">
-    <h3 class="font-semibold text-heading mb-3"><i class="fas fa-history mr-1"></i> Traza de cambios</h3>
+  {# Traza #}
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+    <h3 class="font-bold text-heading mb-3"><i class="fas fa-history mr-1 text-fg-brand"></i> Traza de cambios</h3>
     {% if trazas %}
     <ul class="space-y-2 text-sm">
       {% for t in trazas %}
-      <li class="flex items-start gap-3 border-b border-base/50 pb-2">
-        <span class="text-body-subtle whitespace-nowrap">{{ t.created_at|date:"d/m/Y H:i" }}</span>
-        <span class="text-heading"><strong>{{ t.campo }}</strong>: <span class="text-body-subtle line-through">{{ t.valor_anterior|default:"—" }}</span> → {{ t.valor_nuevo|default:"—" }}</span>
-        <span class="ml-auto text-body-subtle">{{ t.editado_por.username|default:"—" }}</span>
+      <li class="flex items-start gap-3 border-b border-[#F3F4F6] pb-2 last:border-0">
+        <span class="text-body-subtle whitespace-nowrap text-xs">{{ t.created_at|date:"d/m/Y H:i" }}</span>
+        <span class="text-heading flex-1"><strong>{{ t.campo }}</strong>:
+          <span class="text-body-subtle line-through">{{ t.valor_anterior|default:"—" }}</span>
+          → {{ t.valor_nuevo|default:"—" }}</span>
+        <span class="text-body-subtle text-xs">{{ t.editado_por.username|default:"—" }}</span>
       </li>
       {% endfor %}
     </ul>
@@ -119,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btnAprobar.addEventListener('click', function () {
       Swal.fire({
         title: '¿Aprobar formulario?', icon: 'question', showCancelButton: true,
-        confirmButtonColor: '#16a34a', cancelButtonColor: '#6b7280',
+        confirmButtonColor: '#5059bc', cancelButtonColor: '#6b7280',
         confirmButtonText: 'Sí, aprobar', cancelButtonText: 'Cancelar',
       }).then(function (r) { if (r.isConfirmed) document.getElementById('form-aprobar').submit(); });
     });
@@ -133,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputLabel: 'Motivo del rechazo (obligatorio)',
         inputPlaceholder: 'Detallá el motivo...',
         showCancelButton: true,
-        confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280',
+        confirmButtonColor: '#5059bc', cancelButtonColor: '#6b7280',
         confirmButtonText: 'Rechazar', cancelButtonText: 'Cancelar',
         inputValidator: function (value) { if (!value || !value.trim()) return 'El motivo es obligatorio.'; },
       }).then(function (r) {
