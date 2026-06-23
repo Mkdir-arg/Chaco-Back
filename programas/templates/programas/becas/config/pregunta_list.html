@@ -1,0 +1,67 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Cuestionario social{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-heading">Cuestionario social</h1>
+      <p class="text-body-subtle mt-1 text-sm">Preguntas globales (requisitos generales) del formulario</p>
+    </div>
+    <a href="{% url 'becas:pregunta_crear' %}" class="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">
+      <i class="fas fa-plus"></i> Nueva pregunta
+    </a>
+  </div>
+
+  <div class="rounded-xl border border-base bg-primary overflow-hidden">
+    {% if preguntas %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-secondary-soft text-body-subtle"><tr>
+          <th class="px-5 py-3 text-right font-semibold">ORDEN</th>
+          <th class="px-5 py-3 text-left font-semibold">TEXTO</th>
+          <th class="px-5 py-3 text-left font-semibold">TIPO</th>
+          <th class="px-5 py-3 text-center font-semibold">OBLIGATORIO</th>
+          <th class="px-5 py-3 text-center font-semibold">ACTIVO</th>
+          <th class="px-5 py-3 text-right font-semibold">ACCIONES</th>
+        </tr></thead>
+        <tbody class="divide-y divide-[color:var(--border-base)]">
+          {% for p in preguntas %}
+          <tr class="hover:bg-secondary-soft">
+            <td class="px-5 py-3 text-right">{{ p.orden }}</td>
+            <td class="px-5 py-3 text-heading">{{ p.texto }}</td>
+            <td class="px-5 py-3"><span class="inline-flex rounded-full bg-brand-softer px-2 py-0.5 text-xs text-fg-brand">{{ p.get_tipo_display }}</span></td>
+            <td class="px-5 py-3 text-center">{% if p.obligatorio %}<i class="fas fa-check text-fg-success"></i>{% else %}<i class="fas fa-minus text-body-subtle"></i>{% endif %}</td>
+            <td class="px-5 py-3 text-center">
+              {% if p.activo %}<span class="inline-flex rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-fg-success">Activa</span>
+              {% else %}<span class="inline-flex rounded-full bg-gray px-2.5 py-0.5 text-xs font-medium text-body-subtle">Inactiva</span>{% endif %}
+            </td>
+            <td class="px-5 py-3 text-right">
+              <div class="flex items-center justify-end gap-3">
+                <a href="{% url 'becas:pregunta_editar' p.pk %}" class="text-body-subtle hover:text-heading" title="Editar"><i class="fas fa-edit"></i></a>
+                <button type="button" class="text-body-subtle hover:text-fg-warning" title="Activar/Desactivar"
+                        data-confirm-url="{% url 'becas:pregunta_toggle' p.pk %}"
+                        data-confirm-title="{% if p.activo %}¿Desactivar pregunta?{% else %}¿Activar pregunta?{% endif %}"
+                        data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí"><i class="fas fa-power-off"></i></button>
+                <button type="button" class="text-body-subtle hover:text-fg-danger" title="Eliminar"
+                        data-confirm-url="{% url 'becas:pregunta_eliminar' p.pk %}"
+                        data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar"><i class="fas fa-trash"></i></button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-12 text-center">
+      <i class="fas fa-clipboard-list text-5xl text-body-subtle/40 mb-4"></i>
+      <h3 class="text-lg font-semibold text-heading mb-1">No hay preguntas configuradas</h3>
+      <a href="{% url 'becas:pregunta_crear' %}" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong"><i class="fas fa-plus"></i> Nueva pregunta</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

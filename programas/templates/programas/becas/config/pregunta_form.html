@@ -1,0 +1,22 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} pregunta{% endblock %}
+
+{% block main-content %}
+<div class="max-w-2xl mx-auto">
+  <a href="{% url 'becas:preguntas' %}" class="text-xs text-body-subtle hover:underline">← Cuestionario social</a>
+  <h1 class="text-2xl font-bold text-heading mb-6">
+    {% if form.instance.pk %}Editar pregunta{% else %}Nueva pregunta{% endif %}
+  </h1>
+  <form method="post" class="rounded-xl border border-base bg-primary p-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    <div class="flex justify-end gap-3 mt-6">
+      <a href="{% url 'becas:preguntas' %}" class="rounded-xl border border-base px-5 py-2.5 text-sm font-semibold text-body hover:bg-secondary-soft">← Volver</a>
+      <button type="submit" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

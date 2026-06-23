@@ -1,0 +1,142 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · {{ segmento.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-5xl mx-auto space-y-6">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <a href="{% url 'becas:segmentos' %}" class="text-xs text-body-subtle hover:underline">← Segmentos</a>
+      <h1 class="text-2xl font-bold text-heading">{{ segmento.nombre }}</h1>
+      <p class="text-sm text-body-subtle">
+        {{ subsegmentos|length }} subsegmento(s) · cupo {{ segmento.cupo_maximo }} · {{ coordinadores|length }} coordinador(es)
+      </p>
+    </div>
+    <a href="{% url 'becas:segmento_editar' segmento.pk %}" class="rounded-xl border border-base px-4 py-2 text-sm font-semibold text-body hover:bg-secondary-soft">
+      <i class="fas fa-edit mr-1"></i> Editar
+    </a>
+  </div>
+
+  {% if segmento.descripcion %}<p class="text-sm text-body">{{ segmento.descripcion }}</p>{% endif %}
+
+  <!-- Subsegmentos -->
+  <section class="rounded-xl border border-base bg-primary p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-heading">Subsegmentos</h2>
+    </div>
+
+    {% if subsegmentos %}
+      <div class="mb-3">
+        <div class="flex justify-between text-xs text-body-subtle mb-1">
+          <span>Cupo distribuido: {{ segmento.cupo_distribuido }} / {{ segmento.cupo_maximo }}</span>
+          <span>Disponible: {{ segmento.cupo_disponible }}</span>
+        </div>
+        <div class="h-2 w-full rounded-full bg-secondary-soft overflow-hidden">
+          {% widthratio segmento.cupo_distribuido segmento.cupo_maximo 100 as pct %}
+          <div class="h-2 rounded-full bg-brand" style="width: {{ pct }}%"></div>
+        </div>
+      </div>
+      <table class="w-full text-sm mb-4">
+        <thead class="text-body-subtle"><tr>
+          <th class="text-left py-2 font-semibold">NOMBRE</th>
+          <th class="text-right py-2 font-semibold">CUPO MÁX</th>
+          <th class="text-right py-2 font-semibold">ACCIONES</th>
+        </tr></thead>
+        <tbody class="divide-y divide-[color:var(--border-base)]">
+          {% for sub in subsegmentos %}
+          <tr>
+            <td class="py-2"><a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:underline">{{ sub.nombre }}</a></td>
+            <td class="py-2 text-right">{{ sub.cupo_maximo }}</td>
+            <td class="py-2 text-right">
+              <a href="{% url 'becas:subsegmento_editar' sub.pk %}" class="text-body-subtle hover:text-heading mr-3" title="Editar"><i class="fas fa-edit"></i></a>
+              <button type="button" class="text-body-subtle hover:text-fg-danger" title="Eliminar"
+                      data-confirm-url="{% url 'becas:subsegmento_eliminar' sub.pk %}"
+                      data-confirm-title="¿Eliminar subsegmento?" data-confirm-text="{{ sub.nombre }}" data-confirm-ok="Sí, eliminar">
+                <i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-sm text-body-subtle mb-4">Sin subsegmentos. El cupo del segmento es el total.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" class="flex flex-wrap items-end gap-3 border-t border-base pt-4">
+      {% csrf_token %}
+      <div class="flex-1 min-w-[160px]">{{ form_subsegmento.nombre.label_tag }}{{ form_subsegmento.nombre }}</div>
+      <div class="w-32">{{ form_subsegmento.cupo_maximo.label_tag }}{{ form_subsegmento.cupo_maximo }}</div>
+      <button type="submit" class="rounded-xl border border-brand px-4 py-2 text-sm font-semibold text-fg-brand hover:bg-brand-softer">
+        <i class="fas fa-plus mr-1"></i> Agregar subsegmento
+      </button>
+    </form>
+  </section>
+
+  <!-- Coordinadores -->
+  <section class="rounded-xl border border-base bg-primary p-6">
+    <h2 class="text-lg font-semibold text-heading mb-4">Coordinadores asignados</h2>
+    {% if coordinadores %}
+      <ul class="space-y-2 mb-4">
+        {% for asig in coordinadores %}
+        <li class="flex items-center justify-between rounded-lg bg-secondary-soft px-3 py-2">
+          <span class="text-sm text-body"><i class="fas fa-user-circle mr-2 text-fg-brand"></i>{{ asig.coordinador.get_full_name|default:asig.coordinador.username }}</span>
+          <button type="button" class="text-body-subtle hover:text-fg-danger" title="Quitar"
+                  data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}"
+                  data-confirm-title="¿Quitar coordinador?"
+                  data-confirm-text="{{ asig.coordinador.get_full_name|default:asig.coordinador.username }} dejará de coordinar este segmento."
+                  data-confirm-ok="Sí, quitar"><i class="fas fa-trash"></i></button>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-body-subtle mb-4">Sin coordinadores asignados.</p>
+    {% endif %}
+    <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3 border-t border-base pt-4">
+      {% csrf_token %}
+      <div class="flex-1 min-w-[200px]">{{ form_coordinador.coordinador.label_tag }}{{ form_coordinador.coordinador }}</div>
+      <button type="submit" class="rounded-xl border border-brand px-4 py-2 text-sm font-semibold text-fg-brand hover:bg-brand-softer">
+        <i class="fas fa-plus mr-1"></i> Asignar coordinador
+      </button>
+    </form>
+  </section>
+
+  <!-- Requisitos nativos del segmento -->
+  <section class="rounded-xl border border-base bg-primary p-6">
+    <h2 class="text-lg font-semibold text-heading mb-4">Requisitos nativos del segmento</h2>
+    {% if requisitos %}
+      <ul class="space-y-2 mb-4">
+        {% for req in requisitos %}
+        <li class="flex items-center justify-between rounded-lg bg-secondary-soft px-3 py-2">
+          <span class="text-sm text-body">{{ req.texto }}
+            <span class="ml-2 inline-flex rounded-full bg-brand-softer px-2 py-0.5 text-xs text-fg-brand">{{ req.get_tipo_display }}</span>
+          </span>
+          <button type="button" class="text-body-subtle hover:text-fg-danger" title="Eliminar"
+                  data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
+                  data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar"><i class="fas fa-trash"></i></button>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-body-subtle mb-4">Sin requisitos nativos.</p>
+    {% endif %}
+    <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" class="space-y-3 border-t border-base pt-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>{{ form_requisito.texto.label_tag }}{{ form_requisito.texto }}</div>
+        <div>{{ form_requisito.tipo.label_tag }}{{ form_requisito.tipo }}</div>
+      </div>
+      <div>{{ form_requisito.opciones_texto.label_tag }}{{ form_requisito.opciones_texto }}
+        <p class="text-xs text-body-subtle">{{ form_requisito.opciones_texto.help_text }}</p></div>
+      <button type="submit" class="rounded-xl border border-brand px-4 py-2 text-sm font-semibold text-fg-brand hover:bg-brand-softer">
+        <i class="fas fa-plus mr-1"></i> Agregar requisito
+      </button>
+    </form>
+  </section>
+
+  <div class="text-right">
+    <a href="{% url 'becas:preguntas' %}" class="text-sm text-fg-brand hover:underline">Administrar cuestionario social (preguntas globales) →</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

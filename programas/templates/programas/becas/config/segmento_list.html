@@ -1,0 +1,95 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Segmentos{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-heading">Segmentos</h1>
+      <p class="text-body-subtle mt-1 text-sm">Configuración del Programa Becas</p>
+    </div>
+    <a href="{% url 'becas:segmento_crear' %}"
+       class="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong transition-colors">
+      <i class="fas fa-plus"></i> Nuevo segmento
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="rounded-xl border border-base bg-primary p-5">
+      <p class="text-xs text-body-subtle">Total segmentos</p>
+      <p class="text-2xl font-bold text-heading">{{ stat_total }}</p>
+    </div>
+    <div class="rounded-xl border border-base bg-primary p-5">
+      <p class="text-xs text-body-subtle">Cupo total configurado</p>
+      <p class="text-2xl font-bold text-heading">{{ stat_cupo }}</p>
+    </div>
+    <div class="rounded-xl border border-base bg-primary p-5">
+      <p class="text-xs text-body-subtle">Segmentos activos</p>
+      <p class="text-2xl font-bold text-heading">{{ stat_activos }}</p>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-base bg-primary overflow-hidden">
+    {% if segmentos %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-secondary-soft text-body-subtle">
+          <tr>
+            <th class="px-5 py-3 text-left font-semibold">NOMBRE</th>
+            <th class="px-5 py-3 text-right font-semibold">CUPO MÁX</th>
+            <th class="px-5 py-3 text-right font-semibold">SUBSEGMENTOS</th>
+            <th class="px-5 py-3 text-right font-semibold">COORDINADORES</th>
+            <th class="px-5 py-3 text-center font-semibold">ACTIVO</th>
+            <th class="px-5 py-3 text-right font-semibold">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[color:var(--border-base)]">
+          {% for s in segmentos %}
+          <tr class="hover:bg-secondary-soft">
+            <td class="px-5 py-3 font-medium text-heading">
+              <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-fg-brand hover:underline">{{ s.nombre }}</a>
+            </td>
+            <td class="px-5 py-3 text-right">{{ s.cupo_maximo }}</td>
+            <td class="px-5 py-3 text-right">{{ s.n_subsegmentos }}</td>
+            <td class="px-5 py-3 text-right">{{ s.n_coordinadores }}</td>
+            <td class="px-5 py-3 text-center">
+              {% if s.activo %}
+                <span class="inline-flex rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-fg-success">Activo</span>
+              {% else %}
+                <span class="inline-flex rounded-full bg-gray px-2.5 py-0.5 text-xs font-medium text-body-subtle">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3 text-right">
+              <div class="flex items-center justify-end gap-3">
+                <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-fg-brand hover:opacity-70" title="Ver"><i class="fas fa-eye"></i></a>
+                <a href="{% url 'becas:segmento_editar' s.pk %}" class="text-body-subtle hover:text-heading" title="Editar"><i class="fas fa-edit"></i></a>
+                <button type="button" class="text-body-subtle hover:text-fg-warning" title="Activar/Desactivar"
+                        data-confirm-url="{% url 'becas:segmento_toggle' s.pk %}"
+                        data-confirm-title="{% if s.activo %}¿Desactivar segmento?{% else %}¿Activar segmento?{% endif %}"
+                        data-confirm-text="{{ s.nombre }}"
+                        data-confirm-icon="question"
+                        data-confirm-ok="Sí">
+                  <i class="fas fa-power-off"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-12 text-center">
+      <i class="fas fa-layer-group text-5xl text-body-subtle/40 mb-4"></i>
+      <h3 class="text-lg font-semibold text-heading mb-1">No hay segmentos configurados</h3>
+      <p class="text-body-subtle mb-6 text-sm">Comenzá creando el primer segmento del programa.</p>
+      <a href="{% url 'becas:segmento_crear' %}" class="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">
+        <i class="fas fa-plus"></i> Nuevo segmento
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

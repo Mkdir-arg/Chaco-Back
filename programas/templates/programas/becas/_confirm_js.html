@@ -1,0 +1,36 @@
+{# Confirmación destructiva con SweetAlert2 → envía un POST con CSRF.
+   Uso: cualquier elemento con data-confirm-url (y opcionalmente
+   data-confirm-title / data-confirm-text / data-confirm-ok). #}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-confirm-url]');
+  if (!btn) return;
+  e.preventDefault();
+  Swal.fire({
+    title: btn.dataset.confirmTitle || '¿Confirmás la acción?',
+    text: btn.dataset.confirmText || '',
+    icon: btn.dataset.confirmIcon || 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: btn.dataset.confirmOk || 'Sí, confirmar',
+    cancelButtonText: 'Cancelar',
+  }).then(function (r) {
+    if (!r.isConfirmed) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = btn.dataset.confirmUrl;
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrf) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'csrfmiddlewaretoken';
+      input.value = csrf.value;
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  });
+});
+</script>

@@ -1,0 +1,63 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · {{ subsegmento.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-3xl mx-auto space-y-6">
+  <div>
+    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="text-xs text-body-subtle hover:underline">← {{ segmento.nombre }}</a>
+    <h1 class="text-2xl font-bold text-heading">{{ subsegmento.nombre }}</h1>
+    <p class="text-sm text-body-subtle">Cupo máximo: {{ subsegmento.cupo_maximo }}</p>
+  </div>
+
+  <section class="rounded-xl border border-base bg-primary p-6">
+    <h2 class="text-lg font-semibold text-heading mb-3">Requisitos heredados del segmento</h2>
+    {% if requisitos_heredados %}
+      <ul class="space-y-2">
+        {% for req in requisitos_heredados %}
+        <li class="flex items-center justify-between rounded-lg bg-secondary-soft px-3 py-2">
+          <span class="text-sm text-body">{{ req.texto }}
+            <span class="ml-2 inline-flex rounded-full bg-brand-softer px-2 py-0.5 text-xs text-fg-brand">{{ req.get_tipo_display }}</span></span>
+          <span class="inline-flex rounded-full bg-gray px-2 py-0.5 text-xs text-body-subtle">Heredado</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-body-subtle">El segmento no tiene requisitos propios.</p>
+    {% endif %}
+  </section>
+
+  <section class="rounded-xl border border-base bg-primary p-6">
+    <h2 class="text-lg font-semibold text-heading mb-3">Requisitos propios del subsegmento</h2>
+    {% if requisitos_propios %}
+      <ul class="space-y-2 mb-4">
+        {% for req in requisitos_propios %}
+        <li class="flex items-center justify-between rounded-lg bg-secondary-soft px-3 py-2">
+          <span class="text-sm text-body">{{ req.texto }}
+            <span class="ml-2 inline-flex rounded-full bg-brand-softer px-2 py-0.5 text-xs text-fg-brand">{{ req.get_tipo_display }}</span></span>
+          <button type="button" class="text-body-subtle hover:text-fg-danger" title="Eliminar"
+                  data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
+                  data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar"><i class="fas fa-trash"></i></button>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-body-subtle mb-4">Sin requisitos propios.</p>
+    {% endif %}
+    <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}?subsegmento={{ subsegmento.pk }}" class="space-y-3 border-t border-base pt-4">
+      {% csrf_token %}
+      <input type="hidden" name="subsegmento" value="{{ subsegmento.pk }}">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>{{ form_requisito.texto.label_tag }}{{ form_requisito.texto }}</div>
+        <div>{{ form_requisito.tipo.label_tag }}{{ form_requisito.tipo }}</div>
+      </div>
+      <div>{{ form_requisito.opciones_texto.label_tag }}{{ form_requisito.opciones_texto }}
+        <p class="text-xs text-body-subtle">{{ form_requisito.opciones_texto.help_text }}</p></div>
+      <button type="submit" class="rounded-xl border border-brand px-4 py-2 text-sm font-semibold text-fg-brand hover:bg-brand-softer">
+        <i class="fas fa-plus mr-1"></i> Agregar requisito propio
+      </button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

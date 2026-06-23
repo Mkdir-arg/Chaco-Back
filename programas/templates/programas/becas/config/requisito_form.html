@@ -1,0 +1,22 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Requisito{% endblock %}
+
+{% block main-content %}
+<div class="max-w-xl mx-auto">
+  {% if subsegmento %}
+    <a href="{% url 'becas:subsegmento_detalle' subsegmento.pk %}" class="text-xs text-body-subtle hover:underline">← {{ subsegmento.nombre }}</a>
+  {% else %}
+    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="text-xs text-body-subtle hover:underline">← {{ segmento.nombre }}</a>
+  {% endif %}
+  <h1 class="text-2xl font-bold text-heading mb-6">Nuevo requisito nativo</h1>
+  <form method="post" class="rounded-xl border border-base bg-primary p-6">
+    {% csrf_token %}
+    {% if subsegmento %}<input type="hidden" name="subsegmento" value="{{ subsegmento.pk }}">{% endif %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    <div class="flex justify-end gap-3 mt-6">
+      <a href="{% if subsegmento %}{% url 'becas:subsegmento_detalle' subsegmento.pk %}{% else %}{% url 'becas:segmento_detalle' segmento.pk %}{% endif %}" class="rounded-xl border border-base px-5 py-2.5 text-sm font-semibold text-body hover:bg-secondary-soft">← Volver</a>
+      <button type="submit" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
