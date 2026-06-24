@@ -60,6 +60,17 @@ CATALOGO = [
         ],
     },
     {
+        "modulo": "becas",
+        "label": "Programa Becas",
+        "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
+        "capacidades": [
+            ("becas.configurar", "Configurar Becas (segmentos, cupos, requisitos, preguntas, coordinadores)"),
+            ("becas.relevamientos", "Gestionar relevamientos de Becas"),
+            ("becas.revisar", "Revisar formularios de Becas (aprobar/rechazar)"),
+            ("becas.campo", "Operar la app de campo de Becas (territorial)"),
+        ],
+    },
+    {
         "modulo": "conversaciones",
         "label": "Conversaciones",
         "capacidades": [

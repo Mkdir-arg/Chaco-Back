@@ -2,7 +2,22 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import DerivacionPrograma, InscripcionPrograma, Programa
+from .models import (
+    AsignacionCoordinador,
+    Convocatoria,
+    CupoSegmento,
+    DerivacionPrograma,
+    Formulario,
+    InscripcionPrograma,
+    ListaEspera,
+    Programa,
+    PreguntaGlobal,
+    Relevamiento,
+    RequisitoNativo,
+    Segmento,
+    Subsegmento,
+    TracaFormulario,
+)
 
 
 @admin.register(Programa)
@@ -97,3 +112,112 @@ class DerivacionProgramaAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
     )
+
+
+# ===========================================================================
+# Programa Becas
+# ===========================================================================
+
+
+class SubsegmentoInline(admin.TabularInline):
+    model = Subsegmento
+    extra = 0
+
+
+class RequisitoNativoInline(admin.TabularInline):
+    model = RequisitoNativo
+    extra = 0
+
+
+@admin.register(Segmento)
+class SegmentoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "cupo_maximo", "requiere_gps", "activo")
+    list_filter = ("activo", "requiere_gps")
+    search_fields = ("nombre",)
+    inlines = (SubsegmentoInline, RequisitoNativoInline)
+
+
+@admin.register(Subsegmento)
+class SubsegmentoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "segmento", "cupo_maximo")
+    list_filter = ("segmento",)
+    search_fields = ("nombre",)
+
+
+@admin.register(CupoSegmento)
+class CupoSegmentoAdmin(admin.ModelAdmin):
+    list_display = ("segmento", "cupo_ocupado")
+    search_fields = ("segmento__nombre",)
+
+
+@admin.register(Convocatoria)
+class ConvocatoriaAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "segmento", "subsegmento", "fecha_inicio", "fecha_fin", "activo")
+    list_filter = ("activo", "segmento")
+    search_fields = ("nombre",)
+
+
+@admin.register(Relevamiento)
+class RelevamientoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "convocatoria", "territorial", "fecha_asignada", "zona", "estado")
+    list_filter = ("estado", "convocatoria")
+    search_fields = ("nombre", "zona", "territorial__username")
+    readonly_fields = ("nombre",)
+
+
+@admin.register(PreguntaGlobal)
+class PreguntaGlobalAdmin(admin.ModelAdmin):
+    list_display = ("orden", "texto", "tipo", "obligatorio", "activo")
+    list_filter = ("activo", "tipo", "obligatorio")
+    search_fields = ("texto",)
+    ordering = ("orden", "id")
+
+
+@admin.register(RequisitoNativo)
+class RequisitoNativoAdmin(admin.ModelAdmin):
+    list_display = ("texto", "segmento", "subsegmento", "tipo", "orden")
+    list_filter = ("segmento", "tipo")
+    search_fields = ("texto",)
+
+
+@admin.register(AsignacionCoordinador)
+class AsignacionCoordinadorAdmin(admin.ModelAdmin):
+    list_display = ("coordinador", "segmento", "activo", "fecha_asignacion")
+    list_filter = ("activo", "segmento")
+    search_fields = ("coordinador__username", "segmento__nombre")
+
+
+class TracaFormularioInline(admin.TabularInline):
+    model = TracaFormulario
+    extra = 0
+    readonly_fields = ("editado_por", "created_at", "campo", "valor_anterior", "valor_nuevo")
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Formulario)
+class FormularioAdmin(admin.ModelAdmin):
+    list_display = ("id", "relevamiento", "ciudadano", "estado", "validado_renaper", "creado")
+    list_filter = ("estado", "validado_renaper", "relevamiento")
+    search_fields = ("ciudadano__dni", "ciudadano__nombre", "ciudadano__apellido", "celular")
+    readonly_fields = ("creado", "modificado")
+    inlines = (TracaFormularioInline,)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("relevamiento", "ciudadano", "created_by")
+
+
+@admin.register(TracaFormulario)
+class TracaFormularioAdmin(admin.ModelAdmin):
+    list_display = ("formulario", "campo", "editado_por", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("campo", "formulario__id")
+    readonly_fields = ("formulario", "editado_por", "created_at", "campo", "valor_anterior", "valor_nuevo")
+
+
+@admin.register(ListaEspera)
+class ListaEsperaAdmin(admin.ModelAdmin):
+    list_display = ("segmento", "posicion", "formulario", "promovido", "fecha_ingreso")
+    list_filter = ("segmento", "promovido")

@@ -1,0 +1,68 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Convocatorias{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Convocatorias</span>
+  </nav>
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Convocatorias</h1>
+      <p class="text-sm text-body-subtle mt-1">Agrupadores de relevamientos por segmento y período</p>
+    </div>
+    <a href="{% url 'becas:convocatoria_crear' %}" class="btn-nodo btn-brand btn-base">
+      <i class="fas fa-plus"></i> Nueva convocatoria
+    </a>
+  </div>
+
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    {% if convocatorias %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmento</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Período</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in convocatorias %}
+          <tr class="hover:bg-[#F9FAFB]">
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">{{ c.nombre }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.segmento.nombre }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">
+              {{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+              {% if c.activo %}
+                <span class="badge badge-success badge-dot">Activa</span>
+              {% else %}
+                <span class="badge badge-gray">Inactiva</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+      <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl"></i></div>
+      <p class="text-[17px] font-bold text-heading">No hay convocatorias</p>
+      <p class="text-sm text-body max-w-xs">Creá una convocatoria para poder asignar relevamientos.</p>
+      <a href="{% url 'becas:convocatoria_crear' %}" class="btn-nodo btn-brand btn-base mt-2">
+        <i class="fas fa-plus"></i> Nueva convocatoria
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Revisión {{ relevamiento.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <a href="{% url 'becas:revision' %}" class="hover:underline">Revisión</a>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">{{ relevamiento.nombre }}</span>
+  </nav>
+
+  <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ relevamiento.nombre }}</h1>
+        {% with rel=relevamiento %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}
+      </div>
+      <p class="text-sm text-body-subtle mt-1">
+        {{ relevamiento.convocatoria.segmento.nombre }} &middot; {{ pendientes }} pendiente(s) de revisión
+      </p>
+    </div>
+    <div class="flex gap-2">
+      {% if relevamiento.estado == 'FINALIZADO' %}
+      <form method="post" action="{% url 'becas:revision_iniciar' relevamiento.pk %}">{% csrf_token %}
+        <button class="btn-nodo btn-tertiary btn-base">
+          <i class="fas fa-play"></i> Iniciar revisión
+        </button>
+      </form>
+      {% elif relevamiento.estado == 'EN_REVISION' %}
+      <form method="post" action="{% url 'becas:revision_terminar' relevamiento.pk %}">{% csrf_token %}
+        <button class="btn-nodo btn-brand btn-base">
+          <i class="fas fa-check"></i> Marcar terminado
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Filter bar #}
+  <form method="get" class="flex items-center gap-3 mb-4 flex-wrap">
+    <label class="text-sm text-body-subtle font-medium">Estado:</label>
+    <select name="estado" onchange="this.form.submit()"
+            class="rounded-full border border-[#E5E7EB] bg-white px-4 py-1.5 text-sm text-body focus:outline-none focus:border-brand">
+      <option value="">Todos</option>
+      {% for value, label in estados %}
+        <option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    {% if formularios %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Contacto</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">RENAPER</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in formularios %}
+          <tr class="hover:bg-[#F9FAFB]">
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">
+              {% if f.ciudadano %}
+                {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
+                <span class="text-body-subtle font-normal">({{ f.ciudadano.dni }})</span>
+              {% elif f.datos_identificacion %}
+                {{ f.datos_identificacion.nombre }} {{ f.datos_identificacion.apellido }}
+                <span class="text-body-subtle font-normal">(offline)</span>
+              {% else %}
+                <span class="text-body-subtle">Sin identificar</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ f.celular }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+              {% if f.validado_renaper %}
+                <i class="fas fa-check text-fg-success"></i>
+              {% else %}
+                <i class="fas fa-clock text-body-subtle"></i>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+              {% if f.estado == 'APROBADO' %}
+                <span class="badge badge-success badge-dot">Aprobado</span>
+              {% elif f.estado == 'RECHAZADO' %}
+                <span class="badge badge-danger badge-dot">Rechazado</span>
+              {% else %}
+                <span class="badge badge-warning badge-dot">Enviado</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+              <a href="{% url 'becas:formulario_detalle' f.pk %}" class="btn-nodo btn-tertiary btn-sm">
+                Abrir <i class="fas fa-arrow-right"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+      <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>
+      <p class="text-[17px] font-bold text-heading">Sin formularios</p>
+      <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene formularios cargados.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
