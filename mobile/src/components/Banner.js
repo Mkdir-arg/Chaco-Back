@@ -1,7 +1,9 @@
 import { View, Text, StyleSheet, Platform, Pressable, ImageBackground, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
+import { fontSizes, radii } from '../theme';
 
 export default function Banner({
     title,
@@ -36,10 +38,10 @@ export default function Banner({
                             <Ionicons
                                 name={isSyncing ? 'sync' : (isSynced ? 'cloud-done' : 'cloud-upload')}
                                 size={28}
-                                color={isSyncing ? theme.colors.accent : (isSynced ? theme.colors.success : theme.colors.warning)}
+                                color="#FFF"
                             />
                             {syncPendingCount > 0 ? (
-                                <View style={[styles.syncBadge, { borderColor: '#FFF', backgroundColor: theme.colors.primary }]}>
+                                <View style={[styles.syncBadge, { borderColor: '#FFF', backgroundColor: theme.colors.warning }]}>
                                     <Text style={[styles.syncBadgeText, { fontFamily: typography.bold }]}>
                                         {syncPendingCount > 99 ? '99+' : syncPendingCount}
                                     </Text>
@@ -53,7 +55,7 @@ export default function Banner({
                                 styles.badge,
                                 {
                                     borderColor: '#FFF',
-                                    backgroundColor: '#EA0606',
+                                    backgroundColor: theme.colors.danger,
                                 }
                             ]}>
                                 <Text style={[styles.badgeText, { fontFamily: typography.bold }]}>2</Text>
@@ -68,18 +70,20 @@ export default function Banner({
     return (
         <View style={styles.shadowContainer}>
             {useSolidBanner ? (
-                <View
+                <LinearGradient
+                    colors={theme.colors.gradients?.brand || [branding.banner?.color || theme.colors.primary, theme.colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
                     style={[
                         styles.container,
                         {
-                            backgroundColor: branding.banner?.color || theme.colors.primary,
                             borderBottomWidth: 1,
-                            borderBottomColor: theme.colors.border,
+                            borderBottomColor: theme.colors.borderStrong || theme.colors.border,
                         },
                     ]}
                 >
                     {bannerContent}
-                </View>
+                </LinearGradient>
             ) : (
                 <ImageBackground
                     source={branding.assets.bannerBackground}
@@ -102,18 +106,18 @@ export default function Banner({
 
 const styles = StyleSheet.create({
     shadowContainer: {
-        shadowColor: '#000',
+        shadowColor: '#000000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-        elevation: 10,
+        shadowOpacity: 0.14,
+        shadowRadius: 12,
+        elevation: 8,
         zIndex: 10,
     },
     container: {
         paddingTop: Platform.OS === 'android' ? 28 : 6,
-        paddingBottom: 14,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
+        paddingBottom: 12,
+        borderBottomLeftRadius: radii['2xl'],
+        borderBottomRightRadius: radii['2xl'],
         overflow: 'hidden',
     },
     content: {
@@ -128,19 +132,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flexShrink: 1,
+        minWidth: 0,
     },
     backBtn: {
         width: 30,
         height: 30,
-        borderRadius: 15,
-        backgroundColor: 'rgba(0,0,0,0.2)',
+        borderRadius: radii.full,
+        backgroundColor: 'rgba(255,255,255,0.18)',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
     },
     title: {
-        fontSize: 22,
-        letterSpacing: 4,
+        fontSize: fontSizes.xl,
+        letterSpacing: 0,
+        flexShrink: 1,
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
@@ -164,7 +170,7 @@ const styles = StyleSheet.create({
         right: -4,
         minWidth: 16,
         height: 16,
-        borderRadius: 8,
+        borderRadius: radii.lg,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1.5,
@@ -172,7 +178,7 @@ const styles = StyleSheet.create({
     },
     syncBadgeText: {
         color: '#FFF',
-        fontSize: 9,
+        fontSize: fontSizes.xxs,
         lineHeight: 10,
     },
     badge: {
@@ -181,14 +187,14 @@ const styles = StyleSheet.create({
         right: 0,
         minWidth: 18,
         height: 18,
-        borderRadius: 9,
+        borderRadius: radii.full,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1.5,
     },
     badgeText: {
         color: '#FFF',
-        fontSize: 10,
+        fontSize: fontSizes.xs,
         textAlign: 'center',
     },
 });

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ branding.portal.title }}{% endblock %}</title>
+    <title>{% block title %}Portal Nande{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,36 +16,32 @@
         .animate-fadeInUp { animation: fadeInUp 0.6s ease-out; }
     </style>
 </head>
-<body class="min-h-screen" style="background-color: {{ branding.portal.background_color }};">
+<body class="min-h-screen" style="background-color: #FFFFFF;">
     <!-- Header -->
     <header class="bg-white border-b border-[#E5E7EB] sticky top-0 z-40 shadow-sm">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                    <div class="rounded-xl flex items-center justify-center" style="width: {{ branding.portal.logo_width }}; height: {{ branding.portal.logo_height }}; background: {{ branding.portal.icon_bg }};">
-                        {% if branding.portal.logo_path %}
-                        <img src="{% static branding.portal.logo_path %}" alt="{{ branding.portal.title }}" class="max-w-full max-h-full object-contain">
-                        {% else %}
-                        <i class="fas {{ branding.portal.icon_name }} text-white text-xl"></i>
-                        {% endif %}
+                    <div class="rounded-xl flex items-center justify-center" style="width: 64px; height: 64px; background: transparent;">
+                        <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Portal Nande" class="max-w-full max-h-full object-contain">
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold text-[#252F40]">{{ branding.portal.title }}</h1>
-                        <p class="text-sm text-[#8C8C8C]">{{ branding.portal.subtitle }}</p>
+                        <h1 class="text-2xl font-bold text-[#252F40]">Portal Nande</h1>
+                        <p class="text-sm text-[#8C8C8C]">Portal Ciudadano</p>
                     </div>
                 </div>
                 <div class="hidden md:flex items-center space-x-6">
                     <div class="flex items-center space-x-2 text-[#252F40]">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: {{ branding.portal.header_contact_icon_bg }}; border-color: {{ branding.portal.header_contact_icon_border }};">
-                            <i class="fas fa-phone text-sm" style="color: {{ branding.portal.header_contact_icon_color }};"></i>
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: #F0F2FF; border-color: #C7D2FE;">
+                            <i class="fas fa-phone text-sm" style="color: #5059BC;"></i>
                         </div>
                         <span class="text-sm font-medium">0800-222-1133</span>
                     </div>
                     <div class="flex items-center space-x-2 text-[#252F40]">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: {{ branding.portal.header_contact_icon_bg }}; border-color: {{ branding.portal.header_contact_icon_border }};">
-                            <i class="fas fa-envelope text-sm" style="color: {{ branding.portal.header_contact_icon_color }};"></i>
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: #F0F2FF; border-color: #C7D2FE;">
+                            <i class="fas fa-envelope text-sm" style="color: #5059BC;"></i>
                         </div>
-                        <span class="text-sm font-medium">{{ branding.portal.contact_email }}</span>
+                        <span class="text-sm font-medium">info@chaco.gob.ar</span>
                     </div>
                 </div>
             </div>
@@ -72,14 +68,10 @@
             <div class="grid md:grid-cols-3 gap-8">
                 <div>
                     <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: {{ branding.portal.icon_bg }};">
-                            {% if branding.portal.logo_path %}
-                            <img src="{% static branding.portal.logo_path %}" alt="{{ branding.portal.footer_title }}" class="max-w-full max-h-full object-contain">
-                            {% else %}
-                            <i class="fas {{ branding.portal.icon_name }} text-white"></i>
-                            {% endif %}
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: transparent;">
+                            <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Nande" class="max-w-full max-h-full object-contain">
                         </div>
-                        <h3 class="font-bold text-lg">{{ branding.portal.footer_title }}</h3>
+                        <h3 class="font-bold text-lg">Nande</h3>
                     </div>
                     <p class="text-gray-300 text-sm leading-relaxed">
                         Sistema de Registro de Instituciones
@@ -94,7 +86,7 @@
                         </div>
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-envelope w-4"></i>
-                            <span>{{ branding.portal.contact_email }}</span>
+                            <span>info@chaco.gob.ar</span>
                         </div>
                     </div>
                 </div>
@@ -116,14 +108,14 @@
 
     <!-- Chat Widget -->
     <div id="chat-widget" class="fixed bottom-6 right-6 z-50">
-        <button id="chat-button" class="text-white w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center" style="background: {{ branding.portal.floating_help_bg }};" onmouseover="this.style.background='{{ branding.portal.floating_help_hover_bg }}'" onmouseout="this.style.background='{{ branding.portal.floating_help_bg }}'">
-            <i class="fas fa-comments text-xl" style="color: {{ branding.portal.floating_help_icon_color }};"></i>
+        <button id="chat-button" class="text-white w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%);" onmouseover="this.style.background='linear-gradient(180deg, #454DA8 0%, #DB5FE2 100%)'" onmouseout="this.style.background='linear-gradient(180deg, #5059BC 0%, #F26DF9 100%)'">
+            <i class="fas fa-comments text-xl" style="color: #FFFFFF;"></i>
         </button>
         
         <div id="chat-window" class="hidden absolute bottom-20 right-0 w-80 bg-white rounded-xl shadow-2xl border border-[#E5E7EB] overflow-hidden">
-            <div class="text-white p-4 flex justify-between items-center" style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);">
+            <div class="text-white p-4 flex justify-between items-center" style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
                 <div class="flex items-center space-x-2">
-                    <div class="w-2 h-2 rounded-full animate-pulse" style="background: {{ branding.portal.home.status_badge_dot }};"></div>
+                    <div class="w-2 h-2 rounded-full animate-pulse" style="background: #8A9A46;"></div>
                     <h3 class="font-semibold">Mesa de Ayuda</h3>
                 </div>
                 <button id="close-chat" class="text-white hover:text-gray-200 transition-colors">
@@ -131,7 +123,7 @@
                 </button>
             </div>
             <div class="p-6 h-64 flex flex-col items-center justify-center text-[#8C8C8C]">
-                <i class="fas fa-headset text-4xl mb-3" style="color: {{ branding.portal.header_contact_icon_color }};"></i>
+                <i class="fas fa-headset text-4xl mb-3" style="color: #5059BC;"></i>
                 <p class="font-medium text-[#252F40] mb-1">Asistencia Técnica</p>
                 <p class="text-sm">Disponible próximamente</p>
             </div>
@@ -162,10 +154,10 @@
                 </div>
                 <!-- Modal Footer -->
                 <div id="modal-footer" class="p-6 border-t border-gray-200 flex justify-end space-x-3">
-                    <button id="modal-cancel" class="px-4 py-2 rounded-lg transition-colors hidden" style="color: {{ branding.portal.secondary_button_text }}; border: 1px solid {{ branding.portal.secondary_button_border }}; background: {{ branding.portal.secondary_button_bg }};" onmouseover="this.style.background='{{ branding.portal.secondary_button_hover_bg }}'" onmouseout="this.style.background='{{ branding.portal.secondary_button_bg }}'">
+                    <button id="modal-cancel" class="px-4 py-2 rounded-lg transition-colors hidden" style="color: #5059BC; border: 1px solid #5059BC; background: #FFFFFF;" onmouseover="this.style.background='#DEE1FF'" onmouseout="this.style.background='#FFFFFF'">
                         Cancelar
                     </button>
-                    <button id="modal-confirm" class="px-6 py-2 text-white rounded-lg transition-colors" style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);" onmouseover="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_hover_start }} 0%, {{ branding.portal.primary_button_hover_end }} 100%)'" onmouseout="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)'">
+                    <button id="modal-confirm" class="px-6 py-2 text-white rounded-lg transition-colors" style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);" onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'" onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                         Aceptar
                     </button>
                 </div>

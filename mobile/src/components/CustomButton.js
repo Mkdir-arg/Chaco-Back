@@ -3,13 +3,14 @@ import { Pressable, Text, StyleSheet, View, Platform, Animated, ActivityIndicato
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { designColors, fontSizes, radii } from '../theme';
 
 const SIZES = {
-    XS: { h: 32, px: 12, fontSize: 12, iconSize: 14 },
-    SM: { h: 36, px: 12, fontSize: 14, iconSize: 16 },
-    Base: { h: 40, px: 16, fontSize: 14, iconSize: 18 },
-    L: { h: 48, px: 20, fontSize: 16, iconSize: 20 },
-    XL: { h: 52, px: 24, fontSize: 16, iconSize: 22 },
+    XS: { h: 32, px: 12, fontSize: fontSizes.xs, iconSize: fontSizes.sm },
+    SM: { h: 36, px: 12, fontSize: fontSizes.sm, iconSize: fontSizes.base },
+    Base: { h: 40, px: 16, fontSize: fontSizes.sm, iconSize: fontSizes.lg },
+    L: { h: 48, px: 20, fontSize: fontSizes.base, iconSize: fontSizes.xl },
+    XL: { h: 52, px: 24, fontSize: fontSizes.base, iconSize: 22 },
 };
 
 const CustomButton = ({
@@ -45,22 +46,22 @@ const CustomButton = ({
                 case 'secondary':
                     return {
                         bg: theme.colors.button?.disabled?.bg || '#F3F4F6',
-                        text: theme.colors.button?.disabled?.text || '#99A1AF',
-                        stroke: theme.colors.button?.disabled?.border || '#E5E7E8',
+                        text: theme.colors.button?.disabled?.text || designColors.disabledText,
+                        stroke: theme.colors.button?.disabled?.border || designColors.borderBase,
                         strokeWidth: 1
                     };
                 case 'tertiary':
                     return {
                         bg: theme.colors.button?.disabled?.bg || '#F3F4F6',
-                        text: theme.colors.button?.disabled?.text || '#99A1AF',
-                        stroke: theme.colors.button?.disabled?.border || '#E5E7E8',
+                        text: theme.colors.button?.disabled?.text || designColors.disabledText,
+                        stroke: theme.colors.button?.disabled?.border || designColors.borderBase,
                         strokeWidth: 1
                     };
                 default: // primary
                     return {
                         bg: theme.colors.button?.disabled?.bg || '#F3F4F6',
-                        text: theme.colors.button?.disabled?.text || '#99A1AF',
-                        stroke: theme.colors.button?.disabled?.border || '#E5E7E8',
+                        text: theme.colors.button?.disabled?.text || designColors.disabledText,
+                        stroke: theme.colors.button?.disabled?.border || designColors.borderBase,
                         strokeWidth: 1
                     };
             }
@@ -70,24 +71,24 @@ const CustomButton = ({
             switch (variant) {
                 case 'secondary':
                     return {
-                        bg: theme.colors.button?.secondary?.hoverBg || '#F3F4F6',
-                        text: theme.colors.button?.secondary?.text || '#101828',
-                        stroke: theme.colors.button?.secondary?.border || '#E5E7EB',
+                        bg: theme.colors.button?.secondary?.hoverBg || designColors.bgTertiary,
+                        text: theme.colors.button?.secondary?.text || designColors.textBody,
+                        stroke: theme.colors.button?.secondary?.border || designColors.borderBase,
                         strokeWidth: 1,
                         shadow: '#F3F4F6'
                     };
                 case 'tertiary':
                     return {
-                        bg: theme.colors.button?.tertiary?.hoverBg || 'rgba(255, 0, 128, 0.1)',
-                        text: theme.colors.button?.tertiary?.hoverText || '#D4006A',
-                        stroke: theme.colors.button?.tertiary?.hoverBorder || '#D4006A',
+                        bg: theme.colors.button?.tertiary?.hoverBg || designColors.bgBrandSoft,
+                        text: theme.colors.button?.tertiary?.hoverText || designColors.brand,
+                        stroke: theme.colors.button?.tertiary?.hoverBorder || designColors.brand,
                         strokeWidth: 1,
                         shadow: '#F3F4F6'
                     };
                 default: // primary
                     return {
                         isGradient: true,
-                        text: '#FFFFFF',
+                        text: theme.colors.white,
                         stroke: theme.colors.primary,
                         strokeWidth: 2,
                         shadow: '#E5E7EB'
@@ -99,22 +100,22 @@ const CustomButton = ({
         switch (variant) {
             case 'secondary':
                 return {
-                    bg: theme.colors.button?.secondary?.bg || '#F9FAFB',
-                    text: theme.colors.button?.secondary?.text || '#4A5565',
-                    stroke: theme.colors.button?.secondary?.border || '#E5E7EB',
+                    bg: theme.colors.button?.secondary?.bg || designColors.bgSecondary,
+                    text: theme.colors.button?.secondary?.text || designColors.textBody,
+                    stroke: theme.colors.button?.secondary?.border || designColors.borderBase,
                     strokeWidth: 1
                 };
             case 'tertiary':
                 return {
-                    bg: theme.colors.button?.tertiary?.bg || '#FFFFFF',
-                    text: theme.colors.button?.tertiary?.text || '#FF0080',
-                    stroke: theme.colors.button?.tertiary?.border || '#FF0080',
+                    bg: theme.colors.button?.tertiary?.bg || designColors.white,
+                    text: theme.colors.button?.tertiary?.text || designColors.brand,
+                    stroke: theme.colors.button?.tertiary?.border || designColors.brand,
                     strokeWidth: 1
                 };
             default: // primary
                 return {
                     isGradient: true,
-                    text: '#FFFFFF',
+                    text: theme.colors.white,
                     stroke: 'transparent',
                     strokeWidth: 0
                 };
@@ -128,6 +129,8 @@ const CustomButton = ({
                 onPressIn={() => animatePress(0.94)}
                 onPressOut={() => animatePress(1)}
                 disabled={disabled || loading}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: disabled || loading, busy: loading }}
                 style={({ pressed }) => {
                     const v = getVariantStyles(pressed, disabled);
                     return [
@@ -169,18 +172,6 @@ const CustomButton = ({
                             {loading ? (
                                 <View style={styles.loadingRow}>
                                     <ActivityIndicator size="small" color={v.text} />
-                                    <Text style={[
-                                        styles.text,
-                                        styles.loadingText,
-                                        {
-                                            fontFamily: typography.medium,
-                                            fontSize: config.fontSize,
-                                            color: v.text
-                                        },
-                                        textStyle
-                                    ]}>
-                                        Procesando...
-                                    </Text>
                                 </View>
                             ) : (
                                 <Text style={[
@@ -209,7 +200,7 @@ const CustomButton = ({
                     if (v.isGradient && !disabled) {
                         return (
                             <LinearGradient
-                                colors={theme.colors.gradients?.buttonPrimary || ['#7828CA', '#FF0080']}
+                                colors={theme.colors.gradients?.buttonPrimary || [designColors.brand, designColors.pink]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.gradient}
@@ -229,11 +220,11 @@ const CustomButton = ({
 
 const styles = StyleSheet.create({
     container: {
-        borderRadius: 12,
+        borderRadius: radii.full,
         overflow: 'hidden',
     },
     buttonBase: {
-        borderRadius: 12,
+        borderRadius: radii.full,
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
@@ -256,12 +247,11 @@ const styles = StyleSheet.create({
     loadingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    loadingText: {
-        marginLeft: 8,
+        minWidth: 52,
+        justifyContent: 'center',
     },
     text: {
-        letterSpacing: 0.2,
+        letterSpacing: 0,
     },
     iconLeft: {
         marginRight: 6,

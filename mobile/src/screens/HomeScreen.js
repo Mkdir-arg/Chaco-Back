@@ -4,39 +4,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import MaskedView from '@react-native-masked-view/masked-view';
 import StaggeredItem from '../components/StaggeredItem';
-
-const GradientIcon = ({ name, size = 24, style }) => {
-    return (
-        <View style={[{ width: size, height: size }, style]}>
-            <MaskedView
-                style={{ flex: 1 }}
-                maskElement={
-                    <View style={{ backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                        <Ionicons name={name} size={size} color="black" />
-                    </View>
-                }
-            >
-                <LinearGradient
-                    colors={theme.colors.gradients?.brand || ['#FF0080', '#7928CA']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={{ flex: 1 }}
-                />
-            </MaskedView>
-        </View>
-    );
-};
+import { fontSizes, radii } from '../theme';
 
 const ACTIONS = [
-    { id: 'relevamientos', title: 'Relevamientos', icon: 'clipboard', subtitle: 'Listado y detalle' },
-    { id: 'sync', title: 'Sincronizacion', icon: 'cloud-upload', subtitle: 'Enviar pendientes' },
-    { id: 'mensajes', title: 'Mensajes', icon: 'chatbubbles', subtitle: 'Bandeja interna' },
-    { id: 'notificaciones', title: 'Notificaciones', icon: 'notifications', subtitle: 'Alertas del sistema' },
+    { id: 'sync', title: 'Sincronizacion', icon: 'cloud-upload-outline', subtitle: 'Enviar relevamientos pendientes' },
 ];
 
-export default function HomeScreen({ onOpenRelevamientos, onSyncPress, onOpenMensajes, onOpenNotificaciones }) {
+export default function HomeScreen({ onOpenRelevamientos, onSyncPress, syncPendingCount = 0 }) {
     const { theme, typography } = useTheme();
     const { user } = useAuth();
     const displayName = user?.username || user?.nombre || 'Usuario';
@@ -44,47 +19,94 @@ export default function HomeScreen({ onOpenRelevamientos, onSyncPress, onOpenMen
     const handleActionPress = (actionId) => {
         if (actionId === 'relevamientos') return onOpenRelevamientos?.();
         if (actionId === 'sync') return onSyncPress?.();
-        if (actionId === 'mensajes') return onOpenMensajes?.();
-        if (actionId === 'notificaciones') return onOpenNotificaciones?.();
     };
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={styles.content}>
             <StaggeredItem index={0}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
-                    Bienvenido, {displayName}
-                </Text>
+                <View style={styles.hero}>
+                    <View style={styles.heroText}>
+                        <Text style={[styles.eyebrow, { color: theme.colors.primary, fontFamily: typography.bold }]}>
+                            Relevamiento Chaco
+                        </Text>
+                        <Text style={[styles.sectionTitle, { color: theme.colors.text, fontFamily: typography.extrabold }]}>
+                            Hola, {displayName}
+                        </Text>
+                        <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted, fontFamily: typography.medium }]}>
+                            Recibi tus relevamientos asignados, entra a cada caso y completa los pasos en territorio.
+                        </Text>
+                    </View>
+                    <View style={[styles.statusPill, { backgroundColor: theme.colors.successSoft, borderColor: theme.colors.success }]}>
+                        <View style={[styles.statusDot, { backgroundColor: theme.colors.success }]} />
+                        <Text style={[styles.statusText, { color: theme.colors.text, fontFamily: typography.bold }]}>
+                            {syncPendingCount > 0 ? `${syncPendingCount} pendientes` : 'Al dia'}
+                        </Text>
+                    </View>
+                </View>
             </StaggeredItem>
 
+            <StaggeredItem index={1}>
+                <Pressable
+                    onPress={() => handleActionPress('relevamientos')}
+                    style={({ pressed }) => [styles.primaryActionWrap, { opacity: pressed ? 0.92 : 1 }]}
+                >
+                    <LinearGradient
+                        colors={theme.colors.gradients?.brand}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.primaryAction}
+                    >
+                        <View style={styles.primaryIconBadge}>
+                            <Ionicons name="clipboard-outline" size={fontSizes['2xl']} color={theme.colors.white} />
+                        </View>
+                        <View style={styles.primaryActionText}>
+                            <Text style={[styles.primaryActionTitle, { color: theme.colors.white, fontFamily: typography.extrabold }]}>
+                                Mis relevamientos
+                            </Text>
+                            <Text style={[styles.primaryActionSubtitle, { color: theme.colors.white, fontFamily: typography.medium }]}>
+                                Ver asignados, abrir el relevamiento y completar la carga paso a paso.
+                            </Text>
+                        </View>
+                        <Ionicons name="arrow-forward" size={fontSizes.xl} color={theme.colors.white} />
+                    </LinearGradient>
+                </Pressable>
+            </StaggeredItem>
+
+            <View style={styles.sectionHeader}>
+                <Text style={[styles.blockTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
+                    Operacion
+                </Text>
+            </View>
+
             <View style={styles.actionsWrap}>
-                {ACTIONS.map((task, index) => (
-                    <View key={task.id} style={styles.tileCol}>
-                        <StaggeredItem index={index + 1}>
-                            <Pressable
-                                onPress={() => handleActionPress(task.id)}
-                                style={({ pressed }) => [styles.cardWrap, { opacity: pressed ? 0.92 : 1 }]}
-                            >
-                                <LinearGradient
-                                    colors={theme.colors.gradients?.brand || ['#FF0080', '#7928CA']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={[styles.card, { shadowColor: theme.colors.secondary }]}
-                                >
-                                    <View style={styles.iconBadge}>
-                                        <Ionicons name={task.icon} size={26} color="#FFFFFF" />
-                                    </View>
-                                    <View style={styles.cardTextWrap}>
-                                        <Text style={[styles.cardTitle, { color: '#FFFFFF', fontFamily: typography.bold }]}>
-                                            {task.title}
-                                        </Text>
-                                        <Text style={[styles.cardSubtitle, { color: 'rgba(255,255,255,0.9)', fontFamily: typography.medium }]}>
-                                            {task.subtitle}
-                                        </Text>
-                                    </View>
-                                </LinearGradient>
-                            </Pressable>
-                        </StaggeredItem>
-                    </View>
+                {ACTIONS.map((action, index) => (
+                    <StaggeredItem key={action.id} index={index + 2}>
+                        <Pressable
+                            onPress={() => handleActionPress(action.id)}
+                            style={({ pressed }) => [
+                                styles.actionRow,
+                                {
+                                    backgroundColor: theme.colors.surface,
+                                    borderColor: theme.colors.border,
+                                    shadowColor: theme.colors.shadow,
+                                    opacity: pressed ? 0.86 : 1,
+                                },
+                            ]}
+                        >
+                            <View style={[styles.iconBadge, { backgroundColor: theme.colors.brandSoft }]}>
+                                <Ionicons name={action.icon} size={22} color={theme.colors.icon} />
+                            </View>
+                            <View style={styles.cardTextWrap}>
+                                <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
+                                    {action.title}
+                                </Text>
+                                <Text style={[styles.cardSubtitle, { color: theme.colors.textMuted, fontFamily: typography.medium }]}>
+                                    {action.subtitle}
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSoft} />
+                        </Pressable>
+                    </StaggeredItem>
                 ))}
             </View>
         </ScrollView>
@@ -97,58 +119,122 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 20,
+        paddingBottom: 120,
     },
-    sectionTitle: {
-        fontSize: 20,
-        marginBottom: 20,
-    },
-    actionsWrap: {
-        width: '100%',
+    hero: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-    },
-    tileCol: {
-        width: '48%',
-    },
-    cardWrap: {
-        borderRadius: 22,
-        marginBottom: 16,
-        width: '100%',
-        aspectRatio: 1,
-    },
-    card: {
-        width: '100%',
-        height: '100%',
-        paddingVertical: 22,
-        paddingHorizontal: 18,
-        borderRadius: 22,
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 6,
+        gap: 16,
+        marginBottom: 18,
     },
-    iconBadge: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
+    heroText: {
+        flex: 1,
+    },
+    eyebrow: {
+        fontSize: fontSizes.xs,
+        marginBottom: 6,
+    },
+    sectionTitle: {
+        fontSize: fontSizes['2xl'],
+        lineHeight: 32,
+    },
+    sectionSubtitle: {
+        fontSize: 14,
+        lineHeight: 20,
+        marginTop: 6,
+        maxWidth: 280,
+    },
+    statusPill: {
+        minHeight: 30,
+        borderRadius: radii.full,
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    statusDot: {
+        width: 7,
+        height: 7,
+        borderRadius: radii.base,
+    },
+    statusText: {
+        fontSize: fontSizes.xs,
+    },
+    primaryActionWrap: {
+        borderRadius: radii['2xl'],
+        marginBottom: 20,
+        overflow: 'hidden',
+    },
+    primaryAction: {
+        minHeight: 132,
+        padding: 18,
+        borderRadius: radii['2xl'],
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    primaryIconBadge: {
+        width: 48,
+        height: 48,
+        borderRadius: radii['3xl'],
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: 'rgba(255,255,255,0.22)',
-        marginRight: 14,
+    },
+    primaryActionText: {
+        flex: 1,
+    },
+    primaryActionTitle: {
+        fontSize: fontSizes.xl,
+        lineHeight: 27,
+        marginBottom: 4,
+    },
+    primaryActionSubtitle: {
+        fontSize: fontSizes.xs,
+        lineHeight: 19,
+    },
+    sectionHeader: {
+        marginBottom: 10,
+    },
+    blockTitle: {
+        fontSize: fontSizes.base,
+    },
+    actionsWrap: {
+        width: '100%',
+        gap: 12,
+    },
+    actionRow: {
+        minHeight: 78,
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+    iconBadge: {
+        width: 42,
+        height: 42,
+        borderRadius: radii.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
     },
     cardTextWrap: {
-        width: '100%',
-        marginTop: 8,
+        flex: 1,
     },
     cardTitle: {
-        fontSize: 19,
-        marginBottom: 3,
+        fontSize: fontSizes.sm,
+        lineHeight: 20,
     },
     cardSubtitle: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
+        lineHeight: 18,
+        marginTop: 2,
     },
 });

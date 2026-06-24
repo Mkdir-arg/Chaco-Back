@@ -10,7 +10,7 @@
             <!-- Identidad del ciudadano -->
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                     style="background: linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);">
+                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                     {% if request.user.ciudadano_perfil.nombre %}
                         {{ request.user.ciudadano_perfil.nombre|slice:":1"|upper }}{{ request.user.ciudadano_perfil.apellido|slice:":1"|upper }}
                     {% else %}
@@ -35,7 +35,7 @@
                           text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
                           {% endif %}"
                    {% if request.resolver_match.url_name == 'ciudadano_mi_perfil' %}
-                   style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
+                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
                    {% endif %}>
                     <i class="fas fa-home mr-1.5"></i>Mi Perfil
                 </a>
@@ -48,7 +48,7 @@
                           text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
                           {% endif %}"
                    {% if request.resolver_match.url_name == 'ciudadano_mis_datos' or request.resolver_match.url_name == 'ciudadano_cambio_email' or request.resolver_match.url_name == 'ciudadano_cambio_password' %}
-                   style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
+                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
                    {% endif %}>
                     <i class="fas fa-id-card mr-1.5"></i>Mis Datos
                 </a>
@@ -61,7 +61,7 @@
                           text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
                           {% endif %}"
                    {% if request.resolver_match.url_name == 'ciudadano_mis_programas' or request.resolver_match.url_name == 'ciudadano_programa_detalle' %}
-                   style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
+                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
                    {% endif %}>
                     <i class="fas fa-clipboard-list mr-1.5"></i>Mis Programas
                 </a>
@@ -74,7 +74,7 @@
                           text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
                           {% endif %}"
                    {% if request.resolver_match.url_name == 'ciudadano_mis_consultas' or request.resolver_match.url_name == 'ciudadano_consulta_detalle' or request.resolver_match.url_name == 'ciudadano_nueva_consulta' %}
-                   style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
+                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
                    {% endif %}>
                     <i class="fas fa-comments mr-1.5"></i>Mis Consultas
                 </a>
@@ -85,9 +85,9 @@
                 {% csrf_token %}
                 <button type="submit"
                         class="inline-flex items-center px-4 py-2 rounded-xl border text-sm font-medium transition-colors flex-shrink-0"
-                        style="color: {{ branding.portal.secondary_button_text }}; border-color: {{ branding.portal.secondary_button_border }}; background: {{ branding.portal.secondary_button_bg }};"
-                        onmouseover="this.style.background='{{ branding.portal.secondary_button_hover_bg }}'"
-                        onmouseout="this.style.background='{{ branding.portal.secondary_button_bg }}'">
+                        style="color: #5059BC; border-color: #5059BC; background: #FFFFFF;"
+                        onmouseover="this.style.background='#DEE1FF'"
+                        onmouseout="this.style.background='#FFFFFF'">
                     <i class="fas fa-sign-out-alt mr-2"></i>Cerrar sesión
                 </button>
             </form>

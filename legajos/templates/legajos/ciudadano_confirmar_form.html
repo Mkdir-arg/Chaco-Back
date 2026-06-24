@@ -8,12 +8,10 @@
     <!-- Header -->
     <div class="mb-8">
         <div class="flex items-center gap-4 mb-4">
-            <div class="{% if branding.citizen_form.confirm_header_icon_wrapper == 'badge' %}flex items-center justify-center w-12 h-12 rounded-lg{% else %}flex items-center justify-center{% endif %}" {% if branding.citizen_form.confirm_header_icon_wrapper == 'badge' %}style="background: {{ branding.citizen_form.confirm_header_icon_bg }};"{% endif %}>
-                {% if branding.citizen_form.confirm_header_icon_mode == 'gradient' %}
-                <i class="fas {{ branding.citizen_form.confirm_header_icon_name }} text-transparent" style="font-size: {{ branding.citizen_form.confirm_header_icon_size }}; background-image: linear-gradient(180deg, {{ branding.citizen_form.confirm_header_icon_gradient_start }} 0%, {{ branding.citizen_form.confirm_header_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                {% else %}
-                <i class="fas {{ branding.citizen_form.confirm_header_icon_name }}" style="font-size: {{ branding.citizen_form.confirm_header_icon_size }}; color: {{ branding.citizen_form.confirm_header_icon_color }};"></i>
-                {% endif %}
+            <div class="flex items-center justify-center" >
+                
+                <i class="fas fa-user-plus text-transparent" style="font-size: 1.5rem; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                
             </div>
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Confirmar Datos del Ciudadano</h1>
@@ -26,11 +24,9 @@
             <ol class="flex items-center space-x-4">
                 <li>
                     <a href="{% url 'legajos:ciudadanos' %}" class="text-gray-400 hover:text-gray-500">
-                        {% if branding.citizen_form.confirm_breadcrumb_home_icon_mode == 'gradient' %}
-                        <i class="fas fa-users text-transparent" style="background-image: linear-gradient(180deg, {{ branding.citizen_form.confirm_breadcrumb_home_icon_gradient_start }} 0%, {{ branding.citizen_form.confirm_breadcrumb_home_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                        {% else %}
-                        <i class="fas fa-users" style="color: {{ branding.citizen_form.confirm_breadcrumb_home_icon_color }};"></i>
-                        {% endif %}
+                        
+                        <i class="fas fa-users text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        
                         <span class="sr-only">Ciudadanos</span>
                     </a>
                 </li>
@@ -53,62 +49,62 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Datos de RENAPER -->
         <div class="lg:col-span-1">
-            <div class="rounded-lg p-6" style="background: {{ branding.citizen_form.confirm_renaper_card_bg }}; border: 1px solid {{ branding.citizen_form.confirm_renaper_card_border }};">
+            <div class="rounded-lg p-6" style="background: #F5F5F5; border: 1px solid #576784;">
                 <div class="flex items-center mb-4">
-                    <i class="fas fa-database text-lg mr-2" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};"></i>
-                    <h3 class="text-lg font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Datos de RENAPER</h3>
+                    <i class="fas fa-database text-lg mr-2" style="color: #576784;"></i>
+                    <h3 class="text-lg font-medium" style="color: #576784;">Datos de RENAPER</h3>
                 </div>
                 
                 {% if datos_api %}
                     <div class="space-y-3 text-sm">
                         {% if datos_api.apellido %}
                             <div>
-                                <span class="font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Apellido:</span>
-                                <span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">{{ datos_api.apellido }}</span>
+                                <span class="font-medium" style="color: #576784;">Apellido:</span>
+                                <span style="color: #576784;">{{ datos_api.apellido }}</span>
                             </div>
                         {% endif %}
                         
                         {% if datos_api.nombres %}
                             <div>
-                                <span class="font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Nombres:</span>
-                                <span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">{{ datos_api.nombres }}</span>
+                                <span class="font-medium" style="color: #576784;">Nombres:</span>
+                                <span style="color: #576784;">{{ datos_api.nombres }}</span>
                             </div>
                         {% endif %}
                         
                         {% if datos_api.fechaNacimiento %}
                             <div>
-                                <span class="font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Fecha Nacimiento:</span>
-                                <span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">{{ datos_api.fechaNacimiento }}</span>
+                                <span class="font-medium" style="color: #576784;">Fecha Nacimiento:</span>
+                                <span style="color: #576784;">{{ datos_api.fechaNacimiento }}</span>
                             </div>
                         {% endif %}
                         
                         {% if datos_api.calle %}
                             <div>
-                                <span class="font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Domicilio:</span>
-                                <span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">{{ datos_api.calle }} {{ datos_api.numero }}</span>
-                                {% if datos_api.piso %}<br><span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">Piso: {{ datos_api.piso }}</span>{% endif %}
-                                {% if datos_api.departamento %}<br><span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">Depto: {{ datos_api.departamento }}</span>{% endif %}
+                                <span class="font-medium" style="color: #576784;">Domicilio:</span>
+                                <span style="color: #576784;">{{ datos_api.calle }} {{ datos_api.numero }}</span>
+                                {% if datos_api.piso %}<br><span style="color: #576784;">Piso: {{ datos_api.piso }}</span>{% endif %}
+                                {% if datos_api.departamento %}<br><span style="color: #576784;">Depto: {{ datos_api.departamento }}</span>{% endif %}
                             </div>
                         {% endif %}
                         
                         {% if datos_api.ciudad %}
                             <div>
-                                <span class="font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Ciudad:</span>
-                                <span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">{{ datos_api.ciudad }}</span>
+                                <span class="font-medium" style="color: #576784;">Ciudad:</span>
+                                <span style="color: #576784;">{{ datos_api.ciudad }}</span>
                             </div>
                         {% endif %}
                         
                         {% if datos_api.provincia %}
                             <div>
-                                <span class="font-medium" style="color: {{ branding.citizen_form.confirm_renaper_card_text }};">Provincia:</span>
-                                <span style="color: {{ branding.citizen_form.confirm_renaper_card_muted_text }};">{{ datos_api.provincia }}</span>
+                                <span class="font-medium" style="color: #576784;">Provincia:</span>
+                                <span style="color: #576784;">{{ datos_api.provincia }}</span>
                             </div>
                         {% endif %}
                     </div>
                 {% endif %}
                 
-                <div class="mt-4 p-3 rounded-md" style="background: {{ branding.citizen_form.confirm_renaper_card_info_bg }};">
-                    <p class="text-xs" style="color: {{ branding.citizen_form.confirm_renaper_card_info_text }};">
+                <div class="mt-4 p-3 rounded-md" style="background: #F5F5F5;">
+                    <p class="text-xs" style="color: #576784;">
                         <i class="fas fa-info-circle mr-1"></i>
                         Estos datos fueron obtenidos automáticamente de RENAPER y se han precargado en el formulario.
                     </p>
@@ -232,7 +228,7 @@
                     <!-- Botones -->
                     <div class="flex items-center justify-between pt-6 border-t border-gray-200">
                         <a href="{% url 'legajos:ciudadano_nuevo' %}" 
-                           class="{{ branding.citizen_form.confirm_back_button_class }}">
+                           class="btn-nodo btn-secondary btn-base">
                             <i class="fas fa-arrow-left mr-2"></i>
                             Volver
                         </a>

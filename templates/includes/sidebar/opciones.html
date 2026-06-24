@@ -10,7 +10,7 @@
         <div class="mb-4">
             <template x-if="!sidebarCollapsed">
                 <div class="p-2 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] flex items-center gap-2">
-                    <div class="h-8 w-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0" style="{% if branding.active_profile == 'chaco' %}background: linear-gradient(90deg, {{ branding.colors.color_acento_oscuro }} 0%, {{ branding.colors.color_acento_oscuro }} 100%);{% else %}background: linear-gradient(90deg, #7928CA 0%, #FF0080 100%);{% endif %}">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0" style="background: linear-gradient(90deg, #8A9A46 0%, #8A9A46 100%);">
                         <span class="text-xs font-semibold text-white">{{ request.user.username|first|upper }}</span>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -28,7 +28,7 @@
             
             <template x-if="sidebarCollapsed">
                 <div class="flex justify-center">
-                    <div class="h-10 w-10 rounded-full flex items-center justify-center shadow-sm" style="{% if branding.active_profile == 'chaco' %}background: linear-gradient(90deg, {{ branding.colors.color_acento_oscuro }} 0%, {{ branding.colors.color_acento_oscuro }} 100%);{% else %}background: linear-gradient(90deg, #7928CA 0%, #FF0080 100%);{% endif %}">
+                    <div class="h-10 w-10 rounded-full flex items-center justify-center shadow-sm" style="background: linear-gradient(90deg, #8A9A46 0%, #8A9A46 100%);">
                         <span class="text-sm font-semibold text-white">{{ request.user.username|first|upper }}</span>
                     </div>
                 </div>

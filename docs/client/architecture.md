@@ -279,7 +279,7 @@ graph TD
 | `users` | Usuarios del backoffice, grupos y roles | `User`, `Grupo`, `Permiso` |
 | `dashboard` | Métricas, KPIs y home segmentado por rol | (lectura sobre otras apps) |
 | `tramites` | Seguimiento de trámites institucionales | `Tramite`, `EstadoTramite` |
-| `core` | Modelos base, cache, performance, middlewares, branding | `Auditable`, `TimestampedModel` |
+| `core` | Modelos base, cache, performance, middlewares | `Auditable`, `TimestampedModel` |
 | `security` | Subpaquetes `authentication/`, `authorization/`, `audit/` | — |
 | `healthcheck` | Endpoint `/health/` integrado a Nginx y Docker | — |
 

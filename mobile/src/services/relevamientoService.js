@@ -2,15 +2,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SQLite from 'expo-sqlite';
+import * as SecureStore from 'expo-secure-store';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
+import { Platform } from 'react-native';
 import { supabase } from '../config/supabaseConfig';
 import { SUPABASE_CONFIG } from '../config/supabaseConfig';
 
 const LOCAL_RELEVAMIENTOS_KEY = 'field_relevamientos_records';
 const SYNC_QUEUE_KEY = 'field_relevamientos_sync_queue';
 const TABLE_RELEVAMIENTOS = 'relevamientos';
+const TABLE_RELEVAMIENTOS_ASIGNADOS = 'relevamientos_asignados';
+const TABLE_RELEVAMIENTO_PERSONAS = 'relevamiento_personas';
+const TABLE_RELEVAMIENTO_RESPUESTAS = 'relevamiento_respuestas';
+const TABLE_RELEVAMIENTO_ARCHIVOS = 'relevamiento_archivos';
 const TABLE_CAMPOS_EXTRA = 'relevamiento_campos_extra';
 const TABLE_ADJUNTOS = 'relevamiento_adjuntos';
+const USER_ID_STORAGE_KEY = 'user_id';
 const SQLITE_DB_NAME = 'relevamientos_offline.db';
 const SQLITE_LOCAL_TABLE = 'local_relevamientos';
 const SQLITE_OUTBOX_TABLE = 'outbox_relevamientos';
@@ -91,6 +98,56 @@ const isMissingRemoteColumnError = (error, columnName) => {
 const isRemoteConflictTargetError = (error, target = 'client_uuid') => {
   const text = String(error?.message || '').toLowerCase();
   return text.includes('on conflict') && text.includes(String(target).toLowerCase());
+};
+
+const getStoredUserId = async () => {
+  if (Platform.OS === 'web') {
+    return AsyncStorage.getItem(USER_ID_STORAGE_KEY);
+  }
+
+  try {
+    return await SecureStore.getItemAsync(USER_ID_STORAGE_KEY);
+  } catch {
+    return AsyncStorage.getItem(USER_ID_STORAGE_KEY);
+  }
+};
+
+const mapAssignedStatusToSyncEstado = (estado) => {
+  if (estado === 'SINCRONIZADO') return 'SINCRONIZADO';
+  if (estado === 'SINCRONIZANDO') return 'SINCRONIZANDO';
+  if (estado === 'ERROR') return 'ERROR';
+  return 'PENDIENTE';
+};
+
+const mapAssignedRelevamiento = (row = {}) => ({
+  id: row.id,
+  source: 'asignado',
+  titulo: row.titulo,
+  descripcion: row.descripcion,
+  direccion_objetivo: row.direccion_objetivo,
+  localidad: row.localidad,
+  provincia: row.provincia,
+  prioridad: row.prioridad,
+  estado: row.estado,
+  id_institucion: null,
+  created_at: row.asignado_at || row.created_at,
+  relevado_at: row.completado_at || null,
+  last_synced_at: row.last_synced_at,
+  sync_estado: mapAssignedStatusToSyncEstado(row.estado),
+  observaciones: row.observaciones || row.descripcion || '',
+  latitud: row.latitud_capturada,
+  longitud: row.longitud_capturada,
+  latitud_objetivo: row.latitud_objetivo,
+  longitud_objetivo: row.longitud_objetivo,
+});
+
+const formatDynamicValue = (row = {}) => {
+  if (row.valor_texto !== null && row.valor_texto !== undefined) return String(row.valor_texto);
+  if (row.valor_numero !== null && row.valor_numero !== undefined) return String(row.valor_numero);
+  if (row.valor_booleano !== null && row.valor_booleano !== undefined) return row.valor_booleano ? 'Si' : 'No';
+  if (row.valor_fecha) return String(row.valor_fecha);
+  if (row.valor_json && Object.keys(row.valor_json || {}).length) return JSON.stringify(row.valor_json);
+  return '-';
 };
 
 const getSqliteDb = async () => {
@@ -1153,6 +1210,31 @@ const markOperationPermanentErrorAtomic = async (localId, {
 };
 
 const fetchRemoteRecords = async () => {
+  try {
+    const currentUserId = await getStoredUserId();
+    let query = supabase
+      .from(TABLE_RELEVAMIENTOS_ASIGNADOS)
+      .select('id, client_uid, titulo, descripcion, estado, prioridad, direccion_objetivo, localidad, provincia, latitud_objetivo, longitud_objetivo, latitud_capturada, longitud_capturada, observaciones, asignado_at, completado_at, last_synced_at, created_at')
+      .is('deleted_at', null)
+      .order('asignado_at', { ascending: false });
+
+    if (currentUserId) {
+      query = query.eq('assigned_user_id', currentUserId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(mapAssignedRelevamiento);
+  } catch (assignedError) {
+    const message = String(assignedError?.message || '').toLowerCase();
+    const canFallbackToLegacy =
+      message.includes(TABLE_RELEVAMIENTOS_ASIGNADOS) ||
+      message.includes('does not exist') ||
+      message.includes('could not find');
+
+    if (!canFallbackToLegacy) throw assignedError;
+  }
+
   const { data, error } = await supabase
     .from(TABLE_RELEVAMIENTOS)
     .select('id, id_institucion, created_at, relevado_at, last_synced_at, sync_estado, observaciones, latitud, longitud')
@@ -1397,6 +1479,86 @@ const relevamientoService = {
           ],
         },
       };
+    }
+
+    try {
+      const { data: assigned, error: assignedError } = await supabase
+        .from(TABLE_RELEVAMIENTOS_ASIGNADOS)
+        .select('*, relevamiento_plantillas(nombre, version)')
+        .eq('id', id)
+        .single();
+
+      if (assignedError) throw assignedError;
+
+      const [{ data: persona }, { data: respuestas }, { data: archivos }, { data: camposDefinicion }] = await Promise.all([
+        supabase
+          .from(TABLE_RELEVAMIENTO_PERSONAS)
+          .select('*')
+          .eq('relevamiento_id', id)
+          .maybeSingle(),
+        supabase
+          .from(TABLE_RELEVAMIENTO_RESPUESTAS)
+          .select('id, valor_texto, valor_numero, valor_booleano, valor_fecha, valor_json, relevamiento_campos(clave, etiqueta, tipo, orden)')
+          .eq('relevamiento_id', id),
+        supabase
+          .from(TABLE_RELEVAMIENTO_ARCHIVOS)
+          .select('id, categoria, storage_bucket, storage_path, nombre_original, mime_type, size_bytes')
+          .eq('relevamiento_id', id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('relevamiento_campos')
+          .select('id, clave, etiqueta, tipo, orden, requerido, opciones, ayuda, validaciones')
+          .eq('plantilla_id', assigned.plantilla_id)
+          .eq('activo', true)
+          .order('orden', { ascending: true }),
+      ]);
+
+      const camposExtra = (respuestas || [])
+        .sort((a, b) => (a.relevamiento_campos?.orden || 0) - (b.relevamiento_campos?.orden || 0))
+        .map((row) => ({
+          id: row.id,
+          nombre: row.relevamiento_campos?.etiqueta || row.relevamiento_campos?.clave || 'Campo',
+          valor: formatDynamicValue(row),
+        }));
+
+      const adjuntos = (archivos || []).map((item) => ({
+        id: item.id,
+        categoria: item.categoria,
+        tipo_archivo: String(item.mime_type || '').startsWith('image/') ? 'IMAGEN' : 'ARCHIVO',
+        storage_bucket: item.storage_bucket || 'relevamientos',
+        storage_path: item.storage_path,
+        nombre_original: item.nombre_original,
+        mime_type: item.mime_type,
+        size_bytes: item.size_bytes,
+      }));
+
+      return {
+        success: true,
+        detail: {
+          ...assigned,
+          source: 'asignado',
+          id_institucion: '-',
+          sync_estado: mapAssignedStatusToSyncEstado(assigned.estado),
+          observaciones: assigned.observaciones || assigned.descripcion || '',
+          latitud: assigned.latitud_capturada,
+          longitud: assigned.longitud_capturada,
+          persona: persona || null,
+          campos_definicion: camposDefinicion || [],
+          campos_extra: camposExtra,
+          adjuntos,
+        },
+      };
+    } catch (assignedError) {
+      const message = String(assignedError?.message || '').toLowerCase();
+      const canFallbackToLegacy =
+        message.includes(TABLE_RELEVAMIENTOS_ASIGNADOS) ||
+        message.includes('does not exist') ||
+        message.includes('could not find') ||
+        message.includes('no rows');
+
+      if (!canFallbackToLegacy) {
+        return { success: false, error: assignedError.message || 'No se pudo cargar el relevamiento asignado' };
+      }
     }
 
     const { data: main, error: mainError } = await supabase

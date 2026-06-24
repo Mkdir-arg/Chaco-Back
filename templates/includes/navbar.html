@@ -78,7 +78,7 @@
             <div class="relative shrink-0" x-data="{ open: false }">
                 <button type="button" class="-m-1.5 flex items-center p-1.5" @click="open = !open">
                     <span class="sr-only">Abrir menú de usuario</span>
-                    <div class="h-8 w-8 rounded-full flex items-center justify-center" style="{% if branding.active_profile == 'chaco' %}background: linear-gradient(90deg, {{ branding.colors.color_acento_oscuro }} 0%, {{ branding.colors.color_acento_oscuro }} 100%);{% else %}background: linear-gradient(90deg, #7928CA 0%, #FF0080 100%);{% endif %}">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center" style="background: linear-gradient(90deg, #8A9A46 0%, #8A9A46 100%);">
                         <span class="text-sm font-medium text-white">{{ user.username|first|upper }}</span>
                     </div>
                     <span class="hidden lg:flex lg:items-center">

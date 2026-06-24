@@ -16,7 +16,7 @@ The tech stack is:
 - **JavaScript:** Alpine.js 3.14.1, jQuery 3.6.0, SweetAlert2, Toastr, Chart.js, ApexCharts
 - **Icons (new):** Heroicons — `@heroicons/react` or SVG direct
 - **Icons (legacy):** Font Awesome 6.4.0
-- **Branding config:** `config/branding.py` (generates CSS variables dynamically)
+- **Chaco assets:** `static/custom/chaco/` (fixed logos and images)
 
 ---
 
@@ -32,7 +32,7 @@ Transform the `docs/design-kb/` Design Knowledge Base into a **production-grade,
    - `templates/includes/base.html` (backoffice)
    - `portal/templates/portal/base.html` (portal)
    
-2. **Reconcile `config/branding.py` with the new tokens.** The branding.py generates CSS variables dynamically. Map the branding.py variables to their equivalent chaco-tokens.css variables. Where they conflict, favor the token file values. Update branding.py to reference token variables where possible instead of raw hex values.
+2. **Use `static/custom/css/chaco-tokens.css` as the token source.** The web app no longer has a dynamic presentation layer. Keep Chaco values in CSS tokens/templates and do not reintroduce a presentation context object.
 
 3. **Validate token coverage.** Grep through `static/custom/css/paleta-unificada.css`, `nodo-brand.css`, and `nodo-buttons.css` for any raw hex values that now have token equivalents. Replace each with the corresponding CSS variable from chaco-tokens.css.
 
@@ -139,7 +139,7 @@ Create a live documentation page at `/configuracion/design-system/` (Django view
 After completing each phase:
 
 - [ ] `manage.py check` passes with no errors
-- [ ] Tokens are not duplicated between branding.py and chaco-tokens.css
+- [ ] Tokens are not duplicated outside `chaco-tokens.css` without a clear legacy reason
 - [ ] No raw hex values in component CSS (only CSS variables or token-mapped values)
 - [ ] All six badge variants render correctly in light and dark mode
 - [ ] All three button variants have all four states (default, hover, focus, disabled)
@@ -168,7 +168,7 @@ docs/design-kb/components/data-table.yaml      ← Table spec
 docs/design-kb/anti-patterns.md                ← What NOT to do
 static/custom/css/nodo-buttons.css             ← Current button implementation
 static/custom/css/paleta-unificada.css         ← Current token implementation
-config/branding.py                             ← Dynamic CSS variable generator
+static/custom/css/chaco-tokens.css             ← CSS variable source of truth
 templates/includes/base.html                   ← Main template entry point
 ```
 

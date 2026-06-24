@@ -11,8 +11,8 @@
     <style>
         body { font-family: 'Manrope', sans-serif; }
         .chat-container { height: 60vh; overflow-y: auto; scroll-behavior: smooth; }
-        .mensaje-ciudadano { background: linear-gradient(135deg, {{ branding.conversations.chat_public.primary_button_gradient_start }}, {{ branding.conversations.chat_public.primary_button_gradient_end }}); }
-        .mensaje-operador { background: linear-gradient(135deg, {{ branding.conversations.chat_public.secondary_button_gradient_start }}, {{ branding.conversations.chat_public.secondary_button_gradient_end }}); }
+        .mensaje-ciudadano { background: linear-gradient(135deg, #5059BC, #F26DF9); }
+        .mensaje-operador { background: linear-gradient(135deg, #5059BC, #F26DF9); }
         .typing-indicator { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
     </style>
@@ -32,7 +32,7 @@
             <div class="max-w-6xl mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, {{ branding.conversations.chat_public.header_icon_gradient_start }} 0%, {{ branding.conversations.chat_public.header_icon_gradient_end }} 100%);">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                             <i class="fas fa-comments text-white text-xl"></i>
                         </div>
                         <div>
@@ -41,13 +41,13 @@
                         </div>
                     </div>
                     <div class="hidden md:flex items-center space-x-4">
-                        <div id="estadoConexion" class="flex items-center px-4 py-2 rounded-xl text-sm font-medium" style="background: {{ branding.conversations.chat_public.status_badge_bg }}; border: 1px solid {{ branding.conversations.chat_public.status_badge_border }}; color: {{ branding.conversations.chat_public.status_badge_text }};">
-                            <div class="w-2 h-2 rounded-full mr-2 animate-pulse" style="background: {{ branding.conversations.chat_public.status_badge_dot }};"></div>
+                        <div id="estadoConexion" class="flex items-center px-4 py-2 rounded-xl text-sm font-medium" style="background: #F5F3FF; border: 1px solid #C7D2FE; color: #5059BC;">
+                            <div class="w-2 h-2 rounded-full mr-2 animate-pulse" style="background: #8A9A46;"></div>
                             <span>Sistema Activo</span>
                         </div>
                         <div class="flex items-center space-x-2 text-[#252F40]">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: {{ branding.conversations.chat_public.secure_icon_bg }}; border-color: {{ branding.conversations.chat_public.secure_icon_border }};">
-                                <i class="fas fa-shield-alt text-sm" style="color: {{ branding.conversations.chat_public.secure_icon_color }};"></i>
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: #F0F2FF; border-color: #C7D2FE;">
+                                <i class="fas fa-shield-alt text-sm" style="color: #5059BC;"></i>
                             </div>
                             <span class="text-sm font-medium">Confidencial</span>
                         </div>
@@ -67,14 +67,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <button onclick="seleccionarTipo('anonima')" 
                             class="group bg-white p-8 border border-[#E5E7EB] rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center"
-                            onmouseover="this.style.borderColor='{{ branding.conversations.chat_public.primary_button_gradient_start }}'"
+                            onmouseover="this.style.borderColor='#5059BC'"
                             onmouseout="this.style.borderColor='#E5E7EB'">
-                        <div class="{% if branding.conversations.chat_public.anonymous_icon_mode == 'badge' %}inline-flex items-center justify-center w-16 h-16 rounded-xl{% else %}inline-flex items-center justify-center{% endif %} mb-4 group-hover:scale-110 transition-transform duration-300" {% if branding.conversations.chat_public.anonymous_icon_mode == 'badge' %}style="background: linear-gradient(135deg, {{ branding.conversations.chat_public.anonymous_icon_gradient_start }} 0%, {{ branding.conversations.chat_public.anonymous_icon_gradient_end }} 100%);"{% endif %}>
-                            {% if branding.conversations.chat_public.anonymous_icon_mode == 'text_gradient' %}
-                            <i class="fas fa-user-secret text-4xl text-transparent" style="background-image: linear-gradient(180deg, {{ branding.conversations.chat_public.anonymous_icon_gradient_start }} 0%, {{ branding.conversations.chat_public.anonymous_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                            {% else %}
-                            <i class="fas fa-user-secret text-2xl text-white"></i>
-                            {% endif %}
+                        <div class="inline-flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" >
+                            
+                            <i class="fas fa-user-secret text-4xl text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                            
                         </div>
                         <h3 class="font-bold text-[#252F40] mb-3 text-lg">Consulta Anónima</h3>
                         <p class="text-[#8C8C8C] leading-relaxed">Realiza tu consulta sin proporcionar datos personales. Completamente confidencial.</p>
@@ -82,14 +80,12 @@
                     
                     <button onclick="seleccionarTipo('personal')" 
                             class="group bg-white p-8 border border-[#E5E7EB] rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center"
-                            onmouseover="this.style.borderColor='{{ branding.conversations.chat_public.secondary_button_gradient_start }}'"
+                            onmouseover="this.style.borderColor='#5059BC'"
                             onmouseout="this.style.borderColor='#E5E7EB'">
-                        <div class="{% if branding.conversations.chat_public.personal_icon_mode == 'badge' %}inline-flex items-center justify-center w-16 h-16 rounded-xl{% else %}inline-flex items-center justify-center{% endif %} mb-4 group-hover:scale-110 transition-transform duration-300" {% if branding.conversations.chat_public.personal_icon_mode == 'badge' %}style="background: linear-gradient(135deg, {{ branding.conversations.chat_public.personal_icon_gradient_start }} 0%, {{ branding.conversations.chat_public.personal_icon_gradient_end }} 100%);"{% endif %}>
-                            {% if branding.conversations.chat_public.personal_icon_mode == 'text_gradient' %}
-                            <i class="fas fa-user-check text-4xl text-transparent" style="background-image: linear-gradient(180deg, {{ branding.conversations.chat_public.personal_icon_gradient_start }} 0%, {{ branding.conversations.chat_public.personal_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                            {% else %}
-                            <i class="fas fa-user-check text-2xl text-white"></i>
-                            {% endif %}
+                        <div class="inline-flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" >
+                            
+                            <i class="fas fa-user-check text-4xl text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                            
                         </div>
                         <h3 class="font-bold text-[#252F40] mb-3 text-lg">Consulta Personal</h3>
                         <p class="text-[#8C8C8C] leading-relaxed">Proporciona tu DNI para un seguimiento personalizado y verificación de datos.</p>
@@ -106,12 +102,12 @@
                             <label class="block text-sm font-medium text-[#252F40] mb-2">DNI</label>
                             <input type="text" id="dni" maxlength="8" placeholder="12345678" 
                                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent"
-                                   style="--tw-ring-color: {{ branding.conversations.chat_public.primary_button_gradient_start }};">
+                                   style="--tw-ring-color: #5059BC;">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-[#252F40] mb-2">Sexo</label>
                             <select id="sexo" class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent"
-                                    style="--tw-ring-color: {{ branding.conversations.chat_public.primary_button_gradient_start }};">
+                                    style="--tw-ring-color: #5059BC;">
                                 <option value="">Seleccionar...</option>
                                 <option value="M">Masculino</option>
                                 <option value="F">Femenino</option>
@@ -127,9 +123,9 @@
                         </button>
                         <button type="button" onclick="consultarRenaper()" 
                                 class="px-6 py-3 text-white rounded-xl transition-all shadow-md"
-                                style="background: linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.primary_button_gradient_end }} 100%);"
-                                onmouseover="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_hover_start }} 0%, {{ branding.conversations.chat_public.primary_button_hover_end }} 100%)'"
-                                onmouseout="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.primary_button_gradient_end }} 100%)'">
+                                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                             <i class="fas fa-search mr-2"></i>Verificar Datos
                         </button>
                     </div>
@@ -137,14 +133,14 @@
                 
                 <!-- Resultado RENAPER -->
                 <div id="resultadoRenaper" class="mt-6 hidden">
-                    <div class="rounded-xl p-6" style="background: {{ branding.conversations.chat_public.status_badge_bg }}; border: 1px solid {{ branding.conversations.chat_public.status_badge_border }};">
-                        <h3 class="font-semibold mb-3" style="color: {{ branding.conversations.chat_public.status_badge_text }};">Datos verificados:</h3>
-                        <div id="datosVerificados" class="text-sm mb-4" style="color: {{ branding.conversations.chat_public.status_badge_text }};"></div>
+                    <div class="rounded-xl p-6" style="background: #F5F3FF; border: 1px solid #C7D2FE;">
+                        <h3 class="font-semibold mb-3" style="color: #5059BC;">Datos verificados:</h3>
+                        <div id="datosVerificados" class="text-sm mb-4" style="color: #5059BC;"></div>
                         <button onclick="iniciarChat()" 
                                 class="px-6 py-3 text-white rounded-xl transition-all shadow-md"
-                                style="background: linear-gradient(90deg, {{ branding.conversations.chat_public.secondary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.secondary_button_gradient_end }} 100%);"
-                                onmouseover="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.secondary_button_hover_start }} 0%, {{ branding.conversations.chat_public.secondary_button_hover_end }} 100%)'"
-                                onmouseout="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.secondary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.secondary_button_gradient_end }} 100%)'">
+                                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                             <i class="fas fa-comments mr-2"></i>Iniciar Chat
                         </button>
                     </div>
@@ -175,7 +171,7 @@
                 <div class="p-6 border-b border-[#E5E7EB] bg-[#F9FAFB]">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, {{ branding.conversations.chat_public.header_icon_gradient_start }} 0%, {{ branding.conversations.chat_public.header_icon_gradient_end }} 100%);">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                                 <i class="fas fa-comments text-white text-lg"></i>
                             </div>
                             <div>
@@ -221,13 +217,13 @@
                     <div class="flex gap-3">
                         <input type="text" id="inputMensaje" placeholder="Escribe tu mensaje aquí..." 
                                class="flex-1 px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent bg-white"
-                               style="--tw-ring-color: {{ branding.conversations.chat_public.primary_button_gradient_start }};"
+                               style="--tw-ring-color: #5059BC;"
                                onkeypress="if(event.key==='Enter') enviarMensaje()">
                         <button onclick="enviarMensaje()" 
                                 class="px-6 py-3 text-white rounded-xl transition-all shadow-md hover:shadow-lg"
-                                style="background: linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.primary_button_gradient_end }} 100%);"
-                                onmouseover="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_hover_start }} 0%, {{ branding.conversations.chat_public.primary_button_hover_end }} 100%)'"
-                                onmouseout="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.primary_button_gradient_end }} 100%)'">
+                                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                             <i class="fas fa-paper-plane"></i>
                         </button>
                     </div>
@@ -253,7 +249,7 @@
             <!-- Evaluación final -->
             <div id="evaluacion" class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 hidden">
                 <div class="text-center mb-8">
-                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: linear-gradient(135deg, {{ branding.conversations.chat_public.secondary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.secondary_button_gradient_end }} 100%);">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                         <i class="fas fa-check text-2xl text-white"></i>
                     </div>
                     <h2 class="text-2xl font-bold text-[#252F40] mb-3">Conversación Finalizada</h2>
@@ -277,7 +273,7 @@
                         <label class="block text-sm font-medium text-[#252F40] mb-2">Comentarios adicionales (opcional):</label>
                         <textarea id="comentario" rows="3" placeholder="Comparte tu experiencia..." 
                                   class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent resize-none"
-                                  style="--tw-ring-color: {{ branding.conversations.chat_public.primary_button_gradient_start }};"></textarea>
+                                  style="--tw-ring-color: #5059BC;"></textarea>
                     </div>
                 </div>
                 
@@ -288,9 +284,9 @@
                     </button>
                     <button onclick="nuevaConsulta()" 
                             class="px-6 py-3 text-white rounded-xl transition-all shadow-md"
-                            style="background: linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.primary_button_gradient_end }} 100%);"
-                            onmouseover="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_hover_start }} 0%, {{ branding.conversations.chat_public.primary_button_hover_end }} 100%)'"
-                            onmouseout="this.style.background='linear-gradient(90deg, {{ branding.conversations.chat_public.primary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.primary_button_gradient_end }} 100%)'">
+                            style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                            onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                            onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                         <i class="fas fa-plus mr-2"></i>Nueva Consulta
                     </button>
                 </div>
@@ -302,8 +298,8 @@
             <div class="max-w-6xl mx-auto px-4 text-center">
                 <div class="flex items-center justify-center space-x-3 mb-4">
                     <img
-                        src="{% static branding.sidebar_collapsed_logo_path %}"
-                        alt="{{ branding.application_name }}"
+                        src="{% static 'custom/chaco/mini-logo.png' %}"
+                        alt="NODO Chaco"
                         class="w-10 h-10 object-contain"
                     >
                     <p class="font-bold text-lg">Ñandé</p>
@@ -691,7 +687,7 @@
             const btnEnviar = document.getElementById('enviar-evaluacion');
             btnEnviar.disabled = false;
             btnEnviar.className = 'px-6 py-3 text-white rounded-xl transition-all shadow-md';
-            btnEnviar.style.background = 'linear-gradient(90deg, {{ branding.conversations.chat_public.secondary_button_gradient_start }} 0%, {{ branding.conversations.chat_public.secondary_button_gradient_end }} 100%)';
+            btnEnviar.style.background = 'linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)';
             btnEnviar.style.cursor = 'pointer';
         }
         

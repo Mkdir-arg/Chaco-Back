@@ -14,7 +14,7 @@ Sos un Senior Frontend Engineer implementando el Design System de NODO para el G
 - Íconos nuevos → Heroicons (SVG inline)
 - Íconos legacy → Font Awesome 6.4.0
 - JS → Alpine.js 3.14.1, jQuery 3.6.0, SweetAlert2, Toastr, ApexCharts
-- Branding dinámico → `config/branding.py` genera CSS variables inyectadas en templates
+- Branding fijo Chaco → assets en `static/custom/chaco/` y tokens en `static/custom/css/chaco-tokens.css`
 
 **Regla de fuentes:** CHACO siempre gana sobre NODO. La fuente de verdad es `docs/design-kb/`.
 
@@ -35,11 +35,9 @@ Sos un Senior Frontend Engineer implementando el Design System de NODO para el G
 
 ### FASE 1 (incompleta) — Completar integración de tokens
 
-**1a. Reconciliar `config/branding.py` con chaco-tokens.css**
+**1a. Consolidar tokens Chaco**
 
-Lee `config/branding.py`. Identifica qué variables CSS genera y mapéalas contra las variables de `chaco-tokens.css`. Donde haya valores duplicados:
-- Si branding.py genera `--color-primario: #5059BC` y chaco-tokens.css ya define `--bg-brand: #5059bc`, actualiza branding.py para que use `--bg-brand` como referencia en lugar de definir un valor propio.
-- Mantén la compatibilidad: los templates existentes usan `{{ branding.css_variables }}`.
+La app web ya no usa una capa Python dinamica para inyectar variables de marca. Usar `static/custom/css/chaco-tokens.css` como fuente de verdad y no reintroducir un objeto de marca en templates.
 
 **1b. Auditar valores hex crudos en CSS existentes**
 
@@ -289,7 +287,7 @@ docs/design-kb/components/select.yaml
 static/custom/css/chaco-tokens.css          ← CSS variables (fuente de verdad)
 static/custom/css/nodo-buttons.css          ← implementación actual de botones
 static/custom/css/paleta-unificada.css      ← sombras, transiciones
-config/branding.py                          ← generador dinámico de CSS vars
+static/custom/css/chaco-tokens.css          ← CSS variables (fuente de verdad)
 templates/includes/base.html               ← template base backoffice
 ```
 

@@ -1,4 +1,5 @@
 import { activeBranding } from '../config/branding';
+import { designColors, fontSizes, radii, spacing } from './tokens';
 
 export const palette = {
     // Brand Colors
@@ -26,7 +27,9 @@ export const palette = {
     darkBorder: activeBranding.colors.darkBorder,
 
     // System
-    error: '#EA0606',
+    error: activeBranding.colors.danger || '#C70036',
+    danger: activeBranding.colors.danger || '#C70036',
+    warning: activeBranding.colors.warning,
     success: activeBranding.colors.success,
     white: '#FFFFFF',
     black: '#000000',
@@ -41,13 +44,24 @@ export const lightTheme = {
         success: palette.success,
         background: palette.background,
         surface: palette.surface,
-        surfaceAlt: '#F1F3F7',
+        surfaceAlt: activeBranding.colors.surfaceAlt || '#F9FAFB',
+        surfaceRaised: activeBranding.colors.surfaceRaised || activeBranding.colors.surface,
         text: palette.text,
         textMuted: palette.textMuted,
         textSoft: palette.textSoft,
         border: palette.border,
+        borderStrong: activeBranding.colors.borderStrong || palette.border,
+        brandSoft: activeBranding.colors.brandSoft || designColors.bgBrandSoft,
+        brandMedium: activeBranding.colors.brandMedium || designColors.bgBrandMedium,
+        successSoft: activeBranding.colors.successSoft || designColors.successSoft,
+        warningSoft: activeBranding.colors.warningSoft || '#FFF4D6',
+        danger: palette.danger,
+        dangerSoft: activeBranding.colors.dangerSoft || '#FEF0F2',
         icon: activeBranding.colors.icon,
-        shadow: '#000000', // Use solid black for shadow color
+        warning: palette.warning,
+        white: designColors.white,
+        black: designColors.black,
+        shadow: designColors.shadow,
         gradients: activeBranding.gradients,
         auth: {
             glow: activeBranding.colors.authGlow,
@@ -83,7 +97,10 @@ export const lightTheme = {
                 text: activeBranding.colors.buttonDisabledText,
             },
         },
-    }
+    },
+    fontSizes,
+    radii,
+    spacing,
 };
 
 export const darkTheme = {
@@ -96,12 +113,23 @@ export const darkTheme = {
         background: activeBranding.colors.darkBackground,
         surface: activeBranding.colors.darkSurface,
         surfaceAlt: activeBranding.colors.darkSurfaceAlt,
+        surfaceRaised: activeBranding.colors.darkSurface,
         text: activeBranding.colors.darkText,
         textMuted: activeBranding.colors.darkTextMuted,
         textSoft: activeBranding.colors.darkTextSoft,
         border: activeBranding.colors.darkBorder,
-        icon: activeBranding.colors.icon,
-        shadow: '#000000',
+        borderStrong: activeBranding.colors.borderStrong || activeBranding.colors.darkBorder,
+        brandSoft: designColors.darkBgTertiary,
+        brandMedium: designColors.darkBgTertiary,
+        successSoft: designColors.darkBgTertiary,
+        warningSoft: designColors.darkBgTertiary,
+        danger: activeBranding.colors.danger || '#C70036',
+        dangerSoft: designColors.darkBgTertiary,
+        icon: activeBranding.colors.secondary,
+        warning: activeBranding.colors.warning,
+        white: designColors.white,
+        black: designColors.black,
+        shadow: designColors.shadow,
         gradients: activeBranding.gradients,
         auth: {
             glow: activeBranding.colors.authGlow,
@@ -137,5 +165,8 @@ export const darkTheme = {
                 text: activeBranding.colors.buttonDisabledText,
             },
         },
-    }
+    },
+    fontSizes,
+    radii,
+    spacing,
 };

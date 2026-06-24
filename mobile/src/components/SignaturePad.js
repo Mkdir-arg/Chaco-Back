@@ -1,6 +1,7 @@
 import React, { useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { View, StyleSheet, PanResponder } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { designColors, radii } from '../theme';
 
 const SignaturePad = forwardRef(({ onEnd }, ref) => {
     const [paths, setPaths] = useState([]);
@@ -87,15 +88,15 @@ const SignaturePad = forwardRef(({ onEnd }, ref) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFF',
+        backgroundColor: designColors.white,
         padding: 5,
     },
     canvas: {
         flex: 1,
         borderWidth: 2,
-        borderColor: '#DDD',
-        borderRadius: 16,
-        backgroundColor: '#FAFAFA',
+        borderColor: designColors.borderBase,
+        borderRadius: radii['2xl'],
+        backgroundColor: designColors.bgSecondary,
         borderStyle: 'dashed',
     },
 });

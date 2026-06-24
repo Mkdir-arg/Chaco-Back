@@ -1,6 +1,6 @@
 {% extends 'portal/base.html' %}
 
-{% block title %}Portal Municipal — {{ branding.portal.title }}{% endblock %}
+{% block title %}Portal Municipal — Portal Nande{% endblock %}
 
 {% block content %}
 <style>
@@ -18,8 +18,8 @@
     /* Hero */
     .hero-bg {
         background: linear-gradient(135deg,
-            {{ branding.portal.home.primary_icon_gradient_start }} 0%,
-            {{ branding.portal.home.primary_icon_gradient_end }} 60%,
+            #5059BC 0%,
+            #F26DF9 60%,
             #1e1b4b 100%);
         position: relative; overflow: hidden;
     }
@@ -78,8 +78,8 @@
     /* CTA final */
     .cta-section {
         background: linear-gradient(135deg,
-            {{ branding.portal.home.primary_icon_gradient_start }} 0%,
-            {{ branding.portal.home.primary_icon_gradient_end }} 100%);
+            #5059BC 0%,
+            #F26DF9 100%);
         border-radius: 2rem; overflow: hidden; position: relative;
     }
     .cta-section::before {
@@ -119,7 +119,7 @@
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{% url 'portal:ciudadano_login' %}"
                        class="inline-flex items-center justify-center gap-2 bg-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:scale-105"
-                       style="color: {{ branding.portal.home.primary_icon_gradient_start }};">
+                       style="color: #5059BC;">
                         <i class="fas fa-user-circle text-lg"></i>
                         Accedé a tu perfil
                     </a>
@@ -184,7 +184,7 @@
             <div class="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden card-lift">
                 <!-- Cabecera con color -->
                 <div class="p-8 text-white relative overflow-hidden"
-                     style="background: linear-gradient(135deg, {{ branding.portal.home.primary_icon_gradient_start }} 0%, {{ branding.portal.home.primary_icon_gradient_end }} 100%);">
+                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                     <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
                     <div class="relative z-10">
                         <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
@@ -202,7 +202,7 @@
                         {% for item in ciudadano_items %}
                         <div class="flex items-center gap-3 text-sm text-[#252F40]">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                 style="background: {{ branding.portal.home.primary_icon_gradient_start }};">
+                                 style="background: #5059BC;">
                                 <i class="fas fa-check text-white" style="font-size: 0.6rem;"></i>
                             </div>
                             {{ item }}
@@ -212,12 +212,12 @@
                     <div class="flex gap-3">
                         <a href="{% url 'portal:ciudadano_login' %}"
                            class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
-                           style="background: linear-gradient(90deg, {{ branding.portal.home.primary_button_gradient_start }} 0%, {{ branding.portal.home.primary_button_gradient_end }} 100%);">
+                           style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
                             <i class="fas fa-sign-in-alt mr-2"></i>Ingresar
                         </a>
                         <a href="{% url 'portal:ciudadano_registro_step1' %}"
                            class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
-                           style="color: {{ branding.portal.home.primary_icon_gradient_start }}; border-color: {{ branding.portal.home.primary_icon_gradient_start }};">
+                           style="color: #5059BC; border-color: #5059BC;">
                             <i class="fas fa-user-plus mr-2"></i>Registrarme
                         </a>
                     </div>
@@ -227,7 +227,7 @@
             <!-- INSTITUCIONES -->
             <div class="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden card-lift">
                 <div class="p-8 text-white relative overflow-hidden"
-                     style="background: linear-gradient(135deg, {{ branding.portal.home.secondary_icon_gradient_start }} 0%, {{ branding.portal.home.secondary_icon_gradient_end }} 100%);">
+                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                     <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
                     <div class="relative z-10">
                         <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
@@ -244,7 +244,7 @@
                         {% for item in institucion_items %}
                         <div class="flex items-center gap-3 text-sm text-[#252F40]">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                 style="background: {{ branding.portal.home.secondary_icon_gradient_start }};">
+                                 style="background: #5059BC;">
                                 <i class="fas fa-check text-white" style="font-size: 0.6rem;"></i>
                             </div>
                             {{ item }}
@@ -254,12 +254,12 @@
                     <div class="flex gap-3">
                         <a href="{% url 'portal:ciudadano_login' %}"
                            class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
-                           style="background: linear-gradient(90deg, {{ branding.portal.home.secondary_button_gradient_start }} 0%, {{ branding.portal.home.secondary_button_gradient_end }} 100%);">
+                           style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
                             <i class="fas fa-rocket mr-2"></i>Iniciar trámite
                         </a>
                         <a href="{% url 'portal:ciudadano_login' %}"
                            class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
-                           style="color: {{ branding.portal.home.secondary_icon_gradient_start }}; border-color: {{ branding.portal.home.secondary_icon_gradient_start }};">
+                           style="color: #5059BC; border-color: #5059BC;">
                             <i class="fas fa-search mr-2"></i>Consultar estado
                         </a>
                     </div>
@@ -283,7 +283,7 @@
             </div>
             <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_programas' %}"
                class="hidden md:inline-flex items-center gap-2 text-sm font-semibold transition-colors"
-               style="color: {{ branding.portal.home.primary_icon_gradient_start }};">
+               style="color: #5059BC;">
                 Ver mis programas <i class="fas fa-arrow-right text-xs"></i>
             </a>
         </div>
@@ -399,7 +399,7 @@
                 <div class="flex flex-col sm:flex-row gap-4">
                     <a href="{% url 'portal:ciudadano_login' %}"
                        class="inline-flex items-center justify-center gap-2 bg-white font-bold py-4 px-8 rounded-2xl transition-all hover:shadow-xl hover:scale-105"
-                       style="color: {{ branding.portal.home.primary_icon_gradient_start }};">
+                       style="color: #5059BC;">
                         <i class="fas fa-sign-in-alt"></i> Ingresar
                     </a>
                     <a href="{% url 'portal:ciudadano_registro_step1' %}"
@@ -419,14 +419,14 @@
                 <h3 class="font-extrabold text-[#252F40] text-xl mb-5">¿Necesitás ayuda?</h3>
                 <div class="space-y-3 mb-6">
                     <div class="flex items-center gap-3 bg-gray-50 rounded-xl p-3.5 border border-[#E5E7EB]">
-                        <i class="fas fa-phone w-5 text-center" style="color: {{ branding.portal.home.contact_icon_color }};"></i>
+                        <i class="fas fa-phone w-5 text-center" style="color: #5059BC;"></i>
                         <div>
                             <p class="text-xs text-[#8C8C8C] font-medium">Línea gratuita</p>
                             <p class="font-bold text-[#252F40] text-sm">0800-222-1133</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 bg-gray-50 rounded-xl p-3.5 border border-[#E5E7EB]">
-                        <i class="fas fa-clock w-5 text-center" style="color: {{ branding.portal.home.contact_icon_color }};"></i>
+                        <i class="fas fa-clock w-5 text-center" style="color: #5059BC;"></i>
                         <div>
                             <p class="text-xs text-[#8C8C8C] font-medium">Horario</p>
                             <p class="font-bold text-[#252F40] text-sm">Lunes a Viernes, 9–17 hs</p>
@@ -436,7 +436,7 @@
             </div>
             <button onclick="document.getElementById('chat-button').click()"
                     class="w-full text-white font-bold py-3.5 rounded-xl transition-all hover:opacity-90"
-                    style="background: {{ branding.portal.home.support_button_bg }};">
+                    style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
                 <i class="fas fa-comments mr-2"></i>Chatear con un operador
             </button>
         </div>

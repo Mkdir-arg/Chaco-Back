@@ -1,5 +1,7 @@
 from rest_framework import status, viewsets
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -14,6 +16,7 @@ from ..serializers import (
     AlertaCiudadanoSerializer,
 )
 from ..services import AlertasService, FiltrosUsuarioService
+from ..services.consulta_renaper import consultar_datos_renaper
 
 
 @extend_schema_view(
@@ -85,3 +88,40 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': 'Alerta no encontrada'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def consultar_renaper_api(request):
+    dni = str(request.data.get('dni') or '').strip()
+    sexo = str(request.data.get('sexo') or '').strip().upper()
+
+    if not dni or not sexo:
+        return Response(
+            {'success': False, 'error': 'DNI y sexo son requeridos.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    resultado = consultar_datos_renaper(dni, sexo)
+    if not resultado.get('success'):
+        return Response(
+            {
+                'success': False,
+                'error': resultado.get('error') or 'No se pudo validar con RENAPER.',
+                'fallecido': bool(resultado.get('fallecido')),
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    datos = resultado.get('data') or {}
+    return Response({
+        'success': True,
+        'data': {
+            'dni': datos.get('dni') or dni,
+            'apellido': datos.get('apellido') or '',
+            'nombre': datos.get('nombre') or '',
+            'fecha_nacimiento': datos.get('fecha_nacimiento') or '',
+            'sexo': datos.get('genero') or sexo,
+        },
+        'datos_api': resultado.get('datos_api') or {},
+    })

@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import StaggeredItem from '../components/StaggeredItem';
 import CustomButton from '../components/CustomButton';
+import { fontSizes, radii } from '../theme';
 
 const GradientIcon = ({ name, size = 24, style, colors }) => {
     return (
@@ -47,7 +48,7 @@ export default function SurveyFormScreen({ onCancel, onSave }) {
         <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: theme.colors.text, fontFamily: typography.semibold }]}>{label}</Text>
             <View style={[styles.inputWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                <Ionicons name={icon} size={20} color={theme.colors.primary} style={styles.inputIcon} />
+                <Ionicons name={icon} size={20} color={theme.colors.icon} style={styles.inputIcon} />
                 <TextInput
                     style={[styles.input, { color: theme.colors.text, fontFamily: typography.regular, height: multiline ? 100 : 50 }]}
                     placeholder={placeholder}
@@ -93,7 +94,7 @@ export default function SurveyFormScreen({ onCancel, onSave }) {
                     <Text style={[styles.label, { color: theme.colors.text, fontFamily: typography.semibold }]}>Evidencias (Fotos)</Text>
                     <View style={styles.evidenceGrid}>
                         <TouchableOpacity style={[styles.addEvidenceBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary, borderStyle: 'dashed' }]}>
-                            <Ionicons name="camera" size={32} color={theme.colors.primary} />
+                            <Ionicons name="camera" size={32} color={theme.colors.icon} />
                             <Text style={[styles.addEvidenceText, { color: theme.colors.primary, fontFamily: typography.bold }]}>TOMAR FOTO</Text>
                         </TouchableOpacity>
                         <View style={[styles.photoPlaceholder, { backgroundColor: theme.colors.surfaceAlt }]} />
@@ -118,7 +119,7 @@ export default function SurveyFormScreen({ onCancel, onSave }) {
                             </View>
                         ) : (
                             <>
-                                <Ionicons name="pencil" size={32} color={theme.colors.primary} style={{ opacity: 0.3 }} />
+                                <Ionicons name="pencil" size={32} color={theme.colors.icon} style={{ opacity: 0.3 }} />
                                 <Text style={[styles.signatureHint, { color: theme.colors.textMuted, fontFamily: typography.regular }]}>Toca aquí para firmar</Text>
                             </>
                         )}
@@ -129,12 +130,12 @@ export default function SurveyFormScreen({ onCancel, onSave }) {
                         <View style={styles.modalOverlay}>
                             <View style={styles.modalContent}>
                                 <View style={styles.sigModalHeader}>
-                                    <Text style={{ fontFamily: typography.bold, fontSize: 18, color: '#000' }}>FIRMA DIGITAL</Text>
+                                    <Text style={{ fontFamily: typography.bold, fontSize: fontSizes.lg, color: theme.colors.black }}>FIRMA DIGITAL</Text>
                                     <TouchableOpacity
                                         onPress={() => setShowSigModal(false)}
                                         style={styles.closeButton}
                                     >
-                                        <Ionicons name="close" size={40} color={theme.colors.primary} />
+                                        <Ionicons name="close" size={40} color={theme.colors.icon} />
                                     </TouchableOpacity>
                                 </View>
 
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
         marginRight: 16,
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: fontSizes.lg,
         letterSpacing: 1,
     },
     scrollContent: {
@@ -212,25 +213,25 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 12,
-        borderRadius: 12,
+        borderRadius: radii.xl,
         marginBottom: 24,
     },
     locationText: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
         marginLeft: 8,
     },
     inputGroup: {
         marginBottom: 20,
     },
     label: {
-        fontSize: 14,
+        fontSize: fontSizes.sm,
         marginBottom: 8,
         marginLeft: 4,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 16,
+        borderRadius: radii['2xl'],
         borderWidth: 1,
         paddingHorizontal: 16,
     },
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        fontSize: 16,
+        fontSize: fontSizes.base,
     },
     evidenceGrid: {
         flexDirection: 'row',
@@ -249,30 +250,30 @@ const styles = StyleSheet.create({
     addEvidenceBtn: {
         width: '31%',
         aspectRatio: 1,
-        borderRadius: 16,
+        borderRadius: radii['2xl'],
         borderWidth: 2,
         justifyContent: 'center',
         alignItems: 'center',
     },
     addEvidenceText: {
-        fontSize: 8,
+        fontSize: fontSizes.xxs,
         marginTop: 4,
     },
     photoPlaceholder: {
         width: '31%',
         aspectRatio: 1,
-        borderRadius: 16,
+        borderRadius: radii['2xl'],
     },
     signatureBox: {
         height: 120,
-        borderRadius: 16,
+        borderRadius: radii['2xl'],
         borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 24,
     },
     signatureHint: {
-        fontSize: 12,
+        fontSize: fontSizes.xs,
         marginTop: 10,
     },
     signaturePreview: {
