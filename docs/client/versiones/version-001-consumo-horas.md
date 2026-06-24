@@ -45,10 +45,29 @@
 | 2026-06-17 | Matías Fariña | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 | 2026-06-17 | Matías Fariña | Creacion de Estimacion y documentacion | Creacion de Estimacion y documentacion sobre al propuesta v1 Becas | 300 min |
 | 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 222 min |
+| 2026-06-18 | Juani Portilla | Becas | Desarrollo backend del módulo de relevamiento (alta de personas) | 195 min |
+| 2026-06-18 | Pablo Cao | Aplicación — diseño y maqueta | Ajuste de la maqueta existente de la app al Design System | 240 min |
+| 2026-06-18 | Matías Fariña | Becas | Refinamiento de tareas de la propuesta v1 | 165 min |
+| 2026-06-19 | Matías Fariña | Legajo ciudadano | Revisión de análisis y ajustes | 240 min |
+| 2026-06-19 | Agostina Coppola | Análisis legajos dispositivos/merenderos | Continuación del relevamiento y testing | 300 min |
+| 2026-06-19 | Juani Portilla | Becas | Modelo de cupos y lista de espera + migraciones | 210 min |
+| 2026-06-19 | Pablo Cao | Aplicación — diseño y maqueta | Ajuste de las pantallas de relevamiento sobre la maqueta previa | 285 min |
+| 2026-06-22 | Matías Fariña | Reunión interna | Planificación de la semana y asignación de tareas | 90 min |
+| 2026-06-22 | Agostina Coppola | Testing de requerimientos | Pruebas de legajo y revisión de criterios | 255 min |
+| 2026-06-22 | Juani Portilla | Becas | Validaciones de relevamiento y endpoints de la API | 240 min |
+| 2026-06-22 | Pablo Cao | Aplicación — diseño y maqueta | Refinamiento de UI/UX y prototipo navegable de la app | 300 min |
+| 2026-06-23 | Matías Fariña | Estimación y documentación | Documentación de la propuesta v1 de Becas | 210 min |
+| 2026-06-23 | Agostina Coppola | Análisis y testing | Análisis y testing de legajos | 240 min |
+| 2026-06-23 | Juani Portilla | Becas | ABM de programas y cupos en el backoffice | 225 min |
+| 2026-06-23 | Pablo Cao | Aplicación — diseño y maqueta | Ajustes de diseño según feedback y armado de componentes | 285 min |
+| 2026-06-24 | Matías Fariña | Gestión del sprint | Actualización del detalle de horas y seguimiento | 75 min |
+| 2026-06-24 | Agostina Coppola | Análisis funcional | Análisis de legajos en curso | 120 min |
+| 2026-06-24 | Juani Portilla | Becas | Desarrollo del módulo de asignación de cupos (en curso) | 90 min |
+| 2026-06-24 | Pablo Cao | Aplicación — diseño y maqueta | Ajuste de diseño y maqueta de la app (en curso) | 150 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **3616 minutos** (60 h 26 min)
+    **10023 minutos** (167 h 3 min)

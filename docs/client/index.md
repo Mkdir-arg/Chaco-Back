@@ -34,7 +34,7 @@ hide:
 
     ---
 
-    **Junio 2026:** 60h consumidas | 654h estimadas | 0h saldo
+    **Junio 2026:** 167h consumidas | 654h estimadas | -107h saldo (excedido)
 
     [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-06.md)
 
@@ -42,7 +42,7 @@ hide:
 
     ---
 
-    **17 de junio 2026**
+    **24 de junio 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 
