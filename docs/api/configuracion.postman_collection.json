@@ -1,0 +1,735 @@
+{
+  "info": {
+    "name": "Chaco — Configuración",
+    "description": "Gestión de la configuración del sistema: geografía (provincias, municipios, localidades), estructura organizacional (secretarías, subsecretarías) y programas sociales.\n\nTodos los endpoints requieren sesión Django activa (cookie 'sessionid'). Los POST requieren 'csrfmiddlewaretoken' en el body del formulario.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Provincias",
+      "item": [
+        {
+          "name": "Listar provincias",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/provincias/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "provincias", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario crear provincia (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/provincias/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "provincias", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear provincia (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Chaco" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/provincias/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "provincias", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario editar provincia (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/provincias/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "provincias", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar provincia (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Chaco Actualizado" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/provincias/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "provincias", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar provincia",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/provincias/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "provincias", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Municipios",
+      "item": [
+        {
+          "name": "Listar municipios",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/municipios/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "municipios", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear municipio (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Resistencia" },
+                { "key": "provincia", "value": "1", "description": "ID de la provincia" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/municipios/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "municipios", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar municipio (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Resistencia Actualizado" },
+                { "key": "provincia", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/municipios/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "municipios", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar municipio",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/municipios/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "municipios", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Localidades",
+      "item": [
+        {
+          "name": "Listar localidades",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/localidades/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "localidades", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear localidad (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Villa del Rosario" },
+                { "key": "municipio", "value": "1", "description": "ID del municipio" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/localidades/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "localidades", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar localidad (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Villa del Rosario Actualizado" },
+                { "key": "municipio", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/localidades/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "localidades", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar localidad",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/localidades/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "localidades", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Secretarías",
+      "item": [
+        {
+          "name": "Listar secretarías",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/secretarias/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "secretarias", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear secretaría (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Secretaría de Desarrollo Social" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/secretarias/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "secretarias", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar secretaría (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Ministerio de Desarrollo Social" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/secretarias/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "secretarias", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar secretaría",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/secretarias/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "secretarias", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subsecretarías",
+      "item": [
+        {
+          "name": "Listar subsecretarías",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/subsecretarias/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "subsecretarias", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear subsecretaría (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Subsecretaría de Inclusión Social" },
+                { "key": "secretaria", "value": "1", "description": "ID de la secretaría" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/subsecretarias/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "subsecretarias", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar subsecretaría (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Subsecretaría de Inclusión Social Actualizada" },
+                { "key": "secretaria", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/subsecretarias/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "subsecretarias", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar subsecretaría",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/subsecretarias/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "subsecretarias", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Programas",
+      "description": "Programas sociales. Creación en wizard de 4 pasos. El estado de sesión del wizard se mantiene server-side entre pasos.",
+      "item": [
+        {
+          "name": "Listar programas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", ""],
+              "query": [
+                { "key": "estado", "value": "activo", "disabled": true, "description": "Filtro por estado" },
+                { "key": "subsecretaria", "value": "1", "disabled": true, "description": "Filtro por subsecretaría" },
+                { "key": "q", "value": "inclusion", "disabled": true, "description": "Búsqueda por texto" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wizard Paso 1 — Datos básicos (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/nuevo/paso1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "nuevo", "paso1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wizard Paso 1 — Datos básicos (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Programa de Inclusión Alimentaria" },
+                { "key": "codigo", "value": "PIA-2024" },
+                { "key": "descripcion", "value": "Programa de asistencia alimentaria para familias en situación de vulnerabilidad" },
+                { "key": "secretaria", "value": "1", "description": "ID de la secretaría" },
+                { "key": "subsecretaria", "value": "1", "description": "ID de la subsecretaría" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/nuevo/paso1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "nuevo", "paso1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wizard Paso 2 — Naturaleza (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "naturaleza", "value": "PRESTACION", "description": "Valor de Programa.Naturaleza.choices (ej: PRESTACION, CAPACITACION, SUBSIDIO)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/nuevo/paso2/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "nuevo", "paso2", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wizard Paso 3 — Cupo y lista de espera (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "cupo_maximo", "value": "500", "description": "Número entero >= 1, opcional" },
+                { "key": "tiene_lista_espera", "value": "on", "description": "Checkbox: 'on' para true, omitir para false" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/nuevo/paso3/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "nuevo", "paso3", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wizard Paso 4 — Apariencia (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "icono", "value": "fa-utensils", "description": "Nombre de ícono FontAwesome (max 50 chars)" },
+                { "key": "color", "value": "#e74c3c", "description": "Color HEX o nombre CSS (max 20 chars)" },
+                { "key": "orden", "value": "1", "description": "Entero >= 0 para ordenamiento en listas" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/nuevo/paso4/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "nuevo", "paso4", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar programa — Paso 1 (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Programa Actualizado" },
+                { "key": "codigo", "value": "PIA-2024-V2" },
+                { "key": "descripcion", "value": "Descripción actualizada" },
+                { "key": "secretaria", "value": "1" },
+                { "key": "subsecretaria", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/1/editar/paso1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "1", "editar", "paso1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar estado de programa",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"activo\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/configuracion/programas/1/estado/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["configuracion", "programas", "1", "estado", ""]
+            },
+            "description": "Cambia el estado del programa. Retorna JSON o redirige según implementación."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
