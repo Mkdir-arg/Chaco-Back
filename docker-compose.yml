@@ -34,6 +34,7 @@ services:
 
   app:
     build: .
+    entrypoint: ["/app/docker-entrypoint.sh"]
     depends_on:
       mysql:
         condition: service_healthy
@@ -54,6 +55,15 @@ services:
       REDIS_PORT: 6379
       REDIS_SSL: "False"
       DOMINIO: ${DOMINIO:-localhost:8000}
+      RENAPER_API_USERNAME: ${RENAPER_API_USERNAME:-}
+      RENAPER_API_PASSWORD: ${RENAPER_API_PASSWORD:-}
+      RENAPER_API_URL: ${RENAPER_API_URL:-}
+      RENAPER_API_KEY: ${RENAPER_API_KEY:-}
+      RENAPER_API_KEY_HEADER: ${RENAPER_API_KEY_HEADER:-X-API-Key}
+      RENAPER_API_KEY_PREFIX: ${RENAPER_API_KEY_PREFIX:-}
+      RENAPER_AUTH_MODE: ${RENAPER_AUTH_MODE:-auto}
+      RENAPER_HTTP_METHOD: ${RENAPER_HTTP_METHOD:-auto}
+      RENAPER_TEST_MODE: ${RENAPER_TEST_MODE:-False}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       DJANGO_SYNCDB_PROJECT_APPS: ${DJANGO_SYNCDB_PROJECT_APPS:-False}
       LOCAL_BOOTSTRAP_COMMANDS: ${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin seed_rbac crear_programas}

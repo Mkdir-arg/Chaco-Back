@@ -5,7 +5,7 @@
         <meta charset="UTF-8" />
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="shortcut icon" type="image/png" href="{% static branding.favicon_path %}" />
+        <link rel="shortcut icon" type="image/png" href="{% static 'custom/chaco/favicon.png' %}" />
         
         <!-- Tailwind CSS -->
         <script src="https://cdn.tailwindcss.com"></script>
@@ -86,21 +86,21 @@
                             'text-fg-warning-subtle':'var(--text-fg-warning-subtle)',
                             'text-fg-disabled':      'var(--text-fg-disabled)',
                             'text-fg-info':          'var(--text-fg-info)',
-                            // ── Legacy branding (mantener para templates existentes) ──
-                            'magenta':          '{{ branding.colors.nodo_magenta }}',
-                            'nodo-purple':      '{{ branding.colors.nodo_purple }}',
-                            'nodo-cyan':        '{{ branding.colors.nodo_cyan }}',
-                            'primario':         '{{ branding.colors.color_primario }}',
-                            'primario-claro':   '{{ branding.colors.color_primario_claro }}',
-                            'primario-oscuro':  '{{ branding.colors.color_primario_oscuro }}',
-                            'secundario':       '{{ branding.colors.color_secundario }}',
-                            'secundario-claro': '{{ branding.colors.color_secundario_claro }}',
-                            'secundario-oscuro':'{{ branding.colors.color_secundario_oscuro }}',
-                            'acento':           '{{ branding.colors.color_acento }}',
-                            'acento-claro':     '{{ branding.colors.color_acento_claro }}',
-                            'acento-oscuro':    '{{ branding.colors.color_acento_oscuro }}',
-                            primary:            '{{ branding.colors.color_primario }}',
-                            secondary:          '{{ branding.colors.color_secundario }}',
+                            // Tokens historicos usados por templates existentes
+                            'magenta':          '#F26DF9',
+                            'nodo-purple':      '#5059BC',
+                            'nodo-cyan':        '#C8D29C',
+                            'primario':         '#00203A',
+                            'primario-claro':   '#5059BC',
+                            'primario-oscuro':  '#00203A',
+                            'secundario':       '#5059BC',
+                            'secundario-claro': '#C8D29C',
+                            'secundario-oscuro':'#00203A',
+                            'acento':           '#F26DF9',
+                            'acento-claro':     '#C8D29C',
+                            'acento-oscuro':    '#8A9A46',
+                            primary:            '#00203A',
+                            secondary:          '#5059BC',
                         },
                     }
                 }
@@ -128,9 +128,55 @@
         <link rel="stylesheet" href="{% static 'custom/css/nodo-brand.css' %}" />
         <style>
             :root {
-                {% for variable, value in branding.css_variables.items %}
-                {{ variable }}: {{ value }};
-                {% endfor %}
+                                --color-primario: #00203A;
+                --color-primario-claro: #5059BC;
+                --color-primario-oscuro: #00203A;
+                --color-secundario: #5059BC;
+                --color-secundario-claro: #C8D29C;
+                --color-secundario-oscuro: #00203A;
+                --color-acento: #F26DF9;
+                --color-acento-claro: #C8D29C;
+                --color-acento-oscuro: #8A9A46;
+                --fondo-principal: #F8FAFC;
+                --fondo-secundario: #FFFFFF;
+                --fondo-sidebar: linear-gradient(135deg, #00203A 0%, #00203A 100%);
+                --texto-primario: #00203A;
+                --texto-secundario: #00203A;
+                --nodo-magenta: #F26DF9;
+                --nodo-purple: #5059BC;
+                --nodo-violet: #00203A;
+                --nodo-cyan: #C8D29C;
+                --nodo-text-primary: #00203A;
+                --nodo-text-secondary: #00203A;
+                --nodo-text-tertiary: #5059BC;
+                --nodo-text-muted: #8C8C8C;
+                --nodo-border: #C8D29C;
+                --nodo-bg-white: #FFFFFF;
+                --nodo-gradient: linear-gradient(45deg, #5059BC 0%, #F26DF9 100%);
+                --login-button-gradient: linear-gradient(45deg, #5059BC 0%, #F26DF9 100%);
+                --login-button-hover-overlay: rgba(0, 0, 0, 0.20);
+                --login-button-focus-border: #5059BC;
+                --login-button-focus-shadow: #E5E7EB;
+                --login-button-disabled-bg: #F3F4F6;
+                --login-button-disabled-border: #E5E7E8;
+                --login-button-disabled-text: #99A1AF;
+                --button-tertiary-text: #5059BC;
+                --button-tertiary-bg: #FFFFFF;
+                --button-tertiary-border: #5059BC;
+                --button-tertiary-hover-text: #5059BC;
+                --button-tertiary-hover-bg: #DEE1FF;
+                --button-tertiary-hover-border: #5059BC;
+                --button-tertiary-focus-text: #2331C9;
+                --button-tertiary-focus-bg: #DEE1FF;
+                --button-tertiary-focus-border: #2331C9;
+                --button-tertiary-focus-shadow: #F3F4F6;
+                --button-tertiary-disabled-text: #5059BC;
+                --button-tertiary-disabled-bg: #F0F2FF;
+                --button-tertiary-disabled-border: #5059BC;
+                --nav-active-color: #A54FA9;
+                --nav-active-hover-color: #8C3E90;
+                --ui-highlight-color: #A54FA9;
+                --ui-highlight-gradient: linear-gradient(90deg, #5059BC 0%, #A54FA9 100%);
             }
         </style>
         
@@ -154,7 +200,7 @@
         <!-- Custom styles -->
         {% block head %}{% endblock %}
         
-        <title>{{ branding.application_name }} - {% block title %}{% endblock %}</title>
+        <title>NODO Chaco - {% block title %}{% endblock %}</title>
     </head>
     <body class="min-h-[100dvh] overflow-x-hidden bg-white font-montserrat" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: var(--fondo-principal);">
         <div class="min-h-[100dvh] overflow-x-hidden">

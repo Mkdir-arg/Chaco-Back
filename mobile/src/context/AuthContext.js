@@ -3,8 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 const AuthContext = createContext({});
+const USER_ID_STORAGE_KEY = 'user_id';
 
 // Obtener credenciales de Supabase desde app.json
 const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || 'https://tu-proyecto.supabase.co';
@@ -13,6 +15,42 @@ const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || 'tu-an
 console.log('🔌 Conectando a Supabase:', SUPABASE_URL);
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const sessionStorage = {
+    getItem: async (key) => {
+        if (Platform.OS === 'web') {
+            return AsyncStorage.getItem(key);
+        }
+
+        try {
+            return await SecureStore.getItemAsync(key);
+        } catch {
+            return AsyncStorage.getItem(key);
+        }
+    },
+    setItem: async (key, value) => {
+        if (Platform.OS === 'web') {
+            return AsyncStorage.setItem(key, value);
+        }
+
+        try {
+            return await SecureStore.setItemAsync(key, value);
+        } catch {
+            return AsyncStorage.setItem(key, value);
+        }
+    },
+    deleteItem: async (key) => {
+        if (Platform.OS === 'web') {
+            return AsyncStorage.removeItem(key);
+        }
+
+        try {
+            return await SecureStore.deleteItemAsync(key);
+        } catch {
+            return AsyncStorage.removeItem(key);
+        }
+    },
+};
 
 if (!Constants.expoConfig?.extra?.supabaseUrl || !Constants.expoConfig?.extra?.supabaseAnonKey) {
     console.warn('⚠️ ADVERTENCIA: Credenciales de Supabase no configuradas. Revisa app.json');
@@ -29,7 +67,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
-            const userId = await SecureStore.getItemAsync('user_id');
+            const userId = await sessionStorage.getItem(USER_ID_STORAGE_KEY);
             if (userId) {
                 // Obtener datos del usuario desde Supabase
                 await fetchUser(userId);
@@ -131,7 +169,7 @@ export const AuthProvider = ({ children }) => {
             console.log('✅ Contraseña correcta');
 
             // Guardar ID del usuario en almacenamiento seguro
-            await SecureStore.setItemAsync('user_id', userData.id);
+            await sessionStorage.setItem(USER_ID_STORAGE_KEY, userData.id);
 
             const grupos = userData.usuario_grupos?.map((ug) => ug.grupos) || [];
 
@@ -148,13 +186,20 @@ export const AuthProvider = ({ children }) => {
             return { success: true };
         } catch (e) {
             console.error('❌ Error en login:', e.message);
-            return { success: false, error: 'Hubo un error al conectar con el servidor' };
+            const message = e?.message || '';
+            const isNetworkError = /fetch|network|servidor|internet|timeout/i.test(message);
+            return {
+                success: false,
+                error: isNetworkError
+                    ? 'Hubo un error al conectar con el servidor'
+                    : 'No se pudo iniciar sesion en este dispositivo',
+            };
         }
     };
 
     const logout = async () => {
         try {
-            await SecureStore.deleteItemAsync('user_id');
+            await sessionStorage.deleteItem(USER_ID_STORAGE_KEY);
         } catch (e) {
             console.error('Error removing user_id:', e);
         }

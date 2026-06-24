@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { radii } from '../theme';
 
 export default function SkeletonLoader({
     width = '100%',
     height = 20,
-    borderRadius = 8,
+    borderRadius = radii.lg,
     style,
     delay = 0
 }) {
@@ -51,7 +52,7 @@ export default function SkeletonLoader({
                     width,
                     height,
                     borderRadius,
-                    backgroundColor: theme.mode === 'dark' ? '#252F40' : '#E9ECEF',
+                    backgroundColor: theme.colors.surfaceAlt,
                 },
                 style
             ]}

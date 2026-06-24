@@ -19,10 +19,10 @@
 
         <!-- Header de la card -->
         <div class="px-6 py-5 border-b border-[#E5E7EB]"
-             style="background: linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }}12 0%, {{ branding.portal.primary_button_gradient_end }}08 100%);">
+             style="background: linear-gradient(135deg, #5059BC12 0%, #F26DF908 100%);">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                     style="background: linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);">
+                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                     <i class="fas fa-comments text-white"></i>
                 </div>
                 <div>
@@ -80,7 +80,7 @@
                               required
                               placeholder="Describí brevemente tu consulta o reclamo. Cuanta más información brindes, mejor podremos ayudarte."
                               class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent bg-white"
-                              style="--tw-ring-color: {{ branding.portal.primary_button_gradient_start }};">{{ form.motivo.value|default:'' }}</textarea>
+                              style="--tw-ring-color: #5059BC;">{{ form.motivo.value|default:'' }}</textarea>
                     <p class="text-xs text-[#8C8C8C] mt-1.5">Mínimo 10 caracteres. Sé específico/a para agilizar la atención.</p>
                 </div>
 
@@ -88,16 +88,16 @@
                 <div class="flex flex-col sm:flex-row gap-3">
                     <button type="submit"
                             class="flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold text-white shadow-md transition-all"
-                            style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
-                            onmouseover="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_hover_start }} 0%, {{ branding.portal.primary_button_hover_end }} 100%)'"
-                            onmouseout="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)'">
+                            style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                            onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                            onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                         <i class="fas fa-paper-plane mr-2"></i>Iniciar consulta
                     </button>
                     <a href="{% url 'portal:ciudadano_mis_consultas' %}"
                        class="flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-medium border transition-colors"
-                       style="color: {{ branding.portal.secondary_button_text }}; border-color: {{ branding.portal.secondary_button_border }}; background: {{ branding.portal.secondary_button_bg }};"
-                       onmouseover="this.style.background='{{ branding.portal.secondary_button_hover_bg }}'"
-                       onmouseout="this.style.background='{{ branding.portal.secondary_button_bg }}'">
+                       style="color: #5059BC; border-color: #5059BC; background: #FFFFFF;"
+                       onmouseover="this.style.background='#DEE1FF'"
+                       onmouseout="this.style.background='#FFFFFF'">
                         Cancelar
                     </a>
                 </div>

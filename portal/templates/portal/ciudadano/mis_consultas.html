@@ -7,16 +7,16 @@
 <!-- Encabezado -->
 <div class="mb-6 animate-fadeInUp">
     <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-         style="background: linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }}18 0%, {{ branding.portal.primary_button_gradient_end }}10 100%);">
+         style="background: linear-gradient(135deg, #5059BC18 0%, #F26DF910 100%);">
         <div>
             <h2 class="text-2xl font-bold text-[#252F40]">Mis Consultas</h2>
             <p class="text-[#8C8C8C] mt-1 text-sm">Historial de todas tus consultas y reclamos.</p>
         </div>
         <a href="{% url 'portal:ciudadano_nueva_consulta' %}"
            class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-md transition-all flex-shrink-0"
-           style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
-           onmouseover="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_hover_start }} 0%, {{ branding.portal.primary_button_hover_end }} 100%)'"
-           onmouseout="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)'">
+           style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+           onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+           onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
             <i class="fas fa-plus mr-2"></i>Nueva consulta
         </a>
     </div>
@@ -69,9 +69,9 @@
 
                     <a href="{% url 'portal:ciudadano_consulta_detalle' pk=conv.pk %}"
                        class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium border transition-colors"
-                       style="color: {{ branding.portal.secondary_button_text }}; border-color: {{ branding.portal.secondary_button_border }}; background: {{ branding.portal.secondary_button_bg }};"
-                       onmouseover="this.style.background='{{ branding.portal.secondary_button_hover_bg }}'"
-                       onmouseout="this.style.background='{{ branding.portal.secondary_button_bg }}'">
+                       style="color: #5059BC; border-color: #5059BC; background: #FFFFFF;"
+                       onmouseover="this.style.background='#DEE1FF'"
+                       onmouseout="this.style.background='#FFFFFF'">
                         <i class="fas fa-eye mr-1.5"></i>Ver conversación
                     </a>
                 </div>
@@ -92,9 +92,9 @@
             </p>
             <a href="{% url 'portal:ciudadano_nueva_consulta' %}"
                class="inline-flex items-center px-6 py-3 rounded-xl text-sm font-semibold text-white shadow-md transition-all"
-               style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
-               onmouseover="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_hover_start }} 0%, {{ branding.portal.primary_button_hover_end }} 100%)'"
-               onmouseout="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)'">
+               style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+               onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+               onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                 <i class="fas fa-comments mr-2"></i>Iniciar tu primera consulta
             </a>
         </div>

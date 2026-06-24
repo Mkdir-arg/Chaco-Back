@@ -74,7 +74,7 @@
                             bg-[#F3F4F6] text-[#252F40] rounded-bl-sm
                         {% endif %}"
                         {% if mensaje.remitente == 'ciudadano' %}
-                        style="background: linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
+                        style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);"
                         {% endif %}>
                         <p class="text-sm leading-relaxed">{{ mensaje.contenido }}</p>
                         <p class="text-xs opacity-60 mt-1.5 {% if mensaje.remitente == 'ciudadano' %}text-right{% else %}text-left{% endif %}">
@@ -105,13 +105,13 @@
                               rows="2"
                               placeholder="Escribí tu mensaje..."
                               class="flex-1 px-4 py-3 border border-[#E5E7EB] rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:border-transparent"
-                              style="--tw-ring-color: {{ branding.portal.primary_button_gradient_start }};"
+                              style="--tw-ring-color: #5059BC;"
                               required></textarea>
                     <button type="submit"
                             class="px-5 py-3 rounded-xl text-sm font-semibold text-white flex-shrink-0 shadow-sm transition-all"
-                            style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
-                            onmouseover="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_hover_start }} 0%, {{ branding.portal.primary_button_hover_end }} 100%)'"
-                            onmouseout="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)'">
+                            style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                            onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                            onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                         <i class="fas fa-paper-plane mr-1.5"></i>Enviar
                     </button>
                 </div>
@@ -176,7 +176,7 @@
         var burbuja = document.createElement('div');
         burbuja.className = 'px-4 py-3 rounded-2xl ' + (esCiudadano ? 'text-white rounded-br-sm' : 'bg-[#F3F4F6] text-[#252F40] rounded-bl-sm');
         if (esCiudadano) {
-            burbuja.style.background = 'linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)';
+            burbuja.style.background = 'linear-gradient(135deg, #5059BC 0%, #F26DF9 100%)';
         }
 
         var texto = document.createElement('p');
