@@ -1,0 +1,689 @@
+{
+  "info": {
+    "name": "Chaco — Core",
+    "description": "Endpoints del módulo core: AJAX helpers para cascadas de selects, APIs de performance/métricas del sistema, y API REST de catálogos geográficos (provincias, municipios, localidades, sexos, meses, días).\n\nAutenticación: La mayoría requiere sesión Django activa. Para endpoints HTML incluir cookie 'sessionid'. Para endpoints REST incluir header 'X-CSRFToken' con el valor obtenido de la cookie 'csrftoken'.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "AJAX Helpers",
+      "description": "Endpoints de carga dinámica para cascadas de selects en formularios del backoffice.",
+      "item": [
+        {
+          "name": "Cargar municipios por provincia",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/ajax/load-municipios/?provincia_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["ajax", "load-municipios", ""],
+              "query": [
+                { "key": "provincia_id", "value": "1", "description": "ID de la provincia" }
+              ]
+            },
+            "description": "Retorna lista JSON de municipios filtrados por provincia. Usado en cascadas de selects."
+          },
+          "response": []
+        },
+        {
+          "name": "Cargar localidades por municipio",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/ajax/load-localidades/?municipio_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["ajax", "load-localidades", ""],
+              "query": [
+                { "key": "municipio_id", "value": "1", "description": "ID del municipio" }
+              ]
+            },
+            "description": "Retorna lista JSON de localidades filtradas por municipio."
+          },
+          "response": []
+        },
+        {
+          "name": "Cargar subsecretarías por secretaría",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/ajax/load-subsecretarias/?secretaria_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["ajax", "load-subsecretarias", ""],
+              "query": [
+                { "key": "secretaria_id", "value": "1", "description": "ID de la secretaría" }
+              ]
+            },
+            "description": "Retorna lista JSON de subsecretarías filtradas por secretaría."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Performance & Métricas del Sistema",
+      "description": "APIs internas de monitoreo de performance. Sin autenticación requerida.",
+      "item": [
+        {
+          "name": "Dashboard de performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/performance-dashboard/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["performance-dashboard", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API de performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/performance-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["performance-api", ""]
+            },
+            "description": "Retorna JSON con datos de performance de la aplicación."
+          },
+          "response": []
+        },
+        {
+          "name": "Análisis de queries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/query-analysis-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["query-analysis-api", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sugerencias de optimización",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/optimization-suggestions-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["optimization-suggestions-api", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Métricas del sistema",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/system-metrics-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["system-metrics-api", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Alertas de sistema",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/alerts-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["alerts-api", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Métricas en tiempo real",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/realtime-metrics-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["realtime-metrics-api", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Métricas fase 2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/phase2-metrics-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["phase2-metrics-api", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ejecutar tests fase 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/run-phase2-tests-api/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["run-phase2-tests-api", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Geografía",
+      "description": "Endpoints DRF para catálogos geográficos. Requieren autenticación (sesión activa). Base: /api/core/",
+      "item": [
+        {
+          "name": "Provincias",
+          "item": [
+            {
+              "name": "Listar provincias",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/provincias/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "provincias", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Crear provincia",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Chaco\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "http://localhost:8000/api/core/provincias/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "provincias", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Obtener provincia",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/provincias/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "provincias", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Actualizar provincia",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Chaco Actualizado\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "http://localhost:8000/api/core/provincias/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "provincias", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Eliminar provincia",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/provincias/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "provincias", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Municipios de una provincia",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/provincias/1/municipios/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "provincias", "1", "municipios", ""]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Municipios",
+          "item": [
+            {
+              "name": "Listar municipios",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/municipios/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "municipios", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Crear municipio",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Resistencia\",\n  \"provincia_id\": 1\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "http://localhost:8000/api/core/municipios/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "municipios", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Obtener municipio",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/municipios/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "municipios", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Actualizar municipio",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Resistencia Actualizado\",\n  \"provincia_id\": 1\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "http://localhost:8000/api/core/municipios/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "municipios", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Eliminar municipio",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/municipios/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "municipios", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Localidades de un municipio",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/municipios/1/localidades/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "municipios", "1", "localidades", ""]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Localidades",
+          "item": [
+            {
+              "name": "Listar localidades",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/localidades/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "localidades", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Crear localidad",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Villa del Rosario\",\n  \"municipio_id\": 1\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "http://localhost:8000/api/core/localidades/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "localidades", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Obtener localidad",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/localidades/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "localidades", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Actualizar localidad",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Villa del Rosario Actualizado\",\n  \"municipio_id\": 1\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "http://localhost:8000/api/core/localidades/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "localidades", "1", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Eliminar localidad",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" },
+                  { "key": "X-CSRFToken", "value": "<csrf-token>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/localidades/1/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "localidades", "1", ""]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Catálogos de referencia (solo lectura)",
+          "item": [
+            {
+              "name": "Listar sexos",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/sexos/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "sexos", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Listar meses",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/meses/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "meses", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Listar días",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Cookie", "value": "sessionid=<session-id>" }
+                ],
+                "url": {
+                  "raw": "http://localhost:8000/api/core/dias/",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "8000",
+                  "path": ["api", "core", "dias", ""]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OpenAPI / Documentación",
+      "item": [
+        {
+          "name": "Schema OpenAPI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/schema/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "schema", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/docs/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "docs", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ReDoc UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/redoc/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "redoc", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

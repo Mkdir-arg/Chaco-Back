@@ -1,0 +1,25 @@
+{
+  "info": {
+    "name": "Chaco — Healthcheck",
+    "description": "Monitoreo de salud del sistema. Endpoint público sin autenticación.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/health/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["health", ""]
+        },
+        "description": "Retorna el estado de salud de la aplicación. No requiere autenticación."
+      },
+      "response": []
+    }
+  ]
+}
