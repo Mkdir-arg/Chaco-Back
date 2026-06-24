@@ -2,54 +2,209 @@
 {% block title %}Becas · {{ segmento.nombre }}{% endblock %}
 
 {% block main-content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<style>[x-cloak]{display:none!important}</style>
+<div class="max-w-6xl mx-auto space-y-5"
+     x-data="{ tab: 'info', modalReq: false }">
 
-  {# Breadcrumb + back #}
+  {# Volver #}
   <div>
-    <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-3">
+    <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-sm">
+      <i class="fas fa-arrow-left"></i> Volver a segmentos
+    </a>
+  </div>
+
+  {# Breadcrumb + título + estado #}
+  <div>
+    <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
       <span>Programa Becas</span>
       <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
       <a href="{% url 'becas:segmentos' %}" class="hover:underline">Segmentos</a>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <span class="font-semibold text-body">{{ segmento.nombre }}</span>
     </nav>
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ segmento.nombre }}</h1>
-        <p class="text-sm text-body-subtle mt-1">
-          {{ subsegmentos|length }} subsegmento(s) &middot; cupo {{ segmento.cupo_maximo }} &middot; {{ coordinadores|length }} coordinador(es)
-        </p>
+        {% if segmento.descripcion %}<p class="text-sm text-body-subtle mt-1">{{ segmento.descripcion }}</p>{% endif %}
       </div>
-      <div class="flex items-center gap-2">
-        {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
-        {% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
-        <a href="{% url 'becas:segmento_editar' segmento.pk %}" class="btn-nodo btn-secondary btn-sm">
-          <i class="fas fa-edit"></i> Editar
-        </a>
-      </div>
+      {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
+      {% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
     </div>
-    {% if segmento.descripcion %}<p class="text-sm text-body mt-2">{{ segmento.descripcion }}</p>{% endif %}
   </div>
 
-  {# Subsegmentos #}
-  <section>
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-lg font-bold text-heading">Subsegmentos</h2>
+  {# Pestañas #}
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+    <div class="border-b border-[#E5E7EB] flex gap-1 px-2">
+      <button @click="tab='info'" type="button"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='info' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-id-card"></i> Información general
+      </button>
+      <button @click="tab='subs'" type="button"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='subs' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-list"></i> Subsegmentos
+        <span class="badge badge-gray ml-0.5">{{ subsegmentos|length }}</span>
+      </button>
+      <button @click="tab='reqs'" type="button"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='reqs' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-clipboard-list"></i> Requisitos del segmento
+        <span class="badge badge-gray ml-0.5">{{ requisitos|length }}</span>
+      </button>
     </div>
 
-    {% if subsegmentos %}
-    <div class="mb-4 bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4">
-      <div class="flex justify-between text-xs text-body-subtle mb-1">
-        <span>Cupo distribuido: {{ segmento.cupo_distribuido }} / {{ segmento.cupo_maximo }}</span>
-        <span>Disponible: {{ segmento.cupo_disponible }}</span>
+    {# ============ TAB: Información general ============ #}
+    <div x-show="tab==='info'" class="p-6 space-y-6">
+
+      {# Stat cards de cupo #}
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo total</p>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)">
+              <i class="fas fa-users text-sm"></i>
+            </div>
+          </div>
+          <p class="text-3xl font-bold text-heading">{{ segmento.cupo_maximo }}</p>
+        </div>
+        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo distribuido</p>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-success-soft text-fg-success">
+              <i class="fas fa-check-circle text-sm"></i>
+            </div>
+          </div>
+          <p class="text-3xl font-bold text-heading">{{ segmento.cupo_distribuido }}</p>
+        </div>
+        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo disponible</p>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand">
+              <i class="fas fa-clock text-sm"></i>
+            </div>
+          </div>
+          <p class="text-3xl font-bold text-heading">{{ segmento.cupo_disponible }}</p>
+        </div>
       </div>
-      <div class="h-2 w-full rounded-full bg-[#F3F4F6] overflow-hidden">
-        {% widthratio segmento.cupo_distribuido segmento.cupo_maximo 100 as pct %}
-        <div class="h-2 rounded-full" style="width: {{ pct }}%; background: var(--gradient-brand)"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Columna izquierda: edición + coordinadores #}
+        <div class="lg:col-span-2 space-y-6">
+          <form method="post" action="{% url 'becas:segmento_editar' segmento.pk %}" class="space-y-4">
+            {% csrf_token %}
+            {{ form_segmento.activo.as_hidden }}
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Nombre del segmento <span class="text-fg-danger">*</span></label>
+              {{ form_segmento.nombre }}
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Descripción</label>
+              {{ form_segmento.descripcion }}
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Cupo total <span class="text-fg-danger">*</span></label>
+                {{ form_segmento.cupo_maximo }}
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Coordinador asignado</label>
+                <div class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body">
+                  {% with asig=coordinadores.0 %}{% if asig %}{{ asig.coordinador.get_full_name|default:asig.coordinador.username }}{% else %}—{% endif %}{% endwith %}
+                </div>
+              </div>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-body cursor-pointer">
+              {{ form_segmento.requiere_gps }} Requiere captura de GPS en el formulario
+            </label>
+            <div class="flex flex-wrap gap-3 pt-2">
+              <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+              <button type="button" class="btn-nodo btn-danger btn-base"
+                      data-confirm-url="{% url 'becas:segmento_toggle' segmento.pk %}"
+                      data-confirm-title="{% if segmento.activo %}¿Desactivar segmento?{% else %}¿Activar segmento?{% endif %}"
+                      data-confirm-text="{{ segmento.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
+                <i class="fas fa-ban"></i> {% if segmento.activo %}Desactivar{% else %}Activar{% endif %} segmento
+              </button>
+            </div>
+          </form>
+
+          {# Coordinadores asignados #}
+          <div class="border-t border-[#F3F4F6] pt-5">
+            <h3 class="text-sm font-bold text-heading mb-3">Coordinadores asignados</h3>
+            {% if coordinadores %}
+            <div class="space-y-2 mb-3">
+              {% for asig in coordinadores %}
+              <div class="flex items-center justify-between bg-secondary-soft rounded-lg px-3 py-2">
+                <span class="text-sm text-body flex items-center gap-2">
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background: var(--gradient-brand)">
+                    {{ asig.coordinador.get_full_name|default:asig.coordinador.username|slice:":2"|upper }}
+                  </span>
+                  {{ asig.coordinador.get_full_name|default:asig.coordinador.username }}
+                </span>
+                <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Quitar"
+                        data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}"
+                        data-confirm-title="¿Quitar coordinador?"
+                        data-confirm-text="{{ asig.coordinador.get_full_name|default:asig.coordinador.username }} dejará de coordinar este segmento."
+                        data-confirm-ok="Sí, quitar">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-body-subtle mb-3">Sin coordinadores asignados.</p>
+            {% endif %}
+            <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3">
+              {% csrf_token %}
+              <div class="flex-1 min-w-[200px]">{{ form_coordinador.coordinador.label_tag }}{{ form_coordinador.coordinador }}</div>
+              <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
+            </form>
+          </div>
+        </div>
+
+        {# Columna derecha: ocupación + resumen #}
+        <div class="space-y-5">
+          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+            <h3 class="text-sm font-bold text-heading mb-3">Ocupación del cupo</h3>
+            {% widthratio segmento.cupo_distribuido segmento.cupo_maximo 100 as pct %}
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-body-subtle">{{ segmento.cupo_distribuido }} de {{ segmento.cupo_maximo }}</span>
+              <span class="font-bold text-heading">{{ pct }}%</span>
+            </div>
+            <div class="h-2 w-full rounded-full bg-[#F3F4F6] overflow-hidden">
+              <div class="h-2 rounded-full" style="width: {{ pct }}%; background: var(--gradient-brand)"></div>
+            </div>
+            <p class="text-xs text-body-subtle mt-2">{{ segmento.cupo_disponible }} lugares disponibles</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+            <h3 class="text-sm font-bold text-heading mb-3">Resumen</h3>
+            <dl class="space-y-2.5 text-sm">
+              <div class="flex justify-between items-center">
+                <dt class="text-body-subtle">Estado</dt>
+                <dd>{% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>{% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-body-subtle">Coordinador</dt>
+                <dd class="text-heading font-medium">{% with asig=coordinadores.0 %}{% if asig %}{{ asig.coordinador.get_full_name|default:asig.coordinador.username }}{% else %}—{% endif %}{% endwith %}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-body-subtle">Subsegmentos</dt>
+                <dd class="text-heading font-medium">{{ subsegmentos|length }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-body-subtle">Requisitos</dt>
+                <dd class="text-heading font-medium">{{ requisitos|length }}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden mb-4">
-      <div class="overflow-x-auto">
+
+    {# ============ TAB: Subsegmentos ============ #}
+    <div x-show="tab==='subs'" x-cloak class="p-6 space-y-4">
+      <p class="text-sm text-body-subtle">Cada subsegmento tiene su propio cupo (debe caber dentro del cupo del segmento).</p>
+      {% if subsegmentos %}
+      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
         <table class="w-full border-collapse">
           <thead>
             <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
@@ -80,94 +235,113 @@
           </tbody>
         </table>
       </div>
+      {% else %}
+      <p class="text-sm text-body-subtle">Sin subsegmentos. El cupo del segmento es el total.</p>
+      {% endif %}
+
+      <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 flex flex-wrap items-end gap-3">
+        {% csrf_token %}
+        <div class="flex-1 min-w-[160px]">{{ form_subsegmento.nombre.label_tag }}{{ form_subsegmento.nombre }}</div>
+        <div class="w-32">{{ form_subsegmento.cupo_maximo.label_tag }}{{ form_subsegmento.cupo_maximo }}</div>
+        <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Agregar subsegmento</button>
+      </form>
     </div>
-    {% else %}
-      <p class="text-sm text-body-subtle mb-4">Sin subsegmentos. El cupo del segmento es el total.</p>
-    {% endif %}
 
-    <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 flex flex-wrap items-end gap-3">
-      {% csrf_token %}
-      <div class="flex-1 min-w-[160px]">{{ form_subsegmento.nombre.label_tag }}{{ form_subsegmento.nombre }}</div>
-      <div class="w-32">{{ form_subsegmento.cupo_maximo.label_tag }}{{ form_subsegmento.cupo_maximo }}</div>
-      <button type="submit" class="btn-nodo btn-tertiary btn-base">
-        <i class="fas fa-plus"></i> Agregar subsegmento
-      </button>
-    </form>
-  </section>
-
-  {# Coordinadores #}
-  <section>
-    <h2 class="text-lg font-bold text-heading mb-3">Coordinadores asignados</h2>
-    {% if coordinadores %}
-    <div class="space-y-2 mb-4">
-      {% for asig in coordinadores %}
-      <div class="flex items-center justify-between bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-4 py-3">
-        <span class="text-sm text-body flex items-center gap-2">
-          <i class="fas fa-user-circle text-fg-brand"></i>
-          {{ asig.coordinador.get_full_name|default:asig.coordinador.username }}
-        </span>
-        <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Quitar"
-                data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}"
-                data-confirm-title="¿Quitar coordinador?"
-                data-confirm-text="{{ asig.coordinador.get_full_name|default:asig.coordinador.username }} dejará de coordinar este segmento."
-                data-confirm-ok="Sí, quitar">
-          <i class="fas fa-trash"></i>
+    {# ============ TAB: Requisitos del segmento ============ #}
+    <div x-show="tab==='reqs'" x-cloak class="p-6 space-y-4">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <p class="text-sm text-body-subtle max-w-xl">Requisitos del segmento padre. Se heredan en los formularios de todos sus subsegmentos.</p>
+        <button type="button" @click="modalReq=true" class="btn-nodo btn-brand btn-base">
+          <i class="fas fa-plus"></i> Nuevo requisito
         </button>
       </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-sm text-body-subtle mb-4">Sin coordinadores asignados.</p>
-    {% endif %}
-    <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 flex flex-wrap items-end gap-3">
-      {% csrf_token %}
-      <div class="flex-1 min-w-[200px]">{{ form_coordinador.coordinador.label_tag }}{{ form_coordinador.coordinador }}</div>
-      <button type="submit" class="btn-nodo btn-tertiary btn-base">
-        <i class="fas fa-plus"></i> Asignar coordinador
-      </button>
-    </form>
-  </section>
 
-  {# Requisitos nativos #}
-  <section>
-    <h2 class="text-lg font-bold text-heading mb-3">Requisitos nativos del segmento</h2>
-    {% if requisitos %}
-    <div class="space-y-2 mb-4">
-      {% for req in requisitos %}
-      <div class="flex items-center justify-between bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-4 py-3">
-        <span class="text-sm text-body">
-          {{ req.texto }}
-          <span class="badge badge-brand ml-2">{{ req.get_tipo_display }}</span>
-        </span>
-        <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
-                data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
-                data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
-          <i class="fas fa-trash"></i>
-        </button>
+      {% if requisitos %}
+      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
+              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Pregunta</th>
+              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
+              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
+              <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in requisitos %}
+            <tr class="hover:bg-[#F9FAFB]">
+              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle font-semibold">{{ req.orden }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">{{ req.texto }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]"><span class="badge badge-brand">{{ req.get_tipo_display }}</span></td>
+              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+                {% if req.obligatorio %}<span class="badge badge-success">Obligatorio</span>{% else %}<span class="badge badge-gray">Opcional</span>{% endif %}
+              </td>
+              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+                <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+                        data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
+                        data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-sm text-body-subtle mb-4">Sin requisitos nativos.</p>
-    {% endif %}
-    <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 space-y-3">
-      {% csrf_token %}
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>{{ form_requisito.texto.label_tag }}{{ form_requisito.texto }}</div>
-        <div>{{ form_requisito.tipo.label_tag }}{{ form_requisito.tipo }}</div>
+      {% else %}
+      <div class="py-12 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+        <div class="text-fg-brand"><i class="fas fa-clipboard-list text-4xl"></i></div>
+        <p class="text-[17px] font-bold text-heading">Sin requisitos del segmento</p>
+        <p class="text-sm text-body max-w-xs">Agregá los requisitos que se heredarán a todos los subsegmentos.</p>
       </div>
-      <div data-opciones-wrapper>
-        {{ form_requisito.opciones_texto.label_tag }}{{ form_requisito.opciones_texto }}
-        <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
-      </div>
-      <button type="submit" class="btn-nodo btn-tertiary btn-base">
-        <i class="fas fa-plus"></i> Agregar requisito
-      </button>
-    </form>
-  </section>
+      {% endif %}
 
-  <div class="text-right">
-    <a href="{% url 'becas:preguntas' %}" class="text-sm text-fg-brand hover:underline">Administrar cuestionario social (preguntas globales) →</a>
+      <div class="text-right">
+        <a href="{% url 'becas:preguntas' %}" class="text-sm text-fg-brand hover:underline">Administrar cuestionario social (preguntas globales) →</a>
+      </div>
+    </div>
+  </div>
+
+  {# ============ Modal: Nuevo requisito ============ #}
+  <div x-show="modalReq" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalReq=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
+      </div>
+      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+          {{ form_requisito.texto }}
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+            {{ form_requisito.tipo }}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+            <label class="flex items-center gap-2 h-[38px] text-sm text-body">{{ form_requisito.obligatorio }} Sí</label>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+            {{ form_requisito.orden }}
+          </div>
+        </div>
+        <div data-opciones-wrapper>
+          <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
+          {{ form_requisito.opciones_texto }}
+          <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalReq=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base">Crear requisito</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -177,12 +351,9 @@
 <script>
 (function () {
   var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
-
   function toggleOpciones(tipoSelect, opcionesWrapper) {
-    var mostrar = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1;
-    opcionesWrapper.style.display = mostrar ? '' : 'none';
+    opcionesWrapper.style.display = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1 ? '' : 'none';
   }
-
   document.querySelectorAll('form[action*="requisitos"]').forEach(function (form) {
     var tipoSelect = form.querySelector('select[name="tipo"]');
     var opcionesWrapper = form.querySelector('[data-opciones-wrapper]');

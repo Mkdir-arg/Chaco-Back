@@ -84,6 +84,11 @@ class RelevamientoListView(_RelevMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["estado_actual"] = self.request.GET.get("estado", "")
+        # Form + nombre autogenerado para el modal "Nuevo relevamiento".
+        ctx["form_crear"] = RelevamientoForm(
+            segmentos_permitidos=segmentos_visibles(self.request.user)
+        )
+        ctx["siguiente_nombre"] = f"Relevamiento {Relevamiento.objects.count() + 1:03d}"
         return ctx
 
 

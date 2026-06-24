@@ -1,6 +1,7 @@
 """Formularios del backoffice del Programa Becas (#74 / #76)."""
 from django import forms
 from django.contrib.auth.models import User
+from django.db import models
 
 from programas.models import (
     AsignacionCoordinador,
@@ -111,11 +112,12 @@ class RequisitoNativoForm(_OpcionesMixin):
 
     class Meta:
         model = RequisitoNativo
-        fields = ["texto", "tipo", "obligatorio"]
+        fields = ["texto", "tipo", "obligatorio", "orden"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 
     def __init__(self, *args, segmento=None, subsegmento=None, **kwargs):
@@ -124,6 +126,19 @@ class RequisitoNativoForm(_OpcionesMixin):
             self.instance.segmento = segmento
         # subsegmento puede ser None (requisito del segmento) o una instancia.
         self.instance.subsegmento = subsegmento
+        # ``orden`` es opcional: si no se indica, se autocalcula como el siguiente
+        # disponible (así el form inline que no lo renderiza sigue funcionando).
+        self.fields["orden"].required = False
+
+    def clean_orden(self):
+        orden = self.cleaned_data.get("orden")
+        if orden not in (None, ""):
+            return orden
+        hermanos = RequisitoNativo.objects.filter(
+            segmento=self.instance.segmento, subsegmento=self.instance.subsegmento
+        )
+        ultimo = hermanos.aggregate(m=models.Max("orden"))["m"]
+        return (ultimo or 0) + 1
 
 
 class AsignacionCoordinadorForm(forms.ModelForm):

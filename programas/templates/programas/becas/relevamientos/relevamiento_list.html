@@ -2,7 +2,8 @@
 {% block title %}Becas · Relevamientos{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
+<style>[x-cloak]{display:none!important}</style>
+<div class="mb-8" x-data="{ modalRel: false }">
 
   <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
     <span>Programa Becas</span>
@@ -14,9 +15,9 @@
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Relevamientos</h1>
       <p class="text-sm text-body-subtle mt-1">Campañas de campo asignadas a territoriales</p>
     </div>
-    <a href="{% url 'becas:relevamiento_crear' %}" class="btn-nodo btn-brand btn-base">
+    <button type="button" @click="modalRel=true" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nuevo relevamiento
-    </a>
+    </button>
   </div>
 
   {# Filter bar #}
@@ -72,11 +73,56 @@
       <div class="text-fg-brand"><i class="fas fa-clipboard-check text-5xl"></i></div>
       <p class="text-[17px] font-bold text-heading">No hay relevamientos</p>
       <p class="text-sm text-body max-w-xs">Creá el primero asignándolo a un territorial.</p>
-      <a href="{% url 'becas:relevamiento_crear' %}" class="btn-nodo btn-brand btn-base mt-2">
+      <button type="button" @click="modalRel=true" class="btn-nodo btn-brand btn-base mt-2">
         <i class="fas fa-plus"></i> Nuevo relevamiento
-      </a>
+      </button>
     </div>
     {% endif %}
+  </div>
+
+  {# ============ Modal: Nuevo relevamiento ============ #}
+  <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalRel=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
+      </div>
+
+      <div class="rounded-xl bg-brand-soft border border-[#DDD6FE] p-3 text-sm text-fg-brand mb-5 flex items-start gap-2">
+        <i class="fas fa-circle-info mt-0.5"></i>
+        <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
+      </div>
+
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" class="space-y-4">
+        {% csrf_token %}
+        {% if form_crear.non_field_errors %}
+          <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+        {% endif %}
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
+          {{ form_crear.convocatoria }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
+          {{ form_crear.territorial }}
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
+            {{ form_crear.zona }}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+            {{ form_crear.fecha_asignada }}
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalRel=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}

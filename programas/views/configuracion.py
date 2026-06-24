@@ -46,10 +46,14 @@ class SegmentoListView(_ConfigBecasMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return Segmento.objects.annotate(
-            n_subsegmentos=Count("subsegmentos", distinct=True),
-            n_coordinadores=Count("asignaciones_coordinador", distinct=True),
-        ).order_by("nombre")
+        return (
+            Segmento.objects.annotate(
+                n_subsegmentos=Count("subsegmentos", distinct=True),
+                n_coordinadores=Count("asignaciones_coordinador", distinct=True),
+            )
+            .prefetch_related("asignaciones_coordinador__coordinador")
+            .order_by("nombre")
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -75,7 +79,10 @@ class SegmentoUpdateView(_ConfigBecasMixin, UpdateView):
     model = Segmento
     form_class = SegmentoForm
     template_name = "programas/becas/config/segmento_form.html"
-    success_url = reverse_lazy("becas:segmentos")
+
+    def get_success_url(self):
+        # La edición vive en la pestaña "Información general" del detalle; volver allí.
+        return reverse("becas:segmento_detalle", kwargs={"pk": self.object.pk})
 
     def form_valid(self, form):
         messages.success(self.request, "Segmento actualizado.")
@@ -95,6 +102,7 @@ class SegmentoDetailView(_ConfigBecasMixin, DetailView):
             seg.asignaciones_coordinador.select_related("coordinador").order_by("coordinador__username")
         )
         ctx["requisitos"] = seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
+        ctx["form_segmento"] = SegmentoForm(instance=seg)
         ctx["form_subsegmento"] = SubsegmentoForm(segmento=seg)
         ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
