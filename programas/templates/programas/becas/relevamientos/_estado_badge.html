@@ -1,0 +1,11 @@
+{% with e=rel.estado %}
+<span class="badge badge-dot
+  {% if e == 'ASIGNADO' %}badge-gray
+  {% elif e == 'EN_CURSO' %}badge-warning
+  {% elif e == 'FINALIZANDO' %}badge-warning
+  {% elif e == 'FINALIZADO' %}badge-brand
+  {% elif e == 'EN_REVISION' %}badge-info
+  {% elif e == 'TERMINADO' %}badge-success
+  {% else %}badge-gray{% endif %}">{{ rel.get_estado_display }}</span>
+{% if rel.esta_vencido %}<span class="badge badge-danger badge-dot ms-1 ml-1">Vencido</span>{% endif %}
+{% endwith %}

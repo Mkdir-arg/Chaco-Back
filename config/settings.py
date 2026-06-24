@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "django.contrib.admindocs",
     "django_extensions",
     "rest_framework",
+    "rest_framework.authtoken",
     "channels",
     "django_redis",
     "health_check",

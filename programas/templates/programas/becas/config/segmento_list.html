@@ -1,0 +1,145 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Segmentos{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+
+  {# Breadcrumb + PageHeader #}
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Segmentos</span>
+  </nav>
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Segmentos y subsegmentos</h1>
+      <p class="text-sm text-body-subtle mt-1">Estructura del programa: cupos, coordinadores y requisitos por segmento</p>
+    </div>
+    <a href="{% url 'becas:segmento_crear' %}" class="btn-nodo btn-brand btn-base">
+      <i class="fas fa-plus"></i> Nuevo segmento
+    </a>
+  </div>
+
+  {# Stat cards #}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white" style="background: var(--gradient-brand)">
+          <i class="fas fa-layer-group"></i>
+        </div>
+      </div>
+      <p class="text-3xl font-bold text-heading mb-0.5">{{ stat_total }}</p>
+      <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Total segmentos</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white" style="background: var(--gradient-brand)">
+          <i class="fas fa-users"></i>
+        </div>
+      </div>
+      <p class="text-3xl font-bold text-heading mb-0.5">{{ stat_cupo }}</p>
+      <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo total configurado</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white" style="background: var(--gradient-brand)">
+          <i class="fas fa-check-circle"></i>
+        </div>
+      </div>
+      <p class="text-3xl font-bold text-heading mb-0.5">{{ stat_activos }}</p>
+      <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Segmentos activos</p>
+    </div>
+  </div>
+
+  {# Table card #}
+  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    {% if segmentos %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Descripción</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo total</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmentos</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Coordinador</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in segmentos %}
+          <tr class="hover:bg-[#F9FAFB]">
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">
+              <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-fg-brand hover:underline">{{ s.nombre }}</a>
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body max-w-xs">{{ s.descripcion|default:"—"|truncatechars:70 }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">{{ s.cupo_maximo }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">
+              {% if s.n_subsegmentos %}{{ s.n_subsegmentos }} subsegmento{{ s.n_subsegmentos|pluralize }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+              {% with asig=s.asignaciones_coordinador.all.0 %}
+              {% if asig %}
+                <span class="flex items-center gap-2 text-body">
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background: var(--gradient-brand)">
+                    {{ asig.coordinador.get_full_name|default:asig.coordinador.username|slice:":2"|upper }}
+                  </span>
+                  {{ asig.coordinador.get_full_name|default:asig.coordinador.username }}
+                </span>
+              {% else %}
+                <span class="text-body-subtle">—</span>
+              {% endif %}
+              {% endwith %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+              {% if s.activo %}
+                <span class="badge badge-success badge-dot">Activo</span>
+              {% else %}
+                <span class="badge badge-gray">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+              <div class="flex items-center justify-end gap-2">
+                <a href="{% url 'becas:segmento_editar' s.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
+                <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver detalle"><i class="fas fa-chevron-right"></i></a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between gap-4 px-4 py-3 border-t border-[#E5E7EB] flex-wrap">
+      <p class="text-xs text-body-subtle">Mostrando {{ page_obj.object_list|length }} de {{ paginator.count }} segmento{{ paginator.count|pluralize }}</p>
+      <div class="flex items-center gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left"></i> Anterior</a>
+        {% else %}
+        <span class="btn-nodo btn-tertiary btn-sm opacity-40 cursor-not-allowed"><i class="fas fa-chevron-left"></i> Anterior</span>
+        {% endif %}
+        <span class="text-xs text-body-subtle px-1">{{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right"></i></a>
+        {% else %}
+        <span class="btn-nodo btn-tertiary btn-sm opacity-40 cursor-not-allowed">Siguiente <i class="fas fa-chevron-right"></i></span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+      <div class="text-fg-brand"><i class="fas fa-layer-group text-5xl"></i></div>
+      <p class="text-[17px] font-bold text-heading">No hay segmentos configurados</p>
+      <p class="text-sm text-body max-w-xs">Comenzá creando el primer segmento del programa.</p>
+      <a href="{% url 'becas:segmento_crear' %}" class="btn-nodo btn-brand btn-base mt-2">
+        <i class="fas fa-plus"></i> Nuevo segmento
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}
