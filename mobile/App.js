@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, StatusBar, Alert, AppState } from 'react-native';
+import { View, StyleSheet, StatusBar, Alert, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
@@ -17,8 +17,6 @@ import BottomNav from './src/components/BottomNav';
 import SettingsPanel from './src/components/SettingsPanel';
 import PageTransition from './src/components/PageTransition';
 import SkeletonLoader from './src/components/SkeletonLoader';
-import SurveyFormScreen from './src/screens/SurveyFormScreen';
-import VulnerabilitySurveyScreen from './src/screens/VulnerabilitySurveyScreen';
 import CitizenLegajoScreen from './src/screens/CitizenLegajoScreen';
 import RelevamientosScreen from './src/screens/RelevamientosScreen';
 import RelevamientoDetailScreen from './src/screens/RelevamientoDetailScreen';
@@ -43,7 +41,6 @@ function AppContent() {
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('Inicio');
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [surveyType, setSurveyType] = useState(null); // 'field' or 'vulnerability'
   const [citizenLegajoOpen, setCitizenLegajoOpen] = useState(false);
   const [newRelevamientoOpen, setNewRelevamientoOpen] = useState(false);
   const [selectedRelevamientoId, setSelectedRelevamientoId] = useState(null);
@@ -87,7 +84,7 @@ function AppContent() {
       const timer = setTimeout(() => {
         hasBootstrappedOnce = true;
         setIsLoading(false);
-      }, 3000);
+      }, 1450);
       return () => clearTimeout(timer);
     }
   }, [fontsLoaded, authLoading]);
@@ -195,20 +192,10 @@ function AppContent() {
           <HomeScreen
             onOpenRelevamientos={() => handleTabPress('Relevamientos')}
             onSyncPress={handleManualSync}
-            onOpenMensajes={() => Alert.alert('Mensajes', 'Proximamente disponible.')}
-            onOpenNotificaciones={() => Alert.alert('Notificaciones', 'Proximamente disponible.')}
+            syncPendingCount={syncPendingCount}
           />
         );
     }
-  };
-
-  const handleSaveSurvey = () => {
-    setSurveyType(null);
-    setSyncStatus('pending');
-    // Simulate NODO Cloud Sync
-    setTimeout(() => {
-      refreshSyncStatus();
-    }, 3000);
   };
 
   const handleSaveNewRelevamiento = async (payload) => {
@@ -288,19 +275,7 @@ function AppContent() {
         )
       ) : (
         <View style={{ flex: 1 }}>
-          {surveyType ? (
-            surveyType === 'vulnerability' ? (
-              <VulnerabilitySurveyScreen
-                onCancel={() => setSurveyType(null)}
-                onSave={handleSaveSurvey}
-              />
-            ) : (
-              <SurveyFormScreen
-                onCancel={() => setSurveyType(null)}
-                onSave={handleSaveSurvey}
-              />
-            )
-          ) : citizenLegajoOpen ? (
+          {citizenLegajoOpen ? (
             <CitizenLegajoScreen
               onClose={() => setCitizenLegajoOpen(false)}
               onSaved={refreshSyncStatus}
@@ -327,7 +302,7 @@ function AppContent() {
                 onSyncPress={handleManualSync}
               />
 
-              <View style={{ flex: 1, marginBottom: Platform.OS === 'ios' ? 90 : 70 }}>
+              <View style={{ flex: 1 }}>
                 <PageTransition activeTab={activeTab}>
                   {renderScreen()}
                 </PageTransition>
@@ -337,6 +312,7 @@ function AppContent() {
                 activeTab={activeTab}
                 onTabPress={handleTabPress}
                 onOpenSettings={() => setSettingsVisible(true)}
+                pendingCount={syncPendingCount}
               />
             </>
           )}

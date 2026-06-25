@@ -8,7 +8,7 @@
 
 -   :material-calendar-range: **Período**
 
-    3 jun → 18 jun 2026
+    3 jun → 24 jun 2026
 
 -   :material-counter: **Avance**
 
@@ -16,7 +16,7 @@
 
 -   :material-clock-outline: **Horas consumidas**
 
-    60h 26min
+    167h 3min
 
 </div>
 
@@ -29,8 +29,8 @@
 
 | # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
 |:-:|---|:-:|:-:|:-:|:-:|
-| 1 | Programa Becas (análisis) | Alta | En análisis | — | 28h |
-| 2 | Motor RBAC base | Alta | Completado | — | 28h |
+| 1 | Programa Becas (análisis) | Alta | En análisis | — | 85h |
+| 2 | Motor RBAC base | Alta | Completado | — | 68h |
 
 ---
 

@@ -31,6 +31,7 @@
 | 2026-06-14 | Agostina Coppola | analisis legajo ciudadano v3| Revision de tareas, flujos, responsabilidades, etc. | 180 min |
 | 2026-06-17 | Matías Fariña | Becas | Creacion de tareas propuesta | 300 min |
 | 2026-06-16 | Agostina Coppola | Becas | Creacion de tareas propuesta | 300 min |
+| 2026-06-16 | Pablo Cao | App mobile - alineacion visual CHACO | Trabajo en app mobile: alineacion visual al diseño CHACO, cambio de marca a Relevamiento Chaco, ajustes de login, relevamientos, tema claro/oscuro, barra inferior glass, animaciones de navegacion y validacion de bundle Expo | 215 min |
 | 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #64 — modelo RolMeta.programa + categoría "Programa" + catálogo "de programa" + migración | 60 min |
 | 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #65 — motor puede/puede_alguna(..., programa=) retrocompatible + template tag + tests | 60 min |
 | 2026-06-17 | Juani Portilla | RBAC Oleada 2 (alcance de Programa) | #66 — ABM de Roles con alcance (selectores, RolForm con operador, vistas, templates) | 60 min |
@@ -44,6 +45,29 @@
 | 2026-06-17 | Agostina Coppola | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 | 2026-06-17 | Matías Fariña | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 | 2026-06-17 | Matías Fariña | Creacion de Estimacion y documentacion | Creacion de Estimacion y documentacion sobre al propuesta v1 Becas | 300 min |
+| 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 222 min |
+| 2026-06-18 | Juani Portilla | Becas | Desarrollo backend del módulo de relevamiento (alta de personas) | 195 min |
+| 2026-06-18 | Pablo Cao | Aplicación — diseño y maqueta | Ajuste de la maqueta existente de la app al Design System | 240 min |
+| 2026-06-18 | Pablo Cao | App mobile - relevamientos asignados | Trabajo en app mobile: listado de relevamientos asignados, estados visuales, flujo por pasos DNI/Fotos/RENAPER/campos/confirmacion, escaneo QR/PDF417, autocompletado de datos del DNI, validaciones, captura nativa de fotos frente/dorso, thumbnails, preview y validacion de bundle Expo | 340 min |
+| 2026-06-18 | Matías Fariña | Becas | Refinamiento de tareas de la propuesta v1 | 165 min |
+| 2026-06-19 | Matías Fariña | Legajo ciudadano | Revisión de análisis y ajustes | 240 min |
+| 2026-06-19 | Agostina Coppola | Análisis legajos dispositivos/merenderos | Continuación del relevamiento y testing | 300 min |
+| 2026-06-19 | Juani Portilla | Becas | Modelo de cupos y lista de espera + migraciones | 210 min |
+| 2026-06-19 | Pablo Cao | Aplicación — diseño y maqueta | Ajuste de las pantallas de relevamiento sobre la maqueta previa | 285 min |
+| 2026-06-19 | Pablo Cao | App mobile e issues Becas | Revision de issues asignadas #81 y #83, analisis de dependencias de Becas/RENAPER/reportes. Correcciones en app mobile | 82 min |
+| 2026-06-22 | Matías Fariña | Reunión interna | Planificación de la semana y asignación de tareas | 90 min |
+| 2026-06-22 | Agostina Coppola | Testing de requerimientos | Pruebas de legajo y revisión de criterios | 255 min |
+| 2026-06-22 | Juani Portilla | Becas | Validaciones de relevamiento y endpoints de la API | 240 min |
+| 2026-06-22 | Pablo Cao | Aplicación — diseño y maqueta | Refinamiento de UI/UX y prototipo navegable de la app | 300 min |
+| 2026-06-23 | Matías Fariña | Estimación y documentación | Documentación de la propuesta v1 de Becas | 210 min |
+| 2026-06-23 | Agostina Coppola | Análisis y testing | Análisis y testing de legajos | 240 min |
+| 2026-06-23 | Juani Portilla | Becas | ABM de programas y cupos en el backoffice | 225 min |
+| 2026-06-23 | Pablo Cao | Aplicación — diseño y maqueta | Ajustes de diseño según feedback y armado de componentes | 285 min |
+| 2026-06-24 | Matías Fariña | Gestión del sprint | Actualización del detalle de horas y seguimiento | 75 min |
+| 2026-06-24 | Agostina Coppola | Análisis funcional | Análisis de legajos en curso | 120 min |
+| 2026-06-24 | Juani Portilla | Becas | Desarrollo del módulo de asignación de cupos (en curso) | 90 min |
+| 2026-06-24 | Pablo Cao | App mobile y app web | Ajuste de diseño y maqueta de la app; merge de `development`; limpieza de la app web para quitar la capa de branding dinamico y dejar Chaco fijo sin depender del `.env`; validacion de Django y templates principales. | 274 min |
+
 | 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 370 min |
 | 2026-06-24 | Juani Portilla | Becas #73 — Modelos de datos | Modelos de dominio Becas: Segmento, Subsegmento, Convocatoria, Relevamiento, Formulario, TracaFormulario, helpers y seed | 90 min |
 | 2026-06-24 | Juani Portilla | Becas #79 — Roles RBAC | Roles Admin/Coordinador/Territorial integrados al motor de capacidades con scoping por segmento | 90 min |
@@ -52,9 +76,12 @@
 | 2026-06-24 | Juani Portilla | Becas #77 — Revisión caso a caso | Edición con traza, aprobar/rechazar con motivo obligatorio, transiciones de estado y placeholder SIS | 60 min |
 | 2026-06-24 | Juani Portilla | Becas #82 — API REST app de campo | Auth por token, relevamientos asignados, definición de formulario, iniciar/finalizar/reabrir y CRUD con sync offline | 90 min |
 
+
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **3616 minutos** (68 h 26 min)
+
+    **10784 minutos** (179 h 44 min)
+

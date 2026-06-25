@@ -6,7 +6,6 @@ from django.http import HttpResponse
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
-from config.branding import get_branding_profile
 
 
 def websocket_upgrade_required(_request, *_args, **_kwargs):
@@ -15,7 +14,7 @@ def websocket_upgrade_required(_request, *_args, **_kwargs):
 urlpatterns = [
     path(
         "favicon.ico",
-        RedirectView.as_view(url=f"{settings.STATIC_URL}{get_branding_profile()['favicon_path']}", permanent=True),
+        RedirectView.as_view(url=f"{settings.STATIC_URL}custom/chaco/favicon.png", permanent=True),
     ),
     path("ws/conversaciones/", websocket_upgrade_required),
     re_path(r"^ws/conversaciones/(?P<conversacion_id>\w+)/$", websocket_upgrade_required),
@@ -52,12 +51,11 @@ urlpatterns = [
     
     # Health Check
     path("health/", include('health_check.urls')),
-    
-    # Performance Profiling (solo en desarrollo/staging)
-    path("silk/", include('silk.urls', namespace='silk')),
 ]
 
-# URLs de desarrollo se pueden agregar aquí si es necesario
+# Performance Profiling (Silk): solo en desarrollo/staging, nunca en producción.
+if settings.DEBUG:
+    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
 
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

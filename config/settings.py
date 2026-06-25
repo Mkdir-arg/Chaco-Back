@@ -45,6 +45,8 @@ if DEBUG:
     for h in ("localhost", "127.0.0.1", "0.0.0.0"):
         if h not in hosts:
             hosts.append(h)
+    if "*" not in hosts:
+        hosts.append("*")
 
 # Nombres de servicios Docker internos
 for h in ("app", "web", "websocket"):
@@ -83,7 +85,6 @@ INSTALLED_APPS = [
     "health_check",
     "health_check.db",
     "health_check.cache",
-    "silk",
     "users",
     "core",
     "dashboard",
@@ -95,6 +96,10 @@ INSTALLED_APPS = [
     "programas",
     "healthcheck",
 ]
+
+# Silk (profiling): solo en desarrollo, nunca en producción.
+if DEBUG:
+    INSTALLED_APPS += ["silk"]
 
 if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
     MIGRATION_MODULES = {
@@ -137,7 +142,6 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "legajos.context_processors.alertas_eventos_criticos",
-                "core.context_processors.branding_context",
                 "conversaciones.context_processors.user_groups",
             ],
         },

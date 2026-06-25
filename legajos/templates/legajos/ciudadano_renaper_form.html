@@ -8,12 +8,10 @@
     <!-- Header -->
     <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 mb-6">
         <div class="flex items-center gap-4 mb-3">
-            <div class="{% if branding.citizen_form.renaper_header_icon_wrapper == 'badge' %}w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg{% else %}flex items-center justify-center{% endif %}" {% if branding.citizen_form.renaper_header_icon_wrapper == 'badge' %}style="background: {{ branding.citizen_form.renaper_header_icon_bg }};"{% endif %}>
-                {% if branding.citizen_form.renaper_header_icon_mode == 'gradient' %}
-                <i class="fas fa-user-plus text-transparent" style="font-size: {{ branding.citizen_form.renaper_header_icon_size }}; background-image: linear-gradient(180deg, {{ branding.citizen_form.renaper_header_icon_gradient_start }} 0%, {{ branding.citizen_form.renaper_header_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                {% else %}
-                <i class="fas fa-user-plus" style="font-size: {{ branding.citizen_form.renaper_header_icon_size }}; color: {{ branding.citizen_form.renaper_header_icon_color }};"></i>
-                {% endif %}
+            <div class="flex items-center justify-center" >
+                
+                <i class="fas fa-user-plus text-transparent" style="font-size: 1.5rem; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                
             </div>
             <div>
                 <h1 class="text-3xl font-bold text-[#252F40]">Nuevo Ciudadano</h1>
@@ -89,7 +87,7 @@
 
             <div class="flex items-center justify-between pt-6">
                 <a href="{% url 'legajos:ciudadanos' %}" 
-                   class="{{ branding.citizen_form.back_button_class }}">
+                   class="btn-nodo btn-secondary btn-base">
                     ← Volver
                 </a>
                 

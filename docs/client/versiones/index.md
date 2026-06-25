@@ -13,7 +13,7 @@
 
     ---
 
-    :material-calendar-range: **Período:** 3 jun → 18 jun 2026
+    :material-calendar-range: **Período:** 3 jun → 24 jun 2026
     :material-bullseye-arrow: **Objetivo:** Definir alcance funcional de Programa Becas y desarrollo del motor RBAC
     :material-progress-check: **Estado:** En progreso
 

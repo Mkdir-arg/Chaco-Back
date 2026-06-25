@@ -14,11 +14,11 @@
     ---
 
     :material-wallet-outline: Presupuesto: **714 horas**  
-    :material-clock-check-outline: Consumido: **60 horas** (8%)  
+    :material-clock-check-outline: Consumido: **167 horas** (23%)  
     :material-calculator-variant-outline: Estimado: **654 horas** (92%)  
-    :material-alert-circle-outline: Saldo: **0 horas**
+    :material-alert-circle-outline: Saldo: **-107 horas** (excedido)
 
-    **Estado:** :material-circle:{ style="color: #f59e0b" } En ejecución
+    **Estado:** :material-circle:{ style="color: #ef4444" } Presupuesto excedido
 
     [:octicons-arrow-right-16: Ver dashboard](mes-2026-06.md)
 
@@ -43,8 +43,8 @@
 
 | Indicador | Valor | Estado |
 |---|---:|:-:|
-| **Presupuesto utilizado (acumulado)** | 714h | :material-circle:{ style="color: #10b981" } OK |
-| **Consumo real (acumulado)** | 60h | :material-circle:{ style="color: #10b981" } OK |
+| **Compromiso total (consumo + estimado)** | 821h | :material-circle:{ style="color: #ef4444" } Excede presupuesto (+107h) |
+| **Consumo real (acumulado)** | 167h | :material-circle:{ style="color: #f59e0b" } 23% del presupuesto |
 | **Desviación vs estimado** | Por determinar | :material-clock-outline: Pendiente |
 
 ---

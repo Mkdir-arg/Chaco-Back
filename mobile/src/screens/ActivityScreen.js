@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import StaggeredItem from '../components/StaggeredItem';
+import { fontSizes, radii } from '../theme';
 
 const RECENT_ACTIVITY = [
     { id: '1', user: 'Juana Sierra', action: 'sincronizo evidencias georreferenciadas', time: 'Hace 5 min', icon: 'cloud-done', colorKey: 'secondary' },
@@ -27,7 +28,7 @@ export default function ActivityScreen() {
                         <View style={styles.itemContainer}>
                             <View style={styles.iconColumn}>
                                 <View style={[styles.iconWrapper, { backgroundColor: theme.colors[item.colorKey] || theme.colors.primary }]}>
-                                    <Ionicons name={item.icon} size={18} color="#FFF" />
+                                    <Ionicons name={item.icon} size={fontSizes.lg} color={theme.colors.white} />
                                 </View>
                                 {index < RECENT_ACTIVITY.length - 1 && <View style={[styles.line, { backgroundColor: theme.colors.border }]} />}
                             </View>
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: fontSizes.xl,
         marginBottom: 24,
     },
     timeline: {
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
     iconWrapper: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: radii.full,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1,
@@ -84,10 +85,10 @@ const styles = StyleSheet.create({
         paddingTop: 4,
     },
     itemText: {
-        fontSize: 15,
+        fontSize: fontSizes.sm,
         marginBottom: 4,
     },
     timeText: {
-        fontSize: 12,
+        fontSize: fontSizes.xs,
     },
 });

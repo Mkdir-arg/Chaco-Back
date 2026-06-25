@@ -1,15 +1,38 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import StaggeredItem from '../components/StaggeredItem';
 import relevamientoService from '../services/relevamientoService';
+import { fontSizes, radii } from '../theme';
+
+const DONE_STATES = ['SINCRONIZADO', 'COMPLETADO_LOCAL', 'REALIZADO'];
 
 const statusColor = (estado, colors) => {
-    if (estado === 'SINCRONIZADO') return '#2DCE89';
+    if (estado === 'SINCRONIZADO') return colors.success;
     if (estado === 'SINCRONIZANDO') return colors.accent;
-    if (estado === 'ERROR') return '#EA0606';
-    return colors.primary; // PENDIENTE
+    if (estado === 'ERROR') return colors.danger;
+    return colors.warning || '#D97706';
+};
+
+const progressColor = (estado, colors) => {
+    if (DONE_STATES.includes(estado)) return colors.success;
+    if (estado === 'EN_PROGRESO') return colors.accent;
+    if (estado === 'ERROR') return colors.danger;
+    return colors.warning || '#D97706';
+};
+
+const progressLabel = (item) => {
+    if (DONE_STATES.includes(item.estado)) return 'Realizado';
+    if (item.estado === 'EN_PROGRESO') return 'En progreso';
+    return 'Pendiente';
+};
+
+const syncLabel = (syncEstado) => {
+    if (syncEstado === 'SINCRONIZADO') return 'Sincronizado';
+    if (syncEstado === 'SINCRONIZANDO') return 'Sincronizando';
+    if (syncEstado === 'ERROR') return 'Error de sync';
+    return 'Sin sincronizar';
 };
 
 const statusIcon = (estado) => {
@@ -19,7 +42,7 @@ const statusIcon = (estado) => {
     return 'cloud-upload';
 };
 
-export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRelevamiento }) {
+export default function RelevamientosScreen({ onOpenRelevamiento }) {
     const { theme, typography } = useTheme();
     const [relevamientos, setRelevamientos] = useState([]);
     const [statusFilter, setStatusFilter] = useState('TODOS');
@@ -28,8 +51,10 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
     const [error, setError] = useState('');
     const filterOptions = [
         { key: 'TODOS', label: 'Todos' },
-        { key: 'SINCRONIZADOS', label: 'Sincronizados' },
         { key: 'PENDIENTES', label: 'Pendientes' },
+        { key: 'REALIZADOS', label: 'Realizados' },
+        { key: 'SINCRONIZADOS', label: 'Sincronizados' },
+        { key: 'SIN_SYNC', label: 'Sin sync' },
     ];
 
     const formatDate = (isoDate) => {
@@ -67,9 +92,15 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
     const filteredRelevamientos = useMemo(() => {
         if (statusFilter === 'TODOS') return relevamientos;
         if (statusFilter === 'SINCRONIZADOS') {
-            return relevamientos.filter((item) => item.sync_estado === 'SINCRONIZADO');
+            return relevamientos.filter((item) => DONE_STATES.includes(item.estado) && item.sync_estado === 'SINCRONIZADO');
         }
         if (statusFilter === 'PENDIENTES') {
+            return relevamientos.filter((item) => !DONE_STATES.includes(item.estado));
+        }
+        if (statusFilter === 'REALIZADOS') {
+            return relevamientos.filter((item) => DONE_STATES.includes(item.estado));
+        }
+        if (statusFilter === 'SIN_SYNC') {
             return relevamientos.filter((item) => item.sync_estado !== 'SINCRONIZADO');
         }
         return relevamientos;
@@ -97,7 +128,7 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
                             {refreshing ? (
                                 <ActivityIndicator size="small" color={theme.colors.primary} />
                             ) : (
-                                <Ionicons name="refresh" size={18} color={theme.colors.primary} />
+                                <Ionicons name="refresh" size={18} color={theme.colors.icon} />
                             )}
                         </Pressable>
                     </View>
@@ -120,7 +151,7 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
                                         style={[
                                             styles.filterChipText,
                                             { color: theme.colors.text, fontFamily: typography.medium },
-                                            selected && { color: '#FFFFFF', fontFamily: typography.bold },
+                                            selected && { color: theme.colors.white, fontFamily: typography.bold },
                                         ]}
                                     >
                                         {option.label}
@@ -141,8 +172,8 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
                 ) : null}
 
                 {!loading && !!error ? (
-                    <View style={[styles.messageCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                        <Text style={[styles.infoText, { color: '#EA0606', fontFamily: typography.semibold }]}>
+                    <View style={[styles.messageCard, { backgroundColor: theme.colors.dangerSoft, borderColor: theme.colors.danger }]}>
+                        <Text style={[styles.infoText, { color: theme.colors.danger, fontFamily: typography.semibold }]}>
                             {`Sin conexion con el servidor. Mostrando datos locales. (${error})`}
                         </Text>
                     </View>
@@ -160,28 +191,40 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
 
                 {!loading && filteredRelevamientos.map((item, index) => (
                     <StaggeredItem key={item.id} index={index + 2}>
+                        {(() => {
+                            const isDone = DONE_STATES.includes(item.estado);
+                            return (
                         <Pressable
                             onPress={() => onOpenRelevamiento && onOpenRelevamiento(item.id)}
-                            style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                            style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, shadowColor: theme.colors.shadow }]}
                         >
-                            <View style={styles.headerRow}>
-                                <Text style={[styles.idText, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>
-                                    {item.id.slice(0, 8).toUpperCase()}
-                                </Text>
-                                <View style={[styles.statusIconWrap, { backgroundColor: `${statusColor(item.sync_estado, theme.colors)}20` }]}>
-                                    <Ionicons
-                                        name={statusIcon(item.sync_estado)}
-                                        size={16}
-                                        color={statusColor(item.sync_estado, theme.colors)}
-                                    />
-                                </View>
-                            </View>
-
                             <Text style={[styles.title, { color: theme.colors.text, fontFamily: typography.semibold }]}>
-                                {item.observaciones?.trim()
+                                {item.titulo?.trim()
+                                    ? item.titulo.trim()
+                                    : item.observaciones?.trim()
                                     ? `Relevamiento: ${item.observaciones.trim().slice(0, 42)}`
-                                    : `Relevamiento Institucion #${item.id_institucion}`}
+                                    : `Relevamiento Institucion #${item.id_institucion || '-'}`}
                             </Text>
+
+                            <View style={styles.statusRow}>
+                                <View style={[styles.statusPill, { backgroundColor: `${progressColor(item.estado, theme.colors)}18` }]}>
+                                    <Text style={[styles.statusText, { color: progressColor(item.estado, theme.colors), fontFamily: typography.bold }]}>
+                                        {progressLabel(item)}
+                                    </Text>
+                                </View>
+                                {isDone ? (
+                                    <View style={[styles.statusPill, { backgroundColor: `${statusColor(item.sync_estado, theme.colors)}18` }]}>
+                                        <Ionicons
+                                            name={statusIcon(item.sync_estado)}
+                                            size={13}
+                                            color={statusColor(item.sync_estado, theme.colors)}
+                                        />
+                                        <Text style={[styles.statusText, styles.syncStatusText, { color: statusColor(item.sync_estado, theme.colors), fontFamily: typography.bold }]}>
+                                            {syncLabel(item.sync_estado)}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                            </View>
 
                             <View style={styles.metaRow}>
                                 <Ionicons name="calendar-outline" size={15} color={theme.colors.textSoft} />
@@ -193,26 +236,15 @@ export default function RelevamientosScreen({ onStartNewRelevamiento, onOpenRele
                             <View style={styles.metaRow}>
                                 <Ionicons name="location-outline" size={15} color={theme.colors.textSoft} />
                                 <Text style={[styles.metaText, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>
-                                    {item.latitud && item.longitud ? `${item.latitud}, ${item.longitud}` : 'Sin geolocalizacion'}
+                                    {item.direccion_objetivo || (item.latitud && item.longitud ? `${item.latitud}, ${item.longitud}` : 'Sin direccion')}
                                 </Text>
                             </View>
                         </Pressable>
+                            );
+                        })()}
                     </StaggeredItem>
                 ))}
             </ScrollView>
-
-            <Pressable
-                onPress={onStartNewRelevamiento}
-                style={[
-                    styles.fab,
-                    {
-                        backgroundColor: theme.colors.primary,
-                        shadowColor: theme.colors.shadow,
-                    },
-                ]}
-            >
-                <Ionicons name="add" size={30} color="#FFFFFF" />
-            </Pressable>
         </View>
     );
 }
@@ -225,7 +257,7 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: fontSizes.xl,
         marginBottom: 16,
     },
     titleRow: {
@@ -236,7 +268,7 @@ const styles = StyleSheet.create({
     refreshBtn: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: radii.full,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 10,
@@ -247,13 +279,13 @@ const styles = StyleSheet.create({
     },
     filterChip: {
         borderWidth: 1,
-        borderRadius: 999,
+        borderRadius: radii.full,
         paddingHorizontal: 12,
         paddingVertical: 7,
         marginRight: 8,
     },
     filterChipText: {
-        fontSize: 12,
+        fontSize: fontSizes.xs,
     },
     centerBox: {
         alignItems: 'center',
@@ -261,39 +293,46 @@ const styles = StyleSheet.create({
         paddingVertical: 22,
     },
     messageCard: {
-        borderRadius: 14,
+        borderRadius: radii.xl,
         borderWidth: 1,
         padding: 14,
         marginBottom: 10,
     },
     infoText: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: radii.xl,
         borderWidth: 1,
         padding: 16,
         marginBottom: 12,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    idText: {
-        fontSize: 12,
-    },
-    statusIconWrap: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        alignItems: 'center',
-        justifyContent: 'center',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        elevation: 1,
     },
     title: {
-        fontSize: 16,
-        marginBottom: 10,
+        fontSize: fontSizes.base,
+        marginBottom: 8,
+    },
+    statusRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: 8,
+    },
+    statusPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: radii.full,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    statusText: {
+        fontSize: fontSizes.xs,
+    },
+    syncStatusText: {
+        marginLeft: 4,
     },
     metaRow: {
         flexDirection: 'row',
@@ -301,21 +340,7 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     metaText: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
         marginLeft: 6,
-    },
-    fab: {
-        position: 'absolute',
-        right: 18,
-        bottom: Platform.OS === 'ios' ? 10 : 8,
-        width: 58,
-        height: 58,
-        borderRadius: 29,
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 10,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
     },
 });

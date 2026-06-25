@@ -1,5 +1,10 @@
+import logging
+
 from django.db import connection
 from django.core.management.base import BaseCommand
+
+logger = logging.getLogger(__name__)
+
 
 class DatabaseOptimizer:
     """Optimizaciones avanzadas de base de datos"""
@@ -19,9 +24,9 @@ class DatabaseOptimizer:
             for sql in optimizations:
                 try:
                     cursor.execute(sql)
-                    print(f"Applied: {sql}")
+                    logger.info("Applied: %s", sql)
                 except Exception as e:
-                    print(f"Skipped: {sql} - {e}")
+                    logger.warning("Skipped: %s - %s", sql, e)
     
     @staticmethod
     def analyze_tables():
@@ -38,6 +43,6 @@ class DatabaseOptimizer:
             for table in tables:
                 try:
                     cursor.execute(f"ANALYZE TABLE {table};")
-                    print(f"Analyzed: {table}")
+                    logger.info("Analyzed: %s", table)
                 except Exception as e:
-                    print(f"Error analyzing {table}: {e}")
+                    logger.error("Error analyzing %s: %s", table, e)

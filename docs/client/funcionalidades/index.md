@@ -15,6 +15,7 @@ hide:
 | Funcionalidad | Módulo | Estado | Documento |
 |---|---|---|---|
 | Programa Becas — Relevamiento territorial y asignación de cupos | Programas | En análisis | [:material-arrow-right: Ver](programa-becas.md) |
+| Programa Dispositivos — Legajo institucional, admisiones, camas y merenderos | Programas | En análisis | [:material-arrow-right: Ver](programa-dispositivos.md) |
 
 ---
 

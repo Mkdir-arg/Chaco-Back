@@ -7,7 +7,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 animate-fadeInUp">
         <!-- Encabezado -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style="background: linear-gradient(135deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
                 <i class="fas fa-user-plus text-white text-2xl"></i>
             </div>
             <h2 class="text-2xl font-bold text-[#252F40]">Crear cuenta</h2>
@@ -16,7 +16,7 @@
 
         <!-- Indicador de pasos -->
         <div class="flex items-center justify-center space-x-2 mb-8">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: {{ branding.portal.primary_button_gradient_start }};">1</div>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: #5059BC;">1</div>
             <div class="flex-1 h-1 rounded bg-[#E5E7EB]"></div>
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-[#E5E7EB] text-[#8C8C8C]">2</div>
         </div>
@@ -91,9 +91,9 @@
             <button
                 type="submit"
                 class="w-full mt-6 py-3 text-white font-semibold rounded-xl transition-all duration-300 shadow-md hover:shadow-xl"
-                style="background: linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%);"
-                onmouseover="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_hover_start }} 0%, {{ branding.portal.primary_button_hover_end }} 100%)'"
-                onmouseout="this.style.background='linear-gradient(90deg, {{ branding.portal.primary_button_gradient_start }} 0%, {{ branding.portal.primary_button_gradient_end }} 100%)'">
+                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
+                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
+                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
                 <i class="fas fa-arrow-right mr-2"></i>Verificar y continuar
             </button>
         </form>
@@ -102,7 +102,7 @@
         <div class="mt-6 pt-6 border-t border-[#E5E7EB] text-center">
             <p class="text-sm text-[#8C8C8C]">
                 ¿Ya tenés cuenta?
-                <a href="{% url 'portal:ciudadano_login' %}" class="font-medium hover:underline" style="color: {{ branding.portal.primary_button_gradient_start }};">
+                <a href="{% url 'portal:ciudadano_login' %}" class="font-medium hover:underline" style="color: #5059BC;">
                     Iniciá sesión
                 </a>
             </p>

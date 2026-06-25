@@ -1,4 +1,4 @@
-from .alerts import (  # noqa: F401
+from .alertas import (  # noqa: F401
     alerta_mensaje_ciudadano,
     detectar_cambio_riesgo,
     verificar_alertas_legajo,

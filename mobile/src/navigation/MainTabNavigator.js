@@ -4,8 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
-import TasksScreen from '../screens/TasksScreen';
-import ActivityScreen from '../screens/ActivityScreen';
+import { fontSizes } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -30,14 +29,14 @@ function TabBar({ state, descriptors, navigation, onOpenSettings }) {
                     }
                 };
 
-                const iconName = route.name === 'Inicio' ? 'home' : (route.name === 'Tareas' ? 'list' : 'pulse');
+                const iconName = 'home';
 
                 return (
                     <Pressable key={route.key} onPress={onPress} style={styles.tabItem}>
                         <Ionicons
                             name={isFocused ? iconName : iconName + '-outline'}
                             size={24}
-                            color={isFocused ? theme.colors.primary : theme.colors.icon}
+                            color={theme.colors.icon}
                         />
                         <Text style={[styles.tabLabel, {
                             color: isFocused ? theme.colors.primary : theme.colors.textSoft,
@@ -66,8 +65,6 @@ export default function MainTabNavigator({ onOpenSettings }) {
             screenOptions={{ headerShown: false }}
         >
             <Tab.Screen name="Inicio" component={HomeScreen} />
-            <Tab.Screen name="Tareas" component={TasksScreen} />
-            <Tab.Screen name="Actividad" component={ActivityScreen} />
         </Tab.Navigator>
     );
 }
@@ -86,7 +83,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     tabLabel: {
-        fontSize: 11,
+        fontSize: fontSizes.xs,
         marginTop: 4,
     },
 });

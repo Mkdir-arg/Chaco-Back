@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import StaggeredItem from '../components/StaggeredItem';
 import CustomButton from '../components/CustomButton';
 import SignaturePad from '../components/SignaturePad';
+import { designColors, fontSizes, radii } from '../theme';
 
 export default function NewRelevamientoScreen({ onCancel, onSave }) {
     const MAX_IMAGES = 8;
@@ -609,7 +610,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
         <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: theme.colors.text, fontFamily: typography.semibold }]}>{label}</Text>
             <View style={[styles.inputWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                <Ionicons name={icon} size={20} color={theme.colors.primary} style={styles.inputIcon} />
+                <Ionicons name={icon} size={20} color={theme.colors.icon} style={styles.inputIcon} />
                 <TextInput
                     style={[styles.input, { color: theme.colors.text, fontFamily: typography.regular }]}
                     placeholder={placeholder}
@@ -887,7 +888,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 activeOpacity={isPickerLaunching ? 1 : 0.8}
                                 style={[styles.imageActionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                             >
-                                <Ionicons name="camera" size={30} color={theme.colors.primary} />
+                                <Ionicons name="camera" size={30} color={theme.colors.icon} />
                                 <Text style={[styles.imageActionText, { color: theme.colors.primary, fontFamily: typography.bold }]}>TOMAR FOTO</Text>
                             </TouchableOpacity>
 
@@ -897,7 +898,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 activeOpacity={isPickerLaunching ? 1 : 0.8}
                                 style={[styles.imageActionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                             >
-                                <Ionicons name="images" size={30} color={theme.colors.primary} />
+                                <Ionicons name="images" size={30} color={theme.colors.icon} />
                                 <Text style={[styles.imageActionText, { color: theme.colors.primary, fontFamily: typography.bold }]}>GALERIA</Text>
                             </TouchableOpacity>
                         </View>
@@ -917,7 +918,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                             onPress={() => removeImage(img.id)}
                                             style={styles.imageRemoveBtn}
                                         >
-                                            <Ionicons name="close-circle" size={24} color="#EA0606" />
+                                            <Ionicons name="close-circle" size={24} color={theme.colors.danger} />
                                         </TouchableOpacity>
                                     </View>
                                 ))}
@@ -957,7 +958,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                             </TouchableOpacity>
 
                             {locationError ? (
-                                <Text style={[styles.geoError, { fontFamily: typography.medium }]}>{locationError}</Text>
+                                <Text style={[styles.geoError, { color: theme.colors.danger, fontFamily: typography.medium }]}>{locationError}</Text>
                             ) : null}
 
                             <View style={styles.geoRow}>
@@ -1020,7 +1021,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 activeOpacity={isPickerLaunching ? 1 : 0.8}
                                 style={[styles.docsActionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                             >
-                                <Ionicons name="camera-outline" size={30} color={theme.colors.primary} />
+                                <Ionicons name="camera-outline" size={30} color={theme.colors.icon} />
                                 <Text style={[styles.docsActionText, { color: theme.colors.primary, fontFamily: typography.bold }]}>TOMAR FOTO</Text>
                             </TouchableOpacity>
 
@@ -1030,7 +1031,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 activeOpacity={isPickerLaunching ? 1 : 0.8}
                                 style={[styles.docsActionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                             >
-                                <Ionicons name="images-outline" size={30} color={theme.colors.primary} />
+                                <Ionicons name="images-outline" size={30} color={theme.colors.icon} />
                                 <Text style={[styles.docsActionText, { color: theme.colors.primary, fontFamily: typography.bold }]}>GALERIA</Text>
                             </TouchableOpacity>
 
@@ -1040,7 +1041,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 activeOpacity={isPickerLaunching ? 1 : 0.8}
                                 style={[styles.docsActionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                             >
-                                <Ionicons name="document-attach-outline" size={30} color={theme.colors.primary} />
+                                <Ionicons name="document-attach-outline" size={30} color={theme.colors.icon} />
                                 <Text style={[styles.docsActionText, { color: theme.colors.primary, fontFamily: typography.bold }]}>ARCHIVO</Text>
                             </TouchableOpacity>
                         </View>
@@ -1056,7 +1057,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                     <Ionicons
                                         name={item.tipo === 'imagen' ? 'image-outline' : 'document-outline'}
                                         size={20}
-                                        color={theme.colors.primary}
+                                        color={theme.colors.icon}
                                         style={{ marginRight: 10 }}
                                     />
                                     <View style={{ flex: 1 }}>
@@ -1068,7 +1069,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                         </Text>
                                     </View>
                                     <TouchableOpacity onPress={() => removeAttachment(item.id)} style={styles.removeFieldBtn}>
-                                        <Ionicons name="trash-outline" size={16} color="#EA0606" />
+                                        <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -1115,7 +1116,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 <View style={styles.extraFieldTopRow}>
                                     <Text style={[styles.extraFieldTitle, { color: theme.colors.text, fontFamily: typography.semibold }]}>Campo extra {idx + 1}</Text>
                                     <TouchableOpacity onPress={() => removeExtraField(field.id)} style={styles.removeFieldBtn}>
-                                        <Ionicons name="trash-outline" size={16} color="#EA0606" />
+                                        <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
                                     </TouchableOpacity>
                                 </View>
                                 <TextInput
@@ -1147,7 +1148,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
 
                     <StaggeredItem index={extraFields.length + 3}>
                         <TouchableOpacity onPress={addExtraField} style={[styles.addFieldBtn, { borderColor: theme.colors.primary }]}>
-                            <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
+                            <Ionicons name="add-circle-outline" size={18} color={theme.colors.icon} />
                             <Text style={[styles.addFieldText, { color: theme.colors.primary, fontFamily: typography.semibold }]}>Agregar campo extra</Text>
                         </TouchableOpacity>
                     </StaggeredItem>
@@ -1183,7 +1184,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                                 <Path
                                                     key={index}
                                                     d={path}
-                                                    stroke="#111111"
+                                                    stroke={theme.colors.black}
                                                     strokeWidth={2}
                                                     fill="none"
                                                     strokeLinecap="round"
@@ -1192,11 +1193,11 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                             ))}
                                         </Svg>
                                     </View>
-                                    <Text style={[styles.signatureHint, { color: '#2DCE89', fontFamily: typography.bold }]}>Firma capturada</Text>
+                                    <Text style={[styles.signatureHint, { color: theme.colors.success, fontFamily: typography.bold }]}>Firma capturada</Text>
                                 </View>
                             ) : (
                                 <View style={styles.signaturePreview}>
-                                    <Ionicons name="create-outline" size={34} color={theme.colors.primary} />
+                                    <Ionicons name="create-outline" size={34} color={theme.colors.icon} />
                                     <Text style={[styles.signatureHint, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>Toca para firmar</Text>
                                 </View>
                             )}
@@ -1206,7 +1207,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 onPress={() => setShowSigModal(true)}
                                 style={[styles.resignButton, { borderColor: theme.colors.primary }]}
                             >
-                                <Ionicons name="create-outline" size={15} color={theme.colors.primary} />
+                                <Ionicons name="create-outline" size={15} color={theme.colors.icon} />
                                 <Text style={[styles.resignButtonText, { color: theme.colors.primary, fontFamily: typography.semibold }]}>Volver a firmar</Text>
                             </TouchableOpacity>
                         )}
@@ -1216,9 +1217,9 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                         <View style={styles.modalOverlay}>
                             <View style={styles.modalContent}>
                                 <View style={styles.sigModalHeader}>
-                                    <Text style={{ fontFamily: typography.bold, fontSize: 18, color: '#000' }}>FIRMA DIGITAL</Text>
+                                    <Text style={{ fontFamily: typography.bold, fontSize: fontSizes.lg, color: theme.colors.black }}>FIRMA DIGITAL</Text>
                                     <TouchableOpacity onPress={() => setShowSigModal(false)} style={styles.closeButton}>
-                                        <Ionicons name="close" size={36} color={theme.colors.primary} />
+                                        <Ionicons name="close" size={36} color={theme.colors.icon} />
                                     </TouchableOpacity>
                                 </View>
 
@@ -1263,7 +1264,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
         return (
             <View style={styles.stepContainer}>
                 <View style={[styles.placeholderCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                    <Ionicons name="construct-outline" size={28} color={theme.colors.primary} />
+                    <Ionicons name="construct-outline" size={28} color={theme.colors.icon} />
                     <Text style={[styles.placeholderTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
                         Paso {currentStep} en preparacion
                     </Text>
@@ -1311,7 +1312,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                     { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
                                     currentStep >= step.id && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
                                 ]}>
-                                    <Ionicons name={step.icon} size={14} color={currentStep >= step.id ? '#FFFFFF' : theme.colors.textSoft} />
+                                    <Ionicons name={step.icon} size={fontSizes.sm} color={currentStep >= step.id ? theme.colors.white : theme.colors.textSoft} />
                                 </View>
                                 <Text style={[
                                     styles.stepNodeLabel,
@@ -1399,7 +1400,7 @@ const styles = StyleSheet.create({
         width: 28,
     },
     headerTitle: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
         letterSpacing: 2,
     },
     stepperScroll: {
@@ -1424,7 +1425,7 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     stepNodeLabel: {
-        fontSize: 8,
+        fontSize: fontSizes.xxs,
         textTransform: 'uppercase',
         textAlign: 'center',
     },
@@ -1460,7 +1461,7 @@ const styles = StyleSheet.create({
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 18,
+        borderRadius: radii['2xl'],
         borderWidth: 1,
         paddingHorizontal: 16,
     },
@@ -1499,14 +1500,14 @@ const styles = StyleSheet.create({
     },
     textAreaWrapper: {
         borderWidth: 1,
-        borderRadius: 14,
+        borderRadius: radii.xl,
         padding: 12,
         marginBottom: 12,
     },
     textAreaInput: {
         minHeight: 96,
         textAlignVertical: 'top',
-        fontSize: 15,
+        fontSize: fontSizes.sm,
     },
     extraHeaderRow: {
         flexDirection: 'row',
@@ -1517,7 +1518,7 @@ const styles = StyleSheet.create({
     },
     extraFieldCard: {
         borderWidth: 1,
-        borderRadius: 14,
+        borderRadius: radii.xl,
         padding: 12,
         marginBottom: 10,
     },
@@ -1528,11 +1529,11 @@ const styles = StyleSheet.create({
         marginBottom: 6,
     },
     extraFieldTitle: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
     },
     extraTextInput: {
         borderWidth: 1,
-        borderRadius: 10,
+        borderRadius: radii.lg,
         paddingHorizontal: 10,
         paddingVertical: 10,
         marginTop: 8,
@@ -1550,7 +1551,7 @@ const styles = StyleSheet.create({
     },
     addFieldText: {
         marginLeft: 8,
-        fontSize: 13,
+        fontSize: fontSizes.xs,
     },
     attachmentRow: {
         flexDirection: 'row',
@@ -1574,14 +1575,14 @@ const styles = StyleSheet.create({
     imageActionBtn: {
         width: '48%',
         aspectRatio: 1,
-        borderRadius: 20,
+        borderRadius: radii['2xl'],
         borderWidth: 2,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
     },
     imageActionText: {
-        fontSize: 11,
+        fontSize: fontSizes.xs,
         marginTop: 8,
     },
     docsActionsRow: {
@@ -1592,13 +1593,13 @@ const styles = StyleSheet.create({
     docsActionBtn: {
         width: '31.5%',
         height: 92,
-        borderRadius: 14,
+        borderRadius: radii.xl,
         borderWidth: 2,
         justifyContent: 'center',
         alignItems: 'center',
     },
     docsActionText: {
-        fontSize: 9,
+        fontSize: fontSizes.xxs,
         marginTop: 6,
         textAlign: 'center',
     },
@@ -1607,7 +1608,7 @@ const styles = StyleSheet.create({
     },
     signatureArea: {
         height: 260,
-        borderRadius: 18,
+        borderRadius: radii['2xl'],
         borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1620,21 +1621,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
     },
     signatureHint: {
-        fontSize: 13,
+        fontSize: fontSizes.xs,
         marginTop: 10,
     },
     signatureCanvasPreview: {
         width: '100%',
         height: 180,
         borderWidth: 1,
-        borderRadius: 10,
-        backgroundColor: '#FAFAFA',
+        borderRadius: radii.lg,
+        backgroundColor: designColors.bgSecondary,
         overflow: 'hidden',
     },
     resignButton: {
         marginTop: 10,
         borderWidth: 1,
-        borderRadius: 10,
+        borderRadius: radii.lg,
         alignSelf: 'center',
         paddingHorizontal: 12,
         paddingVertical: 8,
@@ -1707,10 +1708,9 @@ const styles = StyleSheet.create({
     geoButtonText: {
         color: '#FFFFFF',
         marginLeft: 8,
-        fontSize: 13,
+        fontSize: fontSizes.xs,
     },
     geoError: {
-        color: '#EA0606',
         marginTop: 10,
         fontSize: 12,
     },
@@ -1726,7 +1726,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     geoLabel: {
-        fontSize: 11,
+        fontSize: fontSizes.xs,
         marginBottom: 4,
     },
     geoValue: {
@@ -1754,7 +1754,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     placeholderCard: {
-        borderRadius: 20,
+        borderRadius: radii['2xl'],
         borderWidth: 1,
         padding: 20,
         alignItems: 'center',
@@ -1762,7 +1762,7 @@ const styles = StyleSheet.create({
         minHeight: 220,
     },
     placeholderTitle: {
-        fontSize: 18,
+        fontSize: fontSizes.lg,
         marginTop: 10,
         marginBottom: 8,
     },
