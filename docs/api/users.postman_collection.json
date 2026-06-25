@@ -1,0 +1,597 @@
+{
+  "info": {
+    "name": "Chaco — Users",
+    "description": "Gestión de usuarios del backoffice, roles y autenticación de operadores.\n\nIncluye:\n- Login/logout de operadores\n- CRUD de usuarios (vistas HTML + API REST DRF)\n- CRUD de roles con capacidades\n- API REST de grupos y perfiles\n\nAutenticación HTML: cookie 'sessionid'.\nAutenticación DRF: sesión activa + header 'X-CSRFToken' para escrituras.\nControl de acceso: AdminRequiredMixin para usuarios, RBAC capacidad 'rol.administrar' para roles.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Login (obtener sesión)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" },
+              { "key": "Referer", "value": "http://localhost:8000/" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "admin", "description": "Nombre de usuario del operador" },
+                { "key": "password", "value": "admin1234", "description": "Contraseña" },
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>", "description": "Token CSRF obtenido de la cookie 'csrftoken' al cargar el formulario GET" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": [""]
+            },
+            "description": "Autentica al operador. En caso de éxito redirige al dashboard y setea cookie 'sessionid'. Primero realizar GET / para obtener el csrfmiddlewaretoken."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/logout",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["logout"]
+            },
+            "description": "Cierra la sesión del operador y redirige al login."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Usuarios (vistas backoffice)",
+      "description": "Vistas HTML para gestión de usuarios. Requieren AdminRequiredMixin.",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/usuarios/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["usuarios", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario crear usuario (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/usuarios/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["usuarios", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear usuario (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "username", "value": "nuevo.operador" },
+                { "key": "first_name", "value": "Juan" },
+                { "key": "last_name", "value": "Pérez" },
+                { "key": "email", "value": "juan.perez@ejemplo.gob.ar" },
+                { "key": "password", "value": "Contraseña1234!" },
+                { "key": "groups", "value": "1", "description": "IDs de roles (puede repetirse para múltiples)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/usuarios/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["usuarios", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario editar usuario (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/usuarios/editar/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["usuarios", "editar", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar usuario (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "username", "value": "juan.perez" },
+                { "key": "first_name", "value": "Juan" },
+                { "key": "last_name", "value": "Pérez" },
+                { "key": "email", "value": "juan.perez@ejemplo.gob.ar" },
+                { "key": "groups", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/usuarios/editar/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["usuarios", "editar", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle activo/inactivo usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/usuarios/1/toggle/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["usuarios", "1", "toggle", ""]
+            },
+            "description": "Activa o desactiva el usuario. Retorna JSON o redirige."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles (vistas backoffice)",
+      "description": "Vistas HTML para gestión de roles con capacidades RBAC. Requieren capacidad 'rol.administrar'.",
+      "item": [
+        {
+          "name": "Listar roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/roles/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario crear rol (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/roles/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear rol (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "name", "value": "Operador de Legajos" },
+                { "key": "descripcion", "value": "Rol para operadores que gestionan legajos de ciudadanos" },
+                { "key": "categoria", "value": "OPERACION", "description": "Valor de CATEGORIAS_ROL_CHOICES" },
+                { "key": "programa", "value": "", "description": "ID de programa (opcional)" },
+                { "key": "capacidades", "value": "ciudadano.ver", "description": "Puede repetirse para múltiples capacidades" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/roles/crear/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "crear", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de rol",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/roles/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario editar rol (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/roles/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar rol (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "name", "value": "Operador de Legajos Actualizado" },
+                { "key": "descripcion", "value": "Descripción actualizada" },
+                { "key": "categoria", "value": "OPERACION" },
+                { "key": "capacidades", "value": "ciudadano.ver" },
+                { "key": "capacidades", "value": "ciudadano.editar" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/roles/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar rol",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/roles/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle activo/inactivo rol",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/roles/1/toggle/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["roles", "1", "toggle", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Usuarios",
+      "description": "DRF ViewSet. Base: /api/users/users/",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/users/users/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "users", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"nuevo.usuario\",\n  \"email\": \"nuevo@ejemplo.gob.ar\",\n  \"first_name\": \"María\",\n  \"last_name\": \"González\",\n  \"password\": \"Contraseña1234!\",\n  \"password_confirm\": \"Contraseña1234!\",\n  \"is_active\": true,\n  \"groups\": [1]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/users/users/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "users", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/users/users/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "users", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar usuario (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"actualizado@ejemplo.gob.ar\",\n  \"first_name\": \"María José\",\n  \"is_active\": true,\n  \"groups\": [1, 2]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/users/users/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "users", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar usuario",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/users/users/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "users", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Grupos",
+      "description": "DRF ViewSet para grupos Django. Base: /api/users/groups/",
+      "item": [
+        {
+          "name": "Listar grupos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/users/groups/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "groups", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear grupo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Operadores Legajos\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/users/groups/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "groups", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener grupo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/users/groups/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "groups", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Perfiles",
+      "description": "DRF ViewSet para perfiles de usuario. Base: /api/users/profiles/",
+      "item": [
+        {
+          "name": "Listar perfiles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/users/profiles/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "profiles", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar perfil (modo oscuro)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dark_mode\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/users/profiles/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "users", "profiles", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
