@@ -5,7 +5,7 @@
 **Versión:** 1.2
 **Alcance cubierto:** Análisis A — funcionalidades sin dependencia de integración SIS
 
-> **Nota de consumo:** Al 18 de junio de 2026 se han consumido 60 horas del sprint en análisis funcional, setup de entorno y desarrollo del motor RBAC base. Esta estimación cubre las 654 horas restantes del presupuesto de junio.
+> **Nota de consumo:** Al 24 de junio de 2026 se han consumido 167 horas del sprint en análisis funcional, setup de entorno y desarrollo del motor RBAC base. Sumadas a las 654 horas estimadas en este documento, el compromiso total asciende a 821 horas, superando el presupuesto mensual de 714 horas en 107 horas (115%).
 
 ---
 

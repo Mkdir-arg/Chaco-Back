@@ -7,6 +7,6 @@ class ConversacionesConfig(AppConfig):
 
     def ready(self):
         import conversaciones.signals  # noqa: F401
-        import conversaciones.signals.alerts  # noqa: F401
+        import conversaciones.signals.alertas  # noqa: F401
 
     verbose_name = 'Conversaciones'

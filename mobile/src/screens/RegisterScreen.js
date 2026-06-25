@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Image, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
+import {
+    View,
+    Text,
+    TextInput,
+    Pressable,
+    StyleSheet,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import CustomButton from '../components/CustomButton';
+import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../context/AuthContext';
+import CustomButton from '../components/CustomButton';
+import { fontSizes, radii } from '../theme';
 
 export default function RegisterScreen({ onBackToLogin }) {
     const { theme, typography, isDark, branding } = useTheme();
@@ -23,32 +33,31 @@ export default function RegisterScreen({ onBackToLogin }) {
         const trimmedUsername = username.trim();
         const trimmedPassword = password.trim();
         const trimmedNombre = nombre.trim();
+        const trimmedConfirmPassword = confirmPassword.trim();
 
-        // Validaciones
-        if (!trimmedUsername || !trimmedPassword || !trimmedNombre || !confirmPassword.trim()) {
-            setError('Por favor, completa todos los campos');
+        if (!trimmedUsername || !trimmedPassword || !trimmedNombre || !trimmedConfirmPassword) {
+            setError('Por favor, completá todos los campos.');
             return;
         }
 
         if (trimmedUsername.length < 3) {
-            setError('El usuario debe tener al menos 3 caracteres');
+            setError('El usuario debe tener al menos 3 caracteres.');
             return;
         }
 
         if (trimmedPassword.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres');
+            setError('La contraseña debe tener al menos 6 caracteres.');
             return;
         }
 
-        if (trimmedPassword !== confirmPassword.trim()) {
-            setError('Las contraseñas no coinciden');
+        if (trimmedPassword !== trimmedConfirmPassword) {
+            setError('Las contraseñas no coinciden.');
             return;
         }
 
         setIsRegistering(true);
 
         try {
-            // Verificar si el usuario ya existe
             const { data: existingUser } = await supabase
                 .from('usuarios')
                 .select('id')
@@ -56,18 +65,17 @@ export default function RegisterScreen({ onBackToLogin }) {
                 .single();
 
             if (existingUser) {
-                setError('Este usuario ya está registrado');
+                setError('Este usuario ya está registrado.');
                 setIsRegistering(false);
                 return;
             }
 
-            // Crear nuevo usuario
-            const { data, error: insertError } = await supabase
+            const { error: insertError } = await supabase
                 .from('usuarios')
                 .insert([
                     {
                         username: trimmedUsername,
-                        password: trimmedPassword, // En producción, hashear con bcrypt
+                        password: trimmedPassword,
                         nombre: trimmedNombre,
                         es_admin: false,
                         foto: null,
@@ -78,16 +86,14 @@ export default function RegisterScreen({ onBackToLogin }) {
                 .single();
 
             if (insertError) {
-                setError('Error al crear el usuario: ' + insertError.message);
+                setError(`Error al crear el usuario: ${insertError.message}`);
                 return;
             }
 
-            // Mostrar alerta de éxito
-            Alert.alert('Registro exitoso', 'Tu cuenta ha sido creada. Ahora inicia sesión.', [
+            Alert.alert('Registro exitoso', 'Tu cuenta fue creada. Ahora iniciá sesión.', [
                 {
                     text: 'OK',
                     onPress: () => {
-                        // Limpiar y volver a login
                         setUsername('');
                         setPassword('');
                         setConfirmPassword('');
@@ -97,56 +103,73 @@ export default function RegisterScreen({ onBackToLogin }) {
                 },
             ]);
         } catch (err) {
-            setError('Error al registrar: ' + err.message);
+            setError(`Error al registrar: ${err.message}`);
         } finally {
             setIsRegistering(false);
         }
     };
+
+    const inputBaseStyle = {
+        borderColor: theme.colors.border,
+        backgroundColor: isDark ? theme.colors.surface : theme.colors.surfaceAlt,
+    };
+
+    const errorBorderStyle = { borderColor: theme.colors.danger };
 
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={[styles.container, { backgroundColor: theme.colors.background }]}
         >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    bounces={false}
-                    keyboardShouldPersistTaps="handled"
-                >
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                bounces={false}
+                keyboardShouldPersistTaps="always"
+                keyboardDismissMode="on-drag"
+            >
                     <View style={styles.header}>
-                        <Pressable onPress={onBackToLogin} style={styles.backButton}>
-                            <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+                        <Pressable onPress={onBackToLogin} style={[styles.backButton, { backgroundColor: theme.colors.brandSoft }]}>
+                            <Ionicons name="chevron-back" size={24} color={theme.colors.icon} />
                         </Pressable>
                         <Text style={[styles.title, { fontFamily: typography.bold, color: theme.colors.text }]}>
-                            Crear Cuenta
+                            Crear cuenta
                         </Text>
                         <Text style={[styles.subtitle, { fontFamily: typography.regular, color: theme.colors.textMuted }]}>
                             {branding.registerSubtitle}
                         </Text>
                     </View>
 
-                    <View style={styles.form}>
+                    <View style={[styles.form, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                         {!!error && (
-                            <View style={styles.errorContainer}>
-                                <Text style={[styles.errorText, { fontFamily: typography.medium }]}>{error}</Text>
+                            <View
+                                style={[
+                                    styles.errorContainer,
+                                    {
+                                        backgroundColor: theme.colors.dangerSoft,
+                                        borderColor: theme.colors.danger,
+                                    },
+                                ]}
+                            >
+                                <Text style={[styles.errorText, { color: theme.colors.danger, fontFamily: typography.medium }]}>
+                                    {error}
+                                </Text>
                             </View>
                         )}
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.textSoft }]}>
-                                NOMBRE COMPLETO
+                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.text }]}>
+                                Nombre completo
                             </Text>
                             <View
                                 style={[
                                     styles.input,
-                                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : '#F8F9FA' },
-                                    !!error && nombre === '' && styles.inputError,
+                                    inputBaseStyle,
+                                    !!error && nombre === '' && errorBorderStyle,
                                 ]}
                             >
                                 <TextInput
                                     placeholder="Tu nombre"
-                                    placeholderTextColor={isDark ? theme.colors.textSoft : '#A0A0A0'}
+                                    placeholderTextColor={theme.colors.textSoft}
                                     style={[styles.field, { fontFamily: typography.regular, color: theme.colors.text }]}
                                     value={nombre}
                                     onChangeText={(text) => {
@@ -158,19 +181,19 @@ export default function RegisterScreen({ onBackToLogin }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.textSoft }]}>
-                                USUARIO
+                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.text }]}>
+                                Usuario
                             </Text>
                             <View
                                 style={[
                                     styles.input,
-                                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : '#F8F9FA' },
-                                    !!error && username === '' && styles.inputError,
+                                    inputBaseStyle,
+                                    !!error && username === '' && errorBorderStyle,
                                 ]}
                             >
                                 <TextInput
                                     placeholder="tu_usuario"
-                                    placeholderTextColor={isDark ? theme.colors.textSoft : '#A0A0A0'}
+                                    placeholderTextColor={theme.colors.textSoft}
                                     style={[styles.field, { fontFamily: typography.regular, color: theme.colors.text }]}
                                     autoCapitalize="none"
                                     value={username}
@@ -183,20 +206,20 @@ export default function RegisterScreen({ onBackToLogin }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.textSoft }]}>
-                                CONTRASEÑA
+                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.text }]}>
+                                Contraseña
                             </Text>
                             <View
                                 style={[
                                     styles.input,
                                     styles.passwordInputWrapper,
-                                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : '#F8F9FA' },
-                                    !!error && password === '' && styles.inputError,
+                                    inputBaseStyle,
+                                    !!error && password === '' && errorBorderStyle,
                                 ]}
                             >
                                 <TextInput
-                                    placeholder="••••••••"
-                                    placeholderTextColor={isDark ? theme.colors.textSoft : '#A0A0A0'}
+                                    placeholder="********"
+                                    placeholderTextColor={theme.colors.textSoft}
                                     secureTextEntry={!showPassword}
                                     style={[styles.field, { fontFamily: typography.regular, color: theme.colors.text }]}
                                     value={password}
@@ -216,20 +239,20 @@ export default function RegisterScreen({ onBackToLogin }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.textSoft }]}>
-                                CONFIRMAR CONTRASEÑA
+                            <Text style={[styles.label, { fontFamily: typography.semibold, color: theme.colors.text }]}>
+                                Confirmar contraseña
                             </Text>
                             <View
                                 style={[
                                     styles.input,
                                     styles.passwordInputWrapper,
-                                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : '#F8F9FA' },
-                                    !!error && confirmPassword === '' && styles.inputError,
+                                    inputBaseStyle,
+                                    !!error && confirmPassword === '' && errorBorderStyle,
                                 ]}
                             >
                                 <TextInput
-                                    placeholder="••••••••"
-                                    placeholderTextColor={isDark ? theme.colors.textSoft : '#A0A0A0'}
+                                    placeholder="********"
+                                    placeholderTextColor={theme.colors.textSoft}
                                     secureTextEntry={!showConfirmPassword}
                                     style={[styles.field, { fontFamily: typography.regular, color: theme.colors.text }]}
                                     value={confirmPassword}
@@ -249,7 +272,7 @@ export default function RegisterScreen({ onBackToLogin }) {
                         </View>
 
                         <CustomButton
-                            title="REGISTRARSE"
+                            title="Registrarse"
                             onPress={handleRegister}
                             loading={isRegistering}
                             size="L"
@@ -258,17 +281,16 @@ export default function RegisterScreen({ onBackToLogin }) {
 
                         <View style={styles.loginLinkContainer}>
                             <Text style={[styles.loginLinkText, { fontFamily: typography.regular, color: theme.colors.textMuted }]}>
-                                ¿Ya tienes cuenta?{' '}
+                                ¿Ya tenés cuenta?{' '}
                             </Text>
                             <Pressable onPress={onBackToLogin}>
                                 <Text style={[styles.loginLink, { fontFamily: typography.semibold, color: theme.colors.primary }]}>
-                                    Inicia sesión
+                                    Iniciá sesión
                                 </Text>
                             </Pressable>
                         </View>
                     </View>
-                </ScrollView>
-            </TouchableWithoutFeedback>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
@@ -283,52 +305,52 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     header: {
-        marginBottom: 40,
+        marginBottom: 24,
         paddingTop: 20,
     },
     backButton: {
         marginBottom: 16,
         width: 40,
         height: 40,
+        borderRadius: radii.full,
         justifyContent: 'center',
+        alignItems: 'center',
     },
     title: {
-        fontSize: 32,
+        fontSize: fontSizes['3xl'],
         marginBottom: 8,
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: fontSizes.base,
     },
     form: {
         width: '100%',
+        borderWidth: 1,
+        borderRadius: radii['2xl'],
+        padding: 18,
     },
     errorContainer: {
-        backgroundColor: '#FEE2E2',
         padding: 12,
-        borderRadius: 12,
+        borderRadius: radii.xl,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#EF4444',
     },
     errorText: {
-        color: '#B91C1C',
-        fontSize: 14,
+        fontSize: fontSizes.sm,
         textAlign: 'center',
     },
     inputGroup: {
-        marginBottom: 20,
+        marginBottom: 18,
     },
     label: {
-        fontSize: 12,
-        color: '#8392AB',
-        marginBottom: 10,
-        letterSpacing: 1.5,
+        fontSize: fontSizes.sm,
+        marginBottom: 8,
     },
     input: {
         height: 56,
         borderWidth: 1,
-        borderRadius: 16,
-        paddingHorizontal: 16,
+        borderRadius: radii.xl,
+        paddingHorizontal: 14,
     },
     passwordInputWrapper: {
         flexDirection: 'row',
@@ -337,12 +359,9 @@ const styles = StyleSheet.create({
     eyeIcon: {
         padding: 8,
     },
-    inputError: {
-        borderColor: '#EF4444',
-    },
     field: {
         flex: 1,
-        fontSize: 16,
+        fontSize: fontSizes.base,
     },
     buttonMargin: {
         marginTop: 10,
@@ -353,9 +372,9 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     loginLinkText: {
-        fontSize: 14,
+        fontSize: fontSizes.sm,
     },
     loginLink: {
-        fontSize: 14,
+        fontSize: fontSizes.sm,
     },
 });

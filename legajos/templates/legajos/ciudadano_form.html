@@ -8,12 +8,10 @@
     <!-- Header -->
     <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8 mb-6">
         <div class="flex items-center gap-3 mb-2">
-            <div class="rounded-lg p-2" style="background: {{ branding.citizen_form.header_icon_bg }};">
-                {% if branding.citizen_form.header_icon_mode == 'gradient' %}
-                <i class="fas fa-user-plus text-lg text-transparent" style="background-image: linear-gradient(180deg, {{ branding.citizen_form.header_icon_gradient_start }} 0%, {{ branding.citizen_form.header_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                {% else %}
-                <i class="fas fa-user-plus text-lg" style="color: {{ branding.citizen_form.header_icon_color }};"></i>
-                {% endif %}
+            <div class="rounded-lg p-2" style="background: transparent;">
+                
+                <i class="fas fa-user-plus text-lg text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                
             </div>
             <h1 class="text-3xl font-bold text-[#252F40]">
                 {% if object %}Editar Ciudadano{% else %}Nuevo Ciudadano{% endif %}
@@ -88,7 +86,7 @@
             </div>
 
             <div class="flex justify-end gap-4 pt-6 border-t border-[#E5E7EB]">
-                <a href="{% url 'legajos:ciudadanos' %}" class="{{ branding.citizen_form.cancel_button_class }}">
+                <a href="{% url 'legajos:ciudadanos' %}" class="btn-nodo btn-secondary btn-base">
                     Cancelar
                 </a>
                 <button type="submit" class="px-6 py-3 bg-[#10B981] text-white rounded-lg hover:bg-[#059669] transition-colors">

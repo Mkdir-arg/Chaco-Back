@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from asgiref.sync import async_to_sync
@@ -11,6 +12,8 @@ from ..models import (
     LegajoAtencion,
 )
 from ..models.contactos import HistorialContacto, VinculoFamiliar
+
+logger = logging.getLogger(__name__)
 
 
 class AlertasService:
@@ -44,7 +47,7 @@ class AlertasService:
             return alertas_generadas
 
         except Exception as exc:
-            print(f"Error generando alertas: {exc}")
+            logger.exception("Error generando alertas: %s", exc)
             return []
 
     @staticmethod
@@ -202,7 +205,7 @@ class AlertasService:
                     {"type": "nueva_alerta_critica", "alerta": alerta_data},
                 )
         except Exception as exc:
-            print(f"Error enviando notificación WebSocket: {exc}")
+            logger.exception("Error enviando notificación WebSocket: %s", exc)
 
     @staticmethod
     def obtener_alertas_ciudadano(ciudadano_id):

@@ -1,27 +1,28 @@
 {
   "expo": {
-    "name": "NODO",
-    "slug": "nodo",
+    "name": "Relevamiento Chaco",
+    "slug": "relevamiento-chaco",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/brand/icono.jpeg",
+    "icon": "./assets/brand/app-icon-chaco.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/brand/logo-nodo.png",
+      "image": "./assets/brand/logo-chaco.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#F9FAFB"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "La camara se usa para escanear el DNI argentino y capturar documentacion del relevamiento."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/brand/icono.jpeg",
+        "foregroundImage": "./assets/brand/app-icon-chaco.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.pablocao.nodo",
+      "package": "com.pablocao.relevamientochaco",
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES",
@@ -29,7 +30,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/brand/app-icon-chaco.png"
     },
     "extra": {
       "supabaseUrl": "https://mcehplitlaelgtenkypn.supabase.co",
@@ -40,9 +41,17 @@
     },
     "plugins": [
       "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "La camara se usa para escanear el DNI argentino y capturar documentacion del relevamiento."
+        }
+      ],
       "expo-image-picker",
       "expo-screen-orientation",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-font",
+      "expo-secure-store"
     ]
   }
 }

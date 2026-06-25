@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import CustomButton from '../components/CustomButton';
 import citizenLegajoService from '../services/citizenLegajoService';
+import { fontSizes, radii } from '../theme';
 
 const VIA_INGRESO_OPTIONS = ['ESPONTANEA', 'DERIVACION', 'JUDICIAL', 'HOSPITAL'];
 const RIESGO_OPTIONS = ['BAJO', 'MEDIO', 'ALTO'];
@@ -216,7 +217,7 @@ export default function CitizenLegajoScreen({ onClose, onSaved }) {
           CIUDADANOS Y LEGAJOS
         </Text>
         <Pressable onPress={resetForm} style={styles.headerIcon}>
-          <Ionicons name="add-circle-outline" size={26} color={theme.colors.primary} />
+          <Ionicons name="add-circle-outline" size={26} color={theme.colors.icon} />
         </Pressable>
       </View>
 
@@ -267,13 +268,13 @@ export default function CitizenLegajoScreen({ onClose, onSaved }) {
                   <View
                     style={[
                       styles.syncBadge,
-                      { backgroundColor: record.synced ? '#2DCE8920' : '#FFB02020' },
+                      { backgroundColor: record.synced ? theme.colors.successSoft : theme.colors.warningSoft },
                     ]}
                   >
                     <Text
                       style={[
                         styles.syncBadgeText,
-                        { color: record.synced ? '#2DCE89' : '#FFB020', fontFamily: typography.bold },
+                        { color: record.synced ? theme.colors.success : theme.colors.warning, fontFamily: typography.bold },
                       ]}
                     >
                       {record.synced ? 'SYNC' : 'LOCAL'}
@@ -304,7 +305,7 @@ export default function CitizenLegajoScreen({ onClose, onSaved }) {
           {renderInput('Notas de legajo', 'notas', 'Notas del caso', { multiline: true })}
 
           {!!errorMessage && (
-            <Text style={[styles.errorText, { fontFamily: typography.medium }]}>
+            <Text style={[styles.errorText, { color: theme.colors.danger, fontFamily: typography.medium }]}>
               {errorMessage}
             </Text>
           )}
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 15,
+    fontSize: fontSizes.sm,
     letterSpacing: 1.5,
   },
   body: {
@@ -368,15 +369,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: fontSizes.lg,
     marginBottom: 12,
   },
   message: {
-    fontSize: 14,
+    fontSize: fontSizes.sm,
   },
   recordCard: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     padding: 12,
     marginBottom: 10,
   },
@@ -387,32 +388,32 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   recordName: {
-    fontSize: 15,
+    fontSize: fontSizes.sm,
   },
   recordMeta: {
-    fontSize: 13,
+    fontSize: fontSizes.xs,
   },
   syncBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: radii.lg,
   },
   syncBadgeText: {
-    fontSize: 10,
+    fontSize: fontSizes.xs,
   },
   fieldBlock: {
     marginBottom: 14,
   },
   label: {
-    fontSize: 13,
+    fontSize: fontSizes.xs,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: radii.xl,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: fontSizes.sm,
   },
   selectorRow: {
     flexDirection: 'row',
@@ -421,21 +422,20 @@ const styles = StyleSheet.create({
   },
   selectorChip: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
   selectorText: {
-    fontSize: 12,
+    fontSize: fontSizes.xs,
   },
   errorText: {
-    color: '#EA0606',
     marginTop: 4,
-    fontSize: 13,
+    fontSize: fontSizes.xs,
   },
   infoText: {
     marginTop: 8,
-    fontSize: 13,
+    fontSize: fontSizes.xs,
   },
   formButtons: {
     marginTop: 14,

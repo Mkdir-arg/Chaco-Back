@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import StaggeredItem from '../components/StaggeredItem';
 import CustomButton from '../components/CustomButton';
+import { fontSizes, radii } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -184,7 +185,7 @@ export default function TasksScreen({ onOpenSurvey }) {
                 ) : (
                     <StaggeredItem index={1}>
                         <View style={styles.emptyContainer}>
-                            <GradientIcon name="calendar-outline" size={60} style={{ opacity: 0.3 }} colors={theme.colors.gradients?.brand || ['#FF0080', '#7928CA']} />
+                            <GradientIcon name="calendar-outline" size={60} style={{ opacity: 0.3 }} colors={theme.colors.gradients?.brand || ['#5059BC', '#F98DFF']} />
                             <Text style={[styles.emptyText, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>
                                 No hay tareas programadas para este día
                             </Text>
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     dateCard: {
         width: 60,
         height: 80,
-        borderRadius: 18,
+        borderRadius: radii['2xl'],
         justifyContent: 'center',
         alignItems: 'center',
         marginHorizontal: 5,
@@ -223,21 +224,21 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     dayName: {
-        fontSize: 12,
+        fontSize: fontSizes.xs,
         marginBottom: 2,
     },
     dayNum: {
-        fontSize: 18,
+        fontSize: fontSizes.lg,
     },
     monthAbbr: {
-        fontSize: 9,
+        fontSize: fontSizes.xxs,
         marginTop: 2,
         letterSpacing: 0.5,
     },
     todayDot: {
         width: 4,
         height: 4,
-        borderRadius: 2,
+        borderRadius: radii.sm,
         position: 'absolute',
         bottom: 8,
     },
@@ -251,19 +252,19 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: fontSizes.xl,
     },
     countBadge: {
         paddingHorizontal: 12,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: radii.xl,
     },
     countText: {
-        fontSize: 14,
+        fontSize: fontSizes.sm,
     },
     taskCard: {
         padding: 20,
-        borderRadius: 24,
+        borderRadius: radii['3xl'],
         borderWidth: 1,
         marginBottom: 16,
     },
@@ -276,17 +277,17 @@ const styles = StyleSheet.create({
     statusBadge: {
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 8,
+        borderRadius: radii.lg,
     },
     statusText: {
-        fontSize: 10,
+        fontSize: fontSizes.xs,
         letterSpacing: 0.5,
     },
     timeText: {
-        fontSize: 12,
+        fontSize: fontSizes.xs,
     },
     taskTitle: {
-        fontSize: 16,
+        fontSize: fontSizes.base,
         marginBottom: 12,
         lineHeight: 22,
     },
@@ -297,10 +298,10 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     typeText: {
-        fontSize: 14,
+        fontSize: fontSizes.sm,
     },
     buttonContainer: {
-        borderRadius: 12,
+        borderRadius: radii.xl,
         overflow: 'hidden',
     },
     gradientButton: {
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
     },
     actionBtnText: {
         color: '#FFF',
-        fontSize: 12,
+        fontSize: fontSizes.xs,
     },
     emptyContainer: {
         alignItems: 'center',
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         marginTop: 16,
-        fontSize: 16,
+        fontSize: fontSizes.base,
         textAlign: 'center',
         paddingHorizontal: 40,
         lineHeight: 24,

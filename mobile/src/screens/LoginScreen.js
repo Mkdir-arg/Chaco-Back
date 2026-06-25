@@ -9,14 +9,13 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import CustomButton from '../components/CustomButton';
 import AuthVisualBackground from '../components/AuthVisualBackground';
+import { fontSizes, radii } from '../theme';
 
 export default function LoginScreen() {
   const { theme, typography, isDark, branding } = useTheme();
@@ -58,12 +57,12 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            bounces={false}
-            keyboardShouldPersistTaps="handled"
-          >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          bounces={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+        >
             <View style={styles.header}>
               <Image source={branding.assets.logo} style={styles.logo} resizeMode="contain" />
             </View>
@@ -86,8 +85,16 @@ export default function LoginScreen() {
               </View>
 
               {!!error && (
-                <View style={styles.errorContainer}>
-                  <Text style={[styles.errorText, { fontFamily: typography.medium }]}>{error}</Text>
+                <View
+                  style={[
+                    styles.errorContainer,
+                    {
+                      backgroundColor: theme.colors.dangerSoft,
+                      borderColor: theme.colors.danger,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.errorText, { color: theme.colors.danger, fontFamily: typography.medium }]}>{error}</Text>
                 </View>
               )}
 
@@ -96,8 +103,8 @@ export default function LoginScreen() {
                 <View
                   style={[
                     styles.input,
-                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : '#F8F9FA' },
-                    !!error && username === '' && styles.inputError,
+                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : theme.colors.surfaceAlt },
+                    !!error && username === '' && { borderColor: theme.colors.danger },
                   ]}
                 >
                   <Ionicons
@@ -108,7 +115,7 @@ export default function LoginScreen() {
                   />
                   <TextInput
                     placeholder="Ingrese su usuario"
-                    placeholderTextColor={isDark ? theme.colors.textSoft : '#A0A0A0'}
+                    placeholderTextColor={theme.colors.textSoft}
                     style={[styles.field, { fontFamily: typography.regular, color: theme.colors.text }]}
                     autoCapitalize="none"
                     value={username}
@@ -126,8 +133,8 @@ export default function LoginScreen() {
                   style={[
                     styles.input,
                     styles.passwordInputWrapper,
-                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : '#F8F9FA' },
-                    !!error && password === '' && styles.inputError,
+                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : theme.colors.surfaceAlt },
+                    !!error && password === '' && { borderColor: theme.colors.danger },
                   ]}
                 >
                   <Ionicons
@@ -138,7 +145,7 @@ export default function LoginScreen() {
                   />
                   <TextInput
                     placeholder="********"
-                    placeholderTextColor={isDark ? theme.colors.textSoft : '#A0A0A0'}
+                    placeholderTextColor={theme.colors.textSoft}
                     secureTextEntry={!showPassword}
                     style={[styles.field, { fontFamily: typography.regular, color: theme.colors.text }]}
                     value={password}
@@ -158,7 +165,7 @@ export default function LoginScreen() {
               </View>
 
               <CustomButton
-                title="INGRESAR"
+                title="Ingresar"
                 onPress={handleLogin}
                 loading={isLoggingIn}
                 size="L"
@@ -173,8 +180,7 @@ export default function LoginScreen() {
                 ICORE 2026
               </Text>
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </AuthVisualBackground>
   );
@@ -199,19 +205,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 28,
+    fontSize: fontSizes['2xl'],
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: fontSizes.base,
     textAlign: 'center',
     marginBottom: 14,
   },
   form: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: radii['2xl'],
     padding: 18,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
@@ -224,29 +230,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   errorContainer: {
-    backgroundColor: '#FEE2E2',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: radii.xl,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#EF4444',
   },
   errorText: {
-    color: '#B91C1C',
-    fontSize: 14,
+    fontSize: fontSizes.sm,
     textAlign: 'center',
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: fontSizes.sm,
     marginBottom: 8,
   },
   input: {
     height: 56,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -258,12 +261,9 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 8,
   },
-  inputError: {
-    borderColor: '#EF4444',
-  },
   field: {
     flex: 1,
-    fontSize: 16,
+    fontSize: fontSizes.base,
   },
   leftIcon: {
     marginRight: 10,
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   footerText: {
-    fontSize: 15,
+    fontSize: fontSizes.sm,
     fontWeight: '700',
   },
 });

@@ -160,7 +160,7 @@ class GroupViewSet(viewsets.ModelViewSet):
     def users(self, request, pk=None):
         """Obtiene los usuarios de un rol específico"""
         group = self.get_object()
-        users = group.user_set.all()
+        users = group.user_set.select_related("profile").prefetch_related("groups")
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 

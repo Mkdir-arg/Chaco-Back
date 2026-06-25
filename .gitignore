@@ -48,6 +48,18 @@ htmlcov/
 .codex-linux-first/
 .claude/worktrees/
 .github/worklog/
+awslabs-mcp/
+
+# Scratch / notas de trabajo temporales
+.tmp_*
+.t.md
+
+# Certificados / claves TLS (no versionar claves privadas)
+*.key
+*.crt
+*.pem
+nginx-selfsigned.crt
+nginx-selfsigned.key
 
 # MkDocs
 site/

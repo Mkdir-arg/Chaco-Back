@@ -6,8 +6,8 @@
 {% block main-content %}
 <style>
     .tab-button-active {
-        border-color: {{ branding.program_detail_nachec.tab_active_border_color }} !important;
-        color: {{ branding.program_detail_nachec.tab_active_text_color }} !important;
+        border-color: #A54FA9 !important;
+        color: #A54FA9 !important;
     }
 </style>
 <div class="max-w-full mx-4 lg:mx-8">
@@ -64,77 +64,61 @@
     <div id="tab-dashboard" class="tab-content">
         <!-- Hero Stats -->
         <div class="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+            <div class="bg-white rounded-xl p-6" style="border: 1px solid #D9D9D9; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);">
                 <div class="flex items-center justify-between mb-4">
-                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
-                        <i class="fas fa-inbox text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    {% else %}
-                        <i class="fas fa-inbox text-4xl opacity-80"></i>
-                    {% endif %}
-                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
-                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Captación</span>
-                    {% endif %}
+                    
+                        <i class="fas fa-inbox text-transparent" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #252956 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                    
                 </div>
-                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.derivaciones_totales }}</p>
-                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-yellow-100"{% endif %}>Derivaciones Totales</p>
-                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.derivaciones_totales }}</p>
+                <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Derivaciones Totales</p>
+                <div class="mt-4 flex items-center " style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">
                     <i class="fas fa-arrow-up mr-2"></i>
                     <span>{{ dashboard_metricas.tasa_aceptacion }}% aceptadas</span>
                 </div>
             </div>
             
-            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+            <div class="bg-white rounded-xl p-6" style="border: 1px solid #D9D9D9; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);">
                 <div class="flex items-center justify-between mb-4">
-                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
-                        <i class="fas fa-user-check text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    {% else %}
-                        <i class="fas fa-user-check text-4xl opacity-80"></i>
-                    {% endif %}
-                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
-                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Asignación</span>
-                    {% endif %}
+                    
+                        <i class="fas fa-user-check text-transparent" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #252956 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                    
                 </div>
-                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.relevamientos_completados }}</p>
-                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-blue-100"{% endif %}>Relevamientos Completos</p>
-                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.relevamientos_completados }}</p>
+                <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Relevamientos Completos</p>
+                <div class="mt-4 flex items-center " style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">
                     <i class="fas fa-clock mr-2"></i>
                     <span>{{ dashboard_metricas.casos_sin_asignar }} sin asignar</span>
                 </div>
             </div>
             
-            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+            <div class="bg-white rounded-xl p-6" style="border: 1px solid #D9D9D9; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);">
                 <div class="flex items-center justify-between mb-4">
-                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
-                        <i class="fas fa-chart-line text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    {% else %}
-                        <i class="fas fa-chart-line text-4xl opacity-80"></i>
-                    {% endif %}
-                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
-                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Evaluación</span>
-                    {% endif %}
+                    
+                        <i class="fas fa-chart-line text-transparent" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #252956 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                    
                 </div>
-                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.score_promedio }}</p>
-                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-purple-100"{% endif %}>Score Promedio</p>
-                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.score_promedio }}</p>
+                <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Score Promedio</p>
+                <div class="mt-4 flex items-center " style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">
                     <i class="fas fa-tasks mr-2"></i>
                     <span>{{ dashboard_metricas.planes_activos }} planes activos</span>
                 </div>
             </div>
             
-            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+            <div class="bg-white rounded-xl p-6" style="border: 1px solid #D9D9D9; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);">
                 <div class="flex items-center justify-between mb-4">
-                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
-                        <i class="fas fa-hand-holding-heart text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    {% else %}
-                        <i class="fas fa-hand-holding-heart text-4xl opacity-80"></i>
-                    {% endif %}
-                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
-                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Impacto</span>
-                    {% endif %}
+                    
+                        <i class="fas fa-hand-holding-heart text-transparent" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #252956 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                    
                 </div>
-                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.familias_asistidas }}</p>
-                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-green-100"{% endif %}>Familias Asistidas</p>
-                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.familias_asistidas }}</p>
+                <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Familias Asistidas</p>
+                <div class="mt-4 flex items-center " style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">
                     <i class="fas fa-check-circle mr-2"></i>
                     <span>{{ dashboard_metricas.prestaciones_entregadas }} prestaciones</span>
                 </div>
@@ -148,80 +132,56 @@
             </h3>
             <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
-                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
-                            <i class="fas fa-inbox text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: 41px; height: 41px; background: #E5E7EB;">
+                            <i class="fas fa-inbox text-transparent" style="font-size: 20px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         </div>
-                    {% else %}
-                        <div class="w-20 h-20 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-3 shadow-md">
-                            <i class="fas fa-inbox text-yellow-600 text-2xl"></i>
-                        </div>
-                    {% endif %}
+                    
                     <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.derivados }}</p>
                     <p class="text-sm text-gray-600">Derivados</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
-                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
-                            <i class="fas fa-search text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: 41px; height: 41px; background: #E5E7EB;">
+                            <i class="fas fa-search text-transparent" style="font-size: 20px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         </div>
-                    {% else %}
-                        <div class="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3 shadow-md">
-                            <i class="fas fa-search text-blue-600 text-2xl"></i>
-                        </div>
-                    {% endif %}
+                    
                     <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.en_revision }}</p>
                     <p class="text-sm text-gray-600">En Revisión</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
-                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
-                            <i class="fas fa-user-check text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: 41px; height: 41px; background: #E5E7EB;">
+                            <i class="fas fa-user-check text-transparent" style="font-size: 20px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         </div>
-                    {% else %}
-                        <div class="w-20 h-20 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-3 shadow-md">
-                            <i class="fas fa-user-check text-purple-600 text-2xl"></i>
-                        </div>
-                    {% endif %}
+                    
                     <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.asignados }}</p>
                     <p class="text-sm text-gray-600">Asignados</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
-                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
-                            <i class="fas fa-clipboard-list text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: 41px; height: 41px; background: #E5E7EB;">
+                            <i class="fas fa-clipboard-list text-transparent" style="font-size: 20px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         </div>
-                    {% else %}
-                        <div class="w-20 h-20 mx-auto bg-cyan-100 rounded-full flex items-center justify-center mb-3 shadow-md">
-                            <i class="fas fa-clipboard-list text-cyan-600 text-2xl"></i>
-                        </div>
-                    {% endif %}
+                    
                     <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.en_relevamiento }}</p>
                     <p class="text-sm text-gray-600">Relevamiento</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
-                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
-                            <i class="fas fa-clipboard-check text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: 41px; height: 41px; background: #E5E7EB;">
+                            <i class="fas fa-clipboard-check text-transparent" style="font-size: 20px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         </div>
-                    {% else %}
-                        <div class="w-20 h-20 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-3 shadow-md">
-                            <i class="fas fa-clipboard-check text-indigo-600 text-2xl"></i>
-                        </div>
-                    {% endif %}
+                    
                     <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.evaluados }}</p>
                     <p class="text-sm text-gray-600">Evaluados</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
-                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
-                            <i class="fas fa-eye text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: 41px; height: 41px; background: #E5E7EB;">
+                            <i class="fas fa-eye text-transparent" style="font-size: 20px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         </div>
-                    {% else %}
-                        <div class="w-20 h-20 mx-auto bg-teal-100 rounded-full flex items-center justify-center mb-3 shadow-md">
-                            <i class="fas fa-eye text-teal-600 text-2xl"></i>
-                        </div>
-                    {% endif %}
+                    
                     <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.en_seguimiento }}</p>
                     <p class="text-sm text-gray-600">Seguimiento</p>
                 </div>
@@ -271,20 +231,20 @@
                     Estado de Prestaciones
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="{% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}rounded-xl p-4{% else %}bg-green-50 rounded-xl p-4 border-l-4 border-green-500{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.prestations_status.delivered_bg }}; border: 1px solid {{ branding.program_detail_nachec.prestations_status.delivered_border }}; box-shadow: {{ branding.program_detail_nachec.prestations_status.delivered_shadow }};"{% endif %}>
-                        <p class="text-3xl font-bold {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-green-700{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.delivered_text }};"{% endif %}>{{ dashboard_metricas.prestaciones_entregadas }}</p>
-                        <p class="text-sm mt-1 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-green-600{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.delivered_text }};"{% endif %}>Entregadas</p>
+                    <div class="rounded-xl p-4" style="background: #F9FAFB; border: 1px solid #A54FA9; box-shadow: -5px 0 0 0 #A54FA9;">
+                        <p class="text-3xl font-bold " style="color: #A54FA9;">{{ dashboard_metricas.prestaciones_entregadas }}</p>
+                        <p class="text-sm mt-1 " style="color: #A54FA9;">Entregadas</p>
                     </div>
-                    <div class="{% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}rounded-xl p-4{% else %}bg-blue-50 rounded-xl p-4 border-l-4 border-blue-500{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.prestations_status.scheduled_bg }}; border: 1px solid {{ branding.program_detail_nachec.prestations_status.scheduled_border }}; box-shadow: {{ branding.program_detail_nachec.prestations_status.scheduled_shadow }};"{% endif %}>
-                        <p class="text-3xl font-bold {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-blue-700{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.scheduled_text }};"{% endif %}>{{ dashboard_metricas.prestaciones_programadas }}</p>
-                        <p class="text-sm mt-1 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-blue-600{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.scheduled_text }};"{% endif %}>Programadas</p>
+                    <div class="rounded-xl p-4" style="background: #F9FAFB; border: 1px solid #A54FA9; box-shadow: -5px 0 0 0 #A54FA9;">
+                        <p class="text-3xl font-bold " style="color: #A54FA9;">{{ dashboard_metricas.prestaciones_programadas }}</p>
+                        <p class="text-sm mt-1 " style="color: #A54FA9;">Programadas</p>
                     </div>
                 </div>
-                <div class="mt-6 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}rounded-xl p-4{% else %}bg-purple-50 rounded-xl p-4{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.prestations_status.sla_bg }}; border: 1px solid {{ branding.program_detail_nachec.prestations_status.sla_border }}; box-shadow: {{ branding.program_detail_nachec.prestations_status.sla_shadow }};"{% endif %}>
+                <div class="mt-6 rounded-xl p-4" style="background: #F9FAFB; border: 1px solid #8A9A46; box-shadow: -5px 0 0 0 #8A9A46;">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm mb-1 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-purple-600{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.sla_text }};"{% endif %}>Cumplimiento SLA</p>
-                            <p class="text-3xl font-bold {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-purple-700{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.sla_text }};"{% endif %}>{{ dashboard_metricas.cumplimiento_sla }}%</p>
+                            <p class="text-sm mb-1 " style="color: #8A9A46;">Cumplimiento SLA</p>
+                            <p class="text-3xl font-bold " style="color: #8A9A46;">{{ dashboard_metricas.cumplimiento_sla }}%</p>
                         </div>
                     </div>
                 </div>
@@ -292,34 +252,28 @@
         </div>
 
         <!-- Resumen Final -->
-        <div class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}rounded-xl p-8{% else %}bg-gradient-to-r from-nodo-purple to-magenta rounded-2xl shadow-xl p-8 text-white{% endif %}" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.final_summary.card_bg }}; border: 1px solid {{ branding.program_detail_nachec.final_summary.card_border }}; box-shadow: {{ branding.program_detail_nachec.final_summary.card_shadow }};"{% endif %}>
+        <div class="rounded-xl p-8" style="background: #FFFFFF; border: 1px solid #D9D9D9; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}
-                        <i class="fas fa-home text-transparent mb-4" style="font-size: {{ branding.program_detail_nachec.final_summary.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.final_summary.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.final_summary.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow({{ branding.program_detail_nachec.final_summary.icon_shadow }});"></i>
-                    {% else %}
-                        <i class="fas fa-home text-5xl mb-4 opacity-80"></i>
-                    {% endif %}
-                    <p class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}{% else %}text-4xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.value_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.value_weight }}; color: {{ branding.program_detail_nachec.final_summary.value_color }};"{% endif %}>{{ dashboard_metricas.familias_asistidas }}</p>
-                    <p {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.label_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.label_weight }}; color: {{ branding.program_detail_nachec.final_summary.label_color }};"{% else %}class="text-purple-100"{% endif %}>Familias Asistidas</p>
+                    
+                        <i class="fas fa-home text-transparent mb-4" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 4px 8px 0 rgba(0, 0, 0, 0.1));"></i>
+                    
+                    <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.familias_asistidas }}</p>
+                    <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Familias Asistidas</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}
-                        <i class="fas fa-check-circle text-transparent mb-4" style="font-size: {{ branding.program_detail_nachec.final_summary.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.final_summary.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.final_summary.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow({{ branding.program_detail_nachec.final_summary.icon_shadow }});"></i>
-                    {% else %}
-                        <i class="fas fa-check-circle text-5xl mb-4 opacity-80"></i>
-                    {% endif %}
-                    <p class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}{% else %}text-4xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.value_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.value_weight }}; color: {{ branding.program_detail_nachec.final_summary.value_color }};"{% endif %}>{{ dashboard_metricas.casos_cerrados }}</p>
-                    <p {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.label_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.label_weight }}; color: {{ branding.program_detail_nachec.final_summary.label_color }};"{% else %}class="text-purple-100"{% endif %}>Casos Cerrados</p>
+                    
+                        <i class="fas fa-check-circle text-transparent mb-4" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 4px 8px 0 rgba(0, 0, 0, 0.1));"></i>
+                    
+                    <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.casos_cerrados }}</p>
+                    <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Casos Cerrados</p>
                 </div>
                 <div class="text-center">
-                    {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}
-                        <i class="fas fa-chart-line text-transparent mb-4" style="font-size: {{ branding.program_detail_nachec.final_summary.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.final_summary.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.final_summary.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow({{ branding.program_detail_nachec.final_summary.icon_shadow }});"></i>
-                    {% else %}
-                        <i class="fas fa-chart-line text-5xl mb-4 opacity-80"></i>
-                    {% endif %}
-                    <p class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}{% else %}text-4xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.value_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.value_weight }}; color: {{ branding.program_detail_nachec.final_summary.value_color }};"{% endif %}>{{ dashboard_metricas.cumplimiento_sla }}%</p>
-                    <p {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.label_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.label_weight }}; color: {{ branding.program_detail_nachec.final_summary.label_color }};"{% else %}class="text-purple-100"{% endif %}>Cumplimiento Global</p>
+                    
+                        <i class="fas fa-chart-line text-transparent mb-4" style="font-size: 36px; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 4px 8px 0 rgba(0, 0, 0, 0.1));"></i>
+                    
+                    <p class=" mb-2" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;">{{ dashboard_metricas.cumplimiento_sla }}%</p>
+                    <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000;">Cumplimiento Global</p>
                 </div>
             </div>
         </div>

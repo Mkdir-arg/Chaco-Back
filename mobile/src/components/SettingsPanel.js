@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import CustomButton from './CustomButton';
+import { designColors, fontSizes, radii } from '../theme';
 
 const { width } = Dimensions.get('window');
 const PANEL_WIDTH = width * 0.8;
@@ -80,20 +81,21 @@ export default function SettingsPanel({ visible, onClose, onLogout }) {
                     <View style={styles.menuContent}>
                         <View style={styles.menuItem}>
                             <View style={styles.menuLabel}>
-                                <Ionicons name={isDark ? "moon" : "sunny"} size={22} color={theme.colors.primary} />
+                                <Ionicons name={isDark ? "moon" : "sunny"} size={22} color={theme.colors.icon} />
                                 <Text style={[styles.menuText, { color: theme.colors.text, fontFamily: typography.medium }]}>Modo Oscuro</Text>
                             </View>
                             <Switch
                                 value={!!isDark}
                                 onValueChange={toggleTheme}
-                                trackColor={{ false: '#D1D5DB', true: theme.colors.primary + '80' }}
-                                thumbColor={isDark ? theme.colors.primary : '#F3F4F6'}
+                                trackColor={{ false: '#D1D5DB', true: '#4B5563' }}
+                                thumbColor={isDark ? theme.colors.secondary : theme.colors.primary}
+                                ios_backgroundColor="#D1D5DB"
                             />
                         </View>
 
                         <Pressable style={styles.menuItem}>
                             <View style={styles.menuLabel}>
-                                <Ionicons name="notifications-outline" size={22} color={theme.colors.primary} />
+                                <Ionicons name="notifications-outline" size={22} color={theme.colors.icon} />
                                 <Text style={[styles.menuText, { color: theme.colors.text, fontFamily: typography.medium }]}>Notificaciones</Text>
                             </View>
                         </Pressable>
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
         width: PANEL_WIDTH,
         padding: 24,
         paddingTop: Platform.OS === 'ios' ? 50 : 30,
-        shadowColor: '#000',
+        shadowColor: designColors.shadow,
         shadowOffset: { width: 2, height: 0 },
         shadowOpacity: 0.1,
         shadowRadius: 10,
@@ -154,26 +156,26 @@ const styles = StyleSheet.create({
     avatar: {
         width: 60,
         height: 60,
-        borderRadius: 30,
+        borderRadius: radii.full,
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
-        color: '#FFF',
-        fontSize: 20,
+        color: designColors.white,
+        fontSize: fontSizes.xl,
     },
     userInfo: {
         marginLeft: 16,
     },
     userName: {
-        fontSize: 18,
+        fontSize: fontSizes.lg,
     },
     userRole: {
-        fontSize: 14,
+        fontSize: fontSizes.sm,
     },
     divider: {
         height: 1,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: designColors.borderBase,
         marginBottom: 30,
     },
     menuContent: {
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     menuText: {
-        fontSize: 16,
+        fontSize: fontSizes.base,
         marginLeft: 12,
     },
     footer: {
