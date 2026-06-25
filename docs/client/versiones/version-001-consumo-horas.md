@@ -45,10 +45,16 @@
 | 2026-06-17 | Matías Fariña | Reunion de planificacion | Revision y asignacion de tareas | 60 min |
 | 2026-06-17 | Matías Fariña | Creacion de Estimacion y documentacion | Creacion de Estimacion y documentacion sobre al propuesta v1 Becas | 300 min |
 | 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 370 min |
+| 2026-06-24 | Juani Portilla | Becas #73 — Modelos de datos | Modelos de dominio Becas: Segmento, Subsegmento, Convocatoria, Relevamiento, Formulario, TracaFormulario, helpers y seed | 90 min |
+| 2026-06-24 | Juani Portilla | Becas #79 — Roles RBAC | Roles Admin/Coordinador/Territorial integrados al motor de capacidades con scoping por segmento | 90 min |
+| 2026-06-24 | Juani Portilla | Becas #74 — Configuración del programa | ABM segmentos/subsegmentos, cupo RN-40, asignación de coordinadores, requisitos nativos y cuestionario social | 90 min |
+| 2026-06-24 | Juani Portilla | Becas #76 — ABM Relevamientos y Convocatorias | Alta con nombre auto, reasignación de territorial, reprogramación, estados como badges y scoping por segmento | 60 min |
+| 2026-06-24 | Juani Portilla | Becas #77 — Revisión caso a caso | Edición con traza, aprobar/rechazar con motivo obligatorio, transiciones de estado y placeholder SIS | 60 min |
+| 2026-06-24 | Juani Portilla | Becas #82 — API REST app de campo | Auth por token, relevamientos asignados, definición de formulario, iniciar/finalizar/reabrir y CRUD con sync offline | 90 min |
 
 ---
 
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
-    **3616 minutos** (60 h 26 min)
+    **3616 minutos** (68 h 26 min)
