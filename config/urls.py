@@ -28,6 +28,7 @@ urlpatterns = [
     path("configuracion/", include("configuracion.urls")),
     path("conversaciones/", include("conversaciones.urls")),
     path("portal/", include("portal.urls")),
+    path("becas/", include("programas.urls")),
     
     # Root paths last
     path("", include("django.contrib.auth.urls")),
@@ -40,6 +41,7 @@ urlpatterns = [
     path("api/legajos/", include("legajos.urls.api")),
     path("api/core/", include("core.api_urls")),
     path("api/users/", include("users.api_urls")),
+    path("api/becas/", include("programas.api_urls")),
     path("api/conversaciones/", include(("conversaciones.api_urls", "conversaciones_api"), namespace="conversaciones_api")),
     
     # API Documentation

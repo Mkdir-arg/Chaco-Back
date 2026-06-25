@@ -1,0 +1,224 @@
+{
+  "info": {
+    "_postman_id": "b3ca5000-0000-4000-8000-becascampo001",
+    "name": "Chaco — API Becas (app de campo)",
+    "description": "API REST de la app de campo del Programa Becas (#82).\n\n- Prefijo: `/api/becas/`\n- Auth: token DRF (`Authorization: Token <key>`).\n- Capacidad requerida: `becas.campo`.\n- El territorial solo ve y gestiona SUS relevamientos y formularios.\n- Paginación: `PageNumberPagination`, `PAGE_SIZE=10` (respuestas con `count`, `next`, `previous`, `results`; navegá con `?page=N`).\n\nCorré primero **Auth → Obtener token**: guarda `token` en el entorno y el resto de los requests lo usan vía la auth de la colección.\n\nFuente de verdad: `programas/api/views.py`, `programas/api/serializers.py`, `programas/api_urls.py`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "Authorization", "type": "string" },
+      { "key": "value", "value": "Token {{token}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Obtener token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json();",
+                  "if (data.token) {",
+                  "    pm.environment.set('token', data.token);",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "    console.log('Token guardado:', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/becas/auth/token/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "auth", "token", ""]
+            },
+            "description": "Login de la app de campo. Valida credenciales y exige la capacidad `becas.campo`.\n\nRespuesta 200: `{ \"token\", \"user_id\", \"username\" }`.\nRespuesta 403 si el usuario no tiene `becas.campo`.\n\nEl test script guarda `token` en el entorno automáticamente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Relevamientos",
+      "item": [
+        {
+          "name": "Listar relevamientos asignados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", ""],
+              "query": [
+                { "key": "page", "value": "1", "description": "Página (paginación, opcional)." }
+              ]
+            },
+            "description": "Relevamientos del territorial autenticado, ordenados por `fecha_asignada` desc. Respuesta paginada (`count`, `next`, `previous`, `results`)."
+          }
+        },
+        {
+          "name": "Detalle de relevamiento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/{{relevamiento_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", "{{relevamiento_id}}", ""]
+            },
+            "description": "Detalle del relevamiento + `definicion_formulario` (preguntas globales y requisitos del segmento/subsegmento que la app debe renderizar para cargar cada persona)."
+          }
+        },
+        {
+          "name": "Iniciar relevamiento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/{{relevamiento_id}}/iniciar/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", "{{relevamiento_id}}", "iniciar", ""]
+            },
+            "description": "Transición ASIGNADO → EN_CURSO. 400 si el relevamiento no está ASIGNADO."
+          }
+        },
+        {
+          "name": "Finalizar relevamiento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/{{relevamiento_id}}/finalizar/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", "{{relevamiento_id}}", "finalizar", ""]
+            },
+            "description": "Transición EN_CURSO (o FINALIZANDO) → FINALIZADO; setea `fecha_finalizado`. 400 si no está en curso."
+          }
+        },
+        {
+          "name": "Reabrir relevamiento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/{{relevamiento_id}}/reabrir/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", "{{relevamiento_id}}", "reabrir", ""]
+            },
+            "description": "Transición FINALIZADO → EN_CURSO; limpia `fecha_finalizado`. 400 si no está FINALIZADO."
+          }
+        },
+        {
+          "name": "Listar formularios del relevamiento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/{{relevamiento_id}}/formularios/?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", "{{relevamiento_id}}", "formularios", ""],
+              "query": [
+                { "key": "page", "value": "1", "description": "Página (paginación, opcional)." }
+              ]
+            },
+            "description": "Formularios cargados en el relevamiento, orden por `creado` desc. Respuesta paginada."
+          }
+        },
+        {
+          "name": "Crear formulario (sync de carga offline)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
+                  "var data = pm.response.json();",
+                  "if (data.id) { pm.environment.set('formulario_id', data.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"celular\": \"3624000000\",\n  \"email_contacto\": \"persona@example.com\",\n  \"datos_identificacion\": {\n    \"dni\": \"40123456\",\n    \"nombre\": \"Juan\",\n    \"apellido\": \"Pérez\",\n    \"fecha_nacimiento\": \"2000-05-10\",\n    \"origen\": \"offline\"\n  },\n  \"apoderado_nombre\": \"\",\n  \"apoderado_apellido\": \"\",\n  \"apoderado_fecha_nacimiento\": null,\n  \"gps_lat\": -27.451000,\n  \"gps_lng\": -58.986000,\n  \"data\": {\n    \"globales\": { \"1\": \"Sí\" },\n    \"requisitos\": { \"5\": \"Secundario completo\" }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/becas/relevamientos/{{relevamiento_id}}/formularios/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "relevamientos", "{{relevamiento_id}}", "formularios", ""]
+            },
+            "description": "Crea un formulario en el relevamiento (sync desde la app de campo).\n\nObligatorio: `celular`, `email_contacto` y `datos_identificacion` con al menos `dni` (la persona debe poder identificarse). El backend intenta resolver el `ciudadano` a partir del DNI (`resolver_ciudadano_offline`).\n\n`data` lleva las respuestas dinámicas: `{ \"globales\": {preguntaId: valor}, \"requisitos\": {requisitoId: valor} }` (los IDs salen de `definicion_formulario` del detalle del relevamiento).\n\nEl test script guarda el `id` creado en `formulario_id`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Formularios",
+      "item": [
+        {
+          "name": "Ver formulario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/becas/formularios/{{formulario_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "formularios", "{{formulario_id}}", ""]
+            },
+            "description": "Detalle de un formulario propio (de un relevamiento del territorial autenticado)."
+          }
+        },
+        {
+          "name": "Actualizar formulario (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"celular\": \"3624999999\",\n  \"email_contacto\": \"nuevo@example.com\",\n  \"data\": {\n    \"globales\": { \"1\": \"No\" },\n    \"requisitos\": { \"5\": \"Universitario\" }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/becas/formularios/{{formulario_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "becas", "formularios", "{{formulario_id}}", ""]
+            },
+            "description": "Actualiza campos editables del formulario: `celular`, `email_contacto`, `apoderado_*`, `gps_*`, `data`, `datos_identificacion`.\n\nSon de solo lectura (no se pueden cambiar por la API): `estado`, `relevamiento`, `ciudadano`, `motivo_rechazo`, `validado_renaper`. Tras guardar se reintenta `resolver_ciudadano_offline`."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "token", "value": "", "type": "string" }
+  ]
+}

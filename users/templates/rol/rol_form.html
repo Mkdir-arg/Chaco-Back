@@ -156,7 +156,13 @@
 
         function aplicarCategoria() {
             var esPrograma = catSelect.value === 'Programa';
-            if (campoPrograma) campoPrograma.classList.toggle('hidden', !esPrograma);
+            if (campoPrograma) {
+                campoPrograma.classList.toggle('hidden', !esPrograma);
+                if (!esPrograma) {
+                    var programaSelect = campoPrograma.querySelector('select');
+                    if (programaSelect) programaSelect.value = '';
+                }
+            }
             document.querySelectorAll('.border[data-alcance]').forEach(function (panel) {
                 var dePrograma = panel.getAttribute('data-alcance') === 'programa';
                 panel.classList.toggle('hidden', esPrograma && !dePrograma);

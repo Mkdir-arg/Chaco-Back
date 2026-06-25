@@ -1,0 +1,29 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Requisito{% endblock %}
+
+{% block main-content %}
+<div class="max-w-xl mx-auto">
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    {% if subsegmento %}
+      <a href="{% url 'becas:subsegmento_detalle' subsegmento.pk %}" class="hover:underline">{{ subsegmento.nombre }}</a>
+    {% else %}
+      <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="hover:underline">{{ segmento.nombre }}</a>
+    {% endif %}
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Nuevo requisito</span>
+  </nav>
+  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">Nuevo requisito nativo</h1>
+  <form method="post" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
+    {% csrf_token %}
+    {% if subsegmento %}<input type="hidden" name="subsegmento" value="{{ subsegmento.pk }}">{% endif %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[#F3F4F6]">
+      <a href="{% if subsegmento %}{% url 'becas:subsegmento_detalle' subsegmento.pk %}{% else %}{% url 'becas:segmento_detalle' segmento.pk %}{% endif %}"
+         class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

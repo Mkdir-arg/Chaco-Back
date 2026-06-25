@@ -1,4 +1,5 @@
-/* NODO Design System - Buttons */
+/* NODO Design System - Buttons
+   Updated to CHACO design system: pill border-radius, brand gradient, brand tertiary */
 
 /* Base Button Styles */
 .btn-nodo {
@@ -6,12 +7,13 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-family: 'Inter', sans-serif;
-    font-weight: 500;
-    border-radius: 12px;
-    transition: all 0.2s ease;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    border-radius: 9999px;
+    transition: all 0.15s ease;
     cursor: pointer;
     text-decoration: none;
+    border: none;
 }
 
 .btn-nodo:hover {
@@ -59,36 +61,52 @@
     font-size: 16px;
 }
 
-/* Brand Button (Primary) */
+/* Brand Button (Primary) — Jacarandá gradient, pill */
 .btn-brand {
-    background: var(--login-button-gradient);
-    color: white !important;
+    background: var(--gradient-brand, linear-gradient(45deg, #5059bc 0%, #f98dff 100%));
+    color: #ffffff !important;
     border: none;
 }
 
 .btn-brand,
 .btn-brand i,
 .btn-brand span {
-    color: #FFFFFF !important;
+    color: #ffffff !important;
 }
 
 .btn-brand:hover {
-    background-image: linear-gradient(var(--login-button-hover-overlay), var(--login-button-hover-overlay)), var(--login-button-gradient);
-    color: white !important;
+    filter: brightness(0.90);
+    color: #ffffff !important;
+    text-decoration: none;
 }
 
 .btn-brand:focus {
-    background: var(--login-button-gradient);
-    border: 2px solid var(--login-button-focus-border);
-    box-shadow: var(--login-button-focus-shadow);
-    color: white !important;
+    outline: 2px solid #5059bc;
+    outline-offset: 2px;
+    color: #ffffff !important;
 }
 
 .btn-brand:disabled {
-    background: var(--login-button-disabled-bg);
-    border: 1px solid var(--login-button-disabled-border);
-    color: var(--login-button-disabled-text) !important;
+    background: var(--bg-disabled, #f3f4f6) !important;
+    filter: none;
+    color: var(--text-fg-disabled, #9ca3af) !important;
+    cursor: not-allowed;
 }
+
+/* Danger Button */
+.btn-danger {
+    background: var(--bg-danger, #c70036);
+    color: #ffffff !important;
+    border: none;
+}
+
+.btn-danger:hover {
+    filter: brightness(0.90);
+    color: #ffffff !important;
+    text-decoration: none;
+}
+
+.btn-danger i, .btn-danger span { color: #ffffff !important; }
 
 /* Secondary Button */
 .btn-secondary {
@@ -116,31 +134,34 @@
     color: #99A1AF;
 }
 
-/* Tertiary Button */
+/* Tertiary Button — outlined brand */
 .btn-tertiary {
-    background: var(--button-tertiary-bg, #FFFFFF);
-    color: var(--button-tertiary-text, #FF0080);
-    border: 1px solid var(--button-tertiary-border, #FF0080);
+    background: #ffffff;
+    color: var(--text-fg-brand, #5059bc) !important;
+    border: 1px solid var(--border-brand, #5059bc);
 }
 
 .btn-tertiary:hover {
-    background: var(--button-tertiary-hover-bg, rgba(255, 0, 128, 0.1));
-    color: var(--button-tertiary-hover-text, #D4006A);
-    border: 1px solid var(--button-tertiary-hover-border, #D4006A);
+    background: var(--bg-brand-tint, #dee1ff);
+    color: var(--text-fg-brand, #5059bc) !important;
+    border: 1px solid var(--border-brand, #5059bc);
+    text-decoration: none;
 }
 
 .btn-tertiary:focus {
-    background: var(--button-tertiary-focus-bg, rgba(212, 0, 106, 0.1));
-    color: var(--button-tertiary-focus-text, #D4006A);
-    border: 1px solid var(--button-tertiary-focus-border, #D4006A);
-    box-shadow: 0 1px 0 2px var(--button-tertiary-focus-shadow, #F3F4F6);
+    outline: 2px solid var(--border-brand, #5059bc);
+    outline-offset: 2px;
 }
 
 .btn-tertiary:disabled {
-    background: var(--button-tertiary-disabled-bg, rgba(199, 160, 180, 0.2));
-    border: 1px solid var(--button-tertiary-disabled-border, #C7A0B4);
-    color: var(--button-tertiary-disabled-text, #D4006A);
+    background: #f0f2ff;
+    border: 1px solid var(--border-brand-subtle, #ddd6fe);
+    color: var(--text-fg-brand, #5059bc) !important;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
+
+.btn-tertiary i, .btn-tertiary span { color: var(--text-fg-brand, #5059bc) !important; }
 
 @media (max-width: 640px) {
     .btn-nodo {

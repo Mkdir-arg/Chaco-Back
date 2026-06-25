@@ -1,0 +1,47 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · {% if form.instance.pk %}Editar{% else %}Nueva{% endif %} pregunta{% endblock %}
+
+{% block main-content %}
+<div class="max-w-2xl mx-auto">
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <a href="{% url 'becas:preguntas' %}" class="hover:underline">Cuestionario social</a>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} pregunta</span>
+  </nav>
+  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
+    {% if form.instance.pk %}Editar pregunta{% else %}Nueva pregunta{% endif %}
+  </h1>
+  <form method="post" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[#F3F4F6]">
+      <a href="{% url 'becas:preguntas' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script>
+(function () {
+  var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
+  var tipoSelect = document.getElementById('id_tipo');
+  var opcionesField = document.getElementById('id_opciones_texto');
+  if (!tipoSelect || !opcionesField) return;
+  var opcionesWrapper = opcionesField.closest('.mb-4');
+  if (!opcionesWrapper) return;
+
+  function toggle() {
+    opcionesWrapper.style.display = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1 ? '' : 'none';
+  }
+  toggle();
+  tipoSelect.addEventListener('change', toggle);
+})();
+</script>
+{% endblock %}
