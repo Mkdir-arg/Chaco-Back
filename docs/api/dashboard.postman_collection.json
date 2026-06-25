@@ -1,0 +1,163 @@
+{
+  "info": {
+    "name": "Chaco — Dashboard",
+    "description": "Panel de control del backoffice. Vista principal y APIs JSON para métricas, búsqueda, alertas, actividad reciente y tendencias.\n\nTodos los endpoints requieren sesión activa (cookie 'sessionid') e IsAuthenticated.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Vista principal",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/dashboard/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["dashboard", ""]
+        },
+        "description": "Renderiza el dashboard HTML principal del backoffice."
+      },
+      "response": []
+    },
+    {
+      "name": "API — Métricas generales",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/metricas/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "metricas", ""]
+        },
+        "description": "Retorna JSON con métricas del sistema: totales de legajos, estados, usuarios conectados."
+      },
+      "response": []
+    },
+    {
+      "name": "API — Buscar ciudadanos",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/buscar-ciudadanos/?q=garcia",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "buscar-ciudadanos", ""],
+          "query": [
+            { "key": "q", "value": "garcia", "description": "Texto de búsqueda (mínimo 3 caracteres). Busca por nombre, apellido o DNI." }
+          ]
+        },
+        "description": "Búsqueda rápida de ciudadanos. Retorna: {results: [{id, nombre, dni}]}."
+      },
+      "response": []
+    },
+    {
+      "name": "API — Alertas críticas",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/alertas-criticas/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "alertas-criticas", ""]
+        },
+        "description": "Retorna JSON con alertas críticas activas: {results: [{id, ciudadano_id, ciudadano, tipo, prioridad, fecha, mensaje}]}."
+      },
+      "response": []
+    },
+    {
+      "name": "API — Actividad reciente",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/actividad-reciente/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "actividad-reciente", ""]
+        },
+        "description": "Retorna JSON con actividad reciente del sistema: {results: [{descripcion, usuario, tiempo, tipo, icono}]}."
+      },
+      "response": []
+    },
+    {
+      "name": "API — Tendencias (30 días)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/tendencias/?periodo=30d",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "tendencias", ""],
+          "query": [
+            { "key": "periodo", "value": "30d", "description": "Período: 7d, 30d, 90d (default: 30d)" }
+          ]
+        },
+        "description": "Retorna JSON con datos de tendencias para gráficos: {labels: [], datos: []}."
+      },
+      "response": []
+    },
+    {
+      "name": "API — Tendencias (7 días)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/tendencias/?periodo=7d",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "tendencias", ""],
+          "query": [
+            { "key": "periodo", "value": "7d" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API — Tendencias (90 días)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "sessionid=<session-id>" }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/tendencias/?periodo=90d",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "tendencias", ""],
+          "query": [
+            { "key": "periodo", "value": "90d" }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

@@ -1,0 +1,592 @@
+{
+  "info": {
+    "name": "Chaco — Portal Ciudadano",
+    "description": "Portal público para ciudadanos. Incluye:\n- Autenticación propia del ciudadano (distinta al backoffice)\n- Registro en 2 pasos\n- Mi perfil: programas, consultas, datos personales\n- Gestión de contraseña y email\n- Reset de contraseña por email\n\nLa autenticación del portal es **independiente** del backoffice. El ciudadano se autentica con DNI + contraseña, no con usuario/contraseña de operador.\n\nLa cookie 'sessionid' del portal es la misma sesión Django pero con el usuario ciudadano (no operador).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Inicio del portal",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/portal/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["portal", ""]
+        },
+        "description": "Página de inicio pública del portal ciudadano."
+      },
+      "response": []
+    },
+    {
+      "name": "Autenticación ciudadano",
+      "item": [
+        {
+          "name": "Formulario de login (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/login/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "login", ""]
+            },
+            "description": "Carga el formulario de login del ciudadano. También setea la cookie CSRF necesaria para el POST."
+          },
+          "response": []
+        },
+        {
+          "name": "Login ciudadano (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "username", "value": "28901234", "description": "DNI del ciudadano" },
+                { "key": "password", "value": "mi-contraseña-segura" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/login/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "login", ""]
+            },
+            "description": "Autentica al ciudadano. En caso de éxito redirige a 'mi-perfil' y setea cookie 'sessionid'."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/logout/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "logout", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Registro de ciudadano (2 pasos)",
+      "description": "Flujo de registro en 2 pasos. Paso 1 verifica DNI/sexo en RENAPER. Paso 2 completa datos de cuenta.",
+      "item": [
+        {
+          "name": "Registro Paso 1 — Formulario (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/registro/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "registro", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Registro Paso 1 — Verificar DNI (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "dni", "value": "28901234", "description": "DNI del ciudadano (max 10 caracteres)" },
+                { "key": "genero", "value": "M", "description": "M | F | X" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/registro/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "registro", ""]
+            },
+            "description": "Verifica el DNI contra RENAPER y habilita el paso 2. Si el ciudadano ya existe en el sistema carga sus datos."
+          },
+          "response": []
+        },
+        {
+          "name": "Registro Paso 2 — Formulario (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/registro/verificar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "registro", "verificar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Registro Paso 2 — Completar cuenta (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "email", "value": "ciudadano@gmail.com", "description": "Email del ciudadano (requerido)" },
+                { "key": "telefono", "value": "3624123456", "description": "Teléfono (opcional, max 20 caracteres)" },
+                { "key": "password1", "value": "Contraseña1234!", "description": "Contraseña (mínimo 8 caracteres)" },
+                { "key": "password2", "value": "Contraseña1234!", "description": "Confirmación de contraseña" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/registro/verificar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "registro", "verificar", ""]
+            },
+            "description": "Completa el registro creando las credenciales de acceso al portal."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mi perfil",
+      "description": "Área privada del ciudadano autenticado en el portal.",
+      "item": [
+        {
+          "name": "Mi perfil (inicio)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mis programas",
+      "item": [
+        {
+          "name": "Listar mis programas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/programas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "programas", ""]
+            },
+            "description": "Lista los programas sociales a los que el ciudadano está inscripto."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de programa",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/programas/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "programas", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mis consultas",
+      "item": [
+        {
+          "name": "Listar mis consultas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/consultas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "consultas", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario nueva consulta (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/consultas/nueva/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "consultas", "nueva", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear nueva consulta (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "motivo", "value": "Necesito información sobre los requisitos para acceder al programa de asistencia alimentaria y cuáles son los pasos a seguir.", "description": "Texto del motivo (mínimo 10, máximo 2000 caracteres)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/consultas/nueva/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "consultas", "nueva", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de consulta",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/consultas/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "consultas", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enviar mensaje en consulta",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "texto", "value": "Muchas gracias por la información. Tengo una duda adicional sobre los documentos necesarios.", "description": "Texto del mensaje (máximo 2000 caracteres)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/consultas/1/enviar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "consultas", "1", "enviar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mis datos personales",
+      "item": [
+        {
+          "name": "Ver mis datos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/mis-datos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "mis-datos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario cambio de email (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/mis-datos/cambio-email/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "mis-datos", "cambio-email", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar email (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nuevo_email", "value": "nuevo.email@gmail.com" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/mis-datos/cambio-email/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "mis-datos", "cambio-email", ""]
+            },
+            "description": "Inicia el proceso de cambio de email. Envía un link de confirmación al nuevo email."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirmar cambio de email (link)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/mis-datos/confirmar-email/00000000-0000-0000-0000-000000000001/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "mis-datos", "confirmar-email", "00000000-0000-0000-0000-000000000001", ""]
+            },
+            "description": "Token UUID enviado al nuevo email. Confirma el cambio de dirección de email."
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario cambio de contraseña (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/mis-datos/cambio-password/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "mis-datos", "cambio-password", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar contraseña (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id-ciudadano>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "old_password", "value": "ContraseñaActual1234!" },
+                { "key": "new_password1", "value": "NuevaContraseña1234!", "description": "Mínimo 8 caracteres" },
+                { "key": "new_password2", "value": "NuevaContraseña1234!" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/mis-datos/cambio-password/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "mis-datos", "cambio-password", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reset de contraseña (sin sesión)",
+      "description": "Flujo completo de recuperación de contraseña por email. No requiere sesión activa.",
+      "item": [
+        {
+          "name": "Formulario solicitar reset (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/password/reset/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "password", "reset", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Solicitar reset de contraseña (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "email", "value": "ciudadano@gmail.com", "description": "Email registrado del ciudadano" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/password/reset/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "password", "reset", ""]
+            },
+            "description": "Envía un email con link para resetear la contraseña."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirmación de envío",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/password/reset/enviado/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "password", "reset", "enviado", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirmar reset (link del email)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/password/reset/MQ/abc123-token-del-email/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "password", "reset", "MQ", "abc123-token-del-email", ""]
+            },
+            "description": "uidb64 y token son generados por Django y enviados en el email de reset."
+          },
+          "response": []
+        },
+        {
+          "name": "Establecer nueva contraseña (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "new_password1", "value": "NuevaContraseña1234!" },
+                { "key": "new_password2", "value": "NuevaContraseña1234!" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/password/reset/MQ/abc123-token-del-email/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "password", "reset", "MQ", "abc123-token-del-email", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset completado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/portal/mi-perfil/password/reset/completado/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["portal", "mi-perfil", "password", "reset", "completado", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

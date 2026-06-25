@@ -1,0 +1,494 @@
+{
+  "info": {
+    "name": "Chaco — Conversaciones",
+    "description": "Sistema de chat entre ciudadanos y operadores del backoffice.\n\nDos superficies:\n1. **Chat público** (sin autenticación): endpoints para que el ciudadano consulte RENAPER, inicie la conversación, envíe y reciba mensajes.\n2. **Backoffice** (requiere sesión y capacidad): vistas HTML para gestión de conversaciones, asignación a operadores, respuesta, cierre y evaluación.\n3. **API JSON** (requiere sesión): métricas, estadísticas en tiempo real y alertas de conversaciones.\n\nNotas:\n- Los endpoints del chat ciudadano son públicos y reciben JSON.\n- Los endpoints de backoffice usan formularios HTML con CSRF.\n- Los endpoints API JSON usan sesión + X-CSRFToken para escrituras.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Chat ciudadano (público)",
+      "description": "Endpoints públicos para el flujo de chat del ciudadano. No requieren autenticación.",
+      "item": [
+        {
+          "name": "Pantalla de chat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/chat/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "chat", ""]
+            },
+            "description": "Carga la interfaz HTML del chat para el ciudadano."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar RENAPER",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dni\": \"28901234\",\n  \"sexo\": \"M\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/consultar-renaper/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "consultar-renaper", ""]
+            },
+            "description": "Verifica identidad del ciudadano contra RENAPER.\nRetorna: {success: bool, datos: {nombre, apellido, fecha_nacimiento, domicilio}}\nSexo: M | F | X"
+          },
+          "response": []
+        },
+        {
+          "name": "Iniciar conversación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"CONSULTA\",\n  \"dni\": \"28901234\",\n  \"sexo\": \"M\",\n  \"datos_renaper\": {\n    \"nombre\": \"Juan\",\n    \"apellido\": \"Pérez\",\n    \"fecha_nacimiento\": \"1985-03-15\"\n  },\n  \"prioridad\": \"NORMAL\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/iniciar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "iniciar", ""]
+            },
+            "description": "Crea una nueva conversación para el ciudadano.\nRetorna: {success: bool, conversacion_id: int}\nTipos posibles: CONSULTA, RECLAMO, etc. (ver Conversacion.TIPO_CHOICES)\nPrioridades: NORMAL, ALTA, URGENTE (ver Conversacion.PRIORIDAD_CHOICES)"
+          },
+          "response": []
+        },
+        {
+          "name": "Enviar mensaje (ciudadano)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mensaje\": \"Necesito información sobre el programa de asistencia alimentaria\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/enviar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "enviar", ""]
+            },
+            "description": "Envía un mensaje del ciudadano a la conversación indicada.\nRetorna: {success: bool, mensaje: {id, contenido, fecha}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener mensajes (ciudadano)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/mensajes/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "mensajes", ""]
+            },
+            "description": "Polling de mensajes de la conversación para el ciudadano.\nRetorna: {mensajes: [{id, remitente, contenido, fecha}]}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Backoffice — Gestión de conversaciones",
+      "description": "Vistas del backoffice para operadores. Requieren sesión y capacidad de acceso a conversaciones.",
+      "item": [
+        {
+          "name": "Listar conversaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de conversación",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Asignar conversación a operador",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "operador_id", "value": "5", "description": "ID del operador al que se asigna (opcional: si vacío puede auto-asignar)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/asignar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "asignar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reasignar conversación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "operador_id", "value": "7", "description": "ID del nuevo operador" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/reasignar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "reasignar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Responder (operador envía mensaje)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "mensaje", "value": "Buenos días. Le informamos que puede acceder al programa desde el portal ciudadano." }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/responder/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "responder", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cerrar conversación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/cerrar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "cerrar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Evaluar conversación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "satisfaccion", "value": "4", "description": "Entero de 1 a 5 (1=muy insatisfecho, 5=muy satisfecho)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/1/evaluar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "1", "evaluar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Métricas de conversaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/metricas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "metricas", ""]
+            },
+            "description": "Vista HTML con métricas de conversaciones."
+          },
+          "response": []
+        },
+        {
+          "name": "Configurar cola de atención",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "operador_id", "value": "5" },
+                { "key": "max_conversaciones", "value": "10", "description": "Entero >= 1, opcional" },
+                { "key": "activo", "value": "on", "description": "Checkbox: 'on' para activar" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/configurar-cola/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "configurar-cola", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Configurar asignación automática",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/asignacion-automatica/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "asignacion-automatica", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API JSON — Backoffice",
+      "description": "Endpoints JSON para el backoffice (métricas en tiempo real, estadísticas, detalle). Requieren sesión activa.",
+      "item": [
+        {
+          "name": "Métricas en tiempo real",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/api/metricas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "api", "metricas", ""]
+            },
+            "description": "Retorna métricas actuales del sistema de conversaciones en formato JSON."
+          },
+          "response": []
+        },
+        {
+          "name": "Estadísticas en tiempo real",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/api/estadisticas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "api", "estadisticas", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de conversación (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/conversaciones/api/conversacion/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["conversaciones", "api", "conversacion", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Alertas de conversaciones",
+      "description": "Endpoints DRF para gestión de alertas de nuevos mensajes. Base: /api/conversaciones/",
+      "item": [
+        {
+          "name": "Conteo de alertas no leídas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/conversaciones/alertas/count/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "conversaciones", "alertas", "count", ""]
+            },
+            "description": "Retorna el conteo de mensajes no leídos de conversaciones asignadas al usuario."
+          },
+          "response": []
+        },
+        {
+          "name": "Preview de alertas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/conversaciones/alertas/preview/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "conversaciones", "alertas", "preview", ""]
+            },
+            "description": "Retorna preview de conversaciones con mensajes no leídos (para dropdown de notificaciones)."
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar mensajes como leídos",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/conversaciones/alertas/marcar-leidos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "conversaciones", "alertas", "marcar-leidos", "1", ""]
+            },
+            "description": "Marca todos los mensajes de la conversación indicada como leídos por el operador."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de conversación vía API REST",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/conversaciones/conversacion/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "conversaciones", "conversacion", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

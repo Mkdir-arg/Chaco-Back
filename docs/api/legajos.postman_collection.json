@@ -1,0 +1,1741 @@
+{
+  "info": {
+    "name": "Chaco — Legajos",
+    "description": "Gestión de legajos y ciudadanos. El módulo más completo del sistema. Incluye:\n\n1. **Ciudadanos**: búsqueda, CRUD, consulta RENAPER, alta manual/confirmada\n2. **Programas**: derivación de ciudadanos a programas sociales\n3. **Archivos**: subida y gestión de archivos por legajo/ciudadano\n4. **Alertas**: alertas por ciudadano, dashboard de alertas\n5. **Timeline y predicción**: historial de actividades y predicción de riesgo\n6. **NACHEC**: workflow completo de casos (validación, relevamiento, evaluación, seguimiento)\n7. **API REST DRF**: ciudadanos, alertas, historial de contactos, vínculos familiares\n\nAutenticación: sesión Django activa (cookie 'sessionid'). Control de acceso: CapacidadRequeridaMixin con capacidades como 'ciudadano.ver', 'ciudadano.crear', 'ciudadano.editar'.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Ciudadanos — Backoffice",
+      "item": [
+        {
+          "name": "Listar ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar ciudadanos (AJAX)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/buscar/?q=garcia",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "buscar", ""],
+              "query": [
+                { "key": "q", "value": "garcia", "description": "Texto de búsqueda (mínimo 2 caracteres). Busca por nombre, apellido o DNI." }
+              ]
+            },
+            "description": "Retorna JSON con resultados. Usado en autocompletados."
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario nuevo ciudadano (paso 1 RENAPER)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/nuevo/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "nuevo", ""]
+            },
+            "description": "Primer paso del alta de ciudadano: formulario de consulta RENAPER."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar RENAPER para nuevo ciudadano (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "dni", "value": "28901234", "description": "DNI (max 8 caracteres)" },
+                { "key": "sexo", "value": "M", "description": "M | F | X" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/nuevo/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "nuevo", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario confirmar ciudadano (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/confirmar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "confirmar", ""]
+            },
+            "description": "Formulario pre-poblado con datos de RENAPER para que el operador confirme y complete."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirmar y crear ciudadano (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "dni", "value": "28901234" },
+                { "key": "nombre", "value": "Juan" },
+                { "key": "apellido", "value": "Pérez" },
+                { "key": "fecha_nacimiento", "value": "1985-03-15" },
+                { "key": "genero", "value": "M" },
+                { "key": "telefono", "value": "3624123456" },
+                { "key": "email", "value": "juan.perez@gmail.com" },
+                { "key": "domicilio", "value": "Av. Las Heras 1234" },
+                { "key": "provincia", "value": "1" },
+                { "key": "municipio", "value": "1" },
+                { "key": "localidad", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/confirmar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "confirmar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Alta manual de ciudadano (sin RENAPER)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "dni", "value": "28901234" },
+                { "key": "nombre", "value": "María" },
+                { "key": "apellido", "value": "González" },
+                { "key": "fecha_nacimiento", "value": "1990-07-22" },
+                { "key": "genero", "value": "F" },
+                { "key": "telefono", "value": "3624654321" },
+                { "key": "email", "value": "maria.gonzalez@gmail.com" },
+                { "key": "domicilio", "value": "Sarmiento 456, B° Belgrano" },
+                { "key": "provincia", "value": "1" },
+                { "key": "municipio", "value": "1" },
+                { "key": "localidad", "value": "1" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/manual/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "manual", ""]
+            },
+            "description": "Alta manual sin consulta previa a RENAPER. El DNI es editable."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario editar ciudadano (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "editar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar ciudadano (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nombre", "value": "Juan Carlos" },
+                { "key": "apellido", "value": "Pérez" },
+                { "key": "fecha_nacimiento", "value": "1985-03-15" },
+                { "key": "genero", "value": "M" },
+                { "key": "telefono", "value": "3624999000" },
+                { "key": "email", "value": "juancarlos.perez@gmail.com" },
+                { "key": "domicilio", "value": "Av. Las Heras 1234, Dpto 2A" },
+                { "key": "provincia", "value": "1" },
+                { "key": "municipio", "value": "1" },
+                { "key": "localidad", "value": "1" },
+                { "key": "tipo_vivienda", "value": "CASA", "description": "Tipo de vivienda (opcional)" },
+                { "key": "situacion_laboral", "value": "INFORMAL", "description": "Situación laboral (opcional)" },
+                { "key": "nivel_educativo", "value": "PRIMARIO_COMPLETO", "description": "Nivel educativo (opcional)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/editar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "editar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Programas — Derivaciones",
+      "item": [
+        {
+          "name": "Listar programas disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/programas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "programas", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Detalle de programa",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/programas/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "programas", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario derivar ciudadano a programa (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/derivar-programa/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "derivar-programa", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Derivar ciudadano a programa (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "programa", "value": "1", "description": "ID del programa" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/derivar-programa/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "derivar-programa", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Aceptar derivación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/derivaciones-ciudadano/1/aceptar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "derivaciones-ciudadano", "1", "aceptar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar derivación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/derivaciones-ciudadano/1/rechazar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "derivaciones-ciudadano", "1", "rechazar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Archivos",
+      "description": "Subida y consulta de archivos adjuntos por legajo o ciudadano.",
+      "item": [
+        {
+          "name": "Subir archivo a legajo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "archivo", "type": "file", "description": "Archivo a subir (PDF, imagen, etc.)" },
+                { "key": "descripcion", "value": "Certificado médico", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/00000000-0000-0000-0000-000000000001/subir-archivos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "00000000-0000-0000-0000-000000000001", "subir-archivos", ""]
+            },
+            "description": "Sube uno o más archivos al legajo. La URL usa el UUID del legajo."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar archivos de legajo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/00000000-0000-0000-0000-000000000001/archivos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "00000000-0000-0000-0000-000000000001", "archivos", ""]
+            },
+            "description": "Retorna JSON con lista de archivos del legajo."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar archivos de ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/archivos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "archivos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Subir archivo a ciudadano",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "archivo", "type": "file" },
+                { "key": "descripcion", "value": "DNI escaneado", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/subir-archivos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "subir-archivos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar archivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/archivos/1/eliminar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "archivos", "1", "eliminar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alertas de ciudadanos",
+      "item": [
+        {
+          "name": "Dashboard de alertas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/alertas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "alertas", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Alertas de un ciudadano (AJAX)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/alertas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "alertas", ""]
+            },
+            "description": "Retorna JSON con alertas activas del ciudadano."
+          },
+          "response": []
+        },
+        {
+          "name": "Cerrar alerta (AJAX)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/alertas/1/cerrar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "alertas", "1", "cerrar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cerrar alerta (AJAX alternativo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/alertas/1/cerrar-ajax/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "alertas", "1", "cerrar-ajax", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Conteo de alertas (navbar)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/alertas/count/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "alertas", "count", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Preview de alertas (navbar dropdown)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/alertas/preview/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "alertas", "preview", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Timeline y análisis",
+      "item": [
+        {
+          "name": "Actividades de ciudadano (AJAX)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/actividades/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "actividades", ""]
+            },
+            "description": "Retorna JSON con actividades del ciudadano para el timeline."
+          },
+          "response": []
+        },
+        {
+          "name": "Timeline de ciudadano por legajo (AJAX)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/timeline/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "timeline", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Predicción de riesgo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/ciudadanos/1/prediccion-riesgo/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "ciudadanos", "1", "prediccion-riesgo", ""]
+            },
+            "description": "Retorna JSON con predicción de nivel de riesgo del ciudadano."
+          },
+          "response": []
+        },
+        {
+          "name": "Evolución del legajo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/00000000-0000-0000-0000-000000000001/evolucion/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "00000000-0000-0000-0000-000000000001", "evolucion", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Historial de contactos del legajo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/00000000-0000-0000-0000-000000000001/historial-contactos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "00000000-0000-0000-0000-000000000001", "historial-contactos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Red de contactos del legajo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/00000000-0000-0000-0000-000000000001/red-contactos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "00000000-0000-0000-0000-000000000001", "red-contactos", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reportes",
+      "item": [
+        {
+          "name": "Vista de reportes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/reportes/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "reportes", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exportar reportes CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/reportes/exportar-csv/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "reportes", "exportar-csv", ""]
+            },
+            "description": "Descarga un archivo CSV con los datos del reporte. El header Content-Disposition fuerza la descarga."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "NACHEC — Gestión de casos",
+      "description": "Workflow del programa NACHEC. Flujo: Dashboard → Completar tarea → Validación → Asignación territorial → Relevamiento → Evaluación → Plan/Seguimiento → Cierre.",
+      "item": [
+        {
+          "name": "Dashboard NACHEC",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/dashboard/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "dashboard", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Completar tarea",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/tarea/1/completar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "tarea", "1", "completar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ver tarea de validación",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/tarea-validacion/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "tarea-validacion", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Completar validación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/completar-validacion/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "completar-validacion", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enviar a asignación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/enviar-asignacion/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "enviar-asignacion", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario asignar territorial (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/asignar-territorial/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "asignar-territorial", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Asignar territorial (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "territorial_id", "value": "3", "description": "ID del agente territorial asignado" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/asignar-territorial/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "asignar-territorial", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reasignar territorial",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "territorial_id", "value": "5" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/reasignar-territorial/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "reasignar-territorial", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Iniciar relevamiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/iniciar-relevamiento/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "iniciar-relevamiento", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario de relevamiento (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/relevamiento/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "relevamiento", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Guardar relevamiento (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/relevamiento/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "relevamiento", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Autosave de relevamiento (AJAX)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"campo\": \"valor_parcial\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/relevamiento/autosave/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "relevamiento", "autosave", ""]
+            },
+            "description": "Guardado automático periódico del formulario de relevamiento. Retorna JSON."
+          },
+          "response": []
+        },
+        {
+          "name": "Adjuntar evidencias",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "evidencia", "type": "file", "description": "Archivo de evidencia (foto, documento)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/adjuntar-evidencias/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "adjuntar-evidencias", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Finalizar relevamiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/finalizar-relevamiento/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "finalizar-relevamiento", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario evaluar caso (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/evaluar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "evaluar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Evaluar caso (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/evaluar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "evaluar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/activar-plan/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "activar-plan", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pasar a seguimiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/pasar-seguimiento/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "pasar-seguimiento", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cerrar caso",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/cerrar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "cerrar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cerrar caso NACHEC (alternativo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/cerrar-caso/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "cerrar-caso", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reabrir caso NACHEC",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/caso/1/reabrir-caso/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "caso", "1", "reabrir-caso", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Iniciar prestación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/prestacion/1/iniciar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "prestacion", "1", "iniciar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirmar entrega de prestación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/prestacion/1/confirmar-entrega/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "prestacion", "1", "confirmar-entrega", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Formulario reprogramar prestación (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/prestacion/1/reprogramar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "prestacion", "1", "reprogramar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reprogramar prestación (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" },
+                { "key": "nueva_fecha", "value": "2026-07-15", "description": "Nueva fecha de prestación (YYYY-MM-DD)" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/prestacion/1/reprogramar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "prestacion", "1", "reprogramar", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar prestación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "csrfmiddlewaretoken", "value": "<csrf-token>" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:8000/legajos/nachec/prestacion/1/cancelar/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["legajos", "nachec", "prestacion", "1", "cancelar", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Ciudadanos",
+      "description": "DRF ViewSet. Base: /api/legajos/ciudadanos/",
+      "item": [
+        {
+          "name": "Listar ciudadanos",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/ciudadanos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "ciudadanos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear ciudadano",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dni\": \"28901234\",\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"fecha_nacimiento\": \"1985-03-15\",\n  \"genero\": \"M\",\n  \"telefono\": \"3624123456\",\n  \"email\": \"juan.perez@gmail.com\",\n  \"domicilio\": \"Av. Las Heras 1234\",\n  \"activo\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/ciudadanos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "ciudadanos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener ciudadano",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/ciudadanos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "ciudadanos", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar ciudadano (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"3624999000\",\n  \"email\": \"nuevo.email@gmail.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/ciudadanos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "ciudadanos", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar ciudadano",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/ciudadanos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "ciudadanos", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Alertas",
+      "description": "DRF ReadOnlyModelViewSet (solo lectura). Base: /api/legajos/alertas/",
+      "item": [
+        {
+          "name": "Listar alertas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/alertas/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "alertas", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener alerta",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/alertas/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "alertas", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Historial de contactos",
+      "description": "DRF ViewSet. Base: /api/legajos/contactos/historial-contactos/",
+      "item": [
+        {
+          "name": "Listar historial (con filtros)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/historial-contactos/?legajo=1&tipo_contacto=PRESENCIAL&estado=REALIZADO",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "historial-contactos", ""],
+              "query": [
+                { "key": "legajo", "value": "1", "disabled": true, "description": "ID del legajo" },
+                { "key": "fecha_desde", "value": "2026-01-01", "disabled": true, "description": "Fecha desde (YYYY-MM-DD)" },
+                { "key": "fecha_hasta", "value": "2026-06-30", "disabled": true, "description": "Fecha hasta (YYYY-MM-DD)" },
+                { "key": "tipo_contacto", "value": "PRESENCIAL", "disabled": true, "description": "Tipo de contacto" },
+                { "key": "estado", "value": "REALIZADO", "disabled": true, "description": "Estado del contacto" },
+                { "key": "seguimiento_requerido", "value": "true", "disabled": true, "description": "Filtrar por seguimiento requerido" },
+                { "key": "profesional", "value": "5", "disabled": true, "description": "ID del profesional" },
+                { "key": "q", "value": "atencion", "disabled": true, "description": "Búsqueda por texto" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear entrada de historial",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo_contacto\": \"PRESENCIAL\",\n  \"fecha_contacto\": \"2026-06-24T10:00:00\",\n  \"duracion_minutos\": 45,\n  \"estado\": \"REALIZADO\",\n  \"motivo\": \"Consulta sobre beneficios del programa alimentario\",\n  \"resumen\": \"El ciudadano fue informado sobre los requisitos y se le entregó la documentación necesaria.\",\n  \"acuerdos\": \"El ciudadano presentará la documentación el próximo lunes.\",\n  \"proximos_pasos\": \"Verificar documentación recibida y procesar la inscripción.\",\n  \"seguimiento_requerido\": true,\n  \"fecha_proximo_contacto\": \"2026-07-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/historial-contactos/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "historial-contactos", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener entrada de historial",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/historial-contactos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "historial-contactos", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar entrada de historial (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resumen\": \"Resumen actualizado del contacto.\",\n  \"seguimiento_requerido\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/historial-contactos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "historial-contactos", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar entrada de historial",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/historial-contactos/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "historial-contactos", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API REST — Vínculos familiares",
+      "description": "DRF ViewSet. Base: /api/legajos/contactos/vinculos-familiares/",
+      "item": [
+        {
+          "name": "Listar vínculos (con filtros)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/vinculos-familiares/?ciudadano=1&tipo_vinculo=HIJO&activo=true",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "vinculos-familiares", ""],
+              "query": [
+                { "key": "ciudadano", "value": "1", "disabled": true, "description": "ID del ciudadano principal" },
+                { "key": "tipo_vinculo", "value": "HIJO", "disabled": true, "description": "Tipo de vínculo familiar" },
+                { "key": "es_contacto_emergencia", "value": "true", "disabled": true },
+                { "key": "es_referente_tratamiento", "value": "false", "disabled": true },
+                { "key": "activo", "value": "true", "disabled": true },
+                { "key": "q", "value": "perez", "disabled": true, "description": "Búsqueda por texto (mínimo 2 caracteres)" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear vínculo familiar",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ciudadano_principal\": 1,\n  \"ciudadano_vinculado\": 2,\n  \"tipo_vinculo\": \"HIJO\",\n  \"es_contacto_emergencia\": false,\n  \"es_referente_tratamiento\": false,\n  \"activo\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/vinculos-familiares/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "vinculos-familiares", ""]
+            },
+            "description": "Nota: ciudadano_principal y ciudadano_vinculado deben ser distintos (validación del servidor)."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener vínculo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/vinculos-familiares/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "vinculos-familiares", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar vínculo (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"es_contacto_emergencia\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/vinculos-familiares/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "vinculos-familiares", "1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar vínculo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Cookie", "value": "sessionid=<session-id>" },
+              { "key": "X-CSRFToken", "value": "<csrf-token>" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/legajos/contactos/vinculos-familiares/1/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "legajos", "contactos", "vinculos-familiares", "1", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
