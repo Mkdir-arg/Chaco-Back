@@ -2,7 +2,7 @@
 
 **Tipo:** Propuesta de épica (documento de trabajo interno)
 **Estado:** En análisis (borrador en construcción)
-**Fecha:** 2026-06-25 · **Última actualización:** 2026-06-25
+**Fecha:** 2026-06-25 · **Última actualización:** 2026-06-26
 **Responsable (ICORE):** functional-analyst
 **Programa:** Dispositivos (segundo programa sobre el módulo genérico de Programas, después de Becas)
 **Módulos Django candidatos:** `apps/programas`, `apps/legajos`, `apps/ciudadanos` (core), `users`/`core.rbac` (roles/permisos), `dashboard`
@@ -150,6 +150,134 @@ Necesidades básicas · Grado de dependencia.
 
 ---
 
+### 4.1 F-00 Adultos Mayores — campo a campo
+
+*Área: Sistema Integral Gerontológico.*
+
+**Convención:** `FORMULARIO` = campo que carga el operador. `FUNCIONALIDAD` = lo provee el sistema (cálculo, Legajo Ciudadano, usuario logueado). `CONFIRMAR` = requiere verificación antes de implementar.
+
+**Resumen:** 31 al formulario · 17 funcionalidades · 2 a confirmar (C-6, C-7)
+
+| Sección | Campo | Tipo | Clasificación | Nota |
+|---|---|---|---|---|
+| Encabezado | Institución / sede | — | `FUNCIONALIDAD` | Contexto del dispositivo activo |
+| Encabezado | Fecha y hora | — | `FUNCIONALIDAD` | Timestamp de la admisión |
+| Encabezado | Reingreso (Sí/No) | — | `FUNCIONALIDAD` | Sistema detecta estadía anterior cerrada del ciudadano |
+| Encabezado | Responsable | — | `FUNCIONALIDAD` | Usuario logueado |
+| A. Datos personales | Nombre y apellido | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
+| A. Datos personales | DNI / CUIL | — | `FUNCIONALIDAD` | Clave de búsqueda del Legajo Ciudadano |
+| A. Datos personales | Edad | — | `FUNCIONALIDAD` | Calculada de fecha de nacimiento del legajo |
+| A. Datos personales | Fecha de nacimiento | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
+| A. Datos personales | Género | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
+| A. Datos personales | Obra social / N° | texto | `CONFIRMAR` | Ver C-6: verificar si ya en solapa Salud del Legajo Ciudadano |
+| A. Datos personales | Nivel instrucción | selector | `FORMULARIO` | Pre-completar desde legajo educativo si existe |
+| A. Datos personales | Oficio | texto | `FORMULARIO` | Pre-completar desde legajo laboral si existe |
+| A. Datos personales | Capacitaciones (Sí/No + cuáles) | bool + texto | `FORMULARIO` | |
+| A. Datos personales | Interés en formación (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
+| B. Sit. laboral y econ. | Empleo | selector | `FORMULARIO` | Formal / Informal / Sin empleo |
+| B. Sit. laboral y econ. | Lugar de trabajo | texto | `FORMULARIO` | |
+| B. Sit. laboral y econ. | Ocupación | texto | `FORMULARIO` | Pre-completar desde legajo laboral si existe |
+| B. Sit. laboral y econ. | Ingreso mensual | número | `FORMULARIO` | |
+| B. Sit. laboral y econ. | Plan social / beca (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
+| B. Sit. laboral y econ. | Jubilación / pensión (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
+| C. Permanencia, nutrición y vivienda | Perfil permanencia | selector | `FORMULARIO` | Larga estadía / Mediana estadía / Tránsito-crítico |
+| C. Permanencia, nutrición y vivienda | Requerimiento nutricional | selector | `FORMULARIO` | General / Adulto mayor / Especial |
+| C. Permanencia, nutrición y vivienda | Relación familiar (Sí/No) | bool | `FORMULARIO` | |
+| C. Permanencia, nutrición y vivienda | Último domicilio | texto | `FORMULARIO` | Domicilio previo al ingreso; ≠ domicilio del Legajo Ciudadano |
+| C. Permanencia, nutrición y vivienda | Motivo egreso hogar | texto | `FORMULARIO` | Por qué dejó su vivienda anterior. ≠ egreso del dispositivo (Sección H) |
+| C. Permanencia, nutrición y vivienda | Posee vivienda (Sí/No) | bool | `FORMULARIO` | |
+| C. Permanencia, nutrición y vivienda | Dónde duerme actualmente | texto | `FORMULARIO` | Situación habitacional justo antes del ingreso |
+| C. Permanencia, nutrición y vivienda | Observaciones | texto libre | `FORMULARIO` | |
+| D. Red de sostén | Tipos de red | multi-selector | `FORMULARIO` | Parientes / Institucional / Vecinos / ONG / Iglesia / CC / Gubernamental / Otros |
+| D. Red de sostén | Detalle red de sostén | texto libre | `FORMULARIO` | |
+| E. Datos familia | Tabla familiar | tabla N filas | `FORMULARIO` | Nombre / Parentesco / Edad / Nivel / Ingreso / Teléfono |
+| F. Salud | Grupo sanguíneo | texto | `CONFIRMAR` | Ver C-7: verificar si ya en solapa Salud del Legajo Ciudadano |
+| F. Salud | Tratamiento médico (Sí/No + dónde) | bool + texto | `FORMULARIO` | |
+| F. Salud | Antecedentes / condiciones de salud | multi-selector | `FORMULARIO` | Tuberculosis / Diabetes / Cardíacos / Respiratorios / Salud mental / Discapacidad / ETS / Otros |
+| F. Salud | Observaciones de salud | texto libre | `FORMULARIO` | |
+| G. Egresos mensuales | Alquiler | número | `FORMULARIO` | |
+| G. Egresos mensuales | Créditos | número | `FORMULARIO` | |
+| G. Egresos mensuales | Cuotas | número | `FORMULARIO` | |
+| G. Egresos mensuales | Medicamentos | número | `FORMULARIO` | |
+| G. Egresos mensuales | Transporte / otros | número | `FORMULARIO` | |
+| G. Egresos mensuales | Total egresos | — | `FUNCIONALIDAD` | Calculado: suma de los conceptos anteriores |
+| H. Egreso del dispositivo | Sección completa (Fecha / Motivo / Destino / Derivación) | — | `FUNCIONALIDAD` | Es el flujo de egreso, no el formulario de admisión. En papel están juntos; en el sistema es una acción separada al momento del retiro. |
+| I. Intereses y actividades | Intereses | texto libre | `FORMULARIO` | |
+| J. Dependencia y cierre | Grado de dependencia | selector | `FORMULARIO` | Autoválido / Semi-válido / Postrado |
+| J. Dependencia y cierre | Fecha de revisión | — | `FUNCIONALIDAD` | Timestamp del sistema |
+| J. Dependencia y cierre | Firma y aclaración | — | `FUNCIONALIDAD` | Usuario logueado |
+| J. Dependencia y cierre | DNI / cargo | — | `FUNCIONALIDAD` | Del usuario logueado |
+
+---
+
+### 4.2 F-00 Abordaje Psicosocial — campo a campo
+
+*Área: Dirección de Inclusión y Abordaje Psicosocial.*
+
+**Resumen:** 44 al formulario · 17 funcionalidades
+
+| Sección | Campo | Tipo | Clasificación | Nota |
+|---|---|---|---|---|
+| Encabezado | Institución / sede | — | `FUNCIONALIDAD` | Contexto del dispositivo activo |
+| Encabezado | Fecha | — | `FUNCIONALIDAD` | Timestamp de la admisión |
+| Encabezado | Tipo de ingreso (1ª vez / Reingreso) | — | `FUNCIONALIDAD` | Sistema detecta estadía anterior; no es checkbox manual |
+| Encabezado | Responsable | — | `FUNCIONALIDAD` | Usuario logueado |
+| 1. Datos personales | Fecha de ingreso | — | `FUNCIONALIDAD` | Timestamp de la admisión |
+| 1. Datos personales | DNI / CUIL | — | `FUNCIONALIDAD` | Clave de búsqueda del Legajo Ciudadano |
+| 1. Datos personales | Nombre y apellido | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
+| 1. Datos personales | Edad | — | `FUNCIONALIDAD` | Calculada de fecha de nacimiento |
+| 1. Datos personales | Lugar y fecha de nacimiento | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
+| 1. Datos personales | Tel. / Cel. | — | `FUNCIONALIDAD` | Pre-completar del Legajo Ciudadano |
+| 2. Reingreso | Fecha de reingreso | — | `FUNCIONALIDAD` | Nueva fecha de admisión; auto-capturada |
+| 2. Reingreso | Observaciones | texto | `FORMULARIO` | Contexto del reingreso |
+| 2. Reingreso | Observaciones ampliadas | texto libre | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Nivel educativo | selector | `FORMULARIO` | Pre-completar desde legajo educativo si existe |
+| 3. Sit. personal, educativa y laboral | Capacitaciones | texto | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Interés en formación | texto | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Ocupación | texto | `FORMULARIO` | Pre-completar desde legajo laboral si existe |
+| 3. Sit. personal, educativa y laboral | Lugar de trabajo | texto | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Ingreso mensual | número | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Empleo (Formal / Informal) | selector | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Oficio / saber laboral | multi-selector | `FORMULARIO` | Carpintería / Electricista / Albañilería / Soldador/a / Mecánica / Peluquería / Jardinería / Panadería / Artesanía / Otro |
+| 3. Sit. personal, educativa y laboral | Ayuda económica externa (Sí/No + monto) | bool + número | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Plan social / beca (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
+| 3. Sit. personal, educativa y laboral | Jubilación / pensión (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
+| 4. Grupo familiar | Tabla grupo familiar | tabla N filas | `FORMULARIO` | Nombre / Parentesco / Edad / Educación / Ocupación / Ingreso |
+| 5. Dinámica familiar | Relación con su familia | texto | `FORMULARIO` | |
+| 5. Dinámica familiar | Último domicilio | texto | `FORMULARIO` | Domicilio previo al ingreso al dispositivo |
+| 5. Dinámica familiar | Motivo de egreso | texto | `FORMULARIO` | ⚠ "Egreso" aquí = razón por la que dejó su hogar anterior. No es el egreso del dispositivo. |
+| 5. Dinámica familiar | Derivación / referencia | texto | `FORMULARIO` | Quién o qué institución derivó al ciudadano |
+| 5. Dinámica familiar | Historia familiar | texto libre | `FORMULARIO` | |
+| 6. Vivienda | Posee vivienda (Sí/No) | bool | `FORMULARIO` | |
+| 6. Vivienda | Condición | selector | `FORMULARIO` | Propia / Alquilada / Prestada |
+| 6. Vivienda | Observaciones | texto | `FORMULARIO` | |
+| 6. Vivienda | Localidad / barrio | texto | `FORMULARIO` | |
+| 7. Ingresos y egresos econ. | Ingreso total mensual | número | `FORMULARIO` | |
+| 7. Ingresos y egresos econ. | Ayuda alimentaria | multi-selector | `FORMULARIO` | Comedor / Bolsa / Trueque / Otro |
+| 7. Ingresos y egresos econ. | Alquiler / Medicamentos / Transporte / Créditos / Otros | número (x5) | `FORMULARIO` | Cinco campos de gasto mensual declarado |
+| 7. Ingresos y egresos econ. | Total egresos | — | `FUNCIONALIDAD` | Calculado: suma de los conceptos anteriores |
+| 7. Ingresos y egresos econ. | Saldo estimado | — | `FUNCIONALIDAD` | Calculado: ingreso total − total egresos |
+| 8. Red de sostén | Tipos de red | multi-selector | `FORMULARIO` | Familiares / Vecinos / Iglesia / Centro comunitario / Estado / Otros |
+| 8. Red de sostén | Detalle / referentes | texto libre | `FORMULARIO` | |
+| 9. Salud | Cobertura de salud (Sí/No) | bool | `FORMULARIO` | |
+| 9. Salud | Nro. afiliado | texto | `FORMULARIO` | |
+| 9. Salud | Tabla Problema / Enfermedad / Tratamiento / Medicación | tabla N filas | `FORMULARIO` | |
+| 9. Salud | Problemas de salud declarados | multi-selector | `FORMULARIO` | Diabetes / Cardíacos / Respiratorios / Salud mental / Discapacidad / Otros |
+| 10. Consumos | Consume sustancias (Sí/No) | bool | `FORMULARIO` | |
+| 10. Consumos | Cuáles | texto | `FORMULARIO` | |
+| 10. Consumos | Tratamiento | selector | `FORMULARIO` | Ambulatorio / Internación / Otro |
+| 10. Consumos | Derivación | texto | `FORMULARIO` | |
+| 11. Situaciones de crisis | Situaciones registradas | multi-selector | `FORMULARIO` | Violencia / Adicciones / Abandono / Migración / Enfermedad grave / Muerte familiar / Otros |
+| 11. Situaciones de crisis | Descripción breve | texto libre | `FORMULARIO` | |
+| 12. Necesidades básicas | Necesidades observadas | multi-selector | `FORMULARIO` | Hacinamiento / Vivienda precaria / Falta de agua / Niños sin escuela / Problemas de salud |
+| 13. Grado de dependencia | Condición funcional | selector | `FORMULARIO` | Autoválido / Semi-válido / Postrado |
+| Cierre | Responsable del relevamiento | — | `FUNCIONALIDAD` | Usuario logueado |
+| Cierre | Firma | — | `FUNCIONALIDAD` | Usuario logueado |
+| Cierre | Fecha de carga / revisión | — | `FUNCIONALIDAD` | Timestamp del sistema |
+| Cierre | Estado (Completo / Pendiente) | — | `FUNCIONALIDAD` | Borrador / completado según flujo del sistema |
+
+---
+
 ## 5. Actores y roles
 
 Anclado en `core/rbac.py` (categorías de rol; la categoría **PROGRAMA** ya exige FK a un
@@ -283,7 +411,7 @@ El Miro distingue tres "formularios". Se modelan con el mecanismo dinámico ya p
 | Form. | Qué es | Mecanismo propuesto |
 |---|---|---|
 | **F-00** | Información específica de **la persona** según el **tipo** de dispositivo (Adulto Mayor, Abordaje Psicosocial, …). | Preguntas configurables **agrupadas por tipo de dispositivo** (patrón `RequisitoNativo`), con secciones por bloque. Respuestas en JSON tipo `data` del `Formulario`. |
-| **F-01** | Configuración operativa del **dispositivo** (camas totales, reglas de ingreso/egreso). | Campos fijos del modelo `DispositivoInstitucional` / `Cama` (no es form dinámico). |
+| **F-01** | **Registro diario de novedades por turno** del dispositivo. Contiene turno (Mañana/Tarde/Noche), cantidades calculadas de camas y movimientos, y observaciones libres. *Actualización: no es solo configuración — es un registro operativo diario. Resuelve Q-9.* | Modelo de registro diario propio del dispositivo. Las cantidades (camas totales/ingresos/egresos/ocupación/disponibles) son **calculadas**; el operador solo aporta el turno y las observaciones. Ver §9.1. |
 | **F-02** | Prestación del **merendero** (servicios alimentarios + observaciones). | Campos fijos del modelo `Merendero`/prestación; los "servicios" pueden ser SELECTOR_MULTIPLE configurable. |
 
 **Paralelo con Becas (importante para reuso):**
@@ -296,6 +424,28 @@ Dispositivos: Tipo de dispositivo → (mismo patrón) campos configurables del F
 Esto permite que agregar/editar el formulario de un tipo (o sumar el detalle de UPI/ECA, UPI,
 etc.) sea **configuración, no código**. Los datos que provee **RENAPER/escaneo** (personales,
 CUIL, domicilio) **no se vuelven a preguntar** (RN-DI-12, alinea con RN-37 de Becas).
+
+---
+
+### 9.1 F-01 — Registro Diario de Novedades — campo a campo
+
+**Resumen:** 2 al formulario · 9 funcionalidades · 1 a confirmar
+
+| Sección | Campo | Tipo | Clasificación | Nota |
+|---|---|---|---|---|
+| Datos del registro | Institución / sede | — | `FUNCIONALIDAD` | Contexto del dispositivo activo |
+| Datos del registro | Fecha | — | `FUNCIONALIDAD` | Fecha del sistema al crear el registro |
+| Datos del registro | Responsable del turno | — | `FUNCIONALIDAD` | Usuario logueado |
+| Datos del registro | Turno | selector | `FORMULARIO` | Mañana / Tarde / Noche — único dato que aporta el operador en el encabezado |
+| Novedades | A. Camas totales — Cantidad | — | `FUNCIONALIDAD` | Viene de la configuración del dispositivo |
+| Novedades | A. Camas totales — Observaciones | texto | `CONFIRMAR` | ¿Un cambio de capacidad se anota aquí o dispara una reconfiguración formal? |
+| Novedades | B. Ingresos del día — Cantidad | — | `FUNCIONALIDAD` | Calculado: count de admisiones con fecha = hoy |
+| Novedades | C. Egresos del día — Cantidad | — | `FUNCIONALIDAD` | Calculado: count de egresos con fecha = hoy |
+| Novedades | D. Ocupación nocturna — Cantidad | — | `FUNCIONALIDAD` | Calculado: estadías activas al cierre del día |
+| Novedades | E. Camas disponibles — Cantidad | — | `FUNCIONALIDAD` | Calculado: totales − ocupadas − fuera de servicio (RN-DI-08) |
+| Novedades | Observaciones filas B–E | — | `FUNCIONALIDAD` | Sin campo propio: cada admisión/egreso ya tiene observaciones propias |
+| Novedades | Observaciones generales del turno | texto libre | `FORMULARIO` | Narrativa libre del turno; campo principal que aporta el operador |
+| Cierre | Firma y Aclaración | — | `FUNCIONALIDAD` | Usuario logueado |
 
 ---
 
@@ -315,6 +465,11 @@ ocupadas", "Métrica de ingreso/egreso/ocupación").
 
 **Indicador de ocupación (semáforo, de NODO §8):** Verde <50% · Amarillo 50–79% · Rojo ≥80%.
 Configurable por tipo.
+
+> **F-01 y el censo diario (Q-9 cerrada):** el formulario F-01 del cliente es un "Registro Diario
+> de Novedades por Turno". Confirma que el **censo diario sí existe** en el circuito operativo.
+> En el sistema las cantidades son calculadas (no cargadas manualmente); el operador solo
+> selecciona el turno y escribe observaciones libres. Ver clasificación campo a campo en §9.1.
 
 > **A confirmar (Q-5):** ¿todos los tipos manejan camas? Merenderos claramente **no**. Adultos
 > Mayores y Residencias Universitarias **sí**. UPI/ECA, UPI y Fortalecimiento Familiar →
@@ -338,6 +493,29 @@ NODO P06 amplía con **padrón nominal de niños y tutores**, **días/horarios d
 > **A confirmar (Q-2):** ¿Merenderos es **otro tipo** dentro del Programa Dispositivos, o un
 > **programa aparte** que comparte plataforma? El Miro los pone como legajos hermanos. Impacta si
 > es un `tipo` más de `DispositivoInstitucional` o un modelo/programa separado.
+
+---
+
+### F-02 — Prestación Alimentaria Mensual — campo a campo
+
+*Formulario mensual: una fila por día del mes, columnas por servicio alimentario.*
+
+**Resumen:** 5 al formulario · 6 funcionalidades · 1 a confirmar (C-8)
+
+| Sección | Campo | Tipo | Clasificación | Nota |
+|---|---|---|---|---|
+| Cabecera | Institución / sede | — | `FUNCIONALIDAD` | Contexto del merendero activo |
+| Cabecera | Mes | — | `FUNCIONALIDAD` | Pre-completado con el mes actual al crear el registro |
+| Cabecera | Año | — | `FUNCIONALIDAD` | Pre-completado |
+| Cabecera | Servicio (Desayuno / Almuerzo / Merienda / Cena) | multi-selector | `CONFIRMAR` | C-8: ¿configuración del legajo del merendero (qué servicios ofrece, definida una vez) o selector por cada registro mensual? Determina qué columnas aparecen en la tabla. |
+| Tabla diaria | Día (1–31) | — | `FUNCIONALIDAD` | El sistema genera una fila por cada día del mes |
+| Tabla diaria | Desayuno / colación (cantidad) | número | `FORMULARIO` | Cantidad de raciones servidas |
+| Tabla diaria | Almuerzo (cantidad) | número | `FORMULARIO` | Cantidad de raciones servidas |
+| Tabla diaria | Merienda / colación (cantidad) | número | `FORMULARIO` | Cantidad de raciones servidas |
+| Tabla diaria | Cena (cantidad) | número | `FORMULARIO` | Cantidad de raciones servidas |
+| Tabla diaria | Total por día | — | `FUNCIONALIDAD` | Calculado: suma de los 4 servicios del día |
+| Tabla diaria | Observaciones por día | texto | `FORMULARIO` | Texto libre opcional por fila |
+| Tabla diaria | Firma por día | — | `FUNCIONALIDAD` | Usuario logueado al cargar la fila |
 
 ---
 
@@ -456,7 +634,7 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 | Q-6 | **Validación del alta.** ¿Quién valida el alta de un dispositivo (supervisor del área) y con qué criterio? ¿Aplica el circuito borrador→validación a todos los tipos? | Cliente | No bloq. |
 | Q-7 | **Merenderos en V1.** ¿Entra el **padrón nominal de niños/tutores** y la **asistencia/entrega de kits diaria** (P06 ampliado), o V1 es solo legajo + prestación F-02? | Cliente | No bloq. |
 | Q-8 | **Asistencia diaria (P05).** ¿Hay registro de asistencia diaria para dispositivos con internación, o el alcance es solo admisión/egreso? | Cliente | No bloq. |
-| Q-9 | **Censo de camas.** ¿Se requiere censo diario formal (existencia inicial + ingresos − egresos)? | Cliente | No bloq. |
+| Q-9 | **Censo de camas.** ¿Se requiere censo diario formal (existencia inicial + ingresos − egresos)? | Cliente | **Cerrada** — El F-01 es un Registro Diario de Novedades por Turno; el censo diario existe. Las cantidades son calculadas en el sistema. Ver §9.1 y §10. |
 | Q-10 | **Reingreso (Abordaje Ps).** El F-00 psicosocial tiene "Reingreso". ¿Cómo se modela una persona que vuelve a ingresar (nueva estadía vinculada al mismo legajo)? | Cliente | No bloq. |
 
 ### 17.3 Técnicas (ICORE)
@@ -468,6 +646,9 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 | C-3 | **Formularios por tipo.** Confirmar que el patrón `PreguntaGlobal`/`RequisitoNativo` se puede re-clavar de "Segmento" a "Tipo de dispositivo" sin refactor mayor. | Pendiente |
 | C-4 | **Solapa.** Verificar cómo enganchar Dispositivos en `SolapasService` (hoy mira `InscripcionPrograma` activa). | Pendiente |
 | C-5 | **`legajos_registroasistencia`.** Confirmar si existe modelo de asistencia (aparece en particionado pero sin modelo) o es un fantasma. | Pendiente |
+| C-6 | **Obra social en Legajo Ciudadano (F-00 AM).** Verificar si el campo "Obra social / N°" ya existe en la solapa Salud del Legajo Ciudadano. Si sí: pre-completar y no volver a preguntar. Si no: es campo del formulario de admisión. | Pendiente |
+| C-7 | **Grupo sanguíneo en Legajo Ciudadano (F-00 AM).** Verificar si ya existe en la solapa Salud del legajo. | Pendiente |
+| C-8 | **"Servicio" en F-02 Merenderos.** Definir si los servicios que ofrece el merendero (Desayuno/Almuerzo/Merienda/Cena) son configuración del legajo del merendero (definida una vez) o un selector por cada registro mensual. Determina qué columnas aparecen en la tabla de prestación. | Pendiente |
 
 ---
 
@@ -475,11 +656,15 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 
 1. **Cerrar bloqueantes de alcance** (Q-1, Q-2) con el cliente: detalle de los 4 tipos faltantes
    y decisión Merenderos = tipo vs programa.
-2. **Confirmar decisiones de modelado** (C-1…C-5) por ICORE.
-3. **Validar este encuadre** (alcance §2: P01+P03+P04+P06+P07) con el cliente.
-4. **Cerrar el catálogo de campos** del F-00 por tipo (al menos AM y Abordaje Psicosocial, ya
-   detallados en el Miro).
-5. **Generación en GitHub** — épica → análisis → sub-issues (recién con bloqueantes cerrados).
+2. **Resolver pendientes técnicos** (C-1…C-8) por ICORE (especialmente C-6 y C-7 para confirmar
+   qué campos del F-00 AM ya están en el Legajo Ciudadano).
+3. **Confirmar decisiones de modelado** (C-1…C-5) por ICORE.
+4. **Validar este encuadre** con el cliente: alcance §2 (P01+P03+P04+P06+P07) + clasificación
+   formulario/funcionalidad de §4 y §11.
+5. **Cerrar el catálogo de campos** del F-00 para los 4 tipos sin detalle (UPI/ECA, UPI,
+   Residencias Universitarias, Fortalecimiento Familiar).
+6. **Generación en GitHub** — épica → análisis → sub-issues (recién con bloqueantes Q-1 y Q-2
+   cerrados).
 
 ---
 
@@ -488,3 +673,4 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 | Fecha | Cambio | Motivo |
 |---|---|---|
 | 2026-06-25 | Versión inicial | Primer borrador a partir del Miro del Programa Dispositivos + Especificación NODO + mapeo del código real. |
+| 2026-06-26 | Integración de formularios F-00/F-01/F-02 campo a campo | Se incorporaron los 4 formularios del cliente y se clasificó cada campo como FORMULARIO, FUNCIONALIDAD o CONFIRMAR. Se cerró Q-9 y se agregaron C-6, C-7, C-8. |
