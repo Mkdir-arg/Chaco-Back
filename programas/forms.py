@@ -110,13 +110,20 @@ class PreguntaGlobalForm(_OpcionesMixin):
 class RequisitoNativoForm(_OpcionesMixin):
     """El segmento (y subsegmento opcional) se fijan desde la vista."""
 
+    obligatorio = forms.TypedChoiceField(
+        label="Obligatorio",
+        choices=[(True, "Obligatorio"), (False, "Opcional")],
+        coerce=lambda x: x in (True, "True", "1", 1),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        initial=True,
+    )
+
     class Meta:
         model = RequisitoNativo
         fields = ["texto", "tipo", "obligatorio", "orden"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
-            "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 
@@ -198,12 +205,13 @@ class RelevamientoForm(forms.ModelForm):
 
     class Meta:
         model = Relevamiento
-        fields = ["convocatoria", "territorial", "fecha_asignada", "zona"]
+        fields = ["convocatoria", "territorial", "fecha_asignada", "zona", "observaciones"]
         widgets = {
             "convocatoria": forms.Select(attrs={"class": INPUT_CLASS}),
             "territorial": forms.Select(attrs={"class": INPUT_CLASS}),
             "fecha_asignada": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
             "zona": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "observaciones": forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
         }
 
     def __init__(self, *args, segmentos_permitidos=None, **kwargs):
@@ -215,6 +223,7 @@ class RelevamientoForm(forms.ModelForm):
         if segmentos_permitidos is not None:
             conv_qs = conv_qs.filter(segmento__in=segmentos_permitidos)
         self.fields["convocatoria"].queryset = conv_qs
+        self.fields["observaciones"].required = False
 
 
 class ReasignarTerritorialForm(forms.Form):
