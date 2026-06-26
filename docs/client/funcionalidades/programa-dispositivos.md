@@ -8,7 +8,7 @@
 | **Módulo** | Programas |
 | **Estado** | En análisis |
 | **Programa** | Dispositivos (segundo programa sobre la base de Programas, después de Becas) |
-| **Última actualización** | 2026-06-25 |
+| **Última actualización** | 2026-06-26 |
 
 !!! info "Encuadre dentro de NODO"
     NODO es la plataforma integral de gestión territorial del organismo. El **Programa Dispositivos** es la primera etapa concreta: pone en el sistema el **legajo de cada dispositivo y merendero**, las **admisiones y egresos** de personas y la **ocupación de camas**. Otros frentes de NODO (Línea 102, personal, fondos, infraestructura tecnológica) se abordan en etapas posteriores.
@@ -87,6 +87,32 @@ Alta del merendero → Validación → Información de funcionamiento → Presta
 2. **Validación.** El área controla y aprueba; la aprobación crea el legajo del merendero.
 3. **Información de funcionamiento.** Cantidad de **kits de mercadería**, fecha de entrega y servicio.
 4. **Prestación.** Se registran los servicios brindados: **desayuno/colación, almuerzo, merienda/colación, cena** y observaciones.
+
+### 3.4 Los formularios del programa
+
+El programa trabaja con tres formularios. Una idea ordena a los tres: **el operador carga solo lo que el sistema no puede saber por sí mismo**. Los datos de identidad (nombre, DNI, fecha de nacimiento, edad), el responsable, las fechas y los cálculos los **completa el sistema** automáticamente; el operador se concentra en la información propia de cada caso.
+
+=== "F-00 · Admisión de la persona"
+
+    Es el formulario que se completa **al admitir a una persona**, y cambia según el **tipo de dispositivo**. Recupera la identidad de la persona desde su legajo ciudadano (y RENAPER) para no volver a pedirla, y agrupa la información en bloques.
+
+    | Tipo | Bloques de información |
+    |---|---|
+    | **Adulto Mayor** | Datos personales · Situación laboral y económica · Permanencia, nutrición y vivienda · Red de sostén · Datos de la familia · Salud · Egresos mensuales · Intereses y actividades · Grado de dependencia. |
+    | **Abordaje Psicosocial** | Datos personales · Reingreso · Situación personal, educativa y laboral · Grupo familiar · Dinámica familiar · Vivienda · Ingresos y egresos · Red de sostén · Salud · Consumos · Situaciones de crisis · Necesidades básicas · Grado de dependencia. |
+
+    Cuando una persona ya tuvo una estadía anterior, el sistema **detecta el reingreso** solo, sin marcarlo a mano. Los totales económicos (egresos mensuales, saldo) se **calculan** a partir de los conceptos cargados.
+
+=== "F-01 · Registro diario de novedades por turno"
+
+    Es el **parte diario** de cada dispositivo, por **turno** (mañana, tarde, noche). El operador elige el turno y escribe las **observaciones del turno**; el resto lo arma el sistema: camas totales, ingresos y egresos del día, ocupación nocturna y camas disponibles, todo **calculado** a partir de los movimientos registrados.
+
+=== "F-02 · Prestación alimentaria mensual (merenderos)"
+
+    Es la **planilla mensual** del merendero: una fila por día del mes y una columna por servicio (desayuno/colación, almuerzo, merienda/colación, cena). El operador carga la **cantidad de raciones** servidas por día; el sistema calcula el **total diario** y completa mes, año y firma.
+
+!!! tip "Menos carga manual, menos errores"
+    Al reutilizar el legajo ciudadano y calcular solo los totales y la ocupación, los formularios piden únicamente lo imprescindible. Eso acelera la carga y evita inconsistencias entre lo declarado y lo que muestra el sistema.
 
 ---
 
