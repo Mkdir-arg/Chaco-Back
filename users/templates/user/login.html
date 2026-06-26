@@ -6,179 +6,157 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NODO Chaco - Acceso al Sistema</title>
     <link rel="icon" type="image/png" href="{% static 'custom/chaco/favicon.png' %}">
+
+    <!-- Google Fonts — Manrope (única familia del sistema) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://api.fontshare.com/v2/css?f[]=geliat@800&f[]=satoshi@900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        satoshi: ['Satoshi', 'sans-serif'],
-                    },
+                    fontFamily: { sans: ['Manrope', 'sans-serif'] },
+                    borderRadius: { lg: '8px', xl: '12px', '2xl': '16px', full: '9999px' },
                 }
             }
         }
     </script>
+
+    <!-- CHACO Design Tokens — define todas las CSS variables -->
+    <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}">
+
     <style>
-        :root {
-                        --color-primario: #00203A;
-            --color-primario-claro: #5059BC;
-            --color-primario-oscuro: #00203A;
-            --color-secundario: #5059BC;
-            --color-secundario-claro: #C8D29C;
-            --color-secundario-oscuro: #00203A;
-            --color-acento: #F26DF9;
-            --color-acento-claro: #C8D29C;
-            --color-acento-oscuro: #8A9A46;
-            --fondo-principal: #F8FAFC;
-            --fondo-secundario: #FFFFFF;
-            --fondo-sidebar: linear-gradient(135deg, #00203A 0%, #00203A 100%);
-            --texto-primario: #00203A;
-            --texto-secundario: #00203A;
-            --nodo-magenta: #F26DF9;
-            --nodo-purple: #5059BC;
-            --nodo-violet: #00203A;
-            --nodo-cyan: #C8D29C;
-            --nodo-text-primary: #00203A;
-            --nodo-text-secondary: #00203A;
-            --nodo-text-tertiary: #5059BC;
-            --nodo-text-muted: #8C8C8C;
-            --nodo-border: #C8D29C;
-            --nodo-bg-white: #FFFFFF;
-            --nodo-gradient: linear-gradient(45deg, #5059BC 0%, #F26DF9 100%);
-            --login-button-gradient: linear-gradient(45deg, #5059BC 0%, #F26DF9 100%);
-            --login-button-hover-overlay: rgba(0, 0, 0, 0.20);
-            --login-button-focus-border: #5059BC;
-            --login-button-focus-shadow: #E5E7EB;
-            --login-button-disabled-bg: #F3F4F6;
-            --login-button-disabled-border: #E5E7E8;
-            --login-button-disabled-text: #99A1AF;
-            --button-tertiary-text: #5059BC;
-            --button-tertiary-bg: #FFFFFF;
-            --button-tertiary-border: #5059BC;
-            --button-tertiary-hover-text: #5059BC;
-            --button-tertiary-hover-bg: #DEE1FF;
-            --button-tertiary-hover-border: #5059BC;
-            --button-tertiary-focus-text: #2331C9;
-            --button-tertiary-focus-bg: #DEE1FF;
-            --button-tertiary-focus-border: #2331C9;
-            --button-tertiary-focus-shadow: #F3F4F6;
-            --button-tertiary-disabled-text: #5059BC;
-            --button-tertiary-disabled-bg: #F0F2FF;
-            --button-tertiary-disabled-border: #5059BC;
-            --nav-active-color: #A54FA9;
-            --nav-active-hover-color: #8C3E90;
-            --ui-highlight-color: #A54FA9;
-            --ui-highlight-gradient: linear-gradient(90deg, #5059BC 0%, #A54FA9 100%);
-        }
+        body { background: var(--bg-secondary); }
 
+        /* Botón primario — Brand (gradiente de marca, pill) */
         .login-submit-btn {
-            background: var(--login-button-gradient);
+            background: var(--gradient-brand);
             border: 1px solid transparent;
-            color: #ffffff;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+            color: var(--text-white);
+            font-weight: 600;
+            transition: filter .15s ease, box-shadow .15s ease, border-color .15s ease;
         }
-
         .login-submit-btn:hover {
-            box-shadow: inset 0 0 0 9999px var(--login-button-hover-overlay);
+            /* hover = overlay negro 20% encima del gradiente (spec) */
+            box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.20);
         }
-
         .login-submit-btn:focus,
         .login-submit-btn:focus-visible {
             outline: none;
-            border: 2px solid var(--login-button-focus-border);
-            box-shadow: 0 1px 0 2px var(--login-button-focus-shadow);
+            border: 2px solid var(--border-brand);
+            box-shadow: 0 1px 0 2px var(--border-base);
         }
-
         .login-submit-btn:disabled {
-            background: var(--login-button-disabled-bg) !important;
-            border: 1px solid var(--login-button-disabled-border) !important;
-            color: var(--login-button-disabled-text) !important;
+            background: var(--bg-disabled) !important;
+            border: 1px solid var(--border-base) !important;
+            color: var(--text-fg-disabled) !important;
             box-shadow: none !important;
             cursor: not-allowed;
-            transform: none !important;
+        }
+
+        /* Inputs — focus de marca, el ring nunca se remueve */
+        .login-input {
+            height: 40px;
+            background: var(--bg-white);
+            border: 1px solid var(--border-base);
+            color: var(--text-heading);
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .login-input::placeholder { color: var(--text-body-subtle); }
+        .login-input:focus {
+            outline: none;
+            border-color: var(--border-brand);
+            box-shadow: var(--ring-brand, 0 0 0 3px rgba(80, 89, 188, 0.35));
         }
     </style>
 </head>
-<body class="min-h-screen bg-[#F5F7FA] flex font-sans">
+<body class="min-h-screen flex font-sans">
     <div class="w-full h-screen flex">
-        <!-- Left Side - Illustration -->
-        <div class="hidden lg:flex lg:flex-1 bg-[#F5F7FA] items-center justify-center relative overflow-hidden">
-            <!-- Ondas de fondo -->
+        <!-- Izquierda — Ilustración (solo en desktop) -->
+        <div class="hidden lg:flex lg:flex-1 items-center justify-center relative overflow-hidden" style="background: var(--bg-secondary);">
             <img src="{% static 'custom/chaco/login-background.png' %}" alt="" class="absolute right-0 w-[52%] h-full object-cover object-left opacity-90">
             <div class="relative z-10 flex items-center justify-center w-full h-full px-12">
                 <img src="{% static 'custom/chaco/login-illustration.svg' %}" alt="" class="w-auto h-[520px] object-contain drop-shadow-2xl">
             </div>
         </div>
 
-        <!-- Right Side - Login Form -->
-        <div class="w-full lg:w-[560px] bg-white flex items-center justify-center px-8 lg:px-12">
+        <!-- Derecha — Formulario -->
+        <div class="w-full lg:w-[560px] flex items-center justify-center px-8 lg:px-12" style="background: var(--bg-white);">
             <div class="w-full max-w-md py-8">
-                <!-- Header -->
+                <!-- Encabezado -->
                 <div class="mb-10 text-center">
-                    <h1 class="text-[35px] font-extrabold mb-2 leading-tight" style="color: #00203A; font-family: 'Geliat', 'Satoshi', sans-serif;">
+                    <h1 class="text-3xl font-extrabold mb-2 leading-tight" style="color: var(--text-heading); letter-spacing: -0.5px;">
                         Bienvenido Ñandé,
                     </h1>
-                    <h2 class="text-[35px] font-extrabold leading-tight" style="color: #00203A; font-family: 'Geliat', 'Satoshi', sans-serif;">
+                    <h2 class="text-3xl font-extrabold leading-tight" style="color: var(--text-heading); letter-spacing: -0.5px;">
                         Sistema Social de Chaco
                     </h2>
                 </div>
 
-                <!-- Form -->
-                <div class="border border-gray-200 rounded-2xl p-8 bg-white shadow-sm">
+                <!-- Tarjeta del formulario -->
+                <div class="rounded-xl p-8 shadow-sm" style="background: var(--bg-white); border: 1px solid var(--border-base);">
                 <form method="post" class="space-y-5" id="loginForm">
                     {% csrf_token %}
-                    
+
                     {% if form.errors %}
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                        <p class="text-sm text-red-700 font-medium">Credenciales inválidas</p>
+                    <div class="flex items-start gap-2 rounded-lg p-3 mb-4" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0 mt-px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-fg-danger);">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p class="text-sm font-semibold" style="color: var(--text-fg-danger);">Credenciales inválidas</p>
                     </div>
                     {% endif %}
 
-                    <!-- Usuario Input -->
+                    <!-- Usuario -->
                     <div>
-                        <label class="block text-sm font-medium text-[#101828] mb-2">Tu correo electrónico *</label>
+                        <label for="username" class="block text-[13px] font-semibold mb-2" style="color: var(--text-heading);">
+                            Tu correo electrónico <span style="color: var(--text-fg-danger);">*</span>
+                        </label>
                         <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#A0AEC0]">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2" style="color: var(--text-body-subtle);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect width="20" height="16" x="2" y="4" rx="2"></rect>
                                     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                                 </svg>
                             </span>
-                            <input type="text" 
-                                   name="username" 
+                            <input type="text"
+                                   id="username"
+                                   name="username"
                                    required
-                                   class="w-full pl-12 pr-4 py-3.5 bg-white border border-[#E2E8F0] rounded-lg text-[#2D3748] placeholder-[#A0AEC0] focus:outline-none focus:ring-2 focus:border-transparent transition-all font-normal"
-                                   style="--tw-ring-color: #F26DF9;"
-                                   placeholder="Ingresa tu correo electrónico">
+                                   class="login-input w-full pl-11 pr-4 rounded-lg text-sm font-normal"
+                                   placeholder="Ingresá tu correo electrónico">
                         </div>
                     </div>
 
-                    <!-- Password Input -->
+                    <!-- Contraseña -->
                     <div>
-                        <label class="block text-sm font-normal text-[#101828] mb-2">Tu contraseña *</label>
+                        <label for="password" class="block text-[13px] font-semibold mb-2" style="color: var(--text-heading);">
+                            Tu contraseña <span style="color: var(--text-fg-danger);">*</span>
+                        </label>
                         <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#A0AEC0]">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2" style="color: var(--text-body-subtle);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                 </svg>
                             </span>
-                            <input type="password" 
-                                   name="password" 
+                            <input type="password"
+                                   name="password"
                                    id="password"
                                    required
-                                   class="w-full pl-12 pr-12 py-3.5 bg-white border border-[#E2E8F0] rounded-lg text-[#2D3748] placeholder-[#A0AEC0] focus:outline-none focus:ring-2 focus:border-transparent transition-all font-normal"
-                                   style="--tw-ring-color: #F26DF9;"
+                                   class="login-input w-full pl-11 pr-11 rounded-lg text-sm font-normal"
                                    placeholder="••••••••••">
-                            <button type="button" 
+                            <button type="button"
                                     onclick="togglePassword()"
-                                    class="absolute right-4 top-1/2 -translate-y-1/2 text-[#A0AEC0] hover:text-[#4A5568] transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleIcon">
+                                    aria-label="Mostrar u ocultar contraseña"
+                                    class="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                                    style="color: var(--text-body-subtle);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleIcon">
                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                                     <circle cx="12" cy="12" r="3"></circle>
                                 </svg>
@@ -186,32 +164,32 @@
                         </div>
                     </div>
 
-                    <!-- Remember & Forgot Password -->
+                    <!-- Recordarme & Olvidaste -->
                     <div class="flex items-center justify-between text-sm">
                         <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" class="mr-2 rounded" />
-                            <span class="text-[#4A5568] font-medium">Recordarme</span>
+                            <input type="checkbox" class="mr-2 rounded" style="accent-color: var(--bg-brand);" />
+                            <span class="font-medium" style="color: var(--text-body);">Recordarme</span>
                         </label>
-                        <button type="button" class="hover:underline font-medium" style="color: #00203A;">
+                        <button type="button" class="hover:underline font-semibold" style="color: var(--text-fg-brand);">
                             ¿Olvidaste tu contraseña?
                         </button>
                     </div>
 
-                    <!-- Submit Button -->
+                    <!-- Submit -->
                     <button type="submit"
-                            class="login-submit-btn w-full h-[40px] px-[10px] rounded-xl font-medium text-sm shadow-lg hover:shadow-xl mt-2 hover:scale-[1.02] active:scale-[0.98]">
-                        Iniciar Sesión
+                            class="login-submit-btn w-full h-10 px-4 rounded-full text-sm mt-2">
+                        Iniciar sesión
                     </button>
                 </form>
 
-                <!-- Register Link -->
+                <!-- Registro -->
                 <div class="text-center mt-6">
-                    <span class="text-sm text-[#718096] font-normal">¿No estás registrado? </span>
-                    <a href="#" class="text-sm hover:underline font-semibold" style="color: #00203A;">Crear cuenta</a>
+                    <span class="text-sm font-normal" style="color: var(--text-body-subtle);">¿No estás registrado? </span>
+                    <a href="#" class="text-sm hover:underline font-semibold" style="color: var(--text-fg-brand);">Crear cuenta</a>
                 </div>
                 </div>
 
-                <!-- Footer Logo -->
+                <!-- Logo -->
                 <div class="flex items-center justify-center mt-6">
                     <img src="{% static 'custom/chaco/login-logo.png' %}" alt="NODO Chaco" class="h-12">
                 </div>
@@ -234,4 +212,3 @@
     </script>
 </body>
 </html>
-

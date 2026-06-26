@@ -163,6 +163,13 @@
   --bg-fuchsia: var(--color-fuchsia-600);
   --bg-indigo: var(--color-indigo-600);
   --bg-orange: var(--color-orange-400);
+  --bg-brand-tint: #dee1ff; /* hover terciario / brand suave */
+
+  /* === GRADIENTS === */
+  /* Marca: Jacarandá → Rosa, 45°, nunca invertido. Una sola por área visible. */
+  --gradient-brand: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);
+  --gradient-cool: linear-gradient(135deg, #8a9a5b 0%, #5059bc 100%);
+  --gradient-nodo-legacy: linear-gradient(45deg, #7928ca 0%, #ff0080 100%); /* legacy NODO, evitar en UI Chaco */
 
   /* === BORDER === */
   --border-dark: var(--color-gray-600);
