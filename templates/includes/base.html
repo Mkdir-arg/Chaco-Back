@@ -173,10 +173,11 @@
                 --button-tertiary-disabled-text: #5059BC;
                 --button-tertiary-disabled-bg: #F0F2FF;
                 --button-tertiary-disabled-border: #5059BC;
-                --nav-active-color: #A54FA9;
-                --nav-active-hover-color: #8C3E90;
-                --ui-highlight-color: #A54FA9;
-                --ui-highlight-gradient: linear-gradient(90deg, #5059BC 0%, #A54FA9 100%);
+                --nav-active-color: #5059BC;
+                --nav-active-hover-color: #3D45A0;
+                --ui-highlight-color: #5059BC;
+                --ui-highlight-gradient: linear-gradient(45deg, #5059BC 0%, #f98dff 100%);
+                --gradient-brand: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);
             }
         </style>
         
@@ -197,6 +198,9 @@
         <link rel="stylesheet" href="{% static 'custom/css/mobile-tables.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/alertas_notifications.css' %}" />
         
+        <!-- CHACO Phase 1 — global visual improvements -->
+        <link rel="stylesheet" href="{% static 'custom/css/nodo-phase1.css' %}" />
+
         <!-- Page specific CSS -->
         {% block page_css %}{% endblock %}
         
@@ -205,7 +209,7 @@
         
         <title>NODO Chaco - {% block title %}{% endblock %}</title>
     </head>
-    <body class="min-h-[100dvh] overflow-x-hidden bg-white font-montserrat" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: var(--fondo-principal);">
+    <body class="min-h-[100dvh] overflow-x-hidden bg-[#F9FAFB] font-sans" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: #F9FAFB;">
         <div class="min-h-[100dvh] overflow-x-hidden">
             {% include 'includes/navbar.html' %}
             {% include 'includes/sidebar/base.html' %}
@@ -215,21 +219,31 @@
                     <div class="min-w-0 px-4 sm:px-6 lg:px-8">
                         {% if messages %}
                             {% for message in messages %}
-                                <div class="mb-4 rounded-md p-4 {{ message.tags }}" x-data="{ show: true }" x-show="show">
-                                    <div class="flex">
-                                        <div class="flex-shrink-0">
-                                            <i class="fas fa-info-circle h-5 w-5"></i>
-                                        </div>
-                                        <div class="ml-3">
-                                            <p class="text-sm font-medium">{{ message }}</p>
-                                        </div>
-                                        <div class="ml-auto pl-3">
-                                            <button @click="show = false" class="inline-flex rounded-md p-1.5 hover:bg-gray-100">
-                                                <i class="fas fa-times h-5 w-5"></i>
-                                            </button>
-                                        </div>
+                                {% if 'success' in message.tags %}
+                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#A4F4CF] bg-[#ECFDF5] px-4 py-3 text-sm font-medium text-[#006045]" x-data="{ show: true }" x-show="show" x-transition>
+                                        <i class="fas fa-check-circle flex-shrink-0"></i>
+                                        <span class="flex-1">{{ message }}</span>
+                                        <button @click="show = false" class="text-[#006045] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
                                     </div>
-                                </div>
+                                {% elif 'error' in message.tags %}
+                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#FFCCD3] bg-[#FEF0F2] px-4 py-3 text-sm font-medium text-[#8B0836]" x-data="{ show: true }" x-show="show" x-transition>
+                                        <i class="fas fa-exclamation-circle flex-shrink-0"></i>
+                                        <span class="flex-1">{{ message }}</span>
+                                        <button @click="show = false" class="text-[#8B0836] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
+                                    </div>
+                                {% elif 'warning' in message.tags %}
+                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#FCD9BD] bg-[#FFF8F1] px-4 py-3 text-sm font-medium text-[#771D1D]" x-data="{ show: true }" x-show="show" x-transition>
+                                        <i class="fas fa-exclamation-triangle flex-shrink-0"></i>
+                                        <span class="flex-1">{{ message }}</span>
+                                        <button @click="show = false" class="text-[#771D1D] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
+                                    </div>
+                                {% else %}
+                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] px-4 py-3 text-sm font-medium text-[#3730A3]" x-data="{ show: true }" x-show="show" x-transition>
+                                        <i class="fas fa-info-circle flex-shrink-0"></i>
+                                        <span class="flex-1">{{ message }}</span>
+                                        <button @click="show = false" class="text-[#3730A3] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         {% endif %}
                         

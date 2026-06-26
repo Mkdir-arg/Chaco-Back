@@ -29,20 +29,20 @@
 {% block main-content %}
 <div class="max-w-full mx-4 lg:mx-8" x-data="dashboard()">
     <!-- Header Dinámico -->
-        <div class="p-8 mb-8" style="background: #F9FAFB; color: #101828; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 12px;">
+        <div class="p-8 mb-8 inicio-greeting-card" style="background: linear-gradient(45deg, #5059bc 0%, #f98dff 100%); border-radius: 12px;">
         <div class="flex justify-between items-start">
             <div>
                 <h1
                     class="mb-2"
-                    style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #101828;"
+                    style="font-family: 'Manrope', sans-serif; font-size: 30px; font-weight: 700; color: #ffffff;"
                     x-text="saludo"
                 ></h1>
-                <p class="font-normal" style="font-family: Inter, sans-serif; font-size: 20px; font-weight: 400; color: #101828;" x-text="fechaHora"></p>
+                <p class="font-normal" style="font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 400; color: rgba(255,255,255,0.85);" x-text="fechaHora"></p>
             </div>
             <div class="flex items-center gap-3">
-                <div class="px-4 py-2 bg-[#ECFDF5] border border-[#A4F4CF] rounded-xl flex items-center gap-2">
-                    <div class="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>
-                    <span class="text-sm font-bold text-[#006045]">Sistema Activo</span>
+                <div class="px-4 py-2 rounded-xl flex items-center gap-2" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">
+                    <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    <span class="text-sm font-bold text-white">Sistema Activo</span>
                 </div>
             </div>
         </div>
@@ -112,8 +112,8 @@
                     <i class="fas fa-user-friends text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                 
             </div>
-            <p class="mb-1" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.ciudadanos"></p>
-            <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Total Ciudadanos</p>
+            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.ciudadanos"></p>
+            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Total Ciudadanos</p>
         </div>
 
         <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
@@ -122,8 +122,8 @@
                     <i class="fas fa-folder-open text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                 
             </div>
-            <p class="mb-1" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.legajos"></p>
-            <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Legajos Activos</p>
+            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.legajos"></p>
+            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Legajos Activos</p>
         </div>
 
         <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
@@ -132,8 +132,8 @@
                     <i class="fas fa-calendar-check text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                 
             </div>
-            <p class="mb-1" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.seguimientos"></p>
-            <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Seguimientos Hoy</p>
+            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.seguimientos"></p>
+            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Seguimientos Hoy</p>
         </div>
 
         <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
@@ -142,8 +142,8 @@
                     <i class="fas fa-exclamation-triangle text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                 
             </div>
-            <p class="mb-1" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.alertas"></p>
-            <p style="font-family: Inter, sans-serif; font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Alertas Activas</p>
+            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.alertas"></p>
+            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Alertas Activas</p>
         </div>
     </div>
     

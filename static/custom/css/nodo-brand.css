@@ -20,42 +20,42 @@
     --nodo-bg-gray: #F9FAFB;
     --nodo-border: #E5E7EB;
     
-    /* Gradiente principal */
-    --nodo-gradient: linear-gradient(45deg, #7928CA 0%, #FF0080 100%);
-    
+    /* Gradiente principal — CHACO brand (Jacarandá → Rosa) */
+    --nodo-gradient: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);
+
     /* Sombras */
     --nodo-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Tipografía Inter */
+/* Tipografía — CHACO brand font: Manrope */
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
 }
 
-/* Sobrescribir colores azules antiguos con NODO */
+/* Sobrescribir colores azules/legacy con CHACO brand */
 .bg-arg-azul,
 .bg-blue-600,
 .bg-blue-500,
 .bg-primario {
     background: var(--nodo-gradient) !important;
+    color: #ffffff !important;
 }
 
 .text-arg-azul,
 .text-blue-600,
 .text-blue-500,
 .text-primario {
-    color: var(--nodo-magenta) !important;
+    color: #5059bc !important;
 }
 
 .border-arg-azul,
 .border-blue-600,
 .border-blue-500 {
-    border-color: var(--nodo-magenta) !important;
+    border-color: #5059bc !important;
 }
 
-.hover\:bg-arg-secundario:hover,
 .hover\:bg-blue-700:hover {
-    background: var(--nodo-purple) !important;
+    filter: brightness(0.9) !important;
 }
 
 .hover\:text-arg-secundario:hover,
