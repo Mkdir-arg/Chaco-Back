@@ -216,7 +216,9 @@
 
   /* === TYPOGRAPHY === */
   --font-family-base: 'Manrope', sans-serif;
-  --font-family-brand: 'Gellat', sans-serif;
+  /* Sistema unificado: Manrope es la única familia (UI, cuerpo y títulos).
+     'brand' se mantiene como alias de Manrope por compatibilidad con templates. */
+  --font-family-brand: 'Manrope', sans-serif;
   --font-size-xxs: 8px;
   --font-size-xs: 12px;
   --font-size-sm: 14px;

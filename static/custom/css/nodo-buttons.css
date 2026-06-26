@@ -22,7 +22,7 @@
 
 .btn-nodo:disabled {
     cursor: not-allowed;
-    opacity: 0.6;
+    /* Sin opacity: cada variante define su fondo/texto gris de disabled (spec del sistema). */
 }
 
 /* Button Sizes */
@@ -154,11 +154,15 @@
 }
 
 .btn-tertiary:disabled {
-    background: #f0f2ff;
-    border: 1px solid var(--border-brand-subtle, #ddd6fe);
-    color: var(--text-fg-brand, #5059bc) !important;
-    opacity: 0.6;
+    background: var(--bg-disabled, #f3f4f6);
+    border: 1px solid var(--border-base, #e5e7eb);
+    color: var(--text-fg-disabled, #99a1af) !important;
     cursor: not-allowed;
+}
+
+.btn-tertiary:disabled i,
+.btn-tertiary:disabled span {
+    color: var(--text-fg-disabled, #99a1af) !important;
 }
 
 .btn-tertiary i, .btn-tertiary span { color: var(--text-fg-brand, #5059bc) !important; }
