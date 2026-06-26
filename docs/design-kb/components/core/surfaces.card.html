@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Cards & stat tiles" subtitle="Base white surface and dashboard KPI tiles" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="../../styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg-secondary); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Card, StatCard, Button, Badge } = window.ChacoNODODesignSystem_dc2a68;
+  function Demo() {
+    return (
+      <div className="grid">
+        <StatCard label="Legajos activos" value="1.284" icon="fas fa-folder-open" tone="brand" change="8%" changeDir="up" footnote="vs. mes anterior" />
+        <StatCard label="Consultas abiertas" value="37" icon="fas fa-comments" tone="warning" change="3" changeDir="down" />
+        <StatCard label="Beneficios entregados" value="9.512" icon="fas fa-hand-holding-heart" tone="olive" change="12%" changeDir="up" />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <Card title="Datos del legajo" subtitle="Actualizado hoy, 14:32"
+                headerRight={<Badge variant="success" dot>Activo</Badge>}
+                footer={<div style={{ display:'flex', justifyContent:'flex-end', gap: 10 }}><Button size="sm" variant="secondary">Editar</Button><Button size="sm" variant="brand">Guardar</Button></div>}>
+            <div style={{ color: 'var(--text-body)', fontSize: 14 }}>
+              González, María — DNI 28.450.110 · Resistencia, Chaco. Grupo familiar de 4 integrantes inscripto en 2 programas sociales.
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

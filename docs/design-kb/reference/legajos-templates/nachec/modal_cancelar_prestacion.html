@@ -1,0 +1,71 @@
+{% load static %}
+
+<div class="modal-header bg-danger text-white">
+    <h5 class="modal-title">
+        <i class="fas fa-ban"></i> Cancelar Prestación - {{ prestacion.get_tipo_display }}
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+
+<form method="post" action="{% url 'legajos:nachec_cancelar_prestacion' prestacion.id %}">
+    {% csrf_token %}
+    
+    <div class="modal-body">
+        <!-- Resumen -->
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>¿Está seguro que desea cancelar esta prestación?</strong>
+            <br><br>
+            <strong>Prestación:</strong> {{ prestacion.get_tipo_display }}<br>
+            <strong>Ciudadano:</strong> {{ prestacion.caso.ciudadano_titular.nombre_completo }}<br>
+            <strong>Fecha programada:</strong> {{ prestacion.fecha_programada|date:"d/m/Y" }}<br>
+            <strong>Estado actual:</strong> {{ prestacion.get_estado_display }}
+        </div>
+
+        <!-- Motivo -->
+        <div class="mb-3">
+            <label for="motivo" class="form-label fw-bold">
+                <i class="fas fa-question-circle"></i> Motivo de cancelación <span class="text-danger">*</span>
+            </label>
+            <select name="motivo" id="motivo" class="form-select" required>
+                <option value="">Seleccione...</option>
+                <option value="Beneficiario no localizado">Beneficiario no localizado</option>
+                <option value="Beneficiario rechazó prestación">Beneficiario rechazó prestación</option>
+                <option value="Cambio en situación del caso">Cambio en situación del caso</option>
+                <option value="Falta de recursos">Falta de recursos</option>
+                <option value="Duplicado">Duplicado</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
+
+        <!-- Detalle -->
+        <div class="mb-3">
+            <label for="detalle" class="form-label fw-bold">
+                <i class="fas fa-comment"></i> Detalle <span class="text-danger">*</span>
+            </label>
+            <textarea 
+                name="detalle" 
+                id="detalle" 
+                class="form-control" 
+                rows="3" 
+                required 
+                minlength="10"
+                placeholder="Explique el motivo de la cancelación (mínimo 10 caracteres)"></textarea>
+            <small class="text-muted">Mínimo 10 caracteres</small>
+        </div>
+
+        <div class="alert alert-danger">
+            <i class="fas fa-info-circle"></i> 
+            <strong>Esta acción no se puede deshacer.</strong> La prestación quedará marcada como CANCELADA y la tarea asociada también será cancelada.
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-arrow-left"></i> Volver
+        </button>
+        <button type="submit" class="btn btn-danger">
+            <i class="fas fa-ban"></i> Confirmar Cancelación
+        </button>
+    </div>
+</form>

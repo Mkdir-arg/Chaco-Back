@@ -1,0 +1,126 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Tarea de Validación - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-[#252F40]">Tarea de Validación Inicial</h2>
+            {% if tarea.estado == 'COMPLETADA' %}
+            <span class="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                <i class="fas fa-check-circle mr-1"></i>Completada
+            </span>
+            {% else %}
+            <span class="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold">
+                <i class="fas fa-clock mr-1"></i>Pendiente
+            </span>
+            {% endif %}
+        </div>
+        
+        <!-- Datos del Caso -->
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 class="font-bold text-[#252F40] mb-2">Caso</h3>
+            <p class="text-sm"><strong>Ciudadano:</strong> {{ caso.ciudadano_titular.nombre_completo }}</p>
+            <p class="text-sm"><strong>DNI:</strong> {{ caso.ciudadano_titular.dni|default:"Sin DNI" }}</p>
+            <p class="text-sm"><strong>Prioridad:</strong> {{ caso.get_prioridad_display }}</p>
+            <p class="text-sm"><strong>Municipio:</strong> {{ caso.municipio }}</p>
+        </div>
+        
+        <!-- Checklist de Validación -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">Checklist de Revisión Inicial</h3>
+            <div class="space-y-3 bg-gray-50 p-4 rounded-lg">
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3" {% if caso.ciudadano_titular.dni %}checked{% endif %}>
+                    <div>
+                        <span class="text-sm font-medium text-[#252F40]">Validar identidad (DNI o documento alternativo)</span>
+                        <p class="text-xs text-gray-600">DNI: {{ caso.ciudadano_titular.dni|default:"❌ Falta completar" }}</p>
+                    </div>
+                </label>
+                
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3" {% if caso.municipio and caso.municipio != 'Sin especificar' %}checked{% endif %}>
+                    <div>
+                        <span class="text-sm font-medium text-[#252F40]">Validar jurisdicción (municipio/localidad)</span>
+                        <p class="text-xs text-gray-600">Municipio: {{ caso.municipio }} | Localidad: {{ caso.localidad }}</p>
+                    </div>
+                </label>
+                
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3" {% if caso.ciudadano_titular.telefono or caso.ciudadano_titular.domicilio %}checked{% endif %}>
+                    <div>
+                        <span class="text-sm font-medium text-[#252F40]">Verificar datos de contacto</span>
+                        <p class="text-xs text-gray-600">Tel: {{ caso.ciudadano_titular.telefono|default:"Sin teléfono" }} | Dom: {{ caso.ciudadano_titular.domicilio|default:"Sin domicilio" }}</p>
+                    </div>
+                </label>
+                
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3">
+                    <span class="text-sm font-medium text-[#252F40]">Determinar si corresponde relevamiento territorial</span>
+                </label>
+                
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3">
+                    <span class="text-sm font-medium text-[#252F40]">Definir si requiere asistencia inmediata</span>
+                </label>
+                
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3" {% if caso.prioridad %}checked{% endif %}>
+                    <div>
+                        <span class="text-sm font-medium text-[#252F40]">Confirmar o ajustar prioridad</span>
+                        <p class="text-xs text-gray-600">Prioridad actual: {{ caso.get_prioridad_display }}</p>
+                    </div>
+                </label>
+                
+                <label class="flex items-start">
+                    <input type="checkbox" class="mt-1 mr-3">
+                    <span class="text-sm font-medium text-[#252F40]">Determinar próximos pasos</span>
+                </label>
+            </div>
+        </div>
+        
+        <!-- Información de la Tarea -->
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-bold text-[#252F40] mb-2">Información de la Tarea</h3>
+            {% if tarea %}
+            <p class="text-sm"><strong>Asignada a:</strong> {{ tarea.asignado_a.get_full_name|default:tarea.asignado_a.username }}</p>
+            <p class="text-sm"><strong>Fecha vencimiento:</strong> {{ tarea.fecha_vencimiento|date:"d/m/Y" }}</p>
+            <p class="text-sm"><strong>Estado:</strong> {{ tarea.get_estado_display }}</p>
+            {% else %}
+            <p class="text-sm text-gray-600">Esta validación se completará al hacer clic en el botón de abajo.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Botones de Acción -->
+        <div class="flex gap-4">
+            {% if tarea %}
+                {% if tarea.estado != 'COMPLETADA' %}
+                <form method="post" action="{% url 'legajos:nachec_completar_tarea' tarea.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all">
+                        <i class="fas fa-check mr-2"></i>Marcar como Completada
+                    </button>
+                </form>
+                {% endif %}
+            {% else %}
+            <form method="post" action="{% url 'legajos:nachec_completar_validacion' caso.id %}" class="flex-1">
+                {% csrf_token %}
+                <button type="submit" class="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all">
+                    <i class="fas fa-check mr-2"></i>Completar Validación
+                </button>
+            </form>
+            {% endif %}
+            
+            <a href="{% url 'legajos:ciudadano_editar' caso.ciudadano_titular.pk %}" target="_blank" class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all text-center">
+                <i class="fas fa-edit mr-2"></i>Editar Datos del Ciudadano
+            </a>
+            
+            <a href="{% url 'legajos:programa_detalle' 2 %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                <i class="fas fa-arrow-left mr-2"></i>Volver
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

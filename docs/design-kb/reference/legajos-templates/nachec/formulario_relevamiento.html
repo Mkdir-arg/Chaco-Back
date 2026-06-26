@@ -1,0 +1,667 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Relevamiento - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'custom/css/nachec-wizard.css' %}">
+{% endblock %}
+
+{% block main-content %}
+{{ score_desglose|json_script:"scoreDesgloseInicial" }}
+
+<div class="nachec-wizard nachec-wizard-bg -mx-4 -my-4 md:-mx-6 md:-my-6">
+    <div class="nachec-wizard-band"></div>
+
+    <div class="max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6"
+         x-data="nachecWizard()"
+         x-init="init()">
+
+        <nav class="text-xs text-slate-500 mb-3 flex items-center gap-2">
+            <a href="{% url 'legajos:programa_detalle' pk=2 %}" class="hover:text-blue-600 transition">Programas</a>
+            <i class="fas fa-chevron-right text-[8px] text-slate-300"></i>
+            <span>ÑACHEC</span>
+            <i class="fas fa-chevron-right text-[8px] text-slate-300"></i>
+            <span class="text-slate-900 font-medium">Relevamiento sociofamiliar</span>
+        </nav>
+
+        <div class="flex items-center gap-4 flex-wrap mb-6">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                {{ caso.ciudadano_titular.nombre_completo|slice:":1"|upper }}
+            </div>
+            <div class="flex-1 min-w-0">
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight truncate">
+                    {{ caso.ciudadano_titular.nombre_completo }}
+                </h1>
+                <div class="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                    <span>Caso #{{ caso.id }}</span>
+                    <span class="text-slate-300">·</span>
+                    <span>{{ caso.municipio }}</span>
+                    <span class="text-slate-300">·</span>
+                    <span class="inline-flex items-center gap-1.5 text-blue-700 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                        {{ caso.get_estado_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="nachec-save-indicator"
+                 :class="{'is-saving': estado === 'saving', 'is-saved': estado === 'saved', 'is-error': estado === 'error'}">
+                <span class="dot"></span>
+                <span x-text="indicatorText()"></span>
+            </div>
+        </div>
+
+        <form method="post" id="relevamientoForm" enctype="multipart/form-data"
+              class="grid gap-5 lg:gap-6 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_340px]">
+            {% csrf_token %}
+
+            <aside class="lg:sticky lg:top-6 self-start order-2 lg:order-1">
+                <div class="nachec-card rounded-2xl p-4 relative">
+                    <div class="nachec-track"></div>
+                    <div class="nachec-track-fill" :style="`height: ${progressPct()}%`"></div>
+
+                    <template x-for="s in pasos" :key="s.id">
+                        <button type="button" class="nachec-step-btn" @click="irAPaso(s.id)">
+                            <div class="nachec-step-circle" :class="claseCirculo(s.id)">
+                                <template x-if="estaCompleto(s.id)">
+                                    <i class="fas fa-check text-sm"></i>
+                                </template>
+                                <template x-if="!estaCompleto(s.id)">
+                                    <span x-text="s.id"></span>
+                                </template>
+                            </div>
+                            <div class="min-w-0 flex-1 pt-1">
+                                <div class="font-semibold text-sm leading-tight"
+                                     :class="s.id === pasoActual ? 'text-slate-900' : 'text-slate-600'"
+                                     x-text="s.titulo"></div>
+                                <div class="text-xs text-slate-400 mt-0.5" x-text="s.descripcion"></div>
+                            </div>
+                        </button>
+                    </template>
+                </div>
+            </aside>
+
+            <div class="nachec-card rounded-2xl p-6 md:p-8 min-h-[560px] order-1 lg:order-2">
+
+                <div class="nachec-step-panel" x-show="pasoActual === 1" data-step="1" :key="`step-${pasoActual}`">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Composición familiar</h2>
+                            <p class="text-sm text-slate-500">Convivientes del hogar y condiciones especiales</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 my-6"></div>
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div class="nachec-field">
+                            <label for="f_convivientes">Cantidad de convivientes <span class="req">*</span></label>
+                            <input id="f_convivientes" type="number" min="0" name="cantidad_convivientes"
+                                   value="{{ relevamiento.cantidad_convivientes|default:'' }}"
+                                   data-required="true" class="nachec-input">
+                            <span class="hint">Personas que viven actualmente en el hogar.</span>
+                        </div>
+                        <div class="space-y-3">
+                            <label class="nachec-toggle w-full">
+                                <input type="checkbox" name="hay_embarazo" {% if relevamiento.hay_embarazo %}checked{% endif %}>
+                                <span class="nachec-toggle-track"><span class="nachec-toggle-thumb"></span></span>
+                                <span class="nachec-toggle-label">Hay embarazo en el hogar</span>
+                            </label>
+                            <label class="nachec-toggle w-full">
+                                <input type="checkbox" name="hay_discapacidad" {% if relevamiento.hay_discapacidad %}checked{% endif %}>
+                                <span class="nachec-toggle-track"><span class="nachec-toggle-thumb"></span></span>
+                                <span class="nachec-toggle-label">Hay discapacidad en el hogar</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="nachec-field mt-5">
+                        <label for="f_detalle_discap">Detalle de discapacidad</label>
+                        <textarea id="f_detalle_discap" name="detalle_discapacidad" rows="3"
+                                  placeholder="Describa el tipo de discapacidad y necesidades especiales..."
+                                  class="nachec-textarea">{{ relevamiento.detalle_discapacidad|default:'' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="nachec-step-panel" x-show="pasoActual === 2" data-step="2">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Ingresos y empleo</h2>
+                            <p class="text-sm text-slate-500">Situación económica y laboral del hogar</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 my-6"></div>
+
+                    <div class="grid md:grid-cols-3 gap-5">
+                        <div class="nachec-field">
+                            <label for="f_ingreso">Rango de ingreso mensual <span class="req">*</span></label>
+                            <select id="f_ingreso" name="ingreso_mensual_rango" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="SIN_INGRESOS" {% if relevamiento.ingreso_mensual_rango == 'SIN_INGRESOS' %}selected{% endif %}>Sin ingresos</option>
+                                <option value="HASTA_50K" {% if relevamiento.ingreso_mensual_rango == 'HASTA_50K' %}selected{% endif %}>Hasta $50.000</option>
+                                <option value="50K_100K" {% if relevamiento.ingreso_mensual_rango == '50K_100K' %}selected{% endif %}>$50.000 - $100.000</option>
+                                <option value="100K_200K" {% if relevamiento.ingreso_mensual_rango == '100K_200K' %}selected{% endif %}>$100.000 - $200.000</option>
+                                <option value="MAS_200K" {% if relevamiento.ingreso_mensual_rango == 'MAS_200K' %}selected{% endif %}>Más de $200.000</option>
+                            </select>
+                        </div>
+                        <div class="nachec-field">
+                            <label for="f_fuente">Fuente principal <span class="req">*</span></label>
+                            <select id="f_fuente" name="fuente_ingreso" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="FORMAL" {% if relevamiento.fuente_ingreso == 'FORMAL' %}selected{% endif %}>Trabajo formal</option>
+                                <option value="INFORMAL" {% if relevamiento.fuente_ingreso == 'INFORMAL' %}selected{% endif %}>Trabajo informal</option>
+                                <option value="PLANES" {% if relevamiento.fuente_ingreso == 'PLANES' %}selected{% endif %}>Planes sociales</option>
+                                <option value="JUBILACION" {% if relevamiento.fuente_ingreso == 'JUBILACION' %}selected{% endif %}>Jubilación / Pensión</option>
+                                <option value="NINGUNO" {% if relevamiento.fuente_ingreso == 'NINGUNO' %}selected{% endif %}>Ninguno</option>
+                                <option value="MIXTO" {% if relevamiento.fuente_ingreso == 'MIXTO' %}selected{% endif %}>Mixto</option>
+                            </select>
+                        </div>
+                        <div class="nachec-field">
+                            <label for="f_sitlab">Situación laboral <span class="req">*</span></label>
+                            <select id="f_sitlab" name="situacion_laboral" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="EMPLEADO" {% if relevamiento.situacion_laboral == 'EMPLEADO' %}selected{% endif %}>Empleado</option>
+                                <option value="DESEMPLEADO" {% if relevamiento.situacion_laboral == 'DESEMPLEADO' %}selected{% endif %}>Desempleado</option>
+                                <option value="CHANGAS" {% if relevamiento.situacion_laboral == 'CHANGAS' %}selected{% endif %}>Changas / Ocasional</option>
+                                <option value="CUENTA_PROPIA" {% if relevamiento.situacion_laboral == 'CUENTA_PROPIA' %}selected{% endif %}>Cuenta propia</option>
+                                <option value="JUBILADO" {% if relevamiento.situacion_laboral == 'JUBILADO' %}selected{% endif %}>Jubilado</option>
+                                <option value="ESTUDIANTE" {% if relevamiento.situacion_laboral == 'ESTUDIANTE' %}selected{% endif %}>Estudiante</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="nachec-step-panel" x-show="pasoActual === 3" data-step="3">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Vivienda</h2>
+                            <p class="text-sm text-slate-500">Tipo de vivienda, materiales y servicios básicos</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 my-6"></div>
+
+                    <div class="grid md:grid-cols-2 gap-5 mb-6">
+                        <div class="nachec-field">
+                            <label for="f_tipoviv">Tipo de vivienda <span class="req">*</span></label>
+                            <select id="f_tipoviv" name="tipo_vivienda" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="PROPIA" {% if relevamiento.tipo_vivienda == 'PROPIA' %}selected{% endif %}>Propia</option>
+                                <option value="ALQUILADA" {% if relevamiento.tipo_vivienda == 'ALQUILADA' %}selected{% endif %}>Alquilada</option>
+                                <option value="PRESTADA" {% if relevamiento.tipo_vivienda == 'PRESTADA' %}selected{% endif %}>Prestada</option>
+                                <option value="PRECARIA" {% if relevamiento.tipo_vivienda == 'PRECARIA' %}selected{% endif %}>Precaria</option>
+                                <option value="OCUPADA" {% if relevamiento.tipo_vivienda == 'OCUPADA' %}selected{% endif %}>Ocupada</option>
+                                <option value="CALLE" {% if relevamiento.tipo_vivienda == 'CALLE' %}selected{% endif %}>Situación de calle</option>
+                            </select>
+                        </div>
+                        <div class="nachec-field">
+                            <label for="f_material">Material predominante <span class="req">*</span></label>
+                            <select id="f_material" name="material_predominante" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="LADRILLO" {% if relevamiento.material_predominante == 'LADRILLO' %}selected{% endif %}>Ladrillo</option>
+                                <option value="MADERA" {% if relevamiento.material_predominante == 'MADERA' %}selected{% endif %}>Madera</option>
+                                <option value="CHAPA" {% if relevamiento.material_predominante == 'CHAPA' %}selected{% endif %}>Chapa</option>
+                                <option value="CARTON" {% if relevamiento.material_predominante == 'CARTON' %}selected{% endif %}>Cartón</option>
+                                <option value="MIXTO" {% if relevamiento.material_predominante == 'MIXTO' %}selected{% endif %}>Mixto</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-sm font-semibold text-slate-700 mb-3">Servicios básicos disponibles</div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label class="nachec-check">
+                                <input type="checkbox" name="tiene_agua" {% if relevamiento.tiene_agua %}checked{% endif %}>
+                                <span class="nachec-check-box"><i class="fas fa-check text-xs"></i></span>
+                                <span class="nachec-check-label"><i class="fas fa-tint mr-1 text-blue-500"></i>Agua</span>
+                            </label>
+                            <label class="nachec-check">
+                                <input type="checkbox" name="tiene_luz" {% if relevamiento.tiene_luz %}checked{% endif %}>
+                                <span class="nachec-check-box"><i class="fas fa-check text-xs"></i></span>
+                                <span class="nachec-check-label"><i class="fas fa-bolt mr-1 text-amber-500"></i>Luz</span>
+                            </label>
+                            <label class="nachec-check">
+                                <input type="checkbox" name="tiene_gas" {% if relevamiento.tiene_gas %}checked{% endif %}>
+                                <span class="nachec-check-box"><i class="fas fa-check text-xs"></i></span>
+                                <span class="nachec-check-label"><i class="fas fa-fire mr-1 text-orange-500"></i>Gas</span>
+                            </label>
+                            <label class="nachec-check">
+                                <input type="checkbox" name="tiene_cloaca" {% if relevamiento.tiene_cloaca %}checked{% endif %}>
+                                <span class="nachec-check-box"><i class="fas fa-check text-xs"></i></span>
+                                <span class="nachec-check-label"><i class="fas fa-water mr-1 text-cyan-600"></i>Cloaca</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="nachec-step-panel" x-show="pasoActual === 4" data-step="4">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Salud y alimentación</h2>
+                            <p class="text-sm text-slate-500">Cobertura, acceso a alimentos y educación</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 my-6"></div>
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div class="nachec-field">
+                            <label for="f_cobertura">Cobertura de salud <span class="req">*</span></label>
+                            <select id="f_cobertura" name="cobertura_salud" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="OBRA_SOCIAL" {% if relevamiento.cobertura_salud == 'OBRA_SOCIAL' %}selected{% endif %}>Obra social</option>
+                                <option value="PREPAGA" {% if relevamiento.cobertura_salud == 'PREPAGA' %}selected{% endif %}>Prepaga</option>
+                                <option value="PUBLICA" {% if relevamiento.cobertura_salud == 'PUBLICA' %}selected{% endif %}>Pública</option>
+                                <option value="NINGUNA" {% if relevamiento.cobertura_salud == 'NINGUNA' %}selected{% endif %}>Ninguna</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <label class="nachec-toggle w-full">
+                                <input type="checkbox" name="menores_escolarizados" {% if relevamiento.menores_escolarizados %}checked{% endif %}>
+                                <span class="nachec-toggle-track"><span class="nachec-toggle-thumb"></span></span>
+                                <span class="nachec-toggle-label">Menores escolarizados</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-5 mt-5">
+                        <div class="nachec-field">
+                            <label for="f_acceso">Acceso a alimentos <span class="req">*</span></label>
+                            <select id="f_acceso" name="acceso_alimentos" data-required="true" class="nachec-select">
+                                <option value="">Seleccione...</option>
+                                <option value="SUFICIENTE" {% if relevamiento.acceso_alimentos == 'SUFICIENTE' %}selected{% endif %}>Suficiente</option>
+                                <option value="INSUFICIENTE" {% if relevamiento.acceso_alimentos == 'INSUFICIENTE' %}selected{% endif %}>Insuficiente</option>
+                                <option value="CRITICO" {% if relevamiento.acceso_alimentos == 'CRITICO' %}selected{% endif %}>Crítico</option>
+                            </select>
+                        </div>
+                        <div class="nachec-field">
+                            <label for="f_comidas">Comidas diarias <span class="req">*</span></label>
+                            <input id="f_comidas" type="number" min="0" max="6" name="frecuencia_comidas"
+                                   value="{{ relevamiento.frecuencia_comidas|default:'' }}"
+                                   data-required="true" class="nachec-input">
+                            <span class="hint">Cantidad promedio de comidas por día.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="nachec-step-panel" x-show="pasoActual === 5" data-step="5">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 text-white flex items-center justify-center shadow-md shadow-red-500/20">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Situaciones de riesgo</h2>
+                            <p class="text-sm text-slate-500">Violencia, urgencia alimentaria y observaciones</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 my-6"></div>
+
+                    <div class="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-2xl p-5 mb-5">
+                        <div class="text-xs font-bold uppercase tracking-wider text-red-800 mb-3 flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle"></i>Indicadores críticos
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <label class="nachec-toggle is-danger bg-white/70">
+                                <input type="checkbox" name="hay_violencia" {% if relevamiento.hay_violencia %}checked{% endif %}>
+                                <span class="nachec-toggle-track"><span class="nachec-toggle-thumb"></span></span>
+                                <span class="nachec-toggle-label">Situación de violencia</span>
+                            </label>
+                            <label class="nachec-toggle is-danger bg-white/70">
+                                <input type="checkbox" name="urgencia_alimentaria" {% if relevamiento.urgencia_alimentaria %}checked{% endif %}>
+                                <span class="nachec-toggle-track"><span class="nachec-toggle-thumb"></span></span>
+                                <span class="nachec-toggle-label">Urgencia alimentaria</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="nachec-field">
+                        <label for="f_obs">Observaciones generales</label>
+                        <textarea id="f_obs" name="observaciones" rows="6"
+                                  placeholder="Agregue cualquier información adicional relevante sobre la situación del hogar..."
+                                  class="nachec-textarea">{{ relevamiento.observaciones|default:'' }}</textarea>
+                        <span class="hint">Redes de contención, animales en el hogar, conflictos vecinales, etc.</span>
+                    </div>
+                </div>
+
+                <div class="nachec-step-panel" x-show="pasoActual === 6" data-step="6">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-violet-500/20">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Evidencias fotográficas</h2>
+                            <p class="text-sm text-slate-500">Documentación visual del hogar y situaciones observadas</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 my-6"></div>
+
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-exclamation text-sm"></i>
+                        </div>
+                        <div class="text-sm text-amber-900">
+                            <strong>Importante.</strong> Si marcó riesgo crítico (violencia, urgencia alimentaria o vivienda precaria / calle), debe adjuntar al menos <strong>1 evidencia</strong>.
+                        </div>
+                    </div>
+
+                    <div class="nachec-dropzone">
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-3">
+                            <i class="fas fa-cloud-upload-alt text-2xl text-violet-600"></i>
+                        </div>
+                        <h4 class="font-semibold text-slate-900 mb-1">Adjuntar evidencias</h4>
+                        <p class="text-sm text-slate-500 mb-4">Imágenes (JPG, PNG) o PDF hasta 10 MB c/u</p>
+
+                        <div id="evidencias-container" class="space-y-2 mb-4 text-left"></div>
+
+                        <button type="button" onclick="agregarEvidencia()"
+                                class="nachec-btn-secondary mx-auto">
+                            <i class="fas fa-plus"></i>Agregar archivo
+                        </button>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-5 flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-info text-sm"></i>
+                        </div>
+                        <div class="text-sm text-blue-900">
+                            <strong>Recomendación.</strong> Fotografíe fachada, interior, servicios básicos y situaciones de riesgo observadas en terreno.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-8 pt-6 border-t border-slate-100 gap-3">
+                    <button type="button" class="nachec-btn-secondary"
+                            x-show="pasoActual > 1"
+                            @click="retroceder()">
+                        <i class="fas fa-arrow-left arrow-left"></i>Anterior
+                    </button>
+                    <div x-show="pasoActual === 1"></div>
+
+                    <div class="text-xs text-slate-400 font-medium hidden sm:block">
+                        Paso <span class="font-bold text-slate-700" x-text="pasoActual"></span> de <span x-text="totalSteps"></span>
+                    </div>
+
+                    <button type="button" class="nachec-btn-primary"
+                            x-show="pasoActual < totalSteps"
+                            @click="avanzar()">
+                        Siguiente<i class="fas fa-arrow-right arrow-right"></i>
+                    </button>
+                    <button type="submit" class="nachec-btn-primary nachec-btn-submit"
+                            x-show="pasoActual === totalSteps">
+                        <i class="fas fa-check"></i>Finalizar relevamiento
+                    </button>
+                </div>
+            </div>
+
+            <aside class="xl:sticky xl:top-6 self-start space-y-4 order-3">
+                <div class="nachec-score-card">
+                    <div class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-1">Nivel de vulnerabilidad</div>
+                    <div class="text-xs text-slate-400 mb-2">Actualiza al completar campos</div>
+
+                    <div class="nachec-gauge">
+                        <svg width="180" height="180" viewBox="0 0 180 180">
+                            <defs>
+                                <linearGradient id="gauge-gradient-low" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#10B981"/>
+                                    <stop offset="100%" stop-color="#059669"/>
+                                </linearGradient>
+                                <linearGradient id="gauge-gradient-med" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#F59E0B"/>
+                                    <stop offset="100%" stop-color="#D97706"/>
+                                </linearGradient>
+                                <linearGradient id="gauge-gradient-high" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#EF4444"/>
+                                    <stop offset="100%" stop-color="#DC2626"/>
+                                </linearGradient>
+                            </defs>
+                            <circle class="nachec-gauge-track" cx="90" cy="90" r="78"/>
+                            <circle class="nachec-gauge-fill"
+                                    :class="`cat-${categoria}`"
+                                    cx="90" cy="90" r="78"
+                                    stroke-dasharray="490"
+                                    :stroke-dashoffset="490 - (490 * Math.min(score, 100) / 100)"/>
+                        </svg>
+                        <div class="nachec-gauge-label">
+                            <div class="nachec-gauge-value" x-text="score"></div>
+                            <div class="nachec-gauge-unit">de 100</div>
+                        </div>
+                    </div>
+
+                    <div class="text-center -mt-2 mb-5">
+                        <span class="nachec-cat-badge" :class="`nachec-cat-${categoria}`" x-text="textoCategoria()"></span>
+                    </div>
+
+                    <div class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-3">Desglose por dimensión</div>
+                    <template x-for="d in dimensiones" :key="d.key">
+                        <div class="nachec-dim-bar">
+                            <div class="nachec-dim-head">
+                                <span class="nachec-dim-name" x-text="d.nombre"></span>
+                                <span class="nachec-dim-value">
+                                    <span x-text="desglose[d.key] || 0"></span><span class="text-slate-300"> / </span><span x-text="d.max"></span>
+                                </span>
+                            </div>
+                            <div class="nachec-dim-track">
+                                <div class="nachec-dim-fill"
+                                     :class="{'cat-high': ((desglose[d.key]||0) / d.max) > 0.6}"
+                                     :style="`width: ${Math.min(100, ((desglose[d.key]||0) / d.max) * 100)}%`"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="nachec-tip">
+                    <div class="nachec-tip-icon"><i class="fas fa-lightbulb text-sm"></i></div>
+                    <div class="nachec-tip-text" x-html="tipDelPaso()"></div>
+                </div>
+            </aside>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script>
+function nachecWizard() {
+    return {
+        autosaveUrl: "{% url 'legajos:nachec_autosave_relevamiento' caso.id %}",
+        totalSteps: 6,
+        pasoActual: 1,
+        pasosCompletados: [],
+        estado: 'idle',
+        ultimoSave: null,
+        score: {{ score_total|default:0 }},
+        categoria: '{{ score_categoria|default:"BAJO" }}',
+        desglose: {},
+        autosaveTimer: null,
+
+        pasos: [
+            {id: 1, titulo: 'Composición familiar', descripcion: 'Convivientes y condiciones'},
+            {id: 2, titulo: 'Ingresos y empleo',    descripcion: 'Situación económica'},
+            {id: 3, titulo: 'Vivienda',             descripcion: 'Tipo, materiales y servicios'},
+            {id: 4, titulo: 'Salud y alimentación', descripcion: 'Cobertura y acceso'},
+            {id: 5, titulo: 'Situaciones de riesgo',descripcion: 'Violencia y urgencias'},
+            {id: 6, titulo: 'Evidencias',           descripcion: 'Fotos y documentos'},
+        ],
+        dimensiones: [
+            {key: 'familia',  nombre: 'Familia',            max: 15},
+            {key: 'ingresos', nombre: 'Ingresos',           max: 25},
+            {key: 'vivienda', nombre: 'Vivienda',           max: 20},
+            {key: 'salud',    nombre: 'Salud / Alimentación', max: 25},
+            {key: 'riesgos',  nombre: 'Riesgos',            max: 15},
+        ],
+
+        init() {
+            try {
+                const el = document.getElementById('scoreDesgloseInicial');
+                if (el) this.desglose = JSON.parse(el.textContent) || {};
+            } catch (e) { this.desglose = {}; }
+
+            const form = document.getElementById('relevamientoForm');
+            form.addEventListener('input', (e) => {
+                if (e.target.type !== 'file') this.programarAutosave();
+            });
+            form.addEventListener('change', (e) => {
+                if (e.target.type !== 'file') this.programarAutosave();
+            });
+
+            setInterval(() => {
+                if (this.estado !== 'saving') this.autosave(true);
+            }, 30000);
+        },
+
+        progressPct() {
+            return ((this.pasoActual - 1) / (this.totalSteps - 1)) * 100;
+        },
+
+        estaCompleto(pasoId) { return this.pasosCompletados.includes(pasoId); },
+
+        claseCirculo(pasoId) {
+            if (this.pasosCompletados.includes(pasoId) && pasoId !== this.pasoActual) return 'is-complete';
+            if (pasoId === this.pasoActual) return 'is-current';
+            return 'is-pending';
+        },
+
+        validarPaso(pasoId) {
+            const panel = document.querySelector(`[data-step="${pasoId}"]`);
+            if (!panel) return true;
+            const requeridos = panel.querySelectorAll('[data-required="true"]');
+            let valid = true;
+            let primero = null;
+            requeridos.forEach(inp => {
+                const v = inp.type === 'checkbox' ? inp.checked : (inp.value || '').trim();
+                if (!v) {
+                    inp.classList.add('is-invalid');
+                    if (!primero) primero = inp;
+                    valid = false;
+                    setTimeout(() => inp.classList.remove('is-invalid'), 450);
+                }
+            });
+            if (primero) primero.focus();
+            return valid;
+        },
+
+        avanzar() {
+            if (!this.validarPaso(this.pasoActual)) return;
+            if (!this.pasosCompletados.includes(this.pasoActual)) {
+                this.pasosCompletados.push(this.pasoActual);
+            }
+            if (this.pasoActual < this.totalSteps) {
+                this.pasoActual++;
+                this.autosave();
+                this.$nextTick(() => window.scrollTo({top: 0, behavior: 'smooth'}));
+            }
+        },
+
+        retroceder() {
+            if (this.pasoActual > 1) {
+                this.pasoActual--;
+                this.$nextTick(() => window.scrollTo({top: 0, behavior: 'smooth'}));
+            }
+        },
+
+        irAPaso(id) {
+            if (id === this.pasoActual) return;
+            if (id < this.pasoActual || this.pasosCompletados.includes(id)) {
+                this.pasoActual = id;
+                this.$nextTick(() => window.scrollTo({top: 0, behavior: 'smooth'}));
+            } else {
+                if (this.validarPaso(this.pasoActual)) {
+                    if (!this.pasosCompletados.includes(this.pasoActual)) {
+                        this.pasosCompletados.push(this.pasoActual);
+                    }
+                    this.pasoActual = id;
+                    this.autosave();
+                    this.$nextTick(() => window.scrollTo({top: 0, behavior: 'smooth'}));
+                }
+            }
+        },
+
+        programarAutosave() {
+            clearTimeout(this.autosaveTimer);
+            this.autosaveTimer = setTimeout(() => this.autosave(), 1500);
+        },
+
+        async autosave(silent = false) {
+            if (this.estado === 'saving') return;
+            if (!silent) this.estado = 'saving';
+            const form = document.getElementById('relevamientoForm');
+            const fd = new FormData();
+            for (const [k, v] of new FormData(form).entries()) {
+                if (!(v instanceof File)) fd.append(k, v);
+            }
+            try {
+                const resp = await fetch(this.autosaveUrl, {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const d = await resp.json();
+                if (!d.success) throw new Error('save failed');
+                this.score = d.score_total;
+                this.categoria = d.score_categoria;
+                this.desglose = d.score_desglose || {};
+                this.ultimoSave = d.saved_at;
+                this.estado = 'saved';
+                setTimeout(() => { if (this.estado === 'saved') this.estado = 'idle'; }, 2500);
+            } catch (e) {
+                this.estado = 'error';
+                setTimeout(() => { if (this.estado === 'error') this.estado = 'idle'; }, 4000);
+            }
+        },
+
+        indicatorText() {
+            if (this.estado === 'saving') return 'Guardando...';
+            if (this.estado === 'saved') return this.ultimoSave ? `Guardado a las ${this.ultimoSave}` : 'Guardado';
+            if (this.estado === 'error') return 'Error al guardar';
+            return 'Autoguardado activo';
+        },
+
+        textoCategoria() {
+            if (this.categoria === 'ALTO') return 'Alto riesgo';
+            if (this.categoria === 'MEDIO') return 'Riesgo medio';
+            return 'Riesgo bajo';
+        },
+
+        tipDelPaso() {
+            const tips = {
+                1: '<strong>Discapacidad</strong> o <strong>embarazo</strong> suman 5 pts cada uno. Convivientes ≥ 6 suma 5 pts adicionales.',
+                2: '<strong>Sin ingresos</strong> o hasta $50.000 suma 15 pts. Desempleo suma 5 pts más.',
+                3: 'Vivienda <strong>precaria / calle / ocupada</strong> suma 10 pts. Faltan servicios básicos: hasta 5 pts más.',
+                4: '<strong>Acceso crítico a alimentos</strong> suma 10 pts. Menos de 2 comidas diarias suma 7 pts.',
+                5: '<strong>Violencia</strong> o <strong>urgencia alimentaria</strong> suman hasta 15 pts combinados — máxima prioridad operativa.',
+                6: 'Si marcaste riesgo crítico en pasos anteriores, es <strong>obligatorio</strong> adjuntar al menos 1 evidencia.',
+            };
+            return tips[this.pasoActual] || '';
+        },
+    };
+}
+
+let evidenciaCount = 0;
+function agregarEvidencia() {
+    evidenciaCount++;
+    const container = document.getElementById('evidencias-container');
+    const div = document.createElement('div');
+    div.className = 'nachec-evidencia-item';
+    div.innerHTML = `
+        <i class="fas fa-paperclip text-slate-400"></i>
+        <input type="file" name="evidencia_${evidenciaCount}" accept="image/*,application/pdf" class="flex-1 text-sm">
+        <button type="button" onclick="this.parentElement.remove()"
+                class="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center transition">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+</script>
+{% endblock %}

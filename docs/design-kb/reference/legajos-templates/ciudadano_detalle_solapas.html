@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ ciudadano.nombre_completo }} - Legajo{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Header con información del ciudadano -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">
+                    {{ ciudadano.nombre_completo }}
+                </h1>
+                <p class="text-gray-500 mt-1">DNI: {{ ciudadano.dni }}</p>
+            </div>
+            <div class="flex gap-3">
+                <button class="btn-primary" onclick="derivarPrograma()">
+                    <i class="fas fa-share"></i> Derivar a Programa
+                </button>
+                <button class="btn-secondary" onclick="inscribirPrograma()">
+                    <i class="fas fa-plus"></i> Inscribir a Programa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sistema de Solapas Dinámicas -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        
+        <!-- Navegación de Solapas -->
+        <!-- Orden: Resumen | [Programas Dinámicos] | Red Familiar | Archivos -->
+        <div class="border-b border-gray-200">
+            <nav class="flex -mb-px overflow-x-auto" aria-label="Tabs">
+                {% for solapa in solapas %}
+                <a 
+                    href="{% if solapa.estatica %}{% url solapa.url_name ciudadano.id %}{% else %}{% url solapa.url_name ciudadano_id=solapa.url_params.ciudadano_id inscripcion_id=solapa.url_params.inscripcion_id %}{% endif %}"
+                    class="solapa-tab {% if solapa_activa == solapa.id %}solapa-activa{% endif %} whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm flex items-center gap-2"
+                    data-solapa="{{ solapa.id }}"
+                    {% if not solapa.estatica %}style="border-color: {{ solapa.color }};"{% endif %}
+                >
+                    <!-- Icono -->
+                    <i class="fas fa-{{ solapa.icono }}"></i>
+                    
+                    <!-- Nombre de la solapa -->
+                    <span>{{ solapa.nombre }}</span>
+                    
+                    <!-- Badge (si existe) -->
+                    {% if solapa.badge %}
+                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{{ solapa.badge.color }}-100 text-{{ solapa.badge.color }}-800">
+                        {{ solapa.badge.texto }}
+                    </span>
+                    {% endif %}
+                    
+                    <!-- Indicador de programa dinámico -->
+                    {% if not solapa.estatica %}
+                    <span class="ml-1 w-2 h-2 rounded-full" style="background-color: {{ solapa.color }};"></span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </nav>
+        </div>
+
+        <!-- Contenido de la Solapa Activa -->
+        <div class="p-6">
+            {% block solapa_content %}
+            <!-- El contenido específico de cada solapa se renderiza aquí -->
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- Derivaciones Pendientes (si existen) -->
+    {% if derivaciones_pendientes %}
+    <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800">
+                    Derivaciones Pendientes ({{ derivaciones_pendientes.count }})
+                </h3>
+                <div class="mt-2 text-sm text-yellow-700">
+                    <ul class="list-disc list-inside space-y-1">
+                        {% for derivacion in derivaciones_pendientes %}
+                        <li>
+                            <strong>{{ derivacion.programa_destino.nombre }}</strong>
+                            {% if derivacion.programa_origen %}
+                            (desde {{ derivacion.programa_origen.nombre }})
+                            {% else %}
+                            (derivación espontánea)
+                            {% endif %}
+                            - Urgencia: {{ derivacion.get_urgencia_display }}
+                            <a href="#" class="underline ml-2 opacity-50 cursor-not-allowed" title="Próximamente">Ver detalle</a>{# TODO: implementar legajos:derivacion_programa_detalle #}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Modal para Derivar a Programa -->
+<div id="modalDerivarPrograma" class="modal hidden">
+    <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4">Derivar a Programa</h2>
+        <form method="post" action="{% url 'legajos:derivar_programa' ciudadano.id %}">
+            {% csrf_token %}
+            
+            <!-- Programa Origen (si aplica) -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Desde Programa (opcional)
+                </label>
+                <select name="programa_origen" class="form-select w-full">
+                    <option value="">Derivación Espontánea</option>
+                    {% for inscripcion in programas_activos %}
+                    <option value="{{ inscripcion.programa.id }}">{{ inscripcion.programa.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Programa Destino -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Hacia Programa *
+                </label>
+                <select name="programa_destino" class="form-select w-full" required>
+                    <option value="">Seleccionar programa...</option>
+                    {% for programa in programas_disponibles %}
+                    <option value="{{ programa.id }}">{{ programa.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Motivo -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Motivo de Derivación *
+                </label>
+                <textarea name="motivo" rows="4" class="form-textarea w-full" required></textarea>
+            </div>
+            
+            <!-- Urgencia -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Urgencia
+                </label>
+                <select name="urgencia" class="form-select w-full">
+                    <option value="BAJA">Baja</option>
+                    <option value="MEDIA" selected>Media</option>
+                    <option value="ALTA">Alta</option>
+                </select>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button type="button" class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn-primary">Crear Derivación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.solapa-tab {
+    color: #6b7280;
+    border-bottom-color: transparent;
+    transition: all 0.2s;
+}
+
+.solapa-tab:hover {
+    color: #111827;
+    border-bottom-color: #e5e7eb;
+}
+
+.solapa-tab.solapa-activa {
+    color: #111827;
+    border-bottom-width: 2px;
+    border-bottom-color: #6366f1;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+</style>
+
+<script>
+function derivarPrograma() {
+    document.getElementById('modalDerivarPrograma').classList.remove('hidden');
+}
+
+function inscribirPrograma() {
+    // TODO: implementar legajos:inscribir_programa
+    alert('Funcionalidad próximamente disponible.');
+}
+
+function cerrarModal() {
+    document.getElementById('modalDerivarPrograma').classList.add('hidden');
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('modalDerivarPrograma')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        cerrarModal();
+    }
+});
+</script>
+
+{% endblock %}

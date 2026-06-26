@@ -1,0 +1,390 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Editar Ciudadano{% endblock %}
+
+{% block main-content %}
+<div class="space-y-8">
+    <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+        <div class="bg-gradient-to-r from-blue-50 via-white to-indigo-50 px-6 py-6 lg:px-8">
+            <nav class="mb-4 flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/75 px-3 py-2 text-sm text-gray-600 shadow-sm backdrop-blur">
+                    <li>
+                        <a href="{% url 'legajos:ciudadanos' %}" class="inline-flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white hover:text-gray-700">
+                            <i class="fas fa-users text-xs"></i>
+                            <span>Ciudadanos</span>
+                        </a>
+                    </li>
+                    <li><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></li>
+                    <li>
+                        <a href="{% url 'legajos:ciudadano_detalle' object.pk %}" class="rounded-lg px-2 py-1 hover:bg-white hover:text-gray-700">
+                            {{ object.apellido }}, {{ object.nombre }}
+                        </a>
+                    </li>
+                    <li><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></li>
+                    <li class="rounded-lg bg-white px-2 py-1 text-gray-700 shadow-sm">Editar</li>
+                </ol>
+            </nav>
+
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-start gap-4">
+                    {% if object.foto %}
+                    <img src="{{ object.foto.url }}" alt="Foto de {{ object.nombre_completo|default:object.nombre }}" class="h-16 w-16 rounded-2xl object-cover shadow-sm ring-4 ring-white">
+                    {% else %}
+                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-xl font-bold text-white shadow-sm ring-4 ring-white">
+                        {{ object.nombre.0 }}{{ object.apellido.0 }}
+                    </div>
+                    {% endif %}
+                    <div class="rounded-2xl border border-white/80 bg-white/78 px-5 py-4 shadow-sm backdrop-blur">
+                        <div class="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-blue-700 shadow-sm ring-1 ring-blue-100">
+                            <span class="h-2 w-2 rounded-full bg-blue-600"></span>
+                            Edición de legajo ciudadano
+                        </div>
+                        <h1 class="text-3xl font-bold tracking-tight text-slate-950">{{ object.apellido }}, {{ object.nombre }}</h1>
+                        <p class="mt-2 max-w-2xl text-sm text-slate-700">Actualizá datos personales, ubicación y perfil social desde una vista unificada con componentes Flowbite.</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">DNI</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900">{{ object.dni }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Estado</p>
+                        <p class="mt-1 text-sm font-semibold text-emerald-700">Activo</p>
+                    </div>
+                    <div class="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Perfil</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900">Backoffice</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-sm">
+                    <div class="flex gap-3">
+                        <div class="flex-shrink-0 pt-0.5">
+                            <i class="fas fa-exclamation-circle text-red-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold">Hay errores en el formulario</h3>
+                            <div class="mt-2 space-y-1 text-red-700">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <p>{{ error }}</p>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            <div class="grid gap-6 xl:grid-cols-12">
+                <div class="space-y-6 xl:col-span-8">
+                    <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div class="border-b border-gray-200 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-gray-900">Datos básicos</h2>
+                            <p class="mt-1 text-sm text-gray-500">Identificación principal y datos personales del ciudadano.</p>
+                        </div>
+                        <div class="grid gap-6 px-6 py-6 md:grid-cols-2 xl:grid-cols-4">
+                            <div class="xl:col-span-2">
+                                <label for="{{ form.dni.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.dni.label }} <span class="text-red-500">*</span></label>
+                                {{ form.dni }}
+                                <p class="mt-2 text-xs text-gray-500">Este campo es solo lectura para conservar la identidad del legajo.</p>
+                            </div>
+                            <div class="xl:col-span-2">
+                                <label for="{{ form.genero.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.genero.label }}</label>
+                                {{ form.genero }}
+                            </div>
+                            <div class="xl:col-span-2">
+                                <label for="{{ form.nombre.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.nombre.label }} <span class="text-red-500">*</span></label>
+                                {{ form.nombre }}
+                            </div>
+                            <div class="xl:col-span-2">
+                                <label for="{{ form.apellido.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.apellido.label }} <span class="text-red-500">*</span></label>
+                                {{ form.apellido }}
+                            </div>
+                            <div class="xl:col-span-2">
+                                <label for="{{ form.fecha_nacimiento.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.fecha_nacimiento.label }}</label>
+                                {{ form.fecha_nacimiento }}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div class="border-b border-gray-200 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-gray-900">Contacto y ubicación</h2>
+                            <p class="mt-1 text-sm text-gray-500">Canales de contacto y referencia territorial principal.</p>
+                        </div>
+                        <div class="space-y-6 px-6 py-6">
+                            <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                                <div class="xl:col-span-2">
+                                    <label for="{{ form.telefono.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.telefono.label }}</label>
+                                    {{ form.telefono }}
+                                </div>
+                                <div class="xl:col-span-2">
+                                    <label for="{{ form.email.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.email.label }}</label>
+                                    {{ form.email }}
+                                </div>
+                            </div>
+                            <div>
+                                <label for="{{ form.domicilio.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.domicilio.label }}</label>
+                                {{ form.domicilio }}
+                            </div>
+                            <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                                <div>
+                                    <label for="{{ form.provincia.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.provincia.label }}</label>
+                                    {{ form.provincia }}
+                                </div>
+                                <div>
+                                    <label for="{{ form.municipio.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.municipio.label }}</label>
+                                    {{ form.municipio }}
+                                </div>
+                                <div>
+                                    <label for="{{ form.localidad.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.localidad.label }}</label>
+                                    {{ form.localidad }}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div class="border-b border-gray-200 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-gray-900">Perfil social</h2>
+                            <p class="mt-1 text-sm text-gray-500">Información complementaria para la intervención y seguimiento.</p>
+                        </div>
+                        <div class="grid gap-6 px-6 py-6 lg:grid-cols-2">
+                            <div class="rounded-2xl border border-orange-100 bg-orange-50/60 p-5">
+                                <div class="mb-4 flex items-center gap-3">
+                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                                        <i class="fas fa-home"></i>
+                                    </span>
+                                    <div>
+                                        <h3 class="text-sm font-semibold uppercase tracking-wide text-orange-900">Situación habitacional</h3>
+                                        <p class="text-xs text-orange-700">Vivienda, tenencia y contexto del hogar.</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.tipo_vivienda.label }}</label>
+                                            {{ form.tipo_vivienda }}
+                                        </div>
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.tenencia_vivienda.label }}</label>
+                                            {{ form.tenencia_vivienda }}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.condiciones_vivienda.label }}</label>
+                                        {{ form.condiciones_vivienda }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
+                                <div class="mb-4 flex items-center gap-3">
+                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                                        <i class="fas fa-briefcase"></i>
+                                    </span>
+                                    <div>
+                                        <h3 class="text-sm font-semibold uppercase tracking-wide text-blue-900">Situación laboral</h3>
+                                        <p class="text-xs text-blue-700">Actividad, ingresos y cobertura actual.</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.situacion_laboral.label }}</label>
+                                        {{ form.situacion_laboral }}
+                                    </div>
+                                    <div class="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.ingreso_estimado.label }}</label>
+                                            {{ form.ingreso_estimado }}
+                                        </div>
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.obra_social.label }}</label>
+                                            {{ form.obra_social }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-green-100 bg-green-50/60 p-5">
+                                <div class="mb-4 flex items-center gap-3">
+                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 text-green-600">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </span>
+                                    <div>
+                                        <h3 class="text-sm font-semibold uppercase tracking-wide text-green-900">Situación educativa</h3>
+                                        <p class="text-xs text-green-700">Nivel formativo declarado y trayectoria educativa.</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.nivel_educativo.label }}</label>
+                                    {{ form.nivel_educativo }}
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-purple-100 bg-purple-50/60 p-5">
+                                <div class="mb-4 flex items-center gap-3">
+                                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                                        <i class="fas fa-id-card"></i>
+                                    </span>
+                                    <div>
+                                        <h3 class="text-sm font-semibold uppercase tracking-wide text-purple-900">Documentación</h3>
+                                        <p class="text-xs text-purple-700">Validación física y estado registral.</p>
+                                    </div>
+                                </div>
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.dni_fisico.label }}</label>
+                                        {{ form.dni_fisico }}
+                                    </div>
+                                    <div>
+                                        <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.estado_renaper.label }}</label>
+                                        {{ form.estado_renaper }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {% if puede_ver_sensible %}
+                    <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div class="border-b border-gray-200 px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <div>
+                                    <h2 class="text-lg font-semibold text-gray-900">Datos sensibles</h2>
+                                    <p class="mt-1 text-sm text-gray-500">Visible solo para usuarios con permiso ciudadanoSensible.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-6 px-6 py-6">
+                            <div class="grid gap-6 md:grid-cols-2">
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.cobertura_medica.label }}</label>
+                                    {{ form.cobertura_medica }}
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.estado_migratorio.label }}</label>
+                                    {{ form.estado_migratorio }}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.medicacion_habitual.label }}</label>
+                                {{ form.medicacion_habitual }}
+                            </div>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div class="border-b border-gray-200 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-gray-900">Observaciones</h2>
+                            <p class="mt-1 text-sm text-gray-500">Notas cualitativas y contexto adicional del caso.</p>
+                        </div>
+                        <div class="px-6 py-6">
+                            <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.observaciones.label }}</label>
+                            {{ form.observaciones }}
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="space-y-6 xl:col-span-4">
+                    <div class="space-y-6 xl:sticky xl:top-6">
+                        <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                            <div class="border-b border-gray-200 px-6 py-4">
+                                <h2 class="text-lg font-semibold text-gray-900">Resumen</h2>
+                                <p class="mt-1 text-sm text-gray-500">Vista previa rápida del ciudadano que estás editando.</p>
+                            </div>
+                            <div class="space-y-5 px-6 py-6">
+                                <div class="flex items-center gap-4">
+                                    {% if object.foto %}
+                                    <img src="{{ object.foto.url }}" alt="Foto actual" class="h-20 w-20 rounded-2xl object-cover shadow-sm">
+                                    {% else %}
+                                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-2xl font-bold text-white shadow-sm">
+                                        {{ object.nombre.0 }}{{ object.apellido.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <p class="text-lg font-semibold text-gray-900">{{ object.apellido }}, {{ object.nombre }}</p>
+                                        <p class="text-sm text-gray-500">DNI {{ object.dni }}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-gray-900">{{ form.foto.label }}</label>
+                                    {{ form.foto }}
+                                    <p class="mt-2 text-xs text-gray-500">Formatos permitidos: JPG, PNG o GIF. Tamaño máximo 5 MB.</p>
+                                </div>
+
+                                <dl class="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <dt class="text-gray-500">Nombre completo</dt>
+                                        <dd class="font-medium text-gray-900">{{ object.nombre }} {{ object.apellido }}</dd>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-4">
+                                        <dt class="text-gray-500">Contacto</dt>
+                                        <dd class="font-medium text-gray-900">{{ object.telefono|default:'Sin teléfono' }}</dd>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-4">
+                                        <dt class="text-gray-500">Email</dt>
+                                        <dd class="font-medium text-gray-900">{{ object.email|default:'Sin email' }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </section>
+
+                        <section class="rounded-2xl border border-blue-200 bg-blue-50 shadow-sm">
+                            <div class="border-b border-blue-200 px-6 py-4">
+                                <h2 class="text-lg font-semibold text-blue-950">Acciones</h2>
+                                <p class="mt-1 text-sm text-blue-800">Guardá cambios o volvé al detalle del ciudadano.</p>
+                            </div>
+                            <div class="space-y-3 px-6 py-6">
+                                <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-blue-700 px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Guardar cambios
+                                </button>
+                                <a href="{% url 'legajos:ciudadano_detalle' object.pk %}" class="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-900 transition hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200">
+                                    <i class="fas fa-arrow-left mr-2"></i>
+                                    Volver al detalle
+                                </a>
+                            </div>
+                        </section>
+
+                        <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                            <div class="px-6 py-5">
+                                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-900">Criterios de carga</h2>
+                                <ul class="mt-4 space-y-3 text-sm text-gray-600">
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-circle-check mt-0.5 text-emerald-500"></i>
+                                        <span>Completá primero identidad, contacto y ubicación.</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-circle-check mt-0.5 text-emerald-500"></i>
+                                        <span>Usá perfil social para mejorar la calidad del acompañamiento.</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-circle-check mt-0.5 text-emerald-500"></i>
+                                        <span>Los datos sensibles siguen aislados por permisos.</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </section>
+                    </div>
+                </aside>
+            </div>
+        </form>
+</div>
+</div>
+{% endblock %}

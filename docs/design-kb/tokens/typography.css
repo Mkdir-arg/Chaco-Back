@@ -1,0 +1,44 @@
+/* ============================================================
+   CHACO / NODO — Typography Tokens
+   UI/body: Manrope. Brand display: Gellat (SUBSTITUTED — see fonts.css).
+   Mirrors the Tailwind fontSize / fontWeight / tracking scale in
+   the app's includes/base.html.
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-sans:    'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+
+  /* Size scale (px values match the app's Tailwind config) */
+  --text-xxs:  8px;
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  30px;
+  --text-4xl:  36px;
+  --text-5xl:  48px;
+  --text-6xl:  60px;
+
+  /* Weights */
+  --fw-normal:    400; /* @kind font */
+  --fw-medium:    500; /* @kind font */
+  --fw-semibold:  600; /* @kind font */
+  --fw-bold:      700; /* @kind font */
+  --fw-extrabold: 800; /* @kind font */
+
+  /* Line heights */
+  --lh-tight:   1.15; /* @kind font */
+  --lh-snug:    1.3; /* @kind font */
+  --lh-normal:  1.5; /* @kind font */
+  --lh-relaxed: 1.65; /* @kind font */
+
+  /* Letter spacing — headings tuck in slightly */
+  --tracking-tighter: -0.8px; /* @kind font */
+  --tracking-tight:   -0.4px; /* @kind font */
+  --tracking-normal:  0px; /* @kind font */
+}

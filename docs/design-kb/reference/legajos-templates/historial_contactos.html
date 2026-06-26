@@ -1,0 +1,677 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Historial de Contactos - {{ legajo.ciudadano }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding: 0;
+    list-style: none;
+}
+
+.timeline:before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 40px;
+    width: 2px;
+    margin-left: -1.5px;
+    content: '';
+    background-color: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-badge {
+    position: absolute;
+    left: 18px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 1.2em;
+    line-height: 44px;
+    color: white;
+    z-index: 100;
+}
+
+.timeline-panel {
+    position: relative;
+    margin-left: 80px;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.timeline-panel:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.contact-type-LLAMADA { background-color: #28a745; }
+.contact-type-EMAIL { background-color: #17a2b8; }
+.contact-type-VISITA_DOM { background-color: #fd7e14; }
+.contact-type-REUNION { background-color: #6f42c1; }
+.contact-type-VIDEO { background-color: #20c997; }
+.contact-type-MENSAJE { background-color: #ffc107; }
+
+.estado-EXITOSO { color: #28a745; }
+.estado-NO_CONTESTA { color: #dc3545; }
+.estado-OCUPADO { color: #ffc107; }
+.estado-CANCELADO { color: #6c757d; }
+.estado-REPROGRAMADO { color: #17a2b8; }
+
+.filter-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Historial de Contactos</h1>
+                    <p class="text-muted mb-0">
+                        <strong>{{ legajo.ciudadano }}</strong> - Legajo: {{ legajo.codigo|slice:":8" }}...
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="abrirModalNuevoContacto()">
+                        <i class="fas fa-plus"></i> Nuevo Contacto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-card">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar</label>
+                        <input type="text" class="form-control" id="searchInput" 
+                               placeholder="Buscar en motivo o resumen...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tipo de Contacto</label>
+                        <select class="form-select" id="tipoFilter">
+                            <option value="">Todos los tipos</option>
+                            <option value="LLAMADA">Llamada Telefónica</option>
+                            <option value="EMAIL">Email</option>
+                            <option value="VISITA_DOM">Visita Domiciliaria</option>
+                            <option value="REUNION">Reunión Presencial</option>
+                            <option value="VIDEO">Videollamada</option>
+                            <option value="MENSAJE">Mensaje/WhatsApp</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Estado</label>
+                        <select class="form-select" id="estadoFilter">
+                            <option value="">Todos los estados</option>
+                            <option value="EXITOSO">Exitoso</option>
+                            <option value="NO_CONTESTA">No contesta</option>
+                            <option value="OCUPADO">Ocupado</option>
+                            <option value="CANCELADO">Cancelado</option>
+                            <option value="REPROGRAMADO">Reprogramado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button class="btn btn-outline-secondary w-100" onclick="limpiarFiltros()">
+                                <i class="fas fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="row">
+        <div class="col-12">
+            <div id="timeline-container">
+                <ul class="timeline" id="timeline">
+                    <!-- Los contactos se cargarán aquí -->
+                </ul>
+                
+                <div id="no-results" class="text-center py-5" style="display: none;">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No se encontraron contactos</h5>
+                    <p class="text-muted">Intenta ajustar los filtros o crear un nuevo contacto</p>
+                </div>
+                
+                <div id="loading" class="text-center py-5">
+                    <div class="spinner mx-auto"></div>
+                    <p class="text-muted mt-3">Cargando contactos...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuevo/Editar Contacto -->
+<div class="modal fade" id="modalContacto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalContactoTitle">Nuevo Contacto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formContacto">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo de Contacto *</label>
+                            <select class="form-select" name="tipo_contacto" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="LLAMADA">Llamada Telefónica</option>
+                                <option value="EMAIL">Email</option>
+                                <option value="VISITA_DOM">Visita Domiciliaria</option>
+                                <option value="REUNION">Reunión Presencial</option>
+                                <option value="VIDEO">Videollamada</option>
+                                <option value="MENSAJE">Mensaje/WhatsApp</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha y Hora *</label>
+                            <input type="datetime-local" class="form-control" name="fecha_contacto" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Estado *</label>
+                            <select class="form-select" name="estado" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="EXITOSO">Exitoso</option>
+                                <option value="NO_CONTESTA">No contesta</option>
+                                <option value="OCUPADO">Ocupado</option>
+                                <option value="CANCELADO">Cancelado</option>
+                                <option value="REPROGRAMADO">Reprogramado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Duración (minutos)</label>
+                            <input type="number" class="form-control" name="duracion_minutos" min="0" max="480">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Motivo del Contacto *</label>
+                            <input type="text" class="form-control" name="motivo" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Resumen de la Conversación *</label>
+                            <textarea class="form-control" name="resumen" rows="4" required></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Acuerdos Alcanzados</label>
+                            <textarea class="form-control" name="acuerdos" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Próximos Pasos</label>
+                            <textarea class="form-control" name="proximos_pasos" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Participantes</label>
+                            <input type="text" class="form-control" name="participantes">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Ubicación</label>
+                            <input type="text" class="form-control" name="ubicacion">
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="seguimiento_requerido" id="seguimientoRequerido">
+                                <label class="form-check-label" for="seguimientoRequerido">
+                                    Requiere Seguimiento
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha Próximo Contacto</label>
+                            <input type="date" class="form-control" name="fecha_proximo_contacto">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Archivo Adjunto</label>
+                            <input type="file" class="form-control" name="archivo_adjunto">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="btnSubmitText">Guardar Contacto</span>
+                        <span id="btnSubmitSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalle Contacto -->
+<div class="modal fade" id="modalDetalle" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalle del Contacto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detalleContent">
+                <!-- El contenido se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="editarContactoActual()">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const legajoId = '{{ legajo.id }}';
+let contactos = [];
+let contactoActual = null;
+let modoEdicion = false;
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    cargarContactos();
+    configurarFiltros();
+});
+
+// Cargar contactos
+function cargarContactos() {
+    const params = new URLSearchParams({
+        search: document.getElementById('searchInput').value,
+        tipo: document.getElementById('tipoFilter').value,
+        estado: document.getElementById('estadoFilter').value
+    });
+    
+    fetch(`/legajos/${legajoId}/contactos/api/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            contactos = data.contactos;
+            renderTimeline();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarError('Error cargando contactos');
+        });
+}
+
+// Renderizar timeline
+function renderTimeline() {
+    const timeline = document.getElementById('timeline');
+    const loading = document.getElementById('loading');
+    const noResults = document.getElementById('no-results');
+    
+    loading.style.display = 'none';
+    
+    if (contactos.length === 0) {
+        timeline.innerHTML = '';
+        noResults.style.display = 'block';
+        return;
+    }
+    
+    noResults.style.display = 'none';
+    
+    let html = '';
+    contactos.forEach(contacto => {
+        const fecha = new Date(contacto.fecha_contacto);
+        const fechaFormateada = fecha.toLocaleDateString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        const horaFormateada = fecha.toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        html += `
+            <li class="timeline-item">
+                <div class="timeline-badge contact-type-${contacto.tipo_contacto}">
+                    <i class="fas ${getIconoTipo(contacto.tipo_contacto)}"></i>
+                </div>
+                <div class="timeline-panel" onclick="verDetalle(${contacto.id})">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">${contacto.tipo_contacto_display}</h6>
+                        <small class="text-muted">${fechaFormateada} ${horaFormateada}</small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge estado-${contacto.estado}">${contacto.estado_display}</span>
+                        ${contacto.duracion_minutos ? `<small class="text-muted">${contacto.duracion_formateada}</small>` : ''}
+                    </div>
+                    <p class="mb-2"><strong>${contacto.motivo}</strong></p>
+                    <p class="mb-2 text-muted">${truncarTexto(contacto.resumen, 100)}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Por: ${contacto.profesional}</small>
+                        ${contacto.seguimiento_requerido ? '<span class="badge bg-warning text-dark">Seguimiento</span>' : ''}
+                    </div>
+                </div>
+            </li>
+        `;
+    });
+    
+    timeline.innerHTML = html;
+}
+
+// Configurar filtros
+function configurarFiltros() {
+    const searchInput = document.getElementById('searchInput');
+    const tipoFilter = document.getElementById('tipoFilter');
+    const estadoFilter = document.getElementById('estadoFilter');
+    
+    let timeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(cargarContactos, 300);
+    });
+    
+    tipoFilter.addEventListener('change', cargarContactos);
+    estadoFilter.addEventListener('change', cargarContactos);
+}
+
+// Limpiar filtros
+function limpiarFiltros() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('tipoFilter').value = '';
+    document.getElementById('estadoFilter').value = '';
+    cargarContactos();
+}
+
+// Abrir modal nuevo contacto
+function abrirModalNuevoContacto() {
+    modoEdicion = false;
+    contactoActual = null;
+    document.getElementById('modalContactoTitle').textContent = 'Nuevo Contacto';
+    document.getElementById('btnSubmitText').textContent = 'Guardar Contacto';
+    document.getElementById('formContacto').reset();
+    
+    // Establecer fecha actual
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.querySelector('[name="fecha_contacto"]').value = now.toISOString().slice(0, 16);
+    
+    new bootstrap.Modal(document.getElementById('modalContacto')).show();
+}
+
+// Ver detalle del contacto
+function verDetalle(contactoId) {
+    fetch(`/legajos/contactos/${contactoId}/detalle/`)
+        .then(response => response.json())
+        .then(contacto => {
+            contactoActual = contacto;
+            mostrarDetalle(contacto);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarError('Error cargando detalle');
+        });
+}
+
+// Mostrar detalle en modal
+function mostrarDetalle(contacto) {
+    const fecha = new Date(contacto.fecha_contacto);
+    const fechaFormateada = fecha.toLocaleString('es-ES');
+    
+    let html = `
+        <div class="row g-3">
+            <div class="col-md-6">
+                <strong>Tipo:</strong> ${contacto.tipo_contacto_display}
+            </div>
+            <div class="col-md-6">
+                <strong>Estado:</strong> <span class="badge estado-${contacto.estado}">${contacto.estado_display}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Fecha:</strong> ${fechaFormateada}
+            </div>
+            <div class="col-md-6">
+                <strong>Duración:</strong> ${contacto.duracion_formateada || 'N/A'}
+            </div>
+            <div class="col-12">
+                <strong>Motivo:</strong><br>
+                ${contacto.motivo}
+            </div>
+            <div class="col-12">
+                <strong>Resumen:</strong><br>
+                ${contacto.resumen}
+            </div>
+    `;
+    
+    if (contacto.acuerdos) {
+        html += `
+            <div class="col-12">
+                <strong>Acuerdos:</strong><br>
+                ${contacto.acuerdos}
+            </div>
+        `;
+    }
+    
+    if (contacto.proximos_pasos) {
+        html += `
+            <div class="col-12">
+                <strong>Próximos Pasos:</strong><br>
+                ${contacto.proximos_pasos}
+            </div>
+        `;
+    }
+    
+    if (contacto.participantes) {
+        html += `
+            <div class="col-md-6">
+                <strong>Participantes:</strong> ${contacto.participantes}
+            </div>
+        `;
+    }
+    
+    if (contacto.ubicacion) {
+        html += `
+            <div class="col-md-6">
+                <strong>Ubicación:</strong> ${contacto.ubicacion}
+            </div>
+        `;
+    }
+    
+    html += `
+            <div class="col-md-6">
+                <strong>Profesional:</strong> ${contacto.profesional}
+            </div>
+            <div class="col-md-6">
+                <strong>Seguimiento:</strong> ${contacto.seguimiento_requerido ? 'Sí' : 'No'}
+            </div>
+    `;
+    
+    if (contacto.fecha_proximo_contacto) {
+        const fechaProxima = new Date(contacto.fecha_proximo_contacto);
+        html += `
+            <div class="col-md-6">
+                <strong>Próximo Contacto:</strong> ${fechaProxima.toLocaleDateString('es-ES')}
+            </div>
+        `;
+    }
+    
+    if (contacto.archivo_adjunto) {
+        html += `
+            <div class="col-12">
+                <strong>Archivo:</strong> 
+                <a href="${contacto.archivo_adjunto}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-download"></i> Descargar
+                </a>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    document.getElementById('detalleContent').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalDetalle')).show();
+}
+
+// Editar contacto actual
+function editarContactoActual() {
+    if (!contactoActual) return;
+    
+    // Cerrar modal de detalle
+    bootstrap.Modal.getInstance(document.getElementById('modalDetalle')).hide();
+    
+    // Configurar modal de edición
+    modoEdicion = true;
+    document.getElementById('modalContactoTitle').textContent = 'Editar Contacto';
+    document.getElementById('btnSubmitText').textContent = 'Actualizar Contacto';
+    
+    // Llenar formulario
+    const form = document.getElementById('formContacto');
+    form.querySelector('[name="tipo_contacto"]').value = contactoActual.tipo_contacto;
+    form.querySelector('[name="estado"]').value = contactoActual.estado;
+    form.querySelector('[name="motivo"]').value = contactoActual.motivo;
+    form.querySelector('[name="resumen"]').value = contactoActual.resumen;
+    form.querySelector('[name="acuerdos"]').value = contactoActual.acuerdos || '';
+    form.querySelector('[name="proximos_pasos"]').value = contactoActual.proximos_pasos || '';
+    form.querySelector('[name="participantes"]').value = contactoActual.participantes || '';
+    form.querySelector('[name="ubicacion"]').value = contactoActual.ubicacion || '';
+    form.querySelector('[name="duracion_minutos"]').value = contactoActual.duracion_minutos || '';
+    form.querySelector('[name="seguimiento_requerido"]').checked = contactoActual.seguimiento_requerido;
+    
+    // Fecha contacto
+    const fechaContacto = new Date(contactoActual.fecha_contacto);
+    fechaContacto.setMinutes(fechaContacto.getMinutes() - fechaContacto.getTimezoneOffset());
+    form.querySelector('[name="fecha_contacto"]').value = fechaContacto.toISOString().slice(0, 16);
+    
+    // Fecha próximo contacto
+    if (contactoActual.fecha_proximo_contacto) {
+        form.querySelector('[name="fecha_proximo_contacto"]').value = contactoActual.fecha_proximo_contacto;
+    }
+    
+    new bootstrap.Modal(document.getElementById('modalContacto')).show();
+}
+
+// Manejar envío del formulario
+document.getElementById('formContacto').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const url = modoEdicion ? 
+        `/legajos/contactos/${contactoActual.id}/editar/` : 
+        `/legajos/${legajoId}/contactos/crear/`;
+    
+    // Mostrar loading
+    document.getElementById('btnSubmitText').style.display = 'none';
+    document.getElementById('btnSubmitSpinner').style.display = 'inline-block';
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalContacto')).hide();
+            mostrarExito(data.message);
+            cargarContactos();
+        } else {
+            mostrarErrores(data.errors);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarError('Error guardando contacto');
+    })
+    .finally(() => {
+        document.getElementById('btnSubmitText').style.display = 'inline-block';
+        document.getElementById('btnSubmitSpinner').style.display = 'none';
+    });
+});
+
+// Utilidades
+function getIconoTipo(tipo) {
+    const iconos = {
+        'LLAMADA': 'fa-phone',
+        'EMAIL': 'fa-envelope',
+        'VISITA_DOM': 'fa-home',
+        'REUNION': 'fa-users',
+        'VIDEO': 'fa-video',
+        'MENSAJE': 'fa-comment'
+    };
+    return iconos[tipo] || 'fa-circle';
+}
+
+function truncarTexto(texto, limite) {
+    return texto.length > limite ? texto.substring(0, limite) + '...' : texto;
+}
+
+function mostrarExito(mensaje) {
+    // Implementar notificación de éxito
+    alert(mensaje);
+}
+
+function mostrarError(mensaje) {
+    // Implementar notificación de error
+    alert(mensaje);
+}
+
+function mostrarErrores(errores) {
+    let mensaje = 'Errores en el formulario:\n';
+    for (const campo in errores) {
+        mensaje += `- ${errores[campo].join(', ')}\n`;
+    }
+    alert(mensaje);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+/* ============================================================
+   CHACO / NODO — Base element styles & helpers
+   Applies the type + color tokens to raw HTML so specimen cards,
+   UI kits and prototypes look on-brand with zero extra classes.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--lh-normal);
+  color: var(--text-body);
+  background: var(--bg-secondary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 0.5em;
+  color: var(--text-heading);
+  font-weight: var(--fw-extrabold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+}
+h1 { font-size: var(--text-4xl); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); font-weight: var(--fw-bold); }
+h5 { font-size: var(--text-lg); font-weight: var(--fw-bold); }
+h6 { font-size: var(--text-base); font-weight: var(--fw-semibold); }
+
+p { margin: 0 0 1em; }
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+a:hover { color: var(--text-link-hover); }
+
+small { font-size: var(--text-sm); }
+strong, b { font-weight: var(--fw-bold); }
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.9em; }
+
+/* Brand display utility — for hero numerals / marketing headlines */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-normal);
+}
+
+/* Text-on-gradient brand wordmark helper */
+.text-gradient-brand {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
