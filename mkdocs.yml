@@ -96,6 +96,7 @@ nav:
     - funcionalidades/index.md
     - Programa Becas: funcionalidades/programa-becas.md
     - Programa Dispositivos: funcionalidades/programa-dispositivos.md
+    - Programa Dispositivos — Propuesta funcional: funcionalidades/programa-dispositivos-propuesta.md
     - Estimación Programa Becas: funcionalidades/estimacion-programa-becas.md
   - Plantillas operativas:
     - templates/index.md
