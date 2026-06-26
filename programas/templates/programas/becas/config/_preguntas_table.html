@@ -1,0 +1,77 @@
+{% if preguntas %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Texto</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
+        <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
+        <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in preguntas %}
+      <tr class="hover:bg-[#F9FAFB]">
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle text-right font-semibold">{{ p.orden }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">{{ p.texto }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F3F4F6] text-[#4B5563]">{{ p.get_tipo_display }}</span>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+          {% if p.obligatorio %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FEF0F2] text-[#9B1C1C]">Obligatorio</span>
+          {% else %}
+            <span class="badge badge-gray">Opcional</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+          {% if p.activo %}
+            <span class="badge badge-success badge-dot">Activa</span>
+          {% else %}
+            <span class="badge badge-gray">Inactiva</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
+              @click="openEdit(
+                '{% url 'becas:pregunta_editar' p.pk %}',
+                '{{ p.texto|escapejs }}',
+                '{{ p.tipo }}',
+                '{{ p.obligatorio|yesno:'True,False' }}',
+                '{{ p.activo|yesno:'True,False' }}',
+                {{ p.orden }},
+                [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}]
+              )">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button type="button" class="text-body-subtle hover:text-fg-warning p-1" title="Activar/Desactivar"
+                    data-confirm-url="{% url 'becas:pregunta_toggle' p.pk %}"
+                    data-confirm-title="{% if p.activo %}¿Desactivar pregunta?{% else %}¿Activar pregunta?{% endif %}"
+                    data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí">
+              <i class="fas fa-power-off"></i>
+            </button>
+            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+                    data-confirm-url="{% url 'becas:pregunta_eliminar' p.pk %}"
+                    data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+  <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+  <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
+  <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
+  <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
+    <i class="fas fa-plus"></i> Nueva pregunta
+  </button>
+</div>
+{% endif %}
