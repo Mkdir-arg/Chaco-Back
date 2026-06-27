@@ -75,6 +75,7 @@
 | 2026-06-24 | Juani Portilla | Becas #76 — ABM Relevamientos y Convocatorias | Alta con nombre auto, reasignación de territorial, reprogramación, estados como badges y scoping por segmento | 60 min |
 | 2026-06-24 | Juani Portilla | Becas #77 — Revisión caso a caso | Edición con traza, aprobar/rechazar con motivo obligatorio, transiciones de estado y placeholder SIS | 60 min |
 | 2026-06-24 | Juani Portilla | Becas #82 — API REST app de campo | Auth por token, relevamientos asignados, definición de formulario, iniciar/finalizar/reabrir y CRUD con sync offline | 90 min |
+| 2026-06-26 | Juani Portilla | Becas - Cambios en el front | Mejoras en el front que no estan contempladas en el design system ni en las tareas, iteracion sobre eso | 90 min |
 
 
 ---
@@ -83,5 +84,5 @@
 
 !!! success "Contador total"
 
-    **10784 minutos** (179 h 44 min)
-
+`    **10874 minutos (181 h 14 min)
+`
