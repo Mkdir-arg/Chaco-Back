@@ -4,12 +4,42 @@
      Mobile overlay + Desktop fixed (colapsable)
      ============================================================ -->
 <style>
-    /* Sidebar — blindaje de colores contra el CSS global legacy: gana siempre el token.
-       Inactivo = texto/ícono por token; activo ([aria-current="page"]) = pill de marca + blanco. */
-    .ds-snav a, .ds-snav button { color: var(--text-body) !important; }
-    .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; }
-    .ds-snav [aria-current="page"] { background: var(--bg-brand) !important; color: #fff !important; }
+    /* ============================================================
+       Sidebar — comportamiento de botones de navegación (spec §14).
+       Fuente única de estados, blindada contra el CSS global legacy
+       (gana siempre el token). Va inline en el HTML (no en .css cacheado).
+       ============================================================ */
+    .ds-snav a, .ds-snav button {
+        font-family: var(--font-sans);
+        font-weight: 500;                              /* inactivo: medium */
+        color: var(--text-body) !important;            /* #4B5563 */
+        background: transparent;
+        transition: background 150ms var(--ease-standard, ease), color 150ms;
+    }
+    .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; } /* #6B7280 */
+
+    /* Hover — solo si NO está activo (gris muy suave) */
+    .ds-snav a:not([aria-current="page"]):hover,
+    .ds-snav button:hover { background: var(--bg-tertiary) !important; } /* #F3F4F6 */
+
+    /* Activo — único con fondo de marca; texto e ícono blancos; bold */
+    .ds-snav [aria-current="page"] {
+        background: var(--bg-brand) !important;        /* #5059BC jacarandá */
+        color: #fff !important;
+        font-weight: 700 !important;
+    }
     .ds-snav [aria-current="page"] svg { color: #fff !important; }
+
+    /* Contador / badge dentro del ítem */
+    .ds-snav .nav-count {
+        font-size: 11px; font-weight: 700; line-height: 1;
+        padding: 1px 8px; border-radius: 9999px;
+        background: var(--bg-tertiary); color: var(--text-body-subtle);
+    }
+    .ds-snav [aria-current="page"] .nav-count { background: rgba(255,255,255,.25); color: #fff; }
+    /* Colapsado: el contador se reduce a un punto 7px (rojo si inactivo, blanco si activo) */
+    .ds-snav .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bg-danger); }
+    .ds-snav [aria-current="page"] .nav-dot { background: #fff; }
 </style>
 
 <!-- ── Mobile overlay (sidebarOpen) ─────────────────────────── -->
