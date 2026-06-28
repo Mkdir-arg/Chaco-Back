@@ -25,10 +25,12 @@ import citizenLegajoService from './src/services/citizenLegajoService';
 import relevamientoService from './src/services/relevamientoService';
 
 let hasBootstrappedOnce = false;
+const NEW_RELEVAMIENTO_STATES = ['ASIGNADO'];
 
 function AppContent() {
   const { theme, isDark } = useTheme();
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
+  const displayName = user?.username || user?.nombre || 'Usuario';
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -48,6 +50,7 @@ function AppContent() {
 
   const [syncStatus, setSyncStatus] = useState('synced');
   const [syncPendingCount, setSyncPendingCount] = useState(0);
+  const [newRelevamientosCount, setNewRelevamientosCount] = useState(0);
   const saveRelevamientoLockRef = useRef(false);
   const lastConnectivityStateRef = useRef(null);
   const syncInProgressRef = useRef(false);
@@ -73,6 +76,18 @@ function AppContent() {
     const pending = pendingCitizen + pendingRelevamientos;
     setSyncPendingCount(pending);
     setSyncStatus(pending > 0 ? 'pending' : 'synced');
+  };
+
+  const refreshNewRelevamientosCount = async () => {
+    try {
+      const result = await relevamientoService.getRelevamientos({ refreshFromRemote: true });
+      const nextCount = (result.records || []).filter((item) =>
+        NEW_RELEVAMIENTO_STATES.includes(String(item.estado || '').toUpperCase())
+      ).length;
+      setNewRelevamientosCount(nextCount);
+    } catch {
+      setNewRelevamientosCount(0);
+    }
   };
 
   useEffect(() => {
@@ -111,12 +126,15 @@ function AppContent() {
     if (!isAuthenticated) {
       setSyncStatus('synced');
       setSyncPendingCount(0);
+      setNewRelevamientosCount(0);
       return;
     }
 
     runBackgroundSync();
+    refreshNewRelevamientosCount();
     const timer = setInterval(async () => {
       await runBackgroundSync();
+      await refreshNewRelevamientosCount();
     }, 8000);
     const unsubscribeNetInfo = NetInfo.addEventListener(async (state) => {
       const isConnected = !!state?.isConnected && state?.isInternetReachable !== false;
@@ -128,6 +146,7 @@ function AppContent() {
         }
         reconnectDebounceRef.current = setTimeout(async () => {
           await runBackgroundSync();
+          await refreshNewRelevamientosCount();
         }, 1800);
       }
     });
@@ -188,10 +207,11 @@ function AppContent() {
           />
         );
       default:
-        return (
+      return (
           <HomeScreen
             onOpenRelevamientos={() => handleTabPress('Relevamientos')}
             onSyncPress={handleManualSync}
+            newRelevamientosCount={newRelevamientosCount}
             syncPendingCount={syncPendingCount}
           />
         );
@@ -288,7 +308,10 @@ function AppContent() {
           ) : selectedRelevamientoId ? (
             <RelevamientoDetailScreen
               relevamientoId={selectedRelevamientoId}
-              onClose={() => setSelectedRelevamientoId(null)}
+              onClose={() => {
+                setSelectedRelevamientoId(null);
+                refreshNewRelevamientosCount();
+              }}
               syncStatus={syncStatus}
               syncPendingCount={syncPendingCount}
               onSyncPress={handleManualSync}
@@ -296,10 +319,13 @@ function AppContent() {
           ) : (
             <>
               <Banner
-                title={activeTab}
+                title={activeTab === 'Inicio' ? `Hola, ${displayName}` : activeTab}
                 syncStatus={syncStatus}
                 syncPendingCount={syncPendingCount}
                 onSyncPress={handleManualSync}
+                showBackButton={activeTab !== 'Inicio'}
+                onBackPress={() => handleTabPress('Inicio')}
+                preserveTitleCase={activeTab === 'Inicio'}
               />
 
               <View style={{ flex: 1 }}>
@@ -312,7 +338,7 @@ function AppContent() {
                 activeTab={activeTab}
                 onTabPress={handleTabPress}
                 onOpenSettings={() => setSettingsVisible(true)}
-                pendingCount={syncPendingCount}
+                pendingCount={newRelevamientosCount}
               />
             </>
           )}

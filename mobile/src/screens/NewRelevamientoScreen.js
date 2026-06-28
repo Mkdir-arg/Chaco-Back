@@ -9,11 +9,12 @@ import { useTheme } from '../context/ThemeContext';
 import StaggeredItem from '../components/StaggeredItem';
 import CustomButton from '../components/CustomButton';
 import SignaturePad from '../components/SignaturePad';
+import FrostedBackButton from '../components/FrostedBackButton';
 import { designColors, fontSizes, radii } from '../theme';
 
 export default function NewRelevamientoScreen({ onCancel, onSave }) {
     const MAX_IMAGES = 8;
-    const { theme, typography } = useTheme();
+    const { theme, typography, isDark } = useTheme();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const submitLockRef = useRef(false);
@@ -1283,13 +1284,17 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
         >
             <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-                <TouchableOpacity onPress={!isSubmitting ? onCancel : undefined} style={[styles.closeBtn, isSubmitting && { opacity: 0.5 }]}>
-                    <Ionicons name="close" size={28} color={theme.colors.text} />
-                </TouchableOpacity>
+                <FrostedBackButton
+                    onPress={onCancel}
+                    disabled={isSubmitting}
+                    iconColor={theme.colors.icon}
+                    tint={isDark ? 'dark' : 'light'}
+                    style={styles.closeBtn}
+                />
                 <Text style={[styles.headerTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
                     NUEVO RELEVAMIENTO
                 </Text>
-                <View style={{ width: 28 }} />
+                <View style={styles.headerSpacer} />
             </View>
 
             <View style={styles.stepperScroll}>
@@ -1397,7 +1402,10 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
     },
     closeBtn: {
-        width: 28,
+        marginRight: 4,
+    },
+    headerSpacer: {
+        width: 40,
     },
     headerTitle: {
         fontSize: fontSizes.xs,

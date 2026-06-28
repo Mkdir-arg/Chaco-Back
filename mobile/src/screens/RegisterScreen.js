@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../context/AuthContext';
 import CustomButton from '../components/CustomButton';
+import FrostedBackButton from '../components/FrostedBackButton';
 import { fontSizes, radii } from '../theme';
 
 export default function RegisterScreen({ onBackToLogin }) {
@@ -128,9 +129,12 @@ export default function RegisterScreen({ onBackToLogin }) {
                 keyboardDismissMode="on-drag"
             >
                     <View style={styles.header}>
-                        <Pressable onPress={onBackToLogin} style={[styles.backButton, { backgroundColor: theme.colors.brandSoft }]}>
-                            <Ionicons name="chevron-back" size={24} color={theme.colors.icon} />
-                        </Pressable>
+                        <FrostedBackButton
+                            onPress={onBackToLogin}
+                            iconColor={theme.colors.icon}
+                            tint={isDark ? 'dark' : 'light'}
+                            style={styles.backButton}
+                        />
                         <Text style={[styles.title, { fontFamily: typography.bold, color: theme.colors.text }]}>
                             Crear cuenta
                         </Text>
@@ -310,11 +314,6 @@ const styles = StyleSheet.create({
     },
     backButton: {
         marginBottom: 16,
-        width: 40,
-        height: 40,
-        borderRadius: radii.full,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     title: {
         fontSize: fontSizes['3xl'],

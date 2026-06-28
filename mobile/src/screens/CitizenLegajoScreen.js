@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Platform } fr
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import CustomButton from '../components/CustomButton';
+import FrostedBackButton from '../components/FrostedBackButton';
 import citizenLegajoService from '../services/citizenLegajoService';
 import { fontSizes, radii } from '../theme';
 
@@ -25,7 +26,7 @@ const createEmptyForm = () => ({
 });
 
 export default function CitizenLegajoScreen({ onClose, onSaved }) {
-  const { theme, typography } = useTheme();
+  const { theme, typography, isDark } = useTheme();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -210,9 +211,12 @@ export default function CitizenLegajoScreen({ onClose, onSaved }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <Pressable onPress={onClose} style={styles.headerIcon}>
-          <Ionicons name="close" size={28} color={theme.colors.text} />
-        </Pressable>
+        <FrostedBackButton
+          onPress={onClose}
+          iconColor={theme.colors.icon}
+          tint={isDark ? 'dark' : 'light'}
+          style={styles.headerIcon}
+        />
         <Text style={[styles.headerTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
           CIUDADANOS Y LEGAJOS
         </Text>
@@ -344,7 +348,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerIcon: {
-    width: 34,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },

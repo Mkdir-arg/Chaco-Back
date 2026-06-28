@@ -7,6 +7,7 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { Platform } from 'react-native';
 import { supabase } from '../config/supabaseConfig';
 import { SUPABASE_CONFIG } from '../config/supabaseConfig';
+import { becasRequest } from './becasApi';
 
 const LOCAL_RELEVAMIENTOS_KEY = 'field_relevamientos_records';
 const SYNC_QUEUE_KEY = 'field_relevamientos_sync_queue';
@@ -140,6 +141,67 @@ const mapAssignedRelevamiento = (row = {}) => ({
   latitud_objetivo: row.latitud_objetivo,
   longitud_objetivo: row.longitud_objetivo,
 });
+
+const mapDjangoRelevamiento = (row = {}) => ({
+  id: row.id,
+  source: 'asignado',
+  backend: 'django_becas',
+  titulo: row.nombre || 'Relevamiento',
+  descripcion: row.convocatoria_nombre || '',
+  direccion_objetivo: row.zona || '',
+  localidad: row.zona || '',
+  provincia: 'Chaco',
+  prioridad: 'MEDIA',
+  estado: row.estado,
+  id_institucion: null,
+  created_at: row.fecha_asignada || row.fecha_finalizado || nowIso(),
+  relevado_at: row.fecha_finalizado || null,
+  last_synced_at: row.fecha_finalizado || null,
+  sync_estado: row.estado === 'FINALIZADO' ? 'SINCRONIZADO' : 'PENDIENTE',
+  observaciones: row.convocatoria_nombre || row.segmento || '',
+  latitud: null,
+  longitud: null,
+  segmento: row.segmento || '',
+  convocatoria_nombre: row.convocatoria_nombre || '',
+});
+
+const normalizeDjangoField = (field = {}, scope = 'globales') => ({
+  id: `${scope}:${field.id}`,
+  original_id: field.id,
+  scope,
+  nombre: field.texto || 'Campo',
+  etiqueta: field.texto || 'Campo',
+  texto: field.texto || 'Campo',
+  tipo: field.tipo,
+  opciones: field.opciones || [],
+  requerido: !!field.obligatorio,
+  obligatorio: !!field.obligatorio,
+  orden: field.orden || 0,
+});
+
+const mapDjangoRelevamientoDetail = (row = {}) => {
+  const base = mapDjangoRelevamiento(row);
+  const definicion = row.definicion_formulario || {};
+  const globales = (definicion.globales || []).map((field) => normalizeDjangoField(field, 'globales'));
+  const requisitos = (definicion.requisitos || []).map((field) => normalizeDjangoField(field, 'requisitos'));
+  return {
+    ...base,
+    ...row,
+    source: 'asignado',
+    backend: 'django_becas',
+    titulo: row.nombre || 'Relevamiento',
+    campos_definicion: [...globales, ...requisitos].sort((a, b) => (a.orden || 0) - (b.orden || 0)),
+    definicion_formulario: {
+      ...definicion,
+      requiere_gps: !!definicion.requiere_gps,
+      globales,
+      requisitos,
+    },
+    campos_extra: [],
+    adjuntos: [],
+    payload: {},
+  };
+};
 
 const formatDynamicValue = (row = {}) => {
   if (row.valor_texto !== null && row.valor_texto !== undefined) return String(row.valor_texto);
@@ -955,7 +1017,52 @@ const upsertRemoteRelevamiento = async (payload = {}) => {
   return legacyData;
 };
 
+const syncRemoteBecasFormulario = async (payload = {}) => {
+  const relevamientoId = payload.relevamiento_id || payload.relevamientoId;
+  if (!relevamientoId) {
+    throw new Error('Falta el relevamiento para sincronizar el formulario.');
+  }
+
+  const formulario = await becasRequest(`/api/becas/relevamientos/${relevamientoId}/formularios/`, {
+    method: 'POST',
+    body: {
+      celular: payload.celular,
+      email_contacto: payload.email_contacto,
+      apoderado_nombre: payload.apoderado_nombre || '',
+      apoderado_apellido: payload.apoderado_apellido || '',
+      apoderado_fecha_nacimiento: payload.apoderado_fecha_nacimiento || null,
+      gps_lat: payload.gps_lat || null,
+      gps_lng: payload.gps_lng || null,
+      datos_identificacion: payload.datos_identificacion,
+      data: payload.data || { globales: {}, requisitos: {} },
+    },
+  });
+
+  if (payload.finalizar !== false) {
+    try {
+      await becasRequest(`/api/becas/relevamientos/${relevamientoId}/finalizar/`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      // El formulario ya quedó enviado. Si finalizar falla por estado, no reintentamos
+      // duplicando el formulario en la próxima sincronización.
+      if (![400].includes(Number(error?.status || 0))) throw error;
+    }
+  }
+
+  return {
+    id: formulario.id,
+    observaciones: payload.observaciones || '',
+    latitud: payload.gps_lat || '',
+    longitud: payload.gps_lng || '',
+  };
+};
+
 const syncSingleOperation = async (operation) => {
+  if (operation?.payload?.backend === 'django_becas') {
+    return syncRemoteBecasFormulario(operation.payload);
+  }
+
   const clientUuid = normalizeUuid(
     operation?.payload?.client_uuid ||
     operation?.payload?.client_uid ||
@@ -1211,6 +1318,15 @@ const markOperationPermanentErrorAtomic = async (localId, {
 
 const fetchRemoteRecords = async () => {
   try {
+    const payload = await becasRequest('/api/becas/relevamientos/');
+    const rows = Array.isArray(payload?.results) ? payload.results : (Array.isArray(payload) ? payload : []);
+    return rows.map(mapDjangoRelevamiento);
+  } catch (djangoError) {
+    const status = Number(djangoError?.status || 0);
+    if (status === 401 || status === 403) throw djangoError;
+  }
+
+  try {
     const currentUserId = await getStoredUserId();
     let query = supabase
       .from(TABLE_RELEVAMIENTOS_ASIGNADOS)
@@ -1265,6 +1381,23 @@ const relevamientoService = {
       sync_estado: 'PENDIENTE',
       synced: false,
       created_at: nowIso(),
+    });
+
+    const syncResult = await this.syncPendingOperations();
+    return { success: true, record: localRecord, syncResult };
+  },
+
+  async saveBecasFormulario(payload) {
+    await ensureSqliteReady();
+    const localRecord = await upsertLocalRecordAndEnqueue({
+      ...payload,
+      backend: 'django_becas',
+      sync_estado: 'PENDIENTE',
+      synced: false,
+      created_at: nowIso(),
+      observaciones: payload?.observaciones || payload?.datos_identificacion?.dni || '',
+      latitud: payload?.gps_lat || '',
+      longitud: payload?.gps_lng || '',
     });
 
     const syncResult = await this.syncPendingOperations();
@@ -1479,6 +1612,16 @@ const relevamientoService = {
           ],
         },
       };
+    }
+
+    try {
+      const payload = await becasRequest(`/api/becas/relevamientos/${id}/`);
+      return { success: true, detail: mapDjangoRelevamientoDetail(payload) };
+    } catch (djangoError) {
+      const status = Number(djangoError?.status || 0);
+      if (status === 401 || status === 403) {
+        return { success: false, error: djangoError.message || 'No autorizado' };
+      }
     }
 
     try {

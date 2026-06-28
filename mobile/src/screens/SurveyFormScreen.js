@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Platform, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Platform, TouchableOpacity, Modal } from 'react-native';
 import SignaturePad from '../components/SignaturePad';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import StaggeredItem from '../components/StaggeredItem';
 import CustomButton from '../components/CustomButton';
+import FrostedBackButton from '../components/FrostedBackButton';
 import { fontSizes, radii } from '../theme';
 
 const GradientIcon = ({ name, size = 24, style, colors }) => {
@@ -32,7 +33,7 @@ const GradientIcon = ({ name, size = 24, style, colors }) => {
 };
 
 export default function SurveyFormScreen({ onCancel, onSave }) {
-    const { theme, typography } = useTheme();
+    const { theme, typography, isDark } = useTheme();
     const [signature, setSignature] = useState([]);
     const [showSigModal, setShowSigModal] = useState(false);
     const signaturePadRef = useRef(null);
@@ -64,9 +65,12 @@ export default function SurveyFormScreen({ onCancel, onSave }) {
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-                <TouchableOpacity onPress={onCancel} style={styles.backBtn}>
-                    <Ionicons name="close" size={28} color={theme.colors.text} />
-                </TouchableOpacity>
+                <FrostedBackButton
+                    onPress={onCancel}
+                    iconColor={theme.colors.icon}
+                    tint={isDark ? 'dark' : 'light'}
+                    style={styles.backBtn}
+                />
                 <Text style={[styles.headerTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
                     NUEVO RELEVAMIENTO
                 </Text>

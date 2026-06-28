@@ -1,114 +1,150 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import StaggeredItem from '../components/StaggeredItem';
 import { fontSizes, radii } from '../theme';
 
-const ACTIONS = [
-    { id: 'sync', title: 'Sincronizacion', icon: 'cloud-upload-outline', subtitle: 'Enviar relevamientos pendientes' },
-];
+const ACTION_COLOR = '#4338CA';
+const ACTION_BORDER = '#3730A3';
+const ACTION_SOFT = 'rgba(255,255,255,0.16)';
+const NOTIFICATION_COLOR = '#EF4444';
 
-export default function HomeScreen({ onOpenRelevamientos, onSyncPress, syncPendingCount = 0 }) {
+export default function HomeScreen({
+    onOpenRelevamientos,
+    onSyncPress,
+    newRelevamientosCount = 0,
+    syncPendingCount = 0,
+}) {
     const { theme, typography } = useTheme();
-    const { user } = useAuth();
-    const displayName = user?.username || user?.nombre || 'Usuario';
-
-    const handleActionPress = (actionId) => {
-        if (actionId === 'relevamientos') return onOpenRelevamientos?.();
-        if (actionId === 'sync') return onSyncPress?.();
-    };
+    const newLabel = newRelevamientosCount > 9 ? '9+' : String(newRelevamientosCount);
+    const syncLabel = syncPendingCount > 9 ? '9+' : String(syncPendingCount);
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={styles.content}>
             <StaggeredItem index={0}>
-                <View style={styles.hero}>
-                    <View style={styles.heroText}>
-                        <Text style={[styles.eyebrow, { color: theme.colors.primary, fontFamily: typography.bold }]}>
-                            Relevamiento Chaco
+                <View style={styles.metricsRow}>
+                    <Pressable
+                        onPress={onOpenRelevamientos}
+                        style={({ pressed }) => [
+                            styles.metricCard,
+                            {
+                                backgroundColor: theme.colors.surface,
+                                borderColor: theme.colors.border,
+                                shadowColor: theme.colors.shadow,
+                                opacity: pressed ? 0.88 : 1,
+                            },
+                        ]}
+                    >
+                        <View style={[styles.metricIcon, { backgroundColor: theme.colors.brandSoft }]}>
+                            <Ionicons name="sparkles-outline" size={18} color={theme.colors.icon} />
+                        </View>
+                        <Text style={[styles.metricValue, { color: theme.colors.text, fontFamily: typography.extrabold }]}>
+                            {newLabel}
                         </Text>
-                        <Text style={[styles.sectionTitle, { color: theme.colors.text, fontFamily: typography.extrabold }]}>
-                            Hola, {displayName}
+                        <Text style={[styles.metricLabel, { color: theme.colors.textSoft, fontFamily: typography.bold }]}>
+                            Nuevos
                         </Text>
-                        <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted, fontFamily: typography.medium }]}>
-                            Recibi tus relevamientos asignados, entra a cada caso y completa los pasos en territorio.
+                    </Pressable>
+
+                    <Pressable
+                        onPress={onSyncPress}
+                        style={({ pressed }) => [
+                            styles.metricCard,
+                            {
+                                backgroundColor: theme.colors.surface,
+                                borderColor: theme.colors.border,
+                                shadowColor: theme.colors.shadow,
+                                opacity: pressed ? 0.88 : 1,
+                            },
+                        ]}
+                    >
+                        <View style={[styles.metricIcon, { backgroundColor: syncPendingCount > 0 ? theme.colors.warningSoft : theme.colors.successSoft }]}>
+                            <Ionicons
+                                name={syncPendingCount > 0 ? 'cloud-upload-outline' : 'cloud-done-outline'}
+                                size={18}
+                                color={syncPendingCount > 0 ? theme.colors.warning : theme.colors.success}
+                            />
+                        </View>
+                        <Text style={[styles.metricValue, { color: theme.colors.text, fontFamily: typography.extrabold }]}>
+                            {syncLabel}
                         </Text>
-                    </View>
-                    <View style={[styles.statusPill, { backgroundColor: theme.colors.successSoft, borderColor: theme.colors.success }]}>
-                        <View style={[styles.statusDot, { backgroundColor: theme.colors.success }]} />
-                        <Text style={[styles.statusText, { color: theme.colors.text, fontFamily: typography.bold }]}>
-                            {syncPendingCount > 0 ? `${syncPendingCount} pendientes` : 'Al dia'}
+                        <Text style={[styles.metricLabel, { color: theme.colors.textSoft, fontFamily: typography.bold }]}>
+                            Sync
                         </Text>
-                    </View>
+                    </Pressable>
                 </View>
             </StaggeredItem>
 
             <StaggeredItem index={1}>
                 <Pressable
-                    onPress={() => handleActionPress('relevamientos')}
-                    style={({ pressed }) => [styles.primaryActionWrap, { opacity: pressed ? 0.92 : 1 }]}
+                    onPress={onOpenRelevamientos}
+                    style={({ pressed }) => [
+                        styles.primaryAction,
+                        {
+                            backgroundColor: ACTION_COLOR,
+                            borderColor: ACTION_BORDER,
+                            shadowColor: theme.colors.shadow,
+                            opacity: pressed ? 0.9 : 1,
+                        },
+                    ]}
                 >
-                    <LinearGradient
-                        colors={theme.colors.gradients?.brand}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.primaryAction}
-                    >
+                    <View style={styles.primaryTopRow}>
                         <View style={styles.primaryIconBadge}>
-                            <Ionicons name="clipboard-outline" size={fontSizes['2xl']} color={theme.colors.white} />
+                            <Ionicons name="clipboard-outline" size={fontSizes['2xl']} color="#FFFFFF" />
                         </View>
+                        {newRelevamientosCount > 0 ? (
+                            <View style={styles.newBadge}>
+                                <View style={styles.newBadgeDot} />
+                                <Text style={[styles.newBadgeText, { fontFamily: typography.bold }]}>
+                                    {newRelevamientosCount > 9 ? '9+ nuevos' : `${newRelevamientosCount} nuevo${newRelevamientosCount === 1 ? '' : 's'}`}
+                                </Text>
+                            </View>
+                        ) : null}
+                    </View>
+
+                    <View style={styles.primaryBottomRow}>
                         <View style={styles.primaryActionText}>
-                            <Text style={[styles.primaryActionTitle, { color: theme.colors.white, fontFamily: typography.extrabold }]}>
+                            <Text style={[styles.primaryActionTitle, { color: '#FFFFFF', fontFamily: typography.extrabold }]}>
                                 Mis relevamientos
                             </Text>
-                            <Text style={[styles.primaryActionSubtitle, { color: theme.colors.white, fontFamily: typography.medium }]}>
-                                Ver asignados, abrir el relevamiento y completar la carga paso a paso.
+                            <Text style={[styles.primaryActionMeta, { color: 'rgba(255,255,255,0.78)', fontFamily: typography.bold }]}>
+                                ASIGNADOS
                             </Text>
                         </View>
-                        <Ionicons name="arrow-forward" size={fontSizes.xl} color={theme.colors.white} />
-                    </LinearGradient>
+                        <View style={styles.primaryArrow}>
+                            <Ionicons name="arrow-forward" size={fontSizes.lg} color="#FFFFFF" />
+                        </View>
+                    </View>
                 </Pressable>
             </StaggeredItem>
 
-            <View style={styles.sectionHeader}>
-                <Text style={[styles.blockTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
-                    Operacion
-                </Text>
-            </View>
-
-            <View style={styles.actionsWrap}>
-                {ACTIONS.map((action, index) => (
-                    <StaggeredItem key={action.id} index={index + 2}>
-                        <Pressable
-                            onPress={() => handleActionPress(action.id)}
-                            style={({ pressed }) => [
-                                styles.actionRow,
-                                {
-                                    backgroundColor: theme.colors.surface,
-                                    borderColor: theme.colors.border,
-                                    shadowColor: theme.colors.shadow,
-                                    opacity: pressed ? 0.86 : 1,
-                                },
-                            ]}
-                        >
-                            <View style={[styles.iconBadge, { backgroundColor: theme.colors.brandSoft }]}>
-                                <Ionicons name={action.icon} size={22} color={theme.colors.icon} />
-                            </View>
-                            <View style={styles.cardTextWrap}>
-                                <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
-                                    {action.title}
-                                </Text>
-                                <Text style={[styles.cardSubtitle, { color: theme.colors.textMuted, fontFamily: typography.medium }]}>
-                                    {action.subtitle}
-                                </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSoft} />
-                        </Pressable>
-                    </StaggeredItem>
-                ))}
-            </View>
+            <StaggeredItem index={2}>
+                <Pressable
+                    onPress={onSyncPress}
+                    style={({ pressed }) => [
+                        styles.syncRow,
+                        {
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.border,
+                            shadowColor: theme.colors.shadow,
+                            opacity: pressed ? 0.88 : 1,
+                        },
+                    ]}
+                >
+                    <View style={[styles.syncIcon, { backgroundColor: syncPendingCount > 0 ? theme.colors.warningSoft : theme.colors.successSoft }]}>
+                        <Ionicons
+                            name="sync-outline"
+                            size={20}
+                            color={syncPendingCount > 0 ? theme.colors.warning : theme.colors.success}
+                        />
+                    </View>
+                    <Text style={[styles.syncTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
+                        Sincronizar
+                    </Text>
+                    <Ionicons name="chevron-forward" size={20} color={theme.colors.textSoft} />
+                </Pressable>
+            </StaggeredItem>
         </ScrollView>
     );
 }
@@ -118,95 +154,119 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        padding: 20,
+        padding: 18,
         paddingBottom: 120,
+        gap: 14,
     },
-    hero: {
+    metricsRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    metricCard: {
+        flex: 1,
+        minHeight: 106,
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        padding: 14,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+    metricIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: radii.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+    },
+    metricValue: {
+        fontSize: fontSizes['2xl'],
+        lineHeight: 31,
+    },
+    metricLabel: {
+        marginTop: 1,
+        fontSize: fontSizes.xxs,
+        lineHeight: 13,
+        textTransform: 'uppercase',
+    },
+    primaryAction: {
+        position: 'relative',
+        minHeight: 168,
+        padding: 18,
+        borderRadius: radii['2xl'],
+        borderWidth: 1,
+        justifyContent: 'space-between',
+        overflow: 'hidden',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 14,
+        elevation: 2,
+    },
+    primaryTopRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        gap: 16,
-        marginBottom: 18,
-    },
-    heroText: {
-        flex: 1,
-    },
-    eyebrow: {
-        fontSize: fontSizes.xs,
-        marginBottom: 6,
-    },
-    sectionTitle: {
-        fontSize: fontSizes['2xl'],
-        lineHeight: 32,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        lineHeight: 20,
-        marginTop: 6,
-        maxWidth: 280,
-    },
-    statusPill: {
-        minHeight: 30,
-        borderRadius: radii.full,
-        borderWidth: 1,
-        paddingHorizontal: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    statusDot: {
-        width: 7,
-        height: 7,
-        borderRadius: radii.base,
-    },
-    statusText: {
-        fontSize: fontSizes.xs,
-    },
-    primaryActionWrap: {
-        borderRadius: radii['2xl'],
-        marginBottom: 20,
-        overflow: 'hidden',
-    },
-    primaryAction: {
-        minHeight: 132,
-        padding: 18,
-        borderRadius: radii['2xl'],
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
     },
     primaryIconBadge: {
-        width: 48,
-        height: 48,
+        width: 50,
+        height: 50,
         borderRadius: radii['3xl'],
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(255,255,255,0.22)',
+        backgroundColor: ACTION_SOFT,
+    },
+    newBadge: {
+        minHeight: 24,
+        borderRadius: radii.full,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFBEB',
+    },
+    newBadgeDot: {
+        width: 7,
+        height: 7,
+        borderRadius: radii.full,
+        marginRight: 6,
+        backgroundColor: NOTIFICATION_COLOR,
+    },
+    newBadgeText: {
+        color: '#7F1D1D',
+        fontSize: fontSizes.xxs,
+        lineHeight: 13,
+        textTransform: 'uppercase',
+    },
+    primaryBottomRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
     },
     primaryActionText: {
         flex: 1,
+        paddingRight: 14,
     },
     primaryActionTitle: {
-        fontSize: fontSizes.xl,
-        lineHeight: 27,
+        fontSize: fontSizes['2xl'],
+        lineHeight: 32,
         marginBottom: 4,
     },
-    primaryActionSubtitle: {
-        fontSize: fontSizes.xs,
-        lineHeight: 19,
+    primaryActionMeta: {
+        fontSize: fontSizes.xxs,
+        lineHeight: 13,
+        letterSpacing: 0,
     },
-    sectionHeader: {
-        marginBottom: 10,
+    primaryArrow: {
+        width: 36,
+        height: 36,
+        borderRadius: radii.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: ACTION_SOFT,
     },
-    blockTitle: {
-        fontSize: fontSizes.base,
-    },
-    actionsWrap: {
-        width: '100%',
-        gap: 12,
-    },
-    actionRow: {
-        minHeight: 78,
+    syncRow: {
+        minHeight: 66,
         borderRadius: radii.xl,
         borderWidth: 1,
         padding: 14,
@@ -217,24 +277,17 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 2,
     },
-    iconBadge: {
-        width: 42,
-        height: 42,
+    syncIcon: {
+        width: 38,
+        height: 38,
         borderRadius: radii.full,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
     },
-    cardTextWrap: {
+    syncTitle: {
         flex: 1,
-    },
-    cardTitle: {
         fontSize: fontSizes.sm,
         lineHeight: 20,
-    },
-    cardSubtitle: {
-        fontSize: fontSizes.xs,
-        lineHeight: 18,
-        marginTop: 2,
     },
 });

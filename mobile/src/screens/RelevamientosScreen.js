@@ -6,7 +6,7 @@ import StaggeredItem from '../components/StaggeredItem';
 import relevamientoService from '../services/relevamientoService';
 import { fontSizes, radii } from '../theme';
 
-const DONE_STATES = ['SINCRONIZADO', 'COMPLETADO_LOCAL', 'REALIZADO'];
+const DONE_STATES = ['SINCRONIZADO', 'COMPLETADO_LOCAL', 'REALIZADO', 'FINALIZADO', 'TERMINADO'];
 
 const statusColor = (estado, colors) => {
     if (estado === 'SINCRONIZADO') return colors.success;
@@ -24,7 +24,8 @@ const progressColor = (estado, colors) => {
 
 const progressLabel = (item) => {
     if (DONE_STATES.includes(item.estado)) return 'Realizado';
-    if (item.estado === 'EN_PROGRESO') return 'En progreso';
+    if (item.estado === 'EN_PROGRESO' || item.estado === 'EN_CURSO' || item.estado === 'FINALIZANDO') return 'En progreso';
+    if (item.estado === 'ASIGNADO') return 'Asignado';
     return 'Pendiente';
 };
 
