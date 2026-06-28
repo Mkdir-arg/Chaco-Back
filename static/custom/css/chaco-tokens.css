@@ -224,8 +224,10 @@
   /* === TYPOGRAPHY === */
   --font-family-base: 'Manrope', sans-serif;
   /* Sistema unificado: Manrope es la única familia (UI, cuerpo y títulos).
-     'brand' se mantiene como alias de Manrope por compatibilidad con templates. */
+     'brand'/'display'/'sans' se mantienen como alias de Manrope. */
   --font-family-brand: 'Manrope', sans-serif;
+  --font-sans: var(--font-family-base);
+  --font-display: var(--font-family-base);
   --font-size-xxs: 8px;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
@@ -263,6 +265,18 @@
   --border-width-2: 2px;
   --border-width-4: 4px;
   --border-width-8: 8px;
+
+  /* === SHADOWS (planas, mínimas) === */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-brand: 0 8px 24px -6px rgba(80, 89, 188, 0.45);
+
+  /* === RINGS (focus) === */
+  --ring-brand: 0 0 0 3px rgba(80, 89, 188, 0.35);
+  --ring-danger: 0 0 0 3px rgba(199, 0, 54, 0.30);
 
   /* === MAX WIDTH === */
   --max-w-xs: 320px;

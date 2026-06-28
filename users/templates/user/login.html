@@ -12,186 +12,158 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Tailwind -->
+    <!-- Tailwind (solo para responsive show/hide) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Manrope', 'sans-serif'] },
-                    borderRadius: { lg: '8px', xl: '12px', '2xl': '16px', full: '9999px' },
-                }
-            }
-        }
-    </script>
 
     <!-- CHACO Design Tokens — define todas las CSS variables -->
     <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}">
 
     <style>
-        body { background: var(--bg-secondary); }
-
-        /* Botón primario — Brand (gradiente de marca, pill) */
-        .login-submit-btn {
-            background: var(--gradient-brand);
-            border: 1px solid transparent;
-            color: var(--text-white);
-            font-weight: 600;
-            transition: filter .15s ease, box-shadow .15s ease, border-color .15s ease;
-        }
-        .login-submit-btn:hover {
-            /* hover = overlay negro 20% encima del gradiente (spec) */
-            box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.20);
-        }
-        .login-submit-btn:focus,
-        .login-submit-btn:focus-visible {
-            outline: none;
-            border: 2px solid var(--border-brand);
-            box-shadow: 0 1px 0 2px var(--border-base);
-        }
-        .login-submit-btn:disabled {
-            background: var(--bg-disabled) !important;
-            border: 1px solid var(--border-base) !important;
-            color: var(--text-fg-disabled) !important;
-            box-shadow: none !important;
-            cursor: not-allowed;
-        }
-
-        /* Inputs — focus de marca, el ring nunca se remueve */
+        * { box-sizing: border-box; }
+        body { margin: 0; }
         .login-input {
-            height: 40px;
-            background: var(--bg-white);
-            border: 1px solid var(--border-base);
+            width: 100%;
+            height: 46px;
+            font-family: var(--font-sans);
+            font-size: 14px;
             color: var(--text-heading);
+            background: #fff;
+            border: 1px solid var(--border-base);
+            border-radius: 10px;
+            outline: none;
             transition: border-color .15s ease, box-shadow .15s ease;
         }
         .login-input::placeholder { color: var(--text-body-subtle); }
         .login-input:focus {
-            outline: none;
             border-color: var(--border-brand);
-            box-shadow: var(--ring-brand, 0 0 0 3px rgba(80, 89, 188, 0.35));
+            box-shadow: var(--ring-brand);
         }
+        .login-submit {
+            width: 100%;
+            height: 46px;
+            margin-top: 4px;
+            border: none;
+            border-radius: 12px;
+            background: var(--gradient-brand);
+            color: #fff;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--shadow-brand);
+            transition: filter .15s ease;
+        }
+        .login-submit:hover { filter: brightness(0.96); }
+        .login-link {
+            background: none; border: none; cursor: pointer;
+            font-family: var(--font-sans);
+            color: var(--text-fg-brand);
+            text-decoration: none;
+        }
+        .login-link:hover { text-decoration: underline; }
     </style>
 </head>
-<body class="min-h-screen flex font-sans">
-    <div class="w-full h-screen flex">
-        <!-- Izquierda — Ilustración (solo en desktop) -->
-        <div class="hidden lg:flex lg:flex-1 items-center justify-center relative overflow-hidden" style="background: var(--bg-secondary);">
-            <img src="{% static 'custom/chaco/login-background.png' %}" alt="" class="absolute right-0 w-[52%] h-full object-cover object-left opacity-90">
-            <div class="relative z-10 flex items-center justify-center w-full h-full px-12">
-                <img src="{% static 'custom/chaco/login-illustration.svg' %}" alt="" class="w-auto h-[520px] object-contain drop-shadow-2xl">
+<body style="font-family: var(--font-sans);">
+    <div style="display:flex; min-height:100vh; width:100%; background:#fff;">
+
+        <!-- Izquierda — Ilustración (solo desktop) -->
+        <div class="hidden lg:flex" style="flex:1; position:relative; overflow:hidden; align-items:center; justify-content:center; background: var(--bg-secondary);">
+            <img src="{% static 'custom/chaco/login-background.png' %}" alt="" style="position:absolute; right:0; top:0; width:54%; height:100%; object-fit:cover; object-position:left; opacity:.5;">
+            <div style="position:relative; z-index:1; display:flex; align-items:center; justify-content:center; width:100%; height:100%; padding:0 56px;">
+                <img src="{% static 'custom/chaco/login-illustration.svg' %}" alt="Sistema Social de Chaco" style="width:auto; max-width:88%; height:auto; max-height:60vh; object-fit:contain; filter: drop-shadow(0 24px 40px rgba(16,24,40,.16));">
             </div>
         </div>
 
         <!-- Derecha — Formulario -->
-        <div class="w-full lg:w-[560px] flex items-center justify-center px-8 lg:px-12" style="background: var(--bg-white);">
-            <div class="w-full max-w-md py-8">
+        <div class="w-full lg:w-[560px] px-6 lg:px-12" style="flex-shrink:0; background:#fff; display:flex; align-items:center; justify-content:center; padding-top:32px; padding-bottom:32px; border-left:1px solid var(--border-base);">
+            <div style="width:100%; max-width:400px;">
+
                 <!-- Encabezado -->
-                <div class="mb-10 text-center">
-                    <h1 class="text-3xl font-extrabold mb-2 leading-tight" style="color: var(--text-heading); letter-spacing: -0.5px;">
-                        Bienvenido Ñandé,
-                    </h1>
-                    <h2 class="text-3xl font-extrabold leading-tight" style="color: var(--text-heading); letter-spacing: -0.5px;">
-                        Sistema Social de Chaco
-                    </h2>
+                <div style="margin-bottom:36px;">
+                    <div style="display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:9999px; background:var(--bg-brand-soft); color:var(--text-fg-brand); font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-bottom:16px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"></path>
+                        </svg>
+                        Acceso al sistema
+                    </div>
+                    <h1 style="margin:0; font-size:33px; line-height:1.1; font-weight:800; color:var(--text-heading); font-family:var(--font-display); letter-spacing:-0.6px;">Bienvenido Ñandé</h1>
+                    <h2 style="margin:4px 0 0; font-size:33px; line-height:1.1; font-weight:800; font-family:var(--font-display); letter-spacing:-0.6px; background:var(--gradient-brand); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">Sistema Social de Chaco</h2>
+                    <p style="margin:14px 0 0; font-size:14px; color:var(--text-body-subtle); line-height:1.5;">Ingresá con tu cuenta institucional para gestionar legajos, programas y relevamientos.</p>
                 </div>
 
                 <!-- Tarjeta del formulario -->
-                <div class="rounded-xl p-8 shadow-sm" style="background: var(--bg-white); border: 1px solid var(--border-base);">
-                <form method="post" class="space-y-5" id="loginForm">
-                    {% csrf_token %}
+                <div style="border:1px solid var(--border-base); border-radius:16px; padding:28px; background:#fff; box-shadow:var(--shadow-sm);">
 
                     {% if form.errors %}
-                    <div class="flex items-start gap-2 rounded-lg p-3 mb-4" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle);">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0 mt-px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-fg-danger);">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    <div style="display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:12px; margin-bottom:18px; background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; color:var(--text-fg-danger);">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
                         </svg>
-                        <p class="text-sm font-semibold" style="color: var(--text-fg-danger);">Credenciales inválidas</p>
+                        <p style="margin:0; font-size:13px; font-weight:600; color:var(--text-fg-danger);">Credenciales inválidas. Verificá tu correo y contraseña.</p>
                     </div>
                     {% endif %}
 
-                    <!-- Usuario -->
-                    <div>
-                        <label for="username" class="block text-[13px] font-semibold mb-2" style="color: var(--text-heading);">
-                            Tu correo electrónico <span style="color: var(--text-fg-danger);">*</span>
-                        </label>
-                        <div class="relative">
-                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2" style="color: var(--text-body-subtle);">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect width="20" height="16" x="2" y="4" rx="2"></rect>
-                                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-                                </svg>
-                            </span>
-                            <input type="text"
-                                   id="username"
-                                   name="username"
-                                   required
-                                   class="login-input w-full pl-11 pr-4 rounded-lg text-sm font-normal"
-                                   placeholder="Ingresá tu correo electrónico">
+                    <form method="post" id="loginForm" style="display:flex; flex-direction:column; gap:18px;">
+                        {% csrf_token %}
+
+                        <!-- Correo -->
+                        <div>
+                            <label for="username" style="display:block; font-size:13px; font-weight:600; color:var(--text-heading); margin-bottom:8px;">Tu correo electrónico *</label>
+                            <div style="position:relative;">
+                                <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-body-subtle); display:flex;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" id="username" name="username" required
+                                       class="login-input" style="padding:0 16px 0 44px;"
+                                       placeholder="Ingresá tu correo electrónico">
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Contraseña -->
-                    <div>
-                        <label for="password" class="block text-[13px] font-semibold mb-2" style="color: var(--text-heading);">
-                            Tu contraseña <span style="color: var(--text-fg-danger);">*</span>
-                        </label>
-                        <div class="relative">
-                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2" style="color: var(--text-body-subtle);">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                </svg>
-                            </span>
-                            <input type="password"
-                                   name="password"
-                                   id="password"
-                                   required
-                                   class="login-input w-full pl-11 pr-11 rounded-lg text-sm font-normal"
-                                   placeholder="••••••••••">
-                            <button type="button"
-                                    onclick="togglePassword()"
-                                    aria-label="Mostrar u ocultar contraseña"
-                                    class="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                                    style="color: var(--text-body-subtle);">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleIcon">
-                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                            </button>
+                        <!-- Contraseña -->
+                        <div>
+                            <label for="password" style="display:block; font-size:13px; font-weight:600; color:var(--text-heading); margin-bottom:8px;">Tu contraseña *</label>
+                            <div style="position:relative;">
+                                <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-body-subtle); display:flex;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z"></path>
+                                    </svg>
+                                </span>
+                                <input type="password" id="password" name="password" required
+                                       class="login-input" style="padding:0 44px 0 44px;"
+                                       placeholder="••••••••••">
+                                <button type="button" onclick="togglePassword()" aria-label="Mostrar u ocultar contraseña"
+                                        style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-body-subtle); padding:4px; display:flex;">
+                                    <svg id="toggleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+
+                        <!-- Recordarme / Olvidaste -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; font-size:13px;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-body);">
+                                <input type="checkbox" name="remember" style="width:15px; height:15px; accent-color:var(--bg-brand);"> Recordarme
+                            </label>
+                            <button type="button" class="login-link" style="font-size:13px; font-weight:600;">¿Olvidaste tu contraseña?</button>
+                        </div>
+
+                        <!-- Submit -->
+                        <button type="submit" class="login-submit">Iniciar Sesión</button>
+                    </form>
+
+                    <!-- Registro -->
+                    <div style="text-align:center; margin-top:20px; font-size:13px; color:var(--text-body-subtle);">
+                        ¿No estás registrado? <a href="#" class="login-link" style="font-weight:700;">Crear cuenta</a>
                     </div>
-
-                    <!-- Recordarme & Olvidaste -->
-                    <div class="flex items-center justify-between text-sm">
-                        <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" class="mr-2 rounded" style="accent-color: var(--bg-brand);" />
-                            <span class="font-medium" style="color: var(--text-body);">Recordarme</span>
-                        </label>
-                        <button type="button" class="hover:underline font-semibold" style="color: var(--text-fg-brand);">
-                            ¿Olvidaste tu contraseña?
-                        </button>
-                    </div>
-
-                    <!-- Submit -->
-                    <button type="submit"
-                            class="login-submit-btn w-full h-10 px-4 rounded-full text-sm mt-2">
-                        Iniciar sesión
-                    </button>
-                </form>
-
-                <!-- Registro -->
-                <div class="text-center mt-6">
-                    <span class="text-sm font-normal" style="color: var(--text-body-subtle);">¿No estás registrado? </span>
-                    <a href="#" class="text-sm hover:underline font-semibold" style="color: var(--text-fg-brand);">Crear cuenta</a>
-                </div>
                 </div>
 
                 <!-- Logo -->
-                <div class="flex items-center justify-center mt-6">
-                    <img src="{% static 'custom/chaco/login-logo.png' %}" alt="NODO Chaco" class="h-12">
+                <div style="display:flex; align-items:center; justify-content:center; margin-top:24px;">
+                    <img src="{% static 'custom/chaco/login-logo.png' %}" alt="Gobierno del Chaco" style="height:38px;">
                 </div>
             </div>
         </div>
@@ -203,10 +175,10 @@
             const icon = document.getElementById('toggleIcon');
             if (password.type === 'password') {
                 password.type = 'text';
-                icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.243 4.243L9.88 9.88"></path>';
             } else {
                 password.type = 'password';
-                icon.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>';
             }
         }
     </script>
