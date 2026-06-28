@@ -1,0 +1,994 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}{{ programa.nombre }}{% endblock %}
+
+{% block main-content %}
+<style>
+    .tab-button-active {
+        border-color: {{ branding.program_detail_nachec.tab_active_border_color }} !important;
+        color: {{ branding.program_detail_nachec.tab_active_text_color }} !important;
+    }
+</style>
+<div class="max-w-full mx-4 lg:mx-8">
+    <div class="mb-8">
+        <div class="bg-[#F9FAFB] rounded-xl overflow-hidden" style="box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 12px;">
+            <div class="relative p-8">
+                <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                            <h2 class="mb-1" style="font-family: Inter, sans-serif; font-size: 30px; font-weight: 700; color: #101828;">{{ programa.nombre }}</h2>
+                            <p style="font-family: Inter, sans-serif; font-size: 20px; font-weight: 400; color: #101828;">Gestión Operativa del Programa</p>
+                    </div>
+                    <a href="{% url 'legajos:programas' %}" class="flex w-full items-center justify-center space-x-2 rounded-xl border border-[#E5E7EB] bg-white px-6 py-3 text-[#4A5565] transition-all hover:bg-[#F9FAFB] sm:w-auto">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Volver</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegación -->
+    <div class="bg-white rounded-xl shadow-lg mb-8">
+        <div class="border-b border-gray-200">
+            <nav class="flex -mb-px overflow-x-auto">
+                <button onclick="cambiarTab('dashboard')" data-tab="dashboard" class="tab-button tab-button-active border-b-2 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-chart-bar mr-2"></i>Dashboard
+                </button>
+                <button onclick="cambiarTab('derivaciones')" data-tab="derivaciones" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-inbox mr-2"></i>Derivaciones
+                </button>
+                <button onclick="cambiarTab('asignacion')" data-tab="asignacion" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-user-plus mr-2"></i>Asignación
+                </button>
+                <button onclick="cambiarTab('casos')" data-tab="casos" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-clipboard-list mr-2"></i>Mis Casos
+                </button>
+                <button onclick="cambiarTab('evaluacion')" data-tab="evaluacion" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-clipboard-check mr-2"></i>Evaluación
+                </button>
+                <button onclick="cambiarTab('planes')" data-tab="planes" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-tasks mr-2"></i>Planes
+                </button>
+                <button onclick="cambiarTab('prestaciones')" data-tab="prestaciones" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-hand-holding-heart mr-2"></i>Prestaciones
+                </button>
+                <button onclick="cambiarTab('indicadores')" data-tab="indicadores" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                    <i class="fas fa-chart-pie mr-2"></i>Indicadores
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Tab: Dashboard -->
+    <div id="tab-dashboard" class="tab-content">
+        <!-- Hero Stats -->
+        <div class="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+                <div class="flex items-center justify-between mb-4">
+                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
+                        <i class="fas fa-inbox text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    {% else %}
+                        <i class="fas fa-inbox text-4xl opacity-80"></i>
+                    {% endif %}
+                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
+                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Captación</span>
+                    {% endif %}
+                </div>
+                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.derivaciones_totales }}</p>
+                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-yellow-100"{% endif %}>Derivaciones Totales</p>
+                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                    <i class="fas fa-arrow-up mr-2"></i>
+                    <span>{{ dashboard_metricas.tasa_aceptacion }}% aceptadas</span>
+                </div>
+            </div>
+            
+            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+                <div class="flex items-center justify-between mb-4">
+                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
+                        <i class="fas fa-user-check text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    {% else %}
+                        <i class="fas fa-user-check text-4xl opacity-80"></i>
+                    {% endif %}
+                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
+                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Asignación</span>
+                    {% endif %}
+                </div>
+                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.relevamientos_completados }}</p>
+                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-blue-100"{% endif %}>Relevamientos Completos</p>
+                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                    <i class="fas fa-clock mr-2"></i>
+                    <span>{{ dashboard_metricas.casos_sin_asignar }} sin asignar</span>
+                </div>
+            </div>
+            
+            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+                <div class="flex items-center justify-between mb-4">
+                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
+                        <i class="fas fa-chart-line text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    {% else %}
+                        <i class="fas fa-chart-line text-4xl opacity-80"></i>
+                    {% endif %}
+                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
+                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Evaluación</span>
+                    {% endif %}
+                </div>
+                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.score_promedio }}</p>
+                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-purple-100"{% endif %}>Score Promedio</p>
+                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                    <i class="fas fa-tasks mr-2"></i>
+                    <span>{{ dashboard_metricas.planes_activos }} planes activos</span>
+                </div>
+            </div>
+            
+            <div class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}bg-white rounded-xl p-6{% else %}bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-xl{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="border: 1px solid {{ branding.program_detail_nachec.hero_stats.card_border }}; box-shadow: {{ branding.program_detail_nachec.hero_stats.card_shadow }};"{% endif %}>
+                <div class="flex items-center justify-between mb-4">
+                    {% if branding.program_detail_nachec.hero_stats.icon_mode == 'gradient_text' %}
+                        <i class="fas fa-hand-holding-heart text-transparent" style="font-size: {{ branding.program_detail_nachec.hero_stats.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.hero_stats.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.hero_stats.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    {% else %}
+                        <i class="fas fa-hand-holding-heart text-4xl opacity-80"></i>
+                    {% endif %}
+                    {% if branding.program_detail_nachec.hero_stats.show_badges %}
+                        <span class="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">Impacto</span>
+                    {% endif %}
+                </div>
+                <p class="{% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-5xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.value_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.value_weight }}; color: {{ branding.program_detail_nachec.hero_stats.value_color }};"{% endif %}>{{ dashboard_metricas.familias_asistidas }}</p>
+                <p {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.label_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.label_weight }}; color: {{ branding.program_detail_nachec.hero_stats.label_color }};"{% else %}class="text-green-100"{% endif %}>Familias Asistidas</p>
+                <div class="mt-4 flex items-center {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}{% else %}text-sm{% endif %}" {% if branding.program_detail_nachec.hero_stats.card_mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.hero_stats.meta_size }}; font-weight: {{ branding.program_detail_nachec.hero_stats.meta_weight }}; color: {{ branding.program_detail_nachec.hero_stats.meta_color }};"{% endif %}>
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <span>{{ dashboard_metricas.prestaciones_entregadas }} prestaciones</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flujo del Proceso -->
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                Flujo del Ciclo de Atención
+            </h3>
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
+                            <i class="fas fa-inbox text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        </div>
+                    {% else %}
+                        <div class="w-20 h-20 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fas fa-inbox text-yellow-600 text-2xl"></i>
+                        </div>
+                    {% endif %}
+                    <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.derivados }}</p>
+                    <p class="text-sm text-gray-600">Derivados</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
+                            <i class="fas fa-search text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        </div>
+                    {% else %}
+                        <div class="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fas fa-search text-blue-600 text-2xl"></i>
+                        </div>
+                    {% endif %}
+                    <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.en_revision }}</p>
+                    <p class="text-sm text-gray-600">En Revisión</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
+                            <i class="fas fa-user-check text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        </div>
+                    {% else %}
+                        <div class="w-20 h-20 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fas fa-user-check text-purple-600 text-2xl"></i>
+                        </div>
+                    {% endif %}
+                    <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.asignados }}</p>
+                    <p class="text-sm text-gray-600">Asignados</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
+                            <i class="fas fa-clipboard-list text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        </div>
+                    {% else %}
+                        <div class="w-20 h-20 mx-auto bg-cyan-100 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fas fa-clipboard-list text-cyan-600 text-2xl"></i>
+                        </div>
+                    {% endif %}
+                    <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.en_relevamiento }}</p>
+                    <p class="text-sm text-gray-600">Relevamiento</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
+                            <i class="fas fa-clipboard-check text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        </div>
+                    {% else %}
+                        <div class="w-20 h-20 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fas fa-clipboard-check text-indigo-600 text-2xl"></i>
+                        </div>
+                    {% endif %}
+                    <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.evaluados }}</p>
+                    <p class="text-sm text-gray-600">Evaluados</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.flow_cycle.icon_mode == 'gradient_badge' %}
+                        <div class="mx-auto rounded-full flex items-center justify-center mb-3" style="width: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; height: {{ branding.program_detail_nachec.flow_cycle.icon_container_size }}; background: {{ branding.program_detail_nachec.flow_cycle.icon_container_bg }};">
+                            <i class="fas fa-eye text-transparent" style="font-size: {{ branding.program_detail_nachec.flow_cycle.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.flow_cycle.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        </div>
+                    {% else %}
+                        <div class="w-20 h-20 mx-auto bg-teal-100 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fas fa-eye text-teal-600 text-2xl"></i>
+                        </div>
+                    {% endif %}
+                    <p class="font-bold text-2xl text-gray-800">{{ stats_nachec.en_seguimiento }}</p>
+                    <p class="text-sm text-gray-600">Seguimiento</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Vulnerabilidad -->
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    Distribución por Vulnerabilidad
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Alta</span>
+                            <span class="text-sm font-bold text-red-600">{{ dashboard_metricas.scoring_alto }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full" style="width: {% widthratio dashboard_metricas.scoring_alto dashboard_metricas.derivaciones_totales 100 %}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Media</span>
+                            <span class="text-sm font-bold text-yellow-600">{{ dashboard_metricas.scoring_medio }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full" style="width: {% widthratio dashboard_metricas.scoring_medio dashboard_metricas.derivaciones_totales 100 %}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Baja</span>
+                            <span class="text-sm font-bold text-green-600">{{ dashboard_metricas.scoring_bajo }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full" style="width: {% widthratio dashboard_metricas.scoring_bajo dashboard_metricas.derivaciones_totales 100 %}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prestaciones -->
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    Estado de Prestaciones
+                </h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="{% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}rounded-xl p-4{% else %}bg-green-50 rounded-xl p-4 border-l-4 border-green-500{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.prestations_status.delivered_bg }}; border: 1px solid {{ branding.program_detail_nachec.prestations_status.delivered_border }}; box-shadow: {{ branding.program_detail_nachec.prestations_status.delivered_shadow }};"{% endif %}>
+                        <p class="text-3xl font-bold {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-green-700{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.delivered_text }};"{% endif %}>{{ dashboard_metricas.prestaciones_entregadas }}</p>
+                        <p class="text-sm mt-1 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-green-600{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.delivered_text }};"{% endif %}>Entregadas</p>
+                    </div>
+                    <div class="{% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}rounded-xl p-4{% else %}bg-blue-50 rounded-xl p-4 border-l-4 border-blue-500{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.prestations_status.scheduled_bg }}; border: 1px solid {{ branding.program_detail_nachec.prestations_status.scheduled_border }}; box-shadow: {{ branding.program_detail_nachec.prestations_status.scheduled_shadow }};"{% endif %}>
+                        <p class="text-3xl font-bold {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-blue-700{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.scheduled_text }};"{% endif %}>{{ dashboard_metricas.prestaciones_programadas }}</p>
+                        <p class="text-sm mt-1 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-blue-600{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.scheduled_text }};"{% endif %}>Programadas</p>
+                    </div>
+                </div>
+                <div class="mt-6 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}rounded-xl p-4{% else %}bg-purple-50 rounded-xl p-4{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.prestations_status.sla_bg }}; border: 1px solid {{ branding.program_detail_nachec.prestations_status.sla_border }}; box-shadow: {{ branding.program_detail_nachec.prestations_status.sla_shadow }};"{% endif %}>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm mb-1 {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-purple-600{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.sla_text }};"{% endif %}>Cumplimiento SLA</p>
+                            <p class="text-3xl font-bold {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}{% else %}text-purple-700{% endif %}" {% if branding.program_detail_nachec.prestations_status.mode == 'flat' %}style="color: {{ branding.program_detail_nachec.prestations_status.sla_text }};"{% endif %}>{{ dashboard_metricas.cumplimiento_sla }}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen Final -->
+        <div class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}rounded-xl p-8{% else %}bg-gradient-to-r from-nodo-purple to-magenta rounded-2xl shadow-xl p-8 text-white{% endif %}" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="background: {{ branding.program_detail_nachec.final_summary.card_bg }}; border: 1px solid {{ branding.program_detail_nachec.final_summary.card_border }}; box-shadow: {{ branding.program_detail_nachec.final_summary.card_shadow }};"{% endif %}>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}
+                        <i class="fas fa-home text-transparent mb-4" style="font-size: {{ branding.program_detail_nachec.final_summary.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.final_summary.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.final_summary.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow({{ branding.program_detail_nachec.final_summary.icon_shadow }});"></i>
+                    {% else %}
+                        <i class="fas fa-home text-5xl mb-4 opacity-80"></i>
+                    {% endif %}
+                    <p class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}{% else %}text-4xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.value_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.value_weight }}; color: {{ branding.program_detail_nachec.final_summary.value_color }};"{% endif %}>{{ dashboard_metricas.familias_asistidas }}</p>
+                    <p {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.label_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.label_weight }}; color: {{ branding.program_detail_nachec.final_summary.label_color }};"{% else %}class="text-purple-100"{% endif %}>Familias Asistidas</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}
+                        <i class="fas fa-check-circle text-transparent mb-4" style="font-size: {{ branding.program_detail_nachec.final_summary.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.final_summary.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.final_summary.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow({{ branding.program_detail_nachec.final_summary.icon_shadow }});"></i>
+                    {% else %}
+                        <i class="fas fa-check-circle text-5xl mb-4 opacity-80"></i>
+                    {% endif %}
+                    <p class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}{% else %}text-4xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.value_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.value_weight }}; color: {{ branding.program_detail_nachec.final_summary.value_color }};"{% endif %}>{{ dashboard_metricas.casos_cerrados }}</p>
+                    <p {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.label_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.label_weight }}; color: {{ branding.program_detail_nachec.final_summary.label_color }};"{% else %}class="text-purple-100"{% endif %}>Casos Cerrados</p>
+                </div>
+                <div class="text-center">
+                    {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}
+                        <i class="fas fa-chart-line text-transparent mb-4" style="font-size: {{ branding.program_detail_nachec.final_summary.icon_size }}; background-image: linear-gradient(180deg, {{ branding.program_detail_nachec.final_summary.icon_gradient_start }} 0%, {{ branding.program_detail_nachec.final_summary.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow({{ branding.program_detail_nachec.final_summary.icon_shadow }});"></i>
+                    {% else %}
+                        <i class="fas fa-chart-line text-5xl mb-4 opacity-80"></i>
+                    {% endif %}
+                    <p class="{% if branding.program_detail_nachec.final_summary.mode == 'flat' %}{% else %}text-4xl font-bold{% endif %} mb-2" {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.value_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.value_weight }}; color: {{ branding.program_detail_nachec.final_summary.value_color }};"{% endif %}>{{ dashboard_metricas.cumplimiento_sla }}%</p>
+                    <p {% if branding.program_detail_nachec.final_summary.mode == 'flat' %}style="font-family: Inter, sans-serif; font-size: {{ branding.program_detail_nachec.final_summary.label_size }}; font-weight: {{ branding.program_detail_nachec.final_summary.label_weight }}; color: {{ branding.program_detail_nachec.final_summary.label_color }};"{% else %}class="text-purple-100"{% endif %}>Cumplimiento Global</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Derivaciones -->
+    <div id="tab-derivaciones" class="tab-content hidden">
+        <div class="space-y-6">
+            
+            <!-- Derivaciones de Ciudadanos -->
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+                <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <h3 class="text-2xl font-bold text-[#252F40]">Derivaciones de Ciudadanos</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                            {{ stats_ciudadanos.pendientes }} Pendientes
+                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            {{ stats_ciudadanos.aceptadas }} Aceptadas
+                        </span>
+                        <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                            {{ stats_ciudadanos.rechazadas }} Rechazadas
+                        </span>
+                        <span class="text-xs text-[#8C8C8C] self-center ml-2">(Totales globales)</span>
+                    </div>
+                </div>
+                
+                <!-- Filtros -->
+                <form method="get" class="mb-6 p-4 bg-[#F9FAFB] rounded-lg">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Estado</label>
+                            <select name="estado" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" onchange="this.form.submit()">
+                                <option value="">Todos</option>
+                                <option value="PENDIENTE" {% if filtros_activos.estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                                <option value="ACEPTADA" {% if filtros_activos.estado == 'ACEPTADA' %}selected{% endif %}>Aceptada</option>
+                                <option value="RECHAZADA" {% if filtros_activos.estado == 'RECHAZADA' %}selected{% endif %}>Rechazada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Urgencia</label>
+                            <select name="urgencia" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" onchange="this.form.submit()">
+                                <option value="">Todas</option>
+                                <option value="BAJA" {% if filtros_activos.urgencia == 'BAJA' %}selected{% endif %}>Baja</option>
+                                <option value="MEDIA" {% if filtros_activos.urgencia == 'MEDIA' %}selected{% endif %}>Media</option>
+                                <option value="ALTA" {% if filtros_activos.urgencia == 'ALTA' %}selected{% endif %}>Alta</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-2">
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Buscar (Nombre/DNI)</label>
+                            <div class="flex flex-col gap-2 sm:flex-row">
+                                <input type="text" name="q" value="{{ filtros_activos.busqueda|default:'' }}" placeholder="Buscar por nombre o DNI..." class="flex-1 px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                {% if filtros_activos.estado or filtros_activos.urgencia or filtros_activos.busqueda %}
+                                <a href="?" class="px-4 py-2 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300">
+                                    <i class="fas fa-times"></i> Reset
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                
+                {% if derivaciones_ciudadanos %}
+                <div class="table-scroll-wrapper">
+                    <table class="w-full">
+                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">DNI</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Origen</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Urgencia</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Indicadores</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]">
+                            {% for derivacion in derivaciones_ciudadanos %}
+                            <tr class="hover:bg-[#F9FAFB]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                    <a href="{% url 'legajos:ciudadano_detalle' derivacion.ciudadano.pk %}" class="text-blue-600 hover:underline">
+                                        {{ derivacion.ciudadano.nombre_completo }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">
+                                    {{ derivacion.ciudadano.numero_documento|default:"-" }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ derivacion.programa_origen.nombre|default:"Espontáneo" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if derivacion.estado == 'PENDIENTE' %}bg-yellow-100 text-yellow-800
+                                        {% elif derivacion.estado == 'ACEPTADA' %}bg-green-100 text-green-800
+                                        {% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{ derivacion.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if derivacion.urgencia == 'ALTA' %}bg-red-100 text-red-800
+                                        {% elif derivacion.urgencia == 'MEDIA' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ derivacion.get_urgencia_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex gap-1">
+                                        {% if not derivacion.ciudadano.numero_documento %}
+                                        <span class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded" title="Sin DNI - Bloquea aceptación">
+                                            <i class="fas fa-ban"></i> DNI
+                                        </span>
+                                        {% endif %}
+                                        {% if not derivacion.ciudadano.telefono and not derivacion.ciudadano.domicilio %}
+                                        <span class="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded" title="Falta contacto (tel o domicilio)">
+                                            <i class="fas fa-exclamation-triangle"></i> Contacto
+                                        </span>
+                                        {% endif %}
+                                        {% if not derivacion.ciudadano.domicilio %}
+                                        <span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded" title="Falta municipio (puede aceptar, pero queda sin territorio)">
+                                            <i class="fas fa-map-marker-alt"></i> Muni
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {% if derivacion.estado == 'PENDIENTE' %}
+                                    <a href="{% url 'legajos:derivacion_aceptar' derivacion.pk %}" class="text-green-600 hover:underline mr-2">Aceptar</a>
+                                    <a href="{% url 'legajos:derivacion_rechazar' derivacion.pk %}" class="text-red-600 hover:underline">Rechazar</a>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-8">No hay derivaciones de ciudadanos</p>
+                {% endif %}
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Tab: Asignación -->
+    <div id="tab-asignacion" class="tab-content hidden">
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+                <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <h3 class="text-2xl font-bold text-[#252F40]">Casos para Asignar Territorial</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            {{ stats_nachec.en_revision }} En Revisión
+                        </span>
+                        <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                            {{ stats_nachec.a_asignar|default:0 }} A Asignar
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="table-scroll-wrapper">
+                    <table class="w-full">
+                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Municipio</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Prioridad</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]" id="tbody-asignacion">
+                            {% for caso in casos_nachec %}
+                            {% if caso.estado == 'EN_REVISION' or caso.estado == 'A_ASIGNAR' %}
+                            <tr class="hover:bg-[#F9FAFB] caso-row">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                    <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">
+                                        {{ caso.ciudadano_titular.nombre_completo }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ caso.municipio }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">{{ caso.get_estado_display }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full {% if caso.prioridad == 'URGENTE' %}bg-red-100 text-red-800{% elif caso.prioridad == 'ALTA' %}bg-orange-100 text-orange-800{% else %}bg-green-100 text-green-800{% endif %}">{{ caso.get_prioridad_display }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ caso.fecha_derivacion|date:"d/m/Y" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {% if caso.estado == 'EN_REVISION' %}
+                                        {% if caso.tarea_validacion_completada %}
+                                        <a href="{% url 'legajos:nachec_enviar_asignacion' caso.id %}" class="text-blue-600 hover:underline">Enviar a Asignación</a>
+                                        {% else %}
+                                        <a href="{% url 'legajos:nachec_ver_tarea_validacion' caso.id %}" class="text-purple-600 hover:underline">Validar</a>
+                                        {% endif %}
+                                    {% elif caso.estado == 'A_ASIGNAR' %}
+                                    <a href="{% url 'legajos:nachec_asignar_territorial' caso.id %}" class="text-green-600 hover:underline">Asignar Territorial</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            <tr class="empty-row" style="display: none;"><td colspan="6" class="px-6 py-8 text-center text-[#8C8C8C]">No hay casos para asignar</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Mis Casos -->
+    <div id="tab-casos" class="tab-content hidden">
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+                <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <h3 class="text-2xl font-bold text-[#252F40]">Mis Casos Asignados</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            {{ stats_nachec.asignados }} Asignados
+                        </span>
+                        <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                            {{ stats_nachec.en_relevamiento }} En Relevamiento
+                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            En Ejecución
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="table-scroll-wrapper">
+                    <table class="w-full">
+                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Municipio</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Prioridad</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]">
+                            {% for caso in casos_nachec %}
+                            {% if caso.estado == 'ASIGNADO' or caso.estado == 'EN_RELEVAMIENTO' or caso.estado == 'EN_EJECUCION' or caso.estado == 'EN_SEGUIMIENTO' %}
+                            <tr class="hover:bg-[#F9FAFB]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                    <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">
+                                        {{ caso.ciudadano_titular.nombre_completo }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ caso.municipio }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                        {% if caso.estado == 'ASIGNADO' %}bg-blue-100 text-blue-800
+                                        {% elif caso.estado == 'EN_RELEVAMIENTO' %}bg-purple-100 text-purple-800
+                                        {% elif caso.estado == 'EN_EJECUCION' %}bg-green-100 text-green-800
+                                        {% else %}bg-teal-100 text-teal-800{% endif %}">
+                                        {{ caso.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full {% if caso.prioridad == 'URGENTE' %}bg-red-100 text-red-800{% elif caso.prioridad == 'ALTA' %}bg-orange-100 text-orange-800{% else %}bg-green-100 text-green-800{% endif %}">{{ caso.get_prioridad_display }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ caso.fecha_derivacion|date:"d/m/Y" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {% if caso.estado == 'ASIGNADO' %}
+                                        {% if request.user.id == caso.territorial_id %}
+                                        <a href="{% url 'legajos:nachec_iniciar_relevamiento' caso.id %}" class="text-purple-600 hover:underline">Iniciar Relevamiento</a>
+                                        {% elif request.user.is_superuser %}
+                                        <a href="{% url 'legajos:nachec_reasignar_territorial' caso.id %}" class="text-orange-600 hover:underline">Reasignar</a>
+                                        {% else %}
+                                        <span class="text-gray-400 text-xs" title="Solo el territorial asignado puede iniciar">Asignado a otro</span>
+                                        {% endif %}
+                                    {% elif caso.estado == 'EN_RELEVAMIENTO' %}
+                                        {% if request.user.id == caso.territorial_id %}
+                                        <a href="{% url 'legajos:nachec_formulario_relevamiento' caso.id %}" class="text-blue-600 hover:underline mr-3">Continuar</a>
+                                        <a href="{% url 'legajos:nachec_finalizar_relevamiento' caso.id %}" class="text-green-600 hover:underline">Finalizar</a>
+                                        {% elif request.user.is_superuser %}
+                                        <a href="{% url 'legajos:nachec_reasignar_territorial' caso.id %}" class="text-orange-600 hover:underline">Reasignar</a>
+                                        {% else %}
+                                        <span class="text-gray-400 text-xs">Asignado a otro</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">Ver Detalle</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not casos_nachec %}
+                <p class="text-gray-500 text-center py-8">No tienes casos asignados</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Evaluación -->
+    <div id="tab-evaluacion" class="tab-content hidden">
+        <div class="bg-white rounded-xl border border-[#E5E7EB]">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-[#252F40] mb-4">Bandeja de Evaluación</h3>
+                <p class="text-sm text-[#8C8C8C] mb-4">Todos los casos evaluados y con planes definidos</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Municipio</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Prioridad</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha Eval.</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#E5E7EB]">
+                        {% for caso in casos_nachec %}
+                        {% if caso.estado == 'EVALUADO' or caso.estado == 'PLAN_DEFINIDO' or caso.estado == 'EN_EJECUCION' or caso.estado == 'EN_SEGUIMIENTO' %}
+                        <tr class="hover:bg-[#F9FAFB]">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">
+                                    {{ caso.ciudadano_titular.nombre_completo }}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ caso.municipio }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                    {% if caso.estado == 'EVALUADO' %}bg-purple-100 text-purple-800
+                                    {% elif caso.estado == 'PLAN_DEFINIDO' %}bg-indigo-100 text-indigo-800
+                                    {% elif caso.estado == 'EN_EJECUCION' %}bg-green-100 text-green-800
+                                    {% else %}bg-teal-100 text-teal-800{% endif %}">
+                                    {{ caso.get_estado_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {% if caso.prioridad == 'URGENTE' %}bg-red-100 text-red-800{% elif caso.prioridad == 'ALTA' %}bg-orange-100 text-orange-800{% else %}bg-green-100 text-green-800{% endif %}">{{ caso.get_prioridad_display }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ caso.fecha_evaluacion|date:"d/m/Y"|default:"-" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                {% if caso.estado == 'EVALUADO' %}
+                                <a href="{% url 'legajos:nachec_evaluar_caso' caso.id %}" class="text-purple-600 hover:underline">Evaluar Caso</a>
+                                {% elif caso.estado == 'PLAN_DEFINIDO' %}
+                                <a href="{% url 'legajos:nachec_activar_plan' caso.id %}" class="text-green-600 hover:underline">Activar Plan</a>
+                                {% else %}
+                                <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">Ver Detalle</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% empty %}
+                        <tr><td colspan="6" class="px-6 py-8 text-center text-[#8C8C8C]">No hay casos evaluados</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Planes -->
+    <div id="tab-planes" class="tab-content hidden">
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-[#252F40]">Planes de Intervención y Casos Cerrados</h3>
+                    <div class="flex gap-2">
+                        <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
+                            Plan Definido
+                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            En Ejecución
+                        </span>
+                        <span class="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium">
+                            En Seguimiento
+                        </span>
+                        <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
+                            Cerrados
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Municipio</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Referente</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]">
+                            {% for caso in casos_nachec %}
+                            {% if caso.estado == 'PLAN_DEFINIDO' or caso.estado == 'EN_EJECUCION' or caso.estado == 'EN_SEGUIMIENTO' or caso.estado == 'CERRADO' %}
+                            <tr class="hover:bg-[#F9FAFB]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                    <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">
+                                        {{ caso.ciudadano_titular.nombre_completo }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ caso.municipio }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full {% if caso.estado == 'PLAN_DEFINIDO' %}bg-indigo-100 text-indigo-800{% elif caso.estado == 'EN_EJECUCION' %}bg-green-100 text-green-800{% elif caso.estado == 'EN_SEGUIMIENTO' %}bg-teal-100 text-teal-800{% else %}bg-gray-100 text-gray-800{% endif %}">{{ caso.get_estado_display }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ caso.referente_programa.get_full_name|default:"-" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ caso.fecha_derivacion|date:"d/m/Y" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                {% if caso.estado == 'PLAN_DEFINIDO' %}
+                                <a href="{% url 'legajos:nachec_activar_plan' caso.id %}" class="text-green-600 hover:underline">Activar Plan</a>
+                                {% elif caso.estado == 'EN_EJECUCION' %}
+                                <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">Ver Prestaciones</a>
+                                {% elif caso.estado == 'EN_SEGUIMIENTO' %}
+                                    {% if request.user.id == caso.coordinador_id %}
+                                    <a href="{% url 'legajos:nachec_cerrar_caso' caso.id %}" class="text-dark hover:underline" data-bs-toggle="modal" data-bs-target="#modalCerrarCaso{{ caso.id }}">Cerrar Caso</a>
+                                    {% else %}
+                                    <span class="text-gray-400 text-xs">En seguimiento</span>
+                                    {% endif %}
+                                {% elif caso.estado == 'CERRADO' %}
+                                    {% if request.user.id == caso.coordinador_id or request.user.is_superuser %}
+                                    <a href="{% url 'legajos:nachec_reabrir_caso' caso.id %}" class="text-primary hover:underline" data-bs-toggle="modal" data-bs-target="#modalReabrirCaso{{ caso.id }}">Reabrir Caso</a>
+                                    {% else %}
+                                    <span class="text-gray-400 text-xs">Cerrado</span>
+                                    {% endif %}
+                                {% else %}
+                                <a href="{% url 'legajos:ciudadano_detalle' caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">Ver Detalle</a>
+                                {% endif %}
+                            </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not casos_nachec %}
+                <p class="text-gray-500 text-center py-8">No hay planes activos</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Prestaciones (PASO 8) -->
+    {% include 'legajos/nachec/tab_prestaciones.html' %}
+
+    <!-- Tab: Indicadores -->
+    <div id="tab-indicadores" class="tab-content hidden">
+        <div class="space-y-6">
+            
+            <!-- Métricas Principales -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-medium text-[#8C8C8C]">Total Casos</h4>
+                        <i class="fas fa-folder text-blue-500"></i>
+                    </div>
+                    <p class="text-3xl font-bold text-[#252F40] mb-2">{{ casos_nachec|length }}</p>
+                    <p class="text-xs text-[#8C8C8C]">Casos registrados</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-medium text-[#8C8C8C]">En Proceso</h4>
+                        <i class="fas fa-spinner text-yellow-500"></i>
+                    </div>
+                    <p class="text-3xl font-bold text-[#252F40] mb-2">{{ stats_nachec.en_revision|add:stats_nachec.asignados|add:stats_nachec.en_relevamiento }}</p>
+                    <p class="text-xs text-[#8C8C8C]">Casos activos</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-medium text-[#8C8C8C]">Tasa Aceptación</h4>
+                        <i class="fas fa-check-circle text-green-500"></i>
+                    </div>
+                    <p class="text-3xl font-bold text-[#252F40] mb-2">{% if stats_ciudadanos.aceptadas > 0 %}{% widthratio stats_ciudadanos.aceptadas stats_ciudadanos.aceptadas|add:stats_ciudadanos.rechazadas 100 %}{% else %}0{% endif %}%</p>
+                    <p class="text-xs text-[#8C8C8C]">Derivaciones aceptadas</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-sm font-medium text-[#8C8C8C]">Evaluados</h4>
+                        <i class="fas fa-clipboard-check text-purple-500"></i>
+                    </div>
+                    <p class="text-3xl font-bold text-[#252F40] mb-2">{{ stats_nachec.evaluados }}</p>
+                    <p class="text-xs text-[#8C8C8C]">Con evaluación completa</p>
+                </div>
+            </div>
+            
+            <!-- Distribución por Estado -->
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
+                <h3 class="text-lg font-bold text-[#252F40] mb-6">Distribución por Estado</h3>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-[#8C8C8C]">Derivados</span>
+                            <span class="text-sm font-semibold text-[#252F40]">{{ stats_nachec.derivados }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-yellow-500 h-2 rounded-full" style="width: {% if casos_nachec|length > 0 %}{% widthratio stats_nachec.derivados casos_nachec|length 100 %}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-[#8C8C8C]">En Revisión</span>
+                            <span class="text-sm font-semibold text-[#252F40]">{{ stats_nachec.en_revision }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: {% if casos_nachec|length > 0 %}{% widthratio stats_nachec.en_revision casos_nachec|length 100 %}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-[#8C8C8C]">Asignados</span>
+                            <span class="text-sm font-semibold text-[#252F40]">{{ stats_nachec.asignados }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-indigo-500 h-2 rounded-full" style="width: {% if casos_nachec|length > 0 %}{% widthratio stats_nachec.asignados casos_nachec|length 100 %}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-[#8C8C8C]">En Relevamiento</span>
+                            <span class="text-sm font-semibold text-[#252F40]">{{ stats_nachec.en_relevamiento }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-purple-500 h-2 rounded-full" style="width: {% if casos_nachec|length > 0 %}{% widthratio stats_nachec.en_relevamiento casos_nachec|length 100 %}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-[#8C8C8C]">Evaluados</span>
+                            <span class="text-sm font-semibold text-[#252F40]">{{ stats_nachec.evaluados }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-500 h-2 rounded-full" style="width: {% if casos_nachec|length > 0 %}{% widthratio stats_nachec.evaluados casos_nachec|length 100 %}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Distribución por Prioridad y Municipio -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Por Prioridad -->
+                <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
+                    <h3 class="text-lg font-bold text-[#252F40] mb-6">Distribución por Prioridad</h3>
+                    <div class="space-y-4">
+                        {% for caso in casos_nachec %}
+                        {% endfor %}
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <span class="text-sm text-[#8C8C8C]">Urgente</span>
+                            </div>
+                            <span class="text-sm font-semibold text-[#252F40]">{% for caso in casos_nachec %}{% if caso.prioridad == 'URGENTE' %}1{% endif %}{% endfor %}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-orange-500"></div>
+                                <span class="text-sm text-[#8C8C8C]">Alta</span>
+                            </div>
+                            <span class="text-sm font-semibold text-[#252F40]">{% for caso in casos_nachec %}{% if caso.prioridad == 'ALTA' %}1{% endif %}{% endfor %}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <span class="text-sm text-[#8C8C8C]">Media</span>
+                            </div>
+                            <span class="text-sm font-semibold text-[#252F40]">{% for caso in casos_nachec %}{% if caso.prioridad == 'MEDIA' %}1{% endif %}{% endfor %}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                <span class="text-sm text-[#8C8C8C]">Baja</span>
+                            </div>
+                            <span class="text-sm font-semibold text-[#252F40]">{% for caso in casos_nachec %}{% if caso.prioridad == 'BAJA' %}1{% endif %}{% endfor %}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Por Municipio -->
+                <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
+                    <h3 class="text-lg font-bold text-[#252F40] mb-6">Top Municipios</h3>
+                    <div class="space-y-3">
+                        {% regroup casos_nachec by municipio as municipios_list %}
+                        {% for municipio in municipios_list|slice:":5" %}
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-[#252F40]">{{ municipio.grouper }}</p>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                    <div class="bg-blue-500 h-2 rounded-full" style="width: {% if casos_nachec|length > 0 %}{% widthratio municipio.list|length casos_nachec|length 100 %}{% else %}0{% endif %}%"></div>
+                                </div>
+                            </div>
+                            <span class="ml-4 text-lg font-bold text-[#252F40]">{{ municipio.list|length }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Resumen de Derivaciones -->
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
+                <h3 class="text-lg font-bold text-[#252F40] mb-6">Resumen de Derivaciones</h3>
+                <div class="grid grid-cols-3 gap-6">
+                    <div class="text-center">
+                        <p class="text-4xl font-bold text-yellow-600">{{ stats_ciudadanos.pendientes }}</p>
+                        <p class="text-sm text-[#8C8C8C] mt-2">Pendientes</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-4xl font-bold text-green-600">{{ stats_ciudadanos.aceptadas }}</p>
+                        <p class="text-sm text-[#8C8C8C] mt-2">Aceptadas</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-4xl font-bold text-red-600">{{ stats_ciudadanos.rechazadas }}</p>
+                        <p class="text-sm text-[#8C8C8C] mt-2">Rechazadas</p>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'nachec_programa_tab';
+
+function cambiarTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('tab-button-active');
+        button.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    
+    const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
+    activeButton.classList.add('tab-button-active');
+    activeButton.classList.remove('border-transparent', 'text-gray-500');
+    
+    // Guardar solapa activa
+    localStorage.setItem(STORAGE_KEY, tabName);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Restaurar solapa activa
+    const savedTab = localStorage.getItem(STORAGE_KEY);
+    if (savedTab && document.getElementById(`tab-${savedTab}`)) {
+        cambiarTab(savedTab);
+    }
+    
+    const tbody = document.getElementById('tbody-asignacion');
+    if (tbody) {
+        const dataRows = tbody.querySelectorAll('.caso-row');
+        const emptyRow = tbody.querySelector('.empty-row');
+        if (dataRows.length === 0 && emptyRow) {
+            emptyRow.style.display = '';
+        }
+    }
+});
+</script>
+{% endblock %}

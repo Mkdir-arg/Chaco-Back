@@ -2,7 +2,20 @@
 {% block title %}Becas · Cuestionario social{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
+<style>[x-cloak]{display:none!important}</style>
+<div class="max-w-6xl mx-auto mb-8"
+     x-data="{
+       modalCrear: false,
+       modalEdit: false,
+       createTipo: 'STRING',
+       editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
+       openEdit(url, texto, tipo, obl, activo, orden, opc) {
+         this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
+         this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
+         this.modalEdit = true;
+       }
+     }"
+     @becas-saved.window="modalCrear=false; modalEdit=false">
 
   <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
     <span>Programa Becas</span>
@@ -16,80 +29,127 @@
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Cuestionario social</h1>
       <p class="text-sm text-body-subtle mt-1">Preguntas globales (requisitos generales) que aparecen en todos los formularios</p>
     </div>
-    <a href="{% url 'becas:pregunta_crear' %}" class="btn-nodo btn-brand btn-base">
+    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nueva pregunta
-    </a>
+    </button>
   </div>
 
-  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-    {% if preguntas %}
-    <div class="overflow-x-auto">
-      <table class="w-full border-collapse">
-        <thead>
-          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Texto</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
-            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
-            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in preguntas %}
-          <tr class="hover:bg-[#F9FAFB]">
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle text-right font-semibold">{{ p.orden }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">{{ p.texto }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
-              <span class="badge badge-brand">{{ p.get_tipo_display }}</span>
-            </td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
-              {% if p.obligatorio %}
-                <span class="badge badge-success">Obligatorio</span>
-              {% else %}
-                <span class="badge badge-gray">Opcional</span>
-              {% endif %}
-            </td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
-              {% if p.activo %}
-                <span class="badge badge-success badge-dot">Activa</span>
-              {% else %}
-                <span class="badge badge-gray">Inactiva</span>
-              {% endif %}
-            </td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
-              <div class="flex items-center justify-end gap-2">
-                <a href="{% url 'becas:pregunta_editar' p.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
-                <button type="button" class="text-body-subtle hover:text-fg-warning p-1" title="Activar/Desactivar"
-                        data-confirm-url="{% url 'becas:pregunta_toggle' p.pk %}"
-                        data-confirm-title="{% if p.activo %}¿Desactivar pregunta?{% else %}¿Activar pregunta?{% endif %}"
-                        data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí">
-                  <i class="fas fa-power-off"></i>
-                </button>
-                <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
-                        data-confirm-url="{% url 'becas:pregunta_eliminar' p.pk %}"
-                        data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div id="preguntas-table" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    {% include "programas/becas/config/_preguntas_table.html" %}
+  </div>
+
+  {# Modal: Nueva pregunta #}
+  <div x-show="modalCrear" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalCrear=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nueva pregunta</h3>
+      </div>
+      <form method="post" action="{% url 'becas:pregunta_crear' %}" class="space-y-4" data-ajax>
+        {% csrf_token %}
+        <input type="hidden" name="activo" value="on">
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Texto <span class="text-fg-danger">*</span></label>
+          <input type="text" name="texto" required
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+            <select name="tipo" x-model="createTipo"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              {% for val, label in tipo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+            <select name="obligatorio"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              <option value="True">Obligatorio</option>
+              <option value="False">Opcional</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+            <input type="number" name="orden" min="0" value="0"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          </div>
+        </div>
+        <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
+          <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+          <textarea name="opciones_texto" rows="4"
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"></textarea>
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalCrear=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-plus"></i> Crear pregunta</button>
+        </div>
+      </form>
     </div>
-    {% else %}
-    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-      <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
-      <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
-      <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
-      <a href="{% url 'becas:pregunta_crear' %}" class="btn-nodo btn-brand btn-base mt-2">
-        <i class="fas fa-plus"></i> Nueva pregunta
-      </a>
+  </div>
+
+  {# Modal: Editar pregunta #}
+  <div x-show="modalEdit" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalEdit=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Editar pregunta</h3>
+      </div>
+      <form method="post" :action="editUrl" class="space-y-4" data-ajax data-reset="false">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Texto <span class="text-fg-danger">*</span></label>
+          <input type="text" name="texto" x-model="editTexto" required
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+            <select name="tipo" x-model="editTipo"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              {% for val, label in tipo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+            <select name="obligatorio" x-model="editObl"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              <option value="True">Obligatorio</option>
+              <option value="False">Opcional</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Estado</label>
+            <select name="activo" x-model="editActivo"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              <option value="True">Activa</option>
+              <option value="False">Inactiva</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+            <input type="number" name="orden" x-model="editOrden" min="0"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          </div>
+        </div>
+        <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
+          <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+          <textarea name="opciones_texto" x-model="editOpciones" rows="4"
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"></textarea>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalEdit=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+        </div>
+      </form>
     </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

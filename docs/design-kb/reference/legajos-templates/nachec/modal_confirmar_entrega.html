@@ -1,0 +1,202 @@
+{% extends 'includes/base.html' %}
+{% load static %}
+
+{% block title %}Confirmar Entrega - Prestación{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{% url 'legajos:programa_detalle' 2 %}" class="text-gray-600 hover:text-gray-900 inline-flex items-center mb-4">
+            <i class="fas fa-arrow-left mr-2"></i> Volver al programa
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-check-circle text-green-600 mr-3"></i>Confirmar Entrega
+        </h1>
+        <p class="text-gray-600 mt-2">{{ prestacion.get_tipo_display }}</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <form method="post" action="{% url 'legajos:nachec_confirmar_entrega' prestacion.id %}">
+            {% csrf_token %}
+            
+            <div class="p-6 space-y-6">
+                <!-- Resumen prestación -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="text-gray-600">Prestación:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.get_tipo_display }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Ciudadano:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.caso.ciudadano_titular.nombre_completo }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Fecha programada:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.fecha_programada|date:"d/m/Y" }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Frecuencia:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.get_frecuencia_display }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evidencias -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-sm font-medium text-gray-700">
+                            <i class="fas fa-paperclip mr-2"></i>Evidencias adjuntas
+                            {% if prestacion.tipo == 'ALIMENTARIA' %}
+                                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">OBLIGATORIO</span>
+                            {% endif %}
+                        </label>
+                        <button type="button" onclick="document.getElementById('file-input').click()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-nodo-purple to-magenta hover:from-nodo-purple hover:to-magenta focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nodo-purple">
+                            <i class="fas fa-upload mr-2"></i>Adjuntar Archivo
+                        </button>
+                    </div>
+                    
+                    <input type="file" id="file-input" name="evidencia" accept="image/*,.pdf" class="hidden" onchange="uploadFile(this)">
+                    
+                    <div id="upload-status" class="hidden bg-blue-50 border-l-4 border-blue-400 p-4 mb-3 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-spinner fa-spin text-blue-600 mr-3"></i>
+                            <span class="text-sm text-blue-700">Subiendo archivo...</span>
+                        </div>
+                    </div>
+                    
+                    {% if adjuntos %}
+                        <ul class="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                            {% for adj in adjuntos %}
+                                <li class="p-4 flex justify-between items-center hover:bg-gray-50">
+                                    <span class="text-sm text-gray-900">
+                                        <i class="fas fa-file text-gray-400 mr-2"></i>{{ adj.etiqueta|default:"Evidencia" }}
+                                    </span>
+                                    <a href="{{ adj.archivo.url }}" target="_blank" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                        <i class="fas fa-eye mr-1"></i>Ver
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                            <div class="flex">
+                                <i class="fas fa-exclamation-triangle text-yellow-400 mt-0.5 mr-3"></i>
+                                <div class="text-sm text-yellow-700">
+                                    <p class="font-medium">No hay evidencias adjuntas</p>
+                                    {% if prestacion.tipo == 'ALIMENTARIA' %}
+                                        <p class="mt-1">Debe adjuntar evidencia antes de confirmar entrega</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if not adjuntos %}
+                        <p class="mt-2 text-sm text-gray-500">
+                            <i class="fas fa-info-circle mr-1"></i>Puede adjuntar imágenes o archivos PDF como evidencia de la entrega.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Observaciones de entrega -->
+                <div>
+                    <label for="observaciones_entrega" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-comment mr-2"></i>Observaciones de entrega <span class="text-red-600">*</span>
+                    </label>
+                    <textarea 
+                        name="observaciones_entrega" 
+                        id="observaciones_entrega" 
+                        rows="4" 
+                        required 
+                        minlength="10"
+                        placeholder="Describa cómo se realizó la entrega, quién recibió, condiciones, etc. (mínimo 10 caracteres)"
+                        class="shadow-sm focus:ring-nodo-purple focus:border-nodo-purple block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                    <p class="mt-1 text-sm text-gray-500">Mínimo 10 caracteres</p>
+                </div>
+
+                <!-- Confirmación -->
+                <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input 
+                            type="checkbox" 
+                            name="confirmacion" 
+                            id="confirmacion" 
+                            required
+                            {% if evidencia_obligatoria %}disabled{% endif %}
+                            class="focus:ring-nodo-purple h-4 w-4 text-nodo-purple border-gray-300 rounded">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="confirmacion" class="font-medium text-gray-700">
+                            Confirmo que la prestación fue entregada exitosamente
+                        </label>
+                    </div>
+                </div>
+
+                {% if evidencia_obligatoria %}
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                        <div class="flex">
+                            <i class="fas fa-ban text-red-400 mt-0.5 mr-3"></i>
+                            <div class="text-sm text-red-700">
+                                <p class="font-medium">No se puede confirmar</p>
+                                <p class="mt-1">Debe adjuntar evidencia para prestaciones de tipo ALIMENTARIA</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-between items-center">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nodo-purple">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                <button 
+                    type="submit" 
+                    {% if evidencia_obligatoria %}disabled{% endif %}
+                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-check mr-2"></i>Confirmar Entrega
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock main-content %}
+
+{% block customJS %}
+<script>
+function uploadFile(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('evidencia', file);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        const statusDiv = document.getElementById('upload-status');
+        statusDiv.classList.remove('hidden');
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                statusDiv.className = 'bg-red-50 border-l-4 border-red-400 p-4 mb-3 rounded';
+                statusDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-exclamation-triangle text-red-600 mr-3"></i><span class="text-sm text-red-700">' + (data.error || 'Error al subir archivo') + '</span></div>';
+            }
+        })
+        .catch(error => {
+            statusDiv.className = 'bg-red-50 border-l-4 border-red-400 p-4 mb-3 rounded';
+            statusDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-exclamation-triangle text-red-600 mr-3"></i><span class="text-sm text-red-700">Error al subir archivo</span></div>';
+        });
+    }
+}
+</script>
+{% endblock %}

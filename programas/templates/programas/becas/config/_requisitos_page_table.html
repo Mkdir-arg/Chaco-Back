@@ -1,0 +1,62 @@
+{% if requisitos %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Requisito</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo de campo</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requisitos %}
+      <tr class="hover:bg-[#F9FAFB]">
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+          <p class="text-heading font-medium">{{ req.texto }}</p>
+          <p class="text-xs text-body-subtle mt-0.5">
+            {{ req.segmento.nombre }}{% if req.subsegmento %} / {{ req.subsegmento.nombre }}{% endif %}
+          </p>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F3F4F6] text-[#4B5563]">{{ req.get_tipo_display }}</span>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+          {% if req.obligatorio %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FEF0F2] text-[#9B1C1C]">Obligatorio</span>
+          {% else %}
+            <span class="badge badge-gray">Opcional</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
+              @click="openEdit(
+                '{% url 'becas:requisito_editar' req.pk %}',
+                '{{ req.texto|escapejs }}',
+                '{{ req.tipo }}',
+                '{{ req.obligatorio|yesno:'True,False' }}',
+                {{ req.orden }},
+                [{% for o in req.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}]
+              )">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+                    data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
+                    data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+  <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+  <p class="text-[17px] font-bold text-heading">Sin resultados</p>
+  <p class="text-sm text-body max-w-xs">No hay requisitos para los filtros seleccionados.</p>
+</div>
+{% endif %}

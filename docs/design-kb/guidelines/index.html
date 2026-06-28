@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chaco / NODO — Guidelines</title>
+<link rel="icon" href="../assets/favicon.png" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<style>
+  html,body{margin:0;background:var(--bg-secondary);font-family:var(--font-sans);color:var(--text-body);-webkit-font-smoothing:antialiased;}
+  *{box-sizing:border-box;}
+  .page{max-width:1200px;margin:0 auto;padding:0 32px 80px;}
+  .hero{background:var(--gradient-brand);color:#fff;border-radius:0 0 var(--radius-2xl) var(--radius-2xl);padding:44px 40px 40px;box-shadow:var(--shadow-brand);}
+  .hero-in{max-width:1200px;margin:0 auto;}
+  .hero img{height:38px;filter:brightness(0) invert(1);margin-bottom:20px;}
+  .hero h1{font-family:var(--font-display);font-size:34px;letter-spacing:-.5px;margin:0 0 8px;}
+  .hero p{margin:0;font-size:15px;max-width:620px;line-height:1.55;opacity:.94;}
+  .nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--border-base);}
+  .nav-in{max-width:1200px;margin:0 auto;padding:12px 32px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .nav a{font-size:13px;font-weight:700;color:var(--text-body-subtle);text-decoration:none;padding:7px 13px;border-radius:var(--radius-full);transition:all var(--duration-fast) var(--ease-standard);}
+  .nav a:hover{background:var(--bg-brand-soft);color:var(--text-fg-brand);}
+  .group{margin-top:44px;}
+  .ghead{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  .gico{width:42px;height:42px;border-radius:var(--radius-lg);background:var(--bg-brand-soft);color:var(--text-fg-brand);display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;}
+  .ghead h2{margin:0;font-size:21px;color:var(--text-heading);font-weight:800;letter-spacing:-.3px;}
+  .ghead p{margin:2px 0 0;font-size:13.5px;color:var(--text-body-subtle);}
+  .ghead .count{margin-left:auto;font-size:12px;font-weight:700;color:var(--text-body-subtle);background:var(--bg-tertiary);border-radius:var(--radius-full);padding:4px 11px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px;}
+  .card{margin:0;background:var(--bg-white);border:1px solid var(--border-base);border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;transition:box-shadow var(--duration-fast) var(--ease-standard),transform var(--duration-fast) var(--ease-standard);}
+  .card{cursor:pointer;}
+  .card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);}
+  .card:hover .zoom{opacity:1;}
+  .zoom{position:absolute;top:8px;right:8px;z-index:2;width:30px;height:30px;border-radius:var(--radius-lg);background:rgba(255,255,255,.92);color:var(--text-fg-brand);display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:var(--shadow-sm);opacity:0;transition:opacity var(--duration-fast) var(--ease-standard);}
+  /* lightbox */
+  .lb{position:fixed;inset:0;z-index:100;background:rgba(37,47,64,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:32px;}
+  .lb.open{display:flex;}
+  .lb-card{background:var(--bg-white);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);max-width:min(980px,94vw);width:100%;overflow:hidden;}
+  .lb-head{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;border-bottom:1px solid var(--border-base);}
+  .lb-head h3{margin:0 0 3px;font-size:17px;font-weight:800;color:var(--text-heading);}
+  .lb-head p{margin:0;font-size:13px;color:var(--text-body-subtle);}
+  .lb-x{margin-left:auto;flex:none;width:34px;height:34px;border:0;border-radius:var(--radius-lg);background:var(--bg-secondary);color:var(--text-body);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+  .lb-x:hover{background:var(--bg-tertiary);}
+  .lb-body{padding:20px;background:var(--bg-secondary);}
+  .lb-body iframe{border:0;display:block;width:100%;background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);}
+  .frame{position:relative;width:100%;overflow:hidden;background:var(--bg-white);border-bottom:1px solid var(--border-light);}
+  .frame iframe{border:0;display:block;transform-origin:top left;background:#fff;pointer-events:none;}
+  figcaption{padding:14px 16px 16px;}
+  figcaption h3{margin:0 0 3px;font-size:14.5px;font-weight:800;color:var(--text-heading);}
+  figcaption p{margin:0;font-size:12.5px;color:var(--text-body-subtle);line-height:1.45;}
+  footer.foot{margin-top:56px;padding-top:24px;border-top:1px solid var(--border-base);font-size:12.5px;color:var(--text-body-subtle);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+</style>
+</head>
+<body>
+  <div class="hero"><div class="hero-in">
+    <img src="../assets/logo-chaco-horizontal.png" alt="Gobierno del Chaco" />
+    <h1>Guidelines del sistema</h1>
+    <p>Fundamentos visuales del sistema de diseño Chaco / NODO: color, tipografía, espaciado y marca.</p>
+  </div></div>
+  <nav class="nav"><div class="nav-in">
+    <a href="#g-Colors">Color</a><a href="#g-Type">Tipografía</a><a href="#g-Spacing">Espaciado</a><a href="#g-Brand">Marca</a>
+  </div></nav>
+  <div class="lb" id="lb" role="dialog" aria-modal="true">
+    <div class="lb-card">
+      <div class="lb-head">
+        <div><h3 id="lb-title"></h3><p id="lb-sub"></p></div>
+        <button class="lb-x" id="lb-x" aria-label="Cerrar"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="lb-body"><iframe id="lb-frame" scrolling="no" title="vista ampliada"></iframe></div>
+    </div>
+  </div>
+  <div class="page">
+    
+    <section class="group" id="g-Colors">
+      <header class="ghead">
+        <span class="gico"><i class="fas fa-palette"></i></span>
+        <div><h2>Color</h2><p>Marca, acento, neutros, semánticos y superficies.</p></div>
+        <span class="count">7</span>
+      </header>
+      <div class="cards">
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:150px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x150&quot; name=&quot;Brand — Jacarandá&quot; subtitle=&quot;Jacaranda purple, the systematic brand color (#5059bc)&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:0; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); }
+  .sw { flex:1; height:88px; display:flex; flex-direction:column; justify-content:flex-end; padding:8px; }
+  .sw b { font-size:11px; font-weight:700; }
+  .sw span { font-size:10px; opacity:.85; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-brand-100); color:var(--color-brand-900)&quot;><b>100</b><span>#ede9fe</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-brand-300); color:var(--color-brand-900)&quot;><b>300</b><span>#c4b5fd</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-brand-500); color:#fff&quot;><b>500 · base</b><span>#5059bc</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-brand-700); color:#fff&quot;><b>700 · brand</b><span>#5059bc</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-brand-800); color:#fff&quot;><b>800</b><span>#4338ca</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-brand-900); color:#fff&quot;><b>900</b><span>#3730a3</span></div>
+</div>
+</body></html>
+" width="700" height="150" loading="lazy" title="Brand — Jacarandá" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Brand — Jacarandá</h3><p>Jacaranda purple, the systematic brand color (#5059bc)</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:150px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x150&quot; name=&quot;Accent — Rosa&quot; subtitle=&quot;Pink blossom accent, from the logo mark&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:0; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); }
+  .sw { flex:1; height:88px; display:flex; flex-direction:column; justify-content:flex-end; padding:8px; }
+  .sw b { font-size:11px; font-weight:700; }
+  .sw span { font-size:10px; opacity:.85; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-pink-050); color:var(--color-pink-950)&quot;><b>050</b><span>#fef3ff</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-pink-200); color:var(--color-pink-950)&quot;><b>200</b><span>#fee3ff</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-pink-400); color:var(--color-pink-950)&quot;><b>400</b><span>#fcc3ff</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-pink-600); color:#fff&quot;><b>600 · accent</b><span>#f98dff</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-pink-800); color:#fff&quot;><b>800</b><span>#dd5fe4</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-pink-950); color:#fff&quot;><b>950</b><span>#9b499f</span></div>
+</div>
+</body></html>
+" width="700" height="150" loading="lazy" title="Accent — Rosa" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Accent — Rosa</h3><p>Pink blossom accent, from the logo mark</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:150px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x150&quot; name=&quot;Verde Campo — olive / sage&quot; subtitle=&quot;Field greens sampled from the leaf logo mark&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:0; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); }
+  .sw { flex:1; height:88px; display:flex; flex-direction:column; justify-content:flex-end; padding:8px; }
+  .sw b { font-size:11px; font-weight:700; }
+  .sw span { font-size:10px; opacity:.85; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-olive-100); color:var(--color-olive-700)&quot;><b>100</b><span>#eef1e0</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-olive-200); color:var(--color-olive-700)&quot;><b>200</b><span>#dde3c4</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-olive-300); color:var(--color-olive-700)&quot;><b>300</b><span>#c8d29c</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-olive-400); color:#fff&quot;><b>400</b><span>#a8b573</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-olive-500); color:#fff&quot;><b>500</b><span>#8a9a5b</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-olive-600); color:#fff&quot;><b>600</b><span>#6f7d3f</span></div>
+</div>
+</body></html>
+" width="700" height="150" loading="lazy" title="Verde Campo — olive / sage" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Verde Campo — olive / sage</h3><p>Field greens sampled from the leaf logo mark</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:170px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x170&quot; name=&quot;Brand gradients&quot; subtitle=&quot;Signature NODO magenta→purple, and the cool field→jacaranda&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .g { height:108px; border-radius:var(--radius-xl); box-shadow:var(--shadow-md); display:flex; flex-direction:column; justify-content:flex-end; padding:14px; color:#fff; }
+  .g b { font-size:14px; font-weight:800; }
+  .g span { font-size:11px; opacity:.9; }
+</style></head>
+<body>
+<div class=&quot;grid&quot;>
+  <div class=&quot;g&quot; style=&quot;background:var(--gradient-brand)&quot;><b>--gradient-brand</b><span>#5059bc → #f98dff · Jacarandá → BG Pink · primary CTAs</span></div>
+  <div class=&quot;g&quot; style=&quot;background:var(--gradient-cool)&quot;><b>--gradient-cool</b><span>#8a9a5b → #5059bc · illustration panels</span></div>
+</div>
+</body></html>
+" width="700" height="170" loading="lazy" title="Brand gradients" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Brand gradients</h3><p>Signature NODO magenta→purple, and the cool field→jacaranda</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:170px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x170&quot; name=&quot;Semantic — status&quot; subtitle=&quot;Success, warning, danger and info — soft + solid pairs&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .col b { display:block; font-size:12px; font-weight:700; color:var(--text-heading); margin-bottom:8px; }
+  .pair { display:flex; gap:6px; }
+  .chip { flex:1; height:54px; border-radius:var(--radius-lg); display:flex; align-items:flex-end; padding:6px; font-size:10px; font-weight:600; }
+</style></head>
+<body>
+<div class=&quot;grid&quot;>
+  <div class=&quot;col&quot;><b>Success</b><div class=&quot;pair&quot;>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-success-soft); color:var(--text-fg-success)&quot;>soft</div>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-success); color:#fff&quot;>#007a55</div></div></div>
+  <div class=&quot;col&quot;><b>Warning</b><div class=&quot;pair&quot;>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-warning-soft); color:var(--text-fg-warning)&quot;>soft</div>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-warning); color:#fff&quot;>#ff5a1f</div></div></div>
+  <div class=&quot;col&quot;><b>Danger</b><div class=&quot;pair&quot;>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-danger-soft); color:var(--text-fg-danger)&quot;>soft</div>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-danger); color:#fff&quot;>#c70036</div></div></div>
+  <div class=&quot;col&quot;><b>Info</b><div class=&quot;pair&quot;>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-info-soft); color:var(--text-fg-info)&quot;>soft</div>
+    <div class=&quot;chip&quot; style=&quot;background:var(--bg-brand); color:#fff&quot;>#5059bc</div></div></div>
+</div>
+</body></html>
+" width="700" height="170" loading="lazy" title="Semantic — status" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Semantic — status</h3><p>Success, warning, danger and info — soft + solid pairs</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:170px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x170&quot; name=&quot;Surfaces &amp; text&quot; subtitle=&quot;Background layers and the text tokens that sit on them&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .card { border-radius:var(--radius-xl); border:1px solid var(--border-base); padding:14px; }
+  .h { color:var(--text-heading); font-weight:800; font-size:15px; }
+  .b { color:var(--text-body); font-size:12.5px; margin-top:4px; }
+  .s { color:var(--text-body-subtle); font-size:11px; margin-top:2px; }
+  .lbl { font-size:10px; color:var(--text-body-subtle); margin-top:8px; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class=&quot;grid&quot;>
+  <div class=&quot;card&quot; style=&quot;background:var(--bg-white)&quot;>
+    <div class=&quot;h&quot;>Heading</div><div class=&quot;b&quot;>Cuerpo de texto sobre superficie blanca.</div><div class=&quot;s&quot;>Texto sutil / metadato</div>
+    <div class=&quot;lbl&quot;>--bg-white</div></div>
+  <div class=&quot;card&quot; style=&quot;background:var(--bg-secondary)&quot;>
+    <div class=&quot;h&quot;>Heading</div><div class=&quot;b&quot;>Lienzo de la aplicación.</div><div class=&quot;s&quot;>Texto sutil / metadato</div>
+    <div class=&quot;lbl&quot;>--bg-secondary</div></div>
+  <div class=&quot;card&quot; style=&quot;background:var(--bg-navy); border-color:transparent&quot;>
+    <div class=&quot;h&quot; style=&quot;color:#fff&quot;>Heading</div><div class=&quot;b&quot; style=&quot;color:#d1d5db&quot;>Pie del portal ciudadano.</div><div class=&quot;s&quot; style=&quot;color:#9ca3af&quot;>Texto sutil</div>
+    <div class=&quot;lbl&quot; style=&quot;color:#9ca3af&quot;>--bg-navy</div></div>
+</div>
+</body></html>
+" width="700" height="170" loading="lazy" title="Surfaces &amp; text" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Surfaces & text</h3><p>Background layers and the text tokens that sit on them</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:180px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Colors&quot; viewport=&quot;700x180&quot; name=&quot;Neutrals — Gris&quot; subtitle=&quot;Grayscale for text, borders and surfaces&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:0; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); border:1px solid var(--border-base); }
+  .sw { flex:1; height:96px; display:flex; flex-direction:column; justify-content:flex-end; padding:8px; }
+  .sw b { font-size:11px; font-weight:700; }
+  .sw span { font-size:9.5px; opacity:.8; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-050); color:#111&quot;><b>050</b><span>#f9fafb</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-100); color:#111&quot;><b>100</b><span>#f3f4f6</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-200); color:#111&quot;><b>200</b><span>#e5e7eb</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-300); color:#111&quot;><b>300</b><span>#d1d5db</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-500); color:#fff&quot;><b>500</b><span>#6b7280</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-600); color:#fff&quot;><b>600</b><span>#4b5563</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-navy-700); color:#fff&quot;><b>navy</b><span>#252f40</span></div>
+  <div class=&quot;sw&quot; style=&quot;background:var(--color-gray-900); color:#fff&quot;><b>900</b><span>#111827</span></div>
+</div>
+</body></html>
+" width="700" height="180" loading="lazy" title="Neutrals — Gris" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Neutrals — Gris</h3><p>Grayscale for text, borders and surfaces</p></div>
+        </figcaption>
+      </figure></div>
+    </section>
+    <section class="group" id="g-Type">
+      <header class="ghead">
+        <span class="gico"><i class="fas fa-font"></i></span>
+        <div><h2>Tipografía</h2><p>Familias, escala y pesos.</p></div>
+        <span class="count">3</span>
+      </header>
+      <div class="cards">
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:200px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Type&quot; viewport=&quot;700x200&quot; name=&quot;Typefaces&quot; subtitle=&quot;Manrope is the single typeface — UI, body and display&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); }
+  .block { margin-bottom:18px; }
+  .tag { font-family:var(--font-sans); font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-body-subtle); margin-bottom:6px; }
+  .sans { font-family:var(--font-sans); font-size:34px; font-weight:800; color:var(--text-heading); letter-spacing:-.4px; }
+  .disp { font-family:var(--font-display); font-size:34px; font-weight:700; color:var(--text-fg-brand); }
+  .meta { font-family:var(--font-sans); font-size:12px; color:var(--text-body-subtle); margin-top:4px; }
+</style></head>
+<body>
+<div class=&quot;block&quot;>
+  <div class=&quot;tag&quot;>Manrope — UI &amp; body</div>
+  <div class=&quot;sans&quot;>Gobierno del Chaco · 0123456789</div>
+  <div class=&quot;meta&quot;>Regular 400 · Medium 500 · Semibold 600 · Bold 700 · Extrabold 800</div>
+</div>
+<div class=&quot;block&quot;>
+  <div class=&quot;tag&quot;>Manrope — display (extrabold, tight tracking)</div>
+  <div class=&quot;sans&quot; style=&quot;color:var(--text-fg-brand);&quot;>Cerca tuyo, siempre</div>
+  <div class=&quot;meta&quot;>Headlines &amp;amp; hero numerals use Manrope 800 — one family across the system</div>
+</div>
+</body></html>
+" width="700" height="200" loading="lazy" title="Typefaces" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Typefaces</h3><p>Manrope es la única tipografía — UI, cuerpo y display</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:300px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Type&quot; viewport=&quot;700x300&quot; name=&quot;Type scale&quot; subtitle=&quot;The shared px scale, xs → 5xl&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); color:var(--text-heading); }
+  .r { display:flex; align-items:baseline; gap:16px; padding:5px 0; border-bottom:1px solid var(--border-light); }
+  .r:last-child { border:0; }
+  .lbl { width:120px; flex-shrink:0; font-size:11px; color:var(--text-body-subtle); font-variant-numeric:tabular-nums; }
+  .sample { font-weight:700; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+</style></head>
+<body>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>5xl · 48px</div><div class=&quot;sample&quot; style=&quot;font-size:48px&quot;>Legajos</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>4xl · 36px · h1</div><div class=&quot;sample&quot; style=&quot;font-size:36px&quot;>Panel de gestión</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>3xl · 30px · h2</div><div class=&quot;sample&quot; style=&quot;font-size:30px&quot;>Grupo familiar</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>2xl · 24px · h3</div><div class=&quot;sample&quot; style=&quot;font-size:24px&quot;>Datos personales</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>xl · 20px</div><div class=&quot;sample&quot; style=&quot;font-size:20px&quot;>Resumen de la consulta</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>base · 16px</div><div class=&quot;sample&quot; style=&quot;font-size:16px; font-weight:400; color:var(--text-body)&quot;>Texto de párrafo estándar del sistema.</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>sm · 14px</div><div class=&quot;sample&quot; style=&quot;font-size:14px; font-weight:400; color:var(--text-body)&quot;>Etiquetas de formulario y controles.</div></div>
+  <div class=&quot;r&quot;><div class=&quot;lbl&quot;>xs · 12px</div><div class=&quot;sample&quot; style=&quot;font-size:12px; font-weight:400; color:var(--text-body-subtle)&quot;>Metadatos, ayudas y notas al pie.</div></div>
+</body></html>
+" width="700" height="300" loading="lazy" title="Type scale" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Type scale</h3><p>The shared px scale, xs → 5xl</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:150px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Type&quot; viewport=&quot;700x150&quot; name=&quot;Weights&quot; subtitle=&quot;Manrope 400 → 800&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); color:var(--text-heading); }
+  .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+  .c { text-align:center; }
+  .c .w { font-size:30px; letter-spacing:-.4px; }
+  .c .l { font-size:11px; color:var(--text-body-subtle); margin-top:6px; }
+</style></head>
+<body>
+<div class=&quot;grid&quot;>
+  <div class=&quot;c&quot;><div class=&quot;w&quot; style=&quot;font-weight:400&quot;>Aa</div><div class=&quot;l&quot;>Regular 400</div></div>
+  <div class=&quot;c&quot;><div class=&quot;w&quot; style=&quot;font-weight:500&quot;>Aa</div><div class=&quot;l&quot;>Medium 500</div></div>
+  <div class=&quot;c&quot;><div class=&quot;w&quot; style=&quot;font-weight:600&quot;>Aa</div><div class=&quot;l&quot;>Semibold 600</div></div>
+  <div class=&quot;c&quot;><div class=&quot;w&quot; style=&quot;font-weight:700&quot;>Aa</div><div class=&quot;l&quot;>Bold 700</div></div>
+  <div class=&quot;c&quot;><div class=&quot;w&quot; style=&quot;font-weight:800&quot;>Aa</div><div class=&quot;l&quot;>Extrabold 800</div></div>
+</div>
+</body></html>
+" width="700" height="150" loading="lazy" title="Weights" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Weights</h3><p>Manrope 400 → 800</p></div>
+        </figcaption>
+      </figure></div>
+    </section>
+    <section class="group" id="g-Spacing">
+      <header class="ghead">
+        <span class="gico"><i class="fas fa-ruler-combined"></i></span>
+        <div><h2>Espaciado y elevación</h2><p>Grilla de 4px, radios y sombras.</p></div>
+        <span class="count">3</span>
+      </header>
+      <div class="cards">
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:160px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Spacing&quot; viewport=&quot;700x160&quot; name=&quot;Spacing scale&quot; subtitle=&quot;4px base grid; 20px is the default gap between cards&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .r { display:flex; align-items:center; gap:14px; padding:3px 0; }
+  .bar { height:16px; background:var(--bg-brand); border-radius:3px; }
+  .l { font-size:11px; color:var(--text-body-subtle); width:118px; font-variant-numeric:tabular-nums; }
+  .l b { color:var(--text-heading); }
+</style></head>
+<body>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>1</b> · 4px</div><div class=&quot;bar&quot; style=&quot;width:4px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>2</b> · 8px</div><div class=&quot;bar&quot; style=&quot;width:8px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>3</b> · 12px</div><div class=&quot;bar&quot; style=&quot;width:12px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>4</b> · 16px</div><div class=&quot;bar&quot; style=&quot;width:16px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>5</b> · 20px · gap</div><div class=&quot;bar&quot; style=&quot;width:20px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>6</b> · 24px</div><div class=&quot;bar&quot; style=&quot;width:24px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>8</b> · 32px</div><div class=&quot;bar&quot; style=&quot;width:32px&quot;></div></div>
+  <div class=&quot;r&quot;><div class=&quot;l&quot;><b>12</b> · 48px</div><div class=&quot;bar&quot; style=&quot;width:48px&quot;></div></div>
+</body></html>
+" width="700" height="160" loading="lazy" title="Spacing scale" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Spacing scale</h3><p>4px base grid; 20px is the default gap between cards</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:150px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Spacing&quot; viewport=&quot;700x150&quot; name=&quot;Radius&quot; subtitle=&quot;Corner radii — cards &amp; buttons use xl (12px), pills use full&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:16px; align-items:flex-end; }
+  .c { text-align:center; }
+  .box { width:74px; height:64px; background:var(--bg-brand-soft); border:1.5px solid var(--border-brand); border-bottom:none; }
+  .l { font-size:11px; color:var(--text-body-subtle); margin-top:6px; }
+  .l b { display:block; color:var(--text-heading); font-size:12px; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;border-radius:var(--radius) var(--radius) 0 0&quot;></div><div class=&quot;l&quot;><b>4px</b>default</div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;border-radius:var(--radius-lg) var(--radius-lg) 0 0&quot;></div><div class=&quot;l&quot;><b>8px</b>lg · inputs</div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;border-radius:var(--radius-xl) var(--radius-xl) 0 0&quot;></div><div class=&quot;l&quot;><b>12px</b>xl · cards/btn</div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;border-radius:var(--radius-2xl) var(--radius-2xl) 0 0&quot;></div><div class=&quot;l&quot;><b>16px</b>2xl · modal</div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;border-radius:var(--radius-3xl) var(--radius-3xl) 0 0&quot;></div><div class=&quot;l&quot;><b>24px</b>3xl</div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;border-radius:9999px 9999px 0 0&quot;></div><div class=&quot;l&quot;><b>full</b>pills</div></div>
+</div>
+</body></html>
+" width="700" height="150" loading="lazy" title="Radius" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Radius</h3><p>Corner radii — cards & buttons use xl (12px), pills use full</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:170px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Spacing&quot; viewport=&quot;700x170&quot; name=&quot;Elevation&quot; subtitle=&quot;Soft, low-contrast shadows + the brand glow&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:28px 24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:22px; }
+  .c { text-align:center; }
+  .box { width:96px; height:64px; background:var(--bg-white); border-radius:var(--radius-xl); border:1px solid var(--border-light); }
+  .l { font-size:11px; color:var(--text-body-subtle); margin-top:12px; }
+  .l b { display:block; color:var(--text-heading); font-size:12px; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;box-shadow:var(--shadow-xs)&quot;></div><div class=&quot;l&quot;><b>xs</b></div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;box-shadow:var(--shadow-sm)&quot;></div><div class=&quot;l&quot;><b>sm · cards</b></div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;box-shadow:var(--shadow-md)&quot;></div><div class=&quot;l&quot;><b>md · hover</b></div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;box-shadow:var(--shadow-lg)&quot;></div><div class=&quot;l&quot;><b>lg · dropdowns</b></div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;box-shadow:var(--shadow-xl)&quot;></div><div class=&quot;l&quot;><b>xl · modals</b></div></div>
+  <div class=&quot;c&quot;><div class=&quot;box&quot; style=&quot;box-shadow:var(--shadow-brand)&quot;></div><div class=&quot;l&quot;><b>brand glow</b></div></div>
+</div>
+</body></html>
+" width="700" height="170" loading="lazy" title="Elevation" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Elevation</h3><p>Soft, low-contrast shadows + the brand glow</p></div>
+        </figcaption>
+      </figure></div>
+    </section>
+    <section class="group" id="g-Brand">
+      <header class="ghead">
+        <span class="gico"><i class="fas fa-star"></i></span>
+        <div><h2>Marca</h2><p>Logo, isotipo, íconos e ilustración.</p></div>
+        <span class="count">4</span>
+      </header>
+      <div class="cards">
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:200px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Brand&quot; viewport=&quot;700x200&quot; name=&quot;Logo — lockup&quot; subtitle=&quot;Horizontal lockup: leaf-field mark + navy wordmark&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:0; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; height:200px; }
+  .cell { display:flex; align-items:center; justify-content:center; padding:28px; }
+  .cell img { max-width:100%; max-height:120px; }
+  .light { background:var(--bg-white); }
+  .dark { background:var(--bg-navy); }
+</style></head>
+<body>
+<div class=&quot;grid&quot;>
+  <div class=&quot;cell light&quot;><img src=&quot;../assets/logo-chaco-horizontal.png&quot; alt=&quot;Gobierno del Chaco&quot; /></div>
+  <div class=&quot;cell dark&quot;><img src=&quot;../assets/logo-chaco-horizontal.png&quot; alt=&quot;Gobierno del Chaco sobre fondo oscuro&quot; style=&quot;filter:brightness(0) invert(1)&quot; /></div>
+</div>
+</body></html>
+" width="700" height="200" loading="lazy" title="Logo — lockup" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Logo — lockup</h3><p>Horizontal lockup: leaf-field mark + navy wordmark</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:170px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Brand&quot; viewport=&quot;700x170&quot; name=&quot;Logo — mark &amp; clear space&quot; subtitle=&quot;Isolated leaf-field mark for favicons, avatars and collapsed nav&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; align-items:center; gap:36px; }
+  .m { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .m img { object-fit:contain; }
+  .l { font-size:11px; color:var(--text-body-subtle); }
+  .onbrand { width:72px; height:72px; border-radius:var(--radius-xl); background:var(--bg-brand-soft); display:flex; align-items:center; justify-content:center; }
+</style></head>
+<body>
+<div class=&quot;row&quot;>
+  <div class=&quot;m&quot;><img src=&quot;../assets/logo-mark.png&quot; style=&quot;width:72px;height:72px&quot; alt=&quot;mark&quot; /><div class=&quot;l&quot;>Mark · 72px</div></div>
+  <div class=&quot;m&quot;><img src=&quot;../assets/logo-mark.png&quot; style=&quot;width:44px;height:44px&quot; alt=&quot;mark&quot; /><div class=&quot;l&quot;>44px</div></div>
+  <div class=&quot;m&quot;><img src=&quot;../assets/favicon.png&quot; style=&quot;width:28px;height:28px&quot; alt=&quot;favicon&quot; /><div class=&quot;l&quot;>Favicon · 28px</div></div>
+  <div class=&quot;m&quot;><div class=&quot;onbrand&quot;><img src=&quot;../assets/logo-mark.png&quot; style=&quot;width:48px;height:48px&quot; alt=&quot;mark&quot; /></div><div class=&quot;l&quot;>On soft brand</div></div>
+</div>
+</body></html>
+" width="700" height="170" loading="lazy" title="Logo — mark &amp; clear space" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Logo — mark & clear space</h3><p>Isolated leaf-field mark for favicons, avatars and collapsed nav</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:190px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Brand&quot; viewport=&quot;700x190&quot; name=&quot;Iconography — Font Awesome&quot; subtitle=&quot;Font Awesome 6 (solid) is the system icon set; no emoji&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css&quot; />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:repeat(8,1fr); gap:14px; }
+  .i { display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .i .glyph { width:46px; height:46px; border-radius:var(--radius-lg); background:var(--bg-secondary); border:1px solid var(--border-base); display:flex; align-items:center; justify-content:center; color:var(--text-fg-brand); font-size:18px; }
+  .i .n { font-size:9.5px; color:var(--text-body-subtle); }
+</style></head>
+<body>
+<div class=&quot;grid&quot;>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-house&quot;></i></div><div class=&quot;n&quot;>house</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-folder-open&quot;></i></div><div class=&quot;n&quot;>folder-open</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-people-roof&quot;></i></div><div class=&quot;n&quot;>people-roof</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-hand-holding-heart&quot;></i></div><div class=&quot;n&quot;>holding-heart</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-comments&quot;></i></div><div class=&quot;n&quot;>comments</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-bell&quot;></i></div><div class=&quot;n&quot;>bell</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-chart-line&quot;></i></div><div class=&quot;n&quot;>chart-line</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-id-card&quot;></i></div><div class=&quot;n&quot;>id-card</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-magnifying-glass&quot;></i></div><div class=&quot;n&quot;>search</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-filter&quot;></i></div><div class=&quot;n&quot;>filter</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-plus&quot;></i></div><div class=&quot;n&quot;>plus</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-pen&quot;></i></div><div class=&quot;n&quot;>pen</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-trash&quot;></i></div><div class=&quot;n&quot;>trash</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-circle-check&quot;></i></div><div class=&quot;n&quot;>check</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-gear&quot;></i></div><div class=&quot;n&quot;>gear</div></div>
+  <div class=&quot;i&quot;><div class=&quot;glyph&quot;><i class=&quot;fas fa-right-from-bracket&quot;></i></div><div class=&quot;n&quot;>logout</div></div>
+</div>
+</body></html>
+" width="700" height="190" loading="lazy" title="Iconography — Font Awesome" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Iconography — Font Awesome</h3><p>Font Awesome 6 (solid) is the system icon set; no emoji</p></div>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <div class="frame" style="--vw:700px; --vh:260px">
+          <iframe srcdoc="<!-- @dsCard group=&quot;Brand&quot; viewport=&quot;700x260&quot; name=&quot;Illustration style&quot; subtitle=&quot;Flat-vector people on sage→jacaranda gradient panels&quot; -->
+<!DOCTYPE html>
+<html lang=&quot;es&quot;><head><meta charset=&quot;UTF-8&quot; />
+<link rel=&quot;stylesheet&quot; href=&quot;../styles.css&quot; />
+<style>
+  body { margin:0; padding:0; background:var(--bg-white); font-family:var(--font-sans); }
+  .wrap { display:flex; align-items:center; gap:24px; padding:24px; }
+  .art { flex:0 0 auto; width:300px; background:linear-gradient(135deg, var(--color-olive-200), var(--color-brand-100)); border-radius:var(--radius-2xl); padding:12px; }
+  .art img { width:100%; display:block; }
+  .copy h4 { margin:0 0 8px; color:var(--text-heading); font-size:18px; }
+  .copy p { margin:0; color:var(--text-body); font-size:13px; line-height:1.6; max-width:300px; }
+</style></head>
+<body>
+<div class=&quot;wrap&quot;>
+  <div class=&quot;art&quot;><img src=&quot;../assets/illustration-login.png&quot; alt=&quot;Ilustración&quot; /></div>
+  <div class=&quot;copy&quot;>
+    <h4>Personas, no íconos abstractos</h4>
+    <p>Ilustraciones planas y cálidas de personas colaborando, sobre paneles con degradé verde campo → jacarandá. Tonos de piel diversos, ropa en navy y blanco. Reservadas para login, estados vacíos y páginas de bienvenida del portal.</p>
+  </div>
+</div>
+</body></html>
+" width="700" height="260" loading="lazy" title="Illustration style" scrolling="no"></iframe>
+        </div>
+        <figcaption>
+          <div class="meta"><h3>Illustration style</h3><p>Flat-vector people on sage→jacaranda gradient panels</p></div>
+        </figcaption>
+      </figure></div>
+    </section>
+    <footer class="foot">
+      <span>Chaco / NODO — Sistema de Diseño · Gobierno de la Provincia del Chaco</span>
+      <span>17 fundamentos</span>
+    </footer>
+  </div>
+<script>
+  function fit(){
+    document.querySelectorAll('.frame').forEach(function(f){
+      var ifr=f.querySelector('iframe');
+      var vw=parseFloat(getComputedStyle(f).getPropertyValue('--vw'));
+      var vh=parseFloat(getComputedStyle(f).getPropertyValue('--vh'));
+      var scale=f.clientWidth/vw;
+      ifr.style.transform='scale('+scale+')';
+      f.style.height=(vh*scale)+'px';
+    });
+  }
+  window.addEventListener('resize',fit);
+  window.addEventListener('load',fit);
+  fit();
+
+  // click a card -> open lightbox with the same inline content (no navigation, no token)
+  var lb=document.getElementById('lb'), lbFrame=document.getElementById('lb-frame'),
+      lbTitle=document.getElementById('lb-title'), lbSub=document.getElementById('lb-sub');
+  function closeLb(){ lb.classList.remove('open'); lbFrame.removeAttribute('srcdoc'); document.body.style.overflow=''; }
+  function fitLb(vw,vh){
+    var avail=document.querySelector('.lb-body').clientWidth;
+    var scale=avail/vw;
+    lbFrame.style.width=vw+'px';
+    lbFrame.style.height=vh+'px';
+    lbFrame.style.transformOrigin='top left';
+    lbFrame.style.transform='scale('+scale+')';
+    lbFrame.parentElement.style.height=(vh*scale)+'px';
+  }
+  document.querySelectorAll('.card').forEach(function(card){
+    card.addEventListener('click', function(){
+      var f=card.querySelector('iframe'), frame=card.querySelector('.frame'), cap=card.querySelector('figcaption');
+      lbTitle.textContent=cap.querySelector('h3').textContent;
+      lbSub.textContent=cap.querySelector('p').textContent;
+      lbFrame.setAttribute('srcdoc', f.getAttribute('srcdoc'));
+      lb.classList.add('open');
+      document.body.style.overflow='hidden';
+      var vw=parseFloat(getComputedStyle(frame).getPropertyValue('--vw'));
+      var vh=parseFloat(getComputedStyle(frame).getPropertyValue('--vh'));
+      fitLb(vw,vh);
+      lb._vw=vw; lb._vh=vh;
+    });
+  });
+  document.getElementById('lb-x').addEventListener('click', closeLb);
+  lb.addEventListener('click', function(e){ if(e.target===lb) closeLb(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeLb(); });
+  window.addEventListener('resize', function(){ if(lb.classList.contains('open')) fitLb(lb._vw, lb._vh); });
+</script>
+</body>
+</html>

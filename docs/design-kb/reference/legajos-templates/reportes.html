@@ -1,0 +1,208 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Reportes y Estadísticas{% endblock %}
+
+{% block main-content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-lora font-bold text-gray-900">Reportes y Estadísticas</h1>
+        <p class="text-gray-600 mt-2">Análisis de datos del sistema de legajos</p>
+    </div>
+
+    <!-- Estadísticas generales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-folder text-white text-xl"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Legajos</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.total_legajos|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-folder-open text-white text-xl"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Legajos Activos</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.legajos_activos|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Riesgo Alto</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.riesgo_alto|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-calendar-week text-white text-xl"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Esta Semana</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.nuevos_semana|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y análisis -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Estados de legajos -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Estados de Legajos</h3>
+            <div class="space-y-3">
+                {% for estado in stats.por_estado %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 rounded-full mr-3
+                            {% if estado.codigo == 'ABIERTO' %}bg-green-500
+                            {% elif estado.codigo == 'EN_SEGUIMIENTO' %}bg-blue-500
+                            {% elif estado.codigo == 'DERIVADO' %}bg-yellow-500
+                            {% else %}bg-gray-500{% endif %}"></div>
+                        <span class="text-sm text-gray-700">{{ estado.label }}</span>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-900">{{ estado.total }}</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-sm">No hay datos disponibles</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Niveles de riesgo -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Niveles de Riesgo</h3>
+            <div class="space-y-3">
+                {% for riesgo in stats.por_riesgo %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 rounded-full mr-3
+                            {% if riesgo.codigo == 'ALTO' %}bg-red-500
+                            {% elif riesgo.codigo == 'MEDIO' %}bg-orange-500
+                            {% else %}bg-green-500{% endif %}"></div>
+                        <span class="text-sm text-gray-700">{{ riesgo.label }}</span>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-900">{{ riesgo.total }}</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-sm">No hay datos disponibles</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actividad reciente -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Legajos por dispositivo -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Legajos por Dispositivo</h3>
+            <div class="space-y-3">
+                {% for dispositivo in stats.por_dispositivo %}
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900">{{ dispositivo.nombre }}</p>
+                        <p class="text-xs text-gray-500">{{ dispositivo.tipo_label }}</p>
+                    </div>
+                    <span class="text-sm font-semibold text-gray-900">{{ dispositivo.total }}</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-sm">No hay datos disponibles</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Actividad mensual -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Actividad Mensual</h3>
+            <div class="space-y-3">
+                {% for mes in stats.por_mes %}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700">{{ mes.mes|date:"F Y" }}</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ mes.total }} legajos</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 text-sm">No hay datos disponibles</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de Calidad -->
+    <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Métricas de Calidad</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-blue-600">{{ stats.metricas_calidad.ttr_promedio }}</div>
+                <div class="text-sm text-blue-800">Días TTR promedio</div>
+            </div>
+            
+            <div class="bg-green-50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-green-600">{{ stats.metricas_calidad.adherencia_adecuada }}%</div>
+                <div class="text-sm text-green-800">Adherencia adecuada</div>
+            </div>
+            
+            <div class="bg-purple-50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-purple-600">{{ stats.metricas_calidad.tasa_derivacion }}%</div>
+                <div class="text-sm text-purple-800">Derivaciones aceptadas</div>
+            </div>
+            
+            <div class="bg-orange-50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-orange-600">{{ stats.metricas_calidad.eventos_por_100 }}</div>
+                <div class="text-sm text-orange-800">Eventos por 100 legajos</div>
+            </div>
+            
+            <div class="bg-indigo-50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-indigo-600">{{ stats.metricas_calidad.cobertura_seguimiento }}%</div>
+                <div class="text-sm text-indigo-800">Cobertura seguimiento</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Exportar Datos</h3>
+        <div class="flex gap-4">
+            <a href="{% url 'legajos:exportar_csv' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                <i class="fas fa-file-csv mr-2"></i>Exportar CSV
+            </a>
+            <button class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors" disabled>
+                <i class="fas fa-file-pdf mr-2"></i>Exportar PDF (Próximamente)
+            </button>
+            <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors" disabled>
+                <i class="fas fa-chart-bar mr-2"></i>Gráficos (Próximamente)
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Funcionalidad futura para gráficos interactivos
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Reportes cargados - Fase 3 completada');
+});
+</script>
+{% endblock %}

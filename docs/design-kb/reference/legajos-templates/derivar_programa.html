@@ -1,0 +1,122 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}{% if puede_inscripcion_directa %}Derivar / Inscribir{% else %}Derivar{% endif %} a Programa - {{ ciudadano.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i> Volver al legajo
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-4">
+            {% if puede_inscripcion_directa %}Derivar o Inscribir Directamente{% else %}Derivar{% endif %} a Programa
+        </h1>
+        <p class="text-gray-600 mt-2">{{ ciudadano.nombre_completo }} — DNI: {{ ciudadano.dni }}</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white rounded-xl shadow-lg p-8">
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-6">
+                <!-- Programa Destino (InstitucionPrograma) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-bullseye mr-2 text-red-500"></i>
+                        Programa destino *
+                    </label>
+                    {{ form.institucion_programa }}
+                    {% if form.institucion_programa.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.institucion_programa.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Tipo de inicio (solo visible para operadores; hidden para el resto) -->
+                {% if puede_inscripcion_directa %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-tag mr-2 text-indigo-500"></i>
+                        Tipo de inicio
+                    </label>
+                    {{ form.tipo_inicio }}
+                </div>
+                {% else %}
+                {{ form.tipo_inicio }}
+                {% endif %}
+
+                <!-- Programa Origen -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-folder mr-2 text-gray-400"></i>
+                        Desde programa (opcional)
+                    </label>
+                    {{ form.programa_origen }}
+                    <p class="mt-1 text-sm text-gray-500">Deja en blanco para derivación espontánea.</p>
+                </div>
+
+                <!-- Motivo -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-comment-alt mr-2 text-green-500"></i>
+                        Motivo *
+                    </label>
+                    {{ form.motivo }}
+                    {% if form.motivo.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.motivo.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Urgencia -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i>
+                        Urgencia
+                    </label>
+                    {{ form.urgencia }}
+                </div>
+
+                <!-- Observaciones -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-sticky-note mr-2 text-gray-400"></i>
+                        Observaciones (opcional)
+                    </label>
+                    {{ form.observaciones }}
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="mt-8 flex justify-end gap-4">
+                <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}"
+                   class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                    <i class="fas fa-paper-plane mr-2"></i>
+                    Crear Derivación
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Información Adicional -->
+    <div class="mt-6 bg-gray-50 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-gray-900 mb-2">
+            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+            ¿Qué sucede después?
+        </h3>
+        <ul class="text-sm text-gray-600 space-y-1">
+            <li>• La derivación quedará en estado <strong>PENDIENTE</strong></li>
+            <li>• El responsable del programa destino recibirá una notificación</li>
+            <li>• Podrá <strong>ACEPTAR</strong> o <strong>RECHAZAR</strong> la derivación</li>
+            <li>• Si se acepta, el ciudadano será inscrito automáticamente en el programa</li>
+            <li>• Aparecerá una nueva solapa en el legajo del ciudadano</li>
+        </ul>
+    </div>
+
+</div>
+{% endblock %}

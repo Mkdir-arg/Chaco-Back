@@ -1,0 +1,58 @@
+/* ============================================================
+   CHACO / NODO — Spacing, Radius, Border, Shadow & Motion Tokens
+   ============================================================ */
+
+:root {
+  /* Spacing scale (4px base grid) */
+  --space-0:  0px;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;   /* the app's grid gap */
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border radius — cards & buttons standardize on xl (12px) */
+  --radius-sm:   2px;
+  --radius:      4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;   /* default card / button radius */
+  --radius-2xl:  16px;
+  --radius-3xl:  24px;
+  --radius-full: 9999px; /* pills, badges, avatars */
+
+  /* Border widths */
+  --border-width:   1px;
+  --border-width-2: 2px;
+  --border-width-4: 4px;
+
+  /* Shadows — soft, low-contrast (institutional, not flashy) */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  /* Brand-tinted glow for focus / hero CTAs */
+  --shadow-brand: 0 8px 24px -6px rgba(80, 89, 188, 0.45);
+
+  /* Focus ring */
+  --ring-brand:  0 0 0 3px rgba(80, 89, 188, 0.35);
+  --ring-danger: 0 0 0 3px rgba(199, 0, 54, 0.30);
+
+  /* Layout constants (from the live app) */
+  --sidebar-width:           288px;  /* lg:w-72 */
+  --sidebar-width-collapsed: 80px;   /* lg:w-20 */
+  --navbar-height:           64px;   /* h-16 */
+  --container-xl:            1280px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --duration-fast:   150ms; /* @kind other */
+  --duration-normal: 300ms; /* @kind other */
+  --duration-slow:   500ms; /* @kind other */
+}

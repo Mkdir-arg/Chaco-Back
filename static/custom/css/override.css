@@ -1,57 +1,62 @@
-/* Override CSS para asegurar que los estilos personalizados se apliquen correctamente */
+/* Override CSS — Phase 1 Visual Update (CHACO Design System) */
 
-/* Asegurar que el navbar tenga el color correcto */
+/* Brand colors — replace legacy arg-azul with CHACO brand */
 .bg-arg-azul {
-    background-color: #232D4F !important;
+    background: linear-gradient(45deg, #5059bc 0%, #f98dff 100%) !important;
+    border-color: transparent !important;
 }
 
 .bg-arg-secundario {
-    background-color: #3E5A7E !important;
+    background-color: #4338ca !important;
+}
+
+.hover\:bg-arg-secundario:hover {
+    background-color: #4338ca !important;
 }
 
 /* Asegurar que el sidebar tenga los colores correctos */
 .from-arg-azul {
-    --tw-gradient-from: #232D4F !important;
+    --tw-gradient-from: #5059bc !important;
 }
 
 .to-arg-secundario {
-    --tw-gradient-to: #3E5A7E !important;
+    --tw-gradient-to: #f98dff !important;
 }
 
 /* Asegurar que los colores de texto se apliquen correctamente */
 .text-arg-azul {
-    color: #232D4F !important;
+    color: #5059bc !important;
 }
 
 .text-arg-secundario {
-    color: #3E5A7E !important;
+    color: #4338ca !important;
 }
 
-/* Asegurar que los gradientes de texto funcionen */
+/* Gradientes de texto legacy — updated */
 .bg-gradient-to-r.from-gray-900.via-arg-azul.to-arg-secundario {
-    background: linear-gradient(to right, #111827, #232D4F, #3E5A7E) !important;
+    background: linear-gradient(to right, #252f40, #5059bc, #f98dff) !important;
     -webkit-background-clip: text !important;
     background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
 }
 
 .bg-gradient-to-r.from-gray-900.to-arg-azul {
-    background: linear-gradient(to right, #111827, #232D4F) !important;
+    background: linear-gradient(to right, #252f40, #5059bc) !important;
     -webkit-background-clip: text !important;
     background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
 }
 
-/* Asegurar que el layout principal funcione correctamente */
+/* Font — CHACO brand font: Manrope */
 body {
-    font-family: 'Montserrat', sans-serif !important;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif !important;
 }
 
-/* Asegurar que el fondo se extienda a todo el contenido */
+/* Body background — clean canvas gray */
 html, body {
     min-height: 100vh !important;
-    background: linear-gradient(to bottom right, #f8fafc, #dbeafe, #e0e7ff) !important;
-    background-attachment: fixed !important;
+    background: #f9fafb !important;
+    background-attachment: unset !important;
 }
 
 .min-h-full {
@@ -74,15 +79,17 @@ html, body {
     background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Asegurar que los botones tengan el estilo correcto */
+/* Botones primarios — CHACO brand gradient */
 .btn-primary {
-    background-color: #232D4F !important;
-    border-color: #232D4F !important;
+    background: linear-gradient(45deg, #5059bc 0%, #f98dff 100%) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    border-radius: 9999px !important;
 }
 
 .btn-primary:hover {
-    background-color: #3E5A7E !important;
-    border-color: #3E5A7E !important;
+    filter: brightness(0.9) !important;
+    border-color: transparent !important;
 }
 
 /* Asegurar que las tarjetas tengan el estilo correcto */

@@ -1,0 +1,144 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Activar Plan - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-[#252F40] mb-2">Activar Plan de Intervención</h2>
+            <p class="text-[#8C8C8C]">{{ caso.ciudadano_titular.nombre_completo }} - {{ caso.municipio }}</p>
+        </div>
+        
+        {% if plan %}
+        <!-- Resumen del Plan -->
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 class="font-bold text-[#252F40] mb-2">Resumen del Plan</h3>
+            <p class="text-sm text-[#8C8C8C] mb-2"><strong>Objetivo:</strong> {{ plan.objetivo_general }}</p>
+            <p class="text-sm text-[#8C8C8C] mb-2"><strong>Horizonte:</strong> {{ plan.horizonte_dias }} días</p>
+            <div class="flex gap-2 mt-2">
+                {% if plan.incluye_alimentacion %}<span class="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">Alimentación</span>{% endif %}
+                {% if plan.incluye_vivienda %}<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Vivienda</span>{% endif %}
+                {% if plan.incluye_empleo %}<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Empleo</span>{% endif %}
+                {% if plan.incluye_salud %}<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded">Salud</span>{% endif %}
+                {% if plan.incluye_educacion %}<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Educación</span>{% endif %}
+                {% if plan.incluye_emprendimiento %}<span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Emprendimiento</span>{% endif %}
+            </div>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">Definir Prestaciones Iniciales</h3>
+            
+            <div id="prestaciones-container">
+                <!-- Prestación 1 -->
+                <div class="prestacion-item mb-4 p-4 border border-[#E5E7EB] rounded-lg">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Tipo</label>
+                            <select name="prestacion_tipo" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                                <option value="">Seleccione...</option>
+                                <option value="ALIMENTARIA">Alimentaria</option>
+                                <option value="VIVIENDA">Vivienda</option>
+                                <option value="CAPACITACION">Capacitación</option>
+                                <option value="EMPLEO">Empleo</option>
+                                <option value="SALUD">Salud</option>
+                                <option value="EDUCACION">Educación</option>
+                                <option value="EMPRENDIMIENTO">Emprendimiento</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Frecuencia</label>
+                            <select name="prestacion_frecuencia" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                                <option value="UNICA">Única</option>
+                                <option value="SEMANAL">Semanal</option>
+                                <option value="QUINCENAL">Quincenal</option>
+                                <option value="MENSUAL">Mensual</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">&nbsp;</label>
+                            <button type="button" onclick="eliminarPrestacion(this)" class="w-full px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="block text-sm font-medium text-[#252F40] mb-2">Descripción</label>
+                        <input type="text" name="prestacion_descripcion" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Ej: Módulo alimentario mensual">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="button" onclick="agregarPrestacion()" class="mb-6 px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200">
+                <i class="fas fa-plus mr-2"></i>Agregar Prestación
+            </button>
+            
+            <div class="flex gap-4">
+                <button type="submit" class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all">
+                    <i class="fas fa-play mr-2"></i>Activar Plan
+                </button>
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+        {% else %}
+        <p class="text-red-600">No se encontró el plan definido</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function agregarPrestacion() {
+    const container = document.getElementById('prestaciones-container');
+    const template = `
+        <div class="prestacion-item mb-4 p-4 border border-[#E5E7EB] rounded-lg">
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">Tipo</label>
+                    <select name="prestacion_tipo" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                        <option value="">Seleccione...</option>
+                        <option value="ALIMENTARIA">Alimentaria</option>
+                        <option value="VIVIENDA">Vivienda</option>
+                        <option value="CAPACITACION">Capacitación</option>
+                        <option value="EMPLEO">Empleo</option>
+                        <option value="SALUD">Salud</option>
+                        <option value="EDUCACION">Educación</option>
+                        <option value="EMPRENDIMIENTO">Emprendimiento</option>
+                        <option value="OTRO">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">Frecuencia</label>
+                    <select name="prestacion_frecuencia" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                        <option value="UNICA">Única</option>
+                        <option value="SEMANAL">Semanal</option>
+                        <option value="QUINCENAL">Quincenal</option>
+                        <option value="MENSUAL">Mensual</option>
+                    </select>
+                </div>
+                <div class="col-span-1">
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">&nbsp;</label>
+                    <button type="button" onclick="eliminarPrestacion(this)" class="w-full px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Descripción</label>
+                <input type="text" name="prestacion_descripcion" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Ej: Módulo alimentario mensual">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', template);
+}
+
+function eliminarPrestacion(btn) {
+    btn.closest('.prestacion-item').remove();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Reasignar Territorial - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-2xl mx-auto mt-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <h2 class="text-2xl font-bold text-[#252F40] mb-6">Reasignar Territorial</h2>
+        
+        <div class="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <p class="text-sm text-orange-800 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i><strong>Reasignación Administrativa</strong></p>
+            <p class="text-xs text-orange-700">Esta acción reasignará el caso a otro territorial y actualizará todas las tareas pendientes.</p>
+        </div>
+        
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <p class="text-sm text-[#252F40]"><strong>Ciudadano:</strong> {{ caso.ciudadano_titular.nombre_completo }}</p>
+            <p class="text-sm text-[#8C8C8C]"><strong>Municipio:</strong> {{ caso.municipio }}</p>
+            <p class="text-sm text-[#8C8C8C]"><strong>Estado:</strong> {{ caso.get_estado_display }}</p>
+            <p class="text-sm text-[#8C8C8C]"><strong>Territorial Actual:</strong> {{ territorial_actual.get_full_name|default:"Sin asignar" }}</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Nuevo Territorial</label>
+                <select name="territorial_id" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-orange-500">
+                    <option value="">-- Seleccione un territorial --</option>
+                    {% for user in territoriales %}
+                    <option value="{{ user.id }}" {% if user.id == territorial_actual.id %}disabled{% endif %}>
+                        {{ user.get_full_name|default:user.username }}
+                        {% if user.casos_activos > 0 %}({{ user.casos_activos }} casos){% endif %}
+                        {% if user.id == territorial_actual.id %}(Actual){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Motivo de Reasignación</label>
+                <textarea name="motivo" required rows="4" minlength="10" placeholder="Ej: Cambio de zona territorial, redistribución de carga..." class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-orange-500"></textarea>
+                <p class="text-xs text-[#8C8C8C] mt-1">Mínimo 10 caracteres</p>
+            </div>
+            
+            <div class="flex gap-4">
+                <button type="submit" class="flex-1 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-all">
+                    <i class="fas fa-exchange-alt mr-2"></i>Reasignar
+                </button>
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

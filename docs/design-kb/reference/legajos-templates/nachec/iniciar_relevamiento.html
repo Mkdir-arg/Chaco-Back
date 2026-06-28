@@ -1,0 +1,41 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Iniciar Relevamiento - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-2xl mx-auto mt-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <h2 class="text-2xl font-bold text-[#252F40] mb-6">Iniciar Relevamiento</h2>
+        
+        {% if sla_vencido %}
+        <div class="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+            <p class="text-sm text-red-800"><i class="fas fa-exclamation-circle mr-2"></i><strong>SLA Vencido:</strong> {{ sla_texto }}</p>
+        </div>
+        {% else %}
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <p class="text-sm text-blue-800"><i class="fas fa-clock mr-2"></i><strong>SLA:</strong> {{ sla_texto }}</p>
+        </div>
+        {% endif %}
+        
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+            <p class="text-sm text-[#252F40]"><strong>Ciudadano:</strong> {{ caso.ciudadano_titular.nombre_completo }}</p>
+            <p class="text-sm text-[#8C8C8C]"><strong>Municipio:</strong> {{ caso.municipio }}</p>
+            <p class="text-sm text-[#8C8C8C]"><strong>Prioridad:</strong> {{ caso.get_prioridad_display }}</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="flex gap-4">
+                <button type="submit" class="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-all">
+                    <i class="fas fa-play mr-2"></i>Iniciar Relevamiento
+                </button>
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

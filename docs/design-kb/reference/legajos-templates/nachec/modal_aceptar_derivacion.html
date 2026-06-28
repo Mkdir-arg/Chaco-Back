@@ -1,0 +1,209 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Aceptar Derivación - {{ derivacion.ciudadano.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <h2 class="text-2xl font-bold text-[#252F40] mb-6">Aceptar Derivación al Programa Ñachec</h2>
+        
+        <!-- Datos del Ciudadano -->
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 class="font-bold text-[#252F40] mb-2">Ciudadano</h3>
+            <p class="text-sm"><strong>Nombre:</strong> {{ derivacion.ciudadano.nombre_completo }}</p>
+            <p class="text-sm"><strong>DNI:</strong> {{ derivacion.ciudadano.dni|default:"Sin DNI" }}</p>
+            <p class="text-sm"><strong>Teléfono:</strong> {{ derivacion.ciudadano.telefono|default:"Sin teléfono" }}</p>
+            <p class="text-sm"><strong>Domicilio:</strong> {{ derivacion.ciudadano.domicilio|default:"Sin domicilio" }}</p>
+        </div>
+        
+        <!-- Validación de Datos Mínimos -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">1. Validación de Datos Mínimos</h3>
+            <div class="space-y-2">
+                <div class="flex items-center">
+                    {% if validaciones.tiene_nombre %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">Nombre y apellido completos</span>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                    <span class="text-sm text-red-700 font-bold">Falta nombre o apellido (BLOQUEANTE)</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if validaciones.tiene_dni %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">DNI registrado</span>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                    <span class="text-sm text-red-700 font-bold">Sin DNI (BLOQUEANTE - requerido para Ñachec)</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if validaciones.tiene_contacto %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">Datos de contacto disponibles</span>
+                    {% else %}
+                    <i class="fas fa-exclamation-triangle text-orange-500 mr-2"></i>
+                    <span class="text-sm text-orange-700">Sin teléfono ni domicilio (advertencia)</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if validaciones.tiene_municipio %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">Municipio/localidad identificado</span>
+                    {% else %}
+                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                    <span class="text-sm text-yellow-700">Sin municipio especificado (se completará en revisión)</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not validaciones.tiene_nombre or not validaciones.tiene_dni %}
+            <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-800 font-bold">
+                    <i class="fas fa-ban mr-2"></i>
+                    <strong>BLOQUEADO:</strong> Debe completar nombre completo y DNI antes de aceptar.
+                </p>
+                <a href="{% url 'legajos:ciudadano_editar' derivacion.ciudadano.pk %}" target="_blank" class="text-sm text-blue-600 hover:underline mt-2 inline-block">
+                    <i class="fas fa-edit mr-1"></i>Completar datos obligatorios ahora
+                </a>
+            </div>
+            {% elif not validaciones.tiene_contacto %}
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Advertencia:</strong> Sin datos de contacto será difícil realizar seguimiento.
+                </p>
+                <a href="{% url 'legajos:ciudadano_editar' derivacion.ciudadano.pk %}" target="_blank" class="text-sm text-blue-600 hover:underline mt-2 inline-block">
+                    <i class="fas fa-edit mr-1"></i>Completar datos recomendados
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Detección de Duplicados -->
+        <form method="post" id="form-aceptacion">
+            {% csrf_token %}
+            
+            <input type="hidden" name="tiene_duplicado" value="{% if duplicados %}true{% else %}false{% endif %}">
+            
+        {% if duplicados %}
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">2. Detección de Duplicados</h3>
+            <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-800 mb-3">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <strong>¡Atención!</strong> Se encontraron {{ duplicados.count }} caso(s) activo(s) con el mismo DNI:
+                </p>
+                <div class="space-y-2">
+                    {% for dup in duplicados %}
+                    <div class="flex items-center justify-between bg-white p-3 rounded border">
+                        <div>
+                            <p class="text-sm font-medium">{{ dup.ciudadano_titular.nombre_completo }}</p>
+                            <p class="text-xs text-gray-600">Estado: {{ dup.get_estado_display }} | Caso #{{ dup.id }} | Fecha: {{ dup.fecha_derivacion|date:"d/m/Y" }}</p>
+                        </div>
+                        <a href="{% url 'legajos:ciudadano_detalle' dup.ciudadano_titular.pk %}" target="_blank" class="text-blue-600 hover:underline text-sm">
+                            Ver caso
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4">
+                    <p class="text-sm text-red-800 font-bold mb-2">Opciones:</p>
+                    <label class="flex items-center mb-2">
+                        <input type="radio" name="resolucion_duplicado" value="vincular" class="mr-2">
+                        <span class="text-sm">Vincular a caso existente (no crear nuevo)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="resolucion_duplicado" value="justificar" class="mr-2">
+                        <span class="text-sm">Crear nuevo caso (justificar motivo abajo)</span>
+                    </label>
+                    <textarea id="justificacion_duplicado" name="justificacion_duplicado" rows="2" class="w-full mt-2 px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Justificación para crear nuevo caso a pesar del duplicado..."></textarea>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Formulario de Aceptación -->
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">3. Configuración de Atención</h3>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">Urgencia / Prioridad</label>
+                    <select name="urgencia" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                        <option value="MEDIA" selected>Media (SLA: 48h)</option>
+                        <option value="ALTA">Alta (SLA: 24h)</option>
+                        <option value="BAJA">Baja (SLA: 72h)</option>
+                        <option value="URGENTE">Urgente (SLA: inmediato)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">Tipo de Atención Esperada</label>
+                    <select name="tipo_atencion" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                        <option value="RELEVAMIENTO">Relevamiento sociofamiliar</option>
+                        <option value="ALIMENTARIA">Asistencia alimentaria</option>
+                        <option value="DOCUMENTACION">Documentación</option>
+                        <option value="DERIVACION">Derivación a otro servicio</option>
+                        <option value="OTRO">Otro</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Comentario Interno (opcional)</label>
+                <textarea name="comentario" rows="3" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Observaciones sobre la derivación..."></textarea>
+            </div>
+            
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">4. Acciones Automáticas</h3>
+            <div class="space-y-2 mb-6">
+                <label class="flex items-center">
+                    <input type="checkbox" name="crear_tarea" checked disabled class="mr-2">
+                    <span class="text-sm">Crear tarea automática "Revisión inicial" (obligatorio)</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" name="notificar" class="mr-2">
+                    <span class="text-sm">Notificar al operador asignado</span>
+                </label>
+            </div>
+            
+            <div class="flex gap-4">
+                {% if not validaciones.tiene_nombre or not validaciones.tiene_dni %}
+                <button type="button" disabled class="flex-1 bg-gray-400 text-white px-6 py-3 rounded-lg cursor-not-allowed">
+                    <i class="fas fa-lock mr-2"></i>Completar datos obligatorios primero
+                </button>
+                {% elif duplicados %}
+                <button type="submit" onclick="return validarDuplicado()" class="flex-1 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-all">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirmar con Duplicado
+                </button>
+                {% else %}
+                <button type="submit" class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all">
+                    <i class="fas fa-check mr-2"></i>Confirmar Aceptación
+                </button>
+                {% endif %}
+                <a href="{% url 'legajos:programa_detalle' derivacion.programa_destino.id %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function validarDuplicado() {
+    const resolucion = document.querySelector('input[name="resolucion_duplicado"]:checked');
+    if (!resolucion) {
+        alert('Debe seleccionar cómo resolver el duplicado');
+        return false;
+    }
+    if (resolucion.value === 'justificar') {
+        const justificacion = document.getElementById('justificacion_duplicado').value.trim();
+        if (!justificacion) {
+            alert('Debe justificar por qué crear un nuevo caso a pesar del duplicado');
+            return false;
+        }
+    }
+    return true;
+}
+</script>
+{% endblock %}

@@ -4,11 +4,32 @@
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
 <div class="max-w-6xl mx-auto space-y-5"
-     x-data="{ tab: 'info', modalReq: false }">
+     x-data="{
+       tab: 'info',
+       modalReq: false,
+       modalReqEdit: false,
+       modalSub: false,
+       editReqUrl: '',
+       editReqTexto: '',
+       editReqTipo: '',
+       editReqObligatorio: 'True',
+       editReqOrden: 0,
+       editReqOpciones: '',
+       openReqEdit(url, texto, tipo, obligatorio, orden, opciones) {
+         this.editReqUrl = url;
+         this.editReqTexto = texto;
+         this.editReqTipo = tipo;
+         this.editReqObligatorio = obligatorio;
+         this.editReqOrden = orden;
+         this.editReqOpciones = (opciones || []).join('\n');
+         this.modalReqEdit = true;
+       }
+     }"
+     @becas-saved.window="modalSub=false; modalReq=false; modalReqEdit=false">
 
   {# Volver #}
   <div>
-    <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-sm">
+    <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
       <i class="fas fa-arrow-left"></i> Volver a segmentos
     </a>
   </div>
@@ -59,7 +80,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo total</p>
+            <p class="text-sm text-body-subtle font-medium">Cupo total</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)">
               <i class="fas fa-users text-sm"></i>
             </div>
@@ -68,7 +89,7 @@
         </div>
         <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo distribuido</p>
+            <p class="text-sm text-body-subtle font-medium">Cupo ocupado</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-success-soft text-fg-success">
               <i class="fas fa-check-circle text-sm"></i>
             </div>
@@ -77,7 +98,7 @@
         </div>
         <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-xs text-body-subtle uppercase tracking-wide font-semibold">Cupo disponible</p>
+            <p class="text-sm text-body-subtle font-medium">Cupo disponible</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand">
               <i class="fas fa-clock text-sm"></i>
             </div>
@@ -89,7 +110,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {# Columna izquierda: edición + coordinadores #}
         <div class="lg:col-span-2 space-y-6">
-          <form method="post" action="{% url 'becas:segmento_editar' segmento.pk %}" class="space-y-4">
+          <form id="form-segmento" method="post" action="{% url 'becas:segmento_editar' segmento.pk %}" class="space-y-4">
             {% csrf_token %}
             {{ form_segmento.activo.as_hidden }}
             <div>
@@ -107,16 +128,16 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-heading mb-1">Coordinador asignado</label>
-                <div class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body">
-                  {% with asig=coordinadores.0 %}{% if asig %}{{ asig.coordinador.get_full_name|default:asig.coordinador.username }}{% else %}—{% endif %}{% endwith %}
-                </div>
+                {# Rendered in DOM; JS reassigns it to form-coord via 'form' attribute #}
+                {{ form_coordinador.coordinador }}
               </div>
             </div>
             <label class="flex items-center gap-2 text-sm text-body cursor-pointer">
               {{ form_segmento.requiere_gps }} Requiere captura de GPS en el formulario
             </label>
             <div class="flex flex-wrap gap-3 pt-2">
-              <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+              <button type="submit" form="form-segmento" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+              <button type="submit" form="form-coord" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-user-plus"></i> Asignar coordinador</button>
               <button type="button" class="btn-nodo btn-danger btn-base"
                       data-confirm-url="{% url 'becas:segmento_toggle' segmento.pk %}"
                       data-confirm-title="{% if segmento.activo %}¿Desactivar segmento?{% else %}¿Activar segmento?{% endif %}"
@@ -126,11 +147,11 @@
             </div>
           </form>
 
-          {# Coordinadores asignados #}
+          {# Coordinadores asignados — lista con botones de quitar #}
+          {% if coordinadores %}
           <div class="border-t border-[#F3F4F6] pt-5">
             <h3 class="text-sm font-bold text-heading mb-3">Coordinadores asignados</h3>
-            {% if coordinadores %}
-            <div class="space-y-2 mb-3">
+            <div class="space-y-2">
               {% for asig in coordinadores %}
               <div class="flex items-center justify-between bg-secondary-soft rounded-lg px-3 py-2">
                 <span class="text-sm text-body flex items-center gap-2">
@@ -149,15 +170,8 @@
               </div>
               {% endfor %}
             </div>
-            {% else %}
-            <p class="text-sm text-body-subtle mb-3">Sin coordinadores asignados.</p>
-            {% endif %}
-            <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3">
-              {% csrf_token %}
-              <div class="flex-1 min-w-[200px]">{{ form_coordinador.coordinador.label_tag }}{{ form_coordinador.coordinador }}</div>
-              <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
-            </form>
           </div>
+          {% endif %}
         </div>
 
         {# Columna derecha: ocupación + resumen #}
@@ -202,49 +216,15 @@
 
     {# ============ TAB: Subsegmentos ============ #}
     <div x-show="tab==='subs'" x-cloak class="p-6 space-y-4">
-      <p class="text-sm text-body-subtle">Cada subsegmento tiene su propio cupo (debe caber dentro del cupo del segmento).</p>
-      {% if subsegmentos %}
-      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
-              <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo máx</th>
-              <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for sub in subsegmentos %}
-            <tr class="hover:bg-[#F9FAFB]">
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold">
-                <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:underline">{{ sub.nombre }}</a>
-              </td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">{{ sub.cupo_maximo }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
-                <div class="flex items-center justify-end gap-2">
-                  <a href="{% url 'becas:subsegmento_editar' sub.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
-                  <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
-                          data-confirm-url="{% url 'becas:subsegmento_eliminar' sub.pk %}"
-                          data-confirm-title="¿Eliminar subsegmento?" data-confirm-text="{{ sub.nombre }}" data-confirm-ok="Sí, eliminar">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <p class="text-sm text-body-subtle">Cada subsegmento tiene su propio cupo (debe caber dentro del cupo del segmento).</p>
+        <button type="button" @click="modalSub=true" class="btn-nodo btn-brand btn-base">
+          <i class="fas fa-plus"></i> Nuevo subsegmento
+        </button>
       </div>
-      {% else %}
-      <p class="text-sm text-body-subtle">Sin subsegmentos. El cupo del segmento es el total.</p>
-      {% endif %}
-
-      <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 flex flex-wrap items-end gap-3">
-        {% csrf_token %}
-        <div class="flex-1 min-w-[160px]">{{ form_subsegmento.nombre.label_tag }}{{ form_subsegmento.nombre }}</div>
-        <div class="w-32">{{ form_subsegmento.cupo_maximo.label_tag }}{{ form_subsegmento.cupo_maximo }}</div>
-        <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Agregar subsegmento</button>
-      </form>
+      <div id="subs-panel">
+        {% include "programas/becas/config/_subsegmentos_panel.html" %}
+      </div>
     </div>
 
     {# ============ TAB: Requisitos del segmento ============ #}
@@ -256,50 +236,42 @@
         </button>
       </div>
 
-      {% if requisitos %}
-      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Pregunta</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
-              <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for req in requisitos %}
-            <tr class="hover:bg-[#F9FAFB]">
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle font-semibold">{{ req.orden }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">{{ req.texto }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]"><span class="badge badge-brand">{{ req.get_tipo_display }}</span></td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
-                {% if req.obligatorio %}<span class="badge badge-success">Obligatorio</span>{% else %}<span class="badge badge-gray">Opcional</span>{% endif %}
-              </td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
-                <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
-                        data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
-                        data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div id="reqs-panel">
+        {% include "programas/becas/config/_requisitos_panel.html" %}
       </div>
-      {% else %}
-      <div class="py-12 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
-        <div class="text-fg-brand"><i class="fas fa-clipboard-list text-4xl"></i></div>
-        <p class="text-[17px] font-bold text-heading">Sin requisitos del segmento</p>
-        <p class="text-sm text-body max-w-xs">Agregá los requisitos que se heredarán a todos los subsegmentos.</p>
-      </div>
-      {% endif %}
 
       <div class="text-right">
         <a href="{% url 'becas:preguntas' %}" class="text-sm text-fg-brand hover:underline">Administrar cuestionario social (preguntas globales) →</a>
       </div>
+    </div>
+  </div>
+
+  {# ============ Modal: Nuevo subsegmento ============ #}
+  <div x-show="modalSub" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalSub=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nuevo subsegmento</h3>
+      </div>
+      <form method="post" action="{% url 'becas:subsegmento_crear' segmento.pk %}" class="space-y-4" data-ajax>
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
+          {{ form_subsegmento.nombre }}
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Cupo máximo <span class="text-fg-danger">*</span></label>
+          {{ form_subsegmento.cupo_maximo }}
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
+        </div>
+        <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalSub=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-plus"></i> Agregar subsegmento</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -311,20 +283,23 @@
         <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
         <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
       </div>
-      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" class="space-y-4">
+      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" class="space-y-4" id="form-req-crear" data-ajax>
         {% csrf_token %}
+        <input type="hidden" name="scope" value="segmento">
         <div>
           <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
           {{ form_requisito.texto }}
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
             {{ form_requisito.tipo }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
           </div>
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
-            <label class="flex items-center gap-2 h-[38px] text-sm text-body">{{ form_requisito.obligatorio }} Sí</label>
+            {{ form_requisito.obligatorio }}
           </div>
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Orden</label>
@@ -335,6 +310,7 @@
           <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
           {{ form_requisito.opciones_texto }}
           <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
         </div>
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" @click="modalReq=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
@@ -343,13 +319,78 @@
       </form>
     </div>
   </div>
+
+  {# ============ Modal: Editar requisito ============ #}
+  <div x-show="modalReqEdit" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalReqEdit=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
+      </div>
+      <form method="post" :action="editReqUrl" class="space-y-4" id="form-req-editar" data-ajax data-reset="false">
+        {% csrf_token %}
+        <input type="hidden" name="scope" value="segmento">
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+          <input type="text" name="texto" x-model="editReqTexto" required
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+            <select name="tipo" x-model="editReqTipo"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              {% for val, label in form_requisito.tipo.field.choices %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+            <select name="obligatorio" x-model="editReqObligatorio"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              <option value="True">Obligatorio</option>
+              <option value="False">Opcional</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+            <input type="number" name="orden" x-model="editReqOrden" min="0"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          </div>
+        </div>
+        <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
+          <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+          <textarea name="opciones_texto" x-model="editReqOpciones" rows="4"
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"></textarea>
+          <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Form oculto para asignar coordinador — el select en la grilla apunta a este form #}
+  <form id="form-coord" method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}">
+    {% csrf_token %}
+  </form>
 </div>
 {% endblock %}
 
 {% block customJS %}
-{% include "programas/becas/_confirm_js.html" %}
+{% include "programas/becas/_ajax_js.html" %}
 <script>
 (function () {
+  // Reassign coordinator select to the coord form (avoids nested form issue)
+  var coordSel = document.getElementById('id_coordinador');
+  if (coordSel) coordSel.setAttribute('form', 'form-coord');
+
+  // Toggle opciones wrapper based on tipo select
   var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
   function toggleOpciones(tipoSelect, opcionesWrapper) {
     opcionesWrapper.style.display = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1 ? '' : 'none';

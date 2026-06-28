@@ -14,6 +14,7 @@ from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, requiere
+from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
 from programas.forms import (
     AsignacionCoordinadorForm,
     PreguntaGlobalForm,
@@ -27,6 +28,7 @@ from programas.models import (
     RequisitoNativo,
     Segmento,
     Subsegmento,
+    TipoCampo,
 )
 
 CAP_CONFIG = "becas.configurar"
@@ -36,6 +38,63 @@ class _ConfigBecasMixin(CapacidadRequeridaMixin, LoginRequiredMixin):
     capacidades_requeridas = CAP_CONFIG
 
 
+def _segmentos_qs():
+    return (
+        Segmento.objects.annotate(
+            n_subsegmentos=Count("subsegmentos", distinct=True),
+            n_coordinadores=Count("asignaciones_coordinador", distinct=True),
+        )
+        .prefetch_related("asignaciones_coordinador__coordinador")
+        .order_by("nombre")
+    )
+
+
+def _segmentos_ajax(request, message="Segmento guardado."):
+    return ajax_ok(
+        request,
+        target="#segmentos-table",
+        partial="programas/becas/config/_segmentos_table.html",
+        context={"segmentos": _segmentos_qs()},
+        message=message,
+    )
+
+
+def _requisitos_segmento_ajax(request, segmento, message="Requisito guardado."):
+    return ajax_ok(
+        request,
+        target="#reqs-panel",
+        partial="programas/becas/config/_requisitos_panel.html",
+        context={
+            "requisitos": segmento.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id"),
+            "segmento": segmento,
+        },
+        message=message,
+    )
+
+
+def _requisitos_reqseg_qs(segmento_id=None, subsegmento_id=None):
+    qs = RequisitoNativo.objects.select_related("segmento", "subsegmento").order_by(
+        "segmento__nombre", "orden", "id"
+    )
+    if segmento_id:
+        qs = qs.filter(segmento_id=segmento_id)
+    if subsegmento_id:
+        qs = qs.filter(subsegmento_id=subsegmento_id)
+    return qs
+
+
+def _requisitos_reqseg_ajax(request, message="Guardado."):
+    seg = request.POST.get("f_segmento") or None
+    sub = request.POST.get("f_subsegmento") or None
+    return ajax_ok(
+        request,
+        target="#reqseg-table",
+        partial="programas/becas/config/_requisitos_page_table.html",
+        context={"requisitos": _requisitos_reqseg_qs(seg, sub)},
+        message=message,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Segmentos
 # ---------------------------------------------------------------------------
@@ -43,24 +102,13 @@ class SegmentoListView(_ConfigBecasMixin, ListView):
     model = Segmento
     template_name = "programas/becas/config/segmento_list.html"
     context_object_name = "segmentos"
-    paginate_by = 20
 
     def get_queryset(self):
-        return (
-            Segmento.objects.annotate(
-                n_subsegmentos=Count("subsegmentos", distinct=True),
-                n_coordinadores=Count("asignaciones_coordinador", distinct=True),
-            )
-            .prefetch_related("asignaciones_coordinador__coordinador")
-            .order_by("nombre")
-        )
+        return _segmentos_qs()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        agg = Segmento.objects.aggregate(total=Count("id"), cupo=Sum("cupo_maximo"))
-        ctx["stat_total"] = agg["total"] or 0
-        ctx["stat_cupo"] = agg["cupo"] or 0
-        ctx["stat_activos"] = Segmento.objects.filter(activo=True).count()
+        ctx["form_segmento"] = SegmentoForm()
         return ctx
 
 
@@ -71,8 +119,16 @@ class SegmentoCreateView(_ConfigBecasMixin, CreateView):
     success_url = reverse_lazy("becas:segmentos")
 
     def form_valid(self, form):
+        self.object = form.save()
+        if is_ajax(self.request):
+            return _segmentos_ajax(self.request, "Segmento creado.")
         messages.success(self.request, "Segmento creado.")
-        return super().form_valid(form)
+        return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
 
 
 class SegmentoUpdateView(_ConfigBecasMixin, UpdateView):
@@ -85,8 +141,16 @@ class SegmentoUpdateView(_ConfigBecasMixin, UpdateView):
         return reverse("becas:segmento_detalle", kwargs={"pk": self.object.pk})
 
     def form_valid(self, form):
+        self.object = form.save()
+        if is_ajax(self.request):
+            return _segmentos_ajax(self.request, "Segmento actualizado.")
         messages.success(self.request, "Segmento actualizado.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
 
 
 class SegmentoDetailView(_ConfigBecasMixin, DetailView):
@@ -97,7 +161,9 @@ class SegmentoDetailView(_ConfigBecasMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         seg = self.object
-        ctx["subsegmentos"] = seg.subsegmentos.all().order_by("nombre")
+        subsegmentos = list(seg.subsegmentos.all().order_by("nombre"))
+        ctx["subsegmentos"] = subsegmentos
+        ctx["subsegmentos_cupo_total"] = sum(s.cupo_maximo for s in subsegmentos)
         ctx["coordinadores"] = (
             seg.asignaciones_coordinador.select_related("coordinador").order_by("coordinador__username")
         )
@@ -132,8 +198,22 @@ def subsegmento_crear(request, segmento_pk):
         form = SubsegmentoForm(request.POST, segmento=segmento)
         if form.is_valid():
             form.save()
+            if is_ajax(request):
+                subs = list(segmento.subsegmentos.all().order_by("nombre"))
+                return ajax_ok(
+                    request,
+                    target="#subs-panel",
+                    partial="programas/becas/config/_subsegmentos_panel.html",
+                    context={
+                        "subsegmentos": subs,
+                        "subsegmentos_cupo_total": sum(s.cupo_maximo for s in subs),
+                    },
+                    message="Subsegmento agregado.",
+                )
             messages.success(request, "Subsegmento agregado.")
             return redirect("becas:segmento_detalle", pk=segmento.pk)
+        elif is_ajax(request):
+            return ajax_errors(form)
     else:
         form = SubsegmentoForm(segmento=segmento)
     return render(
@@ -217,10 +297,16 @@ def requisito_crear(request, segmento_pk):
         form = RequisitoNativoForm(request.POST, segmento=segmento, subsegmento=subsegmento)
         if form.is_valid():
             form.save()
+            if is_ajax(request):
+                if request.POST.get("scope") == "reqseg":
+                    return _requisitos_reqseg_ajax(request, message="Requisito agregado.")
+                return _requisitos_segmento_ajax(request, segmento, message="Requisito agregado.")
             messages.success(request, "Requisito agregado.")
             if subsegmento:
                 return redirect("becas:subsegmento_detalle", pk=subsegmento.pk)
             return redirect("becas:segmento_detalle", pk=segmento.pk)
+        elif is_ajax(request):
+            return ajax_errors(form)
     else:
         form = RequisitoNativoForm(segmento=segmento, subsegmento=subsegmento)
     return render(
@@ -242,6 +328,58 @@ def requisito_eliminar(request, pk):
     if subsegmento_pk:
         return redirect("becas:subsegmento_detalle", pk=subsegmento_pk)
     return redirect("becas:segmento_detalle", pk=segmento_pk)
+
+
+@login_required
+@requiere(CAP_CONFIG)
+def requisito_editar(request, pk):
+    req = get_object_or_404(RequisitoNativo, pk=pk)
+    segmento = req.segmento
+    subsegmento = req.subsegmento
+    if request.method == "POST":
+        form = RequisitoNativoForm(request.POST, instance=req, segmento=segmento, subsegmento=subsegmento)
+        if form.is_valid():
+            form.save()
+            if is_ajax(request):
+                if request.POST.get("scope") == "reqseg":
+                    return _requisitos_reqseg_ajax(request, message="Requisito actualizado.")
+                return _requisitos_segmento_ajax(request, segmento, message="Requisito actualizado.")
+            messages.success(request, "Requisito actualizado.")
+            if subsegmento:
+                return redirect("becas:subsegmento_detalle", pk=subsegmento.pk)
+            return redirect("becas:segmento_detalle", pk=segmento.pk)
+        elif is_ajax(request):
+            return ajax_errors(form)
+    else:
+        form = RequisitoNativoForm(instance=req, segmento=segmento, subsegmento=subsegmento)
+    return render(
+        request,
+        "programas/becas/config/requisito_form.html",
+        {"form": form, "segmento": segmento, "subsegmento": subsegmento, "requisito": req},
+    )
+
+
+class RequisitosSegmentoView(_ConfigBecasMixin, ListView):
+    """Vista filtrable: todos los requisitos nativos, con filtro por segmento y subsegmento."""
+
+    model = RequisitoNativo
+    template_name = "programas/becas/config/requisitos_segmento.html"
+    context_object_name = "requisitos"
+
+    def get_queryset(self):
+        return _requisitos_reqseg_qs(
+            self.request.GET.get("segmento"), self.request.GET.get("subsegmento")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["segmentos"] = Segmento.objects.filter(activo=True).order_by("nombre")
+        ctx["subsegmentos"] = Subsegmento.objects.select_related("segmento").order_by("segmento__nombre", "nombre")
+        ctx["seg_actual"] = self.request.GET.get("segmento", "")
+        ctx["sub_actual"] = self.request.GET.get("subsegmento", "")
+        ctx["tipo_choices"] = TipoCampo.choices
+        ctx["form_requisito"] = RequisitoNativoForm()
+        return ctx
 
 
 class SubsegmentoDetailView(_ConfigBecasMixin, DetailView):
@@ -266,6 +404,16 @@ class SubsegmentoDetailView(_ConfigBecasMixin, DetailView):
 # ---------------------------------------------------------------------------
 # Preguntas globales (cuestionario social)
 # ---------------------------------------------------------------------------
+def _preguntas_ajax(request, message="Pregunta guardada."):
+    return ajax_ok(
+        request,
+        target="#preguntas-table",
+        partial="programas/becas/config/_preguntas_table.html",
+        context={"preguntas": PreguntaGlobal.objects.order_by("orden", "id")},
+        message=message,
+    )
+
+
 class PreguntaGlobalListView(_ConfigBecasMixin, ListView):
     model = PreguntaGlobal
     template_name = "programas/becas/config/pregunta_list.html"
@@ -273,6 +421,11 @@ class PreguntaGlobalListView(_ConfigBecasMixin, ListView):
 
     def get_queryset(self):
         return PreguntaGlobal.objects.order_by("orden", "id")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["tipo_choices"] = TipoCampo.choices
+        return ctx
 
 
 class PreguntaGlobalCreateView(_ConfigBecasMixin, CreateView):
@@ -282,8 +435,16 @@ class PreguntaGlobalCreateView(_ConfigBecasMixin, CreateView):
     success_url = reverse_lazy("becas:preguntas")
 
     def form_valid(self, form):
+        self.object = form.save()
+        if is_ajax(self.request):
+            return _preguntas_ajax(self.request, "Pregunta creada.")
         messages.success(self.request, "Pregunta creada.")
-        return super().form_valid(form)
+        return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
 
 
 class PreguntaGlobalUpdateView(_ConfigBecasMixin, UpdateView):
@@ -293,8 +454,16 @@ class PreguntaGlobalUpdateView(_ConfigBecasMixin, UpdateView):
     success_url = reverse_lazy("becas:preguntas")
 
     def form_valid(self, form):
+        self.object = form.save()
+        if is_ajax(self.request):
+            return _preguntas_ajax(self.request, "Pregunta actualizada.")
         messages.success(self.request, "Pregunta actualizada.")
-        return super().form_valid(form)
+        return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
 
 
 @login_required

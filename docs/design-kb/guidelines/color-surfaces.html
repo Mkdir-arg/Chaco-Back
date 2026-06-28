@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x170" name="Surfaces & text" subtitle="Background layers and the text tokens that sit on them" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .card { border-radius:var(--radius-xl); border:1px solid var(--border-base); padding:14px; }
+  .h { color:var(--text-heading); font-weight:800; font-size:15px; }
+  .b { color:var(--text-body); font-size:12.5px; margin-top:4px; }
+  .s { color:var(--text-body-subtle); font-size:11px; margin-top:2px; }
+  .lbl { font-size:10px; color:var(--text-body-subtle); margin-top:8px; font-variant-numeric:tabular-nums; }
+</style></head>
+<body>
+<div class="grid">
+  <div class="card" style="background:var(--bg-white)">
+    <div class="h">Heading</div><div class="b">Cuerpo de texto sobre superficie blanca.</div><div class="s">Texto sutil / metadato</div>
+    <div class="lbl">--bg-white</div></div>
+  <div class="card" style="background:var(--bg-secondary)">
+    <div class="h">Heading</div><div class="b">Lienzo de la aplicación.</div><div class="s">Texto sutil / metadato</div>
+    <div class="lbl">--bg-secondary</div></div>
+  <div class="card" style="background:var(--bg-navy); border-color:transparent">
+    <div class="h" style="color:#fff">Heading</div><div class="b" style="color:#d1d5db">Pie del portal ciudadano.</div><div class="s" style="color:#9ca3af">Texto sutil</div>
+    <div class="lbl" style="color:#9ca3af">--bg-navy</div></div>
+</div>
+</body></html>

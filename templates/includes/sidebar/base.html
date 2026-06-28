@@ -1,20 +1,131 @@
 {% load static %}
-<!-- Mobile sidebar overlay -->
-<div class="relative z-50 lg:hidden" x-show="sidebarOpen" style="display: none;" x-transition:enter="transition-opacity ease-linear duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-linear duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+<!-- ============================================================
+     SIDEBAR — Chaco NODO Design System §14
+     Mobile overlay + Desktop fixed (colapsable)
+     ============================================================ -->
+<style>
+    /* ============================================================
+       Sidebar — comportamiento de botones de navegación (spec §14).
+       Fuente única de estados, blindada contra el CSS global legacy
+       (gana siempre el token). Va inline en el HTML (no en .css cacheado).
+       ============================================================ */
+    .ds-snav a, .ds-snav button {
+        display: flex;
+        position: relative;                            /* ancla el dot de conteo en modo colapsado */
+        width: 100%;                                   /* el pill ocupa toda la fila, no solo el texto */
+        box-sizing: border-box;
+        font-family: var(--font-sans);
+        font-weight: 500;                              /* inactivo: medium */
+        color: var(--text-body) !important;            /* #4B5563 */
+        background: transparent;
+        transition: background 150ms var(--ease-standard, ease), color 150ms;
+        align-items: center;
+        justify-content: flex-start !important;         /* ícono + texto a la izquierda (expandido) */
+        gap: 12px;
+        text-align: left;
+    }
+    /* Colapsado (Alpine agrega .justify-center): ícono centrado */
+    .ds-snav a.justify-center, .ds-snav button.justify-center { justify-content: center !important; }
+    .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; } /* #6B7280 */
+
+    /* Vence la regla legacy de nodo-brand.css:
+       a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: magenta !important }
+       (espec. 0,4,1) — afecta el texto que es nodo directo del <a>, p.ej. subítems.
+       Replicamos su patrón con .ds-snav delante para ganar por especificidad (0,5,1). */
+    .ds-snav a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: var(--text-body) !important; }
+    .ds-snav a[aria-current="page"]:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: #fff !important; }
+
+    /* Hover — solo si NO está activo (gris muy suave) */
+    .ds-snav a:not([aria-current="page"]):hover,
+    .ds-snav button:hover { background: var(--bg-tertiary) !important; } /* #F3F4F6 */
+
+    /* Activo — único con fondo de marca; texto e ícono blancos; bold */
+    .ds-snav [aria-current="page"] {
+        background: var(--bg-brand) !important;        /* #5059BC jacarandá */
+        color: #fff !important;
+        font-weight: 700 !important;
+    }
+    .ds-snav [aria-current="page"] svg { color: #fff !important; }
+    /* El texto va en un <span>; forzarlo en el span mismo (un color directo en el
+       span vence a la herencia del <a>, por eso CSS legacy lo pintaba). */
+    .ds-snav a span, .ds-snav button span { color: inherit !important; }
+    .ds-snav a:not([aria-current="page"]) span { color: var(--text-body) !important; }
+    .ds-snav [aria-current="page"] span { color: #fff !important; }
+
+    /* Contador / badge dentro del ítem */
+    .ds-snav .nav-count {
+        font-size: 11px; font-weight: 700; line-height: 1;
+        padding: 1px 8px; border-radius: 9999px;
+        background: var(--bg-tertiary); color: var(--text-body-subtle);
+    }
+    .ds-snav [aria-current="page"] .nav-count { background: rgba(255,255,255,.25); color: #fff; }
+    /* Colapsado: el contador se reduce a un punto 7px (rojo si inactivo, blanco si activo) */
+    .ds-snav .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bg-danger); }
+    .ds-snav [aria-current="page"] .nav-dot { background: #fff; }
+</style>
+
+<!-- ── Mobile overlay (sidebarOpen) ─────────────────────────── -->
+<div class="relative z-50 lg:hidden"
+     x-show="sidebarOpen"
+     style="display: none;"
+     x-transition:enter="transition-opacity ease-linear duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition-opacity ease-linear duration-300"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0">
+
+    <!-- Backdrop -->
     <div class="fixed inset-0 bg-gray-900/80" @click="sidebarOpen = false"></div>
+
     <div class="fixed inset-0 flex">
-        <div class="relative mr-8 sm:mr-16 flex w-full max-w-xs sm:max-w-sm flex-1" x-transition:enter="transition ease-in-out duration-300 transform" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0" x-transition:leave="transition ease-in-out duration-300 transform" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full">
+        <div class="relative mr-8 sm:mr-16 flex w-full max-w-xs sm:max-w-sm flex-1"
+             x-transition:enter="transition ease-in-out duration-300 transform"
+             x-transition:enter-start="-translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in-out duration-300 transform"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="-translate-x-full">
+
+            <!-- Botón cerrar (fuera del panel) -->
             <div class="absolute left-full top-0 flex w-8 sm:w-16 justify-center pt-5">
-                <button type="button" class="-m-2.5 p-2.5 touch-target" @click="sidebarOpen = false">
+                <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false" aria-label="Cerrar sidebar">
                     <span class="sr-only">Cerrar sidebar</span>
-                    <i class="fas fa-times h-5 w-5 sm:h-6 sm:w-6 text-white"></i>
+                    <!-- x-mark -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="24" height="24" aria-hidden="true" style="color: #fff;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
                 </button>
             </div>
-            <div class="flex grow flex-col gap-y-3 sm:gap-y-5 overflow-y-auto px-4 sm:px-6 pb-4 bg-white">
-                <div class="flex h-14 sm:h-16 shrink-0 items-center border-b border-[#E5E7EB]">
-                    <img src="{% static 'custom/chaco/app-logo.png' %}" alt="NODO Chaco" class="h-10 w-auto">
+
+            <!-- Panel lateral móvil -->
+            <div class="flex grow flex-col overflow-y-auto"
+                 style="background: var(--bg-white); border-right: 1px solid var(--border-base);">
+
+                <!-- Header de marca (móvil) -->
+                <div style="padding: 16px; border-bottom: 1px solid var(--border-base);">
+                    <div class="flex items-center gap-3">
+                        <!-- Logo box 44×44 -->
+                        <div class="flex items-center justify-center flex-shrink-0"
+                             style="width: 44px; height: 44px; border-radius: 12px;
+                                    background: var(--bg-white); border: 1px solid var(--border-base);">
+                            <img src="{% static 'custom/chaco/mini-logo.png' %}"
+                                 alt="" aria-hidden="true"
+                                 style="width: 32px; height: 32px; object-fit: contain;">
+                        </div>
+                        <!-- Título y subtítulo -->
+                        <div class="min-w-0">
+                            <p style="font-size: 15px; font-weight: 800; color: var(--text-heading);
+                                      line-height: 1.15; white-space: nowrap;">NODO Chaco</p>
+                            <p style="font-size: 11.5px; color: var(--text-body-subtle);
+                                      line-height: 1.3; white-space: nowrap;">Gobierno del Chaco</p>
+                        </div>
+                    </div>
                 </div>
-                <nav class="flex flex-1 flex-col">
+
+                <!-- Navegación móvil -->
+                <nav class="flex flex-1 flex-col" style="padding: 12px;">
                     {% include 'includes/sidebar/opciones.html' %}
                 </nav>
             </div>
@@ -22,38 +133,89 @@
     </div>
 </div>
 
-<!-- Desktop sidebar -->
-<div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300" :class="sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'">
-    <div class="flex grow flex-col bg-white shadow-xl h-full border-r border-[#E5E7EB]">
-        <!-- Header -->
-        <div class="py-2 px-4 border-b border-[#E5E7EB]">
+<!-- ── Desktop sidebar (fixed, colapsable) ───────────────────── -->
+<div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300"
+     :class="sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'">
+
+    <div class="flex grow flex-col h-full"
+         style="background: var(--bg-white); border-right: 1px solid var(--border-base);">
+
+        <!-- ── Header de marca ── -->
+        <div style="border-bottom: 1px solid var(--border-base);">
+
+            <!-- Expandido: logo box + título + subtítulo -->
             <template x-if="!sidebarCollapsed">
-                <img src="{% static 'custom/chaco/app-logo.png' %}" alt="NODO Chaco" class="w-full h-auto">
+                <div style="padding: 16px;">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center flex-shrink-0"
+                             style="width: 44px; height: 44px; border-radius: 12px;
+                                    background: var(--bg-white); border: 1px solid var(--border-base);">
+                            <img src="{% static 'custom/chaco/mini-logo.png' %}"
+                                 alt="" aria-hidden="true"
+                                 style="width: 32px; height: 32px; object-fit: contain;">
+                        </div>
+                        <div class="min-w-0">
+                            <p style="font-size: 15px; font-weight: 800; color: var(--text-heading);
+                                      line-height: 1.15; white-space: nowrap; overflow: hidden;
+                                      text-overflow: ellipsis;">NODO Chaco</p>
+                            <p style="font-size: 11.5px; color: var(--text-body-subtle);
+                                      line-height: 1.3; white-space: nowrap; overflow: hidden;
+                                      text-overflow: ellipsis;">Gobierno del Chaco</p>
+                        </div>
+                    </div>
+                </div>
             </template>
-            
+
+            <!-- Colapsado: solo logo box centrado -->
             <template x-if="sidebarCollapsed">
-                <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="NODO Chaco" class="h-12 w-auto mx-auto">
+                <div style="padding: 16px; display: flex; justify-content: center;">
+                    <div class="flex items-center justify-center"
+                         style="width: 44px; height: 44px; border-radius: 12px;
+                                background: var(--bg-white); border: 1px solid var(--border-base);">
+                        <img src="{% static 'custom/chaco/mini-logo.png' %}"
+                             alt="NODO Chaco"
+                             style="width: 32px; height: 32px; object-fit: contain;">
+                    </div>
+                </div>
             </template>
         </div>
-        
-        <!-- Navigation -->
-        <div class="flex-1 p-4 overflow-y-auto">
+
+        <!-- ── Navegación ── -->
+        <div class="flex-1 overflow-y-auto" style="padding: 12px;">
             {% include 'includes/sidebar/opciones.html' %}
         </div>
-        
-        <!-- Toggle Button -->
-        <div class="p-4 border-t border-[#E5E7EB]">
-            <button @click="sidebarCollapsed = !sidebarCollapsed" class="w-full px-4 py-3 bg-[#F9FAFB] hover:bg-[#E5E7EB] rounded-xl transition-colors flex items-center justify-center gap-2 text-[#4A5565] font-medium">
+
+        <!-- ── Footer: botón Minimizar ── -->
+        <div style="padding: 12px; border-top: 1px solid var(--border-base);">
+            <button @click="sidebarCollapsed = !sidebarCollapsed"
+                    class="w-full flex items-center justify-center gap-2 transition-colors duration-150"
+                    style="background: var(--bg-secondary); border-radius: 9999px;
+                           padding: 10px 14px; border: none; cursor: pointer;"
+                    aria-label="Minimizar sidebar">
+
+                <!-- Colapsado → apunta a la derecha (expandir) -->
                 <template x-if="sidebarCollapsed">
-                    <i class="fas fa-chevron-right text-sm"></i>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="16" height="16" aria-hidden="true"
+                         style="color: var(--text-body-subtle); flex-shrink: 0;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/>
+                    </svg>
                 </template>
+
+                <!-- Expandido → apunta a la izquierda + label -->
                 <template x-if="!sidebarCollapsed">
                     <div class="flex items-center gap-2">
-                        <i class="fas fa-chevron-left text-sm"></i>
-                        <span class="text-sm">Minimizar</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="16" height="16" aria-hidden="true"
+                             style="color: var(--text-body-subtle); flex-shrink: 0;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+                        </svg>
+                        <span style="font-size: 13px; font-weight: 600;
+                                     color: var(--text-body-subtle);">Minimizar</span>
                     </div>
                 </template>
             </button>
         </div>
+
     </div>
 </div>

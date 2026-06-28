@@ -524,6 +524,7 @@ class Relevamiento(TimeStamped):
     )
     fecha_asignada = models.DateField(verbose_name="Fecha asignada")
     zona = models.CharField(max_length=200, verbose_name="Zona")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     estado = models.CharField(
         max_length=20,
         choices=Estado.choices,

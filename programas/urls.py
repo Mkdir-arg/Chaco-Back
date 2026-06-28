@@ -27,7 +27,9 @@ urlpatterns = [
 
     # --- Requisitos nativos ---
     path("config/segmentos/<int:segmento_pk>/requisitos/nuevo/", cfg.requisito_crear, name="requisito_crear"),
+    path("config/requisitos/<int:pk>/editar/", cfg.requisito_editar, name="requisito_editar"),
     path("config/requisitos/<int:pk>/eliminar/", cfg.requisito_eliminar, name="requisito_eliminar"),
+    path("config/requisitos/", cfg.RequisitosSegmentoView.as_view(), name="requisitos_segmento"),
 
     # --- Preguntas globales (cuestionario social) ---
     path("config/preguntas/", cfg.PreguntaGlobalListView.as_view(), name="preguntas"),
@@ -39,6 +41,11 @@ urlpatterns = [
     # --- Convocatorias ---
     path("convocatorias/", rel.ConvocatoriaListView.as_view(), name="convocatorias"),
     path("convocatorias/nueva/", rel.ConvocatoriaCreateView.as_view(), name="convocatoria_crear"),
+    path("convocatorias/<int:pk>/", rel.ConvocatoriaDetailView.as_view(), name="convocatoria_detalle"),
+    path("convocatorias/<int:pk>/editar/", rel.ConvocatoriaUpdateView.as_view(), name="convocatoria_editar"),
+    path("convocatorias/<int:pk>/toggle/", rel.convocatoria_toggle_activo, name="convocatoria_toggle"),
+    path("convocatorias/<int:pk>/export/beneficiarios/", rel.convocatoria_export_beneficiarios, name="convocatoria_export_beneficiarios"),
+    path("convocatorias/<int:pk>/export/relevamientos/", rel.convocatoria_export_relevamientos, name="convocatoria_export_relevamientos"),
 
     # --- Relevamientos ---
     path("relevamientos/", rel.RelevamientoListView.as_view(), name="relevamientos"),

@@ -4,20 +4,44 @@ Acceso: Coordinador y Admin (capacidad ``becas.relevamientos``). El alcance por
 segmento se aplica en la query (un coordinador solo ve/gestiona relevamientos de
 sus segmentos asignados); el Admin ve todos.
 """
+import csv
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db.models import Count
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
-from django.views.generic import CreateView, DetailView, ListView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
 from programas.forms import ConvocatoriaForm, RelevamientoForm, ReprogramarForm, ReasignarTerritorialForm
-from programas.models import Convocatoria, Relevamiento
+from programas.models import Convocatoria, Formulario, Relevamiento
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
+from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
 
 CAP = "becas.relevamientos"
+
+
+def _convocatorias_qs(request):
+    return (
+        Convocatoria.objects.select_related("segmento", "subsegmento")
+        .annotate(n_relevamientos=Count("relevamientos", distinct=True))
+        .filter(segmento__in=segmentos_visibles(request.user))
+        .order_by("-fecha_inicio", "nombre")
+    )
+
+
+def _convocatorias_ajax(request, message="Convocatoria guardada."):
+    return ajax_ok(
+        request,
+        target="#convocatorias-table",
+        partial="programas/becas/relevamientos/_convocatorias_table.html",
+        context={"convocatorias": _convocatorias_qs(request)},
+        message=message,
+    )
 
 
 class _RelevMixin(CapacidadRequeridaMixin, LoginRequiredMixin):
@@ -36,14 +60,48 @@ def _assert_scope(request, relevamiento):
 class ConvocatoriaListView(_RelevMixin, ListView):
     template_name = "programas/becas/relevamientos/convocatoria_list.html"
     context_object_name = "convocatorias"
-    paginate_by = 20
 
     def get_queryset(self):
-        return (
-            Convocatoria.objects.select_related("segmento", "subsegmento")
-            .filter(segmento__in=segmentos_visibles(self.request.user))
-            .order_by("-fecha_inicio", "nombre")
+        return _convocatorias_qs(self.request)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        form = ConvocatoriaForm()
+        form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
+        ctx["form_convocatoria"] = form
+        return ctx
+
+
+class ConvocatoriaDetailView(_RelevMixin, DetailView):
+    model = Convocatoria
+    template_name = "programas/becas/relevamientos/convocatoria_detail.html"
+    context_object_name = "convocatoria"
+
+    def get_queryset(self):
+        return Convocatoria.objects.select_related("segmento", "subsegmento").filter(
+            segmento__in=segmentos_visibles(self.request.user)
         )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        conv = self.object
+        relevamientos = conv.relevamientos.select_related("territorial").order_by("-fecha_asignada")
+        ctx["relevamientos"] = relevamientos
+        # Beneficiarios = formularios cargados en los relevamientos de esta convocatoria.
+        beneficiarios = (
+            Formulario.objects.filter(relevamiento__convocatoria=conv)
+            .select_related("ciudadano", "relevamiento")
+            .order_by("-creado")
+        )
+        ctx["beneficiarios"] = beneficiarios
+        ctx["n_relevamientos"] = relevamientos.count()
+        ctx["n_beneficiarios"] = beneficiarios.count()
+        ctx["n_aprobados"] = beneficiarios.filter(estado=Formulario.Estado.APROBADO).count()
+        ctx["cupo_segmento"] = conv.segmento.cupo_maximo
+        form = ConvocatoriaForm(instance=conv)
+        form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
+        ctx["form_convocatoria"] = form
+        return ctx
 
 
 class ConvocatoriaCreateView(_RelevMixin, CreateView):
@@ -57,8 +115,99 @@ class ConvocatoriaCreateView(_RelevMixin, CreateView):
         return form
 
     def form_valid(self, form):
+        self.object = form.save()
+        if is_ajax(self.request):
+            return _convocatorias_ajax(self.request, "Convocatoria creada.")
         messages.success(self.request, "Convocatoria creada.")
+        return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
+
+
+class ConvocatoriaUpdateView(_RelevMixin, UpdateView):
+    form_class = ConvocatoriaForm
+    template_name = "programas/becas/relevamientos/convocatoria_form.html"
+    context_object_name = "convocatoria"
+
+    def get_queryset(self):
+        return Convocatoria.objects.filter(segmento__in=segmentos_visibles(self.request.user))
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
+        return form
+
+    def get_success_url(self):
+        return reverse("becas:convocatoria_detalle", kwargs={"pk": self.object.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, "Convocatoria actualizada.")
         return super().form_valid(form)
+
+
+@login_required
+@requiere(CAP)
+def convocatoria_toggle_activo(request, pk):
+    conv = get_object_or_404(
+        Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk
+    )
+    if request.method == "POST":
+        conv.activo = not conv.activo
+        conv.save(update_fields=["activo", "modificado"])
+        messages.success(request, f"Convocatoria {'activada' if conv.activo else 'desactivada'}.")
+    return redirect(request.POST.get("next") or "becas:convocatorias")
+
+
+@login_required
+@requiere(CAP)
+def convocatoria_export_beneficiarios(request, pk):
+    conv = get_object_or_404(
+        Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk
+    )
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="beneficiarios_convocatoria_{conv.pk}.csv"'
+    response.write("﻿")  # BOM para Excel
+    writer = csv.writer(response)
+    writer.writerow(["DNI", "Nombre", "Estado", "Relevamiento", "Fecha"])
+    formularios = (
+        Formulario.objects.filter(relevamiento__convocatoria=conv)
+        .select_related("ciudadano", "relevamiento")
+        .order_by("-creado")
+    )
+    for f in formularios:
+        if f.ciudadano_id:
+            dni = f.ciudadano.dni
+            nombre = f.ciudadano.nombre_completo
+        else:
+            ident = f.datos_identificacion or {}
+            dni = ident.get("dni", "")
+            nombre = f"{ident.get('nombre', '')} {ident.get('apellido', '')}".strip()
+        writer.writerow([dni, nombre, f.get_estado_display(), f.relevamiento.nombre, f.creado.strftime("%d/%m/%Y")])
+    return response
+
+
+@login_required
+@requiere(CAP)
+def convocatoria_export_relevamientos(request, pk):
+    conv = get_object_or_404(
+        Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk
+    )
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="relevamientos_convocatoria_{conv.pk}.csv"'
+    response.write("﻿")
+    writer = csv.writer(response)
+    writer.writerow(["Relevamiento", "Territorial", "Zona", "Fecha asignada", "Estado", "Formularios"])
+    relevamientos = conv.relevamientos.select_related("territorial").order_by("-fecha_asignada")
+    for r in relevamientos:
+        terr = r.territorial.get_full_name() or r.territorial.username
+        writer.writerow([
+            r.nombre, terr, r.zona, r.fecha_asignada.strftime("%d/%m/%Y"),
+            r.get_estado_display(), r.formularios.count(),
+        ])
+    return response
 
 
 # ---------------------------------------------------------------------------

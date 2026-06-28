@@ -1,0 +1,106 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Definir Plan - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-[#252F40] mb-2">Plan de Intervención</h2>
+            <p class="text-[#8C8C8C]">{{ caso.ciudadano_titular.nombre_completo }} - {{ caso.municipio }}</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <!-- Objetivo General -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Objetivo General del Plan</label>
+                <textarea name="objetivo_general" rows="3" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Describa el objetivo principal de la intervención..."></textarea>
+            </div>
+            
+            <!-- Fechas -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">Fecha de Inicio</label>
+                    <input type="date" name="fecha_inicio" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#252F40] mb-2">Horizonte Temporal</label>
+                    <select name="horizonte_dias" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                        <option value="30">30 días</option>
+                        <option value="60" selected>60 días</option>
+                        <option value="90">90 días</option>
+                        <option value="180">180 días</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Componentes del Plan -->
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-[#252F40] mb-4">Componentes del Plan</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="flex items-center p-4 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 cursor-pointer">
+                        <input type="checkbox" name="incluye_alimentacion" class="mr-3">
+                        <div>
+                            <i class="fas fa-utensils text-orange-500 mr-2"></i>
+                            <span class="font-medium">Alimentación</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 cursor-pointer">
+                        <input type="checkbox" name="incluye_vivienda" class="mr-3">
+                        <div>
+                            <i class="fas fa-home text-blue-500 mr-2"></i>
+                            <span class="font-medium">Vivienda</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 cursor-pointer">
+                        <input type="checkbox" name="incluye_empleo" class="mr-3">
+                        <div>
+                            <i class="fas fa-briefcase text-green-500 mr-2"></i>
+                            <span class="font-medium">Empleo</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 cursor-pointer">
+                        <input type="checkbox" name="incluye_salud" class="mr-3">
+                        <div>
+                            <i class="fas fa-heartbeat text-red-500 mr-2"></i>
+                            <span class="font-medium">Salud</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 cursor-pointer">
+                        <input type="checkbox" name="incluye_educacion" class="mr-3">
+                        <div>
+                            <i class="fas fa-graduation-cap text-purple-500 mr-2"></i>
+                            <span class="font-medium">Educación</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 cursor-pointer">
+                        <input type="checkbox" name="incluye_emprendimiento" class="mr-3">
+                        <div>
+                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                            <span class="font-medium">Emprendimiento</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Observaciones -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Observaciones</label>
+                <textarea name="observaciones" rows="3" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Observaciones adicionales..."></textarea>
+            </div>
+            
+            <div class="flex gap-4">
+                <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all">
+                    <i class="fas fa-check mr-2"></i>Definir Plan
+                </button>
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

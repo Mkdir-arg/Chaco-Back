@@ -47,10 +47,16 @@
         <span class="text-body-subtle">Fecha asignada</span>
         <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y" }}</span>
       </div>
-      <div class="flex justify-between py-1">
+      <div class="flex justify-between py-1 border-b border-[#F3F4F6]">
         <span class="text-body-subtle">Formularios cargados</span>
         <span class="text-heading font-semibold">{{ n_formularios }}</span>
       </div>
+      {% if relevamiento.observaciones %}
+      <div class="pt-2">
+        <span class="text-body-subtle block mb-1">Observaciones</span>
+        <p class="text-heading whitespace-pre-line">{{ relevamiento.observaciones }}</p>
+      </div>
+      {% endif %}
     </div>
 
     {# Actions #}

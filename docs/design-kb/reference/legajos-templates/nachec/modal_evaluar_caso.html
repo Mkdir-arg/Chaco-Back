@@ -1,0 +1,348 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Evaluar Caso - Caso {{ caso.id }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-5xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-2xl shadow-lg border border-[#E5E7EB] overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-700 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <i class="fas fa-clipboard-check mr-3"></i>
+                Evaluación del Caso
+            </h2>
+        </div>
+
+        <form method="post" id="formEvaluacion" class="p-6 space-y-6">
+            {% csrf_token %}
+            <input type="hidden" name="accion" id="accion" value="confirmar">
+
+            <!-- A) Resumen del relevamiento -->
+            <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border-2 border-purple-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-chart-line mr-2 text-purple-600"></i>
+                    Resumen del Relevamiento
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-white rounded-lg p-3">
+                        <span class="text-xs text-[#8C8C8C]">Ciudadano</span>
+                        <p class="font-semibold text-[#252F40]">{{ caso.ciudadano_titular.nombre_completo }}</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-3">
+                        <span class="text-xs text-[#8C8C8C]">Municipio</span>
+                        <p class="font-semibold text-[#252F40]">{{ caso.municipio }}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-semibold">Scoring de Vulnerabilidad</span>
+                        <span class="text-2xl font-bold {% if relevamiento.score_categoria == 'ALTO' %}text-red-600{% elif relevamiento.score_categoria == 'MEDIO' %}text-orange-600{% else %}text-green-600{% endif %}">
+                            {{ relevamiento.score_total }}/100
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm text-[#8C8C8C]">Categoría Sugerida</span>
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold {% if relevamiento.score_categoria == 'ALTO' %}bg-red-100 text-red-800{% elif relevamiento.score_categoria == 'MEDIO' %}bg-orange-100 text-orange-800{% else %}bg-green-100 text-green-800{% endif %}">
+                            {{ relevamiento.score_categoria }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-5 gap-2 text-xs">
+                        <div class="text-center">
+                            <div class="font-semibold text-[#252F40]">{{ relevamiento.score_detalle.familia }}/15</div>
+                            <div class="text-[#8C8C8C]">Familia</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold text-[#252F40]">{{ relevamiento.score_detalle.ingresos }}/25</div>
+                            <div class="text-[#8C8C8C]">Ingresos</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold text-[#252F40]">{{ relevamiento.score_detalle.vivienda }}/20</div>
+                            <div class="text-[#8C8C8C]">Vivienda</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold text-[#252F40]">{{ relevamiento.score_detalle.salud }}/25</div>
+                            <div class="text-[#8C8C8C]">Salud</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-semibold text-[#252F40]">{{ relevamiento.score_detalle.riesgos }}/15</div>
+                            <div class="text-[#8C8C8C]">Riesgos</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg p-3 mt-3">
+                    <span class="text-xs text-[#8C8C8C] block mb-1">Observaciones del Territorial</span>
+                    <p class="text-sm text-[#252F40]">{{ relevamiento.observaciones_cierre|default:"Sin observaciones" }}</p>
+                </div>
+
+                <div class="bg-white rounded-lg p-3 mt-2">
+                    <span class="text-xs text-[#8C8C8C] block mb-1">Evidencias Adjuntas</span>
+                    <p class="text-sm text-[#252F40]">{{ adjuntos.count }} archivo(s)</p>
+                </div>
+            </div>
+
+            <!-- B) Dictamen profesional -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                    <i class="fas fa-file-medical mr-2 text-indigo-600"></i>
+                    Dictamen Profesional *
+                </label>
+                <textarea 
+                    name="dictamen" 
+                    rows="5" 
+                    required
+                    minlength="20"
+                    placeholder="Análisis profesional de la situación del hogar, conclusiones del relevamiento y recomendaciones... (mínimo 20 caracteres)"
+                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                ></textarea>
+            </div>
+
+            <!-- C) Categoría final -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <label class="block text-sm font-semibold text-[#252F40] mb-3">
+                    <i class="fas fa-tag mr-2 text-purple-600"></i>
+                    Categoría Final de Vulnerabilidad *
+                </label>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="categoria_final" value="BAJO" {% if relevamiento.score_categoria == 'BAJO' %}checked{% endif %} class="peer sr-only" onchange="checkOverride()">
+                        <div class="p-4 border-2 border-gray-300 rounded-lg peer-checked:border-green-500 peer-checked:bg-green-50 hover:border-green-400 transition-all text-center">
+                            <div class="font-bold text-green-700">BAJO</div>
+                            <div class="text-xs text-gray-600 mt-1">0-30 puntos</div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="categoria_final" value="MEDIO" {% if relevamiento.score_categoria == 'MEDIO' %}checked{% endif %} class="peer sr-only" onchange="checkOverride()">
+                        <div class="p-4 border-2 border-gray-300 rounded-lg peer-checked:border-orange-500 peer-checked:bg-orange-50 hover:border-orange-400 transition-all text-center">
+                            <div class="font-bold text-orange-700">MEDIO</div>
+                            <div class="text-xs text-gray-600 mt-1">31-60 puntos</div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="categoria_final" value="ALTO" {% if relevamiento.score_categoria == 'ALTO' %}checked{% endif %} class="peer sr-only" onchange="checkOverride()">
+                        <div class="p-4 border-2 border-gray-300 rounded-lg peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-400 transition-all text-center">
+                            <div class="font-bold text-red-700">ALTO</div>
+                            <div class="text-xs text-gray-600 mt-1">61-100 puntos</div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Override -->
+                <div id="divOverride" style="display: none;" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                    <div class="flex items-start mb-2">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mt-1 mr-2"></i>
+                        <div class="text-sm text-yellow-800">
+                            <span class="font-semibold">Override detectado:</span> La categoría seleccionada difiere de la sugerida por el scoring. Debe justificar este cambio.
+                        </div>
+                    </div>
+                    <textarea 
+                        name="justificacion_override" 
+                        id="justificacion_override"
+                        rows="3" 
+                        minlength="20"
+                        placeholder="Justificación del cambio de categoría (mínimo 20 caracteres)..."
+                        class="w-full px-4 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 text-sm"
+                    ></textarea>
+                </div>
+            </div>
+
+            <!-- D) Componentes del plan -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <label class="block text-sm font-semibold text-[#252F40] mb-3">
+                    <i class="fas fa-puzzle-piece mr-2 text-indigo-600"></i>
+                    Componentes del Plan de Intervención * (seleccione al menos 1)
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all">
+                        <input type="checkbox" name="componentes" value="ALIMENTARIA" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="ml-3 text-sm font-medium">
+                            <i class="fas fa-utensils text-orange-500 mr-2"></i>Alimentación
+                        </span>
+                    </label>
+                    <label class="flex items-center p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all">
+                        <input type="checkbox" name="componentes" value="VIVIENDA" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="ml-3 text-sm font-medium">
+                            <i class="fas fa-home text-blue-500 mr-2"></i>Vivienda
+                        </span>
+                    </label>
+                    <label class="flex items-center p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all">
+                        <input type="checkbox" name="componentes" value="SALUD" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="ml-3 text-sm font-medium">
+                            <i class="fas fa-heartbeat text-red-500 mr-2"></i>Salud
+                        </span>
+                    </label>
+                    <label class="flex items-center p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all">
+                        <input type="checkbox" name="componentes" value="EDUCACION" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="ml-3 text-sm font-medium">
+                            <i class="fas fa-graduation-cap text-purple-500 mr-2"></i>Educación
+                        </span>
+                    </label>
+                    <label class="flex items-center p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all">
+                        <input type="checkbox" name="componentes" value="EMPLEO" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="ml-3 text-sm font-medium">
+                            <i class="fas fa-briefcase text-green-500 mr-2"></i>Empleo/Capacitación
+                        </span>
+                    </label>
+                    <label class="flex items-center p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all">
+                        <input type="checkbox" name="componentes" value="EMPRENDIMIENTO" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="ml-3 text-sm font-medium">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Emprendimiento
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Botones principales -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="px-6 py-3 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300 transition-all font-medium">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                
+                <button type="submit" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-medium shadow-lg">
+                    <i class="fas fa-check-circle mr-2"></i>Confirmar Evaluación
+                </button>
+            </div>
+
+            <!-- E) Acciones alternativas -->
+            <div class="border-t border-gray-300 pt-4">
+                <p class="text-sm text-[#8C8C8C] mb-3">Acciones alternativas:</p>
+                <div class="flex gap-3">
+                    <button type="button" onclick="mostrarModalAmpliacion()" class="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-all text-sm font-medium">
+                        <i class="fas fa-redo mr-2"></i>Solicitar Ampliación
+                    </button>
+                    <button type="button" onclick="mostrarModalRechazo()" class="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-all text-sm font-medium">
+                        <i class="fas fa-ban mr-2"></i>Rechazar Caso
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Ampliación -->
+<div id="modalAmpliacion" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 p-6">
+        <h3 class="text-xl font-bold text-[#252F40] mb-4">Solicitar Ampliación de Relevamiento</h3>
+        <form method="post" id="formAmpliacion">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="ampliacion">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Motivo *</label>
+                    <select name="motivo_ampliacion" required class="w-full px-4 py-2 border rounded-lg">
+                        <option value="">Seleccione...</option>
+                        <option value="Datos incompletos">Datos incompletos</option>
+                        <option value="Domicilio no verificado">Domicilio no verificado</option>
+                        <option value="Evidencias insuficientes">Evidencias insuficientes</option>
+                        <option value="Riesgo no aclarado">Riesgo no aclarado</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Detalle *</label>
+                    <textarea name="detalle_ampliacion" rows="4" required minlength="20" placeholder="Especifique qué información adicional se requiere..." class="w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Plazo *</label>
+                    <select name="plazo_ampliacion" required class="w-full px-4 py-2 border rounded-lg">
+                        <option value="24">24 horas</option>
+                        <option value="48" selected>48 horas</option>
+                        <option value="72">72 horas</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="cerrarModalAmpliacion()" class="px-4 py-2 bg-gray-200 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">Solicitar Ampliación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Rechazo -->
+<div id="modalRechazo" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 p-6">
+        <h3 class="text-xl font-bold text-[#252F40] mb-4">Rechazar Caso</h3>
+        <form method="post" id="formRechazo">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="rechazar">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Motivo *</label>
+                    <select name="motivo_rechazo" required class="w-full px-4 py-2 border rounded-lg">
+                        <option value="">Seleccione...</option>
+                        <option value="No elegible">No elegible</option>
+                        <option value="Duplicado">Duplicado</option>
+                        <option value="Fuera de jurisdicción">Fuera de jurisdicción</option>
+                        <option value="Documentación inválida">Documentación inválida</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Observaciones *</label>
+                    <textarea name="observaciones_rechazo" rows="4" required minlength="20" placeholder="Fundamente el rechazo del caso..." class="w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="cerrarModalRechazo()" class="px-4 py-2 bg-gray-200 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Confirmar Rechazo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const categoriaSugerida = "{{ relevamiento.score_categoria }}";
+
+function checkOverride() {
+    const categoriaFinal = document.querySelector('input[name="categoria_final"]:checked')?.value;
+    const divOverride = document.getElementById('divOverride');
+    const justificacion = document.getElementById('justificacion_override');
+    
+    if (categoriaFinal && categoriaFinal !== categoriaSugerida) {
+        divOverride.style.display = 'block';
+        justificacion.required = true;
+    } else {
+        divOverride.style.display = 'none';
+        justificacion.required = false;
+        justificacion.value = '';
+    }
+}
+
+function mostrarModalAmpliacion() {
+    document.getElementById('modalAmpliacion').classList.remove('hidden');
+}
+
+function cerrarModalAmpliacion() {
+    document.getElementById('modalAmpliacion').classList.add('hidden');
+}
+
+function mostrarModalRechazo() {
+    document.getElementById('modalRechazo').classList.remove('hidden');
+}
+
+function cerrarModalRechazo() {
+    document.getElementById('modalRechazo').classList.add('hidden');
+}
+
+// Validar componentes
+document.getElementById('formEvaluacion').addEventListener('submit', function(e) {
+    const componentes = document.querySelectorAll('input[name="componentes"]:checked');
+    if (componentes.length === 0) {
+        e.preventDefault();
+        alert('Debe seleccionar al menos un componente del plan');
+        return false;
+    }
+});
+
+// Inicializar
+checkOverride();
+</script>
+{% endblock %}

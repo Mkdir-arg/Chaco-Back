@@ -1,0 +1,189 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Requisitos por segmento{% endblock %}
+
+{% block main-content %}
+<style>[x-cloak]{display:none!important}</style>
+<div class="max-w-6xl mx-auto mb-8"
+     x-data="{
+       modalCrear: false,
+       modalEdit: false,
+       createSeg: '{{ seg_actual }}',
+       createTipo: 'STRING',
+       segUrls: { {% for s in segmentos %}'{{ s.pk }}': '{% url 'becas:requisito_crear' s.pk %}'{% if not forloop.last %},{% endif %}{% endfor %} },
+       editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editOrden: 0, editOpciones: '',
+       openEdit(url, texto, tipo, obl, orden, opc) {
+         this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
+         this.editObl = obl; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
+         this.modalEdit = true;
+       }
+     }"
+     @becas-saved.window="modalCrear=false; modalEdit=false">
+
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <a href="{% url 'becas:segmentos' %}" class="hover:underline">Segmentos</a>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Requisitos</span>
+  </nav>
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos por segmento</h1>
+      <p class="text-sm text-body-subtle mt-1">Campos nativos que, junto a las preguntas globales, arman el formulario que completa el territorial.</p>
+    </div>
+    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
+      <i class="fas fa-plus"></i> Nuevo requisito
+    </button>
+  </div>
+
+  {# Filtros dinámicos (auto-submit, sin botón) #}
+  <form method="get" id="reqseg-filtros" class="flex flex-wrap gap-4 mb-4">
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-sm font-medium text-heading mb-1">Segmento</label>
+      <select name="segmento" onchange="document.getElementById('reqseg-filtros').submit()"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+        <option value="">Todos los segmentos</option>
+        {% for seg in segmentos %}
+        <option value="{{ seg.pk }}" {% if seg_actual == seg.pk|stringformat:'s' %}selected{% endif %}>{{ seg.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
+      <select name="subsegmento" onchange="document.getElementById('reqseg-filtros').submit()"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+        <option value="">Todos los subsegmentos</option>
+        {% for sub in subsegmentos %}
+        <option value="{{ sub.pk }}" {% if sub_actual == sub.pk|stringformat:'s' %}selected{% endif %}>{{ sub.segmento.nombre }} / {{ sub.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+
+  {# Tabla de resultados #}
+  <div id="reqseg-table" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    {% include "programas/becas/config/_requisitos_page_table.html" %}
+  </div>
+
+  {# Modal: Nuevo requisito #}
+  <div x-show="modalCrear" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalCrear=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
+      </div>
+      <form method="post" :action="segUrls[createSeg] || ''" class="space-y-4" data-ajax>
+        {% csrf_token %}
+        <input type="hidden" name="scope" value="reqseg">
+        <input type="hidden" name="f_segmento" value="{{ seg_actual }}">
+        <input type="hidden" name="f_subsegmento" value="{{ sub_actual }}">
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Segmento <span class="text-fg-danger">*</span></label>
+          <select x-model="createSeg" required
+                  class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+            <option value="">Elegí un segmento…</option>
+            {% for seg in segmentos %}
+            <option value="{{ seg.pk }}">{{ seg.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+          <input type="text" name="texto" required
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+            <select name="tipo" x-model="createTipo"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              {% for val, label in tipo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+            <select name="obligatorio"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              <option value="True">Obligatorio</option>
+              <option value="False">Opcional</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+            <input type="number" name="orden" min="0"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          </div>
+        </div>
+        <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
+          <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+          <textarea name="opciones_texto" rows="4"
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"></textarea>
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalCrear=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base" :disabled="!createSeg">Crear requisito</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Modal: Editar requisito #}
+  <div x-show="modalEdit" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalEdit=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
+      </div>
+      <form method="post" :action="editUrl" class="space-y-4" data-ajax data-reset="false">
+        {% csrf_token %}
+        <input type="hidden" name="scope" value="reqseg">
+        <input type="hidden" name="f_segmento" value="{{ seg_actual }}">
+        <input type="hidden" name="f_subsegmento" value="{{ sub_actual }}">
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+          <input type="text" name="texto" x-model="editTexto" required
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+            <select name="tipo" x-model="editTipo"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              {% for val, label in tipo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+            <select name="obligatorio" x-model="editObl"
+                    class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+              <option value="True">Obligatorio</option>
+              <option value="False">Opcional</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+            <input type="number" name="orden" x-model="editOrden" min="0"
+              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          </div>
+        </div>
+        <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
+          <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+          <textarea name="opciones_texto" x-model="editOpciones" rows="4"
+            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"></textarea>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalEdit=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

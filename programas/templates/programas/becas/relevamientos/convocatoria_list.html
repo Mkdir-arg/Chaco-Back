@@ -2,7 +2,10 @@
 {% block title %}Becas · Convocatorias{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
+<style>[x-cloak]{display:none!important}</style>
+<div class="max-w-6xl mx-auto mb-8"
+     x-data="{ modalCrear: false }"
+     @becas-saved.window="modalCrear=false">
 
   <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
     <span>Programa Becas</span>
@@ -12,57 +15,70 @@
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Convocatorias</h1>
-      <p class="text-sm text-body-subtle mt-1">Agrupadores de relevamientos por segmento y período</p>
+      <p class="text-sm text-body-subtle mt-1">Períodos de inscripción por segmento y subsegmento. Cada convocatoria agrupa relevamientos y beneficiarios.</p>
     </div>
-    <a href="{% url 'becas:convocatoria_crear' %}" class="btn-nodo btn-brand btn-base">
+    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nueva convocatoria
-    </a>
+    </button>
   </div>
 
-  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-    {% if convocatorias %}
-    <div class="overflow-x-auto">
-      <table class="w-full border-collapse">
-        <thead>
-          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmento</th>
-            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Período</th>
-            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for c in convocatorias %}
-          <tr class="hover:bg-[#F9FAFB]">
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">{{ c.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.segmento.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">
-              {{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}
-            </td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
-              {% if c.activo %}
-                <span class="badge badge-success badge-dot">Activa</span>
-              {% else %}
-                <span class="badge badge-gray">Inactiva</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div id="convocatorias-table" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    {% include "programas/becas/relevamientos/_convocatorias_table.html" %}
+  </div>
+
+  {# Modal: Nueva convocatoria #}
+  <div x-show="modalCrear" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalCrear=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nueva convocatoria</h3>
+      </div>
+      <form method="post" action="{% url 'becas:convocatoria_crear' %}" class="space-y-4" data-ajax>
+        {% csrf_token %}
+        <input type="hidden" name="activo" value="on">
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
+          {{ form_convocatoria.nombre }}
+          <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Segmento <span class="text-fg-danger">*</span></label>
+            {{ form_convocatoria.segmento }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="segmento"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
+            {{ form_convocatoria.subsegmento }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="subsegmento"></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Fecha de inicio <span class="text-fg-danger">*</span></label>
+            {{ form_convocatoria.fecha_inicio }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_inicio"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Fecha de fin <span class="text-fg-danger">*</span></label>
+            {{ form_convocatoria.fecha_fin }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_fin"></p>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Descripción</label>
+          {{ form_convocatoria.descripcion }}
+        </div>
+        <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalCrear=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-plus"></i> Crear convocatoria</button>
+        </div>
+      </form>
     </div>
-    {% else %}
-    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
-      <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl"></i></div>
-      <p class="text-[17px] font-bold text-heading">No hay convocatorias</p>
-      <p class="text-sm text-body max-w-xs">Creá una convocatoria para poder asignar relevamientos.</p>
-      <a href="{% url 'becas:convocatoria_crear' %}" class="btn-nodo btn-brand btn-base mt-2">
-        <i class="fas fa-plus"></i> Nueva convocatoria
-      </a>
-    </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

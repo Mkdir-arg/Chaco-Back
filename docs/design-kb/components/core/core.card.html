@@ -1,0 +1,66 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Buttons, badges & avatars" subtitle="Brand gradient CTAs, status pills, gradient-initial avatars" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="../../styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg-secondary); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .sec { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-body-subtle); margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Button, Badge, Avatar } = window.ChacoNODODesignSystem_dc2a68;
+  function Demo() {
+    return (
+      <div>
+        <div className="sec">Buttons</div>
+        <div className="row">
+          <Button variant="brand" icon="fas fa-plus">Nuevo legajo</Button>
+          <Button variant="primary">Primary</Button>
+          <Button variant="secondary" icon="fas fa-filter">Filtrar</Button>
+          <Button variant="tertiary">Cancelar</Button>
+          <Button variant="ghost" icon="fas fa-download">Exportar</Button>
+          <Button variant="danger" icon="fas fa-trash">Eliminar</Button>
+          <Button variant="brand" disabled>Disabled</Button>
+        </div>
+        <div className="row">
+          <Button size="xs" variant="brand">XS</Button>
+          <Button size="sm" variant="brand">SM</Button>
+          <Button size="base" variant="brand">Base</Button>
+          <Button size="lg" variant="brand">LG</Button>
+          <Button size="xl" variant="brand">XL</Button>
+        </div>
+        <div className="sec">Badges</div>
+        <div className="row">
+          <Badge variant="success" dot>Activo</Badge>
+          <Badge variant="warning">Pendiente</Badge>
+          <Badge variant="danger" icon="fas fa-circle-exclamation">Vencido</Badge>
+          <Badge variant="brand">Programa social</Badge>
+          <Badge variant="info">En revisión</Badge>
+          <Badge variant="neutral">Borrador</Badge>
+          <Badge variant="solid">12</Badge>
+        </div>
+        <div className="sec">Avatars</div>
+        <div className="row">
+          <Avatar name="María González" size={48} />
+          <Avatar name="Juan Pérez" size={40} />
+          <Avatar name="Lucía R" size={32} />
+          <Avatar name="Equipo" square size={40} />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>
