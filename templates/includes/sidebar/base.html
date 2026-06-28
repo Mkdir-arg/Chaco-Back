@@ -10,6 +10,9 @@
        (gana siempre el token). Va inline en el HTML (no en .css cacheado).
        ============================================================ */
     .ds-snav a, .ds-snav button {
+        display: flex;
+        width: 100%;                                   /* el pill ocupa toda la fila, no solo el texto */
+        box-sizing: border-box;
         font-family: var(--font-sans);
         font-weight: 500;                              /* inactivo: medium */
         color: var(--text-body) !important;            /* #4B5563 */
