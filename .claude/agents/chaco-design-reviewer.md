@@ -194,7 +194,7 @@ Clases `.badge .badge-gray/white/brand/success/warning/danger/info`. Un badge no
 ## 9. StatCard (KPI)
 
 `background var(--bg-primary); border 1px var(--border-base); border-radius var(--radius-xl); box-shadow var(--shadow-sm); padding 20; flex column; gap 14`.
-- Fila superior: **label** `13 / 600 / var(--text-body-subtle)` (NO uppercase) + **ícono cuadrado** `44×44; border-radius var(--radius-lg)`,
+- Fila superior: **label** `13 / 600 / var(--text-body-subtle)` (NO uppercase) + **ícono cuadrado** `52×52; border-radius 16px` (squircle; el JSX trae 44/radius-lg, pero el dashboard usa 52/16),
   fondo `tono-soft` para brand/success/warning/danger (`olive` = `--color-olive-200/-700`; `neutral` = `--bg-tertiary/--color-gray-600`; no hay `-soft` para esos dos) con `color: tono-fg` — o `var(--gradient-brand)` + `#fff` si es de marca.
   **Alert dot** opcional `10×10; bg var(--bg-danger); border 2px var(--bg-primary)` arriba-derecha.
 - **Valor:** `32 / 800 / var(--text-heading)`, line-height 1, en fila `flex; align-items:baseline; gap:10`.
