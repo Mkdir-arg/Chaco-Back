@@ -82,7 +82,7 @@ Marca        --bg-brand #5059BC · --bg-brand-soft #FEE9FF · --bg-brand-medium 
              --bg-pink #F98DFF · --bg-info-soft (= brand-050 #F5F3FF)
 Texto        --text-heading #252F40 (navy) · --text-body #4B5563 · --text-body-subtle #6B7280 · --text-disabled #9CA3AF
              --text-white #fff · --text-fg-brand #5059BC · --text-fg-brand-strong #3730A3 · --text-link/-hover
-Estados (fg) success #007A55 · danger #C70036 · warning #771D1D (subtle #D03801) · info #3730A3
+Estados (fg) success #007A55 · danger #C70036 · warning fg #771D1D · border #D03801 · subtle #FCD9BD · info #3730A3
 Bordes       --border-light #F3F4F6 · --border-base #E5E7EB · --border-base-strong #D1D5DB · --border-brand #5059BC
              subtles: --border-brand-subtle #FEE3FF · --border-success-subtle #A4F4CF · --border-danger-subtle #FFCCD3 · --border-warning-subtle #FCD9BD
 ```
@@ -114,6 +114,7 @@ Bordes       --border-light #F3F4F6 · --border-base #E5E7EB · --border-base-st
 - **Tamaño por width/height (px), nunca font-size.** Tamaños reales del kit: `14` chevron de breadcrumb · `16` inline ·
   `18` prefijo de input / toast / ícono de modal · `20` nav, acciones de tabla (IconBtn), botones · `22` campana del topbar · `48` empty state.
 - Solo-ícono → `aria-label`. No mezclar Heroicons con Font Awesome en un mismo componente (FA solo legacy).
+- **Los `.jsx` del bundle usan clases Font Awesome** (`fas fa-xmark`, `fa-chevron-down`, `fa-arrow-up`…) como placeholder → al implementar reemplazá por el Heroicon equivalente. **El repo NO carga Heroicons** (base.html solo trae FA) → en pantallas nuevas **inlineá el SVG**: `viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"`, color por token en el contenedor, nunca `fill`/`stroke` con hex.
 
 ---
 
@@ -171,6 +172,7 @@ En el repo usar `.btn-nodo .btn-brand/.btn-secondary/.btn-tertiary/.btn-danger` 
 
 **Siempre con TEXTO** (color nunca solo). Mapeo: `BAJO/Completa → success` · `MEDIO/En progreso → warning` · `ALTO/Sin éxito/Vencido → danger`.
 Clases `.badge .badge-gray/white/brand/success/warning/danger/info`. Un badge no es un chip clickeable.
+> **Fuentes:** las 6 variantes gray/white/brand/success/warning/danger son el mapa `BADGE` del HTML (= `nodo-badges.css`; geometría `3px 10px` / lh `1.3`, que **manda** sobre el JSX). `info` (#F5F3FF/#DDD6FE/#3730A3) es exclusivo del `Badge.jsx` (no está en el HTML) — usalo solo si hace falta. El JSX además trae `neutral`/`solid` y un brand distinto (`#BF57C4`, padding `4px 12px`, lh `1.2`); gana el HTML.
 
 ---
 
@@ -196,7 +198,7 @@ Clases `.badge .badge-gray/white/brand/success/warning/danger/info`. Un badge no
   **Alert dot** opcional `10×10; bg var(--bg-danger); border 2px var(--bg-primary)` arriba-derecha.
 - **Valor:** `32 / 800 / var(--text-heading)`, line-height 1. **Delta:** `13 / 600`, color `success`(+) / `danger`(−), con prefijo +/-.
 - Footnote `12 / var(--text-body-subtle)`. **No clickeable** (cursor default).
-- **Ícono:** el glifo se renderiza a **22px** (size del iconNode) dentro del cuadrado 44 (la fontSize 18 del JSX es solo el fallback `<i>`). **Grilla:** `repeat(N,1fr); gap 16`, N=3/4/6 según pantalla (Cupo 3 · Inicio 4 · lista 6).
+- **Ícono:** el glifo del iconNode se renderiza a **20–22px** (22 en cards principales, 20 en sub-detalle) dentro del cuadrado 44 (la fontSize 18 del JSX es solo el fallback `<i>`). **Grilla:** `repeat(N,1fr); gap 16`, N=3/4/6 según pantalla (Cupo 3 · Inicio 4 · lista 6).
 
 ---
 
@@ -216,8 +218,8 @@ Tamaño default 40 (topbar/sidebar usan 36). Con imagen: `center/cover`. (En tab
   fondo `tono-soft` + `color tono-fg`, 18px (tonos info/success/warning/danger/brand) + **título `18 / 700 / var(--text-heading)`** + `×` (fa-xmark, `var(--text-body-subtle)`, aria-label "Cerrar").
 - **Body:** `padding 24; font 14; line-height 1.6; color var(--text-body)`.
 - **Footer:** `flex; justify-end; gap 12; padding 16px 24px; border-top 1px var(--border-light); background var(--bg-secondary)`.
-  Acciones: Cancelar (tertiary) + acción primaria (brand). Forms de +4–5 campos → página, no modal.
-- **Animación:** in fade + scale 95→100% (150ms); out inverso. **A11y:** `role=dialog`, `aria-modal`, `aria-labelledby`, foco atrapado, Escape cierra (salvo confirmación), foco vuelve al disparador.
+  Acciones: Cancelar (tertiary) + acción primaria (brand). Forms de data-entry extensos → página; pero el **alta rápida de entidades** (segmento/convocatoria/requisito, 4–6 campos) va en Modal **540–680** como en el kit (con nota `bg-info-soft` + `border color-brand-200` cuando aplica).
+- **Animación:** *(no está en el kit — mejora opcional)* in fade + scale 95→100% (150ms); out inverso. **A11y:** `role=dialog`, `aria-modal`, `aria-labelledby`, foco atrapado, Escape cierra (salvo confirmación), foco vuelve al disparador.
 
 ### Confirmación destructiva
 - **En el kit** = DS Modal `tone="danger"` (width ~460): ícono **rojo tintado** (`bg-danger-soft` + `text-fg-danger`, `ExclamationCircleIcon`) + botón Confirmar/Eliminar **danger (rojo sólido)** + Cancelar **tertiary**. (No hay SweetAlert en el kit.)
@@ -262,6 +264,7 @@ inactivo `500 / var(--text-body-subtle)`. Chip de conteo `11 / 700; padding 1px 
   Chip de conteo `11 / 700; radius 9999` — activo `rgba(255,255,255,.25)/#fff`, inactivo `bg-tertiary/text-body-subtle`. **Un solo ítem activo.**
 - **Footer:** botón "Minimizar" `bg var(--bg-secondary); radius 9999`.
 - **Siempre visible** en desktop post-login. Texto trunca con ellipsis. Sin sidebar en el portal ciudadano.
+- **Nota tokens:** `--sidebar-width 288 / -collapsed 80` (`spacing.css`) están desfasados; el kit renderiza **276/84** (gana el HTML). El shell real de `base.html` usa `lg:pl-72/pl-20` (288/80) — al construir, no toques el ancho del shell.
 
 ---
 
@@ -271,14 +274,14 @@ inactivo `500 / var(--text-body-subtle)`. Chip de conteo `11 / 700; padding 1px 
 - **Búsqueda:** contenedor `width 320; max-width 34vw`; input `height 40; padding 0 14px 0 40px; font 13.5; border 1px var(--border-base); border-radius 9999 (pill); background var(--bg-secondary)`; ícono search 18 a la izquierda `var(--text-body-subtle)`.
 - **Campana:** botón con contador `min-width 16; height 16; border-radius 9999; background var(--bg-danger); color #fff; 10 / 700`.
 - **Dot de conexión:** `9×9; border-radius 50%; background var(--bg-success); box-shadow 0 0 0 3px var(--bg-success-soft)`.
-- **Avatar 36** + botón de logout (ícono, hover `color var(--text-fg-danger)`).
+- **Avatar 36** + logout = IconBtn `arrowLeft` 20 (hover `background var(--bg-secondary)` + `color var(--text-fg-danger)`).
 
 ---
 
 ## 16. Layout / shell y PageHeader
 
 - **Shell:** `display flex; height 100vh` → Sidebar + columna (`flex 1; flex column; min-width 0`): Topbar + `main` (`flex 1; overflow-y auto; padding 28`).
-  Contenido envuelto en `max-width 1180px; margin 0 auto`.
+  Contenido envuelto en `max-width 1180px; margin 0 auto` (el token `--container-xl 1280` no se usa; manda 1180 del HTML).
 - **PageHeader:** `flex; align items-end; justify-between; gap 16; margin-bottom 24; flex-wrap`.
   Breadcrumb `12.5 / var(--text-body-subtle)`: "Programa Becas" + `chevronRight 14` + crumb (`var(--text-body) / 600`).
   **H1 `28 / 800 / var(--text-heading)`** (letter-spacing -0.5px) + subtítulo `14 / var(--text-body-subtle)` (max-width 620). **CTA a la derecha** (brand).
@@ -316,7 +319,7 @@ Orden: **toolbar/PageHeader (búsqueda + CTA) → FilterBar → TableCard(header
 - **Tarjeta de identidad:** Card `padding 0` (interior 26); **avatar cuadrado `104×104; border-radius 20`** sobre `var(--gradient-brand)` con iniciales `36 / 800` y `box-shadow var(--shadow-brand)`;
   eyebrow `'CIUDADANO' 11 / 700; uppercase; letter-spacing .08em`; h1 `32 / 800; letter-spacing -0.6px`; fila de badges; columna de acciones `width 240` (Button secondary Editar + Button brand Derivar).
 - **Grid de InfoTile:** N col con `gap 1` sobre fondo `var(--border-base)` (truco de separadores 1px); cada InfoTile `bg-white; padding 14px 16px`, label `11 / 700; uppercase` con ícono 14 `var(--text-fg-brand)`, value `14 / 700`.
-- **Tabs de detalle:** componente Tabs (§13) para sub-vistas (General, Becas, Alertas, Timeline, Red, Archivos…), con `iconNode 16` + count.
+- **Tabs de detalle:** componente Tabs (§13) para sub-vistas — labels reales del kit: **Resumen · Programa Becas (count) · Conversaciones · Derivaciones · Alertas (count) · Línea de tiempo · Red familiar · Archivos**, con `iconNode 16`.
 
 ### Drill-down maestro → detalle → sub-detalle (Segmentos, Convocatorias)
 Lista (PageHeader + TableCard con **filas clickeables** que abren detalle) → **detalle** de entidad con **Tabs** y una tab "General" **editable inline** (guardar → toast "Cambios guardados") → **sub-detalle**. Cada nivel con su back. Crear entidad → Modal (≤4–5 campos) o página.
@@ -326,6 +329,15 @@ Track `height 8–12; border-radius 9999; background var(--bg-tertiary)`; fill `
 
 ### Timeline vertical
 Regla `position absolute; left 23; width 2; background var(--border-base)`; nodos `32×32` redondos sobre `var(--gradient-brand)` con `border 3px var(--bg-white) + shadow-xs`, ícono 15; ítems `gap 22`; título `14 / 700`, detalle `13 / var(--text-body-subtle)`, fecha `12 / var(--text-body-subtle)`. Sub-tablas embebidas en detalle = TableCard (§17) con header de acción "Agregar X" (Button `sm brand`).
+
+### Panel de requisitos (CRUD) y disclosure / acordeón
+- **Tabla de requisitos:** columnas Orden / Pregunta / Tipo / Obligatorio; `ReqTipoBadge` = badge white; "Obligatorio" = badge brand, "Opcional" = badge gray. Alta con Modal ~540 (grid `1.4fr 1fr 0.8fr`).
+- **Disclosure / acordeón** (vista previa de formulario): header colapsable con `chevron 18` + chip de conteo (`bg-brand-soft; radius-full`); secciones con sub-header `bg-secondary`; ítems numerados con cuadro `22×22; radius 6`; tipoChip `10.5 / 700` brand.
+
+### Pantalla de revisión (RevisionFormulario)
+- **Banda de validación tonal** full-width (`radius 12; padding 12px 16px`), color por estado (success/warning/danger soft + border + text) con ícono 20 (ej. RENAPER).
+- Layout `grid 1.7fr / 1fr`: izquierda datos; derecha **Card "Resolución del caso"** con Button **block** Aprobar (brand) / Rechazar (danger) + mini-historial (dots `10×10` + línea `2px`). Rechazo → Modal ~520 con textarea de motivo.
+- **Beneficiarios** (tab dentro de un detalle) = TableCard estándar (§17).
 
 ---
 
