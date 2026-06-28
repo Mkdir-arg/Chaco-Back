@@ -1,0 +1,205 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Crear Ciudadano Manualmente{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-lg">
+                <i class="fas fa-edit text-orange-600 text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Crear Ciudadano Manualmente</h1>
+                <p class="text-gray-600">Complete todos los datos del ciudadano de forma manual</p>
+            </div>
+        </div>
+        
+        <!-- Breadcrumb -->
+        <nav class="flex" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-4">
+                <li>
+                    <a href="{% url 'legajos:ciudadanos' %}" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-users"></i>
+                        <span class="sr-only">Ciudadanos</span>
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <span class="text-gray-500">Nuevo Ciudadano (Manual)</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Información sobre carga manual -->
+    <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-8">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-orange-400 text-xl"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-orange-800">Carga Manual</h3>
+                <div class="mt-2 text-sm text-orange-700">
+                    <p>No se pudieron obtener los datos automáticamente desde RENAPER. Complete manualmente toda la información del ciudadano.</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li>Verifique que todos los datos sean correctos</li>
+                        <li>Los campos marcados con * son obligatorios</li>
+                        <li>Asegúrese de que el DNI sea válido y único</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Datos del Ciudadano</h2>
+            <p class="text-sm text-gray-600 mt-1">Complete todos los campos necesarios</p>
+        </div>
+        
+        <form method="post" class="p-6 space-y-6">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-circle text-red-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Error en el formulario</h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <p>{{ error }}</p>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Datos básicos -->
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <!-- DNI -->
+                <div>
+                    <label for="{{ form.dni.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.dni.label }}
+                        <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.dni }}
+                </div>
+
+                <!-- Género -->
+                <div>
+                    <label for="{{ form.genero.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.genero.label }}
+                    </label>
+                    {{ form.genero }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <!-- Nombre -->
+                <div>
+                    <label for="{{ form.nombre.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.nombre.label }}
+                        <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.nombre }}
+                </div>
+
+                <!-- Apellido -->
+                <div>
+                    <label for="{{ form.apellido.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.apellido.label }}
+                        <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.apellido }}
+                </div>
+            </div>
+
+            <!-- Fecha de Nacimiento -->
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                    <label for="{{ form.fecha_nacimiento.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.fecha_nacimiento.label }}
+                    </label>
+                    {{ form.fecha_nacimiento }}
+                </div>
+            </div>
+
+            <!-- Información de contacto -->
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Información de Contacto</h3>
+                
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <!-- Teléfono -->
+                    <div>
+                        <label for="{{ form.telefono.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            {{ form.telefono.label }}
+                        </label>
+                        {{ form.telefono }}
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            {{ form.email.label }}
+                        </label>
+                        {{ form.email }}
+                    </div>
+                </div>
+
+                <!-- Domicilio -->
+                <div class="mt-6">
+                    <label for="{{ form.domicilio.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ form.domicilio.label }}
+                    </label>
+                    {{ form.domicilio }}
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'legajos:ciudadano_nuevo' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Volver a RENAPER
+                </a>
+                
+                <button type="submit" 
+                        class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                    <i class="fas fa-save mr-2"></i>
+                    Crear Ciudadano
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validación del DNI
+    const dniInput = document.getElementById('{{ form.dni.id_for_label }}');
+    if (dniInput) {
+        dniInput.addEventListener('input', function(e) {
+            // Remover caracteres no numéricos
+            e.target.value = e.target.value.replace(/\D/g, '');
+            
+            // Limitar a 8 dígitos
+            if (e.target.value.length > 8) {
+                e.target.value = e.target.value.slice(0, 8);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

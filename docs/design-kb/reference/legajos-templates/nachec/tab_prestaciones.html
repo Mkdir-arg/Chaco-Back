@@ -1,0 +1,163 @@
+    <!-- Tab: Prestaciones (PASO 8) -->
+    <div id="tab-prestaciones" class="tab-content hidden">
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-[#252F40]">Gestión de Prestaciones</h3>
+                    <div class="flex gap-2">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            Programadas
+                        </span>
+                        <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                            En Proceso
+                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            Entregadas
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Filtros -->
+                <div class="mb-6 p-4 bg-[#F9FAFB] rounded-lg">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Estado</label>
+                            <select class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" id="filtro-estado-prestacion">
+                                <option value="">Todos</option>
+                                <option value="PROGRAMADA">Programada</option>
+                                <option value="EN_PROCESO">En Proceso</option>
+                                <option value="ENTREGADA">Entregada</option>
+                                <option value="CANCELADA">Cancelada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Tipo</label>
+                            <select class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" id="filtro-tipo-prestacion">
+                                <option value="">Todos</option>
+                                <option value="ALIMENTARIA">Alimentaria</option>
+                                <option value="VIVIENDA">Vivienda</option>
+                                <option value="SALUD">Salud</option>
+                                <option value="EDUCACION">Educación</option>
+                                <option value="EMPLEO">Empleo</option>
+                                <option value="EMPRENDIMIENTO">Emprendimiento</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">SLA</label>
+                            <select class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" id="filtro-sla-prestacion">
+                                <option value="">Todos</option>
+                                <option value="vencidas">Vencidas</option>
+                                <option value="proximas">Próximas a vencer (3 días)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Tipo</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Responsable</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha Prog.</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">SLA</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Evidencias</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]">
+                            {% comment %}
+                            TODO: Agregar query en view para obtener prestaciones
+                            Filtrar por: request.user == responsable OR request.user == caso.coordinador
+                            Estados: PROGRAMADA, EN_PROCESO, EN_CURSO, ENTREGADA
+                            {% endcomment %}
+                            
+                            {% for prestacion in prestaciones_nachec %}
+                            <tr class="hover:bg-[#F9FAFB]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                    <a href="{% url 'legajos:ciudadano_detalle' prestacion.caso.ciudadano_titular.pk %}" class="text-blue-600 hover:underline">
+                                        {{ prestacion.caso.ciudadano_titular.nombre_completo }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if prestacion.tipo == 'ALIMENTARIA' %}bg-orange-100 text-orange-800
+                                        {% elif prestacion.tipo == 'VIVIENDA' %}bg-blue-100 text-blue-800
+                                        {% elif prestacion.tipo == 'SALUD' %}bg-red-100 text-red-800
+                                        {% elif prestacion.tipo == 'EDUCACION' %}bg-purple-100 text-purple-800
+                                        {% elif prestacion.tipo == 'EMPLEO' %}bg-green-100 text-green-800
+                                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {{ prestacion.get_tipo_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if prestacion.estado == 'PROGRAMADA' %}bg-blue-100 text-blue-800
+                                        {% elif prestacion.estado == 'EN_PROCESO' or prestacion.estado == 'EN_CURSO' %}bg-purple-100 text-purple-800
+                                        {% elif prestacion.estado == 'ENTREGADA' %}bg-green-100 text-green-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ prestacion.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">
+                                    {{ prestacion.responsable.get_full_name }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">
+                                    {{ prestacion.fecha_programada|date:"d/m/Y"|default:"-" }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {% if prestacion.sla_hasta %}
+                                        {% now "U" as current_timestamp %}
+                                        {% if prestacion.sla_hasta.timestamp < current_timestamp|add:"0" %}
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                <i class="fas fa-exclamation-triangle"></i> Vencida
+                                            </span>
+                                        {% else %}
+                                            <span class="text-xs text-[#8C8C8C]">
+                                                {{ prestacion.sla_hasta|date:"d/m/Y" }}
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-xs text-[#8C8C8C]">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                    {% comment %}TODO: Count adjuntos con GFK{% endcomment %}
+                                    <span class="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
+                                        <i class="fas fa-paperclip"></i> 0
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {% if request.user.id == prestacion.responsable_id %}
+                                        {% if prestacion.estado == 'PROGRAMADA' %}
+                                            <form method="post" action="{% url 'legajos:nachec_iniciar_prestacion' prestacion.id %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="text-purple-600 hover:underline mr-2">Iniciar</button>
+                                            </form>
+                                            <a href="{% url 'legajos:nachec_reprogramar_prestacion' prestacion.id %}" class="text-yellow-600 hover:underline mr-2" data-bs-toggle="modal" data-bs-target="#modalReprogramar{{ prestacion.id }}">Reprogramar</a>
+                                            <a href="{% url 'legajos:nachec_cancelar_prestacion' prestacion.id %}" class="text-red-600 hover:underline" data-bs-toggle="modal" data-bs-target="#modalCancelar{{ prestacion.id }}">Cancelar</a>
+                                        {% elif prestacion.estado == 'EN_PROCESO' or prestacion.estado == 'EN_CURSO' %}
+                                            <a href="{% url 'legajos:nachec_confirmar_entrega' prestacion.id %}" class="text-green-600 hover:underline mr-2" data-bs-toggle="modal" data-bs-target="#modalConfirmar{{ prestacion.id }}">Confirmar</a>
+                                            <a href="{% url 'legajos:nachec_reprogramar_prestacion' prestacion.id %}" class="text-yellow-600 hover:underline mr-2" data-bs-toggle="modal" data-bs-target="#modalReprogramar{{ prestacion.id }}">Reprogramar</a>
+                                            <a href="{% url 'legajos:nachec_cancelar_prestacion' prestacion.id %}" class="text-red-600 hover:underline" data-bs-toggle="modal" data-bs-target="#modalCancelar{{ prestacion.id }}">Cancelar</a>
+                                        {% elif prestacion.estado == 'ENTREGADA' %}
+                                            <span class="text-gray-400 text-xs">Entregada</span>
+                                        {% elif prestacion.estado == 'CANCELADA' %}
+                                            <span class="text-gray-400 text-xs">Cancelada</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-gray-400 text-xs" title="Solo el responsable puede ejecutar acciones">Sin acceso</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="px-6 py-8 text-center text-[#8C8C8C]">No hay prestaciones activas</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>

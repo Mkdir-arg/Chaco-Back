@@ -1,0 +1,45 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Crear Acompañamiento - {{ programa.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-[#252F40] mb-2">Crear Acompañamiento</h2>
+            <p class="text-[#8C8C8C]">Programa: <span class="font-semibold">{{ programa.nombre }}</span></p>
+        </div>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label for="ciudadano_id" class="block text-sm font-medium text-[#374151] mb-2">
+                    Seleccionar Ciudadano
+                </label>
+                <select name="ciudadano_id" id="ciudadano_id" required
+                        class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">-- Seleccione un ciudadano --</option>
+                    {% for ciudadano in ciudadanos %}
+                    <option value="{{ ciudadano.id }}">
+                        {{ ciudadano.nombre_completo }} - DNI: {{ ciudadano.dni }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex justify-between pt-4">
+                <a href="{% url 'legajos:programa_detalle' programa.pk %}" 
+                   class="px-6 py-2 border border-[#E5E7EB] text-[#4A5565] rounded-lg hover:bg-[#F9FAFB] transition-all">
+                    Cancelar
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
+                    Crear Acompañamiento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

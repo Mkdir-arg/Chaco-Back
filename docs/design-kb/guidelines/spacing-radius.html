@@ -1,0 +1,22 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Radius" subtitle="Corner radii — cards & buttons use xl (12px), pills use full" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; gap:16px; align-items:flex-end; }
+  .c { text-align:center; }
+  .box { width:74px; height:64px; background:var(--bg-brand-soft); border:1.5px solid var(--border-brand); border-bottom:none; }
+  .l { font-size:11px; color:var(--text-body-subtle); margin-top:6px; }
+  .l b { display:block; color:var(--text-heading); font-size:12px; }
+</style></head>
+<body>
+<div class="row">
+  <div class="c"><div class="box" style="border-radius:var(--radius) var(--radius) 0 0"></div><div class="l"><b>4px</b>default</div></div>
+  <div class="c"><div class="box" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0"></div><div class="l"><b>8px</b>lg · inputs</div></div>
+  <div class="c"><div class="box" style="border-radius:var(--radius-xl) var(--radius-xl) 0 0"></div><div class="l"><b>12px</b>xl · cards/btn</div></div>
+  <div class="c"><div class="box" style="border-radius:var(--radius-2xl) var(--radius-2xl) 0 0"></div><div class="l"><b>16px</b>2xl · modal</div></div>
+  <div class="c"><div class="box" style="border-radius:var(--radius-3xl) var(--radius-3xl) 0 0"></div><div class="l"><b>24px</b>3xl</div></div>
+  <div class="c"><div class="box" style="border-radius:9999px 9999px 0 0"></div><div class="l"><b>full</b>pills</div></div>
+</div>
+</body></html>

@@ -1,0 +1,203 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Adjuntar Evidencias - Caso {{ caso.id }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-2xl shadow-lg border border-[#E5E7EB] overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <i class="fas fa-camera mr-3"></i>
+                Adjuntar Evidencias Fotográficas
+            </h2>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- Resumen del caso -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>
+                    Información del Caso
+                </h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-[#8C8C8C]">Ciudadano:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.ciudadano_titular.nombre_completo }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[#8C8C8C]">Municipio:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.municipio }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta de riesgo crítico -->
+            {% if riesgo_critico %}
+            <div class="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-2xl mt-1 mr-3"></i>
+                    <div>
+                        <h4 class="font-bold text-red-900 mb-2">Evidencia Obligatoria</h4>
+                        <p class="text-sm text-red-800">
+                            Se detectó situación de <span class="font-semibold">riesgo crítico</span> 
+                            (urgencia alimentaria, violencia o vivienda precaria/calle).
+                            <br>
+                            <span class="font-semibold">Debe adjuntar al menos 1 evidencia fotográfica</span> antes de finalizar el relevamiento.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-600 text-xl mt-1 mr-3"></i>
+                    <div class="text-sm text-blue-800">
+                        <span class="font-semibold">Evidencia recomendada:</span> 
+                        No hay riesgos críticos detectados. La evidencia no es obligatoria pero es recomendable adjuntar fotos de la situación del hogar.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Formulario de carga -->
+            <div class="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6">
+                <form method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="subir">
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                            <i class="fas fa-image mr-2"></i>Seleccionar Archivo *
+                        </label>
+                        <input 
+                            type="file" 
+                            name="archivo" 
+                            accept="image/*,application/pdf"
+                            required
+                            class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                        <p class="text-xs text-[#8C8C8C] mt-1">Formatos aceptados: JPG, PNG, PDF (máx. 10MB)</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                            <i class="fas fa-tag mr-2"></i>Etiqueta/Descripción *
+                        </label>
+                        <input 
+                            type="text" 
+                            name="etiqueta" 
+                            required
+                            minlength="3"
+                            placeholder="Ej: Fachada de la vivienda, Interior cocina, Baño..."
+                            class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        class="w-full px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all font-medium shadow-lg"
+                    >
+                        <i class="fas fa-upload mr-2"></i>Subir Evidencia
+                    </button>
+                </form>
+            </div>
+
+            <!-- Lista de evidencias adjuntas -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-paperclip mr-2 text-green-600"></i>
+                    Evidencias Adjuntas ({{ adjuntos.count }})
+                </h3>
+                
+                {% if adjuntos %}
+                <div class="space-y-2">
+                    {% for adj in adjuntos %}
+                    <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="flex items-center">
+                            <i class="fas fa-file-image text-orange-600 text-xl mr-3"></i>
+                            <div>
+                                <div class="font-medium text-[#252F40]">{{ adj.etiqueta }}</div>
+                                <div class="text-xs text-[#8C8C8C]">
+                                    Subido el {{ adj.creado|date:"d/m/Y H:i" }} por {{ adj.subido_por.get_full_name }}
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{{ adj.archivo.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-6 text-[#8C8C8C]">
+                    <i class="fas fa-folder-open text-4xl mb-2"></i>
+                    <p class="text-sm">No hay evidencias adjuntas aún</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recomendaciones -->
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <h4 class="font-semibold text-blue-900 mb-2 flex items-center">
+                    <i class="fas fa-lightbulb mr-2"></i>
+                    Recomendaciones para las fotos
+                </h4>
+                <ul class="text-sm text-blue-800 space-y-1 ml-6 list-disc">
+                    <li>Tome fotos claras y bien iluminadas</li>
+                    <li>Capture la fachada y estado general de la vivienda</li>
+                    <li>Documente condiciones de habitabilidad (interior)</li>
+                    <li>Fotografíe servicios básicos (agua, luz, baño)</li>
+                    <li>Registre situaciones de riesgo detectadas</li>
+                    <li>Respete la privacidad de las personas (evite rostros si es posible)</li>
+                </ul>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a 
+                    href="{% url 'legajos:programa_detalle' 2 %}" 
+                    class="px-6 py-3 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300 transition-all font-medium"
+                >
+                    <i class="fas fa-arrow-left mr-2"></i>Volver al Listado
+                </a>
+                
+                {% if puede_continuar %}
+                <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="continuar">
+                    <button 
+                        type="submit" 
+                        class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg"
+                    >
+                        <i class="fas fa-check-circle mr-2"></i>Continuar
+                    </button>
+                </form>
+                {% else %}
+                <button 
+                    type="button" 
+                    disabled 
+                    class="px-8 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed font-medium"
+                    title="Debe adjuntar al menos 1 evidencia por riesgo crítico"
+                >
+                    <i class="fas fa-lock mr-2"></i>Debe adjuntar evidencia
+                </button>
+                {% endif %}
+            </div>
+
+            {% if not puede_continuar %}
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-red-600 mt-1 mr-3"></i>
+                    <div class="text-sm text-red-800">
+                        <span class="font-semibold">No puede continuar:</span>
+                        Debe adjuntar al menos 1 evidencia fotográfica debido a la situación de riesgo crítico detectada.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

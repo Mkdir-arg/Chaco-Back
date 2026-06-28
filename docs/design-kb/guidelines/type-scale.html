@@ -1,0 +1,21 @@
+<!-- @dsCard group="Type" viewport="700x300" name="Type scale" subtitle="The shared px scale, xs → 5xl" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); color:var(--text-heading); }
+  .r { display:flex; align-items:baseline; gap:16px; padding:5px 0; border-bottom:1px solid var(--border-light); }
+  .r:last-child { border:0; }
+  .lbl { width:120px; flex-shrink:0; font-size:11px; color:var(--text-body-subtle); font-variant-numeric:tabular-nums; }
+  .sample { font-weight:700; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+</style></head>
+<body>
+  <div class="r"><div class="lbl">5xl · 48px</div><div class="sample" style="font-size:48px">Legajos</div></div>
+  <div class="r"><div class="lbl">4xl · 36px · h1</div><div class="sample" style="font-size:36px">Panel de gestión</div></div>
+  <div class="r"><div class="lbl">3xl · 30px · h2</div><div class="sample" style="font-size:30px">Grupo familiar</div></div>
+  <div class="r"><div class="lbl">2xl · 24px · h3</div><div class="sample" style="font-size:24px">Datos personales</div></div>
+  <div class="r"><div class="lbl">xl · 20px</div><div class="sample" style="font-size:20px">Resumen de la consulta</div></div>
+  <div class="r"><div class="lbl">base · 16px</div><div class="sample" style="font-size:16px; font-weight:400; color:var(--text-body)">Texto de párrafo estándar del sistema.</div></div>
+  <div class="r"><div class="lbl">sm · 14px</div><div class="sample" style="font-size:14px; font-weight:400; color:var(--text-body)">Etiquetas de formulario y controles.</div></div>
+  <div class="r"><div class="lbl">xs · 12px</div><div class="sample" style="font-size:12px; font-weight:400; color:var(--text-body-subtle)">Metadatos, ayudas y notas al pie.</div></div>
+</body></html>

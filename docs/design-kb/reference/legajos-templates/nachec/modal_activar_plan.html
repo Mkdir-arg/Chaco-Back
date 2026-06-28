@@ -1,0 +1,150 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Activar Plan - Caso {{ caso.id }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-6xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-2xl shadow-lg border border-[#E5E7EB] overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-green-600 to-teal-700 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <i class="fas fa-rocket mr-3"></i>
+                Activar Plan de Intervención
+            </h2>
+        </div>
+
+        <form method="post" class="p-6 space-y-6">
+            {% csrf_token %}
+
+            <!-- A) Resumen del plan -->
+            <div class="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-4 border-2 border-green-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-clipboard-list mr-2 text-green-600"></i>
+                    Resumen del Plan
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div class="bg-white rounded-lg p-3">
+                        <span class="text-xs text-[#8C8C8C]">Ciudadano</span>
+                        <p class="font-semibold text-[#252F40]">{{ caso.ciudadano_titular.nombre_completo }}</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-3">
+                        <span class="text-xs text-[#8C8C8C]">Categoría de Vulnerabilidad</span>
+                        <p class="font-semibold {% if evaluacion.categoria_final == 'ALTO' %}text-red-600{% elif evaluacion.categoria_final == 'MEDIO' %}text-orange-600{% else %}text-green-600{% endif %}">
+                            {{ evaluacion.categoria_final|default:"No evaluado" }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg p-3">
+                    <span class="text-xs text-[#8C8C8C] block mb-1">Componentes Seleccionados</span>
+                    <div class="flex flex-wrap gap-2">
+                        {% for comp in componentes %}
+                        <span class="px-3 py-1 bg-{{ comp.color }}-100 text-{{ comp.color }}-800 rounded-full text-sm font-medium">
+                            <i class="fas fa-{{ comp.icono }} mr-1"></i>{{ comp.nombre }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if evaluacion %}
+                <div class="bg-white rounded-lg p-3 mt-3">
+                    <span class="text-xs text-[#8C8C8C] block mb-1">Dictamen (resumen)</span>
+                    <p class="text-sm text-[#252F40]">{{ evaluacion.dictamen|truncatewords:30 }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- B) Programación por componente -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 class="font-semibold text-[#252F40] mb-4 flex items-center">
+                    <i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>
+                    Programación por Componente
+                </h3>
+
+                <div class="space-y-4">
+                    {% for comp in componentes %}
+                    <div class="bg-white rounded-lg p-4 border-2 border-{{ comp.color }}-200">
+                        <div class="flex items-center mb-3">
+                            <div class="w-10 h-10 rounded-full bg-{{ comp.color }}-100 flex items-center justify-center mr-3">
+                                <i class="fas fa-{{ comp.icono }} text-{{ comp.color }}-600"></i>
+                            </div>
+                            <h4 class="font-bold text-[#252F40]">{{ comp.nombre }}</h4>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-[#252F40] mb-2">Responsable *</label>
+                                <select name="responsable_{{ comp.codigo }}" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-{{ comp.color }}-500">
+                                    <option value="">Seleccione...</option>
+                                    {% for usuario in usuarios %}
+                                    <option value="{{ usuario.id }}">{{ usuario.get_full_name|default:usuario.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-[#252F40] mb-2">Fecha Inicio *</label>
+                                <input type="date" name="fecha_inicio_{{ comp.codigo }}" required min="{{ today|date:'Y-m-d' }}" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-{{ comp.color }}-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-[#252F40] mb-2">Frecuencia *</label>
+                                <select name="frecuencia_{{ comp.codigo }}" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-{{ comp.color }}-500">
+                                    <option value="UNICA" selected>Única</option>
+                                    <option value="SEMANAL">Semanal</option>
+                                    <option value="QUINCENAL">Quincenal</option>
+                                    <option value="MENSUAL">Mensual</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-[#252F40] mb-2">Observaciones</label>
+                                <input type="text" name="observaciones_{{ comp.codigo }}" placeholder="Detalles adicionales..." class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-{{ comp.color }}-500">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- C) Confirmación -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label class="flex items-start cursor-pointer">
+                    <input type="checkbox" name="confirmacion" value="1" required class="w-5 h-5 text-blue-600 rounded mt-1 mr-3">
+                    <div class="text-sm">
+                        <span class="font-semibold text-blue-900">Confirmo que:</span>
+                        <ul class="list-disc list-inside mt-2 text-blue-800 space-y-1">
+                            <li>He asignado responsables para todos los componentes</li>
+                            <li>Las fechas de inicio son correctas</li>
+                            <li>Las prestaciones están programadas según las necesidades del caso</li>
+                            <li>El plan está listo para ejecutarse</li>
+                        </ul>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="px-6 py-3 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300 transition-all font-medium">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                
+                <button type="submit" class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg">
+                    <i class="fas fa-rocket mr-2"></i>Activar Plan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Setear fecha mínima como hoy
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[type="date"]').forEach(input => {
+        if (!input.value) {
+            input.value = today;
+        }
+    });
+});
+</script>
+{% endblock %}

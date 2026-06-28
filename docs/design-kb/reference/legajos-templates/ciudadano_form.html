@@ -1,0 +1,101 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}{% if object %}Editar{% else %}Nuevo{% endif %} Ciudadano{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8 mb-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="rounded-lg p-2" style="background: {{ branding.citizen_form.header_icon_bg }};">
+                {% if branding.citizen_form.header_icon_mode == 'gradient' %}
+                <i class="fas fa-user-plus text-lg text-transparent" style="background-image: linear-gradient(180deg, {{ branding.citizen_form.header_icon_gradient_start }} 0%, {{ branding.citizen_form.header_icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                {% else %}
+                <i class="fas fa-user-plus text-lg" style="color: {{ branding.citizen_form.header_icon_color }};"></i>
+                {% endif %}
+            </div>
+            <h1 class="text-3xl font-bold text-[#252F40]">
+                {% if object %}Editar Ciudadano{% else %}Nuevo Ciudadano{% endif %}
+            </h1>
+        </div>
+        <p class="text-[#8C8C8C] ml-14">Complete la información del ciudadano</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                        DNI <span class="text-[#EF4444]">*</span>
+                    </label>
+                    <input type="text" name="dni" value="{{ form.dni.value|default:'' }}" 
+                           class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-[#252F40] mb-2">Género</label>
+                    <select name="genero" class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">
+                        <option value="">Seleccionar...</option>
+                        <option value="M" {% if form.genero.value == 'M' %}selected{% endif %}>Masculino</option>
+                        <option value="F" {% if form.genero.value == 'F' %}selected{% endif %}>Femenino</option>
+                        <option value="X" {% if form.genero.value == 'X' %}selected{% endif %}>No binario</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                        Nombre <span class="text-[#EF4444]">*</span>
+                    </label>
+                    <input type="text" name="nombre" value="{{ form.nombre.value|default:'' }}" 
+                           class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                        Apellido <span class="text-[#EF4444]">*</span>
+                    </label>
+                    <input type="text" name="apellido" value="{{ form.apellido.value|default:'' }}" 
+                           class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-[#252F40] mb-2">Fecha de Nacimiento</label>
+                    <input type="date" name="fecha_nacimiento" value="{{ form.fecha_nacimiento.value|date:'Y-m-d'|default:'' }}" 
+                           class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-[#252F40] mb-2">Teléfono</label>
+                    <input type="text" name="telefono" value="{{ form.telefono.value|default:'' }}" 
+                           class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-[#252F40] mb-2">Email</label>
+                <input type="email" name="email" value="{{ form.email.value|default:'' }}" 
+                       class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-[#252F40] mb-2">Domicilio</label>
+                <textarea name="domicilio" rows="3" 
+                          class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">{{ form.domicilio.value|default:'' }}</textarea>
+            </div>
+
+            <div class="flex justify-end gap-4 pt-6 border-t border-[#E5E7EB]">
+                <a href="{% url 'legajos:ciudadanos' %}" class="{{ branding.citizen_form.cancel_button_class }}">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-3 bg-[#10B981] text-white rounded-lg hover:bg-[#059669] transition-colors">
+                    {% if object %}Actualizar{% else %}Crear{% endif %} Ciudadano
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -48,6 +48,10 @@
   --color-gray-900: #111827;
   --color-gray-950: #030712;
 
+  /* Navy — wordmark institucional / títulos (KB tokens) */
+  --color-navy-900: #001224;
+  --color-navy-700: #252f40;
+
   /* Emerald (Success) */
   --color-emerald-050: #ecfdf5;
   --color-emerald-100: #d0fae5;
@@ -163,6 +167,13 @@
   --bg-fuchsia: var(--color-fuchsia-600);
   --bg-indigo: var(--color-indigo-600);
   --bg-orange: var(--color-orange-400);
+  --bg-brand-tint: #dee1ff; /* hover terciario / brand suave */
+
+  /* === GRADIENTS === */
+  /* Marca: Jacarandá → Rosa, 45°, nunca invertido. Una sola por área visible. */
+  --gradient-brand: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);
+  --gradient-cool: linear-gradient(135deg, #8a9a5b 0%, #5059bc 100%);
+  --gradient-nodo-legacy: linear-gradient(45deg, #7928ca 0%, #ff0080 100%); /* legacy NODO, evitar en UI Chaco */
 
   /* === BORDER === */
   --border-dark: var(--color-gray-600);
@@ -193,7 +204,8 @@
   /* === TEXT === */
   --text-white: #ffffff;
   --text-black: var(--color-gray-900);
-  --text-heading: var(--color-gray-900);
+  /* Títulos en navy institucional (#252f40) — alineado a docs/design-kb/tokens */
+  --text-heading: var(--color-navy-700);
   --text-body: var(--color-gray-600);
   --text-body-subtle: var(--color-gray-500);
   --text-fg-brand-subtle: var(--color-pink-200);
@@ -213,10 +225,19 @@
   --text-fg-indigo: var(--color-indigo-600);
   --text-fg-pink: var(--color-pink-600);
   --text-fg-lime: var(--color-lime-600);
+  /* Alias y enlaces (KB tokens) */
+  --text-disabled: var(--color-gray-400);
+  --text-link: var(--text-fg-brand);
+  --text-link-hover: var(--text-fg-brand-strong);
+  --bg-info-soft: var(--color-brand-050);
 
   /* === TYPOGRAPHY === */
   --font-family-base: 'Manrope', sans-serif;
-  --font-family-brand: 'Gellat', sans-serif;
+  /* Sistema unificado: Manrope es la única familia (UI, cuerpo y títulos).
+     'brand'/'display'/'sans' se mantienen como alias de Manrope. */
+  --font-family-brand: 'Manrope', sans-serif;
+  --font-sans: var(--font-family-base);
+  --font-display: var(--font-family-base);
   --font-size-xxs: 8px;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
@@ -254,6 +275,18 @@
   --border-width-2: 2px;
   --border-width-4: 4px;
   --border-width-8: 8px;
+
+  /* === SHADOWS (planas, mínimas) === */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-brand: 0 8px 24px -6px rgba(80, 89, 188, 0.45);
+
+  /* === RINGS (focus) === */
+  --ring-brand: 0 0 0 3px rgba(80, 89, 188, 0.35);
+  --ring-danger: 0 0 0 3px rgba(199, 0, 54, 0.30);
 
   /* === MAX WIDTH === */
   --max-w-xs: 320px;

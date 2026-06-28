@@ -3,473 +3,822 @@
 {% load custom_filters %}
 {% load rbac %}
 
-{% block title %}Dashboard Ejecutivo{% endblock %}
+{% block title %}Inicio — NODO{% endblock %}
 
 {% block page_css %}
-<link rel="stylesheet" href="{% static 'custom/css/inicio.css' %}" />
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-    .inicio-highlight-gradient {
-        background: var(--ui-highlight-gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
+/* ── Dashboard / Inicio ── */
+.ini-hero {
+    border-radius: 16px;
+    padding: 28px 32px;
+    background: var(--gradient-brand);
+    color: #fff;
+    box-shadow: var(--shadow-brand);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+.ini-hero-eyebrow {
+    font-size: 13px;
+    font-weight: 600;
+    opacity: .92;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-family: var(--font-sans);
+}
+.ini-hero h1 {
+    margin: 4px 0 6px;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    font-family: var(--font-sans);
+    color: #fff;
+}
+.ini-hero p {
+    margin: 0;
+    font-size: 14.5px;
+    opacity: .92;
+    max-width: 520px;
+    font-family: var(--font-sans);
+    line-height: 1.5;
+}
+.ini-hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 18px;
+    border-radius: 9999px;
+    border: none;
+    cursor: pointer;
+    background: #fff;
+    color: var(--text-fg-brand);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    text-decoration: none;
+    transition: filter 150ms var(--ease-standard);
+}
+.ini-hero-btn:hover { filter: brightness(0.95); }
 
-    .inicio-search-input:focus {
-        --tw-ring-color: var(--ui-highlight-color) !important;
-    }
+/* IniSectionTitle */
+.ini-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 14px;
+}
+.ini-section-title h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-heading);
+    letter-spacing: -0.3px;
+    font-family: var(--font-sans);
+}
 
-    .inicio-highlight-fill {
-        background-color: var(--ui-highlight-color) !important;
-    }
+/* StatCard */
+.stat-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-base);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.stat-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.stat-card-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+}
+.stat-card-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.stat-card-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text-heading);
+    line-height: 1;
+    font-family: var(--font-sans);
+}
+.stat-card-footnote {
+    font-size: 12px;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+}
+.stat-card-valrow {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+.stat-card-delta {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    line-height: 1;
+}
+
+/* Accesos rápidos */
+.acceso-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border-base);
+    background: var(--bg-white);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+    text-decoration: none;
+    transition: box-shadow 200ms var(--ease-standard), transform 200ms var(--ease-standard);
+}
+.acceso-btn:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+.acceso-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.acceso-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-heading);
+    font-family: var(--font-sans);
+    flex: 1;
+}
+.acceso-chevron {
+    color: var(--text-body-subtle);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Tareas pendientes / trabajo de hoy */
+.task-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-base);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: box-shadow 200ms var(--ease-standard);
+}
+.task-card:hover { box-shadow: var(--shadow-md); }
+.task-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light);
+}
+.task-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-heading);
+    font-family: var(--font-sans);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.task-icon-tile {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.task-count {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-heading);
+    line-height: 1;
+    font-family: var(--font-sans);
+}
+.task-desc {
+    font-size: 12px;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+    margin-top: 2px;
+}
+
+/* Card base */
+.ds-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.ds-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+}
+.ds-card-header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-heading);
+    font-family: var(--font-sans);
+}
+.ds-card-header-sub {
+    font-size: 13px;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+    margin-top: 2px;
+}
+
+/* Feed rows (Mi trabajo de hoy) */
+.feed-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 20px;
+    border-top: 1px solid var(--border-light);
+    text-decoration: none;
+    transition: background 150ms var(--ease-standard);
+}
+.feed-row:first-child { border-top: none; }
+.feed-row:hover { background: var(--bg-tertiary); }
+.feed-dot {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.feed-text {
+    font-size: 13.5px;
+    color: var(--text-body);
+    line-height: 1.4;
+    font-family: var(--font-sans);
+    flex: 1;
+    min-width: 0;
+}
+.feed-meta {
+    font-size: 11.5px;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+    margin-top: 2px;
+}
+.feed-time {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-fg-brand);
+    width: 44px;
+    flex-shrink: 0;
+    font-family: var(--font-sans);
+}
+.feed-empty {
+    padding: 40px 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.feed-empty-icon {
+    color: var(--text-fg-brand);
+    opacity: .3;
+}
+.feed-empty-text {
+    font-size: 14px;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+}
+
+/* ProgressBar */
+.progress-track {
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--bg-tertiary);
+}
+.progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+}
+.progress-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    margin-bottom: 5px;
+    color: var(--text-body);
+    font-family: var(--font-sans);
+}
+.progress-pct {
+    font-weight: 700;
+    color: var(--text-heading);
+    font-family: var(--font-sans);
+}
+
+/* Badge count chip */
+.count-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-sans);
+}
+
+/* Búsqueda */
+.search-container {
+    position: relative;
+}
+.search-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px 0 40px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--text-heading);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-base);
+    border-radius: 9999px;
+    outline: none;
+    transition: border-color 150ms var(--ease-standard), box-shadow 150ms var(--ease-standard);
+}
+.search-input:focus {
+    border-color: var(--border-brand);
+    box-shadow: var(--ring-brand);
+}
+.search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-body-subtle);
+    pointer-events: none;
+}
+.search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 10;
+}
+.search-result-item {
+    display: block;
+    padding: 10px 16px;
+    text-decoration: none;
+    transition: background 150ms var(--ease-standard);
+    border-top: 1px solid var(--border-light);
+}
+.search-result-item:first-child { border-top: none; }
+.search-result-item:hover { background: var(--bg-tertiary); }
+.search-result-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-heading);
+    font-family: var(--font-sans);
+}
+.search-result-dni {
+    font-size: 12px;
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+}
 </style>
 {% endblock %}
 
 {% block main-content %}
-<div class="max-w-full mx-4 lg:mx-8" x-data="dashboard()">
-    <!-- Header Dinámico -->
-        <div class="p-8 mb-8 inicio-greeting-card" style="background: linear-gradient(45deg, #5059bc 0%, #f98dff 100%); border-radius: 12px;">
-        <div class="flex justify-between items-start">
-            <div>
-                <h1
-                    class="mb-2"
-                    style="font-family: 'Manrope', sans-serif; font-size: 30px; font-weight: 700; color: #ffffff;"
-                    x-text="saludo"
-                ></h1>
-                <p class="font-normal" style="font-family: 'Manrope', sans-serif; font-size: 20px; font-weight: 400; color: rgba(255,255,255,0.85);" x-text="fechaHora"></p>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="px-4 py-2 rounded-xl flex items-center gap-2" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">
-                    <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                    <span class="text-sm font-bold text-white">Sistema Activo</span>
+<div class="w-full" x-data="dashboardInicio()">
+
+    {# ── Banner hero ── #}
+    <div class="ini-hero mb-7">
+        <div>
+            <div class="ini-hero-eyebrow" x-text="saludo"></div>
+            <h1>Hola, {{ request.user.get_short_name|default:request.user.get_username }}</h1>
+            <p>
+                {% if derivaciones_pendientes_count %}Tenés <strong>{{ derivaciones_pendientes_count }} derivación{% if derivaciones_pendientes_count != 1 %}es{% endif %} pendiente{% if derivaciones_pendientes_count != 1 %}s{% endif %}</strong>
+                {% if conversaciones_sin_asignar_count %} y <strong>{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>{% endif %}.
+                Este es el resumen de tu jornada.
+                {% elif conversaciones_sin_asignar_count %}Tenés <strong>{{ conversaciones_sin_asignar_count }} conversación{% if conversaciones_sin_asignar_count != 1 %}es{% endif %} sin asignar</strong>. Este es el resumen de tu jornada.
+                {% else %}Todo al día. Sin tareas pendientes urgentes. Este es el resumen de tu jornada.{% endif %}
+            </p>
+        </div>
+        {% if user|puede:"ciudadano.ver" %}
+        <a href="{% url 'legajos:ciudadanos' %}" class="ini-hero-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+            </svg>
+            Ver ciudadanos
+        </a>
+        {% endif %}
+    </div>
+
+    {# ── Stat cards (4 col) ── #}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+
+        {# Total ciudadanos #}
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <span class="stat-card-label">Total ciudadanos</span>
+                <div class="stat-card-icon" style="background: var(--gradient-brand);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
+                    </svg>
                 </div>
             </div>
+            <div class="stat-card-valrow">
+                <span class="stat-card-value">{{ total_ciudadanos|default:"0" }}</span>
+                {% if registros_mes %}
+                <span class="stat-card-delta" style="color: var(--text-fg-success);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:-1px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7"/></svg>{{ registros_mes }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="stat-card-footnote">nuevos este mes</div>
+        </div>
+
+        {# Legajos activos #}
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <span class="stat-card-label">Legajos activos</span>
+                <div class="stat-card-icon" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-value">{{ legajos_activos|default:"0" }}</div>
+            <div class="stat-card-footnote">de {{ total_legajos|default:"0" }} legajos en total</div>
+        </div>
+
+        {# Seguimientos hoy #}
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <span class="stat-card-label">Seguimientos hoy</span>
+                <div class="stat-card-icon" style="background: var(--bg-warning-soft); color: var(--text-fg-warning);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-value">{{ seguimientos_hoy|default:"0" }}</div>
+            <div class="stat-card-footnote">{{ actividad_hoy|default:"0" }} actividades hoy</div>
+        </div>
+
+        {# Alertas activas #}
+        <div class="stat-card" style="position: relative;">
+            <div class="stat-card-top">
+                <span class="stat-card-label">Alertas activas</span>
+                <div class="stat-card-icon" style="background: var(--bg-danger-soft); color: var(--text-fg-danger); position: relative;">
+                    {% if alertas_activas %}
+                    <span style="position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg-danger); border: 2px solid var(--bg-primary);"></span>
+                    {% endif %}
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-card-value">{{ alertas_activas|default:"0" }}</div>
+            <div class="stat-card-footnote">{{ usuarios_activos|default:"0" }} usuarios activos hoy</div>
         </div>
     </div>
-    
-    <!-- Búsqueda Rápida -->
-    <div class="bg-white rounded-xl p-6 mb-8 border border-[#E5E7EB]" style="box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-        <div class="flex gap-4 items-center">
-            <div class="flex-1 relative">
-                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#56606A]"></i>
-                <input type="text" placeholder="Buscar ciudadano (mín. 3 caracteres): nombre, apellido, DNI..." 
-                       class="inicio-search-input w-full pl-12 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#101828] placeholder-[#8C8C8C] focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                       x-model="busqueda" @input="buscarCiudadano()">
+
+    {# ── Búsqueda rápida ── #}
+    <div class="ds-card mb-7" style="padding: 18px 20px;">
+        <div class="flex gap-3 items-center">
+            <div class="search-container flex-1">
+                <span class="search-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                    </svg>
+                </span>
+                <input
+                    type="text"
+                    class="search-input"
+                    placeholder="Buscá por nombre, apellido o DNI (mín. 3 caracteres)…"
+                    x-model="busqueda"
+                    @input="buscarCiudadano()"
+                    aria-label="Buscar ciudadano"
+                >
+                <div class="search-results" x-show="resultadosBusqueda.length > 0" x-cloak>
+                    <template x-for="r in resultadosBusqueda" :key="r.id">
+                        <a :href="'/legajos/ciudadanos/' + r.id + '/'" class="search-result-item">
+                            <div class="search-result-name" x-text="r.nombre"></div>
+                            <div class="search-result-dni" x-text="'DNI ' + r.dni"></div>
+                        </a>
+                    </template>
+                </div>
             </div>
             {% if user|puede:"ciudadano.crear" %}
-            <a href="{% url 'legajos:ciudadano_nuevo' %}" class="px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#4A5565] font-medium transition-all hover:bg-[#F3F4F6] hover:text-[#101828] focus:bg-[#F3F4F6] focus:text-[#101828] focus:shadow-[0_1px_0_2px_#F3F4F6] flex items-center gap-2">
-                <i class="fas fa-plus"></i>
-                <span>Nuevo Legajo</span>
+            <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+                Nuevo legajo
             </a>
             {% endif %}
         </div>
-        <div x-show="resultadosBusqueda.length > 0" class="mt-4 bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
-            <template x-for="resultado in resultadosBusqueda">
-                <a :href="'/legajos/ciudadanos/' + resultado.id + '/'" class="block p-3 hover:bg-white rounded-lg cursor-pointer transition-colors">
-                    <div class="font-medium" x-text="resultado.nombre"></div>
-                    <div class="text-sm text-gray-500" x-text="'DNI: ' + resultado.dni"></div>
-                </a>
-            </template>
-        </div>
     </div>
 
-    <!-- Alertas Críticas -->
-    <div class="bg-[#FEF0F2] border border-[#FFCCD3] rounded-xl p-6 mb-8" style="box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 12px;" x-show="alertasCriticas.length > 0">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-[18px] font-semibold text-[#000000] flex items-center" style="font-family: Inter, sans-serif;">
-                <i class="fas fa-exclamation-triangle mr-2 animate-pulse text-[#D03801]"></i>
-                Alertas Críticas
-            </h3>
-            <span class="badge-danger badge-sm flex items-center gap-2">
-                <span x-text="alertasCriticas.length + ' alertas'"></span>
-                <i class="fas fa-times text-xs"></i>
-            </span>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <template x-for="alerta in alertasCriticas">
-                <a :href="alerta.ciudadano_id ? '/legajos/ciudadanos/' + alerta.ciudadano_id + '/#alertas' : '#'" class="block bg-[#FFFFFF] border border-[#FFCCD3] rounded-xl p-4 hover:shadow-md transition-shadow" style="box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 12px;">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <div class="font-semibold text-[#000000] text-[16px]" style="font-family: Inter, sans-serif;" x-text="alerta.ciudadano"></div>
-                            <div class="text-[14px] font-bold text-[#D03801]" style="font-family: Inter, sans-serif;" x-text="alerta.tipo"></div>
-                            <div class="text-[14px] font-semibold text-[#6A7282]" style="font-family: Inter, sans-serif;" x-text="alerta.fecha"></div>
-                        </div>
-                        <span class="text-[#D03801]">
-                            <i class="fas fa-arrow-right"></i>
-                        </span>
+    {# ── Mi trabajo de hoy ── #}
+    <div class="ini-section-title">
+        <h2>Mi trabajo de hoy</h2>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-7">
+
+        {# Derivaciones pendientes #}
+        <div class="ds-card">
+            <div class="ds-card-header flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="task-icon-tile" style="background: var(--bg-warning-soft); color: var(--text-fg-warning);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+                        </svg>
                     </div>
-                </a>
-            </template>
-        </div>
-    </div>
-
-    <!-- Métricas Principales con Gráficos -->
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <i class="fas fa-user-friends text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                
-            </div>
-            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.ciudadanos"></p>
-            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Total Ciudadanos</p>
-        </div>
-
-        <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <i class="fas fa-folder-open text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                
-            </div>
-            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.legajos"></p>
-            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Legajos Activos</p>
-        </div>
-
-        <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <i class="fas fa-calendar-check text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                
-            </div>
-            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.seguimientos"></p>
-            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Seguimientos Hoy</p>
-        </div>
-
-        <div class="p-5 transition-all duration-300" style="background: #FFFFFF; border: 1px solid #D9D9D9; border-radius: 12px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.10);" onmouseover="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'" onmouseout="this.style.boxShadow='0 4px 8px 0 rgba(0, 0, 0, 0.10)'">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <i class="fas fa-exclamation-triangle text-3xl text-transparent bg-clip-text" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                
-            </div>
-            <p class="mb-1" style="font-family: 'Manrope', sans-serif;font-size: 30px; font-weight: 700; color: #000000;" x-text="metricas.alertas"></p>
-            <p style="font-family: 'Manrope', sans-serif;font-size: 16px; font-weight: 400; color: #000000; text-transform: none; letter-spacing: normal;">Alertas Activas</p>
-        </div>
-    </div>
-    
-    <!-- Mi trabajo de hoy -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Derivaciones pendientes de aceptar -->
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div class="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <i class="fas fa-share-nodes mr-2 text-orange-500"></i>
-                    Derivaciones pendientes de aceptar
-                </h3>
-                <span class="inline-flex items-center justify-center min-w-[1.6rem] h-6 px-2 rounded-full text-xs font-bold {% if derivaciones_pendientes_count %}bg-orange-100 text-orange-700{% else %}bg-gray-100 text-gray-500{% endif %}">{{ derivaciones_pendientes_count }}</span>
+                    <div>
+                        <div class="ds-card-header-title">Derivaciones pendientes de aceptar</div>
+                    </div>
+                </div>
+                <span class="count-chip {% if derivaciones_pendientes_count %}bg-[var(--bg-warning-soft)] text-[var(--text-fg-warning)]{% else %}bg-[var(--bg-tertiary)] text-[var(--text-body-subtle)]{% endif %}">{{ derivaciones_pendientes_count }}</span>
             </div>
             {% if derivaciones_pendientes %}
-            <div class="divide-y divide-[#E5E7EB] max-h-80 overflow-y-auto">
+            <div style="max-height: 320px; overflow-y: auto;">
                 {% for deriv in derivaciones_pendientes %}
-                <a href="{% url 'legajos:ciudadano_detalle' deriv.ciudadano_id %}#derivaciones" class="block px-6 py-3 hover:bg-gray-50 transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div class="min-w-0">
-                            <span class="text-sm font-medium text-gray-900">{{ deriv.ciudadano.apellido }}, {{ deriv.ciudadano.nombre }}</span>
-                            <span class="ml-2 text-xs text-gray-500">→ {{ deriv.programa_destino.nombre }}</span>
-                        </div>
-                        <span class="text-xs text-gray-500 flex-shrink-0 ml-3">{{ deriv.creado|date:"d/m/Y" }}</span>
+                <a href="{% url 'legajos:ciudadano_detalle' deriv.ciudadano_id %}#derivaciones" class="feed-row">
+                    <div class="feed-dot" style="background: var(--bg-warning-soft); color: var(--text-fg-warning);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+                        </svg>
                     </div>
-                    {% if deriv.motivo %}<p class="mt-0.5 truncate text-xs text-gray-500">{{ deriv.motivo|truncatechars:90 }}</p>{% endif %}
+                    <div class="flex-1 min-w-0">
+                        <div class="feed-text font-semibold" style="color: var(--text-heading);">{{ deriv.ciudadano.apellido }}, {{ deriv.ciudadano.nombre }}</div>
+                        <div class="feed-meta">→ {{ deriv.programa_destino.nombre }}</div>
+                        {% if deriv.motivo %}<div class="feed-meta" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ deriv.motivo|truncatechars:80 }}</div>{% endif %}
+                    </div>
+                    <div class="feed-meta flex-shrink-0 ml-3">{{ deriv.creado|date:"d/m/Y" }}</div>
                 </a>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="py-10 text-center">
-                <i class="fas fa-circle-check text-3xl text-green-200 mb-2"></i>
-                <p class="text-sm text-gray-500">No hay derivaciones pendientes. Todo al día.</p>
+            <div class="feed-empty">
+                <div class="feed-empty-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="feed-empty-text">Sin derivaciones pendientes. Todo al día.</div>
             </div>
             {% endif %}
         </div>
 
-        <!-- Conversaciones sin asignar -->
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div class="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <i class="fas fa-comments mr-2 text-purple-500"></i>
-                    Conversaciones sin asignar
-                </h3>
+        {# Conversaciones sin asignar #}
+        <div class="ds-card">
+            <div class="ds-card-header flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <span class="inline-flex items-center justify-center min-w-[1.6rem] h-6 px-2 rounded-full text-xs font-bold {% if conversaciones_sin_asignar_count %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}">{{ conversaciones_sin_asignar_count }}</span>
-                    <a href="{% url 'conversaciones:lista' %}" class="text-xs font-medium text-purple-600 hover:text-purple-800">Ver todas</a>
+                    <div class="task-icon-tile" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="ds-card-header-title">Conversaciones sin asignar</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="count-chip {% if conversaciones_sin_asignar_count %}bg-[var(--bg-brand-soft)] text-[var(--text-fg-brand)]{% else %}bg-[var(--bg-tertiary)] text-[var(--text-body-subtle)]{% endif %}">{{ conversaciones_sin_asignar_count }}</span>
+                    <a href="{% url 'conversaciones:lista' %}" class="btn-nodo btn-tertiary btn-xs">Ver todas</a>
                 </div>
             </div>
             {% if conversaciones_sin_asignar %}
-            <div class="divide-y divide-[#E5E7EB] max-h-80 overflow-y-auto">
+            <div style="max-height: 320px; overflow-y: auto;">
                 {% for conv in conversaciones_sin_asignar %}
-                <a href="{% url 'conversaciones:detalle' conv.pk %}" class="block px-6 py-3 hover:bg-gray-50 transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div class="min-w-0">
-                            <span class="text-sm font-medium text-gray-900">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
-                            {% if conv.dni_ciudadano %}<span class="ml-2 text-xs text-gray-500">DNI {{ conv.dni_ciudadano }}</span>{% endif %}
-                        </div>
-                        <span class="text-xs text-gray-500 flex-shrink-0 ml-3">{{ conv.fecha_inicio|date:"d/m H:i" }}</span>
+                <a href="{% url 'conversaciones:detalle' conv.pk %}" class="feed-row">
+                    <div class="feed-dot" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/>
+                        </svg>
                     </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="feed-text font-semibold" style="color: var(--text-heading);">#{{ conv.pk }} — {{ conv.get_tipo_display }}</div>
+                        {% if conv.dni_ciudadano %}<div class="feed-meta">DNI {{ conv.dni_ciudadano }}</div>{% endif %}
+                    </div>
+                    <div class="feed-meta flex-shrink-0 ml-3">{{ conv.fecha_inicio|date:"d/m H:i" }}</div>
                 </a>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="py-10 text-center">
-                <i class="fas fa-circle-check text-3xl text-green-200 mb-2"></i>
-                <p class="text-sm text-gray-500">No hay conversaciones esperando operador.</p>
+            <div class="feed-empty">
+                <div class="feed-empty-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="feed-empty-text">Sin conversaciones esperando operador.</div>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Dashboard Principal -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <!-- Gráfico de Tendencias -->
-        <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-900">Tendencias Mensuales</h3>
-                <div class="flex space-x-2">
-                    <button
-                        @click="cambiarPeriodo('7d')"
-                        :style="periodo === '7d' ? 'background: #5059BC; color: #FFFFFF;' : 'background: #F3F4F6; color: #4B5563;'"
-                        class="min-w-[56px] px-3 py-1 rounded-lg text-sm text-center transition-colors"
-                    >7D</button>
-                    <button
-                        @click="cambiarPeriodo('30d')"
-                        :style="periodo === '30d' ? 'background: #5059BC; color: #FFFFFF;' : 'background: #F3F4F6; color: #4B5563;'"
-                        class="min-w-[56px] px-3 py-1 rounded-lg text-sm text-center transition-colors"
-                    >30D</button>
-                    <button
-                        @click="cambiarPeriodo('90d')"
-                        :style="periodo === '90d' ? 'background: #5059BC; color: #FFFFFF;' : 'background: #F3F4F6; color: #4B5563;'"
-                        class="min-w-[56px] px-3 py-1 rounded-lg text-sm text-center transition-colors"
-                    >90D</button>
-                </div>
-            </div>
-            <div class="h-80">
-                <canvas id="chartTendencias" class="w-full h-full"></canvas>
-            </div>
-        </div>
-
-        <!-- Estados de Legajos -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-semibold text-gray-900 mb-6">Estados de Legajos</h3>
-            <div class="h-64">
-                <canvas id="chartEstados" class="w-full h-full"></canvas>
-            </div>
-            <div class="mt-4 space-y-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-nodo-cyan rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">Abiertos</span>
-                    </div>
-                    <span class="text-sm font-medium" x-text="estadosLegajos.abiertos"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-nodo-purple rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">En Seguimiento</span>
-                    </div>
-                    <span class="text-sm font-medium" x-text="estadosLegajos.seguimiento"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-magenta rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">Derivaciones pendientes</span>
-                    </div>
-                    <span class="text-sm font-medium" x-text="estadosLegajos.derivados"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-gray-500 rounded-full mr-2"></div>
-                        <span class="text-sm text-gray-600">Cerrados</span>
-                    </div>
-                    <span class="text-sm font-medium" x-text="estadosLegajos.cerrados"></span>
-                </div>
-            </div>
-        </div>
+    {# ── Accesos rápidos ── #}
+    <div class="ini-section-title">
+        <h2>Accesos rápidos</h2>
     </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
 
-    <!-- Programas y Actividad -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Inscripciones por programa -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-semibold text-gray-900 mb-6">Inscripciones activas por programa</h3>
-            {% if programas_chart %}
-            <div class="h-80">
-                <canvas id="chartProgramas" class="w-full h-full"></canvas>
-            </div>
-            {% else %}
-            <div class="h-80 flex flex-col items-center justify-center">
-                <i class="fas fa-layer-group text-4xl text-gray-200 mb-3"></i>
-                <p class="text-sm text-gray-500">No hay inscripciones activas en programas.</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Timeline de Actividad -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-900">Actividad Reciente</h3>
-                <div class="flex items-center space-x-2">
-                    <div class="w-2 h-2 bg-nodo-cyan rounded-full animate-pulse"></div>
-                    <span class="text-sm text-gray-500">Se actualiza cada 30 s</span>
-                </div>
-            </div>
-            <div class="space-y-4 max-h-80 overflow-y-auto">
-                <template x-for="actividad in actividadReciente">
-                    <div class="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div class="flex-shrink-0">
-                            <div
-                                
-                                class="w-8 h-8 rounded-full flex items-center justify-center"
-                                style="background: #B5BAF0;"
-                                
-                            >
-                                <i
-                                    :class="actividad.icono"
-                                    
-                                    style="color: #5059BC; font-size: 19px;"
-                                    
-                                ></i>
-                            </div>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-900" x-text="actividad.descripcion"></p>
-                            <p class="text-xs text-gray-500" x-text="actividad.usuario + ' • ' + actividad.tiempo"></p>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-    </div>
-
-    <!-- Acciones Rápidas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {% if user|puede:"ciudadano.ver" %}
-        <a href="{% url 'legajos:ciudadanos' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px;">
-                        <i class="fas fa-users" style="font-size: 25px; color: #5059BC;"></i>
-                    </div>
+        <a href="{% url 'legajos:ciudadanos' %}" class="acceso-btn">
+            <div class="acceso-icon" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
+                </svg>
             </div>
-            <h4 class="text-base font-semibold mb-1 text-[#252F40]">Gestionar Ciudadanos</h4>
-            <p class="text-xs text-[#8C8C8C]">Ver, buscar y administrar</p>
+            <span class="acceso-label">Ciudadanos</span>
+            <span class="acceso-chevron">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+            </span>
         </a>
         {% endif %}
 
         {% if user|puede:"ciudadano.crear" %}
-        <a href="{% url 'legajos:ciudadano_nuevo' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px;">
-                        <i class="fas fa-plus-circle" style="font-size: 25px; color: #5059BC;"></i>
-                    </div>
+        <a href="{% url 'legajos:ciudadano_nuevo' %}" class="acceso-btn">
+            <div class="acceso-icon" style="background: var(--bg-success-soft); color: var(--text-fg-success);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>
+                </svg>
             </div>
-            <h4 class="text-base font-semibold mb-1 text-[#252F40]">Nuevo Registro</h4>
-            <p class="text-xs text-[#8C8C8C]">Crear legajo rápido</p>
+            <span class="acceso-label">Nuevo legajo</span>
+            <span class="acceso-chevron">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+            </span>
         </a>
         {% endif %}
 
-        <a href="{% url 'legajos:reportes' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px;">
-                        <i class="fas fa-chart-bar" style="font-size: 25px; color: #5059BC;"></i>
-                    </div>
+        <a href="{% url 'legajos:reportes' %}" class="acceso-btn">
+            <div class="acceso-icon" style="background: var(--bg-warning-soft); color: var(--text-fg-warning);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
+                </svg>
             </div>
-            <h4 class="text-base font-semibold mb-1 text-[#252F40]">Reportes</h4>
-            <p class="text-xs text-[#8C8C8C]">Análisis y estadísticas</p>
+            <span class="acceso-label">Reportes</span>
+            <span class="acceso-chevron">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+            </span>
         </a>
 
-        <a href="{% url 'configuracion:programas' %}" class="block bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
-            <div class="flex items-center justify-between mb-3">
-                
-                    <div class="inline-flex items-center justify-center rounded-xl" style="width: 41px; height: 41px;">
-                        <i class="fas fa-cog" style="font-size: 25px; color: #5059BC;"></i>
-                    </div>
+        <a href="{% url 'configuracion:programas' %}" class="acceso-btn">
+            <div class="acceso-icon" style="background: var(--bg-tertiary); color: var(--text-body-subtle);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
             </div>
-            <h4 class="text-base font-semibold mb-1 text-[#252F40]">Configuración</h4>
-            <p class="text-xs text-[#8C8C8C]">Programas y catálogos</p>
+            <span class="acceso-label">Configuración</span>
+            <span class="acceso-chevron">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+            </span>
         </a>
+    </div>
+
+    {# ── Cobertura por programa + Actividad/Tendencias ── #}
+    <div class="ini-section-title">
+        <h2>Cobertura por programa</h2>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-7">
+
+        {# ProgressBars — cobertura #}
+        <div class="lg:col-span-2 ds-card">
+            <div class="ds-card-header">
+                <div class="ds-card-header-title">Inscripciones activas por programa</div>
+                <div class="ds-card-header-sub">Distribución de legajos activos en programas sociales</div>
+            </div>
+            <div style="padding: 20px;">
+                {% if programas_chart %}
+                    {# programas_chart viene ordenado DESC por count → el primero es el máximo #}
+                    {% with max_count=programas_chart.0.count %}
+                    {% for prog in programas_chart %}
+                    {# widthratio calcula: (prog.count / max_count) * 100 → porcentaje #}
+                    {% widthratio prog.count max_count 100 as pct %}
+                    <div style="margin-bottom: 16px;">
+                        <div class="progress-label-row">
+                            <span>{{ prog.nombre }}</span>
+                            <span class="progress-pct">{{ prog.count }}</span>
+                        </div>
+                        <div class="progress-track">
+                            {# prog.color es dato del modelo (dato del backend), con fallback al token de marca #}
+                            <div class="progress-fill" style="width: {{ pct }}%; background: {{ prog.color|default:'var(--gradient-brand)' }};"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endwith %}
+                {% else %}
+                <div style="padding: 40px 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                    <div style="color: var(--text-fg-brand); opacity: .3;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
+                        </svg>
+                    </div>
+                    <div style="font-size: 17px; font-weight: 700; color: var(--text-heading); font-family: var(--font-sans);">Sin inscripciones activas</div>
+                    <div style="font-size: 14px; color: var(--text-body); font-family: var(--font-sans); max-width: 360px;">No hay programas con inscripciones activas en este momento.</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Gráfico de tendencias (Chart.js, datos dinámicos via API) #}
+        <div class="ds-card" style="display: flex; flex-direction: column;">
+            <div class="ds-card-header" style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div class="ds-card-header-title">Tendencias</div>
+                    <div class="ds-card-header-sub">Nuevas inscripciones</div>
+                </div>
+                <div class="flex gap-1">
+                    <button @click="cambiarPeriodo('7d')" class="btn-nodo btn-xs"
+                        :class="periodo === '7d' ? 'btn-brand' : 'btn-secondary'"
+                        style="min-width: 40px;">7D</button>
+                    <button @click="cambiarPeriodo('30d')" class="btn-nodo btn-xs"
+                        :class="periodo === '30d' ? 'btn-brand' : 'btn-secondary'"
+                        style="min-width: 40px;">30D</button>
+                    <button @click="cambiarPeriodo('90d')" class="btn-nodo btn-xs"
+                        :class="periodo === '90d' ? 'btn-brand' : 'btn-secondary'"
+                        style="min-width: 40px;">90D</button>
+                </div>
+            </div>
+            <div style="padding: 16px 20px; flex: 1; min-height: 220px;">
+                <canvas id="chartTendencias" style="width: 100%; height: 100%;"></canvas>
+            </div>
+        </div>
     </div>
 
 </div>
 
+{# JSON pasado a JS de forma segura #}
 {{ programas_chart|json_script:"programas-data" }}
 
+{% endblock %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function dashboard() {
+function dashboardInicio() {
     return {
         busqueda: '',
         resultadosBusqueda: [],
         periodo: '30d',
         saludo: '',
-        fechaHora: '',
         chartTendencias: null,
-        chartEstados: null,
-        metricas: {
-            ciudadanos: {{ total_ciudadanos|default:"0" }},
-            legajos: {{ legajos_activos|default:"0" }},
-            seguimientos: {{ seguimientos_hoy|default:"0" }},
-            alertas: {{ alertas_activas|default:"0" }}
-        },
-        estadosLegajos: {
-            abiertos: 0,
-            seguimiento: 0,
-            derivados: 0,
-            cerrados: 0
-        },
-        alertasCriticas: [],
-        actividadReciente: [],
         dashboardApiUrls: {
-            metricas: "{% url 'dashboard:api_metricas' %}",
             buscarCiudadanos: "{% url 'dashboard:api_buscar_ciudadanos' %}",
-            alertasCriticas: "{% url 'dashboard:api_alertas_criticas' %}",
-            actividadReciente: "{% url 'dashboard:api_actividad_reciente' %}",
             tendencias: "{% url 'dashboard:api_tendencias' %}",
         },
 
         init() {
             this.actualizarSaludo();
-            this.actualizarFechaHora();
-            this.inicializarGraficos();
-            this.cargarTendencias();
-            this.actualizarDatos();
-            setInterval(() => this.actualizarFechaHora(), 1000);
-            setInterval(() => this.actualizarDatos(), 30000);
-        },
-        
-        cargarDatosIniciales() {
-            fetch(this.dashboardApiUrls.alertasCriticas)
-                .then(response => response.json())
-                .then(data => {
-                    this.alertasCriticas = data.results;
-                    this.notificaciones = data.results.length;
-                })
-                .catch(error => console.error('Error cargando alertas:', error));
-            
-            fetch(this.dashboardApiUrls.actividadReciente)
-                .then(response => response.json())
-                .then(data => {
-                    this.actividadReciente = data.results;
-                })
-                .catch(error => console.error('Error cargando actividad:', error));
+            this.$nextTick(() => {
+                this.inicializarGraficos();
+                this.cargarTendencias();
+            });
         },
 
         actualizarSaludo() {
             const hora = new Date().getHours();
-            const nombre = '{{ user.get_full_name|default:user.username }}';
-            if (hora < 12) this.saludo = `Buenos días, ${nombre}`;
-            else if (hora < 18) this.saludo = `Buenas tardes, ${nombre}`;
-            else this.saludo = `Buenas noches, ${nombre}`;
-        },
-
-        actualizarFechaHora() {
-            const ahora = new Date();
-            this.fechaHora = ahora.toLocaleDateString('es-AR', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            if (hora < 12) this.saludo = 'Buenos días';
+            else if (hora < 18) this.saludo = 'Buenas tardes';
+            else this.saludo = 'Buenas noches';
         },
 
         buscarCiudadano() {
@@ -477,158 +826,86 @@ function dashboard() {
                 this.resultadosBusqueda = [];
                 return;
             }
-            
             fetch(`${this.dashboardApiUrls.buscarCiudadanos}?q=${encodeURIComponent(this.busqueda)}`)
-                .then(response => response.json())
-                .then(data => {
-                    this.resultadosBusqueda = data.results || [];
-                })
-                .catch(error => {
-                    console.error('Error en búsqueda:', error);
-                    this.resultadosBusqueda = [];
-                });
+                .then(r => r.json())
+                .then(data => { this.resultadosBusqueda = data.results || []; })
+                .catch(() => { this.resultadosBusqueda = []; });
         },
 
-        cambiarPeriodo(nuevoPeriodo) {
-            this.periodo = nuevoPeriodo;
+        cambiarPeriodo(p) {
+            this.periodo = p;
             this.cargarTendencias();
         },
 
         cargarTendencias() {
             fetch(`${this.dashboardApiUrls.tendencias}?periodo=${this.periodo}`)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
                     if (!this.chartTendencias) return;
                     this.chartTendencias.data.labels = data.labels || [];
                     this.chartTendencias.data.datasets[0].data = data.datos || [];
                     this.chartTendencias.update();
                 })
-                .catch(error => console.error('Error cargando tendencias:', error));
-        },
-
-        getIconoActividad(tipo) {
-            const colores = {
-                create: 'bg-cyan-100 text-nodo-cyan',
-                update: 'bg-purple-100 text-nodo-purple',
-                alert: 'bg-red-100 text-red-600',
-                login: 'bg-pink-100 text-magenta'
-            };
-            return colores[tipo] || 'bg-gray-100 text-gray-600';
+                .catch(err => console.error('Error cargando tendencias:', err));
         },
 
         inicializarGraficos() {
-            const rootStyles = getComputedStyle(document.documentElement);
-            const highlightColor = rootStyles.getPropertyValue('--ui-highlight-color').trim() || '#FF0080';
-            const trendLineColor = '#5059BC';
-            const legajoStatesChartColors = {
-                abiertos: '#C8D29C',
-                seguimiento: '#5059BC',
-                derivados: '#F26DF9',
-                cerrados: '#8A9A46'
-            };
-            const hexToRgba = (hex, alpha) => {
-                const normalizedHex = hex.replace('#', '');
-                const expandedHex = normalizedHex.length === 3
-                    ? normalizedHex.split('').map((char) => char + char).join('')
-                    : normalizedHex;
-                const red = parseInt(expandedHex.slice(0, 2), 16);
-                const green = parseInt(expandedHex.slice(2, 4), 16);
-                const blue = parseInt(expandedHex.slice(4, 6), 16);
-                return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-            };
-            // Gráfico de tendencias (los datos los trae cargarTendencias del API)
-            const ctxTendencias = document.getElementById('chartTendencias').getContext('2d');
-            this.chartTendencias = new Chart(ctxTendencias, {
+            const canvas = document.getElementById('chartTendencias');
+            if (!canvas) return;
+
+            // Chart.js no puede leer vars CSS directamente → se extraen del :root con getComputedStyle
+            const root = getComputedStyle(document.documentElement);
+            const brandColor = root.getPropertyValue('--bg-brand').trim() || '#5059BC';
+            const subtleColor = root.getPropertyValue('--text-body-subtle').trim() || '#6B7280';
+            const borderLight = root.getPropertyValue('--border-light').trim() || '#F3F4F6';
+
+            this.chartTendencias = new Chart(canvas.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
                         label: 'Nuevas inscripciones',
                         data: [],
-                        borderColor: trendLineColor,
-                        backgroundColor: hexToRgba(trendLineColor, 0.1),
+                        borderColor: brandColor,
+                        backgroundColor: 'rgba(80,89,188,0.10)',
                         tension: 0.4,
                         fill: true,
-                        pointRadius: 2
+                        pointRadius: 2,
+                        borderWidth: 2,
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                }
-            });
-
-            // Gráfico de estados (los datos los trae actualizarDatos del API)
-            const ctxEstados = document.getElementById('chartEstados').getContext('2d');
-            this.chartEstados = new Chart(ctxEstados, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Abiertos', 'En Seguimiento', 'Derivaciones pendientes', 'Cerrados'],
-                    datasets: [{
-                        data: [0, 0, 0, 0],
-                        backgroundColor: [
-                            legajoStatesChartColors.abiertos,
-                            legajoStatesChartColors.seguimiento,
-                            legajoStatesChartColors.derivados,
-                            legajoStatesChartColors.cerrados
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-
-            // Inscripciones activas por programa (datos server-side)
-            const programasData = JSON.parse(document.getElementById('programas-data').textContent || '[]');
-            const canvasProgramas = document.getElementById('chartProgramas');
-            if (canvasProgramas && programasData.length) {
-                new Chart(canvasProgramas.getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: programasData.map(p => p.nombre),
-                        datasets: [{
-                            data: programasData.map(p => p.count),
-                            backgroundColor: programasData.map(p => p.color),
-                            borderRadius: 6
-                        }]
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            bodyFont: { family: 'Manrope, sans-serif', size: 13 },
+                            titleFont: { family: 'Manrope, sans-serif', size: 12 },
+                        }
                     },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                font: { family: 'Manrope, sans-serif', size: 12 },
+                                color: subtleColor
+                            },
+                            grid: { color: borderLight }
+                        },
+                        x: {
+                            ticks: {
+                                font: { family: 'Manrope, sans-serif', size: 11 },
+                                color: subtleColor
+                            },
+                            grid: { display: false }
+                        }
                     }
-                });
-            }
+                }
+            });
         },
-
-        actualizarDatos() {
-            fetch(this.dashboardApiUrls.metricas)
-                .then(response => response.json())
-                .then(data => {
-                    this.metricas = data.metricas;
-                    this.estadosLegajos = data.estados_legajos;
-                    if (this.chartEstados) {
-                        this.chartEstados.data.datasets[0].data = [
-                            data.estados_legajos.abiertos,
-                            data.estados_legajos.seguimiento,
-                            data.estados_legajos.derivados,
-                            data.estados_legajos.cerrados
-                        ];
-                        this.chartEstados.update();
-                    }
-                })
-                .catch(error => console.error('Error actualizando métricas:', error));
-
-            this.cargarDatosIniciales();
-        }
-    }
+    };
 }
 </script>
 {% endblock %}

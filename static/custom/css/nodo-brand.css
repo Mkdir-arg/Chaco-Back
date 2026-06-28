@@ -170,21 +170,21 @@ h1, h2, h3 {
     color: var(--nodo-text-muted) !important;
 }
 
-/* Inputs */
+/* Inputs — foco en jacarandá del nuevo diseño (antes magenta legacy) */
 input:focus,
 textarea:focus,
 select:focus {
-    border-color: var(--nodo-magenta) !important;
-    --tw-ring-color: var(--nodo-magenta) !important;
+    border-color: var(--border-brand) !important;
+    --tw-ring-color: var(--border-brand) !important;
 }
 
-/* Links */
+/* Links — color de marca jacarandá del nuevo diseño (antes magenta legacy) */
 a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) {
-    color: var(--nodo-magenta) !important;
+    color: var(--text-fg-brand) !important;
 }
 
 a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]):hover {
-    color: var(--nodo-purple) !important;
+    color: var(--text-fg-brand-strong) !important;
 }
 
 /* Iconos de acción */

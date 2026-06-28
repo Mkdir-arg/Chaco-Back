@@ -1,0 +1,404 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard - Sistema de Contactos{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    color: white;
+    transition: transform 0.3s ease;
+}
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+.chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Dashboard - Sistema de Contactos</h1>
+                    <p class="text-muted">Métricas y estadísticas en tiempo real</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary me-2" onclick="actualizarDatos()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <a href="{% url 'legajos:exportar_reporte_contactos' %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Exportar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Generales -->
+    <div class="row mb-4" id="metricas-generales">
+        <div class="col-md-2">
+            <div class="metric-card text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <h3 id="total-contactos">-</h3>
+                <p class="mb-0">Total Contactos</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <h3 id="contactos-mes">-</h3>
+                <p class="mb-0">Este Mes</p>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <h3 id="contactos-semana">-</h3>
+                <p class="mb-0">Esta Semana</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <h3 id="total-vinculos">-</h3>
+                <p class="mb-0">Vínculos Activos</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card text-center">
+                <div class="loading-spinner mx-auto mb-2"></div>
+                <h3 id="contactos-emergencia">-</h3>
+                <p class="mb-0">Contactos Emergencia</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Principales -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">Contactos por Tipo</h5>
+                <canvas id="chartTipoContacto" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">Estados de Contacto</h5>
+                <canvas id="chartEstadoContacto" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tendencia y Profesionales -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="chart-container">
+                <h5 class="mb-3">Tendencia Semanal</h5>
+                <canvas id="chartTendencia" height="200"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="chart-container">
+                <h5 class="mb-3">Profesionales Más Activos</h5>
+                <div id="profesionales-activos">
+                    <div class="text-center">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Red de Contactos -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">Vínculos por Tipo</h5>
+                <canvas id="chartVinculos" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">Profesionales por Rol</h5>
+                <canvas id="chartRoles" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let charts = {};
+
+// Configuración de colores
+const colors = {
+    primary: '#667eea',
+    secondary: '#764ba2',
+    success: '#28a745',
+    warning: '#ffc107',
+    danger: '#dc3545',
+    info: '#17a2b8'
+};
+
+// Cargar datos iniciales
+document.addEventListener('DOMContentLoaded', function() {
+    cargarMetricas();
+    cargarRedContactos();
+});
+
+function actualizarDatos() {
+    cargarMetricas();
+    cargarRedContactos();
+}
+
+function cargarMetricas() {
+    fetch('{% url "legajos:metricas_contactos_api" %}')
+        .then(response => response.json())
+        .then(data => {
+            actualizarMetricasGenerales(data.metricas_generales);
+            crearGraficoTipoContacto(data.contactos_por_tipo);
+            crearGraficoEstadoContacto(data.contactos_por_estado);
+            crearGraficoTendencia(data.tendencia_semanal);
+            mostrarProfesionalesActivos(data.profesionales_activos);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function cargarRedContactos() {
+    fetch('{% url "legajos:metricas_red_contactos_api" %}')
+        .then(response => response.json())
+        .then(data => {
+            crearGraficoVinculos(data.vinculos_por_tipo);
+            crearGraficoRoles(data.profesionales_por_rol);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function actualizarMetricasGenerales(metricas) {
+    document.getElementById('total-contactos').textContent = metricas.total_contactos;
+    document.getElementById('contactos-mes').textContent = metricas.contactos_mes;
+    document.getElementById('contactos-semana').textContent = metricas.contactos_semana;
+    document.getElementById('total-vinculos').textContent = metricas.total_vinculos;
+    document.getElementById('contactos-emergencia').textContent = metricas.contactos_emergencia;
+    
+    // Ocultar spinners
+    document.querySelectorAll('.loading-spinner').forEach(spinner => {
+        spinner.style.display = 'none';
+    });
+}
+
+function crearGraficoTipoContacto(datos) {
+    const ctx = document.getElementById('chartTipoContacto').getContext('2d');
+    
+    if (charts.tipoContacto) {
+        charts.tipoContacto.destroy();
+    }
+    
+    charts.tipoContacto = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(datos),
+            datasets: [{
+                data: Object.values(datos),
+                backgroundColor: [
+                    colors.primary,
+                    colors.secondary,
+                    colors.success,
+                    colors.warning,
+                    colors.danger,
+                    colors.info
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function crearGraficoEstadoContacto(datos) {
+    const ctx = document.getElementById('chartEstadoContacto').getContext('2d');
+    
+    if (charts.estadoContacto) {
+        charts.estadoContacto.destroy();
+    }
+    
+    charts.estadoContacto = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(datos),
+            datasets: [{
+                label: 'Contactos',
+                data: Object.values(datos),
+                backgroundColor: colors.primary,
+                borderColor: colors.secondary,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function crearGraficoTendencia(datos) {
+    const ctx = document.getElementById('chartTendencia').getContext('2d');
+    
+    if (charts.tendencia) {
+        charts.tendencia.destroy();
+    }
+    
+    charts.tendencia = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: datos.map(d => d.fecha),
+            datasets: [{
+                label: 'Contactos por día',
+                data: datos.map(d => d.contactos),
+                borderColor: colors.primary,
+                backgroundColor: colors.primary + '20',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function mostrarProfesionalesActivos(profesionales) {
+    const container = document.getElementById('profesionales-activos');
+    
+    if (profesionales.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No hay datos</p>';
+        return;
+    }
+    
+    let html = '<div class="list-group list-group-flush">';
+    profesionales.forEach((prof, index) => {
+        const nombre = `${prof.profesional__first_name} ${prof.profesional__last_name}`;
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center border-0">
+                <span>${nombre}</span>
+                <span class="badge bg-primary rounded-pill">${prof.total}</span>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+function crearGraficoVinculos(datos) {
+    const ctx = document.getElementById('chartVinculos').getContext('2d');
+    
+    if (charts.vinculos) {
+        charts.vinculos.destroy();
+    }
+    
+    charts.vinculos = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(datos),
+            datasets: [{
+                data: Object.values(datos),
+                backgroundColor: [
+                    colors.primary,
+                    colors.secondary,
+                    colors.success,
+                    colors.warning,
+                    colors.danger,
+                    colors.info
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function crearGraficoRoles(datos) {
+    const ctx = document.getElementById('chartRoles').getContext('2d');
+    
+    if (charts.roles) {
+        charts.roles.destroy();
+    }
+    
+    charts.roles = new Chart(ctx, {
+        type: 'horizontalBar',
+        data: {
+            labels: Object.keys(datos),
+            datasets: [{
+                label: 'Profesionales',
+                data: Object.values(datos),
+                backgroundColor: colors.secondary,
+                borderColor: colors.primary,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,222 @@
+/* ============================================================
+   CHACO / NODO — Color Tokens
+   Source of truth: static/custom/css/chaco-tokens.css (Figma v1.0)
+   + brand greens sampled from the Gobierno del Chaco logo
+   + the legacy NODO magenta→purple brand gradient.
+   ============================================================ */
+
+:root {
+  /* ---------------------------------------------------------
+     PRIMITIVE SCALE — base palette, do not use directly in UI.
+     Reference these only through the semantic tokens below.
+     --------------------------------------------------------- */
+
+  /* Brand — Jacarandá (jacaranda purple) */
+  --color-brand-050: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #5059bc;
+  --color-brand-600: #5059bc;
+  --color-brand-700: #5059bc;
+  --color-brand-800: #4338ca;
+  --color-brand-900: #3730a3;
+  --color-brand-950: #1e1b4b;
+
+  /* Rosa (pink blossom accent) */
+  --color-pink-050: #fef3ff;
+  --color-pink-100: #fee9ff;
+  --color-pink-200: #fee3ff;
+  --color-pink-300: #fdcfff;
+  --color-pink-400: #fcc3ff;
+  --color-pink-500: #fbafff;
+  --color-pink-600: #f98dff;
+  --color-pink-700: #f26df9;
+  --color-pink-800: #dd5fe4;
+  --color-pink-900: #bf57c4;
+  --color-pink-950: #9b499f;
+
+  /* Verde Campo (olive / sage — from the leaf-field logo mark) */
+  --color-olive-100: #eef1e0;
+  --color-olive-200: #dde3c4;
+  --color-olive-300: #c8d29c;
+  --color-olive-400: #a8b573;
+  --color-olive-500: #8a9a5b;
+  --color-olive-600: #6f7d3f;
+  --color-olive-700: #586633;
+
+  /* Gris (neutrals) */
+  --color-gray-050: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-850: #18212f;
+  --color-gray-900: #111827;
+  --color-gray-950: #030712;
+
+  /* Navy — institutional wordmark / portal headings */
+  --color-navy-900: #001224;
+  --color-navy-700: #252f40;
+
+  /* Emerald (success) */
+  --color-emerald-050: #ecfdf5;
+  --color-emerald-100: #d0fae5;
+  --color-emerald-200: #a4f4cf;
+  --color-emerald-300: #5ee9b5;
+  --color-emerald-400: #00d492;
+  --color-emerald-500: #00bc7d;
+  --color-emerald-600: #009966;
+  --color-emerald-700: #007a55;
+  --color-emerald-800: #006045;
+  --color-emerald-900: #004f3b;
+  --color-emerald-950: #002c22;
+
+  /* Rose (danger) */
+  --color-rose-050: #fef0f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #ffccd3;
+  --color-rose-300: #ffa1ad;
+  --color-rose-400: #ff637e;
+  --color-rose-500: #ff2056;
+  --color-rose-600: #ec003f;
+  --color-rose-700: #c70036;
+  --color-rose-800: #a50036;
+  --color-rose-900: #8b0836;
+  --color-rose-950: #4d0218;
+
+  /* Orange (warning) */
+  --color-orange-050: #fff8f1;
+  --color-orange-100: #feecdc;
+  --color-orange-200: #fcd9bd;
+  --color-orange-300: #fdba8c;
+  --color-orange-400: #ff8a4c;
+  --color-orange-500: #ff5a1f;
+  --color-orange-600: #d03801;
+  --color-orange-700: #b43403;
+  --color-orange-800: #8a2c0d;
+  --color-orange-900: #771d1d;
+
+  /* Cyan / Sky — informational accents */
+  --color-cyan-500: #00b8db;
+  --color-cyan-600: #0092b8;
+  --color-sky-500: #00579d;
+
+  /* Legacy NODO brand hues (kept for marketing/gradient surfaces) */
+  --nodo-magenta: #ff0080;
+  --nodo-purple:  #7928ca;
+  --nodo-cyan:    #08b8cc;
+
+  /* ---------------------------------------------------------
+     SEMANTIC TOKENS — LIGHT (default). Use THESE in UI.
+     --------------------------------------------------------- */
+
+  /* === Surfaces / backgrounds === */
+  --bg-white:          #ffffff;
+  --bg-primary:        #ffffff;            /* cards, panels */
+  --bg-secondary:      var(--color-gray-050);   /* app canvas */
+  --bg-tertiary:       var(--color-gray-100);
+  --bg-quaternary:     var(--color-gray-200);
+  --bg-gray:           var(--color-gray-300);
+  --bg-dark:           var(--color-gray-800);
+  --bg-dark-strong:    var(--color-gray-900);
+  --bg-navy:           var(--color-navy-700);   /* portal footer */
+  --bg-disabled:       var(--color-gray-100);
+
+  --bg-brand-softer:   var(--color-pink-050);
+  --bg-brand-soft:     var(--color-pink-100);
+  --bg-brand-medium:   var(--color-pink-200);
+  --bg-brand:          var(--color-brand-700);
+  --bg-brand-strong:   var(--color-brand-800);
+
+  --bg-success-soft:   var(--color-emerald-050);
+  --bg-success:        var(--color-emerald-700);
+  --bg-danger-soft:    var(--color-rose-050);
+  --bg-danger:         var(--color-rose-700);
+  --bg-warning-soft:   var(--color-orange-050);
+  --bg-warning:        var(--color-orange-500);
+  --bg-info-soft:      var(--color-brand-050);
+
+  --bg-pink:           var(--color-pink-600);
+  --bg-olive:          var(--color-olive-500);
+
+  /* === Borders === */
+  --border-light:          var(--color-gray-100);
+  --border-base:           var(--color-gray-200);   /* default card/input border */
+  --border-base-strong:    var(--color-gray-300);
+  --border-dark:           var(--color-gray-600);
+  --border-brand:          var(--color-brand-700);
+  --border-brand-subtle:   var(--color-pink-200);
+  --border-success:        var(--color-emerald-700);
+  --border-success-subtle: var(--color-emerald-200);
+  --border-danger:         var(--color-rose-700);
+  --border-danger-subtle:  var(--color-rose-200);
+  --border-warning:        var(--color-orange-600);
+  --border-warning-subtle: var(--color-orange-200);
+
+  /* === Text / foreground === */
+  --text-white:            #ffffff;
+  --text-heading:          var(--color-navy-700);    /* h1–h3 */
+  --text-body:             var(--color-gray-600);     /* paragraphs */
+  --text-body-subtle:      var(--color-gray-500);     /* captions, meta */
+  --text-disabled:         var(--color-gray-400);
+  --text-fg-brand:         var(--color-brand-700);
+  --text-fg-brand-strong:  var(--color-brand-900);
+  --text-fg-success:       var(--color-emerald-700);
+  --text-fg-danger:        var(--color-rose-700);
+  --text-fg-warning:       var(--color-orange-900);
+  --text-fg-info:          var(--color-brand-900);
+  --text-fg-pink:          var(--color-pink-600);
+  --text-link:             var(--text-fg-brand);
+  --text-link-hover:       var(--text-fg-brand-strong);
+  --bg-brand-tint:         #dee1ff;   /* tertiary-button hover fill */
+
+  /* === Brand gradients === */
+  /* CHACO signature gradient — Jacarandá → BG Pink. ALWAYS this direction, never reversed.
+     The single most important action per section. (design-kb IR-CP02) */
+  --gradient-brand: linear-gradient(45deg, #5059bc 0%, #f98dff 100%); /* @kind other */
+  /* Cool variant — field-green → jacaranda, used on illustration panels */
+  --gradient-cool:  linear-gradient(135deg, #8a9a5b 0%, #5059bc 100%); /* @kind other */
+  /* Legacy parent-NODO gradient (magenta→purple) — avoid in CHACO surfaces */
+  --gradient-nodo-legacy: linear-gradient(45deg, #7928ca 0%, #ff0080 100%); /* @kind other */
+}
+
+/* ----------------------------------------------------------
+   DARK MODE — opt-in via [data-theme="dark"] or .dark
+   ---------------------------------------------------------- */
+[data-theme="dark"],
+.dark {
+  --bg-white:        #ffffff;
+  --bg-primary:      var(--color-gray-900);
+  --bg-secondary:    var(--color-gray-950);
+  --bg-tertiary:     var(--color-gray-800);
+  --bg-quaternary:   var(--color-gray-700);
+  --bg-gray:         var(--color-gray-600);
+  --bg-disabled:     var(--color-gray-800);
+
+  --bg-brand-softer: var(--color-brand-950);
+  --bg-brand-soft:   var(--color-brand-900);
+  --bg-brand-medium: var(--color-brand-900);
+  --bg-brand:        var(--color-brand-600);
+  --bg-success-soft: var(--color-emerald-950);
+  --bg-danger-soft:  var(--color-rose-950);
+  --bg-warning-soft: var(--color-orange-900);
+
+  --border-light:        var(--color-gray-800);
+  --border-base:         var(--color-gray-800);
+  --border-base-strong:  var(--color-gray-600);
+  --border-brand:        var(--color-brand-500);
+  --border-brand-subtle: var(--color-brand-900);
+
+  --text-heading:     #ffffff;
+  --text-body:        var(--color-gray-400);
+  --text-body-subtle: var(--color-gray-400);
+  --text-disabled:    var(--color-gray-600);
+  --text-fg-brand:        var(--color-brand-400);
+  --text-fg-brand-strong: var(--color-brand-300);
+}

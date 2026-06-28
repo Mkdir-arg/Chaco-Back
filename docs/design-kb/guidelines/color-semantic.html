@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x170" name="Semantic — status" subtitle="Success, warning, danger and info — soft + solid pairs" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin:0; padding:20px; background:var(--bg-white); font-family:var(--font-sans); }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .col b { display:block; font-size:12px; font-weight:700; color:var(--text-heading); margin-bottom:8px; }
+  .pair { display:flex; gap:6px; }
+  .chip { flex:1; height:54px; border-radius:var(--radius-lg); display:flex; align-items:flex-end; padding:6px; font-size:10px; font-weight:600; }
+</style></head>
+<body>
+<div class="grid">
+  <div class="col"><b>Success</b><div class="pair">
+    <div class="chip" style="background:var(--bg-success-soft); color:var(--text-fg-success)">soft</div>
+    <div class="chip" style="background:var(--bg-success); color:#fff">#007a55</div></div></div>
+  <div class="col"><b>Warning</b><div class="pair">
+    <div class="chip" style="background:var(--bg-warning-soft); color:var(--text-fg-warning)">soft</div>
+    <div class="chip" style="background:var(--bg-warning); color:#fff">#ff5a1f</div></div></div>
+  <div class="col"><b>Danger</b><div class="pair">
+    <div class="chip" style="background:var(--bg-danger-soft); color:var(--text-fg-danger)">soft</div>
+    <div class="chip" style="background:var(--bg-danger); color:#fff">#c70036</div></div></div>
+  <div class="col"><b>Info</b><div class="pair">
+    <div class="chip" style="background:var(--bg-info-soft); color:var(--text-fg-info)">soft</div>
+    <div class="chip" style="background:var(--bg-brand); color:#fff">#5059bc</div></div></div>
+</div>
+</body></html>

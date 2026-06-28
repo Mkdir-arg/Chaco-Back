@@ -1,0 +1,200 @@
+{% load static %}
+
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="modalAsignarTerritorial">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-[#3B82F6] to-[#2563EB] p-6 rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-user-plus text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold text-white">Asignar Territorial</h3>
+                        <p class="text-blue-100 text-sm">Caso #{{ caso.id }} - {{ caso.ciudadano_titular.nombre_completo }}</p>
+                    </div>
+                </div>
+                <button onclick="cerrarModal()" class="text-white hover:bg-white/20 rounded-lg p-2 transition-all">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <form method="post" id="formAsignarTerritorial">
+            {% csrf_token %}
+            
+            <div class="p-6 space-y-6">
+                
+                <!-- A) Resumen del Caso -->
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <h4 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        Resumen del Caso
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-[#8C8C8C]">Ciudadano:</span>
+                            <p class="font-medium text-[#252F40]">{{ caso.ciudadano_titular.nombre_completo }}</p>
+                        </div>
+                        <div>
+                            <span class="text-[#8C8C8C]">DNI:</span>
+                            <p class="font-medium text-[#252F40]">{{ caso.ciudadano_titular.dni }}</p>
+                        </div>
+                        <div>
+                            <span class="text-[#8C8C8C]">Municipio:</span>
+                            <p class="font-medium text-[#252F40]">{{ caso.municipio }}</p>
+                        </div>
+                        <div>
+                            <span class="text-[#8C8C8C]">Localidad:</span>
+                            <p class="font-medium text-[#252F40]">{{ caso.localidad }}</p>
+                        </div>
+                        <div>
+                            <span class="text-[#8C8C8C]">Prioridad:</span>
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full {% if caso.prioridad == 'URGENTE' %}bg-red-100 text-red-800{% elif caso.prioridad == 'ALTA' %}bg-orange-100 text-orange-800{% elif caso.prioridad == 'MEDIA' %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ caso.get_prioridad_display }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-[#8C8C8C]">SLA Asignación:</span>
+                            <p class="font-medium text-[#252F40]">{{ sla_asignacion_texto }}</p>
+                        </div>
+                    </div>
+                    {% if caso.observaciones %}
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <span class="text-[#8C8C8C] text-sm">Observaciones del operador:</span>
+                        <p class="text-sm text-[#252F40] mt-1">{{ caso.observaciones }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- B) Selección de Territorial -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <h4 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                        <i class="fas fa-user-check text-green-500 mr-2"></i>
+                        Selección de Territorial <span class="text-red-500 ml-1">*</span>
+                    </h4>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-[#252F40] mb-2">Buscar Territorial</label>
+                        <select name="territorial_id" id="territorial_id" required class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">
+                            <option value="">Seleccione un territorial...</option>
+                            {% for territorial in territoriales %}
+                            <option value="{{ territorial.id }}" data-casos="{{ territorial.casos_activos }}">
+                                {{ territorial.get_full_name|default:territorial.username }} 
+                                {% if territorial.casos_activos > 0 %}({{ territorial.casos_activos }} casos activos){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% if territoriales_sugeridos %}
+                    <div class="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <p class="text-sm font-medium text-blue-900 mb-2">
+                            <i class="fas fa-lightbulb mr-1"></i>Territoriales sugeridos (menor carga):
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for t in territoriales_sugeridos %}
+                            <button type="button" onclick="seleccionarTerritorial({{ t.id }})" class="px-3 py-1 bg-white border border-blue-300 rounded-lg text-sm text-blue-700 hover:bg-blue-100 transition-all">
+                                {{ t.get_full_name|default:t.username }} ({{ t.casos_activos }} casos)
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- C) SLA Relevamiento -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <h4 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                        <i class="fas fa-clock text-purple-500 mr-2"></i>
+                        SLA Relevamiento <span class="text-red-500 ml-1">*</span>
+                    </h4>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-[#252F40] mb-2">Fecha Límite</label>
+                            <input type="date" name="fecha_limite_relevamiento" id="fecha_limite_relevamiento" required value="{{ fecha_limite_default }}" min="{{ fecha_minima }}" class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent">
+                        </div>
+                        <div class="flex items-end">
+                            <div class="bg-purple-50 rounded-lg p-3 border border-purple-200 w-full">
+                                <p class="text-xs text-purple-700 mb-1">Por defecto según prioridad:</p>
+                                <p class="text-sm font-semibold text-purple-900">
+                                    {% if caso.prioridad == 'URGENTE' %}24 horas
+                                    {% elif caso.prioridad == 'ALTA' %}24 horas
+                                    {% elif caso.prioridad == 'MEDIA' %}48 horas
+                                    {% else %}72 horas{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- D) Instrucciones -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <h4 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                        <i class="fas fa-clipboard-list text-orange-500 mr-2"></i>
+                        Instrucciones para el Territorial <span class="text-red-500 ml-1">*</span>
+                    </h4>
+                    
+                    <textarea name="instrucciones" id="instrucciones" required rows="4" minlength="10" placeholder="Ej: Contactar a la familia y coordinar visita domiciliaria. Priorizar relevamiento de condiciones habitacionales y situación alimentaria..." class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"></textarea>
+                    <p class="text-xs text-[#8C8C8C] mt-1">Mínimo 10 caracteres</p>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-6 py-4 rounded-b-2xl flex items-center justify-between border-t border-gray-200">
+                <button type="button" onclick="cerrarModal()" class="px-6 py-3 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300 transition-all font-medium">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+                <button type="submit" class="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+                    <i class="fas fa-check mr-2"></i>Confirmar Asignación
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<script>
+function cerrarModal() {
+    document.getElementById('modalAsignarTerritorial').remove();
+}
+
+function seleccionarTerritorial(id) {
+    document.getElementById('territorial_id').value = id;
+}
+
+// Validación del formulario
+document.getElementById('formAsignarTerritorial').addEventListener('submit', function(e) {
+    const territorial = document.getElementById('territorial_id').value;
+    const instrucciones = document.getElementById('instrucciones').value;
+    const fecha = document.getElementById('fecha_limite_relevamiento').value;
+    
+    if (!territorial) {
+        e.preventDefault();
+        alert('Debe seleccionar un territorial');
+        return false;
+    }
+    
+    if (instrucciones.length < 10) {
+        e.preventDefault();
+        alert('Las instrucciones deben tener al menos 10 caracteres');
+        return false;
+    }
+    
+    if (!fecha) {
+        e.preventDefault();
+        alert('Debe seleccionar una fecha límite');
+        return false;
+    }
+});
+
+// Cerrar con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        cerrarModal();
+    }
+});
+</script>

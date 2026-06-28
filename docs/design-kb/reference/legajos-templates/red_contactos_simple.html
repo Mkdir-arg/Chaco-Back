@@ -1,0 +1,129 @@
+{% extends 'includes/base.html' %}
+{% load static %}
+
+{% block title %}Red de Contactos - {{ ciudadano.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Red de Contactos</h1>
+                <p class="text-gray-600">{{ ciudadano.nombre_completo }} - Legajo #{{ legajo.numero_legajo }}</p>
+            </div>
+            <a href="javascript:history.back()" 
+               class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                ← Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8 px-6">
+                <button class="tab-button active border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600" 
+                        data-tab="vinculos">
+                    👥 Vínculos Familiares
+                </button>
+                <button class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700" 
+                        data-tab="profesionales">
+                    🏥 Profesionales
+                </button>
+                <button class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700" 
+                        data-tab="dispositivos">
+                    🏢 Dispositivos
+                </button>
+                <button class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700" 
+                        data-tab="emergencias">
+                    🚨 Emergencias
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+            <!-- Vínculos Tab -->
+            <div id="vinculos-tab" class="tab-content">
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">👥</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Vínculos Familiares</h3>
+                    <p class="text-gray-500 mb-6">Gestiona la red familiar del ciudadano</p>
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg">
+                        + Agregar Vínculo Familiar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Profesionales Tab -->
+            <div id="profesionales-tab" class="tab-content hidden">
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">🏥</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Equipo Profesional</h3>
+                    <p class="text-gray-500 mb-6">Asigna profesionales al tratamiento</p>
+                    <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg">
+                        + Asignar Profesional
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dispositivos Tab -->
+            <div id="dispositivos-tab" class="tab-content hidden">
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">🏢</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Dispositivos Vinculados</h3>
+                    <p class="text-gray-500 mb-6">Historial de admisiones en dispositivos</p>
+                    <button class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg">
+                        + Vincular Dispositivo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Emergencias Tab -->
+            <div id="emergencias-tab" class="tab-content hidden">
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">🚨</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Contactos de Emergencia</h3>
+                    <p class="text-gray-500 mb-6">Contactos prioritarios para situaciones críticas</p>
+                    <button class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg">
+                        + Agregar Contacto de Emergencia
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Funcionalidad de tabs
+document.addEventListener('DOMContentLoaded', function() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+
+            // Remove active class from all buttons
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            // Add active class to clicked button
+            this.classList.add('active', 'border-blue-500', 'text-blue-600');
+            this.classList.remove('border-transparent', 'text-gray-500');
+
+            // Hide all tab contents
+            tabContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+        });
+    });
+});
+</script>
+{% endblock %}

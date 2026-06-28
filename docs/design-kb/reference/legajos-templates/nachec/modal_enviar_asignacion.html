@@ -1,0 +1,138 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Enviar a Asignación - {{ caso.ciudadano_titular.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-3xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-xl shadow-lg border border-[#E5E7EB] p-8">
+        <h2 class="text-2xl font-bold text-[#252F40] mb-6">Enviar Caso a Asignación Territorial</h2>
+        
+        <!-- Datos del Caso -->
+        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <p class="text-sm"><strong>Ciudadano:</strong> {{ caso.ciudadano_titular.nombre_completo }}</p>
+            <p class="text-sm"><strong>DNI:</strong> {{ caso.ciudadano_titular.numero_documento|default:"Sin DNI" }}</p>
+            <p class="text-sm"><strong>Prioridad:</strong> {{ caso.get_prioridad_display }}</p>
+        </div>
+        
+        <!-- 1. Validación de Revisión Inicial -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-[#252F40] mb-4">1. Validación de Revisión Inicial</h3>
+            <div class="space-y-2">
+                <div class="flex items-center">
+                    {% if validaciones.tarea_completada %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">Tarea VALIDACION completada</span>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                    <span class="text-sm text-red-700 font-bold">Tarea VALIDACION no completada (BLOQUEANTE)</span>
+                    {% if tarea_validacion %}
+                    <form method="post" action="{% url 'legajos:nachec_completar_tarea' tarea_validacion.id %}" class="inline ml-2">
+                        {% csrf_token %}
+                        <button type="submit" class="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">
+                            <i class="fas fa-check mr-1"></i>Completar ahora
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if validaciones.tiene_dni %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">DNI validado</span>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                    <span class="text-sm text-red-700 font-bold">DNI no validado (BLOQUEANTE)</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if validaciones.tiene_prioridad %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">Prioridad definida</span>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                    <span class="text-sm text-red-700 font-bold">Prioridad no definida (BLOQUEANTE)</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {% if validaciones.tiene_municipio %}
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                    <span class="text-sm text-green-700">Municipio especificado</span>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                    <span class="text-sm text-red-700 font-bold">Municipio sin especificar (BLOQUEANTE - requerido para asignación territorial)</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not puede_confirmar %}
+            <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-800 font-bold">
+                    <i class="fas fa-ban mr-2"></i>
+                    <strong>NO SE PUEDE ENVIAR:</strong> Debe completar todas las validaciones obligatorias antes de enviar a asignación.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Formulario -->
+        <form method="post">
+            {% csrf_token %}
+            
+            <!-- 2. Confirmación de Datos Territoriales -->
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-[#252F40] mb-4">2. Confirmación de Datos Territoriales</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-[#252F40] mb-2">Municipio *</label>
+                        <select name="municipio" required class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg">
+                            <option value="">Seleccione municipio...</option>
+                            {% for municipio in municipios %}
+                            <option value="{{ municipio.nombre }}" {% if caso.municipio == municipio.nombre %}selected{% endif %}>{{ municipio.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-[#252F40] mb-2">Localidad</label>
+                        <input type="text" name="localidad" value="{{ caso.localidad }}" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Ingrese localidad...">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3. Observaciones Finales -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-[#252F40] mb-2">Observaciones Finales</label>
+                <textarea name="observaciones" rows="4" class="w-full px-4 py-2 border border-[#E5E7EB] rounded-lg" placeholder="Observaciones para el coordinador que asignará el territorial..."></textarea>
+            </div>
+            
+            <!-- 4. Configuración de SLA -->
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-[#252F40] mb-4">3. Configuración de SLA de Asignación</h3>
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <p class="text-sm text-[#252F40]">
+                        <strong>SLA sugerido:</strong> 
+                        {% if caso.prioridad == 'URGENTE' or caso.prioridad == 'ALTA' %}12 horas{% elif caso.prioridad == 'MEDIA' %}24 horas{% else %}48 horas{% endif %}
+                    </p>
+                    <p class="text-xs text-[#8C8C8C] mt-1">(Calculado automáticamente según prioridad {{ caso.get_prioridad_display }})</p>
+                </div>
+            </div>
+            
+            <!-- Botones -->
+            <div class="flex gap-4">
+                {% if puede_confirmar %}
+                <button type="submit" class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all">
+                    <i class="fas fa-paper-plane mr-2"></i>Confirmar Envío
+                </button>
+                {% else %}
+                <button type="button" disabled class="flex-1 bg-gray-400 text-white px-6 py-3 rounded-lg cursor-not-allowed">
+                    <i class="fas fa-lock mr-2"></i>Completar validaciones primero
+                </button>
+                {% endif %}
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="flex-1 bg-gray-200 text-[#252F40] px-6 py-3 rounded-lg hover:bg-gray-300 transition-all text-center">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

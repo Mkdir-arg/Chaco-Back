@@ -31,7 +31,24 @@ Trabajar code-first.
 - Confirmaciones destructivas: SweetAlert2 o modal equivalente, nunca `confirm()` nativo.
 - Mantener cambios pequeños, consistentes y fáciles de validar.
 
-## Entorno local (fuera de Docker)
+## Diseño / UI (nuevo sistema de diseño)
+
+El proyecto migra su UI a un sistema de diseño nuevo, **calcado del kit** en
+[`docs/design-kb/`](docs/design-kb/) (la app de referencia `Programa Becas - Chaco NODO.html`,
+los `tokens/*.css` y los `components/**/*.jsx`). Tokens reales del proyecto en
+`static/custom/css/chaco-tokens.css`; clases en `nodo-buttons.css` / `nodo-badges.css`.
+
+Para cualquier trabajo de UI usá los **dos agentes** (en `.claude/agents/`):
+
+- **`chaco-design-reviewer`** — el **canon** del diseño (valores exactos de tokens,
+  componentes, patrones de pantalla, login, sidebar, dark mode, contenido es-AR).
+  Usalo para **auditar/corregir** un template contra el sistema. Es la fuente de verdad.
+- **`chaco-frontend`** — **desarrollo y migración** (con `Write`): construir una pantalla
+  nueva o migrar/ajustar una vieja al diseño nuevo. Hereda el canon del revisor y suma la
+  arquitectura Django del repo + metodología + auto-revisión + "gotchas" del repo.
+
+Regla de oro: **cero hex hardcodeado** (todo por token), **Manrope** única, accesibilidad
+primero. Al tocar UI, dejá que el agente lea su canon (no repitas las reglas a mano).
 
 Para correr `manage.py check`, tests rápidos o cualquier `python` del repo sin
 Docker, usar **siempre el venv del proyecto**, nunca el Python global de la

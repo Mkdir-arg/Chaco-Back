@@ -1,0 +1,231 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Finalizar Relevamiento - Caso {{ caso.id }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto mt-8 mb-8">
+    <div class="bg-white rounded-2xl shadow-lg border border-[#E5E7EB] overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <i class="fas fa-check-circle mr-3"></i>
+                Finalizar Relevamiento
+            </h2>
+        </div>
+
+        <form method="post" class="p-6 space-y-6">
+            {% csrf_token %}
+
+            <!-- A) Resumen del caso -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>
+                    Resumen del Caso
+                </h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-[#8C8C8C]">Ciudadano:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.ciudadano_titular.nombre_completo }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[#8C8C8C]">DNI:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.ciudadano_titular.dni }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[#8C8C8C]">Municipio:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.municipio }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[#8C8C8C]">Prioridad:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.get_prioridad_display }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[#8C8C8C]">SLA Relevamiento:</span>
+                        <span class="font-medium {% if sla_vencido %}text-red-600{% else %}text-[#252F40]{% endif %} ml-2">{{ sla_texto }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[#8C8C8C]">Inicio:</span>
+                        <span class="font-medium text-[#252F40] ml-2">{{ caso.fecha_inicio_relevamiento|date:"d/m/Y H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B) Estado de completitud -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-tasks mr-2 text-purple-600"></i>
+                    Estado de Completitud por Sección
+                </h3>
+                <div class="space-y-2">
+                    {% for seccion, campos in validaciones.faltantes.items %}
+                    <div class="flex items-center justify-between p-2 bg-white rounded-lg">
+                        <span class="text-sm font-medium">{{ seccion|title }}</span>
+                        {% if campos %}
+                            <span class="text-red-600 font-semibold text-xs">
+                                <i class="fas fa-times-circle mr-1"></i>Faltan: {{ campos|join:", " }}
+                            </span>
+                        {% else %}
+                            <span class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Completo</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- C) Evidencias -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-paperclip mr-2 text-orange-600"></i>
+                    Evidencias Adjuntas
+                </h3>
+                <div class="space-y-2">
+                    {% if adjuntos %}
+                        {% for adj in adjuntos %}
+                        <div class="flex items-center justify-between p-2 bg-white rounded-lg text-sm">
+                            <span><i class="fas fa-file mr-2 text-gray-500"></i>{{ adj.etiqueta|default:adj.archivo.name }}</span>
+                            <span class="text-[#8C8C8C]">{{ adj.creado|date:"d/m/Y" }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-2 bg-white rounded-lg text-sm text-[#8C8C8C]">
+                            <i class="fas fa-info-circle mr-2"></i>Sin evidencias adjuntas
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mt-3 p-3 {% if validaciones.evidencia_obligatoria %}bg-red-50 border-red-200{% else %}bg-blue-50 border-blue-200{% endif %} border rounded-lg">
+                        <div class="flex items-start">
+                            <i class="fas {% if validaciones.evidencia_obligatoria %}fa-exclamation-triangle text-red-600{% else %}fa-info-circle text-blue-600{% endif %} mt-1 mr-2"></i>
+                            <div class="text-sm">
+                                {% if validaciones.riesgo_critico %}
+                                    <span class="font-semibold {% if validaciones.evidencia_obligatoria %}text-red-900{% else %}text-blue-900{% endif %}">Evidencia obligatoria:</span>
+                                    <span class="{% if validaciones.evidencia_obligatoria %}text-red-800{% else %}text-blue-800{% endif %}">
+                                        Se detectó situación de riesgo crítico. 
+                                        {% if validaciones.evidencia_obligatoria %}
+                                            Debe adjuntar al menos 1 evidencia para continuar.
+                                        {% else %}
+                                            OK - Evidencia cumplida.
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="font-semibold text-blue-900">Evidencia recomendada:</span>
+                                    <span class="text-blue-800">No hay riesgos críticos. Evidencia no obligatoria pero recomendada.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D) Scoring calculado -->
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-4 border-2 border-purple-200">
+                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                    <i class="fas fa-chart-bar mr-2 text-purple-600"></i>
+                    Scoring de Vulnerabilidad
+                </h3>
+                
+                <div class="bg-white rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-lg font-bold text-[#252F40]">Puntaje Total</span>
+                        <div class="flex items-center">
+                            <span class="text-3xl font-bold {% if score_categoria == 'ALTO' %}text-red-600{% elif score_categoria == 'MEDIO' %}text-orange-600{% else %}text-green-600{% endif %} mr-3">
+                                {{ score_total }}
+                            </span>
+                            <span class="text-sm text-[#8C8C8C]">/ 100</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-[#8C8C8C]">Categoría</span>
+                        <span class="px-4 py-1 rounded-full text-sm font-semibold {% if score_categoria == 'ALTO' %}bg-red-100 text-red-800{% elif score_categoria == 'MEDIO' %}bg-orange-100 text-orange-800{% else %}bg-green-100 text-green-800{% endif %}">
+                            {{ score_categoria }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="bg-white rounded-lg p-3 flex items-center justify-between">
+                        <span class="text-sm font-medium">Familia</span>
+                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.familia }}/15</span>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 flex items-center justify-between">
+                        <span class="text-sm font-medium">Ingresos</span>
+                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.ingresos }}/25</span>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 flex items-center justify-between">
+                        <span class="text-sm font-medium">Vivienda</span>
+                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.vivienda }}/20</span>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 flex items-center justify-between">
+                        <span class="text-sm font-medium">Salud/Alimentación</span>
+                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.salud }}/25</span>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 flex items-center justify-between">
+                        <span class="text-sm font-medium">Riesgos</span>
+                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.riesgos }}/15</span>
+                    </div>
+                </div>
+
+                <div class="mt-3 p-2 bg-purple-100 rounded-lg text-xs text-purple-800">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Versión del algoritmo: v1 | Rangos: 0-30 (Bajo), 31-60 (Medio), 61-100 (Alto)
+                </div>
+            </div>
+
+            <!-- Observaciones de cierre -->
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                    Observaciones de Cierre *
+                </label>
+                <textarea 
+                    name="observaciones_cierre" 
+                    rows="4" 
+                    required
+                    minlength="10"
+                    placeholder="Describa las conclusiones del relevamiento, situaciones destacadas, recomendaciones para la evaluación... (mínimo 10 caracteres)"
+                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                ></textarea>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="px-6 py-3 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300 transition-all font-medium">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                
+                {% if puede_finalizar %}
+                    <button type="submit" class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg">
+                        <i class="fas fa-check-circle mr-2"></i>Confirmar y Finalizar
+                    </button>
+                {% else %}
+                    <button type="button" disabled class="px-8 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed font-medium">
+                        <i class="fas fa-lock mr-2"></i>No se puede finalizar
+                    </button>
+                {% endif %}
+            </div>
+
+            {% if not puede_finalizar %}
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-red-600 mt-1 mr-3"></i>
+                    <div class="text-sm text-red-800">
+                        <span class="font-semibold">No se puede finalizar:</span>
+                        <ul class="list-disc list-inside mt-2 space-y-1">
+                            {% if not validaciones.relevamiento_completo %}
+                                {% for seccion, campos in validaciones.faltantes.items %}
+                                    {% if campos %}
+                                    <li>{{ seccion|title }}: {{ campos|join:", " }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            {% if validaciones.evidencia_obligatoria %}
+                                <li>Debe adjuntar evidencia por situación de riesgo crítico</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

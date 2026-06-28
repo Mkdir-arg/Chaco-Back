@@ -1,0 +1,135 @@
+{% extends 'includes/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Contactos{% endblock %}
+
+{% block main-content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Dashboard de Contactos</h1>
+                <p class="text-gray-600">Sistema de gestión de contactos y red de apoyo</p>
+            </div>
+            <a href="/" 
+               class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                ← Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Métricas Principales -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-phone text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Contactos</p>
+                    <p class="text-2xl font-semibold text-gray-900">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-users text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Vínculos Familiares</p>
+                    <p class="text-2xl font-semibold text-gray-900">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                    <i class="fas fa-user-md text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Profesionales</p>
+                    <p class="text-2xl font-semibold text-gray-900">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-red-100 text-red-600">
+                    <i class="fas fa-exclamation-triangle text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Emergencias</p>
+                    <p class="text-2xl font-semibold text-gray-900">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Contactos por Tipo</h3>
+            <div class="text-center py-12">
+                <div class="text-6xl mb-4">📊</div>
+                <p class="text-gray-500">No hay datos para mostrar</p>
+                <p class="text-sm text-gray-400">Los gráficos aparecerán cuando haya contactos registrados</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Tendencia Semanal</h3>
+            <div class="text-center py-12">
+                <div class="text-6xl mb-4">📈</div>
+                <p class="text-gray-500">No hay datos para mostrar</p>
+                <p class="text-sm text-gray-400">Los gráficos aparecerán cuando haya contactos registrados</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'legajos:lista' %}" 
+               class="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-center transition-colors">
+                <div class="text-3xl mb-2">📋</div>
+                <h4 class="font-medium text-gray-900">Ver Legajos</h4>
+                <p class="text-sm text-gray-600">Acceder a la lista de legajos</p>
+            </a>
+
+            <a href="{% url 'legajos:ciudadanos' %}" 
+               class="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-center transition-colors">
+                <div class="text-3xl mb-2">👥</div>
+                <h4 class="font-medium text-gray-900">Ciudadanos</h4>
+                <p class="text-sm text-gray-600">Gestionar ciudadanos</p>
+            </a>
+
+            <a href="{% url 'legajos:reportes' %}" 
+               class="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg p-4 text-center transition-colors">
+                <div class="text-3xl mb-2">📊</div>
+                <h4 class="font-medium text-gray-900">Reportes</h4>
+                <p class="text-sm text-gray-600">Generar reportes</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Información del Sistema -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+        <div class="flex items-center">
+            <i class="fas fa-info-circle text-blue-500 text-xl mr-3"></i>
+            <div>
+                <h4 class="font-semibold text-blue-900">Sistema de Contactos Activado</h4>
+                <p class="text-blue-700 text-sm">
+                    El sistema de contactos está funcionando correctamente. 
+                    Puedes acceder a las funcionalidades desde el detalle de cada legajo.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,216 @@
+{% load static %}
+
+<div class="modal-header bg-primary text-white">
+    <h5 class="modal-title">
+        <i class="fas fa-redo"></i> Reabrir Caso - {{ caso.ciudadano_titular.nombre_completo }}
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+
+<form method="post" action="{% url 'legajos:nachec_reabrir_caso' caso.id %}">
+    {% csrf_token %}
+    
+    <div class="modal-body">
+        <!-- Sección A: Resumen -->
+        <div class="mb-4">
+            <h6 class="fw-bold text-primary mb-3">
+                <i class="fas fa-info-circle"></i> Información del Cierre
+            </h6>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded">
+                        <small class="text-muted d-block">Fecha de Cierre</small>
+                        <strong>{{ caso.fecha_cierre|date:"d/m/Y"|default:"No registrada" }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded">
+                        <small class="text-muted d-block">Prestaciones Activas</small>
+                        <strong>{{ prestaciones_activas }}</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 p-3 bg-light rounded">
+                <small class="text-muted d-block mb-1">Motivo de Cierre</small>
+                <div class="text-sm">{{ caso.motivo_cierre|default:"No especificado" }}</div>
+            </div>
+            
+            {% if plan_mas_reciente %}
+            <div class="mt-3 p-3 bg-light rounded">
+                <small class="text-muted d-block mb-2">Plan Más Reciente (ID: {{ plan_mas_reciente.id }})</small>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if plan_mas_reciente.incluye_alimentacion %}
+                        <span class="badge bg-orange"><i class="fas fa-utensils"></i> Alimentación</span>
+                    {% endif %}
+                    {% if plan_mas_reciente.incluye_vivienda %}
+                        <span class="badge bg-blue"><i class="fas fa-home"></i> Vivienda</span>
+                    {% endif %}
+                    {% if plan_mas_reciente.incluye_salud %}
+                        <span class="badge bg-red"><i class="fas fa-heartbeat"></i> Salud</span>
+                    {% endif %}
+                    {% if plan_mas_reciente.incluye_educacion %}
+                        <span class="badge bg-purple"><i class="fas fa-graduation-cap"></i> Educación</span>
+                    {% endif %}
+                    {% if plan_mas_reciente.incluye_empleo %}
+                        <span class="badge bg-green"><i class="fas fa-briefcase"></i> Empleo</span>
+                    {% endif %}
+                    {% if plan_mas_reciente.incluye_emprendimiento %}
+                        <span class="badge bg-yellow"><i class="fas fa-lightbulb"></i> Emprendimiento</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="mt-3 alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> No existe plan histórico para este caso
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sección B: Tipo de reapertura -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">
+                <i class="fas fa-cog"></i> Tipo de reapertura <span class="text-danger">*</span>
+            </label>
+            
+            <div class="form-check mb-2">
+                <input 
+                    class="form-check-input" 
+                    type="radio" 
+                    name="tipo_reapertura" 
+                    id="tipo_admin" 
+                    value="ADMINISTRATIVA" 
+                    required
+                    onchange="toggleAccionOperativa(false)">
+                <label class="form-check-label" for="tipo_admin">
+                    <strong>Administrativa</strong> - Solo para consulta/edición documental
+                    <br><small class="text-muted">El caso quedará EN_SEGUIMIENTO sin reactivar prestaciones</small>
+                </label>
+            </div>
+            
+            <div class="form-check">
+                <input 
+                    class="form-check-input" 
+                    type="radio" 
+                    name="tipo_reapertura" 
+                    id="tipo_operativa" 
+                    value="OPERATIVA" 
+                    required
+                    onchange="toggleAccionOperativa(true)">
+                <label class="form-check-label" for="tipo_operativa">
+                    <strong>Operativa</strong> - Reactivar intervención
+                    <br><small class="text-muted">Permite reactivar plan o forzar nueva evaluación</small>
+                </label>
+            </div>
+        </div>
+
+        <!-- Sección B.1: Acción operativa (solo si tipo=OPERATIVA) -->
+        <div id="div_accion_operativa" class="mb-4" style="display:none;">
+            <label class="form-label fw-bold">
+                <i class="fas fa-tasks"></i> Acción operativa <span class="text-danger">*</span>
+            </label>
+            
+            <div class="form-check mb-2">
+                <input 
+                    class="form-check-input" 
+                    type="radio" 
+                    name="accion_operativa" 
+                    id="accion_reactivar" 
+                    value="REACTIVAR_PLAN"
+                    {% if not tiene_plan %}disabled{% endif %}>
+                <label class="form-check-label" for="accion_reactivar">
+                    <strong>Reactivar plan existente</strong>
+                    <br><small class="text-muted">Vuelve a PLAN_DEFINIDO para activar prestaciones (PASO 7)</small>
+                    {% if not tiene_plan %}
+                    <br><span class="badge bg-danger">No disponible: no existe plan</span>
+                    {% endif %}
+                </label>
+            </div>
+            
+            <div class="form-check">
+                <input 
+                    class="form-check-input" 
+                    type="radio" 
+                    name="accion_operativa" 
+                    id="accion_reevaluar" 
+                    value="FORZAR_REEVALUACION">
+                <label class="form-check-label" for="accion_reevaluar">
+                    <strong>Forzar reevaluación</strong>
+                    <br><small class="text-muted">Vuelve a EVALUADO para redefinir plan (PASO 6)</small>
+                </label>
+            </div>
+        </div>
+
+        <!-- Sección C: Motivo de reapertura -->
+        <div class="mb-4">
+            <label for="motivo_reapertura" class="form-label fw-bold">
+                <i class="fas fa-question-circle"></i> Motivo de reapertura <span class="text-danger">*</span>
+            </label>
+            <select name="motivo_reapertura" id="motivo_reapertura" class="form-select" required>
+                <option value="">Seleccione...</option>
+                <option value="CIERRE_ERRONEO">Cierre erróneo</option>
+                <option value="NUEVA_INFO_RELEVANTE">Nueva información relevante</option>
+                <option value="REINCIDENCIA">Reincidencia / Recontacto</option>
+                <option value="AUDITORIA">Auditoría / Control</option>
+                <option value="OTRO">Otro</option>
+            </select>
+        </div>
+
+        <!-- Detalle -->
+        <div class="mb-4">
+            <label for="detalle_reapertura" class="form-label fw-bold">
+                <i class="fas fa-comment"></i> Detalle <span class="text-danger">*</span>
+            </label>
+            <textarea 
+                name="detalle_reapertura" 
+                id="detalle_reapertura" 
+                class="form-control" 
+                rows="4" 
+                required 
+                minlength="30"
+                placeholder="Explique el motivo de la reapertura, qué cambió, qué se espera hacer... (mínimo 30 caracteres)"></textarea>
+            <small class="text-muted">Mínimo 30 caracteres</small>
+        </div>
+
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> 
+            La reapertura quedará registrada en auditoría con todos los detalles.
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times"></i> Cancelar
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-redo"></i> Confirmar Reapertura
+        </button>
+    </div>
+</form>
+
+<script>
+function toggleAccionOperativa(show) {
+    const div = document.getElementById('div_accion_operativa');
+    const radios = document.querySelectorAll('input[name="accion_operativa"]');
+    
+    if (show) {
+        div.style.display = 'block';
+        // Marcar primera opción disponible
+        const primeraDisponible = Array.from(radios).find(r => !r.disabled);
+        if (primeraDisponible) primeraDisponible.checked = true;
+    } else {
+        div.style.display = 'none';
+        radios.forEach(r => r.checked = false);
+    }
+}
+</script>
+
+<style>
+.badge.bg-orange { background-color: #ff9800 !important; }
+.badge.bg-blue { background-color: #2196f3 !important; }
+.badge.bg-red { background-color: #f44336 !important; }
+.badge.bg-purple { background-color: #9c27b0 !important; }
+.badge.bg-green { background-color: #4caf50 !important; }
+.badge.bg-yellow { background-color: #ffc107 !important; color: #000 !important; }
+</style>

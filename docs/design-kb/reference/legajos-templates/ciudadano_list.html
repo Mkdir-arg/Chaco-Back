@@ -1,0 +1,247 @@
+{% extends "includes/base.html" %}
+{% load static rbac %}
+
+{% block title %}Ciudadano{% endblock %}
+
+{% block main-content %}
+<div class="min-h-screen bg-white p-4 lg:p-8">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="flex items-center justify-between animate-fade-in">
+            <div>
+                <h1 class="text-3xl font-bold text-[#252F40]">Ciudadanos registrados</h1>
+                <p class="text-sm text-[#8C8C8C] mt-1">
+                    {{ metricas.legajos_activos }} programas activos
+                </p>
+            </div>
+            {% if request.user|puede:"ciudadano.crear" %}
+            <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-base">
+                <i class="fas fa-plus"></i>
+                Nuevo Ciudadano
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Dashboard de Métricas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0s">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-users text-2xl" style="background: linear-gradient(180deg, {{ branding.dashboard.metric_cards.icon_gradient_start }} 0%, {{ branding.dashboard.metric_cards.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                </div>
+                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.total_ciudadanos }}</p>
+                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Total Ciudadanos</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.1s">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-folder-open text-2xl" style="background: linear-gradient(180deg, {{ branding.dashboard.metric_cards.icon_gradient_start }} 0%, {{ branding.dashboard.metric_cards.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                </div>
+                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.legajos_activos }}</p>
+                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Programas Activos</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.2s">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-exclamation-triangle text-2xl" style="background: linear-gradient(180deg, {{ branding.dashboard.metric_cards.icon_gradient_start }} 0%, {{ branding.dashboard.metric_cards.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                </div>
+                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.alertas_criticas }}</p>
+                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Alertas Activas</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.3s">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-calendar-check text-2xl" style="background: linear-gradient(180deg, {{ branding.dashboard.metric_cards.icon_gradient_start }} 0%, {{ branding.dashboard.metric_cards.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                </div>
+                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.seguimientos_hoy }}</p>
+                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Altas Hoy</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.4s">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-chart-line text-2xl" style="background: linear-gradient(180deg, {{ branding.dashboard.metric_cards.icon_gradient_start }} 0%, {{ branding.dashboard.metric_cards.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                </div>
+                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.tasa_adherencia }}%</p>
+                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Participación Activa</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.5s">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-heartbeat text-2xl" style="background: linear-gradient(180deg, {{ branding.dashboard.metric_cards.icon_gradient_start }} 0%, {{ branding.dashboard.metric_cards.icon_gradient_end }} 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                </div>
+                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.casos_alto_riesgo }}</p>
+                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Derivaciones Altas</p>
+            </div>
+        </div>
+
+        <!-- Buscador -->
+        <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+            <form method="get" class="relative">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8C8C]"></i>
+                <input type="text" name="search" value="{{ request.GET.search }}" placeholder="Buscar por nombre, apellido o DNI (mín. 3 caracteres)..." class="w-full pl-12 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#252F40] placeholder-[#8C8C8C] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all">
+            </form>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm flex flex-wrap gap-3 items-center">
+            <select class="px-4 py-2 border border-[#E5E7EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
+                <option>Todos los riesgos</option>
+                <option>Alto</option>
+                <option>Medio</option>
+                <option>Bajo</option>
+            </select>
+            <select class="px-4 py-2 border border-[#E5E7EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
+                <option>Todos los estados</option>
+                <option>Abierto</option>
+                <option>En Seguimiento</option>
+                <option>Cerrado</option>
+            </select>
+            <button class="btn-nodo btn-secondary btn-sm">
+                <i class="fas fa-bell"></i>Con alertas
+            </button>
+            <button class="btn-nodo btn-secondary btn-sm">
+                <i class="fas fa-calendar-times"></i>Sin plan vigente
+            </button>
+            <button class="btn-nodo btn-tertiary btn-base ml-auto">
+                <i class="fas fa-download text-xs"></i>Exportar
+            </button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="bg-white rounded-xl border border-[#E5E7EB] overflow-hidden shadow-lg">
+            {% if ciudadanos %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Ciudadano</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">DNI</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Dispositivo</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Responsable</th>
+                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Riesgo</th>
+                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Estado</th>
+                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Alertas</th>
+                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#E5E7EB]">
+                        {% for ciudadano in ciudadanos %}
+                        <tr class="hover:bg-[#F9FAFB] transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white font-bold shadow-md">
+                                        {{ ciudadano.nombre|first }}{{ ciudadano.apellido|first }}
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-[#252F40]">{{ ciudadano.nombre }} {{ ciudadano.apellido }}</p>
+                                        <p class="text-xs text-[#8C8C8C]">Ingreso: {{ ciudadano.fecha_creacion|date:"d/m/Y"|default:"-" }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm font-mono text-[#4A5565]">{{ ciudadano.dni }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div>
+                                    <p class="text-sm font-semibold text-[#252F40]">-</p>
+                                    <p class="text-xs text-[#8C8C8C]">Sin asignar</p>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm text-[#4A5565]">-</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="inline-flex items-center px-2 h-5 text-xs font-medium rounded-md text-[#006045] bg-[#ECFDF5] border border-[#A4F4CF]" style="border-radius: 6px;">
+                                    BAJO
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="inline-flex items-center px-2 h-5 text-xs font-medium rounded-md text-[#101828] bg-[#FFFFFF] border border-[#E5E7EB]" style="border-radius: 6px;">
+                                    Abierto
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="text-xs text-[#8C8C8C]">-</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="p-2 rounded-lg transition-colors inline-block" style="color: {{ branding.citizen_list.action_view_color }}; background-color: transparent;" onmouseover="this.style.backgroundColor='{{ branding.citizen_list.action_view_hover_bg }}'" onmouseout="this.style.backgroundColor='transparent'">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            {% if is_paginated %}
+            <div class="px-6 py-4 border-t border-[#E5E7EB] flex items-center justify-between">
+                <p class="text-sm text-[#8C8C8C]">
+                    Página {{ page_obj.number }} de {{ paginator.num_pages }}
+                </p>
+                <div class="flex gap-2">
+                    {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="btn-nodo btn-secondary btn-sm">
+                        Anterior
+                    </a>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="btn-nodo btn-secondary btn-sm">
+                        Siguiente
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="p-12 text-center">
+                <i class="fas fa-users text-6xl text-[#8C8C8C] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-semibold text-[#252F40] mb-2">No se encontraron ciudadanos</h3>
+                <p class="text-[#8C8C8C] mb-6">Comienza agregando el primer ciudadano al sistema</p>
+                {% if request.user|puede:"ciudadano.crear" %}
+                <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-base">
+                    <i class="fas fa-plus"></i>Agregar Ciudadano
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+}
+
+.animate-slide-up {
+    animation: slide-up 0.6s ease-out;
+    animation-fill-mode: both;
+}
+</style>
+{% endblock %}

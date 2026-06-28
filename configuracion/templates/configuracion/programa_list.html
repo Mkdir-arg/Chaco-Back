@@ -4,135 +4,230 @@
 {% block title %}Programas{% endblock %}
 
 {% block content %}
-<div class="p-6">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">Programas</h1>
+<div class="max-w-[1180px] mx-auto px-6 py-7">
+
+    {{/* ── PageHeader ── */}}
+    <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+        <div>
+            <p class="text-xs mb-1" style="color: var(--text-body-subtle);">
+                Configuración
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin:0 2px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                <span style="color: var(--text-body); font-weight:600;">Programas</span>
+            </p>
+            <h1 style="font-family:var(--font-sans);font-size:28px;font-weight:800;color:var(--text-heading);letter-spacing:-0.5px;line-height:1.15;margin:0;">
+                Programas
+            </h1>
+            <p style="font-size:14px;color:var(--text-body-subtle);margin-top:4px;">
+                Administrá los programas sociales registrados en el sistema.
+            </p>
+        </div>
         {% if puede_editar %}
-        <a href="{% url 'configuracion:programa_wizard_paso1' %}"
-           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            <i class="fas fa-plus mr-2"></i>Nuevo programa
+        <a href="{% url 'configuracion:programa_wizard_paso1' %}" class="btn-nodo btn-brand btn-base">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Nuevo programa
         </a>
         {% endif %}
     </div>
 
+    {{/* ── Mensajes ── */}}
     {% if messages %}
-    <div class="mb-4 space-y-2">
+    <div class="mb-5 flex flex-col gap-2">
         {% for message in messages %}
-        <div class="rounded-lg p-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+        <div role="alert" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:var(--shadow-lg);
+            {% if message.tags == 'error' %}background:var(--bg-danger-soft);border:1px solid var(--border-danger-subtle);color:var(--text-fg-danger);
+            {% else %}background:var(--bg-success-soft);border:1px solid var(--border-success-subtle);color:var(--text-fg-success);{% endif %}">
+            {% if message.tags == 'error' %}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;flex-shrink:0;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {% else %}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;flex-shrink:0;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {% endif %}
             {{ message }}
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <form method="get" class="mb-4 flex flex-wrap gap-2">
-        <input type="text" name="q" value="{{ search }}" placeholder="Buscar por nombre o código..."
-               class="block rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-        <select name="estado"
-                class="block rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <option value="">Todos los estados</option>
-            {% for valor, etiqueta in estados %}
-            <option value="{{ valor }}" {% if estado_filtro == valor %}selected{% endif %}>{{ etiqueta }}</option>
-            {% endfor %}
-        </select>
-        <select name="subsecretaria"
-                class="block rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <option value="">Todas las subsecretarías</option>
-            {% for ss in subsecretarias %}
-            <option value="{{ ss.pk }}" {% if subsecretaria_filtro == ss.pk|stringformat:"s" %}selected{% endif %}>{{ ss.nombre }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm">
+    {{/* ── FilterBar ── */}}
+    <form method="get" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:16px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            <label for="id-q" style="font-size:13px;font-weight:600;color:var(--text-heading);">Buscar</label>
+            <div style="position:relative;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-body-subtle);" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                </svg>
+                <input id="id-q" type="text" name="q" value="{{ search }}" placeholder="Nombre o código..."
+                       style="height:42px;padding:0 14px 0 40px;font-size:14px;font-family:var(--font-sans);
+                              color:var(--text-heading);background:var(--bg-white);
+                              border:1px solid var(--border-base);border-radius:var(--rounded-lg);
+                              outline:none;transition:border-color .15s,box-shadow .15s;min-width:220px;"
+                       onfocus="this.style.borderColor='var(--border-brand)';this.style.boxShadow='var(--ring-brand)';"
+                       onblur="this.style.borderColor='var(--border-base)';this.style.boxShadow='none';">
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            <label for="id-estado" style="font-size:13px;font-weight:600;color:var(--text-heading);">Estado</label>
+            <select id="id-estado" name="estado"
+                    style="height:42px;padding:0 38px 0 14px;font-size:14px;font-family:var(--font-sans);
+                           color:var(--text-heading);background:var(--bg-white);
+                           border:1px solid var(--border-base);border-radius:var(--rounded-lg);
+                           outline:none;appearance:none;min-width:180px;transition:border-color .15s,box-shadow .15s;"
+                    onfocus="this.style.borderColor='var(--border-brand)';this.style.boxShadow='var(--ring-brand)';"
+                    onblur="this.style.borderColor='var(--border-base)';this.style.boxShadow='none';">
+                <option value="">Todos los estados</option>
+                {% for valor, etiqueta in estados %}
+                <option value="{{ valor }}" {% if estado_filtro == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            <label for="id-subsecretaria" style="font-size:13px;font-weight:600;color:var(--text-heading);">Subsecretaría</label>
+            <select id="id-subsecretaria" name="subsecretaria"
+                    style="height:42px;padding:0 38px 0 14px;font-size:14px;font-family:var(--font-sans);
+                           color:var(--text-heading);background:var(--bg-white);
+                           border:1px solid var(--border-base);border-radius:var(--rounded-lg);
+                           outline:none;appearance:none;min-width:200px;transition:border-color .15s,box-shadow .15s;"
+                    onfocus="this.style.borderColor='var(--border-brand)';this.style.boxShadow='var(--ring-brand)';"
+                    onblur="this.style.borderColor='var(--border-base)';this.style.boxShadow='none';">
+                <option value="">Todas las subsecretarías</option>
+                {% for ss in subsecretarias %}
+                <option value="{{ ss.pk }}" {% if subsecretaria_filtro == ss.pk|stringformat:"s" %}selected{% endif %}>{{ ss.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn-nodo btn-secondary btn-base">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:16px;height:16px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"/></svg>
             Filtrar
         </button>
     </form>
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Programa</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subsecretaría</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Naturaleza</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                    {% if puede_editar %}
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for programa in programas %}
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 text-sm font-medium text-gray-900">
-                        <span class="inline-flex items-center gap-2">
-                            <i class="fas fa-{{ programa.icono }} text-xs" style="color: {{ programa.color }}"></i>
-                            {{ programa.nombre }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">{{ programa.codigo }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">
-                        {% if programa.subsecretaria %}
-                            {{ programa.subsecretaria.nombre }}<br>
-                            <span class="text-xs text-gray-400">{{ programa.subsecretaria.secretaria.nombre }}</span>
-                        {% else %}
-                            <span class="text-gray-400">—</span>
+    {{/* ── TableCard ── */}}
+    <div style="background:var(--bg-white);border:1px solid var(--border-base);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Programa</th>
+                        <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Código</th>
+                        <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Subsecretaría</th>
+                        <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Naturaleza</th>
+                        <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Estado</th>
+                        {% if puede_editar %}
+                        <th style="padding:11px 16px;text-align:right;font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Acciones</th>
                         {% endif %}
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500">
-                        {% if programa.naturaleza %}
-                            {{ programa.get_naturaleza_display }}
-                        {% else %}
-                            <span class="text-gray-400">—</span>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for programa in programas %}
+                    <tr style="border-top:1px solid var(--border-light);transition:background .15s;" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background=''">
+                        <td style="padding:13px 16px;font-size:13.5px;color:var(--text-heading);font-weight:600;">
+                            <span style="display:inline-flex;align-items:center;gap:8px;">
+                                <i class="fas fa-{{ programa.icono }}" style="color: {{ programa.color|default:'var(--text-fg-brand)' }};font-size:14px;" aria-hidden="true"></i>
+                                {{ programa.nombre }}
+                            </span>
+                        </td>
+                        <td style="padding:13px 16px;font-size:13.5px;color:var(--text-body);font-family:monospace;">{{ programa.codigo }}</td>
+                        <td style="padding:13px 16px;font-size:13.5px;color:var(--text-body);">
+                            {% if programa.subsecretaria %}
+                                {{ programa.subsecretaria.nombre }}<br>
+                                <span style="font-size:12px;color:var(--text-body-subtle);">{{ programa.subsecretaria.secretaria.nombre }}</span>
+                            {% else %}
+                                <span style="color:var(--text-body-subtle);">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:13px 16px;font-size:13.5px;color:var(--text-body);">
+                            {% if programa.naturaleza %}
+                                {{ programa.get_naturaleza_display }}
+                            {% else %}
+                                <span style="color:var(--text-body-subtle);">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:13px 16px;">
+                            {% if programa.estado == 'ACTIVO' %}
+                            <span class="badge badge-success badge-dot">Activo</span>
+                            {% elif programa.estado == 'BORRADOR' %}
+                            <span class="badge badge-warning badge-dot">Borrador</span>
+                            {% elif programa.estado == 'SUSPENDIDO' %}
+                            <span class="badge badge-danger badge-dot">Suspendido</span>
+                            {% else %}
+                            <span class="badge badge-gray badge-dot">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        {% if puede_editar %}
+                        <td style="padding:13px 16px;text-align:right;white-space:nowrap;">
+                            <div style="display:inline-flex;align-items:center;gap:4px;">
+                                <a href="{% url 'configuracion:programa_editar_paso1' programa.pk %}"
+                                   aria-label="Editar {{ programa.nombre }}"
+                                   title="Editar datos"
+                                   style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:var(--text-fg-brand);transition:background .15s;"
+                                   onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                                </a>
+                                {% if programa.estado == 'BORRADOR' %}
+                                <button type="button"
+                                        onclick="cambiarEstado({{ programa.pk }}, 'ACTIVO', '{{ programa.nombre|escapejs }}')"
+                                        aria-label="Activar {{ programa.nombre }}"
+                                        title="Activar"
+                                        style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:var(--text-fg-success);background:none;border:none;cursor:pointer;transition:background .15s;"
+                                        onmouseover="this.style.background='var(--bg-success-soft)'" onmouseout="this.style.background=''">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z"/></svg>
+                                </button>
+                                {% elif programa.estado == 'ACTIVO' %}
+                                <button type="button"
+                                        onclick="cambiarEstado({{ programa.pk }}, 'SUSPENDIDO', '{{ programa.nombre|escapejs }}')"
+                                        aria-label="Suspender {{ programa.nombre }}"
+                                        title="Suspender"
+                                        style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:var(--text-fg-warning);background:none;border:none;cursor:pointer;transition:background .15s;"
+                                        onmouseover="this.style.background='var(--bg-warning-soft)'" onmouseout="this.style.background=''">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"/></svg>
+                                </button>
+                                {% elif programa.estado == 'SUSPENDIDO' %}
+                                <button type="button"
+                                        onclick="cambiarEstado({{ programa.pk }}, 'ACTIVO', '{{ programa.nombre|escapejs }}')"
+                                        aria-label="Reactivar {{ programa.nombre }}"
+                                        title="Reactivar"
+                                        style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:var(--text-fg-success);background:none;border:none;cursor:pointer;transition:background .15s;"
+                                        onmouseover="this.style.background='var(--bg-success-soft)'" onmouseout="this.style.background=''">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z"/></svg>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
                         {% endif %}
-                    </td>
-                    <td class="px-6 py-4">
-                        {% if programa.estado == 'ACTIVO' %}
-                        <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Activo</span>
-                        {% elif programa.estado == 'BORRADOR' %}
-                        <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">Borrador</span>
-                        {% elif programa.estado == 'SUSPENDIDO' %}
-                        <span class="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">Suspendido</span>
-                        {% else %}
-                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Inactivo</span>
-                        {% endif %}
-                    </td>
-                    {% if puede_editar %}
-                    <td class="px-6 py-4 text-right text-sm space-x-2">
-                        <a href="{% url 'configuracion:programa_editar_paso1' programa.pk %}"
-                           class="text-indigo-600 hover:text-indigo-900" title="Editar datos"><i class="fas fa-edit"></i></a>
-                        {% if programa.estado == 'BORRADOR' %}
-                        <button type="button"
-                                onclick="cambiarEstado({{ programa.pk }}, 'ACTIVO', '{{ programa.nombre|escapejs }}')"
-                                class="text-green-600 hover:text-green-900 ml-1" title="Activar">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        {% elif programa.estado == 'ACTIVO' %}
-                        <button type="button"
-                                onclick="cambiarEstado({{ programa.pk }}, 'SUSPENDIDO', '{{ programa.nombre|escapejs }}')"
-                                class="text-orange-600 hover:text-orange-900 ml-1" title="Suspender">
-                            <i class="fas fa-pause"></i>
-                        </button>
-                        {% elif programa.estado == 'SUSPENDIDO' %}
-                        <button type="button"
-                                onclick="cambiarEstado({{ programa.pk }}, 'ACTIVO', '{{ programa.nombre|escapejs }}')"
-                                class="text-green-600 hover:text-green-900 ml-1" title="Reactivar">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        {% endif %}
-                    </td>
-                    {% endif %}
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="{% if puede_editar %}6{% else %}5{% endif %}" class="px-6 py-8 text-center text-sm text-gray-500">
-                        No hay programas registrados.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if puede_editar %}6{% else %}5{% endif %}" style="padding:56px 24px;text-align:center;">
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                     style="width:48px;height:48px;color:var(--text-fg-brand);" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/>
+                                </svg>
+                                <p style="font-size:17px;font-weight:700;color:var(--text-heading);margin:0;">Sin programas registrados</p>
+                                <p style="font-size:14px;color:var(--text-body);max-width:360px;margin:0;">
+                                    {% if search or estado_filtro or subsecretaria_filtro %}
+                                        No se encontraron programas que coincidan con los filtros aplicados.
+                                    {% else %}
+                                        Todavía no hay programas cargados en el sistema.
+                                    {% endif %}
+                                </p>
+                                {% if search or estado_filtro or subsecretaria_filtro %}
+                                <a href="{% url 'configuracion:programa_list' %}" class="btn-nodo btn-tertiary btn-sm" style="margin-top:4px;">Limpiar filtros</a>
+                                {% elif puede_editar %}
+                                <a href="{% url 'configuracion:programa_wizard_paso1' %}" class="btn-nodo btn-brand btn-sm" style="margin-top:4px;">Nuevo programa</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
+
 </div>
 
 <form id="form-cambiar-estado" method="post"
@@ -143,7 +238,8 @@
 </form>
 {% endblock %}
 
-{% block extra_js %}
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 function cambiarEstado(pk, nuevoEstado, nombre) {
     const labels = {
@@ -154,12 +250,15 @@ function cambiarEstado(pk, nuevoEstado, nombre) {
     Swal.fire({
         title: `¿${labels[nuevoEstado]} el programa?`,
         text: `"${nombre}" pasará a estado ${nuevoEstado.toLowerCase()}.`,
-        icon: 'question',
+        icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#2563eb',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Confirmar',
+        confirmButtonText: labels[nuevoEstado],
         cancelButtonText: 'Cancelar',
+        customClass: {
+            confirmButton: 'btn-nodo btn-brand',
+            cancelButton: 'btn-nodo btn-tertiary',
+        },
+        buttonsStyling: false,
     }).then((result) => {
         if (result.isConfirmed) {
             const form = document.getElementById('form-cambiar-estado');

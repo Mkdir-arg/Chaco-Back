@@ -1,0 +1,20 @@
+<!-- @dsCard group="Brand" viewport="700x170" name="Logo — mark & clear space" subtitle="Isolated leaf-field mark for favicons, avatars and collapsed nav" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin:0; padding:24px; background:var(--bg-white); font-family:var(--font-sans); }
+  .row { display:flex; align-items:center; gap:36px; }
+  .m { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .m img { object-fit:contain; }
+  .l { font-size:11px; color:var(--text-body-subtle); }
+  .onbrand { width:72px; height:72px; border-radius:var(--radius-xl); background:var(--bg-brand-soft); display:flex; align-items:center; justify-content:center; }
+</style></head>
+<body>
+<div class="row">
+  <div class="m"><img src="../assets/logo-mark.png" style="width:72px;height:72px" alt="mark" /><div class="l">Mark · 72px</div></div>
+  <div class="m"><img src="../assets/logo-mark.png" style="width:44px;height:44px" alt="mark" /><div class="l">44px</div></div>
+  <div class="m"><img src="../assets/favicon.png" style="width:28px;height:28px" alt="favicon" /><div class="l">Favicon · 28px</div></div>
+  <div class="m"><div class="onbrand"><img src="../assets/logo-mark.png" style="width:48px;height:48px" alt="mark" /></div><div class="l">On soft brand</div></div>
+</div>
+</body></html>

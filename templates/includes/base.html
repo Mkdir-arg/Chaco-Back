@@ -17,7 +17,8 @@
                         // ── CHACO Design System tokens ────────────────────────────
                         fontFamily: {
                             sans:        ['Manrope', 'sans-serif'],
-                            brand:       ['Gellat', 'sans-serif'],
+                            // Manrope es la única familia del sistema; 'brand' queda como alias.
+                            brand:       ['Manrope', 'sans-serif'],
                             // legacy (mantener para compatibilidad con templates existentes)
                             lora:        ['Lora', 'serif'],
                             montserrat:  ['Montserrat', 'sans-serif'],
@@ -152,8 +153,8 @@
                 --nodo-text-muted: #8C8C8C;
                 --nodo-border: #C8D29C;
                 --nodo-bg-white: #FFFFFF;
-                --nodo-gradient: linear-gradient(45deg, #5059BC 0%, #F26DF9 100%);
-                --login-button-gradient: linear-gradient(45deg, #5059BC 0%, #F26DF9 100%);
+                --nodo-gradient: var(--gradient-brand);
+                --login-button-gradient: var(--gradient-brand);
                 --login-button-hover-overlay: rgba(0, 0, 0, 0.20);
                 --login-button-focus-border: #5059BC;
                 --login-button-focus-shadow: #E5E7EB;
@@ -173,11 +174,10 @@
                 --button-tertiary-disabled-text: #5059BC;
                 --button-tertiary-disabled-bg: #F0F2FF;
                 --button-tertiary-disabled-border: #5059BC;
-                --nav-active-color: #5059BC;
-                --nav-active-hover-color: #3D45A0;
-                --ui-highlight-color: #5059BC;
-                --ui-highlight-gradient: linear-gradient(45deg, #5059BC 0%, #f98dff 100%);
-                --gradient-brand: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);
+                --nav-active-color: #A54FA9;
+                --nav-active-hover-color: #8C3E90;
+                --ui-highlight-color: #A54FA9;
+                --ui-highlight-gradient: var(--gradient-brand);
             }
         </style>
         
@@ -198,9 +198,6 @@
         <link rel="stylesheet" href="{% static 'custom/css/mobile-tables.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/alertas_notifications.css' %}" />
         
-        <!-- CHACO Phase 1 — global visual improvements -->
-        <link rel="stylesheet" href="{% static 'custom/css/nodo-phase1.css' %}" />
-
         <!-- Page specific CSS -->
         {% block page_css %}{% endblock %}
         
@@ -209,7 +206,7 @@
         
         <title>NODO Chaco - {% block title %}{% endblock %}</title>
     </head>
-    <body class="min-h-[100dvh] overflow-x-hidden bg-[#F9FAFB] font-sans" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: #F9FAFB;">
+    <body class="min-h-[100dvh] overflow-x-hidden bg-white font-sans" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: var(--fondo-principal);">
         <div class="min-h-[100dvh] overflow-x-hidden">
             {% include 'includes/navbar.html' %}
             {% include 'includes/sidebar/base.html' %}
@@ -219,31 +216,21 @@
                     <div class="min-w-0 px-4 sm:px-6 lg:px-8">
                         {% if messages %}
                             {% for message in messages %}
-                                {% if 'success' in message.tags %}
-                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#A4F4CF] bg-[#ECFDF5] px-4 py-3 text-sm font-medium text-[#006045]" x-data="{ show: true }" x-show="show" x-transition>
-                                        <i class="fas fa-check-circle flex-shrink-0"></i>
-                                        <span class="flex-1">{{ message }}</span>
-                                        <button @click="show = false" class="text-[#006045] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
+                                <div class="mb-4 rounded-md p-4 {{ message.tags }}" x-data="{ show: true }" x-show="show">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-info-circle h-5 w-5"></i>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-medium">{{ message }}</p>
+                                        </div>
+                                        <div class="ml-auto pl-3">
+                                            <button @click="show = false" class="inline-flex rounded-md p-1.5 hover:bg-gray-100">
+                                                <i class="fas fa-times h-5 w-5"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                {% elif 'error' in message.tags %}
-                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#FFCCD3] bg-[#FEF0F2] px-4 py-3 text-sm font-medium text-[#8B0836]" x-data="{ show: true }" x-show="show" x-transition>
-                                        <i class="fas fa-exclamation-circle flex-shrink-0"></i>
-                                        <span class="flex-1">{{ message }}</span>
-                                        <button @click="show = false" class="text-[#8B0836] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
-                                    </div>
-                                {% elif 'warning' in message.tags %}
-                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#FCD9BD] bg-[#FFF8F1] px-4 py-3 text-sm font-medium text-[#771D1D]" x-data="{ show: true }" x-show="show" x-transition>
-                                        <i class="fas fa-exclamation-triangle flex-shrink-0"></i>
-                                        <span class="flex-1">{{ message }}</span>
-                                        <button @click="show = false" class="text-[#771D1D] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
-                                    </div>
-                                {% else %}
-                                    <div class="mb-4 flex items-center gap-3 rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] px-4 py-3 text-sm font-medium text-[#3730A3]" x-data="{ show: true }" x-show="show" x-transition>
-                                        <i class="fas fa-info-circle flex-shrink-0"></i>
-                                        <span class="flex-1">{{ message }}</span>
-                                        <button @click="show = false" class="text-[#3730A3] opacity-60 hover:opacity-100 transition-opacity"><i class="fas fa-times"></i></button>
-                                    </div>
-                                {% endif %}
+                                </div>
                             {% endfor %}
                         {% endif %}
                         
@@ -259,9 +246,9 @@
         {% include 'components/alertas_eventos.html' %}
         
         <!-- Sistema de Modales Modernos -->
-        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-50 hidden bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300">
+        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[100] hidden backdrop-blur-sm transition-opacity duration-300" style="background: rgba(209,213,219,0.7);">
             <div class="flex min-h-[100dvh] items-end justify-center p-0 sm:min-h-screen sm:items-center sm:p-4">
-                <div id="modal-content" class="modal-responsive-content w-full transform bg-white shadow-2xl transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-xl">
+                <div id="modal-content" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
                     <!-- Modal Header -->
                     <div id="modal-header" class="modal-header border-b border-gray-200 p-4 sm:p-6">
                         <div class="flex items-center justify-between">
@@ -282,10 +269,10 @@
                     </div>
                     <!-- Modal Footer -->
                     <div id="modal-footer" class="modal-footer flex flex-col-reverse gap-3 border-t border-gray-200 p-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-3 sm:p-6">
-                        <button id="modal-cancel" class="hidden w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-50 sm:w-auto">
+                        <button id="modal-cancel" class="btn-nodo btn-secondary btn-sm hidden w-full sm:w-auto">
                             Cancelar
                         </button>
-                        <button id="modal-confirm" class="w-full rounded-lg bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] px-6 py-2 text-white transition-colors hover:from-[#2563EB] hover:to-[#7C3AED] sm:w-auto">
+                        <button id="modal-confirm" class="btn-nodo btn-brand btn-sm w-full sm:w-auto">
                             Aceptar
                         </button>
                     </div>
@@ -316,25 +303,27 @@
                         const closeBtn = document.getElementById('modal-close');
                         
                         // Configurar tipo de modal
+                        // iconColor usa clases Tailwind mapeadas a los tokens del sistema (sin hex hardcodeado).
+                        // btnColor siempre es btn-brand (gradiente de marca) según la spec de confirmaciones.
                         const types = {
-                            success: { icon: 'fa-check-circle', color: 'bg-green-100 text-green-600', btnColor: 'bg-green-600 hover:bg-green-700' },
-                            error: { icon: 'fa-exclamation-triangle', color: 'bg-red-100 text-red-600', btnColor: 'bg-red-600 hover:bg-red-700' },
-                            warning: { icon: 'fa-exclamation-triangle', color: 'bg-yellow-100 text-yellow-600', btnColor: 'bg-yellow-600 hover:bg-yellow-700' },
-                            info: { icon: 'fa-info-circle', color: 'bg-blue-100 text-blue-600', btnColor: 'bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] hover:from-[#2563EB] hover:to-[#7C3AED]' },
-                            confirm: { icon: 'fa-question-circle', color: 'bg-purple-100 text-purple-600', btnColor: 'bg-purple-600 hover:bg-purple-700' }
+                            success: { icon: 'fa-check-circle',      iconColor: 'bg-[color:var(--bg-success-soft)] text-[color:var(--text-fg-success)]' },
+                            error:   { icon: 'fa-exclamation-circle', iconColor: 'bg-[color:var(--bg-danger-soft)] text-[color:var(--text-fg-danger)]' },
+                            warning: { icon: 'fa-exclamation-triangle',iconColor: 'bg-[color:var(--bg-warning-soft)] text-[color:var(--text-fg-warning)]' },
+                            info:    { icon: 'fa-info-circle',        iconColor: 'bg-[color:var(--bg-brand-soft)] text-[color:var(--text-fg-brand)]' },
+                            confirm: { icon: 'fa-question-circle',    iconColor: 'bg-[color:var(--bg-tertiary)] text-[color:var(--text-body-subtle)]' }
                         };
                         
                         const type = types[options.type] || types.info;
                         
                         // Configurar contenido
-                        icon.className = `w-10 h-10 rounded-lg flex items-center justify-center ${type.color}`;
+                        icon.className = `w-10 h-10 rounded-lg flex items-center justify-center ${type.iconColor}`;
                         icon.querySelector('i').className = `fas ${type.icon} text-xl`;
                         title.textContent = options.title || 'Información';
                         message.textContent = options.message || '';
-                        
-                        // Configurar botones
+
+                        // Configurar botones — confirmar siempre usa gradiente de marca (btn-brand)
                         confirmBtn.textContent = options.confirmText || 'Aceptar';
-                        confirmBtn.className = `px-6 py-2 text-white rounded-lg transition-colors ${type.btnColor}`;
+                        confirmBtn.className = 'btn-nodo btn-brand btn-sm w-full sm:w-auto';
                         
                         if (options.type === 'confirm') {
                             cancelBtn.classList.remove('hidden');

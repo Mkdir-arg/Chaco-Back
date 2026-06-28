@@ -1,0 +1,2323 @@
+<!-- @dsCard group="Programa Becas" viewport="1440x900" name="Programa Becas — backoffice" subtitle="8 pantallas: segmentos, requisitos, convocatorias, relevamientos, revisión, cupo, legajo, reportes" -->
+<!-- @startingPoint section="Backoffice" subtitle="Módulo Programa Becas (8 pantallas, flujo clickeable)" viewport="1440x900" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Programa Becas — Chaco / NODO</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script src="icons.jsx" type="text/babel" data-presets="react"></script>
+<script src="data.js"></script>
+<script src="inicio-data.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg-secondary); font-family: var(--font-sans); overflow: hidden; color: var(--text-body); }
+  #root { height: 100vh; }
+  .scroll::-webkit-scrollbar { width: 10px; }
+  .scroll::-webkit-scrollbar-thumb { background: var(--border-base-strong); border-radius: 9999px; border: 3px solid var(--bg-secondary); }
+  table { border-collapse: collapse; width: 100%; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-body-subtle); font-weight: 700; text-align: left; padding: 11px 16px; }
+  td { font-size: 13.5px; color: var(--text-body); padding: 13px 16px; border-top: 1px solid var(--border-light); }
+  .rowh:hover { background: var(--bg-tertiary); }
+  .login-illus { display: none; }
+  @media (min-width: 1024px) { .login-illus { display: flex; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const NS = window.ChacoNODODesignSystem_dc2a68;
+const { Button, Card, Input, Select, StatCard, Modal, Avatar, Tabs } = NS;
+const Icon = window.Icon;
+const B = window.BECAS;
+const cupoSum = (seg) => (seg.subsegmentos || []).reduce((a, s) => a + s.cupoMax, 0);
+const ocupadoSum = (seg) => (seg.subsegmentos || []).reduce((a, s) => a + s.ocupado, 0);
+const segById = (id) => B.segmentos.find((s) => s.id === id);
+const subById = (seg, id) => seg && (seg.subsegmentos || []).find((s) => s.id === id);
+const convCupo = (c) => { const s = segById(c.segmentoId); const ss = subById(s, c.subsegmentoId); return ss ? ss.cupoMax : (s ? s.cupoTotal : 0); };
+const convOcupado = (c) => { const s = segById(c.segmentoId); const ss = subById(s, c.subsegmentoId); return ss ? ss.ocupado : (s ? ocupadoSum(s) : 0); };
+const convEspera = (c) => (c.beneficiarios || []).filter((b) => b.estado === 'espera').length;
+
+/* ---------- Badge (estilo unificado: relleno claro + borde tonal suave + texto oscuro) ---------- */
+const BADGE = {
+  gray:    { bg: '#F9FAFB', bd: '#E5E7EB', tx: '#374151' },
+  white:   { bg: '#FFFFFF', bd: '#E5E7EB', tx: '#374151' },
+  brand:   { bg: '#FFEAF6', bd: '#FFB9DC', tx: '#A11F60' },
+  danger:  { bg: '#FEF0F2', bd: '#FFCCD3', tx: '#8B0836' },
+  warning: { bg: '#FFF8F1', bd: '#FCD9BD', tx: '#771D1D' },
+  success: { bg: '#ECFDF5', bd: '#A4F4CF', tx: '#006045' },
+};
+function Badge({ variant = 'gray', dot, children }) {
+  const v = BADGE[variant] || BADGE.gray;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 9999,
+      background: v.bg, border: `1px solid ${v.bd}`, color: v.tx, fontSize: 12, fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+      {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />}
+      {children}
+    </span>
+  );
+}
+
+/* ---------- Toast ---------- */
+const ToastCtx = React.createContext(() => {});
+function ToastHost({ children }) {
+  const [t, setT] = React.useState(null);
+  const push = (msg, tone = 'success') => { setT({ msg, tone }); setTimeout(() => setT(null), 2600); };
+  const tone = { success: { bg: 'var(--bg-success-soft)', bd: 'var(--border-success-subtle)', fg: 'var(--text-fg-success)', ic: 'checkCircle' },
+                 danger: { bg: 'var(--bg-danger-soft)', bd: 'var(--border-danger-subtle)', fg: 'var(--text-fg-danger)', ic: 'xCircle' },
+                 info: { bg: 'var(--bg-info-soft)', bd: 'var(--color-brand-200)', fg: 'var(--text-fg-info)', ic: 'exclamationCircle' } }[t?.tone] || {};
+  return (
+    <ToastCtx.Provider value={push}>
+      {children}
+      {t && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 80, display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 16px', background: tone.bg, border: `1px solid ${tone.bd}`, color: tone.fg, borderRadius: 12, boxShadow: 'var(--shadow-lg)', fontWeight: 600, fontSize: 14 }}>
+          <Icon name={tone.ic} size={18} /> {t.msg}
+        </div>
+      )}
+    </ToastCtx.Provider>
+  );
+}
+
+/* ---------- Sidebar ---------- */
+const NAV = [
+  { id: 'inicio', label: 'Inicio', icon: 'home' },
+  { id: 'segmentos', label: 'Segmentos', icon: 'squares' },
+  { id: 'requisitos', label: 'Requisitos', icon: 'clipboardList' },
+  { id: 'convocatorias', label: 'Convocatorias', icon: 'megaphone' },
+  { id: 'relevamientos', label: 'Relevamientos', icon: 'folderOpen', count: 6 },
+  { id: 'revision', label: 'Revisión de formularios', icon: 'clipboardCheck', count: 1 },
+  { id: 'cupo', label: 'Cupo y lista de espera', icon: 'usersGroup' },
+  { id: 'legajo', label: 'Legajo ciudadano', icon: 'identification' },
+  { id: 'reportes', label: 'Reportes', icon: 'chartBar' },
+];
+function Sidebar({ active, go, collapsed, onToggle }) {
+  return (
+    <aside style={{ width: collapsed ? 84 : 276, flexShrink: 0, background: 'var(--bg-white)', borderRight: '1px solid var(--border-base)', display: 'flex', flexDirection: 'column', height: '100%', transition: 'width .2s var(--ease-standard)' }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 12 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--bg-white)', border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}><img src="../../assets/logo-mark.png" alt="Gobierno del Chaco" style={{ width: 32, height: 32, objectFit: 'contain' }} /></div>
+        {!collapsed && (
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-heading)', lineHeight: 1.15, whiteSpace: 'nowrap' }}>Programa Becas</div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)', whiteSpace: 'nowrap' }}>Gobierno del Chaco</div>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: collapsed ? '14px 0' : '14px 16px', borderBottom: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10 }}>
+        <Avatar name={B.user.name} size={36} />
+        {!collapsed && (
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{B.user.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-body-subtle)' }}>{B.user.role}</div>
+          </div>
+        )}
+      </div>
+      <nav style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', overflowX: 'hidden' }} className="scroll">
+        {NAV.map((n) => {
+          const on = n.id === active;
+          return (
+            <button key={n.id} onClick={() => go(n.id)} title={collapsed ? n.label : undefined} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: collapsed ? '11px 0' : '10px 14px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              border: 'none', cursor: 'pointer', borderRadius: 9999, textAlign: 'left', position: 'relative',
+              background: on ? 'var(--bg-brand)' : 'transparent', color: on ? '#fff' : 'var(--text-body)',
+              fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: on ? 700 : 500 }}
+              onMouseEnter={(e) => { if (!on) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.background = 'transparent'; }}>
+              <Icon name={n.icon} size={20} style={{ color: on ? '#fff' : 'var(--text-body-subtle)' }} />
+              {!collapsed && <span style={{ flex: 1 }}>{n.label}</span>}
+              {!collapsed && n.count != null && <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 9999, background: on ? 'rgba(255,255,255,.25)' : 'var(--bg-tertiary)', color: on ? '#fff' : 'var(--text-body-subtle)' }}>{n.count}</span>}
+              {collapsed && n.count != null && <span style={{ position: 'absolute', top: 4, right: 14, width: 7, height: 7, borderRadius: '50%', background: on ? '#fff' : 'var(--bg-danger)' }} />}
+            </button>
+          );
+        })}
+      </nav>
+      <div style={{ padding: 12, borderTop: '1px solid var(--border-base)' }}>
+        <button onClick={onToggle} title={collapsed ? 'Expandir' : 'Minimizar'} style={{ width: '100%', padding: '10px', border: 'none', borderRadius: 9999, background: 'var(--bg-secondary)', color: 'var(--text-body)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={16} /> {!collapsed && 'Minimizar'}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+/* ---------- Topbar ---------- */
+function Topbar({ onLogout }) {
+  return (
+    <header style={{ height: 64, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 16, padding: '0 24px', background: 'var(--bg-white)', borderBottom: '1px solid var(--border-base)', position: 'sticky', top: 0, zIndex: 20 }}>
+      <div style={{ position: 'relative', width: 320, maxWidth: '34vw' }}>
+        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-body-subtle)' }}><Icon name="search" size={18} /></span>
+        <input placeholder="Buscar ciudadano, DNI, convocatoria…" style={{ width: '100%', height: 40, padding: '0 14px 0 40px', fontFamily: 'var(--font-sans)', fontSize: 13.5, border: '1px solid var(--border-base)', borderRadius: 9999, background: 'var(--bg-secondary)', outline: 'none', color: 'var(--text-heading)' }} />
+      </div>
+      <div style={{ flex: 1 }} />
+      <button aria-label="Alertas" style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-body)', padding: 6 }}>
+        <Icon name="bell" size={22} />
+        <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: 'var(--bg-danger)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
+      </button>
+      <span title="Conectado" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--bg-success)', boxShadow: '0 0 0 3px var(--bg-success-soft)' }} />
+      <Avatar name={B.user.name} size={36} />
+      <button onClick={onLogout} aria-label="Cerrar sesión" title="Cerrar sesión" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-body-subtle)', padding: 6, borderRadius: 8, display: 'inline-flex' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-secondary)'; e.currentTarget.style.color = 'var(--text-fg-danger)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-body-subtle)'; }}><Icon name="arrowLeft" size={20} /></button>
+    </header>
+  );
+}
+
+/* ---------- PageHeader ---------- */
+function PageHeader({ crumb, title, subtitle, cta }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-body-subtle)', marginBottom: 6 }}>
+          <span>Programa Becas</span><Icon name="chevronRight" size={14} /><span style={{ color: 'var(--text-body)', fontWeight: 600 }}>{crumb}</span>
+        </div>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--text-heading)', letterSpacing: '-0.5px' }}>{title}</h1>
+        {subtitle && <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-body-subtle)', maxWidth: 620 }}>{subtitle}</p>}
+      </div>
+      {cta}
+    </div>
+  );
+}
+
+/* ---------- FilterBar ---------- */
+function FilterBar({ children }) {
+  return <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>{children}</div>;
+}
+function TableCard({ children, footer }) {
+  return (
+    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border-base)', borderRadius: 12, boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto' }}>{children}</div>
+      {footer}
+    </div>
+  );
+}
+function Pagination({ shown, total, label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-secondary)' }}>
+      <span style={{ fontSize: 12.5, color: 'var(--text-body-subtle)' }}>Mostrando {shown} de {total} {label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Button size="sm" variant="tertiary" disabled iconNode={<Icon name="chevronLeft" size={16} />}>Anterior</Button>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>1 de 1</span>
+        <Button size="sm" variant="tertiary" iconRight=" " >Siguiente</Button>
+      </div>
+    </div>
+  );
+}
+function IconBtn({ name, label, onClick, tone = 'var(--text-fg-brand)' }) {
+  return <button onClick={onClick} aria-label={label} title={label} style={{ background: 'none', border: 'none', cursor: 'pointer', color: tone, padding: 6, borderRadius: 8, display: 'inline-flex' }}
+    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'} onMouseLeave={(e) => e.currentTarget.style.background = 'none'}><Icon name={name} size={20} /></button>;
+}
+function EmptyState({ icon, title, msg, cta }) {
+  return (
+    <div style={{ padding: '56px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      <div style={{ color: 'var(--text-fg-brand)' }}><Icon name={icon} size={48} /></div>
+      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-heading)' }}>{title}</div>
+      {msg && <div style={{ fontSize: 14, color: 'var(--text-body)', maxWidth: 360 }}>{msg}</div>}
+      {cta && <div style={{ marginTop: 6 }}>{cta}</div>}
+    </div>
+  );
+}
+function Field({ label, children, required }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>{label}{required && <span style={{ color: 'var(--text-fg-danger)', marginLeft: 3 }}>*</span>}</span>
+      {children}
+    </label>
+  );
+}
+
+/* ---------- Revisión de requisitos: ficha de respuestas (no tabla) ---------- */
+function RequisitosReview({ reqs }) {
+  const completos = reqs.filter((r) => r.ok).length;
+  const faltan = reqs.length - completos;
+  return (
+    <Card title="Requisitos del segmento" subtitle="Respuestas cargadas por el territorial" padding={0}
+      headerRight={<Badge variant={faltan ? 'warning' : 'success'} dot>{completos}/{reqs.length} completos</Badge>}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--border-base)', borderTop: '1px solid var(--border-base)' }}>
+        {reqs.map((r, i) => (
+          <div key={i} style={{ background: 'var(--bg-white)', padding: '15px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ marginTop: 1, width: 26, height: 26, flexShrink: 0, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: r.ok ? 'var(--bg-success-soft)' : 'var(--bg-danger-soft)', color: r.ok ? 'var(--text-fg-success)' : 'var(--text-fg-danger)' }}>
+              <Icon name={r.ok ? 'check' : 'warning'} size={15} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-body-subtle)' }}>{r.nombre}</span>
+                <Badge variant="white">{r.tipo}</Badge>
+              </div>
+              {r.ok
+                ? <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-heading)', lineHeight: 1.35, wordBreak: 'break-word' }}>{r.valor}</div>
+                : <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 600, color: 'var(--text-fg-danger)' }}><Icon name="xMark" size={14} /> Sin completar</div>}
+            </div>
+          </div>
+        ))}
+        {reqs.length % 2 === 1 && <div style={{ background: 'var(--bg-secondary)' }} />}
+      </div>
+    </Card>
+  );
+}
+
+/* =====================================================================
+   SCREENS
+   ===================================================================== */
+
+/* ---------- Requisitos panel (reused: segmento padre + subsegmento) ---------- */
+function ReqTipoBadge({ tipo }) { return <Badge variant="white">{tipo}</Badge>; }
+function RequisitosPanel({ target, scope, refresh, push }) {
+  const [modal, setModal] = React.useState(false);
+  const blank = { pregunta: '', tipo: 'STRING', obligatorio: 'Sí', orden: '' };
+  const [form, setForm] = React.useState(blank);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const rows = [...(target.requisitos || [])].sort((a, b) => a.orden - b.orden);
+  const create = () => {
+    if (!form.pregunta.trim()) { push('Ingresá la pregunta', 'danger'); return; }
+    target.requisitos.push({ id: Date.now(), pregunta: form.pregunta.trim(), tipo: form.tipo, obligatorio: form.obligatorio === 'Sí', orden: Number(form.orden) || rows.length + 1 });
+    setModal(false); setForm(blank); refresh(); push('Requisito creado');
+  };
+  const del = (r) => { target.requisitos = target.requisitos.filter((x) => x.id !== r.id); refresh(); push('Requisito eliminado', 'danger'); };
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <span style={{ fontSize: 13, color: 'var(--text-body-subtle)', maxWidth: 560 }}>
+          {scope === 'segmento' ? 'Requisitos del segmento padre. Se heredan en los formularios de todos sus subsegmentos.' : 'Requisitos propios de este subsegmento (se suman a los heredados del segmento padre).'}
+        </span>
+        <Button size="sm" variant="brand" iconNode={<Icon name="plus" size={16} />} onClick={() => setModal(true)}>Nuevo requisito</Button>
+      </div>
+      <TableCard>
+        {rows.length === 0 ? <EmptyState icon="clipboardList" title="Sin requisitos" msg="Todavía no hay requisitos configurados en este nivel." cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setModal(true)}>Nuevo requisito</Button>} /> : (
+          <table>
+            <thead><tr><th style={{ width: 44 }}>Orden</th><th>Pregunta</th><th>Tipo</th><th>Obligatorio</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="rowh">
+                  <td style={{ color: 'var(--text-body-subtle)', fontWeight: 700 }}>{r.orden}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{r.pregunta}</td>
+                  <td><ReqTipoBadge tipo={r.tipo} /></td>
+                  <td>{r.obligatorio ? <Badge variant="brand">Obligatorio</Badge> : <Badge variant="gray">Opcional</Badge>}</td>
+                  <td><div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}><IconBtn name="pencilSquare" label="Editar" onClick={() => push('Editar requisito', 'info')} /><IconBtn name="trash" label="Eliminar" tone="var(--text-fg-danger)" onClick={() => del(r)} /></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </TableCard>
+      {modal && (
+        <Modal title="Nuevo requisito" tone="brand" onClose={() => setModal(false)} width={540}
+          footer={<><Button variant="tertiary" onClick={() => setModal(false)}>Cancelar</Button><Button variant="brand" onClick={create}>Crear requisito</Button></>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <Field label="Pregunta" required><Input placeholder="Ej: ¿Lugar de trabajo / producción?" value={form.pregunta} onChange={set('pregunta')} /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 0.8fr', gap: 16 }}>
+              <Field label="Tipo de campo" required><Select value={form.tipo} onChange={set('tipo')} options={B.tiposRequisito} /></Field>
+              <Field label="Obligatorio" required><Select value={form.obligatorio} onChange={set('obligatorio')} options={['Sí', 'No']} /></Field>
+              <Field label="Orden"><Input type="number" placeholder={String(rows.length + 1)} value={form.orden} onChange={set('orden')} /></Field>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Subsegment detail ---------- */
+function SubsegmentoDetail({ seg, sub, back, refresh, push }) {
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver al segmento</Button>
+      <Card padding={20} style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--bg-brand-soft)', color: 'var(--text-fg-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="listBullet" size={24} /></div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-body-subtle)' }}>Segmento padre: <strong style={{ color: 'var(--text-body)' }}>{seg.nombre}</strong></div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-heading)' }}>{sub.nombre}</div>
+            {sub.desc && <div style={{ fontSize: 13, color: 'var(--text-body-subtle)', marginTop: 2 }}>{sub.desc}</div>}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-body-subtle)', fontWeight: 700 }}>Cupo</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-heading)' }}>{sub.ocupado} / {sub.cupoMax}</div>
+          </div>
+        </div>
+      </Card>
+      <h3 style={{ fontSize: 18, color: 'var(--text-heading)', margin: '0 0 14px' }}>Requisitos del subsegmento</h3>
+      <RequisitosPanel target={sub} scope="subsegmento" refresh={refresh} push={push} />
+    </div>
+  );
+}
+
+/* ---------- Segment detail (3 tabs) ---------- */
+function SegmentoDetail({ seg, initialTab, back, openSub, refresh, push }) {
+  const [tab, setTab] = React.useState(initialTab || 'general');
+  const [form, setForm] = React.useState({ nombre: seg.nombre, desc: seg.desc, cupoTotal: seg.cupoTotal, coordinador: seg.coordinador });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const [subModal, setSubModal] = React.useState(false);
+  const [delSub, setDelSub] = React.useState(null);
+
+  const ocupado = ocupadoSum(seg);
+  const disponibleSeg = seg.cupoTotal - ocupado;
+  const sumaCupos = cupoSum(seg);
+  const excede = sumaCupos > seg.cupoTotal;
+
+  const saveGeneral = () => {
+    seg.nombre = form.nombre; seg.desc = form.desc; seg.cupoTotal = Number(form.cupoTotal) || seg.cupoTotal; seg.coordinador = form.coordinador;
+    refresh(); push('Cambios guardados');
+  };
+  const toggleEstado = () => { seg.estado = seg.estado === 'activo' ? 'inactivo' : 'activo'; refresh(); push(seg.estado === 'activo' ? 'Segmento activado' : 'Segmento desactivado', seg.estado === 'activo' ? 'success' : 'info'); };
+  const removeSub = (s) => { seg.subsegmentos = seg.subsegmentos.filter((x) => x.id !== s.id); setDelSub(null); refresh(); push('Subsegmento eliminado', 'danger'); };
+
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver a segmentos</Button>
+      <PageHeader crumb="Segmentos" title={seg.nombre} subtitle={seg.desc}
+        cta={<Badge variant={seg.estado === 'activo' ? 'success' : 'gray'} dot={seg.estado === 'activo'}>{seg.estado === 'activo' ? 'Activo' : 'Inactivo'}</Badge>} />
+      <Card padding={0}>
+        <div style={{ padding: '4px 16px 0' }}>
+          <Tabs value={tab} onChange={setTab} tabs={[
+            { value: 'general', label: 'Información general', iconNode: <Icon name="identification" size={16} /> },
+            { value: 'sub', label: 'Subsegmentos', iconNode: <Icon name="listBullet" size={16} />, count: seg.subsegmentos.length },
+            { value: 'req', label: 'Requisitos del segmento', iconNode: <Icon name="clipboardList" size={16} />, count: seg.requisitos.length },
+          ]} />
+        </div>
+        <div style={{ padding: 24 }}>
+          {tab === 'general' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+                <StatCard label="Cupo total" value={seg.cupoTotal.toLocaleString('es-AR')} iconNode={<Icon name="usersGroup" size={22} />} gradientIcon />
+                <StatCard label="Cupo ocupado" value={ocupado.toLocaleString('es-AR')} iconNode={<Icon name="checkCircle" size={22} />} tone="success" />
+                <StatCard label="Cupo disponible" value={disponibleSeg.toLocaleString('es-AR')} iconNode={<Icon name="clock" size={22} />} tone={disponibleSeg < 0 ? 'danger' : 'brand'} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, alignItems: 'start' }}>
+                {/* Form column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <Field label="Nombre del segmento" required><Input value={form.nombre} onChange={set('nombre')} /></Field>
+                  <Field label="Descripción" required>
+                    <textarea rows={3} value={form.desc} onChange={set('desc')} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} />
+                  </Field>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <Field label="Cupo total" required><Input type="number" value={form.cupoTotal} onChange={set('cupoTotal')} /></Field>
+                    <Field label="Coordinador asignado" required><Select value={form.coordinador} onChange={set('coordinador')} options={B.coordinadores.map((c) => c.nombre)} /></Field>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border-light)', marginTop: 4 }}>
+                    <Button variant="brand" iconNode={<Icon name="check" size={18} />} onClick={saveGeneral}>Guardar cambios</Button>
+                    <Button variant={seg.estado === 'activo' ? 'danger' : 'secondary'} iconNode={<Icon name={seg.estado === 'activo' ? 'xCircle' : 'checkCircle'} size={18} />} onClick={toggleEstado}>
+                      {seg.estado === 'activo' ? 'Desactivar segmento' : 'Activar segmento'}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Aside column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Card title="Ocupación del cupo">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                      <span style={{ color: 'var(--text-body)' }}>{ocupado.toLocaleString('es-AR')} de {seg.cupoTotal.toLocaleString('es-AR')}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{Math.round((ocupado / seg.cupoTotal) * 100)}%</span>
+                    </div>
+                    <div style={{ height: 10, borderRadius: 9999, background: 'var(--bg-tertiary)' }}>
+                      <div style={{ width: Math.min(100, Math.round((ocupado / seg.cupoTotal) * 100)) + '%', height: '100%', borderRadius: 9999, background: 'var(--gradient-brand)' }} />
+                    </div>
+                    <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--text-body-subtle)' }}>{disponibleSeg.toLocaleString('es-AR')} lugares disponibles</div>
+                  </Card>
+                  <Card title="Resumen">
+                    {[['Estado', <Badge variant={seg.estado === 'activo' ? 'success' : 'gray'} dot={seg.estado === 'activo'}>{seg.estado === 'activo' ? 'Activo' : 'Inactivo'}</Badge>],
+                      ['Coordinador', form.coordinador],
+                      ['Subsegmentos', String(seg.subsegmentos.length)],
+                      ['Requisitos', String(seg.requisitos.length)]].map(([k, v], i, arr) => (
+                      <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13.5 }}>
+                        <span style={{ color: 'var(--text-body-subtle)' }}>{k}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-heading)', textAlign: 'right' }}>{v}</span>
+                      </div>
+                    ))}
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'sub' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-body-subtle)' }}>Cada subsegmento tiene su propio cupo. La suma no puede superar el cupo del segmento.</span>
+                <Button size="sm" variant="brand" iconNode={<Icon name="plus" size={16} />} onClick={() => setSubModal(true)}>Nuevo subsegmento</Button>
+              </div>
+              <TableCard footer={
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-secondary)' }}>
+                  <Icon name={excede ? 'warning' : 'checkCircle'} size={16} style={{ color: excede ? 'var(--text-fg-danger)' : 'var(--text-fg-success)' }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: excede ? 'var(--text-fg-danger)' : 'var(--text-fg-success)' }}>Suma de cupos: {sumaCupos.toLocaleString('es-AR')} / {seg.cupoTotal.toLocaleString('es-AR')}</span>
+                </div>
+              }>
+                {seg.subsegmentos.length === 0 ? <EmptyState icon="listBullet" title="Sin subsegmentos" msg="Agregá el primer subsegmento y asignale su cupo." cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setSubModal(true)}>Nuevo subsegmento</Button>} /> : (
+                  <table>
+                    <thead><tr><th>Nombre</th><th>Descripción</th><th style={{ textAlign: 'right' }}>Cupo máximo</th><th style={{ textAlign: 'right' }}>Ocupado</th><th style={{ textAlign: 'right' }}>Disponible</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+                    <tbody>
+                      {seg.subsegmentos.map((s) => (
+                        <tr key={s.id} className="rowh">
+                          <td style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{s.nombre}</td>
+                          <td style={{ maxWidth: 240, color: 'var(--text-body-subtle)' }}>{s.desc || '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{s.cupoMax.toLocaleString('es-AR')}</td>
+                          <td style={{ textAlign: 'right' }}>{s.ocupado.toLocaleString('es-AR')}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-heading)' }}>{(s.cupoMax - s.ocupado).toLocaleString('es-AR')}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                              <IconBtn name="pencilSquare" label="Editar" onClick={() => push('Editar subsegmento', 'info')} />
+                              <Button size="xs" variant="tertiary" iconNode={<Icon name="clipboardList" size={15} />} onClick={() => openSub(s)}>Requisitos {s.requisitos.length ? `(${s.requisitos.length})` : ''}</Button>
+                              <IconBtn name="trash" label="Eliminar" tone="var(--text-fg-danger)" onClick={() => setDelSub(s)} />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </TableCard>
+            </div>
+          )}
+
+          {tab === 'req' && <RequisitosPanel target={seg} scope="segmento" refresh={refresh} push={push} />}
+        </div>
+      </Card>
+
+      {subModal && <NuevoSubsegmentoModal seg={seg} onClose={() => setSubModal(false)} refresh={refresh} push={push} />}
+      {delSub && (
+        <Modal title="Eliminar subsegmento" tone="danger" onClose={() => setDelSub(null)} width={460}
+          footer={<><Button variant="tertiary" onClick={() => setDelSub(null)}>Cancelar</Button><Button variant="danger" onClick={() => removeSub(delSub)}>Eliminar</Button></>}>
+          ¿Eliminar el subsegmento <strong>{delSub.nombre}</strong>? Se quitan también sus requisitos propios. Esta acción no se puede deshacer.
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function NuevoSubsegmentoModal({ seg, onClose, refresh, push }) {
+  const [form, setForm] = React.useState({ nombre: '', desc: '', cupoMax: '' });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const disponible = seg.cupoTotal - cupoSum(seg);
+  const val = Number(form.cupoMax) || 0;
+  const excede = val > disponible;
+  const err = excede ? `No podés asignar más de ${disponible.toLocaleString('es-AR')} (disponible: ${disponible.toLocaleString('es-AR')})` : '';
+  const create = () => {
+    if (!form.nombre.trim()) { push('Ingresá el nombre', 'danger'); return; }
+    if (val <= 0) { push('Ingresá un cupo máximo válido', 'danger'); return; }
+    if (excede) { push(err, 'danger'); return; }
+    seg.subsegmentos.push({ id: Date.now(), nombre: form.nombre.trim(), desc: form.desc.trim(), cupoMax: val, ocupado: 0, requisitos: [] });
+    onClose(); refresh(); push('Subsegmento creado');
+  };
+  return (
+    <Modal title="Nuevo subsegmento" tone="brand" onClose={onClose} width={540}
+      footer={<><Button variant="tertiary" onClick={onClose}>Cancelar</Button><Button variant="brand" onClick={create}>Crear subsegmento</Button></>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Field label="Nombre" required><Input placeholder="Ej: Ladrillo" value={form.nombre} onChange={set('nombre')} /></Field>
+        <Field label="Descripción"><Input placeholder="Opcional" value={form.desc} onChange={set('desc')} /></Field>
+        <Field label="Cupo máximo" required>
+          <Input type="number" placeholder={`Disponible: ${disponible}`} value={form.cupoMax} onChange={set('cupoMax')} error={err} />
+        </Field>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: excede ? 'var(--bg-danger-soft)' : 'var(--bg-secondary)', border: `1px solid ${excede ? 'var(--border-danger-subtle)' : 'var(--border-base)'}` }}>
+          <Icon name={excede ? 'warning' : 'checkCircle'} size={16} style={{ color: excede ? 'var(--text-fg-danger)' : 'var(--text-fg-success)' }} />
+          <span style={{ fontSize: 12.5, color: excede ? 'var(--text-fg-danger)' : 'var(--text-body-subtle)' }}>
+            Cupo disponible en el segmento: <strong>{disponible.toLocaleString('es-AR')}</strong> de {seg.cupoTotal.toLocaleString('es-AR')}
+          </span>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* 1 — Segmentos / Subsegmentos (router: lista → detalle → subsegmento) */
+function Segmentos() {
+  const push = React.useContext(ToastCtx);
+  const [view, setView] = React.useState('list');     // list | seg | sub
+  const [segId, setSegId] = React.useState(null);
+  const [subId, setSubId] = React.useState(null);
+  const [segTab, setSegTab] = React.useState('general');
+  const [newSeg, setNewSeg] = React.useState(false);
+  const [, setTick] = React.useState(0);
+  const refresh = () => setTick((t) => t + 1);
+
+  const seg = B.segmentos.find((s) => s.id === segId);
+  const sub = seg && (seg.subsegmentos || []).find((s) => s.id === subId);
+
+  const openSeg = (s, tab = 'general') => { setSegId(s.id); setSegTab(tab); setView('seg'); };
+  const openSub = (s) => { setSubId(s.id); setView('sub'); };
+
+  if (view === 'sub' && seg && sub) {
+    return <SubsegmentoDetail seg={seg} sub={sub} refresh={refresh} push={push} back={() => { setSegTab('sub'); setView('seg'); }} />;
+  }
+  if (view === 'seg' && seg) {
+    return <SegmentoDetail key={`${seg.id}-${segTab}`} seg={seg} initialTab={segTab} refresh={refresh} push={push}
+      back={() => setView('list')} openSub={openSub} />;
+  }
+
+  return (
+    <div>
+      <PageHeader crumb="Segmentos" title="Segmentos y subsegmentos"
+        subtitle="Definí la estructura del programa: cada segmento tiene un cupo total, un coordinador, subsegmentos (con su propio cupo) y requisitos que se heredan a los formularios."
+        cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setNewSeg(true)}>Nuevo segmento</Button>} />
+      <TableCard footer={<Pagination shown={B.segmentos.length} total={B.segmentos.length} label="segmentos" />}>
+        <table>
+          <thead><tr><th>Nombre</th><th>Descripción</th><th style={{ textAlign: 'right' }}>Cupo total</th><th>Subsegmentos</th><th>Coordinador</th><th>Estado</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+          <tbody>
+            {B.segmentos.map((s) => (
+              <tr key={s.id} className="rowh" style={{ cursor: 'pointer' }} onClick={() => openSeg(s)}>
+                <td style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{s.nombre}</td>
+                <td style={{ maxWidth: 260, color: 'var(--text-body-subtle)' }}>{s.desc}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-heading)' }}>{s.cupoTotal.toLocaleString('es-AR')}</td>
+                <td>{s.subsegmentos.length ? `${s.subsegmentos.length} subsegmento${s.subsegmentos.length > 1 ? 's' : ''}` : '—'}</td>
+                <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Avatar name={s.coordinador} size={26} /><span style={{ fontSize: 13 }}>{s.coordinador}</span></div></td>
+                <td><Badge variant={s.estado === 'activo' ? 'success' : 'gray'} dot={s.estado === 'activo'}>{s.estado === 'activo' ? 'Activo' : 'Inactivo'}</Badge></td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <IconBtn name="pencilSquare" label="Editar" onClick={() => openSeg(s, 'general')} />
+                    <IconBtn name="chevronRight" label="Ver detalle" tone="var(--text-body-subtle)" onClick={() => openSeg(s)} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
+
+      {newSeg && <NuevoSegmentoModal onClose={() => setNewSeg(false)} push={push} refresh={refresh} openSeg={openSeg} />}
+    </div>
+  );
+}
+
+function NuevoSegmentoModal({ onClose, push, refresh, openSeg }) {
+  const [form, setForm] = React.useState({ nombre: '', desc: '', cupoTotal: '', coordinador: '' });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const create = () => {
+    if (!form.nombre.trim() || !form.desc.trim() || !form.cupoTotal || !form.coordinador) { push('Completá los campos obligatorios', 'danger'); return; }
+    const nuevo = { id: Date.now(), nombre: form.nombre.trim(), desc: form.desc.trim(), cupoTotal: Number(form.cupoTotal), coordinador: form.coordinador, estado: 'activo', requisitos: [], subsegmentos: [] };
+    B.segmentos.push(nuevo);
+    onClose(); refresh(); push('Segmento creado · agregá sus subsegmentos');
+    openSeg(nuevo, 'sub');
+  };
+  return (
+    <Modal title="Nuevo segmento" tone="brand" onClose={onClose} width={560}
+      footer={<><Button variant="tertiary" onClick={onClose}>Cancelar</Button><Button variant="brand" onClick={create}>Guardar y configurar</Button></>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Field label="Nombre del segmento" required><Input placeholder="Ej: Producción Territorial / Fuego y Barro" value={form.nombre} onChange={set('nombre')} /></Field>
+        <Field label="Descripción" required>
+          <textarea rows={2} placeholder="Población objetivo del segmento" value={form.desc} onChange={set('desc')} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} />
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 16 }}>
+          <Field label="Cupo total" required><Input type="number" placeholder="Ej: 500" value={form.cupoTotal} onChange={set('cupoTotal')} /></Field>
+          <Field label="Coordinador asignado" required><Select placeholder="Seleccioná…" value={form.coordinador} onChange={set('coordinador')} options={B.coordinadores.map((c) => c.nombre)} /></Field>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: 'var(--bg-info-soft)', border: '1px solid var(--color-brand-200)' }}>
+          <Icon name="exclamationCircle" size={16} style={{ color: 'var(--text-fg-info)' }} />
+          <span style={{ fontSize: 12.5, color: 'var(--text-body)' }}>Después de guardar vas a poder cargar los subsegmentos y sus cupos en el detalle.</span>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* 2 — Requisitos nativos */
+function Requisitos() {
+  const push = React.useContext(ToastCtx);
+  const [seg, setSeg] = React.useState('Nivel Superior');
+  const [modal, setModal] = React.useState(false);
+  const rows = B.requisitos.filter((r) => r.segmento === seg);
+  return (
+    <div>
+      <PageHeader crumb="Requisitos" title="Requisitos por segmento"
+        subtitle="Campos nativos que, junto a las preguntas globales, arman el formulario dinámico que completa el territorial."
+        cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setModal(true)}>Nuevo requisito</Button>} />
+      <FilterBar>
+        <div style={{ width: 240 }}><Field label="Segmento"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={B.segmentos.map((s) => s.nombre)} /></Field></div>
+        <div style={{ width: 220 }}><Field label="Subsegmento"><Select placeholder="Todos" options={((B.segmentos.find((s) => s.nombre === seg) || {}).subsegmentos || []).map((ss) => ss.nombre)} /></Field></div>
+      </FilterBar>
+      <TableCard footer={<Pagination shown={rows.length} total={rows.length} label="requisitos" />}>
+        {rows.length === 0 ? <EmptyState icon="clipboardList" title="Sin requisitos" msg="Este segmento todavía no tiene requisitos nativos cargados." cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />}>Nuevo requisito</Button>} /> : (
+          <table>
+            <thead><tr><th>Requisito</th><th>Tipo de campo</th><th>Obligatorio</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="rowh">
+                  <td style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{r.nombre}</td>
+                  <td><Badge variant="white">{r.tipo}</Badge></td>
+                  <td>{r.obligatorio ? <Badge variant="brand">Obligatorio</Badge> : <Badge variant="gray">Opcional</Badge>}</td>
+                  <td><div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}><IconBtn name="pencilSquare" label="Editar" onClick={() => push('Editar requisito', 'info')} /><IconBtn name="trash" label="Eliminar" tone="var(--text-fg-danger)" onClick={() => push('Eliminá con confirmación', 'info')} /></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </TableCard>
+      {modal && (
+        <Modal title="Nuevo requisito" tone="brand" onClose={() => setModal(false)} width={520}
+          footer={<><Button variant="tertiary" onClick={() => setModal(false)}>Cancelar</Button><Button variant="brand" onClick={() => { setModal(false); push('Requisito creado'); }}>Crear requisito</Button></>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <Field label="Nombre del requisito" required><Input placeholder="Ej: Certificado de alumno regular" /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <Field label="Tipo de campo" required><Select placeholder="Seleccioná…" options={['Texto', 'Número', 'Fecha', 'Selección', 'Sí / No', 'Archivo']} /></Field>
+              <Field label="Segmento" required><Select value={seg} options={B.segmentos.map((s) => s.nombre)} /></Field>
+            </div>
+            <Field label="¿Es obligatorio?"><Select placeholder="Sí" options={['Sí', 'No']} /></Field>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* 3 — Convocatorias */
+/* ---------- Requisitos informativos (colapsable, solo lectura) ---------- */
+function RequisitosInformativos({ conv, open: defaultOpen }) {
+  const [open, setOpen] = React.useState(defaultOpen || false);
+  const s = segById(conv.segmentoId); const ss = subById(s, conv.subsegmentoId);
+  const generales = B.requisitosGenerales.map((p) => ({ pregunta: p, tipo: 'STRING' }));
+  const segReqs = (s ? s.requisitos : []);
+  const subReqs = (ss ? ss.requisitos : []);
+  const total = generales.length + segReqs.length + subReqs.length;
+
+  const tipoChip = (t) => <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.03em', color: 'var(--text-fg-brand)', background: 'var(--bg-brand-soft)', borderRadius: 6, padding: '2px 7px' }}>{t}</span>;
+
+  const Section = ({ title, sub, items, link, startAt }) => (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'var(--bg-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-heading)' }}>{title}</span>
+          <span style={{ fontSize: 11.5, color: 'var(--text-body-subtle)' }}>{sub}</span>
+        </div>
+        {link && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, color: 'var(--text-fg-brand)', fontWeight: 600 }}>{link}<Icon name="chevronRight" size={12} /></span>}
+      </div>
+      {items.length === 0
+        ? <div style={{ padding: '12px 14px', fontSize: 12.5, color: 'var(--text-body-subtle)', fontStyle: 'italic' }}>Sin requisitos en este nivel.</div>
+        : items.map((r, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderTop: '1px solid var(--border-light)' }}>
+            <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 6, background: 'var(--bg-tertiary)', color: 'var(--text-body-subtle)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{startAt + i}</span>
+            <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text-heading)', fontWeight: 500 }}>{r.pregunta}{r.obligatorio && <span style={{ color: 'var(--text-fg-danger)', marginLeft: 4 }}>*</span>}</span>
+            {tipoChip(r.tipo)}
+          </div>
+        ))}
+    </div>
+  );
+
+  return (
+    <div style={{ border: '1px solid var(--border-base)', borderRadius: 12, overflow: 'hidden' }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 16px', background: 'var(--bg-white)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--text-heading)' }}>
+          <Icon name="clipboardList" size={18} style={{ color: 'var(--text-fg-brand)' }} /> Vista previa del formulario
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-fg-brand)', background: 'var(--bg-brand-soft)', borderRadius: 9999, padding: '1px 9px' }}>{total} preguntas</span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-body-subtle)', fontWeight: 500 }}>solo lectura <Icon name={open ? 'chevronDown' : 'chevronRight'} size={18} /></span>
+      </button>
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border-base)' }}>
+          <Section title="Datos generales del programa" sub={`${generales.length} preguntas`} link="Configuración" items={generales} startAt={1} />
+          <Section title={`Requisitos del segmento`} sub={s ? s.nombre : ''} link="Ver segmento" items={segReqs} startAt={generales.length + 1} />
+          {ss && <Section title="Requisitos del subsegmento" sub={ss.nombre} link="Ver subsegmento" items={subReqs} startAt={generales.length + segReqs.length + 1} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Modal crear/editar convocatoria ---------- */
+function ConvocatoriaModal({ conv, onClose, onSave, push }) {
+  const editing = !!conv;
+  const [form, setForm] = React.useState(conv
+    ? { nombre: conv.nombre, desc: conv.desc, segmentoId: conv.segmentoId, subsegmentoId: conv.subsegmentoId, desde: '', hasta: '' }
+    : { nombre: '', desc: '', segmentoId: '', subsegmentoId: '', desde: '', hasta: '' });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const seg = segById(Number(form.segmentoId));
+  const subs = seg ? (seg.subsegmentos || []) : [];
+  const ss = subById(seg, Number(form.subsegmentoId));
+  const cupo = ss ? ss.cupoMax : (seg ? seg.cupoTotal : null);
+  const onSeg = (e) => setForm((f) => ({ ...f, segmentoId: e.target.value, subsegmentoId: '' }));
+  const fakeConv = seg ? { segmentoId: seg.id, subsegmentoId: Number(form.subsegmentoId) || null } : null;
+  const save = () => {
+    if (!form.nombre.trim() || !form.segmentoId) { push('Completá nombre y segmento', 'danger'); return; }
+    if (subs.length && !form.subsegmentoId) { push('Elegí un subsegmento', 'danger'); return; }
+    onSave(form, editing);
+  };
+  return (
+    <Modal title={editing ? 'Editar convocatoria' : 'Nueva convocatoria'} tone="brand" onClose={onClose} width={680}
+      footer={<><Button variant="tertiary" onClick={onClose}>Cancelar</Button><Button variant="brand" onClick={save}>{editing ? 'Guardar cambios' : 'Guardar y configurar'}</Button></>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Field label="Nombre de la convocatoria" required><Input placeholder="Ej: Convocatoria Becas 2026 - Producción" value={form.nombre} onChange={set('nombre')} /></Field>
+        <Field label="Descripción"><textarea rows={2} placeholder="Objetivo de la convocatoria" value={form.desc} onChange={set('desc')} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} /></Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="Segmento" required><Select value={form.segmentoId} onChange={onSeg} placeholder="Seleccioná…" options={B.segmentos.filter((s) => s.estado === 'activo').map((s) => ({ value: String(s.id), label: s.nombre }))} /></Field>
+          {subs.length > 0 && (
+            <Field label="Subsegmento" required><Select value={form.subsegmentoId} onChange={set('subsegmentoId')} placeholder={seg ? 'Seleccioná…' : 'Elegí un segmento primero'} options={subs.map((s) => ({ value: String(s.id), label: s.nombre }))} /></Field>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'end' }}>
+          <Field label="Fecha de inicio" required><Input type="date" value={form.desde} onChange={set('desde')} /></Field>
+          <Field label="Fecha de fin" required><Input type="date" value={form.hasta} onChange={set('hasta')} error={form.desde && form.hasta && form.hasta <= form.desde ? 'Debe ser posterior al inicio' : ''} /></Field>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 6 }}>Cupo asignado</div>
+            <div style={{ height: 42, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border-base)', fontWeight: 800, color: cupo != null ? 'var(--text-heading)' : 'var(--text-body-subtle)' }}>
+              {cupo != null ? cupo.toLocaleString('es-AR') : '—'}
+            </div>
+          </div>
+        </div>
+        {fakeConv && <RequisitosInformativos conv={fakeConv} />}
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Modal nuevo/reasignar relevamiento ---------- */
+function RelevamientoModal({ conv, reasign, onClose, onSave, push }) {
+  const seg = segById(conv.segmentoId); const ss = subById(seg, conv.subsegmentoId);
+  const nextNum = String((conv.relevamientos.reduce((m, r) => Math.max(m, parseInt(r.nombre.replace(/\D/g, '')) || 0), 0)) + 1).padStart(3, '0');
+  const [form, setForm] = React.useState(reasign
+    ? { nombre: reasign.nombre, territorial: '', plazo: reasign.plazo, zona: reasign.zona }
+    : { nombre: `Relevamiento ${nextNum}`, territorial: '', plazo: '', zona: '' });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const save = () => {
+    if (!form.territorial || (!reasign && (!form.plazo || !form.zona.trim()))) { push('Completá los campos obligatorios', 'danger'); return; }
+    onSave(form, reasign); 
+  };
+  return (
+    <Modal title={reasign ? `Reasignar — ${reasign.nombre}` : 'Nuevo relevamiento'} tone="brand" onClose={onClose} width={560}
+      footer={<><Button variant="tertiary" onClick={onClose}>Cancelar</Button><Button variant="brand" onClick={save}>{reasign ? 'Reasignar' : 'Guardar'}</Button></>}>
+      <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '10px 14px', marginBottom: 18, fontSize: 12.5, color: 'var(--text-body)' }}>
+        <strong style={{ color: 'var(--text-heading)' }}>Convocatoria:</strong> {conv.nombre} · <strong style={{ color: 'var(--text-heading)' }}>Segmento:</strong> {seg ? seg.nombre : '—'}{ss ? ` · ${ss.nombre}` : ''}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {!reasign && <Field label="Nombre" required><Input value={form.nombre} onChange={set('nombre')} /></Field>}
+        <Field label="Territorial asignado" required><Select value={form.territorial} onChange={set('territorial')} placeholder="Seleccioná…" options={B.territoriales} /></Field>
+        {!reasign && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 16 }}>
+            <Field label="Fecha / Plazo" required><Input type="date" value={form.plazo} onChange={set('plazo')} helper={`Dentro de ${conv.desde} – ${conv.hasta}`} /></Field>
+            <Field label="Zona / Localidad" required><Input placeholder="Ej: Resistencia - Zona Norte" value={form.zona} onChange={set('zona')} /></Field>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Lista de formularios de un relevamiento ---------- */
+function FormulariosRelevamiento({ conv, rel, back, openForm, push }) {
+  const re = B.relevEstados[rel.estado];
+  const [filtro, setFiltro] = React.useState('');
+  const rows = B.formularios.filter((f) => !filtro || f.estado === filtro);
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver a la convocatoria</Button>
+      <PageHeader crumb="Relevamientos" title={rel.nombre}
+        subtitle={`${conv.nombre} · ${rel.zona}`}
+        cta={<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Badge variant={re.variant}>{re.label}</Badge><Button variant="secondary" iconNode={<Icon name="download" size={18} />} onClick={() => push('Formularios exportados')}>Exportar</Button></div>} />
+      <Card padding={16} style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={rel.territorial} size={36} /><div><div style={{ fontSize: 11, color: 'var(--text-body-subtle)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 }}>Territorial</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{rel.territorial}</div></div></div>
+          <div style={{ width: 1, height: 34, background: 'var(--border-base)' }} />
+          <div><div style={{ fontSize: 11, color: 'var(--text-body-subtle)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 }}>Plazo</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{rel.plazo}</div></div>
+          <div><div style={{ fontSize: 11, color: 'var(--text-body-subtle)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 }}>Formularios</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{B.formularios.length} cargados</div></div>
+        </div>
+      </Card>
+      <FilterBar>
+        <div style={{ width: 220 }}><Field label="Estado del formulario"><Select value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Todos" options={Object.keys(B.formEstados).map((k) => ({ value: k, label: B.formEstados[k].label }))} /></Field></div>
+      </FilterBar>
+      <TableCard footer={<Pagination shown={rows.length} total={B.formularios.length} label="formularios" />}>
+        {rows.length === 0 ? <EmptyState icon="clipboardList" title="Sin formularios" msg="Este relevamiento todavía no tiene formularios cargados por el territorial." /> : (
+          <table>
+            <thead><tr><th>Ciudadano</th><th>DNI</th><th>RENAPER</th><th>Completitud</th><th>Estado</th><th>Presentado</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+            <tbody>
+              {rows.map((f) => {
+                const fe = B.formEstados[f.estado]; const rn = B.renaperEstados[f.renaper];
+                const revisable = f.estado === 'PRESENTADO' || f.estado === 'EN_REVISION';
+                return (
+                  <tr key={f.id} className="rowh" style={{ cursor: 'pointer' }} onClick={() => openForm(f)}>
+                    <td><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={f.ciudadano} size={30} /><span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{f.ciudadano}</span></div></td>
+                    <td style={{ color: 'var(--text-body-subtle)' }}>{f.dni}</td>
+                    <td><span title={rn.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: `var(--text-fg-${rn.variant === 'success' ? 'success' : rn.variant === 'warning' ? 'warning' : 'danger'})`, fontSize: 12.5, fontWeight: 600 }}><Icon name={rn.icon} size={16} /> {rn.label.replace('RENAPER ', '')}</span></td>
+                    <td style={{ minWidth: 130 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, height: 6, borderRadius: 9999, background: 'var(--bg-tertiary)' }}><div style={{ width: f.completo + '%', height: '100%', borderRadius: 9999, background: f.completo === 100 ? 'var(--bg-success)' : 'var(--bg-brand)' }} /></div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-heading)' }}>{f.completo}%</span>
+                      </div>
+                    </td>
+                    <td><Badge variant={fe.variant} dot={fe.dot}>{fe.label}</Badge></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{f.presentado}</td>
+                    <td onClick={(ev) => ev.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                        <Button size="xs" variant={revisable ? 'tertiary' : 'secondary'} iconNode={<Icon name={revisable ? 'clipboardCheck' : 'eye'} size={15} />} onClick={() => openForm(f)}>{revisable ? 'Revisar' : 'Ver'}</Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </TableCard>
+    </div>
+  );
+}
+
+/* ---------- Revisión de un formulario (caso a caso) ---------- */
+function RevisionFormulario({ conv, rel, form, back, push }) {
+  const f = B.formulario;
+  const rn = B.renaperEstados[form.renaper];
+  const fe = B.formEstados[form.estado];
+  const [reject, setReject] = React.useState(false);
+  const [estado, setEstado] = React.useState(form.estado);
+  const faltan = f.requisitos.filter((r) => !r.ok).length;
+  const aprobar = () => { form.estado = 'APROBADO'; setEstado('APROBADO'); push('Formulario aprobado · beneficiario con cupo'); };
+
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver a formularios</Button>
+      <PageHeader crumb={`${rel.nombre}`} title={form.ciudadano}
+        subtitle={`${conv.nombre} · DNI ${form.dni}`}
+        cta={<Badge variant={B.formEstados[estado].variant} dot={B.formEstados[estado].dot}>{B.formEstados[estado].label}</Badge>} />
+
+      {/* Banda RENAPER */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', marginBottom: 20, borderRadius: 12,
+        background: `var(--bg-${rn.variant === 'success' ? 'success' : rn.variant === 'warning' ? 'warning' : 'danger'}-soft)`,
+        border: `1px solid var(--border-${rn.variant === 'success' ? 'success' : rn.variant === 'warning' ? 'warning' : 'danger'}-subtle)`,
+        color: `var(--text-fg-${rn.variant === 'success' ? 'success' : rn.variant === 'warning' ? 'warning' : 'danger'})` }}>
+        <Icon name={rn.icon} size={20} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700 }}>{rn.label}</div>
+          <div style={{ fontSize: 12.5, opacity: .85 }}>{rn.variant === 'success' ? 'Identidad confirmada contra el Registro Nacional de las Personas.' : rn.variant === 'warning' ? 'Validación de identidad pendiente — reintentá o cargá manualmente.' : 'Los datos no coinciden con RENAPER. Revisá antes de aprobar.'}</div>
+        </div>
+        {rn.variant !== 'success' && <Button size="sm" variant="secondary" iconNode={<Icon name="arrowPath" size={16} />} onClick={() => push('Reintentando validación RENAPER…', 'info')}>Reintentar</Button>}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Card title="Cuestionario social" subtitle="Preguntas generales del programa">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+              {f.social.map((q, i) => (
+                <div key={i}><div style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-body-subtle)', fontWeight: 700, marginBottom: 3 }}>{q.p}</div><div style={{ fontSize: 14, color: 'var(--text-heading)', fontWeight: 600 }}>{q.r}</div></div>
+              ))}
+            </div>
+          </Card>
+          <RequisitosReview reqs={f.requisitos} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Card title="Resolución del caso">
+            {estado === 'APROBADO' ? (
+              <div style={{ display: 'flex', gap: 10, padding: 12, background: 'var(--bg-success-soft)', border: '1px solid var(--border-success-subtle)', borderRadius: 10, color: 'var(--text-fg-success)' }}>
+                <Icon name="checkCircle" size={18} /><span style={{ fontSize: 13 }}>Formulario aprobado. El ciudadano pasó a beneficiario con cupo.</span>
+              </div>
+            ) : (
+              <>
+                {faltan > 0 && (
+                  <div style={{ display: 'flex', gap: 10, padding: 12, marginBottom: 14, background: 'var(--bg-warning-soft)', border: '1px solid var(--border-warning-subtle)', borderRadius: 10, color: 'var(--text-fg-warning)' }}>
+                    <Icon name="warning" size={18} /><span style={{ fontSize: 13, lineHeight: 1.45 }}>{faltan} requisito(s) sin completar. Podés aprobar con observación o rechazar para que el territorial lo corrija.</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <Button variant="brand" block iconNode={<Icon name="check" size={18} />} onClick={aprobar}>Aprobar formulario</Button>
+                  <Button variant="danger" block iconNode={<Icon name="xMark" size={18} />} onClick={() => setReject(true)}>Rechazar</Button>
+                </div>
+              </>
+            )}
+          </Card>
+          <Card title="Datos del caso">
+            {[['DNI', form.dni], ['Edad', f.edad + ' años'], ['Territorial', rel.territorial], ['Presentado', form.presentado]].map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-light)', fontSize: 13.5 }}><span style={{ color: 'var(--text-body-subtle)' }}>{k}</span><span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{v}</span></div>
+            ))}
+          </Card>
+          <Card title="Historial de ediciones" subtitle="TracaFormulario">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {f.historial.map((h, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, paddingBottom: i < f.historial.length - 1 ? 16 : 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--bg-brand)', marginTop: 4 }} />
+                    {i < f.historial.length - 1 && <span style={{ flex: 1, width: 2, background: 'var(--border-base)' }} />}
+                  </div>
+                  <div><div style={{ fontSize: 13, color: 'var(--text-heading)', fontWeight: 600 }}>{h.accion}</div><div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)' }}>{h.quien} · {h.cuando}</div></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+      {reject && (
+        <Modal title="Rechazar formulario" tone="danger" onClose={() => setReject(false)} width={520}
+          footer={<><Button variant="tertiary" onClick={() => setReject(false)}>Cancelar</Button><Button variant="danger" onClick={() => { setReject(false); form.estado = 'RECHAZADO'; setEstado('RECHAZADO'); push('Formulario devuelto al territorial', 'danger'); }}>Confirmar rechazo</Button></>}>
+          <p style={{ marginTop: 0, fontSize: 13.5 }}>El caso vuelve al territorial en estado <strong>EN_CURSO</strong> con el motivo indicado.</p>
+          <Field label="Motivo del rechazo" required>
+            <textarea rows={3} placeholder="Ej: falta adjuntar la constancia de CBU." style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} />
+          </Field>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* 3 — Convocatorias (router: lista → detalle) */
+function Convocatorias({ openRevision }) {
+  const push = React.useContext(ToastCtx);
+  const [view, setView] = React.useState('list');
+  const [convId, setConvId] = React.useState(null);
+  const [tab, setTab] = React.useState('general');
+  const [modal, setModal] = React.useState(false);
+  const [, setTick] = React.useState(0);
+  const refresh = () => setTick((t) => t + 1);
+
+  const conv = B.convocatorias.find((c) => c.id === convId);
+  const open = (c, t = 'general') => { setConvId(c.id); setTab(t); setView('detail'); };
+
+  const createConv = (form) => {
+    const nuevo = { id: Date.now(), nombre: form.nombre.trim(), desc: form.desc.trim(), segmentoId: Number(form.segmentoId), subsegmentoId: Number(form.subsegmentoId) || null, desde: form.desde || '—', hasta: form.hasta || '—', estado: 'inactiva', creada: '18/06/2026', creadoPor: 'Admin — M. González', relevamientos: [], beneficiarios: [] };
+    B.convocatorias.push(nuevo); setModal(false); refresh(); push('Convocatoria creada'); open(nuevo, 'general');
+  };
+
+  if (view === 'detail' && conv) {
+    return <ConvocatoriaDetail key={conv.id + tab} conv={conv} initialTab={tab} refresh={refresh} push={push}
+      back={() => setView('list')} openRevision={openRevision} />;
+  }
+
+  return (
+    <div>
+      <PageHeader crumb="Convocatorias" title="Convocatorias"
+        subtitle="Períodos de inscripción por segmento y subsegmento. Cada convocatoria agrupa relevamientos y beneficiarios."
+        cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setModal(true)}>Nueva convocatoria</Button>} />
+      <TableCard footer={<Pagination shown={B.convocatorias.length} total={B.convocatorias.length} label="convocatorias" />}>
+        <table>
+          <thead><tr><th>Nombre</th><th>Segmento</th><th>Subsegmento</th><th>Período</th><th>Relevamientos</th><th>Estado</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+          <tbody>
+            {B.convocatorias.map((c) => {
+              const e = B.convEstados[c.estado]; const s = segById(c.segmentoId); const ss = subById(s, c.subsegmentoId);
+              return (
+                <tr key={c.id} className="rowh" style={{ cursor: 'pointer' }} onClick={() => open(c)}>
+                  <td style={{ fontWeight: 700, color: 'var(--text-heading)', maxWidth: 240 }}>{c.nombre}</td>
+                  <td>{s ? s.nombre : '—'}</td>
+                  <td>{ss ? ss.nombre : '—'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{c.desde} – {c.hasta}</td>
+                  <td><span style={{ color: 'var(--text-fg-brand)', fontWeight: 600 }}>{c.relevamientos.length} relevamiento{c.relevamientos.length !== 1 ? 's' : ''}</span></td>
+                  <td><Badge variant={e.variant} dot={e.dot}>{e.label}</Badge></td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
+                      <IconBtn name="eye" label="Ver detalle" onClick={() => open(c)} />
+                      <IconBtn name="pencilSquare" label="Editar" onClick={() => open(c, 'general')} />
+                      <IconBtn name={c.estado === 'activa' ? 'xCircle' : 'checkCircle'} label={c.estado === 'activa' ? 'Desactivar' : 'Activar'} tone={c.estado === 'activa' ? 'var(--text-fg-danger)' : 'var(--text-fg-success)'}
+                        onClick={() => { c.estado = c.estado === 'activa' ? 'inactiva' : 'activa'; refresh(); push(c.estado === 'activa' ? 'Convocatoria activada' : 'Convocatoria desactivada', c.estado === 'activa' ? 'success' : 'info'); }} />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TableCard>
+      {modal && <ConvocatoriaModal onClose={() => setModal(false)} onSave={createConv} push={push} />}
+    </div>
+  );
+}
+
+/* ---------- Detalle de convocatoria (4 solapas) ---------- */
+function ConvocatoriaDetail({ conv, initialTab, back, refresh, push, openRevision }) {
+  const [tab, setTab] = React.useState(initialTab || 'general');
+  const [sub, setSub] = React.useState(null);   // null | {rel} (lista form.) | {rel, form} (revisión)
+  const e = B.convEstados[conv.estado];
+  const s = segById(conv.segmentoId); const ss = subById(s, conv.subsegmentoId);
+  const cupo = convCupo(conv), ocupado = convOcupado(conv), disp = cupo - ocupado;
+
+  const [edit, setEdit] = React.useState(false);
+  const [relModal, setRelModal] = React.useState(null);   // {reasign?} 
+  const [form, setForm] = React.useState({ nombre: conv.nombre, desc: conv.desc, estado: conv.estado, desde: conv.desde, hasta: conv.hasta });
+  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v.target.value }));
+
+  const saveGeneral = () => { conv.nombre = form.nombre; conv.desc = form.desc; conv.estado = form.estado; refresh(); push('Cambios guardados'); };
+
+  const addRel = (data, reasign) => {
+    if (reasign) { reasign.territorial = data.territorial; push(`${reasign.nombre} reasignado a ${data.territorial}`); }
+    else { conv.relevamientos.push({ id: Date.now(), nombre: data.nombre, territorial: data.territorial, zona: data.zona, plazo: data.plazo, estado: 'ASIGNADO', formularios: 0 }); push('Relevamiento creado'); }
+    setRelModal(null); refresh();
+  };
+
+  // Sub-vistas: lista de formularios de un relevamiento, y revisión de un formulario
+  if (sub && sub.form) {
+    return <RevisionFormulario conv={conv} rel={sub.rel} form={sub.form} push={push}
+      back={() => setSub({ rel: sub.rel })} />;
+  }
+  if (sub && sub.rel) {
+    return <FormulariosRelevamiento conv={conv} rel={sub.rel} push={push}
+      back={() => setSub(null)} openForm={(f) => setSub({ rel: sub.rel, form: f })} />;
+  }
+
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver a convocatorias</Button>
+      <PageHeader crumb="Convocatorias" title={conv.nombre} subtitle={`${s ? s.nombre : ''}${ss ? ' · ' + ss.nombre : ''}`}
+        cta={<Badge variant={e.variant} dot={e.dot}>{e.label}</Badge>} />
+      <Card padding={0}>
+        <div style={{ padding: '4px 16px 0' }}>
+          <Tabs value={tab} onChange={setTab} tabs={[
+            { value: 'general', label: 'Información general', iconNode: <Icon name="identification" size={16} /> },
+            { value: 'relev', label: 'Relevamientos', iconNode: <Icon name="folderOpen" size={16} />, count: conv.relevamientos.length },
+            { value: 'benef', label: 'Beneficiarios', iconNode: <Icon name="usersGroup" size={16} />, count: conv.beneficiarios.length },
+            { value: 'rep', label: 'Reportes', iconNode: <Icon name="chartBar" size={16} /> },
+          ]} />
+        </div>
+        <div style={{ padding: 24 }}>
+          {tab === 'general' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <Field label="Nombre"><Input value={form.nombre} onChange={set('nombre')} /></Field>
+                <Field label="Descripción"><textarea rows={2} value={form.desc} onChange={set('desc')} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} /></Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <Field label="Segmento"><Select value={String(conv.segmentoId)} options={B.segmentos.map((x) => ({ value: String(x.id), label: x.nombre }))} /></Field>
+                  <Field label="Subsegmento"><Select value={ss ? String(ss.id) : ''} placeholder={ss ? '' : 'Sin subsegmento'} options={(s ? s.subsegmentos : []).map((x) => ({ value: String(x.id), label: x.nombre }))} /></Field>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                  <Field label="Fecha inicio"><Input type="date" /></Field>
+                  <Field label="Fecha fin"><Input type="date" /></Field>
+                  <Field label="Estado"><Select value={form.estado} onChange={set('estado')} options={[{ value: 'activa', label: 'Activa' }, { value: 'inactiva', label: 'Inactiva' }, { value: 'finalizada', label: 'Finalizada' }]} /></Field>
+                </div>
+                <RequisitosInformativos conv={conv} />
+                <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
+                  <Button variant="brand" iconNode={<Icon name="check" size={18} />} onClick={saveGeneral}>Guardar cambios</Button>
+                  {conv.estado !== 'finalizada' && <Button variant="secondary" onClick={() => { conv.estado = 'finalizada'; refresh(); push('Convocatoria finalizada', 'info'); }}>Finalizar</Button>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <StatCard label="Cupo asignado" value={cupo.toLocaleString('es-AR')} iconNode={<Icon name="usersGroup" size={20} />} gradientIcon />
+                  <StatCard label="Ocupado" value={ocupado.toLocaleString('es-AR')} iconNode={<Icon name="checkCircle" size={20} />} tone="success" />
+                  <StatCard label="Disponible" value={disp.toLocaleString('es-AR')} iconNode={<Icon name="clock" size={20} />} tone={disp <= 0 ? 'danger' : 'brand'} />
+                  <StatCard label="En espera" value={convEspera(conv)} iconNode={<Icon name="clock" size={20} />} tone="warning" alert={convEspera(conv) > 0} />
+                </div>
+                <Card title="Datos de la convocatoria">
+                  {[['Cupo disponible', `${disp.toLocaleString('es-AR')} de ${cupo.toLocaleString('es-AR')}`], ['Fecha de creación', conv.creada], ['Creado por', conv.creadoPor]].map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-light)', fontSize: 13 }}><span style={{ color: 'var(--text-body-subtle)' }}>{k}</span><span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{v}</span></div>
+                  ))}
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {tab === 'relev' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-body-subtle)' }}>Relevamientos de esta convocatoria, asignados a territoriales.</span>
+                <Button size="sm" variant="brand" iconNode={<Icon name="plus" size={16} />} onClick={() => setRelModal({})}>Nuevo relevamiento</Button>
+              </div>
+              <TableCard footer={<Pagination shown={conv.relevamientos.length} total={conv.relevamientos.length} label="relevamientos" />}>
+                {conv.relevamientos.length === 0 ? <EmptyState icon="folderOpen" title="Sin relevamientos" msg="Creá el primer relevamiento y asignalo a un territorial." cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setRelModal({})}>Nuevo relevamiento</Button>} /> : (
+                  <table>
+                    <thead><tr><th>Nombre</th><th>Territorial</th><th>Zona / Localidad</th><th>Plazo</th><th>Estado</th><th style={{ textAlign: 'center' }}>Form.</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+                    <tbody>
+                      {conv.relevamientos.map((r) => {
+                        const re = B.relevEstados[r.estado];
+                        const revisable = r.estado === 'FINALIZADO' || r.estado === 'EN_REVISION';
+                        return (
+                          <tr key={r.id} className="rowh">
+                            <td style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{r.nombre}</td>
+                            <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Avatar name={r.territorial} size={26} /><span style={{ fontSize: 13 }}>{r.territorial}</span></div></td>
+                            <td>{r.zona}</td>
+                            <td style={{ whiteSpace: 'nowrap' }}>{r.plazo}</td>
+                            <td><Badge variant={re.variant}>{re.label}</Badge></td>
+                            <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-heading)' }}>{r.formularios}</td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <Button size="xs" variant={revisable ? 'tertiary' : 'secondary'} iconNode={<Icon name={revisable ? 'clipboardCheck' : 'eye'} size={15} />} onClick={() => setSub({ rel: r })}>
+                                  {revisable ? 'Revisar' : 'Ver formularios'}
+                                </Button>
+                                {r.estado === 'ASIGNADO' && <IconBtn name="pencilSquare" label="Editar" onClick={() => push('Editar relevamiento', 'info')} />}
+                                <IconBtn name="arrowPath" label="Reasignar" tone="var(--text-body-subtle)" onClick={() => setRelModal({ reasign: r })} />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </TableCard>
+            </div>
+          )}
+
+          {tab === 'benef' && <Beneficiarios conv={conv} refresh={refresh} push={push} />}
+
+          {tab === 'rep' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-body-subtle)' }}>Exportaciones de esta convocatoria.</span>
+              {[['Beneficiarios con cupo', 'usersGroup'], ['Lista de espera', 'clock'], ['Avance de relevamientos', 'clipboardCheck']].map(([n, i]) => (
+                <Card key={n} padding={18}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--bg-brand-soft)', color: 'var(--text-fg-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={i} size={22} /></div>
+                    <div style={{ flex: 1, fontSize: 15, fontWeight: 700, color: 'var(--text-heading)' }}>{n}</div>
+                    <Button size="sm" variant="secondary" iconNode={<Icon name="download" size={16} />} onClick={() => push(`${n}: CSV generado`)}>CSV</Button>
+                    <Button size="sm" variant="tertiary" iconNode={<Icon name="download" size={16} />} onClick={() => push(`${n}: Excel generado`)}>Excel</Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+      {relModal && <RelevamientoModal conv={conv} reasign={relModal.reasign} onClose={() => setRelModal(null)} onSave={addRel} push={push} />}
+    </div>
+  );
+}
+
+/* ---------- Beneficiarios (solapa 3) ---------- */
+function Beneficiarios({ conv, refresh, push }) {
+  const [filtro, setFiltro] = React.useState('');
+  const [baja, setBaja] = React.useState(null);
+  const [liberado, setLiberado] = React.useState(false);
+  const rows = conv.beneficiarios.filter((b) => !filtro || b.estado === filtro);
+  const hayDisponible = convCupo(conv) - convOcupado(conv) > 0 || liberado;
+
+  const darBaja = (b) => { b.estado = 'baja'; conv.beneficiarios = conv.beneficiarios.filter((x) => x !== b); setBaja(null); setLiberado(true); refresh(); push('Beneficiario dado de baja · se liberó un cupo', 'danger'); };
+  const promover = (b) => { b.estado = 'cupo'; setLiberado(false); refresh(); push(`${b.nombre} promovido a beneficiario con cupo`); };
+
+  return (
+    <div>
+      {liberado && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', marginBottom: 16, background: 'var(--bg-warning-soft)', border: '1px solid var(--border-warning-subtle)', borderRadius: 12, color: 'var(--text-fg-warning)' }}>
+          <Icon name="exclamationCircle" size={18} />
+          <span style={{ flex: 1, fontSize: 13.5 }}>Se liberó un cupo. ¿Querés promover a alguien de la lista de espera?</span>
+          <Button size="xs" variant="tertiary" onClick={() => setLiberado(false)}>Ahora no</Button>
+        </div>
+      )}
+      <FilterBar>
+        <div style={{ width: 220 }}><Field label="Estado"><Select value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Todos los estados" options={Object.keys(B.benefEstados).map((k) => ({ value: k, label: B.benefEstados[k].label }))} /></Field></div>
+        <div style={{ flex: 1 }} />
+        <Button variant="tertiary" iconNode={<Icon name="download" size={18} />} onClick={() => push('Beneficiarios exportados')}>Exportar</Button>
+      </FilterBar>
+      <TableCard footer={<Pagination shown={rows.length} total={conv.beneficiarios.length} label="beneficiarios" />}>
+        {rows.length === 0 ? <EmptyState icon="usersGroup" title="Sin beneficiarios" msg="Todavía no hay personas aprobadas en esta convocatoria." /> : (
+          <table>
+            <thead><tr><th>DNI</th><th>Nombre y apellido</th><th>Estado</th><th>Fecha aprobación</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+            <tbody>
+              {rows.map((b, i) => {
+                const be = B.benefEstados[b.estado];
+                return (
+                  <tr key={i} className="rowh">
+                    <td style={{ color: 'var(--text-body-subtle)' }}>{b.dni}</td>
+                    <td><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={b.nombre} size={30} /><span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{b.nombre}</span></div></td>
+                    <td><Badge variant={be.variant} dot={be.dot}>{be.label}</Badge></td>
+                    <td>{b.fecha}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <IconBtn name="eye" label="Ver legajo" onClick={() => push('Abrir legajo del ciudadano', 'info')} />
+                        {b.estado === 'cupo' && <Button size="xs" variant="danger" onClick={() => setBaja(b)}>Dar de baja</Button>}
+                        {b.estado === 'espera' && <Button size="xs" variant="tertiary" iconNode={<Icon name="check" size={15} />} disabled={!hayDisponible} onClick={() => promover(b)}>Promover</Button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </TableCard>
+      {baja && (
+        <Modal title="Dar de baja beneficiario" tone="danger" onClose={() => setBaja(null)} width={460}
+          footer={<><Button variant="tertiary" onClick={() => setBaja(null)}>Cancelar</Button><Button variant="danger" onClick={() => darBaja(baja)}>Dar de baja</Button></>}>
+          ¿Dar de baja a <strong>{baja.nombre}</strong>? Se libera su cupo y vas a poder promover a alguien de la lista de espera.
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Mini chip RENAPER / SIS ---------- */
+function ResChip({ cat }) {
+  const c = cat.variant === 'success' ? 'success' : cat.variant === 'warning' ? 'warning' : 'danger';
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: `var(--text-fg-${c})` }}><Icon name={cat.icon} size={15} /> {cat.label}</span>;
+}
+
+/* ---------- Modal Nuevo / Reprogramar relevamiento (operativo) ---------- */
+function OperativoModal({ reprogram, onClose, onSave, push }) {
+  const convsActivas = B.convocatorias.filter((c) => c.estado === 'activa');
+  const nextNum = String(B.relevamientos.length + 1).padStart(3, '0');
+  const [form, setForm] = React.useState(reprogram
+    ? { convocatoria: reprogram.convocatoria, territorial: reprogram.territorial, zona: reprogram.zona, fecha: '', obs: reprogram.observaciones || '' }
+    : { convocatoria: '', territorial: '', zona: '', fecha: '', obs: '' });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const save = () => {
+    if (reprogram) { if (!form.fecha) { push('Elegí la nueva fecha', 'danger'); return; } onSave(form, reprogram); return; }
+    if (!form.convocatoria || !form.territorial || !form.zona.trim() || !form.fecha) { push('Completá los campos obligatorios', 'danger'); return; }
+    onSave(form);
+  };
+  return (
+    <Modal title={reprogram ? `Reprogramar — ${reprogram.nombre}` : 'Nuevo relevamiento'} tone="brand" onClose={onClose} width={560}
+      footer={<><Button variant="tertiary" onClick={onClose}>Cancelar</Button><Button variant="brand" onClick={save}>{reprogram ? 'Reprogramar' : 'Guardar'}</Button></>}>
+      {!reprogram && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', marginBottom: 18, borderRadius: 10, background: 'var(--bg-info-soft)', border: '1px solid var(--color-brand-200)' }}>
+          <Icon name="exclamationCircle" size={16} style={{ color: 'var(--text-fg-info)' }} />
+          <span style={{ fontSize: 12.5, color: 'var(--text-body)' }}>El relevamiento se nombra automáticamente: <strong>Relevamiento {nextNum}</strong> y queda en estado Asignado.</span>
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Field label="Convocatoria" required><Select value={form.convocatoria} onChange={set('convocatoria')} placeholder="Seleccioná…" options={convsActivas.map((c) => c.nombre)} disabled={!!reprogram} /></Field>
+        <Field label="Territorial asignado" required><Select value={form.territorial} onChange={set('territorial')} placeholder="Seleccioná…" options={B.territoriales} /></Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 16 }}>
+          <Field label="Zona / Localidad" required><Input placeholder="Ej: Resistencia - Zona Norte" value={form.zona} onChange={set('zona')} /></Field>
+          <Field label="Fecha asignada" required><Input type="date" value={form.fecha} onChange={set('fecha')} /></Field>
+        </div>
+        <Field label="Observaciones"><textarea rows={2} placeholder="Opcional" value={form.obs} onChange={set('obs')} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} /></Field>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Detalle del operativo (3 solapas) ---------- */
+function OperativoDetail({ op, back, refresh, push }) {
+  const [tab, setTab] = React.useState('general');
+  const [persona, setPersona] = React.useState(null);
+  const openPersona = (o, p) => setPersona(p);
+  const e = B.relevEstados[op.estado];
+  const [reasignM, setReasignM] = React.useState(false);
+  const [reprogM, setReprogM] = React.useState(false);
+  const [form, setForm] = React.useState({ territorial: op.territorial, zona: op.zona, fecha: op.fecha, obs: op.observaciones });
+  const set = (k) => (ev) => setForm((f) => ({ ...f, [k]: ev.target.value }));
+  const editable = op.estado === 'ASIGNADO' || op.estado === 'EN_CURSO' || op.estado === 'VENCIDO';
+
+  const stat = (kk) => op.personas.filter(kk).length;
+  const resumen = [
+    { k: 'Total cargados', v: op.personas.length, tone: 'brand', icon: 'usersGroup' },
+    { k: 'Pendientes de revisión', v: stat((p) => p.estado === 'PENDIENTE'), tone: 'warning', icon: 'clock' },
+    { k: 'Aprobados', v: stat((p) => p.estado === 'APROBADO' || p.estado === 'VALIDADO_SIS'), tone: 'success', icon: 'checkCircle' },
+    { k: 'Rechazados', v: stat((p) => p.estado === 'RECHAZADO' || p.estado === 'RECHAZADO_SIS'), tone: 'danger', icon: 'xCircle' },
+    { k: 'Validados por SIS', v: stat((p) => p.sis === 'oka'), tone: 'success', icon: 'checkCircle' },
+    { k: 'RENAPER pendiente', v: stat((p) => p.renaper === 'pendiente'), tone: 'warning', icon: 'clock' },
+  ];
+
+  if (persona) {
+    return <Revision caso={{ op, persona }} back={() => setPersona(null)} />;
+  }
+
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver a relevamientos</Button>
+      <PageHeader crumb="Relevamientos" title={op.nombre} subtitle={`${op.convocatoria} · ${op.segmento}${op.subsegmento ? ' · ' + op.subsegmento : ''}`}
+        cta={<Badge variant={e.variant} dot={e.variant === 'success'}>{e.label}</Badge>} />
+
+      <Card padding={16} style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={op.territorial} size={38} /><div><div style={{ fontSize: 11, color: 'var(--text-body-subtle)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 }}>Territorial</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{op.territorial}</div></div></div>
+          <div style={{ width: 1, height: 34, background: 'var(--border-base)' }} />
+          {[['Zona / Localidad', op.zona], ['Fecha asignada', op.fecha], ['Personas relevadas', op.personas.length]].map(([k, v]) => (
+            <div key={k}><div style={{ fontSize: 11, color: 'var(--text-body-subtle)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 }}>{k}</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{v}</div></div>
+          ))}
+        </div>
+      </Card>
+
+      <Card padding={0}>
+        <div style={{ padding: '4px 16px 0' }}>
+          <Tabs value={tab} onChange={setTab} tabs={[
+            { value: 'general', label: 'Información general', iconNode: <Icon name="identification" size={16} /> },
+            { value: 'personas', label: 'Personas relevadas', iconNode: <Icon name="usersGroup" size={16} />, count: op.personas.length },
+            { value: 'avance', label: 'Avance', iconNode: <Icon name="chartBar" size={16} /> },
+          ]} />
+        </div>
+        <div style={{ padding: 24 }}>
+          {tab === 'general' && (
+            <div style={{ maxWidth: 700 }}>
+              {!editable && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', marginBottom: 18, borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-base)', color: 'var(--text-body-subtle)', fontSize: 12.5 }}>
+                  <Icon name="exclamationCircle" size={16} /> Operativo en estado <strong style={{ margin: '0 3px', color: 'var(--text-body)' }}>{e.label}</strong>: los datos generales son de solo lectura.
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <Field label="Territorial asignado"><Select value={form.territorial} onChange={set('territorial')} options={B.territoriales} disabled={!editable} /></Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 16 }}>
+                  <Field label="Zona / Localidad"><Input value={form.zona} onChange={set('zona')} disabled={!editable} /></Field>
+                  <Field label="Fecha asignada"><Input type="date" value={form.fecha} onChange={set('fecha')} disabled={!editable} /></Field>
+                </div>
+                <Field label="Observaciones"><textarea rows={2} value={form.obs} onChange={set('obs')} disabled={!editable} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)', background: editable ? 'var(--bg-white)' : 'var(--bg-disabled)' }} /></Field>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
+                  <Button variant="brand" iconNode={<Icon name="check" size={18} />} disabled={!editable} onClick={() => { op.territorial = form.territorial; op.zona = form.zona; op.observaciones = form.obs; refresh(); push('Cambios guardados'); }}>Guardar cambios</Button>
+                  <Button variant="secondary" iconNode={<Icon name="arrowPath" size={18} />} onClick={() => setReasignM(true)}>Reasignar territorial</Button>
+                  <Button variant="secondary" iconNode={<Icon name="clock" size={18} />} onClick={() => setReprogM(true)}>Reprogramar</Button>
+                  {(op.estado === 'EN_CURSO' || op.estado === 'FINALIZANDO') && <Button variant="tertiary" iconNode={<Icon name="clipboardCheck" size={18} />} onClick={() => { op.estado = 'EN_REVISION'; refresh(); push('Operativo marcado en revisión', 'info'); }}>Marcar en revisión</Button>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'personas' && (
+            <div>
+              {op.personas.length === 0 ? (
+                <EmptyState icon="usersGroup" title="Sin personas relevadas" msg="El territorial todavía no cargó formularios en este operativo." />
+              ) : (
+                <TableCard footer={<Pagination shown={op.personas.length} total={op.personas.length} label="personas relevadas" />}>
+                  <table>
+                    <thead><tr><th>DNI</th><th>Nombre y apellido</th><th>Fecha de carga</th><th>Estado</th><th>RENAPER</th><th>SIS</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+                    <tbody>
+                      {op.personas.map((p, i) => {
+                        const pe = B.personaEstados[p.estado];
+                        const revisable = p.estado === 'PENDIENTE';
+                        return (
+                          <tr key={i} className="rowh" style={{ cursor: 'pointer' }} onClick={() => openPersona(op, p)}>
+                            <td style={{ color: 'var(--text-body-subtle)' }}>{p.dni}</td>
+                            <td><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={p.nombre} size={30} /><span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{p.nombre}</span></div></td>
+                            <td style={{ whiteSpace: 'nowrap' }}>{p.fechaCarga}</td>
+                            <td><Badge variant={pe.variant} dot={pe.dot}>{pe.label}</Badge></td>
+                            <td><ResChip cat={B.renaperRes[p.renaper]} /></td>
+                            <td><ResChip cat={B.sisRes[p.sis]} /></td>
+                            <td onClick={(ev) => ev.stopPropagation()}>
+                              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                {revisable
+                                  ? <Button size="xs" variant="tertiary" iconNode={<Icon name="clipboardCheck" size={15} />} onClick={() => openPersona(op, p)}>Revisar</Button>
+                                  : <IconBtn name="eye" label="Ver formulario" onClick={() => openPersona(op, p)} />}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </TableCard>
+              )}
+            </div>
+          )}
+
+          {tab === 'avance' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              {resumen.map((r) => (
+                <StatCard key={r.k} label={r.k} value={r.v} iconNode={<Icon name={r.icon} size={22} />} tone={r.tone} />
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {reasignM && (
+        <Modal title="Reasignar territorial" tone="brand" onClose={() => setReasignM(false)} width={460}
+          footer={<><Button variant="tertiary" onClick={() => setReasignM(false)}>Cancelar</Button><Button variant="brand" onClick={() => { op.territorial = form.territorial; setReasignM(false); refresh(); push('Territorial reasignado'); }}>Reasignar</Button></>}>
+          <Field label="Nuevo territorial" required><Select value={form.territorial} onChange={set('territorial')} options={B.territoriales} /></Field>
+        </Modal>
+      )}
+      {reprogM && <OperativoModal reprogram={op} onClose={() => setReprogM(false)} push={push} onSave={(data) => { op.fecha = data.fecha; if (op.estado === 'VENCIDO') op.estado = 'ASIGNADO'; setReprogM(false); refresh(); push('Operativo reprogramado'); }} />}
+    </div>
+  );
+}
+
+/* 4 — Relevamientos (router: listado de operativos → detalle) */
+function Relevamientos({ openRevision }) {
+  const push = React.useContext(ToastCtx);
+  const [estado, setEstado] = React.useState('');
+  const [openId, setOpenId] = React.useState(null);
+  const [nuevo, setNuevo] = React.useState(false);
+  const [reprog, setReprog] = React.useState(null);
+  const [, setTick] = React.useState(0);
+  const refresh = () => setTick((t) => t + 1);
+
+  const op = B.relevamientos.find((r) => r.id === openId);
+  if (op) {
+    return <OperativoDetail key={op.id} op={op} refresh={refresh} push={push} back={() => setOpenId(null)} />;
+  }
+
+  const rows = B.relevamientos.filter((r) => !estado || r.estado === estado);
+  const crear = (data) => {
+    const num = String(B.relevamientos.length + 1).padStart(3, '0');
+    const conv = B.convocatorias.find((c) => c.nombre === data.convocatoria);
+    const seg = conv ? segById(conv.segmentoId) : null; const ss = conv ? subById(seg, conv.subsegmentoId) : null;
+    B.relevamientos.push({ id: Date.now(), nombre: `Relevamiento ${num}`, convocatoria: data.convocatoria, segmento: seg ? seg.nombre : '', subsegmento: ss ? ss.nombre : '', territorial: data.territorial, zona: data.zona, fecha: data.fecha, estado: 'ASIGNADO', observaciones: data.obs, personas: [] });
+    setNuevo(false); refresh(); push('Relevamiento creado · estado Asignado');
+  };
+
+  return (
+    <div>
+      <PageHeader crumb="Relevamientos" title="Relevamientos"
+        subtitle="Operativos de relevamiento en territorio. Entrá a un operativo para ver las personas relevadas dentro."
+        cta={<Button variant="brand" iconNode={<Icon name="plus" size={18} />} onClick={() => setNuevo(true)}>Nuevo relevamiento</Button>} />
+      <FilterBar>
+        <div style={{ width: 230 }}><Field label="Estado"><Select value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="Todos los estados" options={Object.keys(B.relevEstados).map((k) => ({ value: k, label: B.relevEstados[k].label }))} /></Field></div>
+        <div style={{ flex: 1 }} />
+        <Button variant="tertiary" iconNode={<Icon name="download" size={18} />} onClick={() => push('Relevamientos exportados')}>Exportar</Button>
+      </FilterBar>
+      <TableCard footer={<Pagination shown={rows.length} total={B.relevamientos.length} label="relevamientos" />}>
+        <table>
+          <thead><tr><th>Nombre</th><th>Convocatoria</th><th>Segmento</th><th>Territorial</th><th>Zona</th><th>Fecha</th><th>Estado</th><th style={{ textAlign: 'center' }}>Relevados</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+          <tbody>
+            {rows.map((r) => {
+              const e = B.relevEstados[r.estado];
+              const vencido = r.estado === 'VENCIDO';
+              return (
+                <tr key={r.id} className="rowh" style={{ cursor: 'pointer' }} onClick={() => setOpenId(r.id)}>
+                  <td style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{r.nombre}</td>
+                  <td style={{ maxWidth: 200 }}>{r.convocatoria}</td>
+                  <td>{r.segmento}{r.subsegmento ? <div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)' }}>{r.subsegmento}</div> : null}</td>
+                  <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Avatar name={r.territorial} size={26} /><span style={{ fontSize: 13 }}>{r.territorial}</span></div></td>
+                  <td>{r.zona}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{r.fecha}</td>
+                  <td><Badge variant={e.variant} dot={e.variant === 'success'}>{e.label}</Badge></td>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-heading)' }}>{r.personas.length}</td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
+                      <IconBtn name="eye" label="Ver detalle" onClick={() => setOpenId(r.id)} />
+                      <IconBtn name="arrowPath" label="Reasignar" tone="var(--text-body-subtle)" onClick={() => setOpenId(r.id)} />
+                      {vencido && <IconBtn name="clock" label="Reprogramar" tone="var(--text-fg-warning)" onClick={() => setReprog(r)} />}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TableCard>
+      {nuevo && <OperativoModal onClose={() => setNuevo(false)} onSave={crear} push={push} />}
+      {reprog && <OperativoModal reprogram={reprog} onClose={() => setReprog(null)} push={push} onSave={(data) => { reprog.fecha = data.fecha; reprog.estado = 'ASIGNADO'; setReprog(null); refresh(); push('Operativo reprogramado'); }} />}
+    </div>
+  );
+}
+
+/* 5 — Revisión de formulario caso a caso */
+function Revision({ caso, back }) {
+  const push = React.useContext(ToastCtx);
+  const f = B.formulario;
+  const persona = caso && caso.persona;
+  const op = caso && caso.op;
+  const nombre = persona ? persona.nombre : f.ciudadano;
+  const dni = persona ? persona.dni : f.dni;
+  const renaper = persona ? B.renaperRes[persona.renaper] : null;
+  const sis = persona ? B.sisRes[persona.sis] : null;
+  const [reject, setReject] = React.useState(false);
+  const faltan = f.requisitos.filter((r) => !r.ok).length;
+  const bandTone = (cat) => cat.variant === 'success' ? 'success' : cat.variant === 'warning' ? 'warning' : 'danger';
+  return (
+    <div>
+      <Button variant="tertiary" size="sm" iconNode={<Icon name="arrowLeft" size={16} />} onClick={back} style={{ marginBottom: 16 }}>Volver al relevamiento</Button>
+      <PageHeader crumb={op ? op.nombre : 'Revisión de formularios'} title={nombre}
+        subtitle={`${op ? op.convocatoria : f.convocatoria} · DNI ${dni}`} />
+      {persona && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+          {[['Validación RENAPER', renaper], ['Validación SIS', sis]].map(([label, cat]) => {
+            const t = bandTone(cat);
+            return (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 12, background: `var(--bg-${t}-soft)`, border: `1px solid var(--border-${t}-subtle)`, color: `var(--text-fg-${t})` }}>
+                <Icon name={cat.icon} size={20} />
+                <div style={{ flex: 1 }}><div style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700, opacity: .8 }}>{label}</div><div style={{ fontSize: 14, fontWeight: 700 }}>{cat.label}</div></div>
+                {cat.variant !== 'success' && <Button size="xs" variant="secondary" iconNode={<Icon name="arrowPath" size={14} />} onClick={() => push('Reintentando validación…', 'info')}>Reintentar</Button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Card title="Cuestionario social" subtitle="Preguntas globales del programa">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+              {f.social.map((q, i) => (
+                <div key={i}><div style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-body-subtle)', fontWeight: 700, marginBottom: 3 }}>{q.p}</div><div style={{ fontSize: 14, color: 'var(--text-heading)', fontWeight: 600 }}>{q.r}</div></div>
+              ))}
+            </div>
+          </Card>
+          <RequisitosReview reqs={f.requisitos} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Card title="Resolución del caso">
+            {faltan > 0 && (
+              <div style={{ display: 'flex', gap: 10, padding: 12, marginBottom: 14, background: 'var(--bg-warning-soft)', border: '1px solid var(--border-warning-subtle)', borderRadius: 10, color: 'var(--text-fg-warning)' }}>
+                <Icon name="warning" size={18} /><span style={{ fontSize: 13, lineHeight: 1.45 }}>{faltan} requisito(s) sin completar. Podés aprobar con observación o rechazar para que el territorial lo corrija.</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Button variant="brand" block iconNode={<Icon name="check" size={18} />} onClick={() => { push('Formulario aprobado · estado TERMINADO'); }}>Aprobar formulario</Button>
+              <Button variant="danger" block iconNode={<Icon name="xMark" size={18} />} onClick={() => setReject(true)}>Rechazar</Button>
+            </div>
+          </Card>
+          <Card title="Datos del caso">
+            {[['DNI', f.dni], ['Edad', f.edad + ' años'], ['Territorial', f.territorial], ['Presentado', f.presentado]].map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-light)', fontSize: 13.5 }}><span style={{ color: 'var(--text-body-subtle)' }}>{k}</span><span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{v}</span></div>
+            ))}
+          </Card>
+          <Card title="Historial de ediciones" subtitle="TracaFormulario">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {f.historial.map((h, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, paddingBottom: i < f.historial.length - 1 ? 16 : 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--bg-brand)', marginTop: 4 }} />
+                    {i < f.historial.length - 1 && <span style={{ flex: 1, width: 2, background: 'var(--border-base)' }} />}
+                  </div>
+                  <div><div style={{ fontSize: 13, color: 'var(--text-heading)', fontWeight: 600 }}>{h.accion}</div><div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)' }}>{h.quien} · {h.cuando}</div></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+      {reject && (
+        <Modal title="Rechazar formulario" tone="danger" onClose={() => setReject(false)} width={520}
+          footer={<><Button variant="tertiary" onClick={() => setReject(false)}>Cancelar</Button><Button variant="danger" onClick={() => { setReject(false); push('Formulario devuelto al territorial', 'danger'); }}>Confirmar rechazo</Button></>}>
+          <p style={{ marginTop: 0, fontSize: 13.5 }}>El caso vuelve al territorial en estado <strong>EN_CURSO</strong> con el motivo indicado.</p>
+          <Field label="Motivo del rechazo" required>
+            <textarea rows={3} placeholder="Ej: falta adjuntar la constancia de CBU." style={{ fontFamily: 'var(--font-sans)', fontSize: 14, padding: 12, border: '1px solid var(--border-base)', borderRadius: 8, outline: 'none', resize: 'vertical', color: 'var(--text-heading)' }} />
+          </Field>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* 6 — Cupo y lista de espera */
+function Cupo() {
+  const push = React.useContext(ToastCtx);
+  const [seg, setSeg] = React.useState('Nivel Superior');
+  const [confirm, setConfirm] = React.useState(null);
+  const s = B.segmentos.find((x) => x.nombre === seg) || B.segmentos[0];
+  const ocupado = ocupadoSum(s);
+  const espera = B.espera.length;
+  const pct = Math.round((ocupado / s.cupoTotal) * 100);
+  return (
+    <div>
+      <PageHeader crumb="Cupo y lista de espera" title="Cupo y lista de espera"
+        subtitle="Controlá beneficiarios activos contra el cupo del segmento y gestioná la lista de espera."
+        cta={<div style={{ width: 240 }}><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={B.segmentos.map((x) => x.nombre)} /></div>} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
+        <StatCard label="Cupo total" value={s.cupoTotal.toLocaleString('es-AR')} iconNode={<Icon name="usersGroup" size={22} />} gradientIcon />
+        <StatCard label="Beneficiarios activos" value={ocupado.toLocaleString('es-AR')} iconNode={<Icon name="checkCircle" size={22} />} tone="success" />
+        <StatCard label="En lista de espera" value={espera} iconNode={<Icon name="clock" size={22} />} tone="warning" alert={espera > 0} />
+      </div>
+      <Card title="Ocupación del cupo" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}><span style={{ color: 'var(--text-body)' }}>{ocupado.toLocaleString('es-AR')} de {s.cupoTotal.toLocaleString('es-AR')} lugares</span><span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{pct}%</span></div>
+        <div style={{ height: 12, borderRadius: 9999, background: 'var(--bg-tertiary)' }}><div style={{ width: pct + '%', height: '100%', borderRadius: 9999, background: 'var(--gradient-brand)' }} /></div>
+      </Card>
+      <h3 style={{ fontSize: 18, color: 'var(--text-heading)', margin: '0 0 12px' }}>Lista de espera</h3>
+      <TableCard footer={<Pagination shown={B.espera.length} total={B.espera.length} label="en espera" />}>
+        {espera === 0 ? <EmptyState icon="usersGroup" title="Sin lista de espera" msg="Todos los inscriptos de este segmento tienen un lugar asignado." /> : (
+          <table>
+            <thead><tr><th>Ciudadano</th><th>Convocatoria</th><th>En espera desde</th><th>Prioridad</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
+            <tbody>
+              {B.espera.map((w) => (
+                <tr key={w.id} className="rowh">
+                  <td><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar name={w.ciudadano} size={30} /><div><div style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{w.ciudadano}</div><div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)' }}>DNI {w.dni}</div></div></div></td>
+                  <td style={{ maxWidth: 220 }}>{w.convocatoria}</td>
+                  <td>{w.desde}</td>
+                  <td><Badge variant={B.prioridades[w.prioridad]}>{w.prioridad}</Badge></td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <Button size="xs" variant="tertiary" iconNode={<Icon name="check" size={15} />} onClick={() => push(`${w.ciudadano} promovido a beneficiario`)}>Promover</Button>
+                      <Button size="xs" variant="danger" onClick={() => setConfirm(w)}>Dar de baja</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </TableCard>
+      {confirm && (
+        <Modal title="Dar de baja de la espera" tone="danger" onClose={() => setConfirm(null)} width={460}
+          footer={<><Button variant="tertiary" onClick={() => setConfirm(null)}>Cancelar</Button><Button variant="danger" onClick={() => { setConfirm(null); push('Ciudadano dado de baja', 'danger'); }}>Dar de baja</Button></>}>
+          ¿Querés sacar a <strong>{confirm.ciudadano}</strong> de la lista de espera? Esta acción se registra en el historial.
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* 7 — Legajo ciudadano (lista + detalle con solapas) */
+const CIUDADANOS = [
+  { nombre: 'María Elena', apellido: 'Gómez', dni: '28.455.190', ingreso: '12/03/2024', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Sur', responsable: 'L. Britos', riesgo: 'ALTO', estado: 'En seguimiento', alertas: 3, edad: 42, genero: 'Femenino' },
+  { nombre: 'Jorge Aníbal', apellido: 'Fernández', dni: '30.112.876', ingreso: '04/06/2024', dispositivo: 'CDR Sáenz Peña', dispositivoSub: 'Centro', responsable: 'M. Ojeda', riesgo: 'MEDIO', estado: 'Abierto', alertas: 1, edad: 37, genero: 'Masculino' },
+  { nombre: 'Rosa Beatriz', apellido: 'Sandoval', dni: '25.778.034', ingreso: '21/11/2023', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Norte', responsable: 'L. Britos', riesgo: 'BAJO', estado: 'Abierto', alertas: 0, edad: 51, genero: 'Femenino' },
+  { nombre: 'Carlos Damián', apellido: 'Romero', dni: '33.901.245', ingreso: '09/01/2025', dispositivo: 'CDR Villa Ángela', dispositivoSub: 'Centro', responsable: 'P. Acuña', riesgo: 'MEDIO', estado: 'En seguimiento', alertas: 2, edad: 29, genero: 'Masculino' },
+  { nombre: 'Silvana Noemí', apellido: 'Quiroga', dni: '27.334.668', ingreso: '18/08/2024', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Sur', responsable: 'M. Ojeda', riesgo: 'BAJO', estado: 'Cerrado', alertas: 0, edad: 45, genero: 'Femenino' },
+  { nombre: 'Héctor Raúl', apellido: 'Maidana', dni: '22.910.557', ingreso: '02/02/2024', dispositivo: 'CDR Charata', dispositivoSub: 'Centro', responsable: 'P. Acuña', riesgo: 'ALTO', estado: 'En seguimiento', alertas: 4, edad: 58, genero: 'Masculino' },
+  { nombre: 'Lucía Mariana', apellido: 'Benítez', dni: '34.556.781', ingreso: '27/05/2025', dispositivo: 'CDR Sáenz Peña', dispositivoSub: 'Zona Oeste', responsable: 'L. Britos', riesgo: 'BAJO', estado: 'Abierto', alertas: 0, edad: 24, genero: 'Femenino' },
+];
+const RIESGO_BADGE = { ALTO: 'danger', MEDIO: 'warning', BAJO: 'success' };
+const ESTADO_BADGE = { 'Abierto': 'brand', 'En seguimiento': 'gray', 'Cerrado': 'white' };
+
+function LegajoList({ open }) {
+  const [q, setQ] = React.useState('');
+  const rows = CIUDADANOS.filter((c) => {
+    const t = (c.nombre + ' ' + c.apellido + ' ' + c.dni).toLowerCase();
+    return q.trim().length < 3 || t.includes(q.toLowerCase());
+  });
+  return (
+    <div>
+      <PageHeader crumb="Legajo ciudadano" title="Ciudadanos registrados"
+        subtitle="Legajos de ciudadanos en seguimiento por los dispositivos territoriales."
+        cta={<Button variant="brand" iconNode={<Icon name="userPlus" size={18} />}>Nuevo Ciudadano</Button>} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 16, marginBottom: 24 }}>
+        <StatCard label="Total Ciudadanos" value="1.284" iconNode={<Icon name="usersGroup" size={22} />} gradientIcon change="3%" changeDir="up" />
+        <StatCard label="Programas Activos" value="842" iconNode={<Icon name="folderOpen" size={22} />} tone="brand" />
+        <StatCard label="Alertas Activas" value="23" iconNode={<Icon name="warning" size={22} />} tone="danger" />
+        <StatCard label="Altas Hoy" value="12" iconNode={<Icon name="userPlus" size={22} />} tone="success" />
+        <StatCard label="Participación" value="78%" iconNode={<Icon name="chartBar" size={22} />} tone="olive" />
+        <StatCard label="Derivaciones" value="5" iconNode={<Icon name="arrowPath" size={22} />} tone="warning" />
+      </div>
+
+      <FilterBar>
+        <div style={{ position: 'relative', flex: 1, minWidth: 280 }}>
+          <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-body-subtle)' }}><Icon name="search" size={18} /></span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, apellido o DNI (mín. 3 caracteres)…"
+            style={{ width: '100%', height: 42, padding: '0 16px 0 42px', fontFamily: 'var(--font-sans)', fontSize: 14, border: '1px solid var(--border-base)', borderRadius: 10, background: 'var(--bg-white)', outline: 'none', color: 'var(--text-heading)' }} />
+        </div>
+        <Select defaultValue=""><option value="">Todos los riesgos</option><option>Alto</option><option>Medio</option><option>Bajo</option></Select>
+        <Select defaultValue=""><option value="">Todos los estados</option><option>Abierto</option><option>En seguimiento</option><option>Cerrado</option></Select>
+        <Button variant="tertiary" iconNode={<Icon name="bell" size={16} />}>Con alertas</Button>
+        <Button variant="secondary" iconNode={<Icon name="download" size={16} />}>Exportar</Button>
+      </FilterBar>
+
+      <TableCard footer={<Pagination shown="1–7" total="1.284" label="ciudadanos" />}>
+        <table>
+          <thead><tr>
+            <th>Ciudadano</th><th>DNI</th><th>Dispositivo</th><th>Responsable</th>
+            <th style={{ textAlign: 'center' }}>Riesgo</th><th style={{ textAlign: 'center' }}>Estado</th>
+            <th style={{ textAlign: 'center' }}>Alertas</th><th style={{ textAlign: 'center' }}>Acciones</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((c, i) => (
+              <tr key={i} className="rowh" style={{ cursor: 'pointer' }} onClick={() => open(c)}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Avatar name={c.apellido + ', ' + c.nombre} size={40} />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-heading)' }}>{c.nombre} {c.apellido}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-body-subtle)' }}>Ingreso: {c.ingreso}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{c.dni}</td>
+                <td>
+                  <div style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{c.dispositivo}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-body-subtle)' }}>{c.dispositivoSub}</div>
+                </td>
+                <td>{c.responsable}</td>
+                <td style={{ textAlign: 'center' }}><Badge variant={RIESGO_BADGE[c.riesgo]}>{c.riesgo}</Badge></td>
+                <td style={{ textAlign: 'center' }}><Badge variant={ESTADO_BADGE[c.estado]} dot={c.estado === 'Abierto'}>{c.estado}</Badge></td>
+                <td style={{ textAlign: 'center' }}>{c.alertas > 0
+                  ? <Badge variant="danger" dot>{c.alertas}</Badge>
+                  : <span style={{ color: 'var(--text-body-subtle)' }}>—</span>}</td>
+                <td style={{ textAlign: 'center' }}><div style={{ display: 'inline-flex' }}><IconBtn name="eye" label="Ver legajo" onClick={(e) => { e.stopPropagation(); open(c); }} /></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
+    </div>
+  );
+}
+
+function InfoTile({ icon, label, value }) {
+  return (
+    <div style={{ background: 'var(--bg-white)', padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-body-subtle)' }}><span style={{ color: 'var(--text-fg-brand)' }}><Icon name={icon} size={14} /></span> {label}</div>
+      <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{value}</div>
+    </div>
+  );
+}
+
+function LegajoDetalle({ c, back }) {
+  const push = React.useContext(ToastCtx);
+  const [tab, setTab] = React.useState('resumen');
+  const ini = c.nombre[0] + c.apellido[0];
+  const alertasCount = c.alertas || 3;
+  const contacto = [
+    { icon: 'identification', label: 'DNI', value: c.dni },
+    { icon: 'bell', label: 'Teléfono', value: '+54 362 4' + (100000 + c.dni.length * 7331).toString().slice(0, 6) },
+    { icon: 'documentText', label: 'Email', value: (c.nombre.split(' ')[0] + '.' + c.apellido).toLowerCase() + '@gmail.com' },
+    { icon: 'mapPin', label: 'Domicilio', value: 'Av. 25 de Mayo ' + (800 + c.edad) + ', Resistencia' },
+  ];
+  const programas = [
+    { icon: 'academicCap', nombre: 'Programa Becas', estado: 'Activo', desde: '12/03/2024' },
+    { icon: 'briefcase', nombre: 'Acompañamiento Social', estado: 'En seguimiento', desde: '04/06/2024' },
+  ];
+  const tabs = [
+    { value: 'resumen', label: 'Resumen', iconNode: <Icon name="chartBar" size={16} /> },
+    { value: 'becas', label: 'Programa Becas', iconNode: <Icon name="academicCap" size={16} />, count: 1 },
+    { value: 'conversaciones', label: 'Conversaciones', iconNode: <Icon name="clipboardList" size={16} /> },
+    { value: 'derivaciones', label: 'Derivaciones', iconNode: <Icon name="arrowPath" size={16} /> },
+    { value: 'alertas', label: 'Alertas', iconNode: <Icon name="bell" size={16} />, count: alertasCount },
+    { value: 'timeline', label: 'Línea de tiempo', iconNode: <Icon name="clock" size={16} /> },
+    { value: 'red', label: 'Red familiar', iconNode: <Icon name="usersGroup" size={16} /> },
+    { value: 'archivos', label: 'Archivos', iconNode: <Icon name="documentText" size={16} /> },
+  ];
+  return (
+    <div>
+      {/* breadcrumb + back */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-body-subtle)', marginBottom: 18 }}>
+        <button onClick={back} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-body)' }}><Icon name="usersGroup" size={14} /> Ciudadanos</button>
+        <Icon name="chevronRight" size={14} /><span style={{ color: 'var(--text-heading)', fontWeight: 700 }}>{c.apellido}, {c.nombre}</span>
+      </div>
+
+      {/* identity card */}
+      <Card padding={0} style={{ marginBottom: 20, overflow: 'hidden' }}>
+        <div style={{ padding: 26 }}>
+          <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: 22, alignItems: 'center', minWidth: 0 }}>
+              <div style={{ width: 104, height: 104, borderRadius: 20, background: 'var(--gradient-brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 800, boxShadow: 'var(--shadow-brand)', flexShrink: 0 }}>{ini}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-body-subtle)', marginBottom: 6 }}>Ciudadano</div>
+                <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800, letterSpacing: '-0.6px', color: 'var(--text-heading)' }}>{c.apellido}, {c.nombre}</h1>
+                <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <Badge variant="white">{c.edad} años</Badge>
+                  <Badge variant="white">{c.genero}</Badge>
+                  <Badge variant={RIESGO_BADGE[c.riesgo]}>Riesgo {c.riesgo}</Badge>
+                  <Badge variant="success" dot>2 acompañamientos</Badge>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 240 }}>
+              <Button variant="secondary" iconNode={<Icon name="pencil" size={16} />} onClick={() => push('Editar ciudadano', 'info')}>Editar</Button>
+              <Button variant="brand" iconNode={<Icon name="arrowPath" size={16} />} onClick={() => push('Derivar a programa', 'info')}>Derivar a Programa</Button>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--border-base)', border: '1px solid var(--border-base)', borderRadius: 12, overflow: 'hidden' }}>
+            {contacto.map((f) => <InfoTile key={f.label} {...f} />)}
+          </div>
+
+          <div style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--text-body-subtle)', marginBottom: 12 }}>Programas activos</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              {programas.map((p) => (
+                <button key={p.nombre} onClick={() => setTab('becas')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', border: '1px solid var(--border-base)', borderRadius: 12, background: 'var(--bg-white)', cursor: 'pointer', textAlign: 'left', boxShadow: 'var(--shadow-xs)' }}>
+                  <span style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--gradient-brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={p.icon} size={20} /></span>
+                  <span>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{p.nombre}</span>
+                    <span style={{ display: 'block', fontSize: 12, color: 'var(--text-body-subtle)' }}>{p.estado} · desde {p.desde}</span>
+                  </span>
+                  <Icon name="chevronRight" size={16} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* alert banner */}
+      {alertasCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', background: 'var(--bg-danger-soft)', border: '1px solid var(--border-danger-subtle)', borderRadius: 16, padding: '16px 22px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ width: 34, height: 34, borderRadius: 9999, background: '#fff', color: 'var(--text-fg-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>{alertasCount}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-fg-danger)' }}>Hay {alertasCount} alertas activas que requieren atención</span>
+          </div>
+          <Button size="sm" variant="secondary" iconRight=" " onClick={() => setTab('alertas')}>Ver alertas</Button>
+        </div>
+      )}
+
+      {/* tabs */}
+      <Card padding={0}>
+        <div style={{ padding: '4px 16px 0' }}>
+          <Tabs value={tab} onChange={setTab} tabs={tabs} />
+        </div>
+        <div style={{ padding: 24 }}>
+          {tab === 'resumen' && <LegajoResumen c={c} alertasCount={alertasCount} />}
+          {tab === 'becas' && <LegajoBecasTab push={push} />}
+          {tab === 'conversaciones' && <SimpleList rows={[
+            { a: '#1042 — Consulta', b: '· M. Ojeda', c: '10/06/2026', v: 'success', l: 'Activa' },
+            { a: '#0987 — Reclamo', b: '· L. Britos', c: '22/05/2026', v: 'gray', l: 'Cerrada' }]} />}
+          {tab === 'derivaciones' && <SimpleList rows={[
+            { a: 'Programa Becas', b: '· P. Acuña', c: '20/05/2026', v: 'warning', l: 'Pendiente' },
+            { a: 'Acompañamiento Social', b: 'desde Mesa de Entrada', c: '04/06/2024', v: 'success', l: 'Aceptada' }]} />}
+          {tab === 'alertas' && <LegajoAlertas alertasCount={alertasCount} />}
+          {tab === 'timeline' && <LegajoTimeline />}
+          {tab === 'red' && <LegajoRed push={push} />}
+          {tab === 'archivos' && <LegajoArchivos push={push} />}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function LegajoResumen({ c, alertasCount }) {
+  const indicadores = [
+    { label: 'Programas activos', value: '2', icon: 'folderOpen' },
+    { label: 'Vínculos familiares', value: '4', icon: 'usersGroup' },
+    { label: 'Archivos adjuntos', value: '6', icon: 'documentText' },
+    { label: 'Alertas activas', value: String(alertasCount), icon: 'warning' },
+  ];
+  const actividad = [
+    { f: '14/06/2026 10:32', t: 'Seguimiento', d: 'Visita domiciliaria realizada', u: 'L. Britos' },
+    { f: '02/06/2026 09:15', t: 'Plan', d: 'Plan de intervención actualizado', u: 'M. Ojeda' },
+    { f: '20/05/2026 14:48', t: 'Derivación', d: 'Derivación a Programa Becas', u: 'P. Acuña' },
+    { f: '11/05/2026 11:02', t: 'Contacto', d: 'Llamado telefónico de seguimiento', u: 'L. Britos' },
+  ];
+  const perfil = [
+    { l: 'Tipo de vivienda', v: 'Alquilada', s: 'Inquilino' },
+    { l: 'Situación laboral', v: 'Empleado informal', s: 'Ingreso: menos de una CBT' },
+    { l: 'Nivel educativo', v: 'Secundario incompleto' },
+    { l: 'Obra social', v: 'Sin cobertura' },
+    { l: 'DNI físico', v: 'Tiene DNI' },
+    { l: 'Estado RENAPER', v: 'Registrado' },
+  ];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div>
+        <SectionTitle icon="chartBar" tone="brand">Indicadores del legajo</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+          {indicadores.map((i) => (
+            <div key={i.label} style={{ border: '1px solid var(--border-base)', borderRadius: 12, padding: 20, boxShadow: 'var(--shadow-xs)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body-subtle)', marginBottom: 4 }}>{i.label}</div>
+                  <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--text-heading)', letterSpacing: '-0.5px' }}>{i.value}</div>
+                </div>
+                <span style={{ width: 52, height: 52, borderRadius: 9999, background: 'var(--bg-brand-soft)', color: 'var(--text-fg-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={i.icon} size={22} /></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <SectionTitle icon="clipboardCheck" tone="success">Actividad reciente</SectionTitle>
+        <TableCard>
+          <table>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Usuario</th></tr></thead>
+            <tbody>
+              {actividad.map((a, i) => (
+                <tr key={i} className="rowh">
+                  <td>{a.f}</td><td><Badge variant="brand">{a.t}</Badge></td>
+                  <td style={{ color: 'var(--text-heading)', fontWeight: 600 }}>{a.d}</td><td>{a.u}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableCard>
+      </div>
+
+      <div>
+        <SectionTitle icon="identification" tone="brand">Perfil social</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+          {perfil.map((s) => (
+            <div key={s.l} style={{ border: '1px solid var(--border-base)', borderRadius: 12, padding: '16px 18px', background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-body-subtle)', marginBottom: 5 }}>{s.l}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{s.v}</div>
+              {s.s && <div style={{ fontSize: 12, color: 'var(--text-body-subtle)', marginTop: 3 }}>{s.s}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ icon, tone, children }) {
+  const bg = { brand: 'var(--bg-brand-soft)', success: 'var(--bg-success-soft)' }[tone] || 'var(--bg-tertiary)';
+  const fg = { brand: 'var(--text-fg-brand)', success: 'var(--text-fg-success)' }[tone] || 'var(--text-body)';
+  return (
+    <h3 style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 18, fontWeight: 800, color: 'var(--text-heading)' }}>
+      <span style={{ width: 38, height: 38, borderRadius: 10, background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={20} /></span> {children}
+    </h3>
+  );
+}
+
+function LegajoBecasTab({ push }) {
+  const meta = [
+    { l: 'Vía de ingreso', v: 'Derivación' }, { l: 'Inscripción', v: '12/03/2024' },
+    { l: 'Inicio', v: '01/04/2024' }, { l: 'Responsable', v: 'Laura Britos' },
+  ];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 14, color: 'var(--text-body-subtle)' }}>Inscripciones del ciudadano al Programa Becas</span>
+        <Button size="sm" variant="brand" iconNode={<Icon name="plus" size={16} />} onClick={() => push('Inscribir a convocatoria', 'info')}>Inscribir a convocatoria</Button>
+      </div>
+      <div style={{ border: '1px solid var(--border-base)', borderTop: '3px solid var(--bg-brand)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid var(--border-base)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--gradient-brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="academicCap" size={22} /></span>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-heading)' }}>Programa Becas — Acompañamiento</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-body-subtle)' }}>Inscripción BEC-2026-0481 · Acompañamiento social</div>
+            </div>
+          </div>
+          <Badge variant="success" dot>Activo</Badge>
+        </div>
+        <div style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--border-base)' }}>
+          {meta.map((m) => <InfoTile key={m.l} icon="documentText" label={m.l} value={m.v} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LegajoAlertas({ alertasCount }) {
+  const list = [
+    { v: 'danger', t: 'Riesgo Alto', m: 'Indicadores de vulnerabilidad elevados en último relevamiento', f: '14/06/2026' },
+    { v: 'warning', t: 'Sin Plan de Intervención', m: 'El legajo no tiene un plan vigente cargado', f: '02/06/2026' },
+    { v: 'gray', t: 'Contactos Fallidos', m: '2 intentos de contacto sin respuesta', f: '28/05/2026' },
+  ].slice(0, Math.max(1, Math.min(3, alertasCount)));
+  const iconBg = { danger: ['var(--bg-danger-soft)', 'var(--text-fg-danger)'], warning: ['var(--bg-warning-soft)', 'var(--text-fg-warning)'], gray: ['var(--bg-tertiary)', 'var(--text-body)'] };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {list.map((a, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 4px', borderBottom: i < list.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+          <span style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9999, background: iconBg[a.v][0], color: iconBg[a.v][1], display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="warning" size={16} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{a.t}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-body-subtle)', marginTop: 3 }}>{a.m}</div>
+          </div>
+          <span style={{ fontSize: 12, color: 'var(--text-body-subtle)', whiteSpace: 'nowrap' }}>{a.f}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LegajoTimeline() {
+  const ev = [
+    { icon: 'userPlus', t: 'Inscripción a Programa Becas', d: 'Activo', f: '12/03/2024' },
+    { icon: 'arrowPath', t: 'Derivación a Acompañamiento Social', d: 'Aceptada', f: '04/06/2024' },
+    { icon: 'clipboardList', t: 'Seguimiento territorial', d: 'Visita domiciliaria', f: '20/05/2026' },
+    { icon: 'warning', t: 'Alerta generada — Riesgo Alto', d: 'Prioridad crítica', f: '14/06/2026' },
+  ];
+  return (
+    <div style={{ position: 'relative', paddingLeft: 8 }}>
+      <div style={{ position: 'absolute', left: 23, top: 6, bottom: 6, width: 2, background: 'var(--border-base)' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        {ev.map((e, i) => (
+          <div key={i} style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 18 }}>
+            <span style={{ position: 'relative', zIndex: 1, width: 32, height: 32, flexShrink: 0, borderRadius: 9999, background: 'var(--gradient-brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid var(--bg-white)', boxShadow: 'var(--shadow-xs)' }}><Icon name={e.icon} size={15} /></span>
+            <div style={{ minWidth: 0, paddingTop: 3 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{e.t}</div>
+              <div style={{ fontSize: 13, color: 'var(--text-body-subtle)', marginTop: 3 }}>{e.d}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-body-subtle)', marginTop: 5 }}>{e.f}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LegajoRed({ push }) {
+  const fam = [
+    { nombre: 'Pedro Gómez', relacion: 'Hijo', dni: '48.221.903', tel: '+54 362 4778120', estado: 'Convive' },
+    { nombre: 'Ana Morales', relacion: 'Madre', dni: '14.005.778', tel: '+54 362 4112905', estado: 'Referente' },
+    { nombre: 'Raúl Gómez', relacion: 'Hermano', dni: '26.880.341', tel: '+54 362 4339187', estado: 'Emergencia' },
+  ];
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 14, color: 'var(--text-body-subtle)' }}>Vínculos familiares registrados</span>
+        <Button size="sm" variant="brand" iconNode={<Icon name="userPlus" size={16} />} onClick={() => push('Agregar familiar', 'info')}>Agregar familiar</Button>
+      </div>
+      <TableCard>
+        <table>
+          <thead><tr><th>Ciudadano</th><th>Relación</th><th>DNI</th><th>Teléfono</th><th>Estado</th></tr></thead>
+          <tbody>
+            {fam.map((r, i) => (
+              <tr key={i} className="rowh">
+                <td><div style={{ display: 'flex', alignItems: 'center', gap: 11 }}><Avatar name={r.nombre} size={36} /><span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{r.nombre}</span></div></td>
+                <td><Badge variant="gray">{r.relacion}</Badge></td>
+                <td>{r.dni}</td><td>{r.tel}</td><td><Badge variant="success">{r.estado}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
+    </div>
+  );
+}
+
+function LegajoArchivos({ push }) {
+  const files = [
+    { icon: 'documentText', n: 'DNI frente.pdf', t: '820 KB', e: 'Identidad', f: '12/03/2024' },
+    { icon: 'documentText', n: 'Certificado de domicilio.pdf', t: '1.2 MB', e: 'Domicilio', f: '12/03/2024' },
+    { icon: 'documentText', n: 'Recibo de servicios.jpg', t: '640 KB', e: 'Comprobante', f: '18/04/2024' },
+    { icon: 'documentText', n: 'Informe social.docx', t: '310 KB', e: 'Informe', f: '20/05/2026' },
+  ];
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 14, color: 'var(--text-body-subtle)' }}>Documentación adjunta al legajo</span>
+        <Button size="sm" variant="secondary" iconNode={<Icon name="download" size={16} />} onClick={() => push('Subir archivo', 'info')}>Subir archivo</Button>
+      </div>
+      <TableCard>
+        <table>
+          <thead><tr><th>Archivo</th><th>Etiqueta</th><th>Fecha</th><th style={{ textAlign: 'center' }}>Acciones</th></tr></thead>
+          <tbody>
+            {files.map((a, i) => (
+              <tr key={i} className="rowh">
+                <td><div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><span style={{ color: 'var(--text-fg-brand)' }}><Icon name={a.icon} size={22} /></span><div><div style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{a.n}</div><div style={{ fontSize: 12, color: 'var(--text-body-subtle)' }}>{a.t}</div></div></div></td>
+                <td><Badge variant="white">{a.e}</Badge></td><td>{a.f}</td>
+                <td style={{ textAlign: 'center' }}><div style={{ display: 'inline-flex' }}><IconBtn name="download" label="Descargar" onClick={() => push('Descargando ' + a.n)} /></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
+    </div>
+  );
+}
+
+function SimpleList({ rows }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 4px', borderBottom: i < rows.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+          <div><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{r.a}</span><span style={{ marginLeft: 10, fontSize: 12.5, color: 'var(--text-body-subtle)' }}>{r.b}</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 12, color: 'var(--text-body-subtle)' }}>{r.c}</span><Badge variant={r.v}>{r.l}</Badge></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LegajoCiudadano() {
+  const [sel, setSel] = React.useState(null);
+  return sel
+    ? <LegajoDetalle c={sel} back={() => setSel(null)} />
+    : <LegajoList open={(c) => setSel(c)} />;
+}
+
+/* 8 — Reportes */
+function Reportes() {
+  const push = React.useContext(ToastCtx);
+  const reportes = [
+    { n: 'Beneficiarios activos', d: 'Listado completo de beneficiarios por segmento, convocatoria y localidad.', i: 'usersGroup', rows: '3.678 registros' },
+    { n: 'Lista de espera', d: 'Ciudadanos en espera, ordenados por prioridad y fecha de ingreso.', i: 'clock', rows: '194 registros' },
+    { n: 'Avance de relevamientos', d: 'Estado de los relevamientos por territorial y convocatoria.', i: 'clipboardCheck', rows: '6 territoriales' },
+  ];
+  return (
+    <div>
+      <PageHeader crumb="Reportes" title="Reportes y exportación"
+        subtitle="Generá y descargá reportes del programa en formato CSV o PDF." />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+        <StatCard label="Beneficiarios totales" value="3.678" iconNode={<Icon name="usersGroup" size={22} />} gradientIcon change="6%" changeDir="up" />
+        <StatCard label="Convocatorias abiertas" value="2" iconNode={<Icon name="megaphone" size={22} />} tone="brand" />
+        <StatCard label="En lista de espera" value="194" iconNode={<Icon name="clock" size={22} />} tone="warning" />
+        <StatCard label="Relevamientos en curso" value="48" iconNode={<Icon name="clipboardList" size={22} />} tone="olive" />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {reportes.map((r) => (
+          <Card key={r.n} padding={20}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--bg-brand-soft)', color: 'var(--text-fg-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={r.i} size={24} /></div>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text-heading)' }}>{r.n}</div><div style={{ fontSize: 13, color: 'var(--text-body-subtle)', marginTop: 2 }}>{r.d}</div></div>
+              <span style={{ fontSize: 12, color: 'var(--text-body-subtle)' }}>{r.rows}</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button size="sm" variant="secondary" iconNode={<Icon name="download" size={16} />} onClick={() => push(`${r.n}: CSV generado`)}>CSV</Button>
+                <Button size="sm" variant="tertiary" iconNode={<Icon name="download" size={16} />} onClick={() => push(`${r.n}: PDF generado`)}>PDF</Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* 0 — Inicio (panel) */
+const INI_TONE_BG = { brand: 'var(--bg-brand-soft)', success: 'var(--bg-success-soft)', warning: 'var(--bg-warning-soft)', danger: 'var(--bg-danger-soft)', olive: 'var(--color-olive-200)', pink: 'var(--bg-brand-soft)', gray: 'var(--bg-tertiary)' };
+const INI_TONE_FG = { brand: 'var(--text-fg-brand)', success: 'var(--text-fg-success)', warning: 'var(--text-fg-warning)', danger: 'var(--text-fg-danger)', olive: 'var(--color-olive-700)', pink: 'var(--text-fg-pink)', gray: 'var(--text-body-subtle)' };
+function IniSectionTitle({ children, action }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px' }}>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-heading)', letterSpacing: '-0.3px' }}>{children}</h2>
+      {action}
+    </div>
+  );
+}
+function Inicio({ go }) {
+  const D = window.INICIO;
+  const accesoGo = { 'Nuevo legajo': 'legajo', 'Nueva convocatoria': 'convocatorias', 'Asignar relevamiento': 'relevamientos', 'Revisar formularios': 'relevamientos' };
+  const pendGo = ['relevamientos', 'relevamientos', 'relevamientos', 'cupo'];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div style={{ borderRadius: 16, padding: '28px 32px', background: 'var(--gradient-brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, boxShadow: 'var(--shadow-brand)' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, opacity: .92, textTransform: 'uppercase', letterSpacing: '.06em' }}>{D.saludo}</div>
+          <h1 style={{ margin: '4px 0 6px', fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px' }}>Hola, {D.user.name.split(' ')[0]}</h1>
+          <p style={{ margin: 0, fontSize: 14.5, opacity: .92, maxWidth: 520 }}>Tenés <strong>24 formularios</strong> por revisar y <strong>2 relevamientos vencidos</strong>. Este es el resumen de tu jornada.</p>
+        </div>
+        <button onClick={() => go('relevamientos')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px', borderRadius: 9999, border: 'none', cursor: 'pointer', background: '#fff', color: 'var(--text-fg-brand)', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+          <Icon name="clipboardCheck" size={18} /> Revisar formularios
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        {D.stats.map((s, i) => (
+          <StatCard key={i} label={s.label} value={s.value} iconNode={<Icon name={s.icon} size={22} />} tone={s.tone} gradientIcon={s.gradient} change={s.change} changeDir={s.dir} footnote={s.foot} />
+        ))}
+      </div>
+
+      <div>
+        <IniSectionTitle>Accesos rápidos</IniSectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {D.accesos.map((a, i) => (
+            <button key={i} onClick={() => go(accesoGo[a.label] || 'segmentos')} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 12, border: '1px solid var(--border-base)', background: 'var(--bg-white)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', textAlign: 'left', transition: 'box-shadow .2s, transform .2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'none'; }}>
+              <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 10, background: INI_TONE_BG[a.tone], color: INI_TONE_FG[a.tone], display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={a.icon} size={22} /></div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>{a.label}</span>
+              <span style={{ marginLeft: 'auto', color: 'var(--text-body-subtle)' }}><Icon name="chevronRight" size={18} /></span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <IniSectionTitle>Tareas pendientes</IniSectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {D.pendientes.map((p, i) => (
+            <div key={i} onClick={() => go(pendGo[i])} style={{ cursor: 'pointer' }}>
+              <Card padding={18} hover>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: INI_TONE_BG[p.tone], color: INI_TONE_FG[p.tone], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={p.icon} size={20} /></div>
+                  <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-heading)', lineHeight: 1 }}>{p.n}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)', marginTop: 12 }}>{p.titulo}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-body-subtle)', marginTop: 2 }}>{p.desc}</div>
+              </Card>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, alignItems: 'start' }}>
+        <Card title="Actividad reciente" padding={0}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {D.actividad.map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, padding: '13px 20px', borderTop: i ? '1px solid var(--border-light)' : 'none' }}>
+                <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9999, background: INI_TONE_BG[a.tone], color: INI_TONE_FG[a.tone], display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={a.icon} size={16} /></div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13.5, color: 'var(--text-body)', lineHeight: 1.4 }}>{a.text}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)', marginTop: 2 }}>{a.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Card title="Agenda de hoy" padding={0}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {D.agenda.map((a, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, padding: '13px 20px', borderTop: i ? '1px solid var(--border-light)' : 'none', alignItems: 'center' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-fg-brand)', width: 44, flexShrink: 0 }}>{a.hora}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-heading)' }}>{a.titulo}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-body-subtle)' }}>{a.sub}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 9999, background: INI_TONE_BG[a.tone], color: INI_TONE_FG[a.tone] }}>{a.estado}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card title="Cobertura por programa" subtitle="Distribución de legajos activos">
+            {D.cobertura.map(([name, pct, color]) => (
+              <div key={name} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 5, color: 'var(--text-body)' }}>
+                  <span>{name}</span><span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{pct}%</span>
+                </div>
+                <div style={{ height: 8, borderRadius: 9999, background: 'var(--bg-tertiary)' }}>
+                  <div style={{ width: pct + '%', height: '100%', borderRadius: 9999, background: color }} />
+                </div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Login (split-screen, sólo pantalla de acceso) ---------- */
+function Login({ onLogin }) {
+  const [showPass, setShowPass] = React.useState(false);
+  const [email, setEmail] = React.useState('maria.britos@chaco.gob.ar');
+  const [pass, setPass] = React.useState('demo1234');
+  const submit = (e) => { e.preventDefault(); onLogin(); };
+  return (
+    <div style={{ display: 'flex', height: '100vh', width: '100%', background: '#fff', fontFamily: 'var(--font-sans)' }}>
+      {/* Left — illustration */}
+      <div className="login-illus" style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--bg-secondary)', alignItems: 'center', justifyContent: 'center' }}>
+        <img src="../../assets/login-background.png" alt="" style={{ position: 'absolute', right: 0, top: 0, width: '54%', height: '100%', objectFit: 'cover', objectPosition: 'left', opacity: 0.5 }} />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', padding: '0 56px' }}>
+          <img src="../../assets/illustration-login.png" alt="Sistema Social de Chaco" style={{ width: 'auto', maxWidth: '88%', height: 'auto', maxHeight: '60vh', objectFit: 'contain', filter: 'drop-shadow(0 24px 40px rgba(16,24,40,.16))' }} />
+        </div>
+      </div>
+
+      {/* Right — form */}
+      <div style={{ width: 560, maxWidth: '100%', flexShrink: 0, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 48px', borderLeft: '1px solid var(--border-base)' }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <div style={{ marginBottom: 36 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', borderRadius: 9999, background: 'var(--bg-brand-soft)', color: 'var(--text-fg-brand)', fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 16 }}>
+              <Icon name="academicCap" size={15} /> Acceso al sistema
+            </div>
+            <h1 style={{ margin: 0, fontSize: 33, lineHeight: 1.1, fontWeight: 800, color: 'var(--text-heading)', fontFamily: 'var(--font-display)', letterSpacing: '-0.6px' }}>Bienvenido Ñandé</h1>
+            <h2 style={{ margin: '4px 0 0', fontSize: 33, lineHeight: 1.1, fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '-0.6px', background: 'var(--gradient-brand)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Sistema Social de Chaco</h2>
+            <p style={{ margin: '14px 0 0', fontSize: 14, color: 'var(--text-body-subtle)', lineHeight: 1.5 }}>Ingresá con tu cuenta institucional para gestionar legajos, programas y relevamientos.</p>
+          </div>
+
+          <div style={{ border: '1px solid var(--border-base)', borderRadius: 16, padding: 28, background: '#fff', boxShadow: 'var(--shadow-sm)' }}>
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 8 }}>Tu correo electrónico *</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-body-subtle)', display: 'flex' }}><Icon name="documentText" size={18} /></span>
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ingresa tu correo electrónico"
+                    style={{ width: '100%', height: 46, padding: '0 16px 0 44px', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-heading)', background: '#fff', border: '1px solid var(--border-base)', borderRadius: 10, outline: 'none' }}
+                    onFocus={(e) => { e.target.style.borderColor = 'var(--border-brand)'; e.target.style.boxShadow = 'var(--ring-brand)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'var(--border-base)'; e.target.style.boxShadow = 'none'; }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 8 }}>Tu contraseña *</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-body-subtle)', display: 'flex' }}><Icon name="identification" size={18} /></span>
+                  <input type={showPass ? 'text' : 'password'} required value={pass} onChange={(e) => setPass(e.target.value)} placeholder="••••••••••"
+                    style={{ width: '100%', height: 46, padding: '0 44px 0 44px', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-heading)', background: '#fff', border: '1px solid var(--border-base)', borderRadius: 10, outline: 'none' }}
+                    onFocus={(e) => { e.target.style.borderColor = 'var(--border-brand)'; e.target.style.boxShadow = 'var(--ring-brand)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'var(--border-base)'; e.target.style.boxShadow = 'none'; }} />
+                  <button type="button" onClick={() => setShowPass((s) => !s)} aria-label="Mostrar contraseña" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-body-subtle)', padding: 4, display: 'flex' }}><Icon name="eye" size={18} /></button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--text-body)' }}>
+                  <input type="checkbox" defaultChecked style={{ width: 15, height: 15, accentColor: 'var(--bg-brand)' }} /> Recordarme
+                </label>
+                <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--text-fg-brand)' }}>¿Olvidaste tu contraseña?</button>
+              </div>
+
+              <button type="submit" style={{ width: '100%', height: 46, marginTop: 4, border: 'none', borderRadius: 12, background: 'var(--gradient-brand)', color: '#fff', fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: 'var(--shadow-brand)' }}>Iniciar Sesión</button>
+            </form>
+
+            <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-body-subtle)' }}>
+              ¿No estás registrado? <a href="#" onClick={(e) => e.preventDefault()} style={{ color: 'var(--text-fg-brand)', fontWeight: 700, textDecoration: 'none' }}>Crear cuenta</a>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
+            <img src="../../assets/logo-chaco-horizontal.png" alt="Gobierno del Chaco" style={{ height: 38 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- App ---------- */
+function App() {
+  const [authed, setAuthed] = React.useState(false);
+  const [screen, setScreen] = React.useState('inicio');
+  const [nav, setNav] = React.useState(0);
+  const [caso, setCaso] = React.useState(null);
+  const [collapsed, setCollapsed] = React.useState(false);
+  const go = (id) => { setScreen(id); setNav((n) => n + 1); if (id !== 'revision') setCaso(null); };
+  const openRevision = (r) => { setCaso(r); setScreen('revision'); setNav((n) => n + 1); };
+  let content;
+  if (screen === 'inicio') content = <Inicio go={go} />;
+  else if (screen === 'segmentos') content = <Segmentos />;
+  else if (screen === 'requisitos') content = <Requisitos />;
+  else if (screen === 'convocatorias') content = <Convocatorias openRevision={openRevision} />;
+  else if (screen === 'relevamientos') content = <Relevamientos openRevision={openRevision} />;
+  else if (screen === 'revision') content = <Revision caso={caso} back={() => go('relevamientos')} />;
+  else if (screen === 'cupo') content = <Cupo />;
+  else if (screen === 'legajo') content = <LegajoCiudadano />;
+  else if (screen === 'reportes') content = <Reportes />;
+  if (!authed) return <Login onLogin={() => { setAuthed(true); setScreen('inicio'); }} />;
+  return (
+    <ToastHost>
+      <div style={{ display: 'flex', height: '100vh' }}>
+        <Sidebar active={screen} go={go} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <Topbar onLogout={() => setAuthed(false)} />
+          <main className="scroll" style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+            <div key={screen + '-' + nav} style={{ maxWidth: 1180, margin: '0 auto' }}>{content}</div>
+          </main>
+        </div>
+      </div>
+    </ToastHost>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

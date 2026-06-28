@@ -1,0 +1,73 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Alerts & dialog" subtitle="Inline message banners and the modal dialog" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="../../styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg-secondary); }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .dialog { position: relative; min-height: 300px; border: 1px dashed var(--border-base-strong); border-radius: 16px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Alert, Modal, Button } = window.ChacoNODODesignSystem_dc2a68;
+  function Demo() {
+    return (
+      <div className="wrap">
+        <div className="stack">
+          <Alert variant="success" title="Trámite enviado">Recibirás una respuesta en un plazo de 48 hs hábiles.</Alert>
+          <Alert variant="warning">Tu sesión expira en 5 minutos.</Alert>
+          <Alert variant="danger" onClose={() => {}}>El DNI ingresado no es válido.</Alert>
+          <Alert variant="info">Hay 3 consultas nuevas sin asignar.</Alert>
+        </div>
+        <div className="dialog">
+          <Modal title="Confirmar baja" tone="danger"
+            footer={<><Button variant="secondary" size="sm">Cancelar</Button><Button variant="danger" size="sm">Dar de baja</Button></>}
+            style={{ position: 'absolute' }}>
+            ¿Querés dar de baja este legajo? Esta acción no se puede deshacer.
+          </Modal>
+        </div>
+      </div>
+    );
+  }
+  // Render Modal inside the dashed box rather than fixed full-screen for the specimen.
+  const Patched = () => {
+    const { Alert, Modal, Button } = window.ChacoNODODesignSystem_dc2a68;
+    return (
+      <div className="wrap">
+        <div className="stack">
+          <Alert variant="success" title="Trámite enviado">Recibirás una respuesta en un plazo de 48 hs hábiles.</Alert>
+          <Alert variant="warning">Tu sesión expira en 5 minutos.</Alert>
+          <Alert variant="danger" onClose={() => {}}>El DNI ingresado no es válido.</Alert>
+          <Alert variant="info">Hay 3 consultas nuevas sin asignar.</Alert>
+        </div>
+        <div className="dialog" style={{ display:'grid', placeItems:'center', background:'rgba(0,0,0,0.04)' }}>
+          <div style={{ width: '90%', background:'var(--bg-white)', borderRadius:'var(--radius-2xl)', boxShadow:'var(--shadow-xl)', overflow:'hidden', fontFamily:'var(--font-sans)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, padding:'18px 20px', borderBottom:'1px solid var(--border-light)' }}>
+              <div style={{ width:40, height:40, borderRadius:'var(--radius-lg)', background:'var(--bg-danger-soft)', color:'var(--text-fg-danger)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}><i className="fas fa-circle-exclamation"></i></div>
+              <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:'var(--text-heading)' }}>Confirmar baja</h3>
+            </div>
+            <div style={{ padding:20, fontSize:14, lineHeight:1.6, color:'var(--text-body)' }}>¿Querés dar de baja este legajo? Esta acción no se puede deshacer.</div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10, padding:'14px 20px', borderTop:'1px solid var(--border-light)', background:'var(--bg-secondary)' }}>
+              <Button variant="secondary" size="sm">Cancelar</Button>
+              <Button variant="danger" size="sm">Dar de baja</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  ReactDOM.createRoot(document.getElementById('root')).render(<Patched />);
+</script>
+</body>
+</html>

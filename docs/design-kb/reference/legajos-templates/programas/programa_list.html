@@ -1,0 +1,74 @@
+{% extends "includes/base.html" %}
+{% load static %}
+
+{% block title %}Programas{% endblock %}
+
+{% block main-content %}
+<div class="max-w-7xl mx-4 lg:mx-8">
+    
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-[#252F40] mb-2">Gestión de Programas</h1>
+        <p class="text-[#8C8C8C]">Vista operativa de programas {% if not es_superadmin %}asignados{% endif %}</p>
+    </div>
+
+    <!-- Grid de Programas -->
+    {% if programas %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for programa in programas %}
+        <a href="{% url 'legajos:programa_detalle' programa.pk %}" class="block">
+            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6 hover:shadow-lg transition-all duration-300">
+                <!-- Header del programa -->
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-lg flex items-center justify-center" style="background-color: {{ programa.color }}20;">
+                            <i class="fas fa-{{ programa.icono }} text-2xl" style="color: {{ programa.color }};"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-[#252F40]">{{ programa.nombre }}</h3>
+                            <p class="text-xs text-[#8C8C8C]">{{ programa.tipo }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Métricas -->
+                <div class="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-[#E5E7EB]">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-[#252F40]">{{ programa.total_instituciones }}</p>
+                        <p class="text-xs text-[#8C8C8C]">Instituciones</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-[#F59E0B]">{{ programa.total_derivaciones_pendientes }}</p>
+                        <p class="text-xs text-[#8C8C8C]">Pendientes</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-[#10B981]">{{ programa.total_casos_activos }}</p>
+                        <p class="text-xs text-[#8C8C8C]">Casos Activos</p>
+                    </div>
+                </div>
+
+                <!-- Botón -->
+                <div class="mt-4">
+                    <div class="w-full text-center py-2 rounded-lg text-sm font-medium transition-all" 
+                         style="background-color: {{ programa.color }}20; color: {{ programa.color }};">
+                        Ver Detalle →
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-12 text-center">
+        <div class="text-gray-400 text-4xl mb-4">📋</div>
+        <p class="text-gray-500 text-lg">No tienes programas asignados</p>
+        {% if es_superadmin %}
+        <p class="text-gray-400 text-sm mt-2">Crea programas desde el admin de Django</p>
+        {% else %}
+        <p class="text-gray-400 text-sm mt-2">Contacta al administrador para que te asigne programas</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

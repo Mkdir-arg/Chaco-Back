@@ -1,0 +1,202 @@
+{% extends 'includes/base.html' %}
+{% load static %}
+
+{% block title %}Cerrar Caso{% endblock %}
+
+{% block main-content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{% url 'legajos:programa_detalle' 2 %}" class="text-gray-600 hover:text-gray-900 inline-flex items-center mb-4">
+            <i class="fas fa-arrow-left mr-2"></i> Volver al programa
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-check-circle text-gray-700 mr-3"></i>Cerrar Caso
+        </h1>
+        <p class="text-gray-600 mt-2">{{ caso.ciudadano_titular.nombre_completo }}</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <form method="post" action="{% url 'legajos:nachec_cerrar_caso' caso.id %}">
+            {% csrf_token %}
+            
+            <div class="p-6 space-y-6">
+                <!-- Resumen del Caso -->
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>Resumen del Caso
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Score Final</p>
+                            <p class="text-2xl font-bold text-gray-900">
+                                {% if evaluacion %}
+                                    {{ evaluacion.score_total }}/100
+                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {% if evaluacion.categoria_final == 'ALTO' %}bg-red-100 text-red-800
+                                        {% elif evaluacion.categoria_final == 'MEDIO' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-green-100 text-green-800{% endif %}">
+                                        {{ evaluacion.get_categoria_final_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-500 text-base">No evaluado</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Prestaciones Entregadas</p>
+                            <p class="text-2xl font-bold text-gray-900">{{ prestaciones_entregadas }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if plan %}
+                    <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2">Componentes del Plan</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% if plan.incluye_alimentacion %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                    <i class="fas fa-utensils mr-1"></i> Alimentación
+                                </span>
+                            {% endif %}
+                            {% if plan.incluye_vivienda %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <i class="fas fa-home mr-1"></i> Vivienda
+                                </span>
+                            {% endif %}
+                            {% if plan.incluye_salud %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    <i class="fas fa-heartbeat mr-1"></i> Salud
+                                </span>
+                            {% endif %}
+                            {% if plan.incluye_educacion %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    <i class="fas fa-graduation-cap mr-1"></i> Educación
+                                </span>
+                            {% endif %}
+                            {% if plan.incluye_empleo %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-briefcase mr-1"></i> Empleo
+                                </span>
+                            {% endif %}
+                            {% if plan.incluye_emprendimiento %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-lightbulb mr-1"></i> Emprendimiento
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if ultima_prestacion %}
+                    <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">Última Prestación Entregada</p>
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ ultima_prestacion.get_tipo_display }} - {{ ultima_prestacion.fecha_entregada|date:"d/m/Y" }}
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                        <p class="text-sm text-gray-600">Motivo de Seguimiento</p>
+                        <p class="text-sm font-medium text-gray-900">Sin prestaciones activas</p>
+                    </div>
+                </div>
+
+                <!-- Validación prestaciones activas -->
+                {% if not puede_cerrar %}
+                <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                    <div class="flex">
+                        <i class="fas fa-ban text-red-400 mt-0.5 mr-3"></i>
+                        <div class="text-sm text-red-700">
+                            <p class="font-medium">No se puede cerrar</p>
+                            <p class="mt-1">Existen {{ prestaciones_activas }} prestaciones activas. Debe entregarlas o cancelarlas antes de cerrar el caso.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Motivo de cierre -->
+                <div>
+                    <label for="motivo_cierre" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-question-circle mr-2"></i>Motivo de cierre <span class="text-red-600">*</span>
+                    </label>
+                    <select 
+                        name="motivo_cierre" 
+                        id="motivo_cierre" 
+                        required
+                        {% if not puede_cerrar %}disabled{% endif %}
+                        class="shadow-sm focus:ring-nodo-purple focus:border-nodo-purple block w-full sm:text-sm border-gray-300 rounded-md">
+                        <option value="">Seleccione...</option>
+                        <option value="OBJETIVOS_CUMPLIDOS">Objetivos cumplidos</option>
+                        <option value="NO_LOCALIZABLE">Beneficiario no localizable</option>
+                        <option value="RENUNCIA">Renuncia / Abandono</option>
+                        <option value="DERIVADO_OTRO_PROGRAMA">Derivado a otro programa</option>
+                        <option value="INELEGIBLE_POSTERIOR">Inelegible posterior</option>
+                        <option value="FALLECIMIENTO">Fallecimiento</option>
+                        <option value="OTRO">Otro</option>
+                    </select>
+                </div>
+
+                <!-- Informe de cierre -->
+                <div>
+                    <label for="informe_cierre" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-file-alt mr-2"></i>Informe de cierre <span class="text-red-600">*</span>
+                    </label>
+                    <textarea 
+                        name="informe_cierre" 
+                        id="informe_cierre" 
+                        rows="5" 
+                        required 
+                        minlength="30"
+                        {% if not puede_cerrar %}disabled{% endif %}
+                        placeholder="Resumen ejecutivo del caso: qué se hizo, resultados obtenidos, situación final del beneficiario... (mínimo 30 caracteres)"
+                        class="shadow-sm focus:ring-nodo-purple focus:border-nodo-purple block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                    <p class="mt-1 text-sm text-gray-500">Mínimo 30 caracteres</p>
+                </div>
+
+                <!-- Confirmación -->
+                <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input 
+                            type="checkbox" 
+                            name="confirmacion" 
+                            id="confirmacion" 
+                            required
+                            {% if not puede_cerrar %}disabled{% endif %}
+                            class="focus:ring-nodo-purple h-4 w-4 text-nodo-purple border-gray-300 rounded">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="confirmacion" class="font-medium text-gray-700">
+                            Confirmo el cierre definitivo del caso
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-triangle text-yellow-400 mt-0.5 mr-3"></i>
+                        <div class="text-sm text-yellow-700">
+                            <p class="font-medium">Esta acción es irreversible</p>
+                            <p class="mt-1">El caso quedará cerrado, el plan se desactivará y todas las tareas abiertas serán canceladas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-between items-center">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nodo-purple">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                <button 
+                    type="submit" 
+                    {% if not puede_cerrar %}disabled{% endif %}
+                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-800 hover:to-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-check-circle mr-2"></i>Confirmar Cierre
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock main-content %}

@@ -1,0 +1,115 @@
+{% extends 'includes/base.html' %}
+{% load static %}
+
+{% block title %}Reprogramar Prestación{% endblock %}
+
+{% block main-content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{% url 'legajos:programa_detalle' 2 %}" class="text-gray-600 hover:text-gray-900 inline-flex items-center mb-4">
+            <i class="fas fa-arrow-left mr-2"></i> Volver al programa
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-calendar-alt text-yellow-600 mr-3"></i>Reprogramar Prestación
+        </h1>
+        <p class="text-gray-600 mt-2">{{ prestacion.get_tipo_display }}</p>
+    </div>
+
+    <!-- Formulario -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <form method="post" action="{% url 'legajos:nachec_reprogramar_prestacion' prestacion.id %}">
+            {% csrf_token %}
+            
+            <div class="p-6 space-y-6">
+                <!-- Resumen -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <div>
+                            <span class="text-gray-600">Prestación:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.get_tipo_display }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Fecha actual:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.fecha_programada|date:"d/m/Y" }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Estado:</span>
+                            <span class="font-semibold text-gray-900 ml-2">{{ prestacion.get_estado_display }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nueva fecha -->
+                <div>
+                    <label for="nueva_fecha" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar mr-2"></i>Nueva fecha programada <span class="text-red-600">*</span>
+                    </label>
+                    <input 
+                        type="date" 
+                        name="nueva_fecha" 
+                        id="nueva_fecha" 
+                        required
+                        min="{{ fecha_minima }}"
+                        class="shadow-sm focus:ring-nodo-purple focus:border-nodo-purple block w-full sm:text-sm border-gray-300 rounded-md">
+                </div>
+
+                <!-- Motivo -->
+                <div>
+                    <label for="motivo" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-question-circle mr-2"></i>Motivo <span class="text-red-600">*</span>
+                    </label>
+                    <select 
+                        name="motivo" 
+                        id="motivo" 
+                        required
+                        class="shadow-sm focus:ring-nodo-purple focus:border-nodo-purple block w-full sm:text-sm border-gray-300 rounded-md">
+                        <option value="">Seleccione...</option>
+                        <option value="Solicitud del beneficiario">Solicitud del beneficiario</option>
+                        <option value="Falta de disponibilidad">Falta de disponibilidad</option>
+                        <option value="Condiciones climáticas">Condiciones climáticas</option>
+                        <option value="Falta de recursos">Falta de recursos</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+
+                <!-- Detalle -->
+                <div>
+                    <label for="detalle" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-comment mr-2"></i>Detalle <span class="text-red-600">*</span>
+                    </label>
+                    <textarea 
+                        name="detalle" 
+                        id="detalle" 
+                        rows="3" 
+                        required 
+                        minlength="10"
+                        placeholder="Explique el motivo de la reprogramación (mínimo 10 caracteres)"
+                        class="shadow-sm focus:ring-nodo-purple focus:border-nodo-purple block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                    <p class="mt-1 text-sm text-gray-500">Mínimo 10 caracteres</p>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <div class="flex">
+                        <i class="fas fa-info-circle text-yellow-400 mt-0.5 mr-3"></i>
+                        <p class="text-sm text-yellow-700">
+                            Al reprogramar se recalculará automáticamente el SLA según el tipo de prestación y prioridad del caso.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-between items-center">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nodo-purple">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                <button 
+                    type="submit" 
+                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                    <i class="fas fa-calendar-check mr-2"></i>Reprogramar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock main-content %}
