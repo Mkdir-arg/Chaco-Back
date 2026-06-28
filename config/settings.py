@@ -143,6 +143,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "legajos.context_processors.alertas_eventos_criticos",
                 "conversaciones.context_processors.user_groups",
+                "core.context_processors.sidebar_badges",
             ],
         },
     },
