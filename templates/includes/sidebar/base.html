@@ -27,6 +27,13 @@
     .ds-snav a.justify-center, .ds-snav button.justify-center { justify-content: center !important; }
     .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; } /* #6B7280 */
 
+    /* Vence la regla legacy de nodo-brand.css:
+       a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: magenta !important }
+       (espec. 0,4,1) — afecta el texto que es nodo directo del <a>, p.ej. subítems.
+       Replicamos su patrón con .ds-snav delante para ganar por especificidad (0,5,1). */
+    .ds-snav a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: var(--text-body) !important; }
+    .ds-snav a[aria-current="page"]:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: #fff !important; }
+
     /* Hover — solo si NO está activo (gris muy suave) */
     .ds-snav a:not([aria-current="page"]):hover,
     .ds-snav button:hover { background: var(--bg-tertiary) !important; } /* #F3F4F6 */
