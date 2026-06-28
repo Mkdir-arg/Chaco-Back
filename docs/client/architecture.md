@@ -25,7 +25,7 @@ Descripción técnica del sistema **Chaco**: topología de despliegue, runtime, 
 
 -   :material-cellphone-link: **App móvil offline-first**
 
-    Expo / React Native con persistencia local y sincronización contra Supabase para relevamientos de campo.
+    Expo / React Native con persistencia local y sincronización contra la API Django de Becas para relevamientos de campo.
 
 </div>
 
@@ -55,7 +55,6 @@ Descripción técnica del sistema **Chaco**: topología de despliegue, runtime, 
     | Redis | 7-alpine | Cache, channel layer y backend de sesiones en producción |
     | django-redis | 5.4.0 | Cliente Redis para Django con `DefaultClient` |
     | SQLite | en memoria | Engine de tests bajo `pytest` (auto-detectado) |
-    | Supabase | — | Backend BaaS para la app móvil (PostgreSQL + Storage + Auth) |
 
 === "Frontend / Templates"
 
@@ -111,13 +110,11 @@ flowchart LR
     subgraph Data["Estado"]
         MYSQL[("MySQL 8<br/>:3306<br/>utf8mb4 · READ COMMITTED")]
         REDIS[("Redis 7<br/>:6379<br/>cache + sessions + channel layer")]
-        SUPA[("Supabase<br/>HTTPS REST")]
     end
 
     BO --> NGINX
     PC --> NGINX
-    APP -. HTTPS .-> SUPA
-    APP -. opcional .-> NGINX
+    APP -. HTTPS .-> NGINX
 
     NGINX -- "/" --> WEB
     NGINX -- "/ws/*" --> WS
@@ -388,9 +385,6 @@ REDIS_URL=redis://redis:6379/1       # alternativa única
 RENAPER_API_URL=…                    # padrón nacional de personas
 RENAPER_API_KEY=…
 OPENAI_API_KEY=…                     # asistencia IA en módulos puntuales
-SUPABASE_URL=…
-SUPABASE_ANON_KEY=…
-SUPABASE_SERVICE_ROLE_KEY=…
 ```
 
 ### 7.2 Endurecimiento aplicado en `prd`
@@ -434,7 +428,6 @@ Generada automáticamente por `drf-spectacular`:
 |---|---|---|
 | RENAPER | `requests` con timeouts y reintentos configurables | Validación de identidad por DNI/CUIT |
 | OpenAI | SDK oficial `openai==1.3.0` | Asistencia IA en módulos puntuales |
-| Supabase | `requests` directos, timeouts en `SUPABASE_TIMEOUT_SECONDS` | Sync con app móvil |
 
 ---
 
@@ -483,14 +476,14 @@ Verifica DB, cache, uso de disco (`DISK_USAGE_MAX=90`) y memoria libre (`MEMORY_
 
 ```mermaid
 flowchart LR
-    APP["Expo / React Native<br/>SQLite local"] --> SUPA[("Supabase<br/>PostgreSQL · Storage · Auth")]
-    SUPA -. ETL / read .-> CHACO["Chaco backoffice<br/>(servicios en core)"]
+    APP["Expo / React Native<br/>SQLite local"] --> API["API Django Becas<br/>DRF token auth"]
+    API --> MYSQL[("MySQL 8")]
 ```
 
 - **Stack**: Expo SDK + React Native, código en `mobile/`
-- **Offline-first**: los operadores de campo cargan relevamientos sin conexión, con persistencia local; al recuperar red, sincronizan contra Supabase
-- **Backend**: Supabase actúa como API gestionada (PostgreSQL + REST autogenerado + Auth + Storage)
-- **Integración con el monolito**: servicios en `core/` leen relevamientos consolidados desde Supabase para enriquecer legajos
+- **Offline-first**: los operadores de campo cargan relevamientos sin conexión, con persistencia local; al recuperar red, sincronizan contra `/api/becas/`
+- **Backend**: Django REST Framework expone los relevamientos asignados, formularios y sincronización de campo
+- **Integración con el monolito**: los datos quedan en MySQL dentro del módulo `programas`
 
 ---
 

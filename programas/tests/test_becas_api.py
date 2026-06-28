@@ -1,6 +1,7 @@
 """Tests de la API REST de campo de Becas (#82)."""
 from datetime import date
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
@@ -120,6 +121,63 @@ class RelevamientoApiTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 400)
 
 
+class RenaperBecasApiTests(_BaseApiTest):
+    def test_consultar_renaper_requiere_token(self):
+        resp = self.client.post(
+            reverse("becas_api:renaper-consultar"),
+            {"dni": "40400400", "sexo": "M"},
+            format="json",
+        )
+        self.assertIn(resp.status_code, (401, 403))
+
+    @patch("programas.api.views.consultar_datos_renaper")
+    def test_consultar_renaper_ok(self, mock_consultar):
+        mock_consultar.return_value = {
+            "success": True,
+            "data": {
+                "dni": "40400400",
+                "nombre": "Juan",
+                "apellido": "Perez",
+                "fecha_nacimiento": "1990-01-02",
+                "genero": "M",
+            },
+            "datos_api": {"raw": True},
+        }
+        self.autenticar(self.terri)
+        resp = self.client.post(
+            reverse("becas_api:renaper-consultar"),
+            {"dni": "40400400", "sexo": "M"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data["success"])
+        self.assertEqual(resp.data["data"]["dni"], "40400400")
+        self.assertEqual(resp.data["data"]["sexo"], "M")
+        mock_consultar.assert_called_once_with("40400400", "M")
+
+    @patch("programas.api.views.consultar_datos_renaper")
+    def test_consultar_renaper_error_controlado(self, mock_consultar):
+        mock_consultar.return_value = {"success": False, "error": "Servicio no disponible"}
+        self.autenticar(self.terri)
+        resp = self.client.post(
+            reverse("becas_api:renaper-consultar"),
+            {"dni": "40400400", "sexo": "F"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 502)
+        self.assertFalse(resp.data["success"])
+        self.assertEqual(resp.data["error"], "Servicio no disponible")
+
+    def test_consultar_renaper_valida_dni_y_sexo(self):
+        self.autenticar(self.terri)
+        resp = self.client.post(
+            reverse("becas_api:renaper-consultar"),
+            {"dni": "40400400"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+
 class FormularioSyncTests(_BaseApiTest):
     def test_crear_formulario_resuelve_ciudadano_nuevo(self):
         self.autenticar(self.terri)
@@ -138,6 +196,48 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertIsNotNone(resp.data["ciudadano"])
         self.assertIsNone(resp.data["datos_identificacion"])
         self.assertTrue(Ciudadano.objects.filter(dni="40400400").exists())
+
+    def test_crear_formulario_escaneado_queda_validado_renaper(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        resp = self.client.post(
+            url,
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "datos_identificacion": {
+                    "dni": "41411411",
+                    "nombre": "Maria",
+                    "apellido": "Gomez",
+                    "origen": "scan",
+                },
+                "data": {"globales": {}, "requisitos": {}},
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertTrue(resp.data["validado_renaper"])
+
+    def test_crear_formulario_manual_no_queda_validado_renaper(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        resp = self.client.post(
+            url,
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "validado_renaper": True,
+                "datos_identificacion": {
+                    "dni": "42422422",
+                    "nombre": "Luis",
+                    "apellido": "Rios",
+                    "origen": "manual",
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertFalse(resp.data["validado_renaper"])
 
     def test_crear_formulario_linkea_ciudadano_existente(self):
         existente = Ciudadano.objects.create(dni="50500500", nombre="Ana", apellido="López")

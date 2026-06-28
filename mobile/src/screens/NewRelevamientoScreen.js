@@ -638,14 +638,14 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                             style={[
                                 styles.optionChip,
                                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                                selected && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+                                selected && { backgroundColor: designColors.bgBrandSoft, borderColor: designColors.bgBrandMedium },
                             ]}
                         >
                             <Text
                                 style={[
                                     styles.optionText,
                                     { color: theme.colors.text, fontFamily: typography.medium },
-                                    selected && { color: '#FFFFFF', fontFamily: typography.bold },
+                                    selected && { color: '#A11F60', fontFamily: typography.bold },
                                 ]}
                             >
                                 {option}
@@ -1283,7 +1283,7 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
         >
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+            <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
                 <FrostedBackButton
                     onPress={onCancel}
                     disabled={isSubmitting}
@@ -1315,9 +1315,9 @@ export default function NewRelevamientoScreen({ onCancel, onSave }) {
                                 <View style={[
                                     styles.stepIconCircle,
                                     { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                                    currentStep >= step.id && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+                                    currentStep >= step.id && { backgroundColor: designColors.bgBrandSoft, borderColor: designColors.bgBrandMedium },
                                 ]}>
-                                    <Ionicons name={step.icon} size={fontSizes.sm} color={currentStep >= step.id ? theme.colors.white : theme.colors.textSoft} />
+                                    <Ionicons name={step.icon} size={fontSizes.sm} color={currentStep >= step.id ? theme.colors.primary : theme.colors.textSoft} />
                                 </View>
                                 <Text style={[
                                     styles.stepNodeLabel,
@@ -1409,10 +1409,10 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: fontSizes.xs,
-        letterSpacing: 2,
+        letterSpacing: 0,
     },
     stepperScroll: {
-        backgroundColor: 'rgba(0,0,0,0.02)',
+        backgroundColor: designColors.bgSecondary,
     },
     stepper: {
         paddingHorizontal: 20,
@@ -1469,7 +1469,7 @@ const styles = StyleSheet.create({
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 1,
         paddingHorizontal: 16,
     },
@@ -1487,7 +1487,7 @@ const styles = StyleSheet.create({
     },
     optionChip: {
         borderWidth: 1,
-        borderRadius: 12,
+        borderRadius: radii.full,
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginRight: 8,
@@ -1498,9 +1498,14 @@ const styles = StyleSheet.create({
     },
     sectionCard: {
         borderWidth: 1,
-        borderRadius: 16,
+        borderRadius: radii.xl,
         padding: 14,
         marginBottom: 16,
+        shadowColor: '#252F40',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 2,
     },
     sectionTitle: {
         fontSize: 16,
@@ -1583,7 +1588,7 @@ const styles = StyleSheet.create({
     imageActionBtn: {
         width: '48%',
         aspectRatio: 1,
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 2,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1616,7 +1621,7 @@ const styles = StyleSheet.create({
     },
     signatureArea: {
         height: 260,
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1762,7 +1767,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     placeholderCard: {
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 1,
         padding: 20,
         alignItems: 'center',
@@ -1786,6 +1791,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderTopWidth: 1,
+        backgroundColor: designColors.white,
     },
     submittingOverlay: {
         ...StyleSheet.absoluteFillObject,

@@ -15,10 +15,10 @@ import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import CustomButton from '../components/CustomButton';
 import AuthVisualBackground from '../components/AuthVisualBackground';
-import { fontSizes, radii } from '../theme';
+import { designColors, fontSizes, radii } from '../theme';
 
-export default function LoginScreen() {
-  const { theme, typography, isDark, branding } = useTheme();
+export default function LoginScreen({ onNavigateToRegister }) {
+  const { theme, typography, branding } = useTheme();
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -67,16 +67,7 @@ export default function LoginScreen() {
               <Image source={branding.assets.logo} style={styles.logo} resizeMode="contain" />
             </View>
 
-            <View
-              style={[
-                styles.form,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: isDark ? 'rgba(20,20,24,0.92)' : 'rgba(255,255,255,0.92)',
-                  shadowColor: theme.colors.auth?.glow || theme.colors.primary,
-                },
-              ]}
-            >
+            <View style={[styles.form, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.title, { fontFamily: typography.bold, color: theme.colors.text }]}>Bienvenido</Text>
                 <Text style={[styles.subtitle, { fontFamily: typography.regular, color: theme.colors.textMuted }]}>
@@ -103,7 +94,7 @@ export default function LoginScreen() {
                 <View
                   style={[
                     styles.input,
-                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : theme.colors.surfaceAlt },
+                  { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt },
                     !!error && username === '' && { borderColor: theme.colors.danger },
                   ]}
                 >
@@ -133,7 +124,7 @@ export default function LoginScreen() {
                   style={[
                     styles.input,
                     styles.passwordInputWrapper,
-                    { borderColor: theme.colors.border, backgroundColor: isDark ? theme.colors.surface : theme.colors.surfaceAlt },
+                  { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt },
                     !!error && password === '' && { borderColor: theme.colors.danger },
                   ]}
                 >
@@ -173,6 +164,19 @@ export default function LoginScreen() {
                 style={styles.buttonMargin}
               />
 
+              {onNavigateToRegister ? (
+                <View style={styles.registerLinkContainer}>
+                  <Text style={[styles.registerLinkText, { fontFamily: typography.regular, color: theme.colors.textMuted }]}>
+                    No tenes cuenta?{' '}
+                  </Text>
+                  <Pressable onPress={onNavigateToRegister}>
+                    <Text style={[styles.registerLink, { fontFamily: typography.bold, color: theme.colors.primary }]}>
+                      Crear cuenta
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
             </View>
 
             <View style={styles.footerContainer}>
@@ -208,22 +212,24 @@ const styles = StyleSheet.create({
     fontSize: fontSizes['2xl'],
     marginBottom: 8,
     textAlign: 'center',
+    color: designColors.textHeading,
   },
   subtitle: {
-    fontSize: fontSizes.base,
+    fontSize: fontSizes.sm,
+    lineHeight: 21,
     textAlign: 'center',
     marginBottom: 14,
   },
   form: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: radii['2xl'],
+    borderRadius: radii.xl,
     padding: 18,
-    shadowColor: '#000000',
+    shadowColor: '#252F40',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    elevation: 6,
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 3,
   },
   cardHeader: {
     alignItems: 'center',
@@ -231,7 +237,7 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     padding: 12,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     marginBottom: 20,
     borderWidth: 1,
   },
@@ -249,7 +255,7 @@ const styles = StyleSheet.create({
   input: {
     height: 56,
     borderWidth: 1,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -270,6 +276,17 @@ const styles = StyleSheet.create({
   },
   buttonMargin: {
     marginTop: 20,
+  },
+  registerLinkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  registerLinkText: {
+    fontSize: fontSizes.sm,
+  },
+  registerLink: {
+    fontSize: fontSizes.sm,
   },
   footerContainer: {
     alignItems: 'center',

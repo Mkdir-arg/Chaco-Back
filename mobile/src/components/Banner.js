@@ -73,10 +73,15 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
         zIndex: 10,
+        borderBottomLeftRadius: radii['2xl'],
+        borderBottomRightRadius: radii['2xl'],
     },
     container: {
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: 'rgba(0,0,0,0.12)',
+        borderBottomLeftRadius: radii['2xl'],
+        borderBottomRightRadius: radii['2xl'],
+        overflow: 'hidden',
     },
     headerRow: {
         minHeight: 62,

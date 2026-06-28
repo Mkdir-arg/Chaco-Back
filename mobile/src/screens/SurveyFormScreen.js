@@ -64,7 +64,7 @@ export default function SurveyFormScreen({ onCancel, onSave }) {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+            <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
                 <FrostedBackButton
                     onPress={onCancel}
                     iconColor={theme.colors.icon}
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: fontSizes.lg,
-        letterSpacing: 1,
+        letterSpacing: 0,
     },
     scrollContent: {
         padding: 20,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 1,
         paddingHorizontal: 16,
     },
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     addEvidenceBtn: {
         width: '31%',
         aspectRatio: 1,
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 2,
         justifyContent: 'center',
         alignItems: 'center',
@@ -266,11 +266,11 @@ const styles = StyleSheet.create({
     photoPlaceholder: {
         width: '31%',
         aspectRatio: 1,
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
     },
     signatureBox: {
         height: 120,
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
         borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
