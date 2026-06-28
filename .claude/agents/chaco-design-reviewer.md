@@ -98,8 +98,8 @@ Bordes       --border-light #F3F4F6 · --border-base #E5E7EB · --border-base-st
 ### Rings de focus
 `--ring-brand 0 0 0 3px rgba(80,89,188,.35)` (inputs) · `--ring-danger 0 0 0 3px rgba(199,0,54,.30)` (inputs en error).
 
-### Z-index (escala fija)
-`base 0 · dropdown 10 · sticky/topbar 20 · modal 100 · toast 200`. Nada de `9999`.
+### Z-index (valores del kit)
+`topbar/sticky 20 · modal 50 · toast 80` (el toast va por encima del modal). Nunca `9999`.
 
 ### Motion
 `--ease-standard cubic-bezier(0.4,0,0.2,1)` · `--duration-fast 150ms` (hover/focus, color, chevrons) ·
@@ -127,12 +127,13 @@ border-radius:var(--radius-full); white-space:nowrap`. Hover: tertiary → `bg-b
 | **brand** (CTA, una por sección) | `var(--gradient-brand)` | `#fff` | `1px transparent` |
 | **secondary** | `var(--bg-secondary)` | `var(--color-gray-600)` | `1px var(--border-base)` |
 | **tertiary** (volver/export/paginación) | `var(--bg-white)` | `var(--text-fg-brand)` | `1px var(--border-brand)` |
-| **danger** (disparador destructivo) | `var(--bg-danger)` | `#fff` | `1px transparent` |
+| **danger** (disparador destructivo + confirmar de eliminación) | `var(--bg-danger)` | `#fff` | `1px transparent` |
+| **primary** (marca plana, sin gradiente) | `var(--bg-brand)` | `#fff` | `1px transparent` |
 | ghost | `transparent` | `var(--text-fg-brand)` | `1px transparent` |
 
 **Tamaños** (alto / padding / font): `xs 32 / 6px 12px / 12` · `sm 36 / 8px 14px / 14` · `base 40 / 10px 16px / 14` (default) ·
 `lg 48 / 12px 20px / 16` · `xl 52 / 14px 24px / 16`.
-**Disabled:** `background: var(--bg-disabled); color: var(--text-disabled); cursor: not-allowed` (NUNCA opacity).
+**Disabled:** `background: var(--bg-disabled); color: var(--text-disabled); cursor: not-allowed` (NUNCA opacity; `Button.jsx` usa `opacity .55` como atajo del prototipo → overrideá con tokens).
 **Prohibido:** 2 brand en la misma sección · brand como disparador destructivo (usá danger) · `font-normal` · cambiar el gradiente.
 En el repo usar `.btn-nodo .btn-brand/.btn-secondary/.btn-tertiary/.btn-danger` + `.btn-xs…xl`.
 
@@ -145,7 +146,8 @@ En el repo usar `.btn-nodo .btn-brand/.btn-secondary/.btn-tertiary/.btn-danger` 
   (disabled `var(--bg-disabled)`); `border 1px var(--border-base)`; `border-radius var(--radius-lg)` (8); `outline none`.
   - **Focus:** `border-color var(--border-brand)` + `box-shadow var(--ring-brand)` (el ring nunca se remueve).
   - **Error:** `border-color var(--border-danger)` + `box-shadow var(--ring-danger)` + mensaje debajo `12px var(--text-fg-danger)` con ícono. Nunca solo color.
-  - **Prefijo de ícono:** left ~12–14, `var(--text-body-subtle)`, 14–18px.
+  - **Prefijo de ícono:** left 12–14, `var(--text-body-subtle)`, **14px** (18px solo en inputs de auth).
+  - **Contrato = `Input.jsx`** (radius-lg 8, padding `0 14px` / con ícono `0 14px 0 40px`). Algunos campos inline del HTML del kit usan radius 10 y padding 16/ícono 42 → no los marques como violación.
 - **Select:** idéntico (height 42, radius-lg), `padding 0 38px 0 14px`, `appearance none`, chevron-down a la derecha (right 14, `var(--text-body-subtle)`, 12px). Placeholder "Seleccioná".
 - **Textarea:** `font 14; padding 12; border 1px var(--border-base); border-radius 8; resize vertical; color var(--text-heading)`.
 - **Inputs nunca `rounded-full`.** Helper text `12px var(--text-body-subtle)`.
@@ -177,7 +179,7 @@ Clases `.badge .badge-gray/white/brand/success/warning/danger/info`. Un badge no
 - **Card (DS):** `background var(--bg-primary); border 1px var(--border-base); border-radius var(--radius-xl) (12); box-shadow var(--shadow-sm); overflow hidden`.
   Hover (si interactiva): `box-shadow var(--shadow-lg) + translateY(-2px)`. **Header:** `padding 16px 20px; border-bottom 1px var(--border-light)`,
   título `16 / 700 / var(--text-heading)`, subtítulo `13 / var(--text-body-subtle)` (margin-top 2). **Body:** `padding 24`.
-  **Footer:** `padding 14px 20px; border-top 1px var(--border-light); background var(--bg-secondary)`.
+  **Footer:** `padding 14px 20px; border-top 1px var(--border-light); background var(--bg-secondary)`. **Accent opcional:** `border-top 3px solid <tono>` (brand/success/…).
 - **TableCard:** `background var(--bg-white); border 1px var(--border-base); border-radius 12; box-shadow var(--shadow-sm); overflow hidden`; interior `overflow-x auto`; footer = Pagination.
 - **EmptyState:** `padding 56px 24px; text-align center; flex column; gap 10`. Ícono **48** `var(--text-fg-brand)` + título `17 / 700 / var(--text-heading)` +
   mensaje `14 / var(--text-body)` (max-width 360) + CTA opcional. **Obligatorio** en toda tabla/lista vacía (nunca un blanco).
@@ -194,6 +196,7 @@ Clases `.badge .badge-gray/white/brand/success/warning/danger/info`. Un badge no
   **Alert dot** opcional `10×10; bg var(--bg-danger); border 2px var(--bg-primary)` arriba-derecha.
 - **Valor:** `32 / 800 / var(--text-heading)`, line-height 1. **Delta:** `13 / 600`, color `success`(+) / `danger`(−), con prefijo +/-.
 - Footnote `12 / var(--text-body-subtle)`. **No clickeable** (cursor default).
+- **Ícono:** el glifo se renderiza a **22px** (size del iconNode) dentro del cuadrado 44 (la fontSize 18 del JSX es solo el fallback `<i>`). **Grilla:** `repeat(N,1fr); gap 16`, N=3/4/6 según pantalla (Cupo 3 · Inicio 4 · lista 6).
 
 ---
 
@@ -207,8 +210,8 @@ Tamaño default 40 (topbar/sidebar usan 36). Con imagen: `center/cover`. (En tab
 ## 11. Modal / Pop-up (DS `Modal`, como en el kit)
 
 - **Solo backoffice.** Centrado. **Backdrop:** `rgba(0,0,0,0.5)` + `backdrop-filter: blur(4px)`; click afuera cierra (salvo confirmación). `padding 16`.
-- **Tarjeta:** `background var(--bg-white); border-radius var(--radius-2xl) (16); box-shadow var(--shadow-xl); overflow hidden; z-index 100`.
-  Anchos por uso: `~480` info/confirmación · `~560` form · `~720` info extensa.
+- **Tarjeta:** `background var(--bg-white); border-radius var(--radius-2xl) (16); box-shadow var(--shadow-xl); overflow hidden; z-index 50` (el toast va a 80, por encima).
+  Anchos por uso: `~460` confirmación · `~480` info (default) · `~540–560` form · `~680` extenso.
 - **Header:** `padding 20px 24px; border-bottom 1px var(--border-light)`; **ícono tintado** `40×40; border-radius var(--radius-lg)`,
   fondo `tono-soft` + `color tono-fg`, 18px (tonos info/success/warning/danger/brand) + **título `18 / 700 / var(--text-heading)`** + `×` (fa-xmark, `var(--text-body-subtle)`, aria-label "Cerrar").
 - **Body:** `padding 24; font 14; line-height 1.6; color var(--text-body)`.
@@ -216,15 +219,15 @@ Tamaño default 40 (topbar/sidebar usan 36). Con imagen: `center/cover`. (En tab
   Acciones: Cancelar (tertiary) + acción primaria (brand). Forms de +4–5 campos → página, no modal.
 - **Animación:** in fade + scale 95→100% (150ms); out inverso. **A11y:** `role=dialog`, `aria-modal`, `aria-labelledby`, foco atrapado, Escape cierra (salvo confirmación), foco vuelve al disparador.
 
-### Confirmación destructiva = SweetAlert2 (app real; `window.confirm()` PROHIBIDO)
-- Ícono = **círculo gris neutro** (`bg-tertiary`) con `ExclamationCircleIcon` en `text-body-subtle` — **NO rojo**. La urgencia la da el texto.
-- **Botón Confirmar = gradiente Brand** (aunque sea Eliminar); Cancelar = Secondary/Tertiary. *(El disparador en la fila/tabla sí es Danger.)*
-- Título "¿Estás seguro?" + consecuencia concreta. `customClass` para botones pill + ícono gris.
+### Confirmación destructiva
+- **En el kit** = DS Modal `tone="danger"` (width ~460): ícono **rojo tintado** (`bg-danger-soft` + `text-fg-danger`, `ExclamationCircleIcon`) + botón Confirmar/Eliminar **danger (rojo sólido)** + Cancelar **tertiary**. (No hay SweetAlert en el kit.)
+- **En la app Django** el mecanismo es **SweetAlert2** (CLAUDE.md; `window.confirm()` PROHIBIDO), estilizado para matchear el kit: confirm `btn-nodo btn-danger` + ícono danger. **SweetAlert2 NO está cargado en el base** → incluí el CDN por página (en `{% block customJS %}`) antes de cualquier `Swal.fire`.
+- Título "¿Estás seguro?" + consecuencia concreta. *(El disparador en la fila/tabla también es Danger.)*
 
 ```js
 Swal.fire({ title:'¿Estás seguro?', text:'Este ciudadano será eliminado permanentemente.', icon:'warning',
   showCancelButton:true, confirmButtonText:'Eliminar', cancelButtonText:'Cancelar',
-  customClass:{ confirmButton:'btn-nodo btn-brand', cancelButton:'btn-nodo btn-secondary' } })
+  customClass:{ confirmButton:'btn-nodo btn-danger', cancelButton:'btn-nodo btn-tertiary' } })
   .then(r => { if (r.isConfirmed) {/* eliminar */} });
 ```
 
@@ -236,7 +239,7 @@ Swal.fire({ title:'¿Estás seguro?', text:'Este ciudadano será eliminado perma
 - `flex; align center; gap 10; padding 12px 16px; border-radius 12; box-shadow var(--shadow-lg); font 14 / 600`.
 - **Fondo tonal suave + borde sutil + texto e ícono del tono** (NO gris pleno): success (`bg-success-soft`/`border-success-subtle`/`text-fg-success`, `checkCircle`) ·
   danger (`bg-danger-soft`/`border-danger-subtle`/`text-fg-danger`, `xCircle`) · info (`bg-info-soft`/`color-brand-200`/`text-fg-info`, `exclamationCircle`). Ícono 18px.
-- **Ícono obligatorio** (color nunca es el único diferenciador). Duración: éxito/info ~auto (mínimo 3s). **Errores que requieren acción no van en toast** → inline o modal; nunca auto-dismiss silencioso de un error. Validación de form → debajo del campo.
+- **Ícono obligatorio** (color nunca es el único diferenciador). Duración: **~2.6s (2600ms, valor del kit)**. **Errores que requieren acción no van en toast** → inline o modal; nunca auto-dismiss silencioso de un error. Validación de form → debajo del campo.
 - `role="alert"`/`status`, `aria-live` polite/assertive. Nunca `window.alert()`.
 
 ---
@@ -288,9 +291,41 @@ inactivo `500 / var(--text-body-subtle)`. Chip de conteo `11 / 700; padding 1px 
 ## 17. Tablas (composición)
 
 Orden: **toolbar/PageHeader (búsqueda + CTA) → FilterBar → TableCard(headers → filas → Pagination)**, siempre con **empty state**.
-- **Headers:** `12 / 600 / var(--text-body-subtle); UPPERCASE; border-bottom 1px var(--border-base)`, mismo fondo. Sortable → ícono de orden.
-- **Filas:** `14`, alto ~48, `padding 12–16; border-bottom 1px var(--border-base)`. **Sin zebra, sin sombra.** Hover `var(--bg-tertiary)`. Avatar de iniciales sobre gradiente de marca.
+- **Headers (`th`):** `11px / 700 / var(--text-body-subtle); UPPERCASE; letter-spacing .05em; padding 11px 16px`, mismo fondo, **sin border propio** (la línea la da el `border-top` de las filas). Sortable → ícono de orden.
+- **Filas (`td`):** `13.5px / var(--text-body); padding 13px 16px; border-top 1px var(--border-light)`. **Sin zebra, sin sombra.** Hover `var(--bg-tertiary)`. Avatar de iniciales sobre gradiente de marca.
 - **Estado** = badge (§7). **Acciones** (última col, ancho fijo): `IconBtn` ver = `EyeIcon 20 / var(--text-fg-brand)` solo-ícono con aria-label, `padding 6; border-radius 8; hover bg var(--bg-secondary)`; eliminar = botón Danger + SweetAlert2.
+
+---
+
+## 17·B. Patrones de pantalla (calcados del kit)
+
+### Dashboard / Inicio
+- **Banner hero:** `border-radius 16; padding 28px 32px; background var(--gradient-brand); color #fff; box-shadow var(--shadow-brand)`.
+  Eyebrow `13 / 600; uppercase; letter-spacing .06em; opacity .92` + h1 `30 / 800; letter-spacing -0.5px` + párrafo `14.5; max-width 520` +
+  botón **blanco** (`background #fff; color var(--text-fg-brand); height 44; border-radius 9999; 14 / 700`). *(h1 30 y botón blanco son propios del banner; el resto de páginas usan PageHeader h1 28.)*
+- **Accesos rápidos:** grid 4 col, `gap 16`; cada uno botón `padding 18; border-radius 12; border 1px var(--border-base); box-shadow var(--shadow-sm)`,
+  icon-tile `44×44; border-radius 10` (tono bg/fg), label `14 / 700`, `chevronRight 18`, hover `translateY(-2px) + shadow-lg`.
+- **Tareas pendientes:** Card `padding 18` (hover): icon-tile `40×40; radius 10` + número `26 / 800` + título `14 / 700` + desc `12`.
+- **Actividad reciente / Agenda:** Card `padding 0`; filas `padding 13px 20px; border-top 1px var(--border-light)`; icon-dot `32×32` redondo tonal;
+  texto `13.5`; hora `13 / 800 / var(--text-fg-brand); width 44`; estado como chip-pill tonal.
+- **Cobertura:** panel con ProgressBar (ver abajo).
+- **IniSectionTitle:** h2 `18 / 800; letter-spacing -0.3px; margin 0 0 14px`, con slot de acción a la derecha.
+
+### Página de detalle (perfil / legajo)
+- **Back + breadcrumb en línea:** botón ghost (ícono 14) + `chevronRight 14` + crumb `12.5 / 700 / var(--text-heading)`.
+- **Tarjeta de identidad:** Card `padding 0` (interior 26); **avatar cuadrado `104×104; border-radius 20`** sobre `var(--gradient-brand)` con iniciales `36 / 800` y `box-shadow var(--shadow-brand)`;
+  eyebrow `'CIUDADANO' 11 / 700; uppercase; letter-spacing .08em`; h1 `32 / 800; letter-spacing -0.6px`; fila de badges; columna de acciones `width 240` (Button secondary Editar + Button brand Derivar).
+- **Grid de InfoTile:** N col con `gap 1` sobre fondo `var(--border-base)` (truco de separadores 1px); cada InfoTile `bg-white; padding 14px 16px`, label `11 / 700; uppercase` con ícono 14 `var(--text-fg-brand)`, value `14 / 700`.
+- **Tabs de detalle:** componente Tabs (§13) para sub-vistas (General, Becas, Alertas, Timeline, Red, Archivos…), con `iconNode 16` + count.
+
+### Drill-down maestro → detalle → sub-detalle (Segmentos, Convocatorias)
+Lista (PageHeader + TableCard con **filas clickeables** que abren detalle) → **detalle** de entidad con **Tabs** y una tab "General" **editable inline** (guardar → toast "Cambios guardados") → **sub-detalle**. Cada nivel con su back. Crear entidad → Modal (≤4–5 campos) o página.
+
+### ProgressBar (Cupo, Cobertura)
+Track `height 8–12; border-radius 9999; background var(--bg-tertiary)`; fill `height 100%; border-radius 9999; background var(--gradient-brand)` (o color semántico por categoría). Arriba, fila label + porcentaje (`12.5–13`, porcentaje en `var(--text-heading) 700`).
+
+### Timeline vertical
+Regla `position absolute; left 23; width 2; background var(--border-base)`; nodos `32×32` redondos sobre `var(--gradient-brand)` con `border 3px var(--bg-white) + shadow-xs`, ícono 15; ítems `gap 22`; título `14 / 700`, detalle `13 / var(--text-body-subtle)`, fecha `12 / var(--text-body-subtle)`. Sub-tablas embebidas en detalle = TableCard (§17) con header de acción "Agregar X" (Button `sm brand`).
 
 ---
 
@@ -304,7 +339,7 @@ Orden: **toolbar/PageHeader (búsqueda + CTA) → FilterBar → TableCard(header
 - **Eyebrow** "ACCESO AL SISTEMA": `inline-flex; gap 7; padding 5px 12px; border-radius 9999; background var(--bg-brand-soft); color var(--text-fg-brand); 11.5 / 700; uppercase; letter-spacing .06em`, ícono `academicCap 15`.
 - **h1** "Bienvenido Ñandé" `33 / 800 / var(--text-heading); letter-spacing -0.6px`. **h2** "Sistema Social de Chaco" `33 / 800` **en gradiente de marca** (`background var(--gradient-brand); -webkit-background-clip text; background-clip text; -webkit-text-fill-color transparent`). **Subtítulo** `14 / var(--text-body-subtle)`.
 - **Tarjeta:** `border 1px var(--border-base); border-radius 16; padding 28; box-shadow var(--shadow-sm)`.
-- **Inputs (auth):** **alto 46; border-radius 10**, prefijo `documentText`(email)/`identification`(password) 18 `var(--text-body-subtle)`, focus `var(--border-brand)` + `var(--ring-brand)`, label `13 / 600`. Toggle `eye`/`eye-slash` 18.
+- **Inputs (auth):** **alto 46; border-radius 10**, prefijo `documentText`(email)/`identification`(password) 18 `var(--text-body-subtle)`, focus `var(--border-brand)` + `var(--ring-brand)`, label `13 / 600`. Toggle `eye` 18 (el kit usa solo `eye`; el swap a `eye-slash` es mejora opcional).
 - **Submit:** `alto 46; border-radius 12; background var(--gradient-brand); 15 / 700; box-shadow var(--shadow-brand)`, label "Iniciar Sesión". Links `var(--text-fg-brand)`. Logo abajo (height 38).
 - Recuperar contraseña: centrado (no split). Preservar la integración Django (campos, csrf, errores, toggle).
 
@@ -350,7 +385,7 @@ Orden: **toolbar/PageHeader (búsqueda + CTA) → FilterBar → TableCard(header
    - Tipografía: `grep -niE 'fredoka|gellat|geliat|satoshi|font-(brand|display)|Inter|Roboto|Montserrat'`.
    - `opacity:` como disabled · `outline:\s*none` · `z-index:\s*9999` · `confirm(` · `window.alert(`.
    - Color hardcodeado en ícono: `grep -nE 'fill=|stroke=|color:\s*#'` en SVG/íconos.
-   - Magenta legacy / gradiente mal: `grep -niE 'F26DF9|FF0080|7928CA|to-\[#'`.
+   - Gradiente/magenta legacy: `grep -niE 'FF0080|7928CA'` (gradient-nodo-legacy). `#F26DF9` es `pink-700` (primitiva legítima) — solo es violación si está hardcodeado en una pantalla; excluí `chaco-tokens.css` y el `:root` de `base.html`.
 4. **Corregir con `Edit`** usando el token/valor exacto. Cambios **mínimos y quirúrgicos**; reusá `.btn-*`/`.badge-*`.
 5. **Reportar** (abajo): corregido vs. requiere decisión.
 
