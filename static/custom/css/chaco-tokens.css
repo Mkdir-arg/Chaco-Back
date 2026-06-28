@@ -48,6 +48,10 @@
   --color-gray-900: #111827;
   --color-gray-950: #030712;
 
+  /* Navy — wordmark institucional / títulos (KB tokens) */
+  --color-navy-900: #001224;
+  --color-navy-700: #252f40;
+
   /* Emerald (Success) */
   --color-emerald-050: #ecfdf5;
   --color-emerald-100: #d0fae5;
@@ -200,7 +204,8 @@
   /* === TEXT === */
   --text-white: #ffffff;
   --text-black: var(--color-gray-900);
-  --text-heading: var(--color-gray-900);
+  /* Títulos en navy institucional (#252f40) — alineado a docs/design-kb/tokens */
+  --text-heading: var(--color-navy-700);
   --text-body: var(--color-gray-600);
   --text-body-subtle: var(--color-gray-500);
   --text-fg-brand-subtle: var(--color-pink-200);
@@ -220,6 +225,11 @@
   --text-fg-indigo: var(--color-indigo-600);
   --text-fg-pink: var(--color-pink-600);
   --text-fg-lime: var(--color-lime-600);
+  /* Alias y enlaces (KB tokens) */
+  --text-disabled: var(--color-gray-400);
+  --text-link: var(--text-fg-brand);
+  --text-link-hover: var(--text-fg-brand-strong);
+  --bg-info-soft: var(--color-brand-050);
 
   /* === TYPOGRAPHY === */
   --font-family-base: 'Manrope', sans-serif;
