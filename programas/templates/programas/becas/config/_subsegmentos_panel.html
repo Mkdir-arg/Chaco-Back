@@ -1,0 +1,49 @@
+{% if subsegmentos %}
+<div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo máx</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ocupado</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Disponible</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sub in subsegmentos %}
+      <tr class="hover:bg-[#F9FAFB]">
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold">
+          <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:underline">{{ sub.nombre }}</a>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">{{ sub.cupo_maximo }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle text-right">—</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">{{ sub.cupo_maximo }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+          <div class="flex items-center justify-end gap-2">
+            <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver requisitos"><i class="fas fa-clipboard-list"></i></a>
+            <a href="{% url 'becas:subsegmento_editar' sub.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
+            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+                    data-confirm-url="{% url 'becas:subsegmento_eliminar' sub.pk %}"
+                    data-confirm-title="¿Eliminar subsegmento?" data-confirm-text="{{ sub.nombre }}" data-confirm-ok="Sí, eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="bg-[#F9FAFB] border-t border-[#E5E7EB]">
+        <td class="px-4 py-[11px] text-xs font-bold text-body-subtle uppercase tracking-wide">Total distribuido</td>
+        <td class="px-4 py-[11px] text-sm font-bold text-right" style="color:#007a55;">{{ subsegmentos_cupo_total }}</td>
+        <td class="px-4 py-[11px] text-sm text-body-subtle text-right">—</td>
+        <td class="px-4 py-[11px] text-sm font-bold text-right" style="color:#007a55;">{{ subsegmentos_cupo_total }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% else %}
+<p class="text-sm text-body-subtle">Sin subsegmentos. El cupo del segmento es el total.</p>
+{% endif %}

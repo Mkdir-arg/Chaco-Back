@@ -1,0 +1,77 @@
+{# Envío de formularios de modales vía fetch() (sin recarga). Marcar el form con
+   data-ajax. Errores inline: poner <p data-error="nombre_campo"> dentro del form.
+   Al guardar OK, se dispara el evento window 'becas-saved' (los modales Alpine lo
+   escuchan para cerrarse) y se reemplaza el contenido del target devuelto. #}
+<script>
+(function () {
+  function getCookie(name) {
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  function toast(msg, isErr) {
+    var el = document.createElement('div');
+    el.className = 'fixed bottom-5 right-5 z-[100] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
+      (isErr ? 'bg-[#FEF0F2] text-[#8B0836] border border-[#FFCCD3]'
+             : 'bg-[#ECFDF5] text-[#006045] border border-[#A4F4CF]');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function () {
+      el.style.transition = 'opacity .3s'; el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 320);
+    }, 2600);
+  }
+  window.becasToast = toast;
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
+    e.preventDefault();
+    var submitBtn = form.querySelector('[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    form.querySelectorAll('[data-error]').forEach(function (el) {
+      el.textContent = ''; el.classList.add('hidden');
+    });
+
+    fetch(form.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') },
+      body: new FormData(form),
+    }).then(function (resp) {
+      return resp.json().catch(function () { return {}; }).then(function (data) {
+        return { status: resp.status, data: data };
+      });
+    }).then(function (r) {
+      var data = r.data || {};
+      if (r.status >= 200 && r.status < 300 && data.ok) {
+        if (data.target && typeof data.html === 'string') {
+          var tgt = document.querySelector(data.target);
+          if (tgt) {
+            tgt.innerHTML = data.html;
+            // Re-inicializar directivas Alpine en el contenido inyectado.
+            if (window.Alpine && typeof window.Alpine.initTree === 'function') {
+              window.Alpine.initTree(tgt);
+            }
+          }
+        }
+        if (form.getAttribute('data-reset') !== 'false') form.reset();
+        window.dispatchEvent(new CustomEvent('becas-saved'));
+        toast(data.message || 'Guardado.');
+      } else if (r.status === 400 && data.errors) {
+        Object.keys(data.errors).forEach(function (field) {
+          var box = form.querySelector('[data-error="' + field + '"]');
+          if (box) { box.textContent = (data.errors[field] || []).join(' '); box.classList.remove('hidden'); }
+        });
+        if (data.errors.__all__) toast(data.errors.__all__.join(' '), true);
+        else toast('Revisá los datos del formulario.', true);
+      } else {
+        toast((data && data.message) || 'Ocurrió un error.', true);
+      }
+    }).catch(function () {
+      toast('Error de red.', true);
+    }).finally(function () {
+      if (submitBtn) submitBtn.disabled = false;
+    });
+  });
+})();
+</script>
+{% include "programas/becas/_confirm_js.html" %}

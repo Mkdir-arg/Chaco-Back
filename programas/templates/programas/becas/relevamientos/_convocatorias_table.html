@@ -1,0 +1,69 @@
+{% if convocatorias %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmento</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Período</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamientos</th>
+        <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in convocatorias %}
+      <tr class="hover:bg-[#F9FAFB]">
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">
+          <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.nombre }}</a>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.segmento.nombre }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">
+          {{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">
+          <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.n_relevamientos }} relevamiento{{ c.n_relevamientos|pluralize }}</a>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+          {% if c.activo %}
+            <span class="badge badge-success badge-dot">Activa</span>
+          {% else %}
+            <span class="badge badge-gray">Inactiva</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+          <div class="flex items-center justify-end gap-2">
+            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-fg-brand p-1" title="Ver detalle"><i class="fas fa-eye"></i></a>
+            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
+            {% if c.activo %}
+            <button type="button" class="text-fg-danger hover:opacity-70 p-1" title="Desactivar"
+                    data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
+                    data-confirm-title="¿Desactivar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
+              <i class="fas fa-times-circle"></i>
+            </button>
+            {% else %}
+            <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Activar"
+                    data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
+                    data-confirm-title="¿Activar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
+              <i class="fas fa-check-circle"></i>
+            </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+  <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl"></i></div>
+  <p class="text-[17px] font-bold text-heading">No hay convocatorias</p>
+  <p class="text-sm text-body max-w-xs">Creá una convocatoria para poder asignar relevamientos.</p>
+  <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
+    <i class="fas fa-plus"></i> Nueva convocatoria
+  </button>
+</div>
+{% endif %}
