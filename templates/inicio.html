@@ -455,7 +455,11 @@
             </div>
             <div class="stat-card-valrow">
                 <span class="stat-card-value">{{ total_ciudadanos|default:"0" }}</span>
-                <span class="stat-card-delta" style="color: var(--text-fg-success);">+{{ registros_mes|default:"0" }}</span>
+                {% if registros_mes %}
+                <span class="stat-card-delta" style="color: var(--text-fg-success);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:-1px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7"/></svg>{{ registros_mes }}
+                </span>
+                {% endif %}
             </div>
             <div class="stat-card-footnote">nuevos este mes</div>
         </div>
@@ -470,11 +474,8 @@
                     </svg>
                 </div>
             </div>
-            <div class="stat-card-valrow">
-                <span class="stat-card-value">{{ legajos_activos|default:"0" }}</span>
-                <span class="stat-card-delta" style="color: var(--text-body-subtle);">{{ total_legajos|default:"0" }}</span>
-            </div>
-            <div class="stat-card-footnote">legajos en total</div>
+            <div class="stat-card-value">{{ legajos_activos|default:"0" }}</div>
+            <div class="stat-card-footnote">de {{ total_legajos|default:"0" }} legajos en total</div>
         </div>
 
         {# Seguimientos hoy #}
@@ -487,11 +488,8 @@
                     </svg>
                 </div>
             </div>
-            <div class="stat-card-valrow">
-                <span class="stat-card-value">{{ seguimientos_hoy|default:"0" }}</span>
-                <span class="stat-card-delta" style="color: var(--text-body-subtle);">{{ actividad_hoy|default:"0" }}</span>
-            </div>
-            <div class="stat-card-footnote">actividades hoy</div>
+            <div class="stat-card-value">{{ seguimientos_hoy|default:"0" }}</div>
+            <div class="stat-card-footnote">{{ actividad_hoy|default:"0" }} actividades hoy</div>
         </div>
 
         {# Alertas activas #}
