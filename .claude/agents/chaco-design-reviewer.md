@@ -197,8 +197,10 @@ Clases `.badge .badge-gray/white/brand/success/warning/danger/info`. Un badge no
 - Fila superior: **label** `13 / 600 / var(--text-body-subtle)` (NO uppercase) + **ícono cuadrado** `44×44; border-radius var(--radius-lg)`,
   fondo `tono-soft` para brand/success/warning/danger (`olive` = `--color-olive-200/-700`; `neutral` = `--bg-tertiary/--color-gray-600`; no hay `-soft` para esos dos) con `color: tono-fg` — o `var(--gradient-brand)` + `#fff` si es de marca.
   **Alert dot** opcional `10×10; bg var(--bg-danger); border 2px var(--bg-primary)` arriba-derecha.
-- **Valor:** `32 / 800 / var(--text-heading)`, line-height 1. **Delta:** `13 / 600`, color `success`(+) / `danger`(−), con prefijo +/-.
-- Footnote `12 / var(--text-body-subtle)`. **No clickeable** (cursor default).
+- **Valor:** `32 / 800 / var(--text-heading)`, line-height 1, en fila `flex; align-items:baseline; gap:10`.
+- **Tendencia (delta) — OPCIONAL:** `13 / 600` con flecha: `up` → `var(--text-fg-success)` + ▲ · `down` → `var(--text-fg-danger)` + ▼ · `flat` → `var(--text-body-subtle)` + –.
+- Footnote `12 / var(--text-body-subtle)` — **OPCIONAL**.
+- **⚠ Regla: tendencia y footnote NO se renderizan si no hay dato** — nada de `0`/`+0` de relleno (condicionalo con `{% if %}`). **No clickeable** (cursor default).
 - **Ícono:** el glifo del iconNode se renderiza a **20–22px** (22 en cards principales, 20 en sub-detalle) dentro del cuadrado 44 (la fontSize 18 del JSX es solo el fallback `<i>`). **Grilla:** `repeat(N,1fr); gap 16`, N=3/4/6 según pantalla (Cupo 3 · Inicio 4 · lista 6).
 
 ---
