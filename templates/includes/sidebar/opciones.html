@@ -1,21 +1,30 @@
 {% load static custom_filters rbac %}
 {% with pagina_actual=request.resolver_match.route %}
-    <style>
-        .sidebar-nav .text-\[\#FF0080\] {
-            color: var(--nav-active-color) !important;
-        }
-    </style>
-    <div class="flex flex-1 flex-col">
-        <!-- User info -->
-        <div class="mb-4">
-            <template x-if="!sidebarCollapsed">
-                <div class="p-2 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] flex items-center gap-2">
-                    <div class="h-8 w-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0" style="background: linear-gradient(90deg, #8A9A46 0%, #8A9A46 100%);">
-                        <span class="text-xs font-semibold text-white">{{ request.user.username|first|upper }}</span>
+<div class="flex flex-1 flex-col" style="gap: 0;">
+
+    {# ── User card ──────────────────────────────────────────── #}
+    <div style="margin-bottom: 8px;">
+
+        {# Expandido: avatar + nombre + rol #}
+        <template x-if="!sidebarCollapsed">
+            <div style="padding: 14px 16px; border-bottom: 1px solid var(--border-base); margin-bottom: 4px;">
+                <div class="flex items-center gap-2">
+                    {# Avatar 36 sobre gradient-brand #}
+                    <div class="flex items-center justify-center flex-shrink-0"
+                         style="width: 36px; height: 36px; border-radius: 9999px;
+                                background: var(--gradient-brand);">
+                        <span style="font-size: 14px; font-weight: 700; color: #fff; line-height: 1;">
+                            {{ request.user.get_full_name|default:request.user.username|first|upper }}
+                        </span>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-[#252F40] truncate">{{ request.user.get_full_name|default:request.user.username }}</p>
-                        <p class="text-xs text-[#8C8C8C] truncate">
+                        <p style="font-size: 13px; font-weight: 700;
+                                  color: var(--text-heading); white-space: nowrap;
+                                  overflow: hidden; text-overflow: ellipsis;">
+                            {{ request.user.get_full_name|default:request.user.username }}
+                        </p>
+                        <p style="font-size: 11px; color: var(--text-body-subtle);
+                                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             {% if request.user.groups.all %}
                                 {{ request.user.groups.first.name }}
                             {% else %}
@@ -24,214 +33,642 @@
                         </p>
                     </div>
                 </div>
-            </template>
-            
-            <template x-if="sidebarCollapsed">
-                <div class="flex justify-center">
-                    <div class="h-10 w-10 rounded-full flex items-center justify-center shadow-sm" style="background: linear-gradient(90deg, #8A9A46 0%, #8A9A46 100%);">
-                        <span class="text-sm font-semibold text-white">{{ request.user.username|first|upper }}</span>
+            </div>
+        </template>
+
+        {# Colapsado: solo avatar centrado #}
+        <template x-if="sidebarCollapsed">
+            <div style="display: flex; justify-content: center;
+                        padding: 14px 0; border-bottom: 1px solid var(--border-base);
+                        margin-bottom: 4px;">
+                <div class="flex items-center justify-center"
+                     style="width: 36px; height: 36px; border-radius: 9999px;
+                            background: var(--gradient-brand);"
+                     title="{{ request.user.get_full_name|default:request.user.username }}">
+                    <span style="font-size: 14px; font-weight: 700; color: #fff; line-height: 1;">
+                        {{ request.user.get_full_name|default:request.user.username|first|upper }}
+                    </span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {# ── Nav principal ───────────────────────────────────────── #}
+    {#
+       Clases de ítem reutilizadas:
+         activo:   bg var(--bg-brand); color #fff; font-weight 700
+         inactivo: transparent; color var(--text-body); font-weight 500
+         hover:    bg var(--bg-tertiary)
+       Ícono activo:  #fff
+       Ícono inactivo: var(--text-body-subtle)
+       Padding ítem:  10px 14px
+       border-radius: 9999px (pill)
+       gap entre ítems: 2px (margin-bottom en cada div)
+    #}
+    <nav style="display: flex; flex-direction: column; gap: 2px;">
+
+        {# ── Inicio ─────────────────────────────────────────── #}
+        <div class="relative" style="margin-bottom: 2px;">
+            <a href="{% url 'core:inicio' %}"
+               class="group flex items-center transition-colors duration-150"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
+               style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                      {% if 'inicio' in pagina_actual %}
+                          background: var(--bg-brand); color: #fff; font-weight: 700;
+                      {% else %}
+                          background: transparent; color: var(--text-body); font-weight: 500;
+                      {% endif %}
+                      font-size: 13.5px; font-family: var(--font-sans);"
+               onmouseover="if (!this.classList.contains('nav-active')) this.style.background='var(--bg-tertiary)'"
+               onmouseout="if (!this.classList.contains('nav-active')) this.style.background='transparent'"
+               {% if 'inicio' in pagina_actual %}aria-current="page"{% endif %}>
+                {# home icon #}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                     style="color: {% if 'inicio' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75V15a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v5.25c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75V9.75M8.25 21h8.25"/>
+                </svg>
+                <template x-if="!sidebarCollapsed">
+                    <span>Inicio</span>
+                </template>
+            </a>
+        </div>
+
+        {# ── Dashboard (grupo colapsable) ─────────────────────── #}
+        {% if request.user|puede:"dashboard.ver" %}
+        <div x-data="{ open: {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}true{% else %}false{% endif %} }"
+             class="relative" style="margin-bottom: 2px;">
+
+            {# Expandido: botón grupo + subítems #}
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-3 transition-colors duration-150"
+                            style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: 500;
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
+                            onmouseover="this.style.background='var(--bg-tertiary)'"
+                            onmouseout="this.style.background='transparent'">
+                        {# squares icon #}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/>
+                        </svg>
+                        <span class="flex-1">Dashboard</span>
+                        {# chevron-down, rota cuando abierto #}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="14" height="14" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform 150ms;"
+                             :style="open ? 'transform: rotate(180deg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
+
+                    {# Subítems #}
+                    <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        <a href="{% url 'legajos:dashboard_contactos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'dashboard-contactos' in pagina_actual %}
+                                      background: var(--bg-brand); color: #fff; font-weight: 700;
+                                  {% else %}
+                                      background: transparent; color: var(--text-body-subtle); font-weight: 500;
+                                  {% endif %}"
+                           onmouseover="if (this.style.background.indexOf('brand') === -1) this.style.background='var(--bg-tertiary)'; if (this.style.background.indexOf('brand') === -1) this.style.color='var(--text-body)'"
+                           onmouseout="{% if 'dashboard-contactos' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'dashboard-contactos' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# chart-bar icon pequeño #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'dashboard-contactos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
+                            </svg>
+                            Dashboard Contactos
+                        </a>
+                        <a href="{% url 'conversaciones:metricas' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'conversaciones/metricas' in pagina_actual %}
+                                      background: var(--bg-brand); color: #fff; font-weight: 700;
+                                  {% else %}
+                                      background: transparent; color: var(--text-body-subtle); font-weight: 500;
+                                  {% endif %}"
+                           onmouseover="{% if 'conversaciones/metricas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'conversaciones/metricas' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'conversaciones/metricas' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# chat-bubble / megaphone icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'conversaciones/metricas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
+                            </svg>
+                            Dashboard Conversaciones
+                        </a>
                     </div>
                 </div>
+            </template>
+
+            {# Colapsado: link directo #}
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'legajos:dashboard_contactos' %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}
+                              background: var(--bg-brand);
+                          {% else %}
+                              background: transparent;
+                          {% endif %}"
+                   onmouseover="{% if 'dashboard-contactos' not in pagina_actual and 'conversaciones/metricas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+                   onmouseout="{% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+                   title="Dashboard"
+                   aria-label="Dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="20" height="20" aria-hidden="true"
+                         style="color: {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/>
+                    </svg>
+                </a>
             </template>
         </div>
-        
-        <!-- Navegación principal -->
-        <nav class="space-y-2 sidebar-nav">
-            <!-- Inicio -->
-            <div class="relative">
-                <a href="{% url 'core:inicio' %}" class="{% if 'inicio' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
-                    <i class="fas fa-home text-base {% if 'inicio' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
-                    <template x-if="!sidebarCollapsed">
-                        <span>Inicio</span>
-                    </template>
-                </a>
-            </div>
-            <!-- Dashboard -->
-            {% if request.user|puede:"dashboard.ver" %}
-            <div x-data="{ open: {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
+        {% endif %}
+
+        {# ── Ciudadanos ───────────────────────────────────────── #}
+        {% if request.user|puede:"ciudadano.ver" %}
+        <div class="relative" style="margin-bottom: 2px;">
+            <a href="{% url 'legajos:ciudadanos' %}"
+               class="group flex items-center transition-colors duration-150"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
+               style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                      {% if 'legajos' in pagina_actual %}
+                          background: var(--bg-brand); color: #fff; font-weight: 700;
+                      {% else %}
+                          background: transparent; color: var(--text-body); font-weight: 500;
+                      {% endif %}
+                      font-size: 13.5px; font-family: var(--font-sans);"
+               onmouseover="{% if 'legajos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+               onmouseout="{% if 'legajos' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+               {% if 'legajos' in pagina_actual %}aria-current="page"{% endif %}>
+                {# users-group icon #}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                     style="color: {% if 'legajos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
+                </svg>
                 <template x-if="!sidebarCollapsed">
-                    <div>
-                        <button @click="open = !open" class="text-[#4A5565] hover:bg-[#F9FAFB] group flex w-full items-center gap-x-3 rounded-xl p-3 text-left text-sm font-semibold transition-all">
-                            <i class="fas fa-chart-pie text-base"></i>
-                            <span class="flex-1">Dashboard</span>
-                            <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
-                        </button>
-                        <div x-show="open" x-transition class="mt-1 ml-6 space-y-1">
-                            <a href="{% url 'legajos:dashboard_contactos' %}" class="{% if 'dashboard-contactos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                <i class="fas fa-phone mr-2 text-xs {% if 'dashboard-contactos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Dashboard Contactos
-                            </a>
-                            <a href="{% url 'conversaciones:metricas' %}" class="{% if 'conversaciones/metricas' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                <i class="fas fa-comments mr-2 text-xs {% if 'conversaciones/metricas' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Dashboard Conversaciones
-                            </a>
-                        </div>
+                    <span>Ciudadanos</span>
+                </template>
+            </a>
+        </div>
+        {% endif %}
+
+        {# ── Relevamientos ────────────────────────────────────── #}
+        {% if request.user|puede:"relevamiento.ver" %}
+        <div class="relative" style="margin-bottom: 2px;">
+            <a href="{% url 'core:relevamientos' %}"
+               class="group flex items-center transition-colors duration-150"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
+               style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                      {% if 'relevamientos' in pagina_actual %}
+                          background: var(--bg-brand); color: #fff; font-weight: 700;
+                      {% else %}
+                          background: transparent; color: var(--text-body); font-weight: 500;
+                      {% endif %}
+                      font-size: 13.5px; font-family: var(--font-sans);"
+               onmouseover="{% if 'relevamientos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+               onmouseout="{% if 'relevamientos' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+               {% if 'relevamientos' in pagina_actual %}aria-current="page"{% endif %}>
+                {# clipboard-check icon #}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                     style="color: {% if 'relevamientos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0 1 18 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3 1.5 1.5 3-3.75"/>
+                </svg>
+                <template x-if="!sidebarCollapsed">
+                    <span>Relevamientos</span>
+                </template>
+            </a>
+        </div>
+        {% endif %}
+
+        {# ── Conversaciones ───────────────────────────────────── #}
+        {% if request.user|puede:"conversacion.operar" %}
+        <div class="relative" style="margin-bottom: 2px;">
+            <a href="{% url 'conversaciones:lista' %}"
+               class="group flex items-center transition-colors duration-150"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
+               style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                      {% if 'conversaciones' in pagina_actual %}
+                          background: var(--bg-brand); color: #fff; font-weight: 700;
+                      {% else %}
+                          background: transparent; color: var(--text-body); font-weight: 500;
+                      {% endif %}
+                      font-size: 13.5px; font-family: var(--font-sans);"
+               onmouseover="{% if 'conversaciones' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+               onmouseout="{% if 'conversaciones' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+               {% if 'conversaciones' in pagina_actual %}aria-current="page"{% endif %}>
+                {# megaphone icon #}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                     style="color: {% if 'conversaciones' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.51l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46"/>
+                </svg>
+                <template x-if="!sidebarCollapsed">
+                    <span>Conversaciones</span>
+                </template>
+            </a>
+        </div>
+        {% endif %}
+
+        {# ── Reportes ─────────────────────────────────────────── #}
+        {% if request.user|puede:"reporte.ver" %}
+        <div class="relative" style="margin-bottom: 2px;">
+            <a href="{% url 'legajos:reportes' %}"
+               class="group flex items-center transition-colors duration-150"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
+               style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                      {% if 'reportes' in pagina_actual %}
+                          background: var(--bg-brand); color: #fff; font-weight: 700;
+                      {% else %}
+                          background: transparent; color: var(--text-body); font-weight: 500;
+                      {% endif %}
+                      font-size: 13.5px; font-family: var(--font-sans);"
+               onmouseover="{% if 'reportes' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+               onmouseout="{% if 'reportes' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+               {% if 'reportes' in pagina_actual %}aria-current="page"{% endif %}>
+                {# chart-bar icon #}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                     style="color: {% if 'reportes' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
+                </svg>
+                <template x-if="!sidebarCollapsed">
+                    <span>Reportes</span>
+                </template>
+            </a>
+        </div>
+        {% endif %}
+
+        {# ── Configuración (grupo colapsable) ─────────────────── #}
+        {% if request.user|puede:"config.administrar" %}
+        <div x-data="{ open: {% if 'configuracion' in pagina_actual %}true{% else %}false{% endif %} }"
+             class="relative" style="margin-bottom: 2px;">
+
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-3 transition-colors duration-150"
+                            style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: 500;
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
+                            onmouseover="this.style.background='var(--bg-tertiary)'"
+                            onmouseout="this.style.background='transparent'">
+                        {# adjustments-horizontal icon #}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
+                        </svg>
+                        <span class="flex-1">Configuración</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="14" height="14" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform 150ms;"
+                             :style="open ? 'transform: rotate(180deg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        <a href="{% url 'configuracion:provincias' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'provincias' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'provincias' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'provincias' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'provincias' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# map-pin icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'provincias' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/>
+                            </svg>
+                            Provincias
+                        </a>
+                        <a href="{% url 'configuracion:municipios' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'municipios' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'municipios' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'municipios' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'municipios' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# identification icon (ciudad) #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'municipios' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z"/>
+                            </svg>
+                            Municipios
+                        </a>
+                        <a href="{% url 'configuracion:localidades' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'localidades' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'localidades' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'localidades' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'localidades' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# map-pin small #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'localidades' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/>
+                            </svg>
+                            Localidades
+                        </a>
+                        {% if request.user|puede:"conversacion.configurar" %}
+                        <a href="{% url 'conversaciones:configurar_cola' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'conversaciones/configurar-cola' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'conversaciones/configurar-cola' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'conversaciones/configurar-cola' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'conversaciones/configurar-cola' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# users-group icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'conversaciones/configurar-cola' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
+                            </svg>
+                            Cola Conversaciones
+                        </a>
+                        {% endif %}
                     </div>
-                </template>
-                
-                <template x-if="sidebarCollapsed">
-                    <a href="{% url 'legajos:dashboard_contactos' %}" class="{% if 'dashboard-contactos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center justify-center p-3 text-sm font-semibold transition-all">
-                        <i class="fas fa-chart-pie text-base {% if 'dashboard-contactos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
-                    </a>
-                </template>
-            </div>
-            {% endif %}
-
-            <!-- Ciudadanos -->
-            {% if request.user|puede:"ciudadano.ver" %}
-                <div class="relative">
-                    <a href="{% url 'legajos:ciudadanos' %}" class="{% if 'legajos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
-                        <i class="fas fa-users text-base {% if 'legajos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
-                        <template x-if="!sidebarCollapsed">
-                            <span>Ciudadanos</span>
-                        </template>
-                    </a>
                 </div>
-            {% endif %}
+            </template>
 
-            <!-- Relevamientos -->
-            {% if request.user|puede:"relevamiento.ver" %}
-            <div class="relative">
-                <a href="{% url 'core:relevamientos' %}" class="{% if 'relevamientos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
-                    <i class="fas fa-clipboard-check text-base {% if 'relevamientos' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
-                    <template x-if="!sidebarCollapsed">
-                        <span>Relevamientos</span>
-                    </template>
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'configuracion:provincias' %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'configuracion' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   onmouseover="{% if 'configuracion' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+                   onmouseout="{% if 'configuracion' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+                   title="Configuración"
+                   aria-label="Configuración">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="20" height="20" aria-hidden="true"
+                         style="color: {% if 'configuracion' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
+                    </svg>
                 </a>
-            </div>
-            {% endif %}
+            </template>
+        </div>
+        {% endif %}
 
-            <!-- Conversaciones -->
-            {% if request.user|puede:"conversacion.operar" %}
-                <div class="relative">
-                    <a href="{% url 'conversaciones:lista' %}" class="{% if 'conversaciones' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
-                        <i class="fas fa-comments text-base {% if 'conversaciones' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
-                        <template x-if="!sidebarCollapsed">
-                            <span>Conversaciones</span>
-                        </template>
-                    </a>
-                </div>
-            {% endif %}
+        {# ── Becas (grupo colapsable) ─────────────────────────── #}
+        {% if request.user|puede:"becas.configurar" or request.user|puede:"becas.relevamientos" or request.user|puede:"becas.revisar" %}
+        <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
+             class="relative" style="margin-bottom: 2px;">
 
-            <!-- Reportes -->
-            {% if request.user|puede:"reporte.ver" %}
-                <div class="relative">
-                    <a href="{% url 'legajos:reportes' %}" class="{% if 'reportes' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center p-3 text-sm font-semibold transition-all" :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'">
-                        <i class="fas fa-chart-bar text-base {% if 'reportes' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
-                        <template x-if="!sidebarCollapsed">
-                            <span>Reportes</span>
-                        </template>
-                    </a>
-                </div>
-            {% endif %}
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-3 transition-colors duration-150"
+                            style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: 500;
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
+                            onmouseover="this.style.background='var(--bg-tertiary)'"
+                            onmouseout="this.style.background='transparent'">
+                        {# academic-cap icon #}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"/>
+                        </svg>
+                        <span class="flex-1">Becas</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="14" height="14" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform 150ms;"
+                             :style="open ? 'transform: rotate(180deg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
 
-            <!-- Configuración -->
-            {% if request.user|puede:"config.administrar" %}
-                <div x-data="{ open: {% if 'configuracion' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
-                    <template x-if="!sidebarCollapsed">
-                        <div>
-                            <button @click="open = !open" class="text-[#4A5565] hover:bg-[#F9FAFB] group flex w-full items-center gap-x-3 rounded-xl p-3 text-left text-sm font-semibold transition-all">
-                                <i class="fas fa-sliders-h text-base"></i>
-                                <span class="flex-1">Configuración</span>
-                                <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
-                            </button>
-                            <div x-show="open" x-transition class="mt-1 ml-6 space-y-1">
-                                <a href="{% url 'configuracion:provincias' %}" class="{% if 'provincias' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-map mr-2 text-xs {% if 'provincias' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Provincias
-                                </a>
-                                <a href="{% url 'configuracion:municipios' %}" class="{% if 'municipios' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-city mr-2 text-xs {% if 'municipios' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Municipios
-                                </a>
-                                <a href="{% url 'configuracion:localidades' %}" class="{% if 'localidades' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-map-marker-alt mr-2 text-xs {% if 'localidades' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Localidades
-                                </a>
-                                {% if request.user|puede:"conversacion.configurar" %}
-                                <a href="{% url 'conversaciones:configurar_cola' %}" class="{% if 'conversaciones/configurar-cola' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-users-cog mr-2 text-xs {% if 'conversaciones/configurar-cola' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Cola Conversaciones
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </template>
-                    
-                    <template x-if="sidebarCollapsed">
-                        <a href="{% url 'configuracion:provincias' %}" class="{% if 'configuracion' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center justify-center p-3 text-sm font-semibold transition-all">
-                            <i class="fas fa-sliders-h text-base {% if 'configuracion' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
+                    <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        {% if request.user|puede:"becas.configurar" %}
+                        <a href="{% url 'becas:segmentos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/config/segmentos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'becas/config/segmentos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'becas/config/segmentos' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'becas/config/segmentos' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# folder-open icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/config/segmentos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 6v.776"/>
+                            </svg>
+                            Segmentos
                         </a>
-                    </template>
-                </div>
-            {% endif %}
-
-            <!-- Programa Becas -->
-            {% if request.user|puede:"becas.configurar" or request.user|puede:"becas.relevamientos" or request.user|puede:"becas.revisar" %}
-                <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
-                    <template x-if="!sidebarCollapsed">
-                        <div>
-                            <button @click="open = !open" class="text-[#4A5565] hover:bg-[#F9FAFB] group flex w-full items-center gap-x-3 rounded-xl p-3 text-left text-sm font-semibold transition-all">
-                                <i class="fas fa-graduation-cap text-base"></i>
-                                <span class="flex-1">Becas</span>
-                                <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
-                            </button>
-                            <div x-show="open" x-transition class="mt-1 ml-6 space-y-1">
-                                {% if request.user|puede:"becas.configurar" %}
-                                <a href="{% url 'becas:segmentos' %}" class="{% if 'becas/config/segmentos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-layer-group mr-2 text-xs"></i>Segmentos
-                                </a>
-                                <a href="{% url 'becas:preguntas' %}" class="{% if 'becas/config/preguntas' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-clipboard-list mr-2 text-xs"></i>Cuestionario social
-                                </a>
-                                {% endif %}
-                                {% if request.user|puede:"becas.relevamientos" %}
-                                <a href="{% url 'becas:convocatorias' %}" class="{% if 'becas/convocatorias' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-bullhorn mr-2 text-xs"></i>Convocatorias
-                                </a>
-                                <a href="{% url 'becas:relevamientos' %}" class="{% if 'becas/relevamientos' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-clipboard-check mr-2 text-xs"></i>Relevamientos
-                                </a>
-                                {% endif %}
-                                {% if request.user|puede:"becas.revisar" %}
-                                <a href="{% url 'becas:revision' %}" class="{% if 'becas/revision' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-clipboard-list mr-2 text-xs"></i>Revisión
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </template>
-                    <template x-if="sidebarCollapsed">
-                        <a href="{% if request.user|puede:'becas.configurar' %}{% url 'becas:segmentos' %}{% else %}{% url 'becas:relevamientos' %}{% endif %}" class="{% if 'becas' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center justify-center p-3 text-sm font-semibold transition-all">
-                            <i class="fas fa-graduation-cap text-base"></i>
+                        <a href="{% url 'becas:preguntas' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/config/preguntas' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'becas/config/preguntas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'becas/config/preguntas' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'becas/config/preguntas' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# clipboard-list icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/config/preguntas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/>
+                            </svg>
+                            Cuestionario social
                         </a>
-                    </template>
-                </div>
-            {% endif %}
-
-            <!-- Administración -->
-            {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
-                <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }" class="relative">
-                    <template x-if="!sidebarCollapsed">
-                        <div>
-                            <button @click="open = !open" class="text-[#4A5565] hover:bg-[#F9FAFB] group flex w-full items-center gap-x-3 rounded-xl p-3 text-left text-sm font-semibold transition-all">
-                                <i class="fas fa-cog text-base"></i>
-                                <span class="flex-1">Administración</span>
-                                <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
-                            </button>
-                            <div x-show="open" x-transition class="mt-1 ml-6 space-y-1">
-                                <a href="{% url 'users:usuarios' %}" class="{% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-users mr-2 text-xs {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Usuarios
-                                </a>
-                                <a href="{% url 'users:roles' %}" class="{% if 'roles' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] font-semibold{% else %}text-[#8C8C8C] hover:bg-[#F9FAFB] hover:text-[#4A5565]{% endif %} block rounded-xl py-2 px-3 text-sm transition-colors">
-                                    <i class="fas fa-user-tag mr-2 text-xs {% if 'roles' in pagina_actual %}text-[#FF0080]{% endif %}"></i>Roles
-                                </a>
-                            </div>
-                        </div>
-                    </template>
-                    
-                    <template x-if="sidebarCollapsed">
-                        <a href="{% url 'users:usuarios' %}" class="{% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}bg-[#F9FAFB] text-[#FF0080] shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] rounded-xl{% else %}text-[#4A5565] hover:bg-[#F9FAFB] rounded-xl{% endif %} group flex items-center justify-center p-3 text-sm font-semibold transition-all">
-                            <i class="fas fa-cog text-base {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}text-[#FF0080]{% endif %}"></i>
+                        {% endif %}
+                        {% if request.user|puede:"becas.relevamientos" %}
+                        <a href="{% url 'becas:convocatorias' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/convocatorias' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'becas/convocatorias' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'becas/convocatorias' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'becas/convocatorias' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# megaphone icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/convocatorias' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.51l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46"/>
+                            </svg>
+                            Convocatorias
                         </a>
-                    </template>
+                        <a href="{% url 'becas:relevamientos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/relevamientos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'becas/relevamientos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'becas/relevamientos' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'becas/relevamientos' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# clipboard-check icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/relevamientos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0 1 18 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3 1.5 1.5 3-3.75"/>
+                            </svg>
+                            Relevamientos
+                        </a>
+                        {% endif %}
+                        {% if request.user|puede:"becas.revisar" %}
+                        <a href="{% url 'becas:revision' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/revision' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'becas/revision' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'becas/revision' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'becas/revision' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# clipboard-list icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/revision' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/>
+                            </svg>
+                            Revisión
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
-            {% endif %}
+            </template>
 
-        </nav>
-    </div>
+            <template x-if="sidebarCollapsed">
+                <a href="{% if request.user|puede:'becas.configurar' %}{% url 'becas:segmentos' %}{% else %}{% url 'becas:relevamientos' %}{% endif %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   onmouseover="{% if 'becas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+                   onmouseout="{% if 'becas' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+                   title="Becas"
+                   aria-label="Becas">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="20" height="20" aria-hidden="true"
+                         style="color: {% if 'becas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"/>
+                    </svg>
+                </a>
+            </template>
+        </div>
+        {% endif %}
+
+        {# ── Administración (grupo colapsable) ────────────────── #}
+        {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
+        <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }"
+             class="relative" style="margin-bottom: 2px;">
+
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-3 transition-colors duration-150"
+                            style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: 500;
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
+                            onmouseover="this.style.background='var(--bg-tertiary)'"
+                            onmouseout="this.style.background='transparent'">
+                        {# cog-6-tooth / cog icon #}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                        </svg>
+                        <span class="flex-1">Administración</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="14" height="14" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform 150ms;"
+                             :style="open ? 'transform: rotate(180deg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        <a href="{% url 'users:usuarios' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'usuarios' not in pagina_actual and 'password' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# users-group icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
+                            </svg>
+                            Usuarios
+                        </a>
+                        <a href="{% url 'users:roles' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'roles' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           onmouseover="{% if 'roles' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                           onmouseout="{% if 'roles' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                           {% if 'roles' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# identification icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'roles' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0ZM10.5 15.75a3 3 0 0 0-6 0v.75c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.75Z"/>
+                            </svg>
+                            Roles
+                        </a>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'users:usuarios' %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   onmouseover="{% if 'usuarios' not in pagina_actual and 'roles' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
+                   onmouseout="{% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
+                   title="Administración"
+                   aria-label="Administración">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="20" height="20" aria-hidden="true"
+                         style="color: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                    </svg>
+                </a>
+            </template>
+        </div>
+        {% endif %}
+
+    </nav>
+</div>
 {% endwith %}
