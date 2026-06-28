@@ -77,6 +77,12 @@ badges `.badge .badge-gray/white/brand/success/warning/danger/info`. Para inputs
 
 ---
 
+## 2b. Gotchas del repo (aprendidos en migraciones reales)
+
+- **Comentarios Django:** `{# … #}` es de **UNA sola línea** (su tokenizer no cruza saltos). Un `{# … #}` multilínea **se renderiza como texto** en la pantalla. Para notas multilínea usá `{% comment %}…{% endcomment %}` o varias `{# #}` de una línea.
+- **CSS legacy global con `!important`:** hay CSS viejo (nodo-brand.css, override.css, etc.) que pisa estilos —incluso inline— en componentes compartidos (sidebar, navbar). Si un color/fondo no “pega”, **blindá** el componente: poné una **clase wrapper** y un `<style>` **inline en el HTML** (no en un .css, que además se cachea) que fuerce los valores por **token + `!important`**, idealmente state-driven por `[aria-current="page"]`. Ej. sidebar: `.ds-snav a{color:var(--text-body)!important} .ds-snav [aria-current="page"]{background:var(--bg-brand)!important;color:#fff!important}`.
+- **Verificá el render real**, no solo `manage.py check`: el check no renderiza templates. Para componentes con lógica, validá con el test client logueado dentro del contenedor (`docker compose exec app python manage.py shell` → `Client().force_login(...)` → `get('/ruta/')`) y revisá el HTML (que no se filtren comentarios, que las clases/estilos estén).
+
 ## 3. Construir una pantalla NUEVA (backoffice)
 
 1. **Leé el canon** (`chaco-design-reviewer.md`) y, si existe, mirá la pantalla equivalente en el
@@ -115,6 +121,8 @@ Antes de dar por terminado, escaneá tu salida (igual que el revisor):
 - **Si usaste `Swal.fire`**: verificá que la página incluya el `<script src=".../sweetalert2@11">` en `{% block customJS %}` (no está en el base).
 - **Si migraste**: confirmá que respetaste el bloque de herencia original (`content` vs `main-content`) y que no rompiste campos de form/csrf/urls.
 - **Si inlineaste un Heroicon SVG**: `stroke="currentColor"` (no hex), `stroke-width="1.5"`, `viewBox="0 0 24 24"`, color por token en el contenedor, tamaño en px.
+- **Comentarios:** ningún `{# … #}` multilínea (se renderiza como texto) → `grep -nzoP '\{#[^#]*\n[^#]*#\}'` o revisá a ojo; usá `{% comment %}` para multilínea.
+- **Componente compartido (sidebar/navbar):** si tocaste colores, confirmá que el blindaje `<style>` scopeado esté y que el render real (test client) no muestre el color legacy.
 Corregí lo que aparezca. Si hay una decisión de producto (ej. variable legacy del `:root` usada por otros CSS),
 dejala señalada en el reporte en vez de romperla. No corras server ni build salvo que te lo pidan.
 
