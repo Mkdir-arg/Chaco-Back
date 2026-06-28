@@ -29,6 +29,11 @@
         font-weight: 700 !important;
     }
     .ds-snav [aria-current="page"] svg { color: #fff !important; }
+    /* El texto va en un <span>; forzarlo en el span mismo (un color directo en el
+       span vence a la herencia del <a>, por eso CSS legacy lo pintaba). */
+    .ds-snav a span, .ds-snav button span { color: inherit !important; }
+    .ds-snav a:not([aria-current="page"]) span { color: var(--text-body) !important; }
+    .ds-snav [aria-current="page"] span { color: #fff !important; }
 
     /* Contador / badge dentro del ítem */
     .ds-snav .nav-count {
