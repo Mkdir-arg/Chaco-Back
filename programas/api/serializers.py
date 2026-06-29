@@ -8,13 +8,17 @@ from programas.services.becas import definicion_formulario
 class RelevamientoListSerializer(serializers.ModelSerializer):
     segmento = serializers.CharField(source="convocatoria.segmento.nombre", read_only=True)
     convocatoria_nombre = serializers.CharField(source="convocatoria.nombre", read_only=True)
+    formularios_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Relevamiento
         fields = [
             "id", "nombre", "zona", "fecha_asignada", "estado",
-            "segmento", "convocatoria_nombre", "fecha_finalizado",
+            "segmento", "convocatoria_nombre", "fecha_finalizado", "formularios_count",
         ]
+
+    def get_formularios_count(self, obj):
+        return obj.formularios.count()
 
 
 class RelevamientoDetailSerializer(RelevamientoListSerializer):
@@ -41,7 +45,7 @@ class FormularioSerializer(serializers.ModelSerializer):
             "creado", "modificado",
         ]
         read_only_fields = [
-            "id", "relevamiento", "estado", "motivo_rechazo", "validado_renaper",
+            "id", "relevamiento", "estado", "motivo_rechazo",
             "ciudadano", "ciudadano_dni", "creado", "modificado",
         ]
 

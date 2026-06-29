@@ -58,7 +58,7 @@ class MenuRestringidoTests(TestCase):
         self.assertIn(reverse("legajos:ciudadano_nuevo"), html)
         self.assertIn(reverse("conversaciones:configurar_cola"), html)
         self.assertIn(reverse("legajos:dashboard_contactos"), html)
-        self.assertIn(reverse("core:relevamientos"), html)
+        self.assertNotIn(reverse("core:relevamientos"), html)
 
     def test_rol_inactivo_solo_inicio(self):  # TC-59-08
         self.rol.meta.activo = False

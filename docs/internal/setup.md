@@ -52,7 +52,6 @@ Ver `.env.local.example` para la lista completa. Las variables que necesitás pe
 
 - `SECRET_KEY`
 - `DATABASE_URL`
-- Credenciales de Supabase
 
 ## Comandos útiles del día a día
 

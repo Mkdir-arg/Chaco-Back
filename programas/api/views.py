@@ -8,11 +8,12 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from core.rbac import puede
+from legajos.services.consulta_renaper import consultar_datos_renaper
 from programas.api.serializers import (
     FormularioSerializer,
     RelevamientoDetailSerializer,
@@ -48,6 +49,67 @@ class ObtainCampoToken(ObtainAuthToken):
             )
         token, _ = Token.objects.get_or_create(user=user)
         return Response({"token": token.key, "user_id": user.pk, "username": user.username})
+
+
+def _normalizar_datos_renaper(resultado, dni, sexo):
+    datos = resultado.get("data") or {}
+    return {
+        "dni": datos.get("dni") or dni,
+        "apellido": datos.get("apellido") or "",
+        "nombre": datos.get("nombre") or "",
+        "fecha_nacimiento": datos.get("fecha_nacimiento") or "",
+        "sexo": datos.get("sexo") or datos.get("genero") or sexo,
+    }
+
+
+def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
+    datos = datos_identificacion if isinstance(datos_identificacion, dict) else formulario.datos_identificacion
+    datos = datos if isinstance(datos, dict) else {}
+    origen = str(datos.get("origen") or "").strip().lower()
+
+    if origen in ("scan", "escaneo", "dni_scan", "renaper"):
+        validado = True
+    elif origen == "manual":
+        validado = False
+    else:
+        validado = bool(formulario.validado_renaper)
+
+    if formulario.validado_renaper != validado:
+        formulario.validado_renaper = validado
+        formulario.save(update_fields=["validado_renaper", "modificado"])
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated, CampoBecasPermission])
+def consultar_renaper_becas(request):
+    dni = str(request.data.get("dni") or "").strip()
+    sexo = str(request.data.get("sexo") or "").strip().upper()
+
+    if not dni or not sexo:
+        return Response(
+            {"success": False, "error": "DNI y sexo son requeridos."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    resultado = consultar_datos_renaper(dni, sexo)
+    if not resultado.get("success"):
+        return Response(
+            {
+                "success": False,
+                "error": resultado.get("error") or "No se pudo validar con RENAPER.",
+                "fallecido": bool(resultado.get("fallecido")),
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response(
+        {
+            "success": True,
+            "data": _normalizar_datos_renaper(resultado, dni, sexo),
+            "datos_api": resultado.get("datos_api") or {},
+        }
+    )
 
 
 class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -108,6 +170,10 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = FormularioSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         formulario = serializer.save(relevamiento=rel, created_by=request.user)
+        _actualizar_validacion_identidad(
+            formulario,
+            serializer.validated_data.get("datos_identificacion"),
+        )
         resolver_ciudadano_offline(formulario)
         formulario.refresh_from_db()
         return Response(FormularioSerializer(formulario).data, status=status.HTTP_201_CREATED)
@@ -127,4 +193,8 @@ class FormularioViewSet(
 
     def perform_update(self, serializer):
         formulario = serializer.save()
+        _actualizar_validacion_identidad(
+            formulario,
+            serializer.validated_data.get("datos_identificacion"),
+        )
         resolver_ciudadano_offline(formulario)

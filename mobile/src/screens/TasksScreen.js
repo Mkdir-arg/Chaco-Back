@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import StaggeredItem from '../components/StaggeredItem';
 import CustomButton from '../components/CustomButton';
-import { fontSizes, radii } from '../theme';
+import { designColors, fontSizes, radii } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -106,27 +106,27 @@ export default function TasksScreen({ onOpenSurvey }) {
                                 style={[
                                     styles.dateCard,
                                     { backgroundColor: theme.colors.surface },
-                                    info.isSelected && { backgroundColor: theme.colors.primary, transform: [{ scale: 1.05 }] }
+                                    info.isSelected && { backgroundColor: designColors.bgBrandSoft, borderColor: designColors.bgBrandMedium, transform: [{ scale: 1.03 }] }
                                 ]}
                             >
                                 <Text style={[
                                     styles.dayName,
                                     { color: theme.colors.textSoft, fontFamily: typography.extrabold },
-                                    info.isSelected && { color: '#FFF' }
+                                    info.isSelected && { color: '#A11F60' }
                                 ]}>
                                     {info.dayName}
                                 </Text>
                                 <Text style={[
                                     styles.dayNum,
                                     { color: theme.colors.text, fontFamily: typography.bold },
-                                    info.isSelected && { color: '#FFF' }
+                                    info.isSelected && { color: '#A11F60' }
                                 ]}>
                                     {info.dayNum}
                                 </Text>
                                 <Text style={[
                                     styles.monthAbbr,
                                     { color: theme.colors.textSoft, fontFamily: typography.medium },
-                                    info.isSelected && { color: '#FFF' }
+                                    info.isSelected && { color: '#A11F60' }
                                 ]}>
                                     {info.monthAbbr}
                                 </Text>
@@ -213,14 +213,16 @@ const styles = StyleSheet.create({
     dateCard: {
         width: 60,
         height: 80,
-        borderRadius: radii['2xl'],
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        borderColor: designColors.borderBase,
         justifyContent: 'center',
         alignItems: 'center',
         marginHorizontal: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
+        shadowColor: '#252F40',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 16,
         elevation: 2,
     },
     dayName: {
@@ -233,7 +235,7 @@ const styles = StyleSheet.create({
     monthAbbr: {
         fontSize: fontSizes.xxs,
         marginTop: 2,
-        letterSpacing: 0.5,
+        letterSpacing: 0,
     },
     todayDot: {
         width: 4,
@@ -264,9 +266,14 @@ const styles = StyleSheet.create({
     },
     taskCard: {
         padding: 20,
-        borderRadius: radii['3xl'],
+        borderRadius: radii.xl,
         borderWidth: 1,
         marginBottom: 16,
+        shadowColor: '#252F40',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 2,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -281,7 +288,7 @@ const styles = StyleSheet.create({
     },
     statusText: {
         fontSize: fontSizes.xs,
-        letterSpacing: 0.5,
+        letterSpacing: 0,
     },
     timeText: {
         fontSize: fontSizes.xs,

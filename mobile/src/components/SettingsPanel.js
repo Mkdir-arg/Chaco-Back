@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable, Dimensions, Switch, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import CustomButton from './CustomButton';
-import { designColors, fontSizes, radii } from '../theme';
+import { designColors, fontSizes, gradients, radii } from '../theme';
 
 const { width } = Dimensions.get('window');
 const PANEL_WIDTH = width * 0.8;
@@ -56,6 +57,7 @@ export default function SettingsPanel({ visible, onClose, onLogout }) {
                         styles.panel,
                         {
                             backgroundColor: theme.colors.surface,
+                            borderRightColor: theme.colors.border,
                             transform: [{ translateX: slideAnim }]
                         }
                     ]}
@@ -67,19 +69,24 @@ export default function SettingsPanel({ visible, onClose, onLogout }) {
                     </View>
 
                     <View style={styles.header}>
-                        <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+                        <LinearGradient
+                            colors={gradients.buttonPrimary}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.avatar}
+                        >
                             <Text style={[styles.avatarText, { fontFamily: typography.bold }]}>{initials}</Text>
-                        </View>
+                        </LinearGradient>
                         <View style={styles.userInfo}>
                             <Text style={[styles.userName, { color: theme.colors.text, fontFamily: typography.bold }]}>{displayName}</Text>
                             <Text style={[styles.userRole, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>{roleLabel}</Text>
                         </View>
                     </View>
 
-                    <View style={styles.divider} />
+                    <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
                     <View style={styles.menuContent}>
-                        <View style={styles.menuItem}>
+                        <View style={[styles.menuItem, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
                             <View style={styles.menuLabel}>
                                 <Ionicons name={isDark ? "moon" : "sunny"} size={22} color={theme.colors.icon} />
                                 <Text style={[styles.menuText, { color: theme.colors.text, fontFamily: typography.medium }]}>Modo Oscuro</Text>
@@ -93,7 +100,7 @@ export default function SettingsPanel({ visible, onClose, onLogout }) {
                             />
                         </View>
 
-                        <Pressable style={styles.menuItem}>
+                        <Pressable style={[styles.menuItem, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
                             <View style={styles.menuLabel}>
                                 <Ionicons name="notifications-outline" size={22} color={theme.colors.icon} />
                                 <Text style={[styles.menuText, { color: theme.colors.text, fontFamily: typography.medium }]}>Notificaciones</Text>
@@ -133,6 +140,7 @@ const styles = StyleSheet.create({
         width: PANEL_WIDTH,
         padding: 24,
         paddingTop: Platform.OS === 'ios' ? 50 : 30,
+        borderRightWidth: 1,
         shadowColor: designColors.shadow,
         shadowOffset: { width: 2, height: 0 },
         shadowOpacity: 0.1,
@@ -147,6 +155,11 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: 8,
+        width: 42,
+        height: 42,
+        borderRadius: radii.full,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     header: {
         flexDirection: 'row',
@@ -156,7 +169,7 @@ const styles = StyleSheet.create({
     avatar: {
         width: 60,
         height: 60,
-        borderRadius: radii.full,
+        borderRadius: radii.lg,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -175,7 +188,6 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: designColors.borderBase,
         marginBottom: 30,
     },
     menuContent: {
@@ -185,7 +197,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 16,
+        minHeight: 58,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: radii.xl,
+        borderWidth: 1,
+        marginBottom: 10,
     },
     menuLabel: {
         flexDirection: 'row',

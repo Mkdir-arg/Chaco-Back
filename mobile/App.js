@@ -10,18 +10,14 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import Banner from './src/components/Banner';
 import BottomNav from './src/components/BottomNav';
 import SettingsPanel from './src/components/SettingsPanel';
 import PageTransition from './src/components/PageTransition';
 import SkeletonLoader from './src/components/SkeletonLoader';
-import CitizenLegajoScreen from './src/screens/CitizenLegajoScreen';
 import RelevamientosScreen from './src/screens/RelevamientosScreen';
 import RelevamientoDetailScreen from './src/screens/RelevamientoDetailScreen';
-import NewRelevamientoScreen from './src/screens/NewRelevamientoScreen';
-import citizenLegajoService from './src/services/citizenLegajoService';
 import relevamientoService from './src/services/relevamientoService';
 
 let hasBootstrappedOnce = false;
@@ -43,15 +39,12 @@ function AppContent() {
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('Inicio');
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [citizenLegajoOpen, setCitizenLegajoOpen] = useState(false);
-  const [newRelevamientoOpen, setNewRelevamientoOpen] = useState(false);
   const [selectedRelevamientoId, setSelectedRelevamientoId] = useState(null);
-  const [showRegister, setShowRegister] = useState(false); // Para mostrar pantalla de registro
 
   const [syncStatus, setSyncStatus] = useState('synced');
   const [syncPendingCount, setSyncPendingCount] = useState(0);
   const [newRelevamientosCount, setNewRelevamientosCount] = useState(0);
-  const saveRelevamientoLockRef = useRef(false);
+  const [assignedRelevamientos, setAssignedRelevamientos] = useState([]);
   const lastConnectivityStateRef = useRef(null);
   const syncInProgressRef = useRef(false);
   const reconnectDebounceRef = useRef(null);
@@ -60,7 +53,6 @@ function AppContent() {
     if (syncInProgressRef.current) return;
     syncInProgressRef.current = true;
     try {
-      await citizenLegajoService.syncPendingOperations();
       await relevamientoService.syncPendingOperations();
     } catch {
       // Sin conectividad o error temporal: se mantiene en cola.
@@ -71,21 +63,21 @@ function AppContent() {
   };
 
   const refreshSyncStatus = async () => {
-    const pendingCitizen = await citizenLegajoService.getPendingCount();
     const pendingRelevamientos = await relevamientoService.getPendingCount();
-    const pending = pendingCitizen + pendingRelevamientos;
-    setSyncPendingCount(pending);
-    setSyncStatus(pending > 0 ? 'pending' : 'synced');
+    setSyncPendingCount(pendingRelevamientos);
+    setSyncStatus(pendingRelevamientos > 0 ? 'pending' : 'synced');
   };
 
   const refreshNewRelevamientosCount = async () => {
     try {
       const result = await relevamientoService.getRelevamientos({ refreshFromRemote: true });
+      setAssignedRelevamientos(result.records || []);
       const nextCount = (result.records || []).filter((item) =>
         NEW_RELEVAMIENTO_STATES.includes(String(item.estado || '').toUpperCase())
       ).length;
       setNewRelevamientosCount(nextCount);
     } catch {
+      setAssignedRelevamientos([]);
       setNewRelevamientosCount(0);
     }
   };
@@ -202,7 +194,6 @@ function AppContent() {
       case 'Relevamientos':
         return (
           <RelevamientosScreen
-            onStartNewRelevamiento={() => setNewRelevamientoOpen(true)}
             onOpenRelevamiento={(id) => setSelectedRelevamientoId(id)}
           />
         );
@@ -210,37 +201,11 @@ function AppContent() {
       return (
           <HomeScreen
             onOpenRelevamientos={() => handleTabPress('Relevamientos')}
-            onSyncPress={handleManualSync}
-            newRelevamientosCount={newRelevamientosCount}
-            syncPendingCount={syncPendingCount}
+            onOpenRelevamiento={(id) => setSelectedRelevamientoId(id)}
+            onRefresh={handleHomeRefresh}
+            assignedRelevamientos={assignedRelevamientos}
           />
         );
-    }
-  };
-
-  const handleSaveNewRelevamiento = async (payload) => {
-    if (saveRelevamientoLockRef.current) return;
-    saveRelevamientoLockRef.current = true;
-    try {
-      const result = await relevamientoService.saveRelevamiento({
-        ...payload,
-        usuario_username: user?.username || null,
-      });
-      setNewRelevamientoOpen(false);
-
-      const pending = await relevamientoService.getPendingCount();
-      const isOffline = !!result?.syncResult?.offline;
-      if (isOffline) {
-        Alert.alert('Sin conexion', 'Adjuntos pendientes. Se subiran automaticamente cuando vuelva internet.');
-      } else if (pending > 0 || result?.syncResult?.failed > 0) {
-        Alert.alert('Guardado local', 'Se guardo en el movil y se sincronizara cuando vuelva internet.');
-      }
-
-      refreshSyncStatus();
-    } catch (error) {
-      Alert.alert('Error al guardar', error?.message || 'No se pudo guardar el relevamiento.');
-    } finally {
-      saveRelevamientoLockRef.current = false;
     }
   };
 
@@ -251,15 +216,12 @@ function AppContent() {
     try {
       syncInProgressRef.current = true;
       setSyncStatus('syncing');
-      const [citizenResult, relevamientoResult] = await Promise.all([
-        citizenLegajoService.syncPendingOperations(),
-        relevamientoService.syncPendingOperations(),
-      ]);
+      const relevamientoResult = await relevamientoService.syncPendingOperations();
 
       await refreshSyncStatus();
 
-      const synced = (citizenResult?.synced || 0) + (relevamientoResult?.synced || 0);
-      const failed = (citizenResult?.failed || 0) + (relevamientoResult?.failed || 0);
+      const synced = relevamientoResult?.synced || 0;
+      const failed = relevamientoResult?.failed || 0;
       const firstRelevamientoError = relevamientoResult?.errors?.[0]?.message;
 
       if (failed > 0) {
@@ -269,7 +231,7 @@ function AppContent() {
         );
       } else if (synced > 0) {
         Alert.alert('Sincronizacion completa', `Sincronizados: ${synced}`);
-      } else if (relevamientoResult?.offline || citizenResult?.offline) {
+      } else if (relevamientoResult?.offline) {
         Alert.alert('Sin conexion', 'Adjuntos pendientes. Se reintentara automaticamente al recuperar internet.');
       } else {
         Alert.alert('Sincronizacion', 'No habia elementos pendientes.');
@@ -283,29 +245,22 @@ function AppContent() {
     }
   };
 
+  const handleHomeRefresh = async () => {
+    if (!isAuthenticated) return;
+    await runBackgroundSync();
+    await refreshNewRelevamientosCount();
+    await refreshSyncStatus();
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
       {!isAuthenticated ? (
-        showRegister ? (
-          <RegisterScreen onBackToLogin={() => setShowRegister(false)} />
-        ) : (
-          <LoginScreen onNavigateToRegister={() => setShowRegister(true)} />
-        )
+        <LoginScreen />
       ) : (
         <View style={{ flex: 1 }}>
-          {citizenLegajoOpen ? (
-            <CitizenLegajoScreen
-              onClose={() => setCitizenLegajoOpen(false)}
-              onSaved={refreshSyncStatus}
-            />
-          ) : newRelevamientoOpen ? (
-            <NewRelevamientoScreen
-              onCancel={() => setNewRelevamientoOpen(false)}
-              onSave={handleSaveNewRelevamiento}
-            />
-          ) : selectedRelevamientoId ? (
+          {selectedRelevamientoId ? (
             <RelevamientoDetailScreen
               relevamientoId={selectedRelevamientoId}
               onClose={() => {
@@ -353,8 +308,6 @@ function AppContent() {
           setSettingsVisible(false);
           logout();
           setActiveTab('Inicio');
-          setCitizenLegajoOpen(false);
-          setNewRelevamientoOpen(false);
           setSelectedRelevamientoId(null);
         }}
       />

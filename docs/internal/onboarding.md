@@ -23,7 +23,6 @@
 - [ ] Repositorio en GitHub (rol: Developer)
 - [ ] GitHub Projects del equipo
 - [ ] Variables de entorno locales (`.env`)
-- [ ] Acceso a Supabase (si trabajás con relevamientos)
 
 ## Contexto del dominio
 

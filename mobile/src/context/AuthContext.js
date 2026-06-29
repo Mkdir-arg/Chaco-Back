@@ -7,10 +7,6 @@ import {
 
 const AuthContext = createContext({});
 
-// Compatibilidad temporal: RegisterScreen ya no forma parte del flujo territorial,
-// pero sigue importando este símbolo mientras se retira esa pantalla.
-export const supabase = null;
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
