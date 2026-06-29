@@ -25,11 +25,11 @@ Cadena obligatoria: **Épica → Análisis → Sub-issues**. El análisis cuelga
 épica; cada sub-issue cuelga de un análisis. No hay análisis huérfanos ni sub-issues
 sin análisis de origen. La fuente de verdad es **el Issue**, no archivos `.md`.
 
-Por cada épica se crea **un Requerimiento completo** (`[REQUERIMIENTO]`): no agrega
-conocimiento nuevo (la fuente sigue siendo cada análisis), pero **consolida** la
-épica y sus análisis en un documento único, leíble de corrido, orientado a entender
-qué se pide y cómo funciona end-to-end. Es la forma estándar de documentar el
-requerimiento.
+El `[REQUERIMIENTO]` es un documento que consolida la épica y sus análisis en un
+único Issue leíble de corrido. **No es obligatorio por defecto**: se genera solo
+cuando el cliente o el PM lo solicitan explícitamente, o cuando hay necesidad de
+documentación formal externa. No agrega conocimiento nuevo (la fuente sigue siendo
+cada análisis), pero facilita la lectura end-to-end.
 
 ## Forma de trabajar (siempre igual, en este orden)
 
@@ -38,15 +38,24 @@ requerimiento.
 3. **Investigación (obligatoria, antes de definir nada).** Búsqueda activa en código
    real e issues existentes. Localizá los módulos Django afectados (`core`, `legajos`,
    `configuracion`, `conversaciones`, `dashboard`, `portal`, `users`, `tramites`,
-   `healthcheck`…) y revisá `models.py`, `views.py`, `forms.py`, `urls.py`,
-   `selectors`/`services` y templates. Cuatro frentes, **siempre**:
-   - **Duplicidad.** ¿Ya existe, total o parcial? Buscalo en tres lados: (a) el
-     **código**; (b) las **épicas/análisis ya creados** (`gh issue list --label epica`,
-     `--label analisis`); y (c) el **trabajo ya encolado**: tareas abiertas
-     (`gh issue list --label task --state open`) y el **backlog del Project #1**
-     (`gh project item-list 1 --owner Mkdir-arg`). Si encontrás solapamiento, dejalo
-     escrito: "ya existe la tarea #KK en Backlog → se reusa / se amplía / es distinta
-     porque…". **No se reinventa** ni se duplica trabajo ya planificado.
+   `healthcheck`…).
+
+   **Lectura de código — orden de prioridad:** leer primero `models.py` (estructura
+   de datos). Expandir a `views.py` + `urls.py` solo si el impacto en rutas/lógica es
+   incierto. `forms.py`, `selectors`/`services` y templates: solo si la task toca UI
+   o validaciones. No releer archivos ya leídos en la sesión actual.
+
+   Cuatro frentes:
+   - **Duplicidad.** ¿Ya existe, total o parcial?
+     - **(a) Código** — siempre.
+     - **(b) Épicas/análisis** (`gh issue list --label epica`, `--label analisis`) y
+       **(c) trabajo encolado** (`gh issue list --label task --state open` + backlog del
+       Project #1): **omitir si el usuario confirmó explícitamente que el requerimiento
+       es nuevo**; en ese caso registrar "Duplicidad: no verificada en issues/backlog —
+       requerimiento declarado nuevo por el cliente."
+     Si encontrás solapamiento, dejalo escrito: "ya existe la tarea #KK en Backlog →
+     se reusa / se amplía / es distinta porque…". **No se reinventa** ni se duplica
+     trabajo ya planificado.
    - **Funcionalidades relacionadas.** Qué toca la misma área/datos/actores; de qué
      depende y qué depende de esto. Referencialas (#issue / módulo).
    - **Impacto crítico.** Qué puede romper: modelos compartidos, permisos,
@@ -71,9 +80,9 @@ requerimiento.
    Si algo falla: **NO generes issues.** Listá qué falta y frená. No hay dudas ni inconsistencias.
 6. **Generación en GitHub.** Recién con todo cerrado, creá los issues con sus labels,
    vinculados épica ↔ análisis ↔ sub-issues, en Backlog, y reportá los números.
-7. **Requerimiento completo.** Con la épica y sus análisis cerrados, creá el Issue
-   `[REQUERIMIENTO]` que consolida todo (estructura en "Estructuras canónicas"),
-   agregalo al Project en Backlog y reportá su número junto con la cadena.
+7. **Requerimiento completo (on-demand).** Solo si el cliente o el PM lo solicitan
+   explícitamente: creá el Issue `[REQUERIMIENTO]` que consolida todo (estructura en
+   "Estructuras canónicas"), agregalo al Project en Backlog y reportá su número.
 
 ## Estructuras canónicas (coinciden con `.github/ISSUE_TEMPLATE/`)
 
@@ -86,11 +95,14 @@ Análisis vinculados (se completa a medida).
 **Estado** (`En análisis` | `Definido`) · Épica padre (#NN) · Módulo/App · Contexto
 y motivación (prosa) · Actores · **Estado actual del código** · **Investigación**
 (duplicidad / relacionadas / impacto crítico / inconsistencias) · Flujo principal ·
-Flujos alternativos · Reglas de negocio · Requerimientos funcionales (verificables) /
-no funcionales · Criterios de aceptación (Dado/Cuando/Entonces) · Casos límite ·
-**Asunciones** (lo que se da por sentado y debería confirmar el cliente) ·
-Dependencias e impacto crítico · Fuera de alcance · **Preguntas abiertas** ·
-Sub-issues propuestos.
+Flujos alternativos *(si aplica — omitir si no hay flujos alternativos reales)* ·
+Reglas de negocio · Requerimientos funcionales (verificables) ·
+Requerimientos no funcionales *(si aplica — omitir si no hay restricciones técnicas
+explícitas)* · Criterios de aceptación (Dado/Cuando/Entonces) ·
+Casos límite *(si aplica — omitir si son obvios o no existen)* ·
+**Asunciones** *(si aplica — omitir si no hay supuestos reales; no poner "Ninguna"
+como placeholder)* · Dependencias e impacto crítico · Fuera de alcance ·
+**Preguntas abiertas** · Sub-issues propuestos.
 
 **Ciclo del análisis:** nace en `En análisis`. Pasa a `Definido` **solo** cuando no
 quedan preguntas abiertas y supera el control estricto. Los sub-issues se generan
@@ -137,7 +149,7 @@ orientado a entender qué se pide y cómo funciona. Secciones, en este orden:
 12. **Datos de referencia** (opcional) — catálogos/tablas que ayuden a leer el todo.
 13. **Pie** — `Épica #NN · Análisis #…` con el rol de cada uno.
 
-Regla: el Requerimiento se genera **recién con la épica y sus análisis cerrados**
+Regla: si se genera, debe hacerse **recién con la épica y sus análisis cerrados**
 (todos en `Definido`, sin preguntas abiertas). Si un análisis cambia, se actualiza
 el Requerimiento.
 
