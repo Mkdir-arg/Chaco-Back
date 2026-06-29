@@ -1,8 +1,8 @@
 {% if subsegmentos %}
-<div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+<div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+      <tr class="bg-secondary border-b border-base">
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo máx</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ocupado</th>
@@ -12,21 +12,34 @@
     </thead>
     <tbody>
       {% for sub in subsegmentos %}
-      <tr class="hover:bg-[#F9FAFB]">
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold">
+      <tr class="hover:bg-tertiary">
+        <td class="px-4 py-[13px] text-sm border-t border-light font-semibold">
           <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:underline">{{ sub.nombre }}</a>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">{{ sub.cupo_maximo }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle text-right">—</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">{{ sub.cupo_maximo }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">{{ sub.cupo_maximo }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle text-right">—</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">{{ sub.cupo_maximo }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
-            <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver requisitos"><i class="fas fa-clipboard-list"></i></a>
-            <a href="{% url 'becas:subsegmento_editar' sub.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
-            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
+            <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand p-1.5 rounded-lg hover:bg-secondary" aria-label="Ver requisitos del subsegmento">
+              {# ClipboardDocumentListIcon — Heroicons v2 outline #}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+              </svg>
+            </a>
+            <a href="{% url 'becas:subsegmento_editar' sub.pk %}" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" aria-label="Editar subsegmento">
+              {# PencilSquareIcon — Heroicons v2 outline #}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+            </a>
+            <button type="button" class="text-body-subtle hover:text-fg-danger p-1.5 rounded-lg hover:bg-secondary" aria-label="Eliminar subsegmento"
                     data-confirm-url="{% url 'becas:subsegmento_eliminar' sub.pk %}"
                     data-confirm-title="¿Eliminar subsegmento?" data-confirm-text="{{ sub.nombre }}" data-confirm-ok="Sí, eliminar">
-              <i class="fas fa-trash"></i>
+              {# TrashIcon — Heroicons v2 outline #}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
             </button>
           </div>
         </td>
@@ -34,16 +47,25 @@
       {% endfor %}
     </tbody>
     <tfoot>
-      <tr class="bg-[#F9FAFB] border-t border-[#E5E7EB]">
+      <tr class="bg-secondary border-t border-base">
         <td class="px-4 py-[11px] text-xs font-bold text-body-subtle uppercase tracking-wide">Total distribuido</td>
-        <td class="px-4 py-[11px] text-sm font-bold text-right" style="color:#007a55;">{{ subsegmentos_cupo_total }}</td>
+        <td class="px-4 py-[11px] text-sm font-bold text-right" style="color: var(--text-fg-success)">{{ subsegmentos_cupo_total }}</td>
         <td class="px-4 py-[11px] text-sm text-body-subtle text-right">—</td>
-        <td class="px-4 py-[11px] text-sm font-bold text-right" style="color:#007a55;">{{ subsegmentos_cupo_total }}</td>
+        <td class="px-4 py-[11px] text-sm font-bold text-right" style="color: var(--text-fg-success)">{{ subsegmentos_cupo_total }}</td>
         <td></td>
       </tr>
     </tfoot>
   </table>
 </div>
 {% else %}
-<p class="text-sm text-body-subtle">Sin subsegmentos. El cupo del segmento es el total.</p>
+<div class="py-10 px-6 text-center flex flex-col items-center gap-3">
+  <div class="text-fg-brand">
+    {# Squares2X2Icon — Heroicons v2 outline #}
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+    </svg>
+  </div>
+  <p class="text-[17px] font-bold text-heading">Sin subsegmentos</p>
+  <p class="text-sm text-body" style="max-width:360px">El cupo del segmento aplica en forma directa. Podés agregar subsegmentos para distribuirlo.</p>
+</div>
 {% endif %}

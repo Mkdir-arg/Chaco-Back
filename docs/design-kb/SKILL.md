@@ -14,10 +14,16 @@ If the user invokes this skill without any other guidance, ask them what they wa
 ask some questions, and act as an expert designer who outputs HTML artifacts _or_ production code,
 depending on the need.
 
+> **Producción en este repo:** los dueños canónicos del diseño son los subagentes
+> **`chaco-design-reviewer`** (auditar/corregir UI) y **`chaco-frontend`** (construir/migrar),
+> en `.claude/agents/`. Este skill es el KB de assets y prototipos. Regla de oro: **Manrope única**
+> (no Fredoka/Gellat). Si una regla de acá contradice a esos agentes o a `static/custom/css/chaco-tokens.css`,
+> **manda el agente / el token**.
+
 ## Quick reference
 - **Language:** Spanish, Argentine *voseo* ("ingresá", "tu legajo"). No emoji.
 - **Brand color:** Jacarandá `#5059BC`. **Accent:** pink `#F98DFF`. **Gradient:** `linear-gradient(45deg,#5059BC,#F98DFF)` — never reversed, one brand action per section.
-- **Type:** Manrope (UI/body). Display = Fredoka (substitute for "Gellat").
+- **Type:** **Manrope is the only typeface** — UI, body and display. *Gellat/Fredoka are not used in CHACO* (the font tokens resolve to Manrope).
 - **Radii:** buttons = pill, cards/modals = 12–16px, inputs = 8px.
 - **Icons:** Heroicons v2 outline for new screens (see `ui_kits/programa-becas/icons.jsx`); Font Awesome 6 solid in legacy.
 - **Tokens:** link `styles.css`; everything is a CSS custom property.
