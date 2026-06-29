@@ -14,11 +14,12 @@ from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, requiere
-from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
+from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 from programas.forms import (
     AsignacionCoordinadorForm,
     PreguntaGlobalForm,
     RequisitoNativoForm,
+    SegmentoCreateForm,
     SegmentoForm,
     SubsegmentoForm,
 )
@@ -108,22 +109,28 @@ class SegmentoListView(_ConfigBecasMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_segmento"] = SegmentoForm()
+        ctx["form_segmento"] = SegmentoCreateForm()
         return ctx
 
 
 class SegmentoCreateView(_ConfigBecasMixin, CreateView):
     model = Segmento
-    form_class = SegmentoForm
+    form_class = SegmentoCreateForm
     template_name = "programas/becas/config/segmento_form.html"
     success_url = reverse_lazy("becas:segmentos")
 
     def form_valid(self, form):
         self.object = form.save()
+        # El coordinador del alta se persiste como asignación (modal del kit).
+        AsignacionCoordinador.objects.create(
+            segmento=self.object, coordinador=form.cleaned_data["coordinador"]
+        )
+        # "Guardar y configurar": ir al detalle a cargar subsegmentos/cupos.
+        detalle = reverse("becas:segmento_detalle", args=[self.object.pk])
         if is_ajax(self.request):
-            return _segmentos_ajax(self.request, "Segmento creado.")
+            return ajax_redirect(detalle, "Segmento creado — agregá sus subsegmentos.")
         messages.success(self.request, "Segmento creado.")
-        return redirect(self.success_url)
+        return redirect(detalle)
 
     def form_invalid(self, form):
         if is_ajax(self.request):
