@@ -32,6 +32,7 @@ CATALOGO = [
     {
         "modulo": "ciudadanos",
         "label": "Ciudadanos / Legajos",
+        "tab": "backoffice",
         "capacidades": [
             ("ciudadano.ver", "Ver ciudadanos y legajos"),
             ("ciudadano.crear", "Crear ciudadanos"),
@@ -43,6 +44,7 @@ CATALOGO = [
     {
         "modulo": "programas",
         "label": "Programas",
+        "tab": "backoffice",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("programa.ver", "Ver programas"),
@@ -53,6 +55,7 @@ CATALOGO = [
     {
         "modulo": "relevamientos",
         "label": "Relevamientos",
+        "tab": "becas",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("relevamiento.ver", "Ver relevamientos"),
@@ -62,6 +65,7 @@ CATALOGO = [
     {
         "modulo": "becas",
         "label": "Programa Becas",
+        "tab": "becas",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("becas.configurar", "Configurar Becas (segmentos, cupos, requisitos, preguntas, coordinadores)"),
@@ -73,6 +77,7 @@ CATALOGO = [
     {
         "modulo": "conversaciones",
         "label": "Conversaciones",
+        "tab": "backoffice",
         "capacidades": [
             ("conversacion.operar", "Operar conversaciones"),
             ("conversacion.configurar", "Configurar conversaciones"),
@@ -82,6 +87,7 @@ CATALOGO = [
     {
         "modulo": "dashboard",
         "label": "Dashboard",
+        "tab": "backoffice",
         "capacidades": [
             ("dashboard.ver", "Ver dashboard"),
         ],
@@ -89,6 +95,7 @@ CATALOGO = [
     {
         "modulo": "reportes",
         "label": "Reportes",
+        "tab": "backoffice",
         "capacidades": [
             ("reporte.ver", "Ver reportes"),
         ],
@@ -96,6 +103,7 @@ CATALOGO = [
     {
         "modulo": "configuracion",
         "label": "Configuración (geografía)",
+        "tab": "sistema",
         "capacidades": [
             ("config.ver", "Ver configuración"),
             ("config.administrar", "Administrar configuración"),
@@ -104,6 +112,7 @@ CATALOGO = [
     {
         "modulo": "instituciones",
         "label": "Instituciones",
+        "tab": "institucion",
         "capacidades": [
             ("institucion.ver", "Ver instituciones"),
             ("institucion.administrar", "Administrar instituciones"),
@@ -112,6 +121,7 @@ CATALOGO = [
     {
         "modulo": "sistema",
         "label": "Sistema",
+        "tab": "sistema",
         "capacidades": [
             ("usuario.administrar", "Administrar usuarios"),
             ("rol.administrar", "Administrar roles"),
@@ -124,17 +134,29 @@ CATEGORIA_BACKOFFICE = "Backoffice"
 CATEGORIA_INSTITUCION = "Institución"
 CATEGORIA_PORTAL = "Portal"
 CATEGORIA_SISTEMA = "Sistema"
-# Categoría de roles con alcance de Programa: si un Rol la tiene, su
-# ``RolMeta.programa`` es obligatorio (y solo en esta categoría puede no ser nulo).
+CATEGORIA_NACHEC = "ÑACHEC"
+CATEGORIA_BECAS = "Becas"
+# Valor legacy: usado en datos históricos y tests. No aparece en el selector de UI.
 CATEGORIA_PROGRAMA = "Programa"
 CATEGORIAS_ROL = [
     CATEGORIA_BACKOFFICE,
     CATEGORIA_INSTITUCION,
     CATEGORIA_PORTAL,
     CATEGORIA_SISTEMA,
-    CATEGORIA_PROGRAMA,
+    CATEGORIA_NACHEC,
+    CATEGORIA_BECAS,
 ]
 CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
+
+# Metadatos de los tabs para el ABM de Roles (panel de capacidades).
+TABS_CAPACIDADES = [
+    {"id": "backoffice", "label": "Backoffice", "icon": "fa-table-columns"},
+    {"id": "institucion", "label": "Institución", "icon": "fa-building-columns"},
+    {"id": "portal", "label": "Portal", "icon": "fa-globe"},
+    {"id": "sistema", "label": "Sistema", "icon": "fa-gear"},
+    {"id": "nachec", "label": "ÑACHEC", "icon": "fa-seedling"},
+    {"id": "becas", "label": "Becas", "icon": "fa-graduation-cap"},
+]
 
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
 CAPS_ADMINISTRACION = ("usuario.administrar", "rol.administrar")
@@ -220,8 +242,8 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False):
         [{"modulo", "label", "capacidades": [{"codigo", "label", "checked"}]}]
 
     Con ``solo_programa=True`` se limita a los módulos "de programa"
-    (``alcance == "programa"``), para roles de categoría ``"Programa"``. El
-    default es retrocompatible: devuelve el catálogo completo.
+    (``alcance == "programa"``). El default es retrocompatible: devuelve el
+    catálogo completo.
     """
     activos = set(codigos_activos)
     return [
@@ -237,6 +259,34 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False):
         for modulo in CATALOGO
         if not solo_programa or modulo.get("alcance") == "programa"
     ]
+
+
+def arbol_por_tabs(codigos_activos=(), solo_programa=False):
+    """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
+
+    Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
+    los módulos que le corresponden y las capacidades marcadas según
+    ``codigos_activos``. Los tabs vacíos se incluyen (permiten futura expansión).
+
+    Con ``solo_programa=True`` solo incluye módulos con ``alcance == "programa"``.
+    """
+    activos = set(codigos_activos)
+    tabs = {t["id"]: {"id": t["id"], "label": t["label"], "icon": t["icon"], "modulos": []} for t in TABS_CAPACIDADES}
+    for modulo in CATALOGO:
+        if solo_programa and modulo.get("alcance") != "programa":
+            continue
+        tab_id = modulo.get("tab", "backoffice")
+        if tab_id not in tabs:
+            continue
+        tabs[tab_id]["modulos"].append({
+            "modulo": modulo["modulo"],
+            "label": modulo["label"],
+            "capacidades": [
+                {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+                for (codigo, etiqueta) in modulo["capacidades"]
+            ],
+        })
+    return list(tabs.values())
 
 
 # ---------------------------------------------------------------------------

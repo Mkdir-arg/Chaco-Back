@@ -53,7 +53,8 @@ def puede_gestionar_rol(user, group):
     if es_admin_global(user):
         return True
     meta = getattr(group, "meta", None)
-    if not meta or meta.categoria != rbac.CATEGORIA_PROGRAMA or not meta.programa_id:
+    _CATS_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_BECAS}
+    if not meta or meta.categoria not in _CATS_PROGRAMA or not meta.programa_id:
         return False
     return programas_administrables(user).filter(pk=meta.programa_id).exists()
 

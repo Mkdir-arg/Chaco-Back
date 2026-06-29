@@ -29,19 +29,23 @@
                     {{ form.categoria }}
                     {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
                 </div>
-                <div id="campo-programa" class="{% if form.categoria.value != 'Programa' %}hidden{% endif %}">
-                    <label for="{{ form.programa.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
-                    {{ form.programa }}
-                    {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
-                </div>
                 {% else %}
-                <input type="hidden" name="categoria" value="Programa">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                    <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700">Programa</div>
+                    <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                    {{ form.categoria }}
+                    {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
                 </div>
+                {% endif %}
+
+                <div class="md:col-span-2">
+                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
+                </div>
+
+                {% if not form.es_admin_global %}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa (opcional)</label>
                     {% if form.programa_fijo %}
                         <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
                         <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
@@ -51,24 +55,59 @@
                     {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
                 </div>
                 {% endif %}
-                <div class="md:col-span-2">
-                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                    {{ form.descripcion }}
-                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
-                </div>
             </div>
         </div>
 
+        {# ---- Panel de capacidades con tabs ---- #}
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">Capacidades</h2>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Permisos por categoría</h2>
+                    <p class="text-sm text-gray-500">Un rol puede tener permisos de múltiples categorías.</p>
+                </div>
                 <span class="text-sm text-gray-500"><span id="total-seleccionadas">0</span> seleccionada(s)</span>
             </div>
             {% if form.capacidades.errors %}<div class="text-red-600 text-sm mb-3">{{ form.capacidades.errors }}</div>{% endif %}
 
-            <div class="space-y-3">
-                {% for modulo in form.arbol_capacidades %}
-                    <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}" data-alcance="{{ modulo.alcance|default:'' }}">
+            {# Tab bar #}
+            <div class="border-b border-gray-200 mb-4">
+                <nav class="flex gap-1 overflow-x-auto" id="cap-tabs">
+                    <button type="button" data-tab="__buscar__"
+                        class="cap-tab-btn flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap"
+                        title="Buscar en todas las categorías">
+                        <i class="fas fa-magnifying-glass text-xs"></i>
+                    </button>
+                    {% for tab in form.arbol_por_tabs %}
+                    <button type="button" data-tab="{{ tab.id }}"
+                        class="cap-tab-btn flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <i class="fas {{ tab.icon }} text-xs"></i>
+                        {{ tab.label }}
+                        <span class="tab-badge hidden ml-1 bg-blue-100 text-blue-700 text-xs font-semibold px-1.5 py-0.5 rounded-full" data-tab-badge="{{ tab.id }}">0</span>
+                    </button>
+                    {% endfor %}
+                </nav>
+            </div>
+
+            {# Search panel #}
+            <div id="panel-__buscar__" class="cap-tab-panel hidden">
+                <div class="mb-3">
+                    <div class="relative">
+                        <i class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" id="cap-search-input" placeholder="Buscar capacidad..."
+                            class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div id="cap-search-results" class="space-y-1 max-h-80 overflow-y-auto"></div>
+                <div id="cap-search-empty" class="hidden text-sm text-gray-400 py-4 text-center">Sin resultados.</div>
+            </div>
+
+            {# Tab panels #}
+            {% for tab in form.arbol_por_tabs %}
+            <div id="panel-{{ tab.id }}" class="cap-tab-panel hidden">
+                {% if tab.modulos %}
+                <div class="space-y-3">
+                    {% for modulo in tab.modulos %}
+                    <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
                         <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-lg">
                             <label class="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
                                 <input type="checkbox" class="select-all rounded border-gray-300" data-modulo="{{ modulo.modulo }}">
@@ -81,17 +120,25 @@
                         </div>
                         <div x-show="open" x-transition class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {% for cap in modulo.capacidades %}
-                                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                                    <input type="checkbox" name="capacidades" value="{{ cap.codigo }}"
-                                           class="cap-check rounded border-gray-300" data-modulo="{{ modulo.modulo }}"
-                                           {% if cap.checked %}checked{% endif %}>
-                                    <span>{{ cap.label }} <span class="text-xs text-gray-400 font-mono">{{ cap.codigo }}</span></span>
-                                </label>
+                            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer cap-item" data-label="{{ cap.label|lower }} {{ cap.codigo|lower }}">
+                                <input type="checkbox" name="capacidades" value="{{ cap.codigo }}"
+                                       class="cap-check rounded border-gray-300" data-modulo="{{ modulo.modulo }}"
+                                       data-tab="{{ tab.id }}"
+                                       {% if cap.checked %}checked{% endif %}>
+                                <span>{{ cap.label }} <span class="text-xs text-gray-400 font-mono">{{ cap.codigo }}</span></span>
+                            </label>
                             {% endfor %}
                         </div>
                     </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="py-8 text-center text-sm text-gray-400">
+                    <i class="fas fa-circle-info mr-1"></i> Sin capacidades definidas para esta categoría todavía.
+                </div>
+                {% endif %}
             </div>
+            {% endfor %}
         </div>
 
         <div class="flex justify-end space-x-3 mt-6">
@@ -102,74 +149,141 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var totalEl = document.getElementById('total-seleccionadas');
+document.addEventListener('DOMContentLoaded', function () {
+    var totalEl = document.getElementById('total-seleccionadas');
 
-        function checksDeModulo(modulo) {
-            return Array.from(document.querySelectorAll('.cap-check[data-modulo="' + modulo + '"]'));
-        }
+    // ---- Tabs ----
+    var tabBtns = document.querySelectorAll('.cap-tab-btn');
+    var tabPanels = document.querySelectorAll('.cap-tab-panel');
 
-        function refrescarModulo(modulo) {
-            var checks = checksDeModulo(modulo);
-            var marcados = checks.filter(function (c) { return c.checked; });
-            var contador = document.querySelector('.contador-modulo[data-modulo="' + modulo + '"]');
-            if (contador) contador.textContent = marcados.length;
-            var selectAll = document.querySelector('.select-all[data-modulo="' + modulo + '"]');
-            if (selectAll) {
-                selectAll.checked = checks.length > 0 && marcados.length === checks.length;
-                selectAll.indeterminate = marcados.length > 0 && marcados.length < checks.length;
-            }
-        }
-
-        function refrescarTotal() {
-            totalEl.textContent = document.querySelectorAll('.cap-check:checked').length;
-        }
-
-        document.querySelectorAll('.select-all').forEach(function (sa) {
-            sa.addEventListener('change', function () {
-                var modulo = sa.getAttribute('data-modulo');
-                checksDeModulo(modulo).forEach(function (c) { c.checked = sa.checked; });
-                refrescarModulo(modulo);
-                refrescarTotal();
-            });
+    function activarTab(id) {
+        tabBtns.forEach(function (btn) {
+            var activo = btn.getAttribute('data-tab') === id;
+            btn.classList.toggle('border-blue-600', activo);
+            btn.classList.toggle('text-blue-600', activo);
+            btn.classList.toggle('border-transparent', !activo);
+            btn.classList.toggle('text-gray-500', !activo);
         });
+        tabPanels.forEach(function (panel) {
+            panel.classList.toggle('hidden', panel.id !== 'panel-' + id);
+        });
+        if (id === '__buscar__') {
+            var inp = document.getElementById('cap-search-input');
+            if (inp) setTimeout(function () { inp.focus(); }, 50);
+        }
+    }
 
+    tabBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () { activarTab(btn.getAttribute('data-tab')); });
+    });
+
+    // Activar el primer tab real por defecto
+    var primero = document.querySelector('.cap-tab-btn[data-tab]:not([data-tab="__buscar__"])');
+    if (primero) activarTab(primero.getAttribute('data-tab'));
+
+    // ---- Contadores por módulo ----
+    function checksDeModulo(modulo) {
+        return Array.from(document.querySelectorAll('.cap-check[data-modulo="' + modulo + '"]'));
+    }
+
+    function refrescarModulo(modulo) {
+        var checks = checksDeModulo(modulo);
+        var marcados = checks.filter(function (c) { return c.checked; });
+        var contador = document.querySelector('.contador-modulo[data-modulo="' + modulo + '"]');
+        if (contador) contador.textContent = marcados.length;
+        var selectAll = document.querySelector('.select-all[data-modulo="' + modulo + '"]');
+        if (selectAll) {
+            selectAll.checked = checks.length > 0 && marcados.length === checks.length;
+            selectAll.indeterminate = marcados.length > 0 && marcados.length < checks.length;
+        }
+    }
+
+    function refrescarTotal() {
+        var total = document.querySelectorAll('.cap-check:checked').length;
+        totalEl.textContent = total;
+    }
+
+    function refrescarBadgesTab() {
+        document.querySelectorAll('[data-tab-badge]').forEach(function (badge) {
+            var tabId = badge.getAttribute('data-tab-badge');
+            var n = document.querySelectorAll('.cap-check[data-tab="' + tabId + '"]:checked').length;
+            badge.textContent = n;
+            badge.classList.toggle('hidden', n === 0);
+        });
+    }
+
+    document.querySelectorAll('.select-all').forEach(function (sa) {
+        sa.addEventListener('change', function () {
+            var modulo = sa.getAttribute('data-modulo');
+            checksDeModulo(modulo).forEach(function (c) { c.checked = sa.checked; });
+            refrescarModulo(modulo);
+            refrescarTotal();
+            refrescarBadgesTab();
+        });
+    });
+
+    document.querySelectorAll('.cap-check').forEach(function (chk) {
+        chk.addEventListener('change', function () {
+            refrescarModulo(chk.getAttribute('data-modulo'));
+            refrescarTotal();
+            refrescarBadgesTab();
+        });
+    });
+
+    // Estado inicial
+    document.querySelectorAll('[data-modulo].border').forEach(function (panel) {
+        refrescarModulo(panel.getAttribute('data-modulo'));
+    });
+    refrescarTotal();
+    refrescarBadgesTab();
+
+    // ---- Buscador ----
+    var searchInput = document.getElementById('cap-search-input');
+    var searchResults = document.getElementById('cap-search-results');
+    var searchEmpty = document.getElementById('cap-search-empty');
+
+    // Construir índice de todos los checkboxes
+    function buildIndex() {
+        var items = [];
         document.querySelectorAll('.cap-check').forEach(function (chk) {
-            chk.addEventListener('change', function () {
-                refrescarModulo(chk.getAttribute('data-modulo'));
-                refrescarTotal();
-            });
+            var label = chk.closest('label');
+            var texto = label ? label.getAttribute('data-label') || label.textContent.trim().toLowerCase() : '';
+            items.push({ chk: chk, texto: texto, labelEl: label });
         });
+        return items;
+    }
+    var capIndex = buildIndex();
 
-        document.querySelectorAll('[data-modulo].border').forEach(function (panel) {
-            refrescarModulo(panel.getAttribute('data-modulo'));
-        });
-        refrescarTotal();
-    });
-</script>
-<script>
-    // Admin global: el combo "Programa" y el árbol se ajustan según la categoría.
-    document.addEventListener('DOMContentLoaded', function () {
-        var catSelect = document.getElementById('id_categoria');
-        if (!catSelect) return;  // admin de programa: campos fijos, sin JS
-        var campoPrograma = document.getElementById('campo-programa');
-
-        function aplicarCategoria() {
-            var esPrograma = catSelect.value === 'Programa';
-            if (campoPrograma) {
-                campoPrograma.classList.toggle('hidden', !esPrograma);
-                if (!esPrograma) {
-                    var programaSelect = campoPrograma.querySelector('select');
-                    if (programaSelect) programaSelect.value = '';
-                }
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            var q = searchInput.value.trim().toLowerCase();
+            searchResults.innerHTML = '';
+            if (!q) {
+                searchEmpty.classList.add('hidden');
+                return;
             }
-            document.querySelectorAll('.border[data-alcance]').forEach(function (panel) {
-                var dePrograma = panel.getAttribute('data-alcance') === 'programa';
-                panel.classList.toggle('hidden', esPrograma && !dePrograma);
+            var matches = capIndex.filter(function (item) { return item.texto.indexOf(q) !== -1; });
+            searchEmpty.classList.toggle('hidden', matches.length > 0);
+            matches.forEach(function (item) {
+                var clone = item.labelEl.cloneNode(true);
+                clone.classList.add('p-1', 'rounded', 'hover:bg-gray-50');
+                // Sincronizar el checkbox clonado con el original
+                var cloneChk = clone.querySelector('input[type=checkbox]');
+                if (cloneChk) {
+                    cloneChk.checked = item.chk.checked;
+                    cloneChk.addEventListener('change', function () {
+                        item.chk.checked = cloneChk.checked;
+                        item.chk.dispatchEvent(new Event('change', { bubbles: true }));
+                        cloneChk.checked = item.chk.checked;
+                    });
+                    item.chk.addEventListener('change', function () {
+                        cloneChk.checked = item.chk.checked;
+                    });
+                }
+                searchResults.appendChild(clone);
             });
-        }
-        catSelect.addEventListener('change', aplicarCategoria);
-        aplicarCategoria();
-    });
+        });
+    }
+});
 </script>
 {% endblock %}
