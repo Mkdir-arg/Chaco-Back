@@ -135,11 +135,7 @@ export default function BottomNav({ activeTab, onTabPress, onOpenSettings, pendi
                                     color={iconColor}
                                 />
                                 {showBadge && (
-                                    <View style={styles.badge}>
-                                        <Text style={[styles.badgeText, { fontFamily: typography.bold }]}>
-                                            {pendingCount > 9 ? '9+' : pendingCount}
-                                        </Text>
-                                    </View>
+                                    <View style={styles.badge} />
                                 )}
                                 <Text
                                     numberOfLines={1}
@@ -282,20 +278,14 @@ const styles = StyleSheet.create({
     },
     badge: {
         position: 'absolute',
-        top: 4,
-        right: 18,
-        minWidth: 18,
-        height: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 5,
+        top: 8,
+        right: 28,
+        width: 11,
+        height: 11,
         borderRadius: radii.full,
-        backgroundColor: '#25D366',
-    },
-    badgeText: {
-        color: '#050505',
-        fontSize: fontSizes.xs,
-        lineHeight: 14,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.92)',
+        backgroundColor: '#EF4444',
     },
     tabLabel: {
         width: '100%',

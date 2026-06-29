@@ -14,7 +14,7 @@ Se necesitaba elegir el stack tecnológico para un sistema de gestión social mu
 - **Frontend:** Tailwind CSS + Alpine.js (sin SPA)
 - **Tiempo real:** Django Channels + WebSocket
 - **Infraestructura:** Docker Compose
-- **Almacenamiento externo:** Supabase (para relevamientos móviles)
+- **API móvil:** Django REST Framework sobre MySQL
 - **App móvil:** Expo / React Native
 
 ## Opciones evaluadas

@@ -2,22 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SQLite from 'expo-sqlite';
-import * as SecureStore from 'expo-secure-store';
-import { decode as decodeBase64 } from 'base64-arraybuffer';
-import { Platform } from 'react-native';
-import { supabase } from '../config/supabaseConfig';
-import { SUPABASE_CONFIG } from '../config/supabaseConfig';
+import { becasRequest } from './becasApi';
 
 const LOCAL_RELEVAMIENTOS_KEY = 'field_relevamientos_records';
 const SYNC_QUEUE_KEY = 'field_relevamientos_sync_queue';
-const TABLE_RELEVAMIENTOS = 'relevamientos';
-const TABLE_RELEVAMIENTOS_ASIGNADOS = 'relevamientos_asignados';
-const TABLE_RELEVAMIENTO_PERSONAS = 'relevamiento_personas';
-const TABLE_RELEVAMIENTO_RESPUESTAS = 'relevamiento_respuestas';
-const TABLE_RELEVAMIENTO_ARCHIVOS = 'relevamiento_archivos';
-const TABLE_CAMPOS_EXTRA = 'relevamiento_campos_extra';
-const TABLE_ADJUNTOS = 'relevamiento_adjuntos';
-const USER_ID_STORAGE_KEY = 'user_id';
 const SQLITE_DB_NAME = 'relevamientos_offline.db';
 const SQLITE_LOCAL_TABLE = 'local_relevamientos';
 const SQLITE_OUTBOX_TABLE = 'outbox_relevamientos';
@@ -27,7 +15,6 @@ const ATTACHMENTS_DIR = `${FileSystem.documentDirectory}attachments`;
 const MAX_RETRY_COUNT = 8;
 const OUTBOX_IN_FLIGHT_TIMEOUT_MS = 10 * 60 * 1000;
 const ERROR_MISSING_LOCAL_FILE = 'ERROR_MISSING_LOCAL_FILE';
-const ERROR_OFFLINE = 'ERROR_OFFLINE';
 const ERROR_ATTACHMENTS_UPLOAD = 'ERROR_ATTACHMENTS_UPLOAD';
 const ERROR_REMOTE_SCHEMA = 'ERROR_REMOTE_SCHEMA';
 
@@ -37,12 +24,12 @@ let sqliteInitPromise = null;
 
 const nowIso = () => new Date().toISOString();
 const createLocalId = () => `local_rel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+const createRemoteCacheId = (backend, id) => `remote_${String(backend || 'api')}_${String(id)}`;
 const createClientUuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
   const r = Math.random() * 16 | 0;
   const v = c === 'x' ? r : ((r & 0x3) | 0x8);
   return v.toString(16);
 });
-const createClientUid = createClientUuid;
 const deriveClientUuidFromSeed = (seed = '') => {
   const base = String(seed || createLocalId());
   let hex = '';
@@ -51,22 +38,6 @@ const deriveClientUuidFromSeed = (seed = '') => {
   }
   const padded = (hex + '0123456789abcdef0123456789abcdef').slice(0, 32);
   return `${padded.slice(0, 8)}-${padded.slice(8, 12)}-4${padded.slice(13, 16)}-a${padded.slice(17, 20)}-${padded.slice(20, 32)}`;
-};
-const deriveClientUidFromSeed = deriveClientUuidFromSeed;
-const toNullableText = (value) => {
-  if (value === undefined || value === null) return null;
-  const text = String(value).trim();
-  return text === '' ? null : text;
-};
-const toNullableInt = (value) => {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isNaN(parsed) ? null : parsed;
-};
-const toNullableFloat = (value) => {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? null : parsed;
 };
 
 const safeParse = (value, fallback = []) => {
@@ -89,65 +60,68 @@ const uniqueBy = (items = [], keySelector) => {
 };
 const toSqliteBool = (value) => (value ? 1 : 0);
 const normalizeUuid = (value) => String(value || '').trim().toLowerCase();
-const isMissingRemoteColumnError = (error, columnName) => {
-  const text = String(error?.message || '').toLowerCase();
-  return text.includes(`column '${String(columnName).toLowerCase()}' does not exist`) ||
-    text.includes(`column \"${String(columnName).toLowerCase()}\" does not exist`) ||
-    text.includes(`could not find the '${String(columnName).toLowerCase()}' column`);
-};
-const isRemoteConflictTargetError = (error, target = 'client_uuid') => {
-  const text = String(error?.message || '').toLowerCase();
-  return text.includes('on conflict') && text.includes(String(target).toLowerCase());
-};
 
-const getStoredUserId = async () => {
-  if (Platform.OS === 'web') {
-    return AsyncStorage.getItem(USER_ID_STORAGE_KEY);
-  }
-
-  try {
-    return await SecureStore.getItemAsync(USER_ID_STORAGE_KEY);
-  } catch {
-    return AsyncStorage.getItem(USER_ID_STORAGE_KEY);
-  }
-};
-
-const mapAssignedStatusToSyncEstado = (estado) => {
-  if (estado === 'SINCRONIZADO') return 'SINCRONIZADO';
-  if (estado === 'SINCRONIZANDO') return 'SINCRONIZANDO';
-  if (estado === 'ERROR') return 'ERROR';
-  return 'PENDIENTE';
-};
-
-const mapAssignedRelevamiento = (row = {}) => ({
+const mapDjangoRelevamiento = (row = {}) => ({
   id: row.id,
   source: 'asignado',
-  titulo: row.titulo,
-  descripcion: row.descripcion,
-  direccion_objetivo: row.direccion_objetivo,
-  localidad: row.localidad,
-  provincia: row.provincia,
-  prioridad: row.prioridad,
+  backend: 'django_becas',
+  titulo: row.nombre || 'Relevamiento',
+  descripcion: row.convocatoria_nombre || '',
+  direccion_objetivo: row.zona || '',
+  localidad: row.zona || '',
+  provincia: 'Chaco',
+  prioridad: 'MEDIA',
   estado: row.estado,
   id_institucion: null,
-  created_at: row.asignado_at || row.created_at,
-  relevado_at: row.completado_at || null,
-  last_synced_at: row.last_synced_at,
-  sync_estado: mapAssignedStatusToSyncEstado(row.estado),
-  observaciones: row.observaciones || row.descripcion || '',
-  latitud: row.latitud_capturada,
-  longitud: row.longitud_capturada,
-  latitud_objetivo: row.latitud_objetivo,
-  longitud_objetivo: row.longitud_objetivo,
+  created_at: row.fecha_asignada || row.fecha_finalizado || nowIso(),
+  relevado_at: row.fecha_finalizado || null,
+  last_synced_at: row.fecha_finalizado || null,
+  sync_estado: row.estado === 'FINALIZADO' ? 'SINCRONIZADO' : 'PENDIENTE',
+  observaciones: row.convocatoria_nombre || row.segmento || '',
+  latitud: null,
+  longitud: null,
+  segmento: row.segmento || '',
+  convocatoria_nombre: row.convocatoria_nombre || '',
+  formularios_count: row.formularios_count || 0,
+  personas_count: row.formularios_count || 0,
 });
 
-const formatDynamicValue = (row = {}) => {
-  if (row.valor_texto !== null && row.valor_texto !== undefined) return String(row.valor_texto);
-  if (row.valor_numero !== null && row.valor_numero !== undefined) return String(row.valor_numero);
-  if (row.valor_booleano !== null && row.valor_booleano !== undefined) return row.valor_booleano ? 'Si' : 'No';
-  if (row.valor_fecha) return String(row.valor_fecha);
-  if (row.valor_json && Object.keys(row.valor_json || {}).length) return JSON.stringify(row.valor_json);
-  return '-';
+const normalizeDjangoField = (field = {}, scope = 'globales') => ({
+  id: `${scope}:${field.id}`,
+  original_id: field.id,
+  scope,
+  nombre: field.texto || 'Campo',
+  etiqueta: field.texto || 'Campo',
+  texto: field.texto || 'Campo',
+  tipo: field.tipo,
+  opciones: field.opciones || [],
+  requerido: !!field.obligatorio,
+  obligatorio: !!field.obligatorio,
+  orden: field.orden || 0,
+});
+
+const mapDjangoRelevamientoDetail = (row = {}) => {
+  const base = mapDjangoRelevamiento(row);
+  const definicion = row.definicion_formulario || {};
+  const globales = (definicion.globales || []).map((field) => normalizeDjangoField(field, 'globales'));
+  const requisitos = (definicion.requisitos || []).map((field) => normalizeDjangoField(field, 'requisitos'));
+  return {
+    ...base,
+    ...row,
+    source: 'asignado',
+    backend: 'django_becas',
+    titulo: row.nombre || 'Relevamiento',
+    campos_definicion: [...globales, ...requisitos].sort((a, b) => (a.orden || 0) - (b.orden || 0)),
+    definicion_formulario: {
+      ...definicion,
+      requiere_gps: !!definicion.requiere_gps,
+      globales,
+      requisitos,
+    },
+    campos_extra: [],
+    adjuntos: [],
+    payload: {},
+  };
 };
 
 const getSqliteDb = async () => {
@@ -462,6 +436,10 @@ const isNetworkError = (error) => {
   return (
     message.includes('network request failed') ||
     message.includes('failed to fetch') ||
+    message.includes('internet disconnected') ||
+    message.includes('name_not_resolved') ||
+    message.includes('err_name_not_resolved') ||
+    message.includes('err_internet_disconnected') ||
     message.includes('unable to resolve host') ||
     message.includes('timed out') ||
     message.includes('network')
@@ -604,88 +582,6 @@ const calculateBackoffMs = (retryCount = 0) => {
   return Math.min(max, base * (2 ** Math.max(0, retryCount)));
 };
 
-const uploadToStorage = async ({ relevamientoId, category, uri, mimeType, fileName }) => {
-  if (!uri) return null;
-  if (isRemoteUri(uri)) {
-    return { storage_path: uri, mime_type: mimeType || inferMimeType(uri), size_bytes: null };
-  }
-
-  const persisted = await persistLocalFileIfNeeded({
-    uri,
-    fileName: fileName || String(uri).split('/').pop(),
-    mimeType,
-    size: null,
-  });
-  const uploadUri = persisted?.uri || uri;
-  const uploadMimeType = persisted?.mimeType || mimeType;
-
-  const connectivity = await getConnectivitySnapshot();
-  if (!connectivity.hasInternet) {
-    throw createSyncError(ERROR_OFFLINE, 'Sin conectividad: upload diferido', { connectivity });
-  }
-
-  const localInfo = await FileSystem.getInfoAsync(uploadUri, { size: true });
-  if (!localInfo.exists) {
-    throw createSyncError(
-      ERROR_MISSING_LOCAL_FILE,
-      'Adjunto no disponible, volve a adjuntarlo',
-      { uri: uploadUri }
-    );
-  }
-
-  const safeName = sanitizeFileName(fileName || uploadUri.split('/').pop() || createLocalId());
-  const ts = Date.now();
-  const storagePath = `${relevamientoId}/${category.toLowerCase()}_${ts}_${safeName}`;
-  const contentType = uploadMimeType || inferMimeType(safeName);
-  const endpoint = `${SUPABASE_CONFIG.url}/storage/v1/object/relevamientos/${storagePath}`;
-
-  console.log('[SYNC][UPLOAD][START]', {
-    endpoint,
-    category,
-    uri: uploadUri,
-    fileName: safeName,
-    contentType,
-    sizeBytes: localInfo?.size || null,
-    connectivity,
-  });
-
-  const base64 = await FileSystem.readAsStringAsync(uploadUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const arrayBuffer = decodeBase64(base64 || '');
-  if (!arrayBuffer || !arrayBuffer.byteLength) {
-    throw new Error('El archivo local no tiene contenido o no se pudo leer');
-  }
-  const sizeBytes = arrayBuffer?.byteLength || null;
-
-  const { error: uploadError } = await supabase.storage
-    .from('relevamientos')
-    .upload(storagePath, arrayBuffer, {
-      contentType,
-      upsert: false,
-    });
-
-  if (uploadError) {
-    console.warn('[SYNC][UPLOAD][ERROR]', {
-      endpoint,
-      storagePath,
-      category,
-      uri: uploadUri,
-      message: uploadError?.message || 'Error desconocido al subir',
-      statusCode: uploadError?.statusCode || uploadError?.status || null,
-    });
-    throw uploadError;
-  }
-
-  console.log('[SYNC][UPLOAD][OK]', {
-    endpoint,
-    storagePath,
-    category,
-    sizeBytes,
-  });
-  return { storage_path: storagePath, mime_type: contentType, size_bytes: sizeBytes };
-};
-
 const readLocalRecords = async () => {
   await ensureSqliteReady();
   const db = await getSqliteDb();
@@ -695,6 +591,129 @@ const readLocalRecords = async () => {
      ORDER BY created_at DESC`
   );
   return rows.map(mapLocalRow);
+};
+
+const isRemoteCacheRecord = (record = {}) =>
+  record.payload?.cache_source === 'remote' || String(record.local_id || '').startsWith('remote_');
+
+const mapLocalRecordForList = (record = {}) => {
+  if (isRemoteCacheRecord(record)) {
+    return {
+      ...(record.payload || {}),
+      id: record.remote_id || record.payload?.id,
+      remote_id: record.remote_id || record.payload?.id,
+      cached: true,
+      sync_estado: record.payload?.sync_estado || record.sync_estado || 'SINCRONIZADO',
+    };
+  }
+
+  return {
+    id: record.local_id,
+    id_institucion: 1,
+    created_at: record.created_at,
+    sync_estado: record.sync_estado || (record.synced ? 'SINCRONIZADO' : 'PENDIENTE'),
+    observaciones: record.observaciones,
+    latitud: record.latitud,
+    longitud: record.longitud,
+  };
+};
+
+const readCachedRemoteRecord = async (id, backend = 'django_becas') => {
+  if (!id) return null;
+  await ensureSqliteReady();
+  const db = await getSqliteDb();
+  const row = await db.getFirstAsync(
+    `SELECT local_id, remote_id, client_uuid, created_at, synced, sync_estado, sync_error, sync_error_code, observaciones, latitud, longitud, payload_json
+     FROM ${SQLITE_LOCAL_TABLE}
+     WHERE remote_id = ? OR local_id = ?
+     LIMIT 1`,
+    String(id),
+    createRemoteCacheId(backend, id)
+  );
+  return row ? mapLocalRow(row) : null;
+};
+
+const upsertCachedRemoteRecord = async (record = {}) => {
+  if (!record?.id) return null;
+  await ensureSqliteReady();
+  const db = await getSqliteDb();
+  const backend = record.backend || 'django_becas';
+  const localId = createRemoteCacheId(backend, record.id);
+  const payload = {
+    ...record,
+    cache_source: 'remote',
+    backend,
+    cached_at: nowIso(),
+  };
+  const createdAt = record.created_at || record.fecha_asignada || nowIso();
+
+  await db.runAsync(
+    `INSERT INTO ${SQLITE_LOCAL_TABLE}
+    (local_id, remote_id, client_uuid, created_at, synced, sync_estado, sync_error, sync_error_code, observaciones, latitud, longitud, payload_json, updated_at)
+    VALUES (?, ?, NULL, ?, 1, ?, NULL, NULL, ?, ?, ?, ?, ?)
+    ON CONFLICT(local_id) DO UPDATE SET
+      remote_id = excluded.remote_id,
+      created_at = excluded.created_at,
+      synced = 1,
+      sync_estado = excluded.sync_estado,
+      sync_error = NULL,
+      sync_error_code = NULL,
+      observaciones = excluded.observaciones,
+      latitud = excluded.latitud,
+      longitud = excluded.longitud,
+      payload_json = excluded.payload_json,
+      updated_at = excluded.updated_at`,
+    localId,
+    String(record.id),
+    createdAt,
+    record.sync_estado || 'SINCRONIZADO',
+    record.observaciones || record.descripcion || record.titulo || '',
+    record.latitud ?? '',
+    record.longitud ?? '',
+    JSON.stringify(payload),
+    nowIso()
+  );
+  return payload;
+};
+
+const updateCachedRemoteFormularios = async (relevamientoId, formularios = []) => {
+  const cached = await readCachedRemoteRecord(relevamientoId);
+  if (!cached?.payload) return null;
+  return upsertCachedRemoteRecord({
+    ...cached.payload,
+    cached_formularios: formularios,
+    cached_formularios_at: nowIso(),
+  });
+};
+
+const mapCachedRecordsForList = async () => {
+  const localRecords = await readLocalRecords();
+  return localRecords.map(mapLocalRecordForList);
+};
+
+const warmRemoteDetailCache = async (records = []) => {
+  for (const record of records) {
+    if (record?.backend !== 'django_becas' || !record?.id) {
+      await upsertCachedRemoteRecord(record);
+      continue;
+    }
+
+    const cached = await readCachedRemoteRecord(record.id, record.backend);
+    if (cached?.payload?.cache_detail_ready) {
+      await upsertCachedRemoteRecord({ ...cached.payload, ...record, cache_detail_ready: true });
+      continue;
+    }
+
+    try {
+      const payload = await becasRequest(`/api/becas/relevamientos/${record.id}/`);
+      await upsertCachedRemoteRecord({
+        ...mapDjangoRelevamientoDetail(payload),
+        cache_detail_ready: true,
+      });
+    } catch {
+      await upsertCachedRemoteRecord(record);
+    }
+  }
 };
 
 const readQueue = async () => {
@@ -709,267 +728,57 @@ const readQueue = async () => {
   return rows.map(mapOutboxRow);
 };
 
-const buildRelevamientoRow = (payload = {}) => {
-  const directKeys = [
-    'tiene_colaboradores',
-    'cantidad_colaboradores',
-    'tipo_espacio_fisico',
-    'espacio_fisico_otro',
-    'tiene_cocina',
-    'espacio_elaboracion_alimentos',
-    'almacenamiento_alimentos_secos',
-    'heladera',
-    'freezer',
-    'recipiente_residuos_organicos',
-    'recipiente_residuos_reciclables',
-    'otros_residuos',
-    'recipiente_otros_residuos',
-    'abastecimiento_combustible',
-    'abastecimiento_agua',
-    'abastecimiento_agua_otro',
-    'instalacion_electrica',
-    'espacio_equipado',
-    'tiene_ventilacion',
-    'tiene_salida_emergencia',
-    'salida_emergencia_senializada',
-    'tiene_equipacion_incendio',
-    'tiene_botiquin',
-    'tiene_buena_iluminacion',
-    'tiene_sanitarios',
-    'desague_hinodoro',
-    'gestion_quejas',
-    'gestion_quejas_otro',
-    'informacion_quejas',
-    'frecuencia_limpieza',
-    'tipo_insumo',
-    'frecuencia_insumo',
-    'tecnologia',
-    'acceso_institucion',
-    'distancia_transporte',
-    'servicio_internet',
-    'zona_inundable',
-    'actividades_jardin_maternal',
-    'actividades_jardin_infantes',
-    'apoyo_escolar',
-    'alfabetizacion_terminalidad',
-    'capacitaciones_talleres',
-    'tipo_talleres',
-    'promocion_salud',
-    'actividades_discapacidad',
-    'actividades_recreativas',
-    'cuales_actividades_recreativas',
-    'actividades_culturales',
-    'cuales_actividades_culturales',
-    'emprendimientos_productivos',
-    'cuales_emprendimientos_productivos',
-    'actividades_religiosas',
-    'actividades_huerta',
-    'otras_actividades',
-    'cuales_otras_actividades',
-    'latitud',
-    'longitud',
-    'observaciones',
-    'firma_paths',
-  ];
+const syncRemoteBecasFormulario = async (payload = {}) => {
+  const relevamientoId = payload.relevamiento_id || payload.relevamientoId;
+  if (!relevamientoId) {
+    throw new Error('Falta el relevamiento para sincronizar el formulario.');
+  }
 
-  const row = {
-    client_uuid: toNullableText(payload?.client_uuid || payload?.client_uid) || createClientUuid(),
-    id_institucion: 1,
-    responsable_nombre: toNullableText(payload?.nombre),
-    responsable_apellido: toNullableText(payload?.apellido),
-    responsable_dni: toNullableText(payload?.dni),
-    responsable_telefono: toNullableText(payload?.telefono),
-    responsable_email: toNullableText(payload?.email),
-    responsable_funcion: toNullableText(payload?.funcion),
-    usuario_username: toNullableText(payload?.usuario_username || payload?.operador_username),
-    relevado_at: toNullableText(payload?.relevado_at || payload?.created_at) || nowIso(),
-    sync_estado: 'SINCRONIZADO',
-    sync_error: null,
-    last_synced_at: nowIso(),
-  };
-
-  directKeys.forEach((key) => {
-    if (Object.prototype.hasOwnProperty.call(payload, key)) {
-      row[key] = payload[key];
-    }
+  const formulario = await becasRequest(`/api/becas/relevamientos/${relevamientoId}/formularios/`, {
+    method: 'POST',
+    body: {
+      celular: payload.celular,
+      email_contacto: payload.email_contacto,
+      apoderado_nombre: payload.apoderado_nombre || '',
+      apoderado_apellido: payload.apoderado_apellido || '',
+      apoderado_fecha_nacimiento: payload.apoderado_fecha_nacimiento || null,
+      gps_lat: payload.gps_lat || null,
+      gps_lng: payload.gps_lng || null,
+      validado_renaper: !!payload.validado_renaper,
+      datos_identificacion: payload.datos_identificacion,
+      data: payload.data || { globales: {}, requisitos: {} },
+    },
   });
 
-  row.cantidad_colaboradores = toNullableInt(row.cantidad_colaboradores);
-  row.latitud = toNullableFloat(row.latitud);
-  row.longitud = toNullableFloat(row.longitud);
-  row.espacio_fisico_otro = toNullableText(row.espacio_fisico_otro);
-  row.abastecimiento_agua_otro = toNullableText(row.abastecimiento_agua_otro);
-  row.gestion_quejas_otro = toNullableText(row.gestion_quejas_otro);
-  row.tipo_talleres = toNullableText(row.tipo_talleres);
-  row.cuales_actividades_recreativas = toNullableText(row.cuales_actividades_recreativas);
-  row.cuales_actividades_culturales = toNullableText(row.cuales_actividades_culturales);
-  row.cuales_emprendimientos_productivos = toNullableText(row.cuales_emprendimientos_productivos);
-  row.cuales_otras_actividades = toNullableText(row.cuales_otras_actividades);
-  row.observaciones = toNullableText(row.observaciones);
-  row.firma_paths = Array.isArray(row.firma_paths) ? row.firma_paths : [];
-
-  return row;
-};
-
-const insertRelatedData = async (relevamientoId, payload = {}) => {
-  // Reintentos idempotentes: limpiamos detalle previo y lo volvemos a insertar.
-  const { error: clearExtraError } = await supabase.from(TABLE_CAMPOS_EXTRA).delete().eq('relevamiento_id', relevamientoId);
-  if (clearExtraError) throw clearExtraError;
-  const { error: clearAdjError } = await supabase.from(TABLE_ADJUNTOS).delete().eq('relevamiento_id', relevamientoId);
-  if (clearAdjError) throw clearAdjError;
-
-  const extraRows = (payload?.campos_extra || []).map((item, idx) => ({
-    relevamiento_id: relevamientoId,
-    orden: idx + 1,
-    nombre: item.nombre,
-    valor: item.valor,
-  }));
-
-  if (extraRows.length > 0) {
-    const { error } = await supabase.from(TABLE_CAMPOS_EXTRA).insert(extraRows);
-    if (error) throw error;
-  }
-
-  const attachmentRows = [];
-  const uploadErrors = [];
-
-  const evidenciasUnicas = uniqueBy(payload?.evidencias || [], (item) => `${item?.uri || ''}|${item?.nombre || ''}`);
-  const adjuntosUnicos = uniqueBy(payload?.adjuntos || [], (item) => `${item?.uri || ''}|${item?.nombre || ''}|${item?.tipo || ''}`);
-
-  for (const item of evidenciasUnicas) {
+  if (payload.finalizar !== false) {
     try {
-      const uploaded = await uploadToStorage({
-        relevamientoId,
-        category: 'EVIDENCIA',
-        uri: item?.uri,
-        mimeType: item?.mimeType || 'image/jpeg',
-        fileName: item?.nombre || item?.uri?.split('/').pop() || 'evidencia.jpg',
-      });
-      if (!uploaded?.storage_path) continue;
-      attachmentRows.push({
-        relevamiento_id: relevamientoId,
-        categoria: 'EVIDENCIA',
-        tipo_archivo: 'IMAGEN',
-        storage_bucket: 'relevamientos',
-        storage_path: uploaded.storage_path,
-        nombre_original: item?.nombre || item?.uri?.split('/').pop() || 'evidencia.jpg',
-        mime_type: uploaded.mime_type || null,
-        size_bytes: uploaded.size_bytes || null,
+      await becasRequest(`/api/becas/relevamientos/${relevamientoId}/finalizar/`, {
+        method: 'POST',
       });
     } catch (error) {
-      uploadErrors.push({
-        code: error?.code || null,
-        message: `EVIDENCIA ${item?.nombre || item?.uri || ''}: ${error?.message || 'Error al subir archivo'}`,
-      });
+      // El formulario ya quedó enviado. Si finalizar falla por estado, no reintentamos
+      // duplicando el formulario en la próxima sincronización.
+      if (![400].includes(Number(error?.status || 0))) throw error;
     }
   }
 
-  for (const item of adjuntosUnicos) {
-    try {
-      const uploaded = await uploadToStorage({
-        relevamientoId,
-        category: 'DOCUMENTO',
-        uri: item?.uri,
-        mimeType: item?.mimeType || null,
-        fileName: item?.nombre || item?.uri?.split('/').pop() || 'adjunto',
-      });
-      if (!uploaded?.storage_path) continue;
-      attachmentRows.push({
-        relevamiento_id: relevamientoId,
-        categoria: 'DOCUMENTO',
-        tipo_archivo: item?.tipo === 'imagen' ? 'IMAGEN' : 'ARCHIVO',
-        storage_bucket: 'relevamientos',
-        storage_path: uploaded.storage_path,
-        nombre_original: item?.nombre || 'adjunto',
-        mime_type: uploaded.mime_type || null,
-        size_bytes: uploaded.size_bytes || item?.size || null,
-      });
-    } catch (error) {
-      uploadErrors.push({
-        code: error?.code || null,
-        message: `DOCUMENTO ${item?.nombre || item?.uri || ''}: ${error?.message || 'Error al subir archivo'}`,
-      });
-    }
-  }
-
-  if (uploadErrors.length > 0) {
-    const missingFile = uploadErrors.find((item) => item?.code === ERROR_MISSING_LOCAL_FILE);
-    if (missingFile) {
-      throw createSyncError(
-        ERROR_MISSING_LOCAL_FILE,
-        'Adjunto no disponible, volve a adjuntarlo',
-        { detail: missingFile.message }
-      );
-    }
-    throw createSyncError(
-      ERROR_ATTACHMENTS_UPLOAD,
-      `No se pudieron subir algunos adjuntos. ${uploadErrors[0]?.message || 'Error al subir adjuntos'}`,
-      { errors: uploadErrors }
-    );
-  }
-
-  const attachmentRowsUnicos = uniqueBy(
-    attachmentRows,
-    (row) => `${row?.categoria || ''}|${row?.tipo_archivo || ''}|${row?.storage_path || ''}|${row?.nombre_original || ''}`
-  );
-
-  if (attachmentRowsUnicos.length > 0) {
-    const { error } = await supabase.from(TABLE_ADJUNTOS).insert(attachmentRowsUnicos);
-    if (error) throw error;
-  }
-};
-
-const upsertRemoteRelevamiento = async (payload = {}) => {
-  const rowByClientUuid = buildRelevamientoRow(payload);
-  const { data, error } = await supabase
-    .from(TABLE_RELEVAMIENTOS)
-    .upsert(rowByClientUuid, { onConflict: 'client_uuid' })
-    .select('id, id_institucion, created_at, relevado_at, last_synced_at, sync_estado, observaciones, latitud, longitud')
-    .single();
-
-  if (!error) return data;
-  if (!isMissingRemoteColumnError(error, 'client_uuid') && !isRemoteConflictTargetError(error, 'client_uuid')) {
-    throw error;
-  }
-
-  const legacyPayload = { ...payload, client_uid: payload?.client_uuid || payload?.client_uid || createClientUuid() };
-  const legacyRow = {
-    ...buildRelevamientoRow(legacyPayload),
-    client_uid: legacyPayload.client_uid,
+  return {
+    id: formulario.id,
+    observaciones: payload.observaciones || '',
+    latitud: payload.gps_lat || '',
+    longitud: payload.gps_lng || '',
   };
-  delete legacyRow.client_uuid;
-
-  const { data: legacyData, error: legacyError } = await supabase
-    .from(TABLE_RELEVAMIENTOS)
-    .upsert(legacyRow, { onConflict: 'client_uid' })
-    .select('id, id_institucion, created_at, relevado_at, last_synced_at, sync_estado, observaciones, latitud, longitud')
-    .single();
-
-  if (legacyError) {
-    throw createSyncError(
-      ERROR_REMOTE_SCHEMA,
-      legacyError?.message || 'No se pudo sincronizar por schema remoto incompatible',
-      { cause: legacyError }
-    );
-  }
-  return legacyData;
 };
 
 const syncSingleOperation = async (operation) => {
-  const clientUuid = normalizeUuid(
-    operation?.payload?.client_uuid ||
-    operation?.payload?.client_uid ||
-    deriveClientUuidFromSeed(operation?.local_id || operation?.op_id)
-  );
-  const payloadWithClientUuid = {
-    ...(operation.payload || {}),
-    client_uuid: clientUuid,
-    client_uid: clientUuid,
-  };
+  if (operation?.payload?.backend === 'django_becas') {
+    return syncRemoteBecasFormulario(operation.payload);
+  }
 
-  const created = await upsertRemoteRelevamiento(payloadWithClientUuid);
-  await insertRelatedData(created.id, payloadWithClientUuid);
-  return created;
+  throw createSyncError(
+    ERROR_REMOTE_SCHEMA,
+    'Sincronizacion legacy deshabilitada: la app usa solo Django.'
+  );
 };
 
 const upsertLocalRecordAndEnqueue = async (payload) => {
@@ -1210,61 +1019,29 @@ const markOperationPermanentErrorAtomic = async (localId, {
 };
 
 const fetchRemoteRecords = async () => {
-  try {
-    const currentUserId = await getStoredUserId();
-    let query = supabase
-      .from(TABLE_RELEVAMIENTOS_ASIGNADOS)
-      .select('id, client_uid, titulo, descripcion, estado, prioridad, direccion_objetivo, localidad, provincia, latitud_objetivo, longitud_objetivo, latitud_capturada, longitud_capturada, observaciones, asignado_at, completado_at, last_synced_at, created_at')
-      .is('deleted_at', null)
-      .order('asignado_at', { ascending: false });
-
-    if (currentUserId) {
-      query = query.eq('assigned_user_id', currentUserId);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map(mapAssignedRelevamiento);
-  } catch (assignedError) {
-    const message = String(assignedError?.message || '').toLowerCase();
-    const canFallbackToLegacy =
-      message.includes(TABLE_RELEVAMIENTOS_ASIGNADOS) ||
-      message.includes('does not exist') ||
-      message.includes('could not find');
-
-    if (!canFallbackToLegacy) throw assignedError;
-  }
-
-  const { data, error } = await supabase
-    .from(TABLE_RELEVAMIENTOS)
-    .select('id, id_institucion, created_at, relevado_at, last_synced_at, sync_estado, observaciones, latitud, longitud')
-    .eq('id_institucion', 1)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  const payload = await becasRequest('/api/becas/relevamientos/');
+  const rows = Array.isArray(payload?.results) ? payload.results : (Array.isArray(payload) ? payload : []);
+  return rows.map(mapDjangoRelevamiento);
 };
 
 const isLocalId = (id) => String(id || '').startsWith('local_rel_');
 
 const relevamientoService = {
   async saveRelevamiento(payload) {
-    await ensureSqliteReady();
-    const persistedPayload = await persistPayloadFiles(payload || {});
-    const clientUuid = normalizeUuid(payload?.client_uuid || payload?.client_uid || createClientUuid());
-    const normalizedPayload = {
-      ...persistedPayload,
-      client_uuid: clientUuid,
-      client_uid: clientUuid,
-      relevado_at: payload?.relevado_at || payload?.created_at || nowIso(),
-    };
+    throw new Error('saveRelevamiento legacy deshabilitado: la app usa solo Django.');
+  },
 
+  async saveBecasFormulario(payload) {
+    await ensureSqliteReady();
     const localRecord = await upsertLocalRecordAndEnqueue({
-      ...normalizedPayload,
+      ...payload,
+      backend: 'django_becas',
       sync_estado: 'PENDIENTE',
       synced: false,
       created_at: nowIso(),
+      observaciones: payload?.observaciones || payload?.datos_identificacion?.dni || '',
+      latitud: payload?.gps_lat || '',
+      longitud: payload?.gps_lng || '',
     });
 
     const syncResult = await this.syncPendingOperations();
@@ -1400,48 +1177,70 @@ const relevamientoService = {
 
   async getRelevamientos({ refreshFromRemote = true } = {}) {
     if (refreshFromRemote) {
+      const connectivity = await getConnectivitySnapshot();
+      if (!connectivity.hasInternet) {
+        const cached = await mapCachedRecordsForList();
+        return {
+          success: cached.length > 0,
+          records: cached,
+          offline: true,
+          error: cached.length ? '' : 'Sin conexion y sin relevamientos descargados',
+        };
+      }
+
       try {
         await this.syncPendingOperations();
-        const localRecords = await readLocalRecords();
         const remote = await fetchRemoteRecords();
-        const pendingLocal = localRecords
-          .filter((item) => !item.synced)
-          .map((item) => ({
-            id: item.local_id,
-            id_institucion: 1,
-            created_at: item.created_at,
-            sync_estado: item.sync_estado || 'PENDIENTE',
-            observaciones: item.observaciones,
-            latitud: item.latitud,
-            longitud: item.longitud,
-        }));
-        return { success: true, records: [...pendingLocal, ...remote] };
-      } catch (error) {
+        await warmRemoteDetailCache(remote);
         const localRecords = await readLocalRecords();
-        const fallback = localRecords.map((item) => ({
-          id: item.local_id,
-          id_institucion: 1,
-          created_at: item.created_at,
-          sync_estado: item.sync_estado || (item.synced ? 'SINCRONIZADO' : 'PENDIENTE'),
-          observaciones: item.observaciones,
-          latitud: item.latitud,
-          longitud: item.longitud,
-        }));
-        return { success: false, records: fallback, error: error?.message || 'Modo offline' };
+        const pendingLocal = localRecords
+          .filter((item) => !item.synced && !isRemoteCacheRecord(item))
+          .map(mapLocalRecordForList);
+        return { success: true, records: uniqueBy([...pendingLocal, ...remote], (item) => String(item.id)) };
+      } catch (error) {
+        const fallback = await mapCachedRecordsForList();
+        return {
+          success: fallback.length > 0,
+          records: fallback,
+          offline: isNetworkError(error),
+          error: fallback.length ? '' : (error?.message || 'Modo offline'),
+        };
       }
     }
 
-    const localRecords = await readLocalRecords();
-    const mapped = localRecords.map((item) => ({
-      id: item.local_id,
-      id_institucion: 1,
-      created_at: item.created_at,
-      sync_estado: item.sync_estado || (item.synced ? 'SINCRONIZADO' : 'PENDIENTE'),
-      observaciones: item.observaciones,
-      latitud: item.latitud,
-      longitud: item.longitud,
-    }));
+    const mapped = await mapCachedRecordsForList();
     return { success: true, records: mapped };
+  },
+
+  async getBecasFormularios(relevamientoId) {
+    if (!relevamientoId) return { success: false, records: [], error: 'ID invalido' };
+    const connectivity = await getConnectivitySnapshot();
+    if (!connectivity.hasInternet) {
+      const cached = await readCachedRemoteRecord(relevamientoId);
+      return {
+        success: true,
+        records: cached?.payload?.cached_formularios || [],
+        offline: true,
+      };
+    }
+
+    try {
+      const payload = await becasRequest(`/api/becas/relevamientos/${relevamientoId}/formularios/`);
+      const records = Array.isArray(payload)
+        ? payload
+        : (payload?.results || payload?.data || []);
+      await updateCachedRemoteFormularios(relevamientoId, records);
+      return { success: true, records };
+    } catch (error) {
+      const cached = await readCachedRemoteRecord(relevamientoId);
+      const cachedRecords = cached?.payload?.cached_formularios || [];
+      return {
+        success: cachedRecords.length > 0,
+        records: cachedRecords,
+        offline: isNetworkError(error),
+        error: cachedRecords.length ? '' : (error?.message || 'No se pudieron cargar los formularios'),
+      };
+    }
   },
 
   async getRelevamientoDetail(id) {
@@ -1481,113 +1280,42 @@ const relevamientoService = {
       };
     }
 
+    const connectivity = await getConnectivitySnapshot();
+    if (!connectivity.hasInternet) {
+      const cached = await readCachedRemoteRecord(id);
+      if (cached?.payload) {
+        return { success: true, detail: { ...cached.payload, cached: true, offline: true } };
+      }
+      return { success: false, error: 'Sin conexion y sin detalle descargado para este relevamiento' };
+    }
+
     try {
-      const { data: assigned, error: assignedError } = await supabase
-        .from(TABLE_RELEVAMIENTOS_ASIGNADOS)
-        .select('*, relevamiento_plantillas(nombre, version)')
-        .eq('id', id)
-        .single();
-
-      if (assignedError) throw assignedError;
-
-      const [{ data: persona }, { data: respuestas }, { data: archivos }, { data: camposDefinicion }] = await Promise.all([
-        supabase
-          .from(TABLE_RELEVAMIENTO_PERSONAS)
-          .select('*')
-          .eq('relevamiento_id', id)
-          .maybeSingle(),
-        supabase
-          .from(TABLE_RELEVAMIENTO_RESPUESTAS)
-          .select('id, valor_texto, valor_numero, valor_booleano, valor_fecha, valor_json, relevamiento_campos(clave, etiqueta, tipo, orden)')
-          .eq('relevamiento_id', id),
-        supabase
-          .from(TABLE_RELEVAMIENTO_ARCHIVOS)
-          .select('id, categoria, storage_bucket, storage_path, nombre_original, mime_type, size_bytes')
-          .eq('relevamiento_id', id)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('relevamiento_campos')
-          .select('id, clave, etiqueta, tipo, orden, requerido, opciones, ayuda, validaciones')
-          .eq('plantilla_id', assigned.plantilla_id)
-          .eq('activo', true)
-          .order('orden', { ascending: true }),
-      ]);
-
-      const camposExtra = (respuestas || [])
-        .sort((a, b) => (a.relevamiento_campos?.orden || 0) - (b.relevamiento_campos?.orden || 0))
-        .map((row) => ({
-          id: row.id,
-          nombre: row.relevamiento_campos?.etiqueta || row.relevamiento_campos?.clave || 'Campo',
-          valor: formatDynamicValue(row),
-        }));
-
-      const adjuntos = (archivos || []).map((item) => ({
-        id: item.id,
-        categoria: item.categoria,
-        tipo_archivo: String(item.mime_type || '').startsWith('image/') ? 'IMAGEN' : 'ARCHIVO',
-        storage_bucket: item.storage_bucket || 'relevamientos',
-        storage_path: item.storage_path,
-        nombre_original: item.nombre_original,
-        mime_type: item.mime_type,
-        size_bytes: item.size_bytes,
-      }));
-
-      return {
-        success: true,
-        detail: {
-          ...assigned,
-          source: 'asignado',
-          id_institucion: '-',
-          sync_estado: mapAssignedStatusToSyncEstado(assigned.estado),
-          observaciones: assigned.observaciones || assigned.descripcion || '',
-          latitud: assigned.latitud_capturada,
-          longitud: assigned.longitud_capturada,
-          persona: persona || null,
-          campos_definicion: camposDefinicion || [],
-          campos_extra: camposExtra,
-          adjuntos,
-        },
+      const payload = await becasRequest(`/api/becas/relevamientos/${id}/`);
+      const detail = {
+        ...mapDjangoRelevamientoDetail(payload),
+        cache_detail_ready: true,
       };
-    } catch (assignedError) {
-      const message = String(assignedError?.message || '').toLowerCase();
-      const canFallbackToLegacy =
-        message.includes(TABLE_RELEVAMIENTOS_ASIGNADOS) ||
-        message.includes('does not exist') ||
-        message.includes('could not find') ||
-        message.includes('no rows');
-
-      if (!canFallbackToLegacy) {
-        return { success: false, error: assignedError.message || 'No se pudo cargar el relevamiento asignado' };
+      await upsertCachedRemoteRecord(detail);
+      return { success: true, detail };
+    } catch (djangoError) {
+      const status = Number(djangoError?.status || 0);
+      if (status === 401 || status === 403) {
+        return { success: false, error: djangoError.message || 'No autorizado' };
+      }
+      if (isNetworkError(djangoError)) {
+        const cached = await readCachedRemoteRecord(id);
+        if (cached?.payload) {
+          return { success: true, detail: { ...cached.payload, cached: true, offline: true } };
+        }
+        return { success: false, error: djangoError.message || 'No se pudo cargar el relevamiento asignado' };
       }
     }
 
-    const { data: main, error: mainError } = await supabase
-      .from(TABLE_RELEVAMIENTOS)
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (mainError) return { success: false, error: mainError.message || 'No se pudo cargar el relevamiento' };
-
-    const { data: camposExtra } = await supabase
-      .from(TABLE_CAMPOS_EXTRA)
-      .select('id, orden, nombre, valor')
-      .eq('relevamiento_id', id)
-      .order('orden', { ascending: true });
-
-    const { data: adjuntos } = await supabase
-      .from(TABLE_ADJUNTOS)
-      .select('id, categoria, tipo_archivo, nombre_original, storage_path')
-      .eq('relevamiento_id', id)
-      .order('created_at', { ascending: true });
-
-    return {
-      success: true,
-      detail: {
-        ...main,
-        campos_extra: camposExtra || [],
-        adjuntos: adjuntos || [],
-      },
-    };
+    const cached = await readCachedRemoteRecord(id);
+    if (cached?.payload) {
+      return { success: true, detail: { ...cached.payload, cached: true } };
+    }
+    return { success: false, error: 'No se pudo cargar el relevamiento desde Django.' };
   },
 };
 

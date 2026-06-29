@@ -64,23 +64,19 @@ class RolForm(forms.Form):
             progs = programas_administrables(operador)
             self.fields["programa"].queryset = progs
             self.fields["programa"].empty_label = None
-            # El alcance fija la categoría en 'Programa' y acota el árbol/capacidades.
-            # categoría y (si hay uno solo) programa se fuerzan en clean(), por eso
-            # no son required a nivel de campo: el servidor no confía en el POST.
             self.fields["categoria"].choices = [
-                (rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_PROGRAMA)
+                (rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_NACHEC),
+                (rbac.CATEGORIA_BECAS, rbac.CATEGORIA_BECAS),
             ]
-            self.fields["categoria"].required = False
-            self.fields["categoria"].initial = rbac.CATEGORIA_PROGRAMA
+            self.fields["categoria"].required = True
+            self.fields["categoria"].initial = rbac.CATEGORIA_BECAS
             self.fields["capacidades"].choices = [
                 (c, c) for c in sorted(rbac.codigos_de_programa())
             ]
+            self.fields["programa"].required = False
             if progs.count() == 1:
                 self.programa_fijo = progs.first()
                 self.fields["programa"].initial = self.programa_fijo.pk
-                self.fields["programa"].required = False
-            else:
-                self.fields["programa"].required = True
 
         if instance is not None and not self.is_bound:
             self.fields["name"].initial = instance.name
@@ -101,44 +97,24 @@ class RolForm(forms.Form):
         return name
 
     def clean(self):
-        """RN-1 + forzado de alcance para admins de programa.
-
-        Un admin de programa no decide la categoría ni puede salirse de su
-        programa ni tildar capacidades globales: se fuerza en servidor sin
-        confiar en el POST.
-        """
+        """Forzado de alcance para admins de programa (server-side, sin confiar en el POST)."""
         cleaned = super().clean()
         if not self.es_admin_global:
-            cleaned["categoria"] = rbac.CATEGORIA_PROGRAMA
             if self.programa_fijo is not None:
                 cleaned["programa"] = self.programa_fijo
             caps = cleaned.get("capacidades") or []
             cleaned["capacidades"] = [c for c in caps if rbac.es_codigo_de_programa(c)]
-
-        categoria = cleaned.get("categoria")
-        programa = cleaned.get("programa")
-        if categoria == rbac.CATEGORIA_PROGRAMA and programa is None:
-            self.add_error("programa", "Un rol de categoría 'Programa' requiere seleccionar un Programa.")
-        if categoria != rbac.CATEGORIA_PROGRAMA and programa is not None:
-            self.add_error("programa", "Solo los roles de categoría 'Programa' pueden tener un Programa asociado.")
         return cleaned
 
-    def _categoria_actual(self):
+    def _activos(self):
         if self.is_bound:
-            return self.data.get("categoria")
-        return self.fields["categoria"].initial
+            return self.data.getlist("capacidades") if hasattr(self.data, "getlist") else self.data.get("capacidades", [])
+        return self.fields["capacidades"].initial or []
 
     def arbol_capacidades(self):
-        """Árbol por módulo con el estado tildado (para renderizar el formulario).
+        """Árbol plano por módulo (retrocompatibilidad)."""
+        return rbac.arbol_capacidades(self._activos(), solo_programa=not self.es_admin_global)
 
-        Se limita a módulos "de programa" cuando el rol es de categoría
-        'Programa' o el operador es admin de programa.
-        """
-        if self.is_bound:
-            activos = self.data.getlist("capacidades") if hasattr(self.data, "getlist") else self.data.get("capacidades", [])
-        else:
-            activos = self.fields["capacidades"].initial or []
-        solo_programa = (not self.es_admin_global) or (
-            self._categoria_actual() == rbac.CATEGORIA_PROGRAMA
-        )
-        return rbac.arbol_capacidades(activos, solo_programa=solo_programa)
+    def arbol_por_tabs(self):
+        """Árbol agrupado por tab para el panel de capacidades."""
+        return rbac.arbol_por_tabs(self._activos(), solo_programa=not self.es_admin_global)

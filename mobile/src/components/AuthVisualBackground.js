@@ -8,7 +8,7 @@ export default function AuthVisualBackground({ children }) {
     <View style={styles.container}>
       <LinearGradient
         pointerEvents="none"
-        colors={[designColors.bgTertiary, designColors.bgQuaternary]}
+        colors={[designColors.bgSecondary, designColors.white]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}

@@ -9,7 +9,6 @@
 | Frontend | Tailwind CSS, Alpine.js |
 | Infraestructura | Docker Compose |
 | Tiempo real | Django Channels (WebSocket) |
-| Almacenamiento externo | Supabase |
 
 ## Aplicaciones principales
 
@@ -48,7 +47,7 @@ security/        → autenticación, autorización, auditoría
                │
 ┌──────────────▼──────────────────────────┐
 │  Persistencia                           │
-│  MySQL 8 (principal) │ Supabase (ext.)  │
+│  MySQL 8 (principal)                    │
 └─────────────────────────────────────────┘
 ```
 
