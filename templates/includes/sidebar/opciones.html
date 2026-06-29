@@ -68,8 +68,6 @@
                           background: transparent; color: var(--text-body); font-weight: 500;
                       {% endif %}
                       font-size: 13.5px; font-family: var(--font-sans);"
-               onmouseover="if (!this.classList.contains('nav-active')) this.style.background='var(--bg-tertiary)'"
-               onmouseout="if (!this.classList.contains('nav-active')) this.style.background='transparent'"
                {% if 'inicio' in pagina_actual %}aria-current="page"{% endif %}>
                 {# home icon #}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -96,9 +94,7 @@
                             class="group flex w-full items-center gap-x-3 transition-colors duration-150"
                             style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
                                    background: transparent; color: var(--text-body); font-weight: 500;
-                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
-                            onmouseover="this.style.background='var(--bg-tertiary)'"
-                            onmouseout="this.style.background='transparent'">
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;">
                         {# squares icon #}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                              width="20" height="20" aria-hidden="true" class="flex-shrink-0"
@@ -126,8 +122,6 @@
                                   {% else %}
                                       background: transparent; color: var(--text-body-subtle); font-weight: 500;
                                   {% endif %}"
-                           onmouseover="if (this.style.background.indexOf('brand') === -1) this.style.background='var(--bg-tertiary)'; if (this.style.background.indexOf('brand') === -1) this.style.color='var(--text-body)'"
-                           onmouseout="{% if 'dashboard-contactos' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'dashboard-contactos' in pagina_actual %}aria-current="page"{% endif %}>
                             {# chart-bar icon pequeño #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -146,8 +140,6 @@
                                   {% else %}
                                       background: transparent; color: var(--text-body-subtle); font-weight: 500;
                                   {% endif %}"
-                           onmouseover="{% if 'conversaciones/metricas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'conversaciones/metricas' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'conversaciones/metricas' in pagina_actual %}aria-current="page"{% endif %}>
                             {# chat-bubble / megaphone icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -172,8 +164,6 @@
                           {% else %}
                               background: transparent;
                           {% endif %}"
-                   onmouseover="{% if 'dashboard-contactos' not in pagina_actual and 'conversaciones/metricas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-                   onmouseout="{% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                    title="Dashboard"
                    aria-label="Dashboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -200,8 +190,6 @@
                           background: transparent; color: var(--text-body); font-weight: 500;
                       {% endif %}
                       font-size: 13.5px; font-family: var(--font-sans);"
-               onmouseover="{% if 'legajos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-               onmouseout="{% if 'legajos' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                {% if 'legajos' in pagina_actual %}aria-current="page"{% endif %}>
                 {# users-group icon #}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -230,8 +218,6 @@
                           background: transparent; color: var(--text-body); font-weight: 500;
                       {% endif %}
                       font-size: 13.5px; font-family: var(--font-sans);"
-               onmouseover="{% if 'relevamientos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-               onmouseout="{% if 'relevamientos' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                {% if 'relevamientos' in pagina_actual %}aria-current="page"{% endif %}>
                 {# clipboard-check icon #}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -260,8 +246,6 @@
                           background: transparent; color: var(--text-body); font-weight: 500;
                       {% endif %}
                       font-size: 13.5px; font-family: var(--font-sans);"
-               onmouseover="{% if 'conversaciones' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-               onmouseout="{% if 'conversaciones' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                {% if 'conversaciones' in pagina_actual %}aria-current="page"{% endif %}>
                 {# chat-bubble icon (Conversaciones) #}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -298,8 +282,6 @@
                           background: transparent; color: var(--text-body); font-weight: 500;
                       {% endif %}
                       font-size: 13.5px; font-family: var(--font-sans);"
-               onmouseover="{% if 'reportes' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-               onmouseout="{% if 'reportes' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                {% if 'reportes' in pagina_actual %}aria-current="page"{% endif %}>
                 {# chart-bar icon #}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -326,9 +308,7 @@
                             class="group flex w-full items-center gap-x-3 transition-colors duration-150"
                             style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
                                    background: transparent; color: var(--text-body); font-weight: 500;
-                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
-                            onmouseover="this.style.background='var(--bg-tertiary)'"
-                            onmouseout="this.style.background='transparent'">
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;">
                         {# adjustments-horizontal icon #}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                              width="20" height="20" aria-hidden="true" class="flex-shrink-0"
@@ -350,8 +330,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'provincias' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'provincias' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'provincias' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'provincias' in pagina_actual %}aria-current="page"{% endif %}>
                             {# map-pin icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -366,8 +344,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'municipios' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'municipios' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'municipios' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'municipios' in pagina_actual %}aria-current="page"{% endif %}>
                             {# identification icon (ciudad) #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -382,8 +358,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'localidades' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'localidades' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'localidades' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'localidades' in pagina_actual %}aria-current="page"{% endif %}>
                             {# map-pin small #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -399,8 +373,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'conversaciones/configurar-cola' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'conversaciones/configurar-cola' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'conversaciones/configurar-cola' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'conversaciones/configurar-cola' in pagina_actual %}aria-current="page"{% endif %}>
                             {# users-group icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -421,8 +393,6 @@
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'configuracion' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
-                   onmouseover="{% if 'configuracion' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-                   onmouseout="{% if 'configuracion' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                    title="Configuración"
                    aria-label="Configuración">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -447,9 +417,7 @@
                             class="group flex w-full items-center gap-x-3 transition-colors duration-150"
                             style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
                                    background: transparent; color: var(--text-body); font-weight: 500;
-                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
-                            onmouseover="this.style.background='var(--bg-tertiary)'"
-                            onmouseout="this.style.background='transparent'">
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;">
                         {# academic-cap icon #}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                              width="20" height="20" aria-hidden="true" class="flex-shrink-0"
@@ -472,8 +440,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'becas/config/segmentos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'becas/config/segmentos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'becas/config/segmentos' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'becas/config/segmentos' in pagina_actual %}aria-current="page"{% endif %}>
                             {# folder-open icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -488,8 +454,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'becas/config/preguntas' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'becas/config/preguntas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'becas/config/preguntas' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'becas/config/preguntas' in pagina_actual %}aria-current="page"{% endif %}>
                             {# clipboard-list icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -506,8 +470,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'becas/convocatorias' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'becas/convocatorias' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'becas/convocatorias' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'becas/convocatorias' in pagina_actual %}aria-current="page"{% endif %}>
                             {# megaphone icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -522,8 +484,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'becas/relevamientos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'becas/relevamientos' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'becas/relevamientos' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'becas/relevamientos' in pagina_actual %}aria-current="page"{% endif %}>
                             {# clipboard-check icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -540,8 +500,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'becas/revision' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'becas/revision' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'becas/revision' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'becas/revision' in pagina_actual %}aria-current="page"{% endif %}>
                             {# clipboard-list icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -562,8 +520,6 @@
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
-                   onmouseover="{% if 'becas' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-                   onmouseout="{% if 'becas' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                    title="Becas"
                    aria-label="Becas">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -588,9 +544,7 @@
                             class="group flex w-full items-center gap-x-3 transition-colors duration-150"
                             style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
                                    background: transparent; color: var(--text-body); font-weight: 500;
-                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;"
-                            onmouseover="this.style.background='var(--bg-tertiary)'"
-                            onmouseout="this.style.background='transparent'">
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;">
                         {# cog-6-tooth / cog icon #}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                              width="20" height="20" aria-hidden="true" class="flex-shrink-0"
@@ -613,8 +567,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'usuarios' not in pagina_actual and 'password' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'usuarios' in pagina_actual or 'password' in pagina_actual %}aria-current="page"{% endif %}>
                             {# users-group icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -629,8 +581,6 @@
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
                                   {% if 'roles' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           onmouseover="{% if 'roles' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
-                           onmouseout="{% if 'roles' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
                            {% if 'roles' in pagina_actual %}aria-current="page"{% endif %}>
                             {# identification icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -650,8 +600,6 @@
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
-                   onmouseover="{% if 'usuarios' not in pagina_actual and 'roles' not in pagina_actual %}this.style.background='var(--bg-tertiary)'{% endif %}"
-                   onmouseout="{% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}this.style.background='var(--bg-brand)'{% else %}this.style.background='transparent'{% endif %}"
                    title="Administración"
                    aria-label="Administración">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"

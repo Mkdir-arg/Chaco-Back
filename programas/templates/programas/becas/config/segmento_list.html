@@ -37,7 +37,7 @@
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
       <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Segmentos y subsegmentos</h1>
-      <p class="text-sm text-body-subtle mt-1">Estructura del programa: cupos, coordinadores y requisitos por segmento</p>
+      <p class="text-sm text-body-subtle mt-1.5">Estructura del programa: cupos, coordinadores y requisitos por segmento</p>
     </div>
     <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
       {# PlusIcon — Heroicons v2 outline #}
@@ -123,7 +123,7 @@
   <div x-show="modalEditar" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4"
        role="dialog" aria-modal="true" aria-labelledby="modal-editar-titulo">
     <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalEditar=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] overflow-hidden" @click.stop>
       {# Header #}
       <div class="flex items-center gap-3 px-6 py-5 border-b border-light">
         <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0" style="background: var(--bg-brand-soft); color: var(--text-fg-brand)">
@@ -167,7 +167,7 @@
         </div>
         {# Footer #}
         <div class="flex justify-end gap-3 px-6 py-4 border-t border-light" style="background: var(--bg-secondary)">
-          <button type="button" @click="modalEditar=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="button" @click="modalEditar=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
           <button type="submit" class="btn-nodo btn-brand btn-base">
             {# CheckIcon — Heroicons v2 outline #}
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">

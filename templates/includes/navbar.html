@@ -1,19 +1,23 @@
 {% load static %}
 <style>
+    /* navbar-accent: color de texto para links de acento (ahora usa token de marca, no magenta) */
     .navbar-accent {
-        color: var(--nav-active-color) !important;
+        color: var(--text-fg-brand) !important;
     }
 
     .navbar-accent-hover:hover {
-        color: var(--nav-active-hover-color) !important;
+        color: var(--text-fg-brand-strong) !important;
     }
 
+    /* navbar-accent-bg: botón sólido de acción (ej. "Dashboard de Alertas") — fondo de marca */
     .navbar-accent-bg {
-        background-color: var(--nav-active-color) !important;
+        background-color: var(--bg-brand) !important;
+        color: var(--text-white) !important;
     }
 
     .navbar-accent-bg:hover {
-        background-color: var(--nav-active-hover-color) !important;
+        background-color: var(--bg-brand-strong) !important;
+        color: var(--text-white) !important;
     }
 </style>
 <div class="sticky top-0 z-40 flex h-16 min-w-0 shrink-0 items-center gap-x-3 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
@@ -78,7 +82,7 @@
             <div class="relative shrink-0" x-data="{ open: false }">
                 <button type="button" class="-m-1.5 flex items-center p-1.5" @click="open = !open">
                     <span class="sr-only">Abrir menú de usuario</span>
-                    <div class="h-8 w-8 rounded-full flex items-center justify-center" style="background: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);">
+                    <div class="h-8 w-8 rounded-full flex items-center justify-center" style="background: var(--gradient-brand);">
                         <span class="text-sm font-medium text-white">{{ user.username|first|upper }}</span>
                     </div>
                     <span class="hidden lg:flex lg:items-center">

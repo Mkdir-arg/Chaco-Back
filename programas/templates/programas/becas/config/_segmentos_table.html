@@ -1,8 +1,9 @@
+{% load becas_extras %}
 {% if segmentos %}
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-secondary border-b border-base">
+      <tr>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Descripción</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo total</th>
@@ -15,11 +16,9 @@
     <tbody>
       {% for s in segmentos %}
       <tr class="hover:bg-tertiary">
-        <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
-          <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-fg-brand hover:underline">{{ s.nombre }}</a>
-        </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body max-w-xs">{{ s.descripcion|default:"—"|truncatechars:70 }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">{{ s.cupo_maximo }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light font-bold text-heading">{{ s.nombre }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle" style="max-width:260px">{{ s.descripcion|default:"—"|truncatechars:70 }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-semibold text-right">{{ s.cupo_maximo }}</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">
           {% if s.n_subsegmentos %}{{ s.n_subsegmentos }} subsegmento{{ s.n_subsegmentos|pluralize }}{% else %}—{% endif %}
         </td>
@@ -27,8 +26,8 @@
           {% with asig=s.asignaciones_coordinador.all.0 %}
           {% if asig %}
             <span class="flex items-center gap-2 text-body">
-              <span class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background: var(--gradient-brand)">
-                {{ asig.coordinador.get_full_name|default:asig.coordinador.username|slice:":2"|upper }}
+              <span class="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style="width:26px; height:26px; font-size:10px; background: var(--gradient-brand)">
+                {{ asig.coordinador.get_full_name|default:asig.coordinador.username|iniciales }}
               </span>
               {{ asig.coordinador.get_full_name|default:asig.coordinador.username }}
             </span>
@@ -47,7 +46,7 @@
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
             <button type="button" aria-label="Editar segmento"
-              class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary"
+              class="text-fg-brand p-1.5 rounded-lg hover:bg-secondary"
               @click="openEditar(
                 '{{ s.nombre|escapejs }}',
                 '{{ s.descripcion|escapejs }}',
@@ -61,11 +60,10 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
               </svg>
             </button>
-            <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-fg-brand p-1.5 rounded-lg hover:bg-secondary" aria-label="Ver detalle del segmento">
-              {# EyeIcon — Heroicons v2 outline #}
+            <a href="{% url 'becas:segmento_detalle' s.pk %}" class="text-body-subtle p-1.5 rounded-lg hover:bg-secondary hover:text-heading" aria-label="Ver detalle del segmento">
+              {# ChevronRightIcon — Heroicons v2 outline #}
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.641 0-8.573-3.007-9.963-7.178z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </a>
           </div>
@@ -74,6 +72,21 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
+{# Paginación (footer del TableCard, como el kit) #}
+<div class="flex items-center justify-between" style="padding:12px 16px; border-top:1px solid var(--border-light); background:var(--bg-secondary)">
+  <span style="font-size:12.5px; color:var(--text-body-subtle)">Mostrando {{ segmentos|length }} de {{ segmentos|length }} segmento{{ segmentos|length|pluralize }}</span>
+  <div class="flex items-center gap-2">
+    <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0" disabled>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+      Anterior
+    </button>
+    <span style="font-size:13px; font-weight:600; color:var(--text-body)">1 de 1</span>
+    <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0" disabled>
+      Siguiente
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+    </button>
+  </div>
 </div>
 {% else %}
 <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
