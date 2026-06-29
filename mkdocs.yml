@@ -98,14 +98,6 @@ nav:
     - Programa Becas: funcionalidades/programa-becas.md
     - Programa Dispositivos: funcionalidades/programa-dispositivos.md
     - Estimación Programa Becas: funcionalidades/estimacion-programa-becas.md
-  - Plantillas operativas:
-    - templates/index.md
-    - Caso de prueba base: templates/caso-prueba-base.md
-    - Instancia de prueba: templates/instancia-prueba.md
-    - Minuta de reunión: templates/minuta-reunion.md
-    - Estimación de horas: templates/estimacion.md
-    - Reporte de pruebas: templates/reporte-pruebas.md
-    - Acta de cierre: templates/acta-cierre.md
 
 extra:
   social:

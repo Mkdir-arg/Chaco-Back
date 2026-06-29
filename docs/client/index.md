@@ -84,19 +84,6 @@ hide:
     [:octicons-arrow-right-16: Dashboard financiero](financiero/index.md)
     [:octicons-arrow-right-16: Junio 2026](financiero/mes-2026-06.md)
 
--   :material-file-document-multiple-outline:{ .lg .middle } **Plantillas operativas**
-
-    ---
-
-    Formatos para casos de prueba, minutas, reportes y actas.
-
-    [:octicons-arrow-right-16: Caso de prueba base](templates/caso-prueba-base.md)
-    [:octicons-arrow-right-16: Instancia de prueba](templates/instancia-prueba.md)
-    [:octicons-arrow-right-16: Minuta de reunión](templates/minuta-reunion.md)
-    [:octicons-arrow-right-16: Estimación de horas](templates/estimacion.md)
-    [:octicons-arrow-right-16: Reporte de pruebas](templates/reporte-pruebas.md)
-    [:octicons-arrow-right-16: Acta de cierre](templates/acta-cierre.md)
-
 </div>
 
 ---
