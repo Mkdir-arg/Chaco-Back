@@ -23,7 +23,7 @@ description: >-
   Asistente: "Uso pm-assistant para generar el reporte en lenguaje cliente."
   <commentary>Comunicación de avance hacia el cliente = reporte del PM Assistant.</commentary>
   </example>
-tools: Read, Grep, Glob, Bash, mcp__github
+tools: Read, Grep, Glob, Edit, Write, Bash, mcp__github__*
 ---
 
 # PM Assistant — Chaco
