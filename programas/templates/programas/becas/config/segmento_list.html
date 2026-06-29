@@ -3,7 +3,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="max-w-6xl mx-auto mb-8"
+<div class="mx-auto mb-8" style="max-width:1180px"
      x-data="{
        modalCrear: false,
        modalEditar: false,
@@ -145,7 +145,7 @@
         {% csrf_token %}
         <input type="hidden" name="activo" :value="editActivo ? 'on' : ''">
         {# Body #}
-        <div class="px-6 py-6 space-y-4">
+        <div class="px-6 py-6 space-y-5">
           <div>
             <label class="block text-[13px] font-semibold text-heading mb-1.5">Nombre <span class="text-fg-danger" style="margin-left:3px">*</span></label>
             <input type="text" name="nombre" x-model="editNombre" required class="nodo-field">

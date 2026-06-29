@@ -85,14 +85,23 @@ class SubsegmentoForm(forms.ModelForm):
 
     class Meta:
         model = Subsegmento
-        fields = ["nombre", "cupo_maximo"]
+        fields = ["nombre", "descripcion", "cupo_maximo"]
         widgets = {
-            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "nombre": forms.TextInput(attrs={
+                "class": INPUT_CLASS,
+                "placeholder": "Ej: Ladrillo",
+            }),
+            "descripcion": forms.Textarea(attrs={
+                "class": INPUT_CLASS,
+                "rows": 2,
+                "placeholder": "Opcional",
+            }),
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 
     def __init__(self, *args, segmento=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["descripcion"].required = False
         if segmento is not None:
             self.instance.segmento = segmento
 

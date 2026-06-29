@@ -389,6 +389,7 @@ class Subsegmento(TimeStamped):
         verbose_name="Segmento",
     )
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
 
     class Meta:

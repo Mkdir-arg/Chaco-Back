@@ -4,6 +4,7 @@
     <thead>
       <tr class="bg-secondary border-b border-base">
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Descripción</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo máx</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ocupado</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Disponible</th>
@@ -16,6 +17,7 @@
         <td class="px-4 py-[13px] text-sm border-t border-light font-semibold">
           <a href="{% url 'becas:subsegmento_detalle' sub.pk %}" class="text-fg-brand hover:underline">{{ sub.nombre }}</a>
         </td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle">{{ sub.descripcion|default:"—" }}</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">{{ sub.cupo_maximo }}</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle text-right">—</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">{{ sub.cupo_maximo }}</td>
@@ -49,6 +51,7 @@
     <tfoot>
       <tr class="bg-secondary border-t border-base">
         <td class="px-4 py-[11px] text-xs font-bold text-body-subtle uppercase tracking-wide">Total distribuido</td>
+        <td></td>
         <td class="px-4 py-[11px] text-sm font-bold text-right" style="color: var(--text-fg-success)">{{ subsegmentos_cupo_total }}</td>
         <td class="px-4 py-[11px] text-sm text-body-subtle text-right">—</td>
         <td class="px-4 py-[11px] text-sm font-bold text-right" style="color: var(--text-fg-success)">{{ subsegmentos_cupo_total }}</td>

@@ -13,88 +13,136 @@
     .navbar-accent-bg {
         background-color: var(--bg-brand) !important;
         color: var(--text-white) !important;
+        border-radius: var(--rounded-lg);
     }
 
     .navbar-accent-bg:hover {
         background-color: var(--bg-brand-strong) !important;
         color: var(--text-white) !important;
     }
+
+    /* Fix autofill celeste: la técnica inset box-shadow superpone el fondo correcto sobre
+       el highlight del browser (:-webkit-autofill tiene prioridad sobre author styles sin !important) */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0 50px var(--bg-secondary) inset !important;
+        box-shadow: 0 0 0 50px var(--bg-secondary) inset !important;
+        -webkit-text-fill-color: var(--text-heading) !important;
+    }
+
+    /* Garantizar ocultamiento del menú mobile en desktop: display:none !important es
+       más robusto que lg:hidden de Tailwind CDN JIT (evita race conditions con Alpine) */
+    @media (min-width: 1024px) {
+        .mobile-menu-btn,
+        .mobile-menu-sep {
+            display: none !important;
+        }
+    }
 </style>
-<div class="sticky top-0 z-40 flex h-16 min-w-0 shrink-0 items-center gap-x-3 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+<div class="sticky top-0 z-20 flex h-16 min-w-0 shrink-0 items-center gap-x-3 border-b px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:pr-8 transition-all duration-300"
+     :class="sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'"
+     style="background: var(--bg-primary); border-color: var(--border-base);">
     <!-- Mobile menu button -->
-    <button type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden" @click="sidebarOpen = true">
+    <button type="button" class="-m-2.5 p-2.5 lg:hidden mobile-menu-btn" style="color: var(--text-body);" @click="sidebarOpen = true">
         <span class="sr-only">Abrir sidebar</span>
-        <i class="fas fa-bars h-6 w-6"></i>
+        <i class="fas fa-bars h-6 w-6" aria-hidden="true"></i>
     </button>
 
     <!-- Separator -->
-    <div class="h-6 w-px bg-gray-900/10 lg:hidden" aria-hidden="true"></div>
+    <div class="h-6 w-px lg:hidden mobile-menu-sep" aria-hidden="true" style="background-color: var(--border-base);"></div>
 
     <div class="flex min-w-0 flex-1 gap-x-3 self-stretch sm:gap-x-4 lg:gap-x-6">
-        <div class="flex-1"></div>
+        <!-- Search bar -->
+        <div class="hidden sm:flex sm:flex-1 sm:items-center">
+            <form method="get" action="{% url 'legajos:ciudadanos' %}" role="search" style="width: 320px; max-width: 34vw;">
+                <div class="relative">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3" aria-hidden="true"
+                          style="color: var(--text-body-subtle);">
+                        <i class="fas fa-magnifying-glass" style="font-size: 18px;"></i>
+                    </span>
+                    <input
+                        type="search"
+                        name="search"
+                        value="{{ request.GET.search }}"
+                        placeholder="Buscar ciudadanos..."
+                        aria-label="Buscar ciudadanos"
+                        autocomplete="off"
+                        style="height: 40px; border-radius: var(--rounded-full); background: var(--bg-secondary); border: 1px solid var(--border-base); padding: 0 14px 0 40px; font-size: 13.5px; font-family: var(--font-sans); color: var(--text-heading); outline: none; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;"
+                        onfocus="this.style.borderColor='var(--border-brand)'; this.style.boxShadow='var(--ring-brand)';"
+                        onblur="this.style.borderColor='var(--border-base)'; this.style.boxShadow='none';"
+                    >
+                </div>
+            </form>
+        </div>
+        <div class="flex-1 sm:hidden"></div>
         <div class="flex items-center gap-x-3 sm:gap-x-4 lg:gap-x-6">
             <!-- Indicador de alertas -->
             <div class="relative" x-data="{ showDropdown: false }">
-                <button @click="showDropdown = !showDropdown" class="text-gray-700 navbar-accent-hover transition-colors relative">
-                    <i class="fas fa-bell text-lg"></i>
-                    <span id="alertas-counter" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1 min-w-[16px] h-4 flex items-center justify-center hidden">0</span>
+                <button @click="showDropdown = !showDropdown" class="navbar-accent-hover transition-colors relative" style="color: var(--text-body-subtle);">
+                    <i class="fas fa-bell" aria-hidden="true" style="font-size: 22px;"></i>
+                    <span id="alertas-counter" class="absolute -top-2 -right-2 text-white rounded-full px-1 min-w-[16px] h-4 flex items-center justify-center hidden" style="background-color: var(--bg-danger); font-size: 10px; font-weight: 700;">0</span>
                 </button>
-                
+
                 <!-- Dropdown de alertas -->
-                <div x-show="showDropdown" @click.away="showDropdown = false" 
+                <div x-show="showDropdown" @click.away="showDropdown = false"
                      x-transition:enter="transition ease-out duration-100"
                      x-transition:enter-start="transform opacity-0 scale-95"
                      x-transition:enter-end="transform opacity-100 scale-100"
                      x-transition:leave="transition ease-in duration-75"
                      x-transition:leave-start="transform opacity-100 scale-100"
                      x-transition:leave-end="transform opacity-0 scale-95"
-                     class="absolute right-0 z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 sm:w-80">
-                    
-                    <div class="p-4 border-b border-gray-200">
+                     class="absolute right-0 z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm rounded-lg sm:w-80"
+                     style="background: var(--bg-primary); box-shadow: var(--shadow-md); border: 1px solid var(--border-base);">
+
+                    <div class="p-4" style="border-bottom: 1px solid var(--border-base);">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-medium text-gray-900">Alertas Activas</h3>
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--text-heading);">Alertas Activas</h3>
                             <a href="{% url 'legajos:alertas_dashboard' %}" class="navbar-accent navbar-accent-hover text-sm">
                                 Ver todas
                             </a>
                         </div>
                     </div>
-                    
+
                     <div id="alertas-preview" class="max-h-64 overflow-y-auto">
-                        <div class="p-4 text-center text-gray-500">
-                            <i class="fas fa-spinner fa-spin mb-2"></i>
+                        <div class="p-4 text-center" style="color: var(--text-body-subtle);">
+                            <i class="fas fa-spinner fa-spin mb-2" aria-hidden="true"></i>
                             <p>Cargando alertas...</p>
                         </div>
                     </div>
-                    
-                    <div class="p-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-                        <a href="{% url 'legajos:alertas_dashboard' %}" class="block w-full text-center navbar-accent-bg text-white py-2 px-4 rounded transition-colors">
-                            <i class="fas fa-external-link-alt mr-2"></i>Dashboard de Alertas
+
+                    <div class="p-3 rounded-b-lg" style="border-top: 1px solid var(--border-base); background: var(--bg-secondary);">
+                        <a href="{% url 'legajos:alertas_dashboard' %}" class="block w-full text-center navbar-accent-bg text-white py-2 px-4 transition-colors">
+                            <i class="fas fa-external-link-alt mr-2" aria-hidden="true"></i>Dashboard de Alertas
                         </a>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Estado WebSocket -->
             <div class="flex items-center">
-                <span id="websocket-status" class="w-2 h-2 rounded-full bg-gray-400" title="Estado de conexión"></span>
+                <span id="websocket-status" class="w-2 h-2 rounded-full" style="background-color: var(--text-disabled);" title="Estado de conexión"></span>
             </div>
             <!-- Profile dropdown -->
             <div class="relative shrink-0" x-data="{ open: false }">
                 <button type="button" class="-m-1.5 flex items-center p-1.5" @click="open = !open">
                     <span class="sr-only">Abrir menú de usuario</span>
-                    <div class="h-8 w-8 rounded-full flex items-center justify-center" style="background: var(--gradient-brand);">
-                        <span class="text-sm font-medium text-white">{{ user.username|first|upper }}</span>
+                    <div class="rounded-full flex items-center justify-center" style="width: 36px; height: 36px; background: var(--gradient-brand);">
+                        <span style="font-size: 14px; font-weight: 700; color: #fff;">{{ user.username|first|upper }}</span>
                     </div>
                     <span class="hidden lg:flex lg:items-center">
-                        <span class="ml-4 text-sm font-semibold leading-6 text-gray-900">{{ user.get_full_name|default:user.username }}</span>
-                        <i class="ml-2 h-5 w-5 text-gray-500 fas fa-chevron-down"></i>
+                        <span class="ml-4 text-sm font-semibold leading-6" style="color: var(--text-heading);">{{ user.get_full_name|default:user.username }}</span>
+                        <i class="ml-2 h-5 w-5 fas fa-chevron-down" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                     </span>
                 </button>
 
                 <!-- Dropdown menu -->
-                <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5">
-                    <a href="{% url 'users:logout' %}" class="block px-3 py-1 text-sm leading-6 text-gray-900 hover:bg-gray-50">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Cerrar sesión
+                <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95"
+                     class="absolute right-0 z-10 mt-2.5 w-36 origin-top-right rounded-xl py-2"
+                     style="background: var(--bg-primary); box-shadow: var(--shadow-md); border: 1px solid var(--border-base);">
+                    <a href="{% url 'users:logout' %}" class="block px-3 py-1 text-sm leading-6" style="color: var(--text-heading);"
+                       onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
+                        <i class="fas fa-sign-out-alt mr-2" aria-hidden="true"></i>Cerrar sesión
                     </a>
                 </div>
             </div>

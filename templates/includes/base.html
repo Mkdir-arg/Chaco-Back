@@ -19,12 +19,9 @@
                             sans:        ['Manrope', 'sans-serif'],
                             // Manrope es la única familia del sistema; 'brand' queda como alias.
                             brand:       ['Manrope', 'sans-serif'],
-                            // legacy (mantener para compatibilidad con templates existentes)
-                            lora:        ['Lora', 'serif'],
-                            montserrat:  ['Montserrat', 'sans-serif'],
                         },
                         fontSize: {
-                            xxs: '8px', xs: '12px', sm: '14px', base: '16px',
+                            xs: '12px', sm: '14px', base: '16px',
                             lg: '18px', xl: '20px', '2xl': '24px', '3xl': '30px',
                             '4xl': '36px', '5xl': '48px', '6xl': '60px',
                         },
@@ -122,7 +119,7 @@
         <!-- Google Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Lora:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         
         <!-- Font Awesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -171,8 +168,8 @@
                 --nodo-purple: var(--bg-brand);
                 /* consumido como --tw-ring-color en focus rings de clases Tailwind legacy */
                 --nodo-magenta: var(--bg-brand);
-                /* consumido como color de acento cyan */
-                --nodo-cyan: var(--text-fg-cyan);
+                /* consumido como color de acento cyan — apuntado a brand para evitar cyan off-brand */
+                --nodo-cyan: var(--text-fg-brand);
                 /* consumidos como color de texto */
                 --nodo-text-primary: var(--text-heading);
                 --nodo-text-secondary: var(--text-heading);
@@ -309,7 +306,7 @@
         {% include 'components/alertas_eventos.html' %}
         
         <!-- Sistema de Modales Modernos -->
-        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[100] hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[1001] hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
             <div class="flex min-h-[100dvh] items-end justify-center p-0 sm:min-h-screen sm:items-center sm:p-4">
                 <div id="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
                     <!-- Modal Header -->
@@ -348,7 +345,6 @@
         
         <!-- Mobile Enhancements Script -->
         <script src="{% static 'custom/js/mobile-enhancements.js' %}"></script>
-        <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
         
         <!-- Sistema de Modales Modernos -->
         <script>
