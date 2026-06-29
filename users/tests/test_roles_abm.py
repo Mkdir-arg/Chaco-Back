@@ -125,22 +125,22 @@ class RolesServiceTests(TestCase):
         self.assertIn("usuario.administrar", rbac.capacidades_de_grupo(g))
 
 
-class RolProgramaFormTests(TestCase):
-    """#64 â€” categorÃ­a 'Programa' + FK programa con validaciÃ³n cruzada RN-1."""
+class RolCategoriaFormTests(TestCase):
+    """Categoria del rol: sin restriccion de FK programa (RN-1 eliminada)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
 
-    def test_alta_rol_programa_valido(self):  # TC-64-01
+    def test_alta_rol_becas_con_programa(self):  # TC-64-01
         form = RolForm(data={
             "name": "Coordinador Becas",
-            "categoria": rbac.CATEGORIA_PROGRAMA,
+            "categoria": rbac.CATEGORIA_BECAS,
             "programa": self.becas.pk,
             "capacidades": ["relevamiento.gestionar"],
         })
         self.assertTrue(form.is_valid(), form.errors)
         group = RolesAdminService.crear(form)
-        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_PROGRAMA)
+        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_BECAS)
         self.assertEqual(group.meta.programa_id, self.becas.pk)
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
@@ -153,28 +153,24 @@ class RolProgramaFormTests(TestCase):
         group = RolesAdminService.crear(form)
         self.assertIsNone(group.meta.programa_id)
 
-    def test_categoria_programa_sin_programa_invalida(self):  # TC-64-03
-        form = RolForm(data={"name": "Rol X", "categoria": rbac.CATEGORIA_PROGRAMA})
-        self.assertFalse(form.is_valid())
-        self.assertIn("programa", form.errors)
+    def test_categoria_becas_sin_programa_valida(self):  # RN-1 eliminada: ya no requiere FK
+        form = RolForm(data={"name": "Rol Becas", "categoria": rbac.CATEGORIA_BECAS})
+        self.assertTrue(form.is_valid(), form.errors)
 
-    def test_categoria_no_programa_con_programa_invalida(self):  # TC-64-04
+    def test_categoria_backoffice_con_programa_valida(self):  # RN-1 eliminada: FK es libre
         form = RolForm(data={
-            "name": "Rol Y", "categoria": "Backoffice", "programa": self.becas.pk,
+            "name": "Rol Backoffice", "categoria": "Backoffice", "programa": self.becas.pk,
         })
-        self.assertFalse(form.is_valid())
-        self.assertIn("programa", form.errors)
+        self.assertTrue(form.is_valid(), form.errors)
 
-    def test_modelo_clean_valida_rn1(self):
-        from django.core.exceptions import ValidationError
+    def test_modelo_sin_constraint_programa(self):
         g = Group.objects.create(name="Rol Z")
-        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_PROGRAMA, programa=None)
-        with self.assertRaises(ValidationError):
-            meta.full_clean()
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_NACHEC, programa=None)
+        meta.full_clean()  # no debe levantar excepción
 
 
 class RolAlcanceTests(TestCase):
-    """#66 â€” ABM de Roles con alcance de Programa."""
+    """#66 â€" ABM de Roles con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -237,12 +233,12 @@ class RolAlcanceTests(TestCase):
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(
-            data={"name": "Coord Becas", "capacidades": ["relevamiento.gestionar"]},
+            data={"name": "Coord Becas", "categoria": rbac.CATEGORIA_BECAS, "capacidades": ["relevamiento.gestionar"]},
             operador=self.admin_becas,
         )
         self.assertTrue(form.is_valid(), form.errors)
         g = RolesAdminService.crear(form)
-        self.assertEqual(g.meta.categoria, rbac.CATEGORIA_PROGRAMA)
+        self.assertEqual(g.meta.categoria, rbac.CATEGORIA_BECAS)
         self.assertEqual(g.meta.programa_id, self.becas.pk)
 
     def test_form_admin_programa_descarta_caps_globales(self):  # seguridad
@@ -254,7 +250,7 @@ class RolAlcanceTests(TestCase):
 
     def test_form_global_programa_combo(self):  # TC-66-04
         form = RolForm(
-            data={"name": "Rol Ã‘achec", "categoria": rbac.CATEGORIA_PROGRAMA,
+            data={"name": "Rol Ñachec", "categoria": rbac.CATEGORIA_NACHEC,
                   "programa": self.nachec.pk, "capacidades": ["relevamiento.gestionar"]},
             operador=self.su,
         )
