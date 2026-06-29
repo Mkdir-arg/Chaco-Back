@@ -1,0 +1,44 @@
+/* NODO Design System — Form fields
+   Clase única para inputs, selects y textareas. Alinea al canon §6:
+   alto 42px, radius lg (8px), borde base, fondo blanco, texto heading,
+   placeholder subtle, y foco de marca con ring (--ring-brand). */
+
+.nodo-field {
+    width: 100%;
+    font-family: 'Manrope', sans-serif;
+    font-size: 14px;
+    color: var(--text-heading);
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: var(--rounded-lg);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nodo-field::placeholder { color: var(--text-body-subtle); }
+
+.nodo-field:focus {
+    border-color: var(--border-brand);
+    box-shadow: var(--ring-brand);
+}
+
+.nodo-field:disabled {
+    background: var(--bg-disabled);
+    color: var(--text-fg-disabled);
+    cursor: not-allowed;
+}
+
+/* Alturas y paddings por tipo de control */
+input.nodo-field,
+select.nodo-field {
+    height: 42px;
+    padding: 0 14px;
+}
+
+select.nodo-field { padding-right: 36px; } /* espacio para el chevron nativo */
+
+textarea.nodo-field {
+    min-height: 80px;
+    padding: 12px 14px;
+    resize: vertical;
+}

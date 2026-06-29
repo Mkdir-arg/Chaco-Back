@@ -153,6 +153,7 @@ En el repo usar `.btn-nodo .btn-brand/.btn-secondary/.btn-tertiary/.btn-danger` 
 - **Select:** idéntico (height 42, radius-lg), `padding 0 38px 0 14px`, `appearance none`, chevron-down a la derecha (right 14, `var(--text-body-subtle)`, 12px). Placeholder "Seleccioná".
 - **Textarea:** `font 14; padding 12; border 1px var(--border-base); border-radius 8; resize vertical; color var(--text-heading)`.
 - **Inputs nunca `rounded-full`.** Helper text `12px var(--text-body-subtle)`.
+- **Clase implementada en el repo:** usá `.nodo-field` (`static/custom/css/nodo-forms.css`) en `<input>`/`<select>`/`<textarea>` — ya da alto 42 / radius-lg / borde base / foco con `--ring-brand`. Es el `INPUT_CLASS` de los ModelForm de Becas (`programas/forms.py`). **No re-inlinees** estilos de input ni el focus por JS.
 - **Layout de form:** una columna `max-width 768px` (`max-w-3xl`) centrada, FIJO. 20px entre campos, 32px entre secciones. Campos relacionados en grid (ej. `1fr 1.2fr`). Action row al pie a la derecha: `← Volver` (tertiary) + CTA (brand).
 
 ---
@@ -223,6 +224,14 @@ Tamaño default 40 (topbar/sidebar usan 36). Con imagen: `center/cover`. (En tab
 - **Footer:** `flex; justify-end; gap 12; padding 16px 24px; border-top 1px var(--border-light); background var(--bg-secondary)`.
   Acciones: Cancelar (tertiary) + acción primaria (brand). Forms de data-entry extensos → página; pero el **alta rápida de entidades** (segmento/convocatoria/requisito, 4–6 campos) va en Modal **540–680** como en el kit (con nota `bg-info-soft` + `border color-brand-200` cuando aplica).
 - **Animación:** *(no está en el kit — mejora opcional)* in fade + scale 95→100% (150ms); out inverso. **A11y:** `role=dialog`, `aria-modal`, `aria-labelledby`, foco atrapado, Escape cierra (salvo confirmación), foco vuelve al disparador.
+
+### Form-modal de alta de entidad (patrón del kit — ej. "Nuevo segmento", width 560, `tone="brand"`)
+El `tone` define el color del **ícono del header** (brand/info/success/warning/danger). Anatomía EXACTA del kit:
+- **Header:** ícono tintado 40×40 `bg-brand-soft`/`text-fg-brand` (SVG 18px) + título "Nuevo <entidad>" `18/700/--text-heading` + `×` (`--text-body-subtle`, aria-label "Cerrar").
+- **Body** `padding 24`, campos en **flex columna `gap 20`**, cada uno con el componente **Field** (label arriba `13/600/--text-heading`, `*` requerido en `--text-fg-danger`; control debajo `.nodo-field`). Campos de texto full-width; los cortos van en una **fila `grid 1fr 1.2fr gap 16`** (ej. *Cupo total* + *Coordinador asignado*). Placeholders con ejemplo real ("Ej: Producción Territorial / Fuego y Barro", "Población objetivo del segmento", "Ej: 500", "Seleccioná…").
+- **Nota informativa** (cuando el alta deriva a configurar más): caja `padding 10px 12px; border-radius 10px; background var(--bg-info-soft); border 1px solid var(--color-brand-200)` con `ExclamationCircleIcon` 16px `--text-fg-info` + texto `12.5px var(--text-body)`. Ej.: "Después de guardar vas a poder cargar los subsegmentos y sus cupos en el detalle."
+- **Footer:** **Cancelar (Tertiary)** + primaria **Brand**. Si el alta deriva a configurar, la primaria es **"Guardar y configurar"** y al guardar **redirige al DETALLE** de la entidad creada (no a la lista).
+- ⚠ **Regla anti-omisión:** si el ModelForm/vista Django NO tiene un campo o flujo que el kit muestra (ej. "Coordinador asignado" en el alta, o el redirect "guardar y configurar"), **NO lo omitas en silencio ni lo "resuelvas" mostrando el form viejo**. Marcalo como **gap funcional** en el reporte (requiere tocar `forms.py`/vista/modelo, no es solo CSS) — eso lo decide el usuario.
 
 ### Confirmación destructiva
 - **En el kit** = DS Modal `tone="danger"` (width ~460): ícono **rojo tintado** (`bg-danger-soft` + `text-fg-danger`, `ExclamationCircleIcon`) + botón Confirmar/Eliminar **danger (rojo sólido)** + Cancelar **tertiary**. (No hay SweetAlert en el kit.)

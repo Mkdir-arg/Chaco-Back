@@ -10,9 +10,9 @@
   }
   function toast(msg, isErr) {
     var el = document.createElement('div');
-    el.className = 'fixed bottom-5 right-5 z-[100] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
-      (isErr ? 'bg-[#FEF0F2] text-[#8B0836] border border-[#FFCCD3]'
-             : 'bg-[#ECFDF5] text-[#006045] border border-[#A4F4CF]');
+    el.className = 'fixed bottom-5 right-5 z-[200] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
+      (isErr ? 'bg-danger-soft text-fg-danger border border-[color:var(--border-danger-subtle)]'
+             : 'bg-success-soft text-fg-success border border-[color:var(--border-success-subtle)]');
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(function () {
@@ -43,6 +43,8 @@
     }).then(function (r) {
       var data = r.data || {};
       if (r.status >= 200 && r.status < 300 && data.ok) {
+        // "Guardar y configurar": navegar al detalle de la entidad creada.
+        if (data.redirect) { window.location.href = data.redirect; return; }
         if (data.target && typeof data.html === 'string') {
           var tgt = document.querySelector(data.target);
           if (tgt) {

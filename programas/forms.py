@@ -15,11 +15,9 @@ from programas.models import (
     TipoCampo,
 )
 
-# Clases Tailwind reutilizables (alineadas a los tokens del design system).
-INPUT_CLASS = (
-    "w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm "
-    "text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-)
+# Clase reutilizable del design system para inputs/selects/textareas.
+# Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
+INPUT_CLASS = "nodo-field"
 CHECKBOX_CLASS = "h-4 w-4 rounded border-base text-fg-brand focus:ring-brand"
 
 ROL_COORDINADOR = "Becas — Coordinador"
@@ -41,6 +39,45 @@ class SegmentoForm(forms.ModelForm):
             "requiere_gps": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
+
+
+class SegmentoCreateForm(forms.ModelForm):
+    """Alta de segmento — modal "Nuevo segmento" del kit.
+
+    Suma ``coordinador`` (se persiste como ``AsignacionCoordinador`` en la vista)
+    y deja fuera GPS/activo. ``descripcion`` es obligatoria como en el kit.
+    """
+
+    coordinador = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        label="Coordinador asignado",
+        empty_label="Seleccioná…",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    class Meta:
+        model = Segmento
+        fields = ["nombre", "descripcion", "cupo_maximo"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={
+                "class": INPUT_CLASS,
+                "placeholder": "Ej: Producción Territorial / Fuego y Barro",
+            }),
+            "descripcion": forms.Textarea(attrs={
+                "class": INPUT_CLASS, "rows": 2,
+                "placeholder": "Población objetivo del segmento",
+            }),
+            "cupo_maximo": forms.NumberInput(attrs={
+                "class": INPUT_CLASS, "min": 0, "placeholder": "Ej: 500",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["descripcion"].required = True
+        self.fields["coordinador"].queryset = User.objects.filter(
+            groups__name=ROL_COORDINADOR, is_active=True
+        ).distinct().order_by("username")
 
 
 class SubsegmentoForm(forms.ModelForm):
