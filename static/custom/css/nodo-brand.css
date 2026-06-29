@@ -219,31 +219,14 @@ button:disabled,
     cursor: not-allowed !important;
 }
 
-/* Radio de bordes según manual */
-.rounded-xl {
-    border-radius: 15px !important;
-}
+/* Radios y gap: los overrides legacy (rounded-* a 12–15px, gap-4 a 20px) peleaban
+   con el nuevo design system (xl=12, lg=8, md=6 vía tokens; gap-4=16 estándar de
+   Tailwind) y se removieron. Ahora los radios/espaciados salen del sistema nuevo. */
 
-.rounded-lg {
-    border-radius: 12px !important;
-}
-
-.rounded-md {
-    border-radius: 12px !important;
-}
-
-/* Espaciado según grilla */
-.gap-4 {
-    gap: 20px !important;
-}
-
-/* Tipografía según manual */
-.font-lora {
-    font-family: 'Inter', sans-serif !important;
-}
-
+/* Manrope única: las clases legacy de fuente resuelven a Manrope (antes forzaban Inter). */
+.font-lora,
 .font-montserrat {
-    font-family: 'Inter', sans-serif !important;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif !important;
 }
 
 /* Tracking */

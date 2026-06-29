@@ -84,10 +84,11 @@ per view (the Brand button), gradient-initial avatars, and small brand moments. 
 **one brand-gradient action per section.** (A legacy parent-NODO magenta→purple gradient
 `--gradient-nodo-legacy` exists for old marketing surfaces; avoid it in CHACO product UI.)
 
-**Type.** UI and body are **Manrope** (Google Fonts) at weights 400–800; headings are 700–800 with
-slightly negative tracking. A rounded display face, **Gellat**, is the intended brand-display type —
-it is *not* shipped in the repo and not on Google Fonts, so this system substitutes **Fredoka** for
-display headlines (see Caveats). Scale and weights in `tokens/typography.css`.
+**Type.** **Manrope is the only typeface** (Google Fonts) — UI, body *and* headings — at weights
+400–800; headings are 700–800 with slightly negative tracking. There is **no separate display face**:
+the brand originally specified a rounded display (*Gellat*), but in CHACO the font tokens
+(`--font-sans` / `--font-display`) all resolve to Manrope, so **Gellat/Fredoka are not used**. Scale and
+weights in `tokens/typography.css`.
 
 **Spacing & layout.** 4px base grid; **20px** is the canonical gap between cards/fields, **32px**
 between form sections. Forms are centered, ~700px max-width. The backoffice is a **fixed 276px white
@@ -177,9 +178,10 @@ Spacing (3), Brand (4).
 
 ## CAVEATS
 
-- **Display font substituted.** The brand display face *Gellat* is not in the repo or on Google
-  Fonts; **Fredoka** stands in. Send the Gellat files (or name a preferred substitute) to make this exact.
-- **Webfonts via Google Fonts `@import`** (Manrope, Fredoka), not self-hosted `@font-face` — so the
-  compiler reports zero shipped font binaries. That's expected; consumers load them from the CDN.
+- **Manrope única (no display face).** The brand originally specified a rounded display (*Gellat*),
+  not shipped and not on Google Fonts. CHACO decided **Manrope for everything**: the font tokens
+  resolve to Manrope and **Gellat/Fredoka are not used**. (Revisit only if real Gellat files are adopted.)
+- **Webfonts via Google Fonts `@import`** (Manrope only), not self-hosted `@font-face` — so the
+  compiler reports zero shipped font binaries. That's expected; consumers load it from the CDN.
 - Color tokens follow the **current** `chaco-tokens.css` (Jacarandá/pink). The older institutional-blue
   SISOC palette and the magenta NODO brand are kept only as legacy references.

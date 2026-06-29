@@ -25,7 +25,7 @@ description: >-
   Asistente: "Uso qa-analyst para consolidar los casos de todas las tasks de la épica en un [PLAN DE PRUEBAS]."
   <commentary>Plan consolidado por épica, incluyendo casos end-to-end.</commentary>
   </example>
-tools: Read, Grep, Glob, Write, Bash, mcp__github
+tools: Read, Grep, Glob, Write, Bash, mcp__github__*
 ---
 
 # Agente QA — Chaco

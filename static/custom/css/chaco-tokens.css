@@ -269,6 +269,18 @@
   --rounded-3xl: 24px;
   --rounded-full: 9999px;
 
+  /* Alias de compatibilidad con la convención del kit (--radius-*).
+     El proyecto usa --rounded-*; estos alias evitan esquinas cuadradas
+     si un template/agente emite var(--radius-*). */
+  --radius-sm: var(--rounded-sm);
+  --radius: var(--rounded);
+  --radius-md: var(--rounded-md);
+  --radius-lg: var(--rounded-lg);
+  --radius-xl: var(--rounded-xl);
+  --radius-2xl: var(--rounded-2xl);
+  --radius-3xl: var(--rounded-3xl);
+  --radius-full: var(--rounded-full);
+
   /* === BORDER WIDTH === */
   --border-width-0: 0px;
   --border-width: 1px;

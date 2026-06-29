@@ -19,7 +19,7 @@ description: >-
   Asistente: "Uso functional-analyst para cerrar el alcance y generar la épica/análisis/sub-issues."
   <commentary>Definir alcance y dejar trabajo listo para desarrollo = analista funcional.</commentary>
   </example>
-tools: Read, Grep, Glob, Bash, mcp__github
+tools: Read, Grep, Glob, Bash, mcp__github__*
 ---
 
 # Analista Funcional — Chaco

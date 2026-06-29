@@ -23,6 +23,12 @@ def ajax_ok(request, *, target, partial, context, message="Guardado."):
     return JsonResponse({"ok": True, "target": target, "html": html, "message": message})
 
 
+def ajax_redirect(url, message="Guardado."):
+    """Respuesta de éxito que ordena al front navegar a ``url`` (ej. "guardar y
+    configurar": crear la entidad y abrir su detalle)."""
+    return JsonResponse({"ok": True, "redirect": url, "message": message})
+
+
 def ajax_errors(form):
     """Respuesta de error de validación (status 400) con los errores del form."""
     return JsonResponse({"ok": False, "errors": form.errors}, status=400)

@@ -37,57 +37,10 @@
                             xl: '576px', '2xl': '672px', '3xl': '768px', '4xl': '896px',
                             '5xl': '1024px', '6xl': '1152px', '7xl': '1280px',
                         },
+                        // Aliases legacy (compat con templates viejos). OJO: `primary`/`secondary`
+                        // generan .bg-primary (navy)/.text-primary; los tokens del DS van en las
+                        // scales backgroundColor/textColor/borderColor de abajo (que pisan donde aplica).
                         colors: {
-                            // ── Semantic background tokens (via CSS vars en chaco-tokens.css) ──
-                            'bg-white':             'var(--bg-white)',
-                            'bg-primary':           'var(--bg-primary)',
-                            'bg-primary-soft':      'var(--bg-primary-soft)',
-                            'bg-secondary':         'var(--bg-secondary)',
-                            'bg-secondary-soft':    'var(--bg-secondary-soft)',
-                            'bg-tertiary':          'var(--bg-tertiary)',
-                            'bg-quaternary':        'var(--bg-quaternary)',
-                            'bg-gray':              'var(--bg-gray)',
-                            'bg-brand-softer':      'var(--bg-brand-softer)',
-                            'bg-brand-soft':        'var(--bg-brand-soft)',
-                            'bg-brand-medium':      'var(--bg-brand-medium)',
-                            'bg-brand':             'var(--bg-brand)',
-                            'bg-brand-strong':      'var(--bg-brand-strong)',
-                            'bg-success-soft':      'var(--bg-success-soft)',
-                            'bg-success':           'var(--bg-success)',
-                            'bg-danger-soft':       'var(--bg-danger-soft)',
-                            'bg-danger-medium':     'var(--bg-danger-medium)',
-                            'bg-danger':            'var(--bg-danger)',
-                            'bg-warning-soft':      'var(--bg-warning-soft)',
-                            'bg-warning':           'var(--bg-warning)',
-                            'bg-dark':              'var(--bg-dark)',
-                            'bg-disabled':          'var(--bg-disabled)',
-                            'bg-pink':              'var(--bg-pink)',
-                            // ── Semantic border tokens ──
-                            'border-base':          'var(--border-base)',
-                            'border-base-soft':     'var(--border-base-soft)',
-                            'border-light':         'var(--border-light)',
-                            'border-brand':         'var(--border-brand)',
-                            'border-brand-subtle':  'var(--border-brand-subtle)',
-                            'border-brand-light':   'var(--border-brand-light)',
-                            'border-danger':        'var(--border-danger)',
-                            'border-danger-subtle': 'var(--border-danger-subtle)',
-                            'border-success':       'var(--border-success)',
-                            'border-warning':       'var(--border-warning)',
-                            // ── Semantic text tokens ──
-                            'text-heading':          'var(--text-heading)',
-                            'text-body':             'var(--text-body)',
-                            'text-body-subtle':      'var(--text-body-subtle)',
-                            'text-fg-brand':         'var(--text-fg-brand)',
-                            'text-fg-brand-subtle':  'var(--text-fg-brand-subtle)',
-                            'text-fg-brand-strong':  'var(--text-fg-brand-strong)',
-                            'text-fg-danger':        'var(--text-fg-danger)',
-                            'text-fg-danger-strong': 'var(--text-fg-danger-strong)',
-                            'text-fg-success':       'var(--text-fg-success)',
-                            'text-fg-warning':       'var(--text-fg-warning)',
-                            'text-fg-warning-subtle':'var(--text-fg-warning-subtle)',
-                            'text-fg-disabled':      'var(--text-fg-disabled)',
-                            'text-fg-info':          'var(--text-fg-info)',
-                            // Tokens historicos usados por templates existentes
                             'magenta':          '#F26DF9',
                             'nodo-purple':      '#5059BC',
                             'nodo-cyan':        '#C8D29C',
@@ -102,6 +55,64 @@
                             'acento-oscuro':    '#8A9A46',
                             primary:            '#00203A',
                             secondary:          '#5059BC',
+                        },
+                        // ── Design system: tokens semánticos por utilidad (resuelven a chaco-tokens.css) ──
+                        // NOTA: `primary` se omite a propósito (lo usa Bootstrap legacy como navy/azul).
+                        backgroundColor: {
+                            'white':          'var(--bg-white)',
+                            'primary-soft':   'var(--bg-primary-soft)',
+                            'secondary':      'var(--bg-secondary)',
+                            'secondary-soft': 'var(--bg-secondary-soft)',
+                            'tertiary':       'var(--bg-tertiary)',
+                            'quaternary':     'var(--bg-quaternary)',
+                            'gray':           'var(--bg-gray)',
+                            'brand':          'var(--bg-brand)',
+                            'brand-soft':     'var(--bg-brand-soft)',
+                            'brand-softer':   'var(--bg-brand-softer)',
+                            'brand-medium':   'var(--bg-brand-medium)',
+                            'brand-strong':   'var(--bg-brand-strong)',
+                            'success':        'var(--bg-success)',
+                            'success-soft':   'var(--bg-success-soft)',
+                            'danger':         'var(--bg-danger)',
+                            'danger-soft':    'var(--bg-danger-soft)',
+                            'danger-medium':  'var(--bg-danger-medium)',
+                            'warning':        'var(--bg-warning)',
+                            'warning-soft':   'var(--bg-warning-soft)',
+                            'info-soft':      'var(--bg-info-soft)',
+                            'dark':           'var(--bg-dark)',
+                            'disabled':       'var(--bg-disabled)',
+                            'pink':           'var(--bg-pink)',
+                        },
+                        textColor: {
+                            'white':            'var(--text-white)',
+                            'heading':          'var(--text-heading)',
+                            'body':             'var(--text-body)',
+                            'body-subtle':      'var(--text-body-subtle)',
+                            'fg-brand':         'var(--text-fg-brand)',
+                            'fg-brand-subtle':  'var(--text-fg-brand-subtle)',
+                            'fg-brand-strong':  'var(--text-fg-brand-strong)',
+                            'fg-danger':        'var(--text-fg-danger)',
+                            'fg-danger-strong': 'var(--text-fg-danger-strong)',
+                            'fg-success':       'var(--text-fg-success)',
+                            'fg-warning':       'var(--text-fg-warning)',
+                            'fg-warning-subtle':'var(--text-fg-warning-subtle)',
+                            'fg-disabled':      'var(--text-fg-disabled)',
+                            'fg-info':          'var(--text-fg-info)',
+                            'fg-pink':          'var(--text-fg-pink)',
+                        },
+                        borderColor: {
+                            'base':           'var(--border-base)',
+                            'base-soft':      'var(--border-base-soft)',
+                            'light':          'var(--border-light)',
+                            'brand':          'var(--border-brand)',
+                            'brand-subtle':   'var(--border-brand-subtle)',
+                            'brand-light':    'var(--border-brand-light)',
+                            'danger':         'var(--border-danger)',
+                            'danger-subtle':  'var(--border-danger-subtle)',
+                            'success':        'var(--border-success)',
+                            'success-subtle': 'var(--border-success-subtle)',
+                            'warning':        'var(--border-warning)',
+                            'warning-subtle': 'var(--border-warning-subtle)',
                         },
                     }
                 }
@@ -186,6 +197,9 @@
 
         <!-- NODO Badges Design System -->
         <link rel="stylesheet" href="{% static 'custom/css/nodo-badges.css' %}" />
+
+        <!-- NODO Forms Design System -->
+        <link rel="stylesheet" href="{% static 'custom/css/nodo-forms.css' %}" />
         
         <!-- Custom CSS Files -->
         <link rel="stylesheet" href="{% static 'custom/css/main.css' %}" />
@@ -246,7 +260,7 @@
         {% include 'components/alertas_eventos.html' %}
         
         <!-- Sistema de Modales Modernos -->
-        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[100] hidden backdrop-blur-sm transition-opacity duration-300" style="background: rgba(209,213,219,0.7);">
+        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[100] hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
             <div class="flex min-h-[100dvh] items-end justify-center p-0 sm:min-h-screen sm:items-center sm:p-4">
                 <div id="modal-content" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
                     <!-- Modal Header -->
