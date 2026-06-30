@@ -680,6 +680,7 @@ class Formulario(TimeStamped):
         ENVIADO = "ENVIADO", "Enviado"
         APROBADO = "APROBADO", "Aprobado"
         RECHAZADO = "RECHAZADO", "Rechazado"
+        BAJA = "BAJA", "Dado de baja"
 
     relevamiento = models.ForeignKey(
         Relevamiento,

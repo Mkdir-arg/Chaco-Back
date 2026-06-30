@@ -46,8 +46,13 @@
         <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ segmento.nombre }}</h1>
         {% if segmento.descripcion %}<p class="text-sm text-body-subtle mt-1">{{ segmento.descripcion }}</p>{% endif %}
       </div>
-      {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
-      {% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+      <div class="flex items-center gap-2 flex-wrap">
+        {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
+        {% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+        <a href="{% url 'becas:cupo_segmento' segmento.pk %}" class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5">
+          <i class="fas fa-users"></i> Cupo y beneficiarios
+        </a>
+      </div>
     </div>
   </div>
 

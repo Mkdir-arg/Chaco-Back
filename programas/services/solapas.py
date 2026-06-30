@@ -64,6 +64,10 @@ class SolapasService:
                 s = {**s, "badge": badges[s["id"]]}
             solapas_final.append(s)
 
+        solapa_becas = cls._obtener_solapa_becas(ciudadano)
+        if solapa_becas:
+            solapas_final.append(solapa_becas)
+
         solapas_final.sort(key=lambda x: x["orden"])
         return solapas_final
 
@@ -194,6 +198,46 @@ class SolapasService:
         ascii_valor = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
         ascii_valor = re.sub(r"[^A-Z0-9]+", "_", ascii_valor).strip("_")
         return ascii_valor or "PROGRAMA"
+
+    @classmethod
+    def _obtener_solapa_becas(cls, ciudadano):
+        """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
+
+        Usa URL pre-resuelta para evitar conflicto con url_params del template.
+        """
+        from django.urls import reverse
+
+        from programas.models import Formulario, ListaEspera
+
+        formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
+        if not formularios_qs.exists():
+            return None
+
+        estados = set(formularios_qs.values_list("estado", flat=True))
+        en_espera = ListaEspera.objects.filter(
+            formulario__ciudadano=ciudadano, promovido=False
+        ).exists()
+
+        if Formulario.Estado.APROBADO in estados:
+            badge = {"tipo": "texto", "texto": "Beneficiario", "color": "success"}
+        elif en_espera:
+            badge = {"tipo": "texto", "texto": "Lista de espera", "color": "warning"}
+        elif Formulario.Estado.RECHAZADO in estados:
+            badge = {"tipo": "texto", "texto": "Rechazado", "color": "danger"}
+        elif Formulario.Estado.BAJA in estados:
+            badge = {"tipo": "texto", "texto": "Dado de baja", "color": "gray"}
+        else:
+            badge = {"tipo": "texto", "texto": "Pendiente", "color": "gray"}
+
+        return {
+            "id": "becas",
+            "nombre": "Becas",
+            "icono": "graduation-cap",
+            "orden": 200,
+            "estatica": False,
+            "badge": badge,
+            "url": reverse("becas:becas_ciudadano_detalle", kwargs={"pk": ciudadano.pk}),
+        }
 
     @classmethod
     def _obtener_badge_programa(cls, inscripcion):

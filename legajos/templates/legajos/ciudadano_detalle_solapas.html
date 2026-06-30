@@ -35,7 +35,7 @@
             <nav class="flex -mb-px overflow-x-auto" aria-label="Tabs">
                 {% for solapa in solapas %}
                 <a 
-                    href="{% if solapa.estatica %}{% url solapa.url_name ciudadano.id %}{% else %}{% url solapa.url_name ciudadano_id=solapa.url_params.ciudadano_id inscripcion_id=solapa.url_params.inscripcion_id %}{% endif %}"
+                    href="{% if solapa.url %}{{ solapa.url }}{% elif solapa.estatica %}{% url solapa.url_name ciudadano.id %}{% else %}{% url solapa.url_name ciudadano_id=solapa.url_params.ciudadano_id inscripcion_id=solapa.url_params.inscripcion_id %}{% endif %}"
                     class="solapa-tab {% if solapa_activa == solapa.id %}solapa-activa{% endif %} whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm flex items-center gap-2"
                     data-solapa="{{ solapa.id }}"
                     {% if not solapa.estatica %}style="border-color: {{ solapa.color }};"{% endif %}
