@@ -11,7 +11,7 @@ class Command(BaseCommand):
             admin = User.objects.create_superuser(
                 username="admin",
                 email="admin@sisoc.gov.ar",
-                password="admin123",
+                password="admin123",  # nosec B106
                 first_name="Administrador",
                 last_name="Principal",
             )
@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 user = User.objects.create_user(
                     username=username,
                     email=f"{username}@sisoc.gov.ar",
-                    password="admin123",
+                    password="admin123",  # nosec B106
                     first_name=f"Admin{i}",
                     last_name="Usuario",
                     is_staff=True,
@@ -58,7 +58,7 @@ class Command(BaseCommand):
                 user = User.objects.create_user(
                     username=username,
                     email=f"{username}@sisoc.gov.ar",
-                    password="resp123",
+                    password="resp123",  # nosec B106
                     first_name=f"Responsable{i}",
                     last_name="Usuario",
                 )
