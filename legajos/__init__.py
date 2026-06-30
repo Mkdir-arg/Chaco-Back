@@ -1,1 +1,1 @@
-default_app_config = 'legajos.apps.LegajosConfig'
+default_app_config = "legajos.apps.LegajosConfig"

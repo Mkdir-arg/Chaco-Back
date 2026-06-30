@@ -1,4 +1,5 @@
 """Formularios del backoffice del Programa Becas (#74 / #76)."""
+
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
@@ -59,25 +60,34 @@ class SegmentoCreateForm(forms.ModelForm):
         model = Segmento
         fields = ["nombre", "descripcion", "cupo_maximo"]
         widgets = {
-            "nombre": forms.TextInput(attrs={
-                "class": INPUT_CLASS,
-                "placeholder": "Ej: Producción Territorial / Fuego y Barro",
-            }),
-            "descripcion": forms.Textarea(attrs={
-                "class": INPUT_CLASS, "rows": 2,
-                "placeholder": "Población objetivo del segmento",
-            }),
-            "cupo_maximo": forms.NumberInput(attrs={
-                "class": INPUT_CLASS, "min": 0, "placeholder": "Ej: 500",
-            }),
+            "nombre": forms.TextInput(
+                attrs={
+                    "class": INPUT_CLASS,
+                    "placeholder": "Ej: Producción Territorial / Fuego y Barro",
+                }
+            ),
+            "descripcion": forms.Textarea(
+                attrs={
+                    "class": INPUT_CLASS,
+                    "rows": 2,
+                    "placeholder": "Población objetivo del segmento",
+                }
+            ),
+            "cupo_maximo": forms.NumberInput(
+                attrs={
+                    "class": INPUT_CLASS,
+                    "min": 0,
+                    "placeholder": "Ej: 500",
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["descripcion"].required = True
-        self.fields["coordinador"].queryset = User.objects.filter(
-            groups__name=ROL_COORDINADOR, is_active=True
-        ).distinct().order_by("username")
+        self.fields["coordinador"].queryset = (
+            User.objects.filter(groups__name=ROL_COORDINADOR, is_active=True).distinct().order_by("username")
+        )
 
 
 class SubsegmentoForm(forms.ModelForm):
@@ -198,9 +208,9 @@ class AsignacionCoordinadorForm(forms.ModelForm):
         if segmento is not None:
             self.instance.segmento = segmento
         # Solo usuarios con el rol Coordinador de Becas (#74).
-        self.fields["coordinador"].queryset = User.objects.filter(
-            groups__name=ROL_COORDINADOR, is_active=True
-        ).distinct().order_by("username")
+        self.fields["coordinador"].queryset = (
+            User.objects.filter(groups__name=ROL_COORDINADOR, is_active=True).distinct().order_by("username")
+        )
 
     def clean(self):
         cleaned = super().clean()
@@ -253,9 +263,9 @@ class RelevamientoForm(forms.ModelForm):
 
     def __init__(self, *args, segmentos_permitidos=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["territorial"].queryset = User.objects.filter(
-            groups__name=ROL_TERRITORIAL, is_active=True
-        ).distinct().order_by("username")
+        self.fields["territorial"].queryset = (
+            User.objects.filter(groups__name=ROL_TERRITORIAL, is_active=True).distinct().order_by("username")
+        )
         conv_qs = Convocatoria.objects.select_related("segmento").filter(activo=True)
         if segmentos_permitidos is not None:
             conv_qs = conv_qs.filter(segmento__in=segmentos_permitidos)
@@ -277,9 +287,9 @@ class ReasignarTerritorialForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["territorial"].queryset = User.objects.filter(
-            groups__name=ROL_TERRITORIAL, is_active=True
-        ).distinct().order_by("username")
+        self.fields["territorial"].queryset = (
+            User.objects.filter(groups__name=ROL_TERRITORIAL, is_active=True).distinct().order_by("username")
+        )
 
 
 class ReprogramarForm(forms.Form):

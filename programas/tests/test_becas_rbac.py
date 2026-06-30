@@ -1,4 +1,5 @@
 """Tests de los roles RBAC de Becas y el scoping por segmento (#79)."""
+
 from io import StringIO
 
 from django.contrib.auth.models import Group, User
@@ -6,17 +7,17 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from core import rbac
+from programas.management.commands.seed_becas import (
+    ROL_ADMIN,
+    ROL_COORDINADOR,
+    ROL_TERRITORIAL,
+)
 from programas.models import AsignacionCoordinador, Programa, Segmento
 from programas.services.autorizacion import (
     es_admin_becas,
     es_coordinador_becas,
     puede_gestionar_segmento,
     segmentos_visibles,
-)
-from programas.management.commands.seed_becas import (
-    ROL_ADMIN,
-    ROL_COORDINADOR,
-    ROL_TERRITORIAL,
 )
 
 

@@ -1,4 +1,5 @@
 """Tests de la revisión de formularios de Becas (#77)."""
+
 from datetime import date
 from io import StringIO
 
@@ -7,6 +8,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     AsignacionCoordinador,
     Convocatoria,
@@ -15,7 +17,6 @@ from programas.models import (
     Segmento,
     TracaFormulario,
 )
-from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 
 
 class _BaseRevisionTest(TestCase):
@@ -33,19 +34,29 @@ class _BaseRevisionTest(TestCase):
         self.territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
 
         self.rel_a = Relevamiento.objects.create(
-            convocatoria=self.conv_a, territorial=self.territorial,
-            fecha_asignada=date(2026, 6, 1), zona="A", estado=Relevamiento.Estado.FINALIZADO,
+            convocatoria=self.conv_a,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="A",
+            estado=Relevamiento.Estado.FINALIZADO,
         )
         self.rel_b = Relevamiento.objects.create(
-            convocatoria=self.conv_b, territorial=self.territorial,
-            fecha_asignada=date(2026, 6, 1), zona="B", estado=Relevamiento.Estado.FINALIZADO,
+            convocatoria=self.conv_b,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="B",
+            estado=Relevamiento.Estado.FINALIZADO,
         )
         self.form_a = Formulario.objects.create(
-            relevamiento=self.rel_a, celular="3624100100", email_contacto="a@b.com",
+            relevamiento=self.rel_a,
+            celular="3624100100",
+            email_contacto="a@b.com",
             data={"globales": {}, "requisitos": {}},
         )
         self.form_b = Formulario.objects.create(
-            relevamiento=self.rel_b, celular="3624200200", email_contacto="b@b.com",
+            relevamiento=self.rel_b,
+            celular="3624200200",
+            email_contacto="b@b.com",
         )
 
         self.admin = User.objects.create_user("admin_becas", password="x")
@@ -86,7 +97,9 @@ class EdicionTrazaTests(_BaseRevisionTest):
             {
                 "celular": "3624999999",  # cambia
                 "email_contacto": "a@b.com",  # igual
-                "apoderado_nombre": "", "apoderado_apellido": "", "apoderado_fecha_nacimiento": "",
+                "apoderado_nombre": "",
+                "apoderado_apellido": "",
+                "apoderado_fecha_nacimiento": "",
             },
         )
         self.assertEqual(resp.status_code, 302)
@@ -100,8 +113,13 @@ class EdicionTrazaTests(_BaseRevisionTest):
     def test_editar_sin_cambios_no_traza(self):
         self.client.post(
             reverse("becas:formulario_detalle", args=[self.form_a.pk]),
-            {"celular": "3624100100", "email_contacto": "a@b.com",
-             "apoderado_nombre": "", "apoderado_apellido": "", "apoderado_fecha_nacimiento": ""},
+            {
+                "celular": "3624100100",
+                "email_contacto": "a@b.com",
+                "apoderado_nombre": "",
+                "apoderado_apellido": "",
+                "apoderado_fecha_nacimiento": "",
+            },
         )
         self.assertEqual(TracaFormulario.objects.filter(formulario=self.form_a).count(), 0)
 

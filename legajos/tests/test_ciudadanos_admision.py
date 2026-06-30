@@ -21,9 +21,7 @@ class LegajosCiudadanosAdmisionTests(TestCase):
         rol = Group.objects.create(name="Operador legajos")
         RolMeta.objects.create(grupo=rol, categoria="Backoffice", activo=True)
         _ct = ContentType.objects.get_for_model(Capacidad)
-        rol.permissions.add(
-            Permission.objects.get(content_type=_ct, codename=rbac.codename_de("ciudadano.crear"))
-        )
+        rol.permissions.add(Permission.objects.get(content_type=_ct, codename=rbac.codename_de("ciudadano.crear")))
         self.user.groups.add(rol)
         self.ciudadano = Ciudadano.objects.create(
             dni="12345678",

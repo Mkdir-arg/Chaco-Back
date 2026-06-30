@@ -1,183 +1,184 @@
-from django.contrib.auth.models import User
-from django.utils import timezone
-from django.db import models
-from ..models import ColaAsignacion, Conversacion, MetricasOperador
 import logging
+
+from django.contrib.auth.models import User
+from django.db import models
+from django.utils import timezone
+
+from ..models import ColaAsignacion, Conversacion, MetricasOperador
 
 logger = logging.getLogger(__name__)
 
 
 class AsignadorAutomatico:
     """Servicio para asignación automática de conversaciones"""
-    
+
     @staticmethod
     def obtener_operador_disponible():
         """Obtiene el operador más adecuado para asignar una conversación (solo operadores logueados)"""
         try:
             from django.contrib.sessions.models import Session
             from django.utils import timezone
-            
+
             # Obtener usuarios actualmente logueados
             sesiones_activas = Session.objects.filter(expire_date__gte=timezone.now())
             usuarios_logueados = []
-            
+
             for sesion in sesiones_activas:
                 data = sesion.get_decoded()
-                user_id = data.get('_auth_user_id')
+                user_id = data.get("_auth_user_id")
                 if user_id:
                     usuarios_logueados.append(int(user_id))
-            
+
             # Buscar operadores disponibles que estén logueados
-            cola_disponible = ColaAsignacion.objects.filter(
-                activo=True,
-                operador_id__in=usuarios_logueados,
-                conversaciones_actuales__lt=models.F('max_conversaciones')
-            ).select_related('operador').order_by('conversaciones_actuales', 'ultima_asignacion').first()
-            
+            cola_disponible = (
+                ColaAsignacion.objects.filter(
+                    activo=True,
+                    operador_id__in=usuarios_logueados,
+                    conversaciones_actuales__lt=models.F("max_conversaciones"),
+                )
+                .select_related("operador")
+                .order_by("conversaciones_actuales", "ultima_asignacion")
+                .first()
+            )
+
             if cola_disponible:
                 return cola_disponible.operador
-            
+
             # Si no hay operadores disponibles con capacidad, buscar el menos cargado que esté logueado
-            cola_menos_cargada = ColaAsignacion.objects.filter(
-                activo=True,
-                operador_id__in=usuarios_logueados
-            ).select_related('operador').order_by('conversaciones_actuales').first()
-            
+            cola_menos_cargada = (
+                ColaAsignacion.objects.filter(activo=True, operador_id__in=usuarios_logueados)
+                .select_related("operador")
+                .order_by("conversaciones_actuales")
+                .first()
+            )
+
             return cola_menos_cargada.operador if cola_menos_cargada else None
-            
+
         except Exception as e:
             logger.error(f"Error al obtener operador disponible: {e}")
             return None
-    
+
     @staticmethod
     def asignar_conversacion_automatica(conversacion):
         """Asigna automáticamente una conversación al operador más adecuado"""
         try:
             operador = AsignadorAutomatico.obtener_operador_disponible()
-            
+
             if operador:
                 conversacion.asignar_operador(operador)
-                
+
                 # Actualizar cola del operador
                 cola, created = ColaAsignacion.objects.get_or_create(
-                    operador=operador,
-                    defaults={'max_conversaciones': 5}
+                    operador=operador, defaults={"max_conversaciones": 5}
                 )
                 cola.actualizar_contador()
                 cola.ultima_asignacion = timezone.now()
                 cola.save()
-                
+
                 logger.info(f"Conversación {conversacion.id} asignada automáticamente a {operador.username}")
                 return True
             else:
                 logger.warning(f"No hay operadores disponibles para conversación {conversacion.id}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error al asignar conversación automáticamente: {e}")
             return False
-    
+
     @staticmethod
     def configurar_operador(operador, max_conversaciones=5, activo=True):
         """Configura un operador en el sistema de cola"""
         cola, created = ColaAsignacion.objects.get_or_create(
-            operador=operador,
-            defaults={
-                'max_conversaciones': max_conversaciones,
-                'activo': activo
-            }
+            operador=operador, defaults={"max_conversaciones": max_conversaciones, "activo": activo}
         )
-        
+
         if not created:
             cola.max_conversaciones = max_conversaciones
             cola.activo = activo
             cola.save()
-        
+
         cola.actualizar_contador()
         return cola
-    
+
     @staticmethod
     def actualizar_todas_las_colas():
         """Actualiza los contadores de todas las colas"""
-        for cola in ColaAsignacion.objects.select_related('operador'):
+        for cola in ColaAsignacion.objects.select_related("operador"):
             cola.actualizar_contador()
 
 
 class MetricasService:
     """Servicio para cálculo y actualización de métricas"""
-    
+
     @staticmethod
     def calcular_metricas_globales():
         """Calcula métricas globales del sistema de conversaciones"""
+        from datetime import timedelta
+
         from django.db.models import Avg, Count, Q
-        from datetime import datetime, timedelta
-        
+
         ahora = timezone.now()
         hoy = ahora.date()
         semana_pasada = hoy - timedelta(days=7)
         mes_pasado = hoy - timedelta(days=30)
-        
+
         # Optimizar con una sola consulta aggregate
-        from django.db.models import Q
         stats = Conversacion.objects.aggregate(
-            total_conversaciones=Count('id'),
-            conversaciones_hoy=Count('id', filter=Q(fecha_inicio__date=hoy)),
-            conversaciones_semana=Count('id', filter=Q(fecha_inicio__date__gte=semana_pasada)),
-            conversaciones_mes=Count('id', filter=Q(fecha_inicio__date__gte=mes_pasado)),
-            pendientes=Count('id', filter=Q(estado='pendiente')),
-            activas=Count('id', filter=Q(estado='activa')),
-            cerradas_hoy=Count('id', filter=Q(estado='cerrada', fecha_cierre__date=hoy)),
-            tiempo_respuesta_promedio=Avg('tiempo_respuesta_segundos'),
-            tiempo_espera_promedio=Avg('tiempo_espera_segundos'),
-            satisfaccion_promedio=Avg('satisfaccion')
+            total_conversaciones=Count("id"),
+            conversaciones_hoy=Count("id", filter=Q(fecha_inicio__date=hoy)),
+            conversaciones_semana=Count("id", filter=Q(fecha_inicio__date__gte=semana_pasada)),
+            conversaciones_mes=Count("id", filter=Q(fecha_inicio__date__gte=mes_pasado)),
+            pendientes=Count("id", filter=Q(estado="pendiente")),
+            activas=Count("id", filter=Q(estado="activa")),
+            cerradas_hoy=Count("id", filter=Q(estado="cerrada", fecha_cierre__date=hoy)),
+            tiempo_respuesta_promedio=Avg("tiempo_respuesta_segundos"),
+            tiempo_espera_promedio=Avg("tiempo_espera_segundos"),
+            satisfaccion_promedio=Avg("satisfaccion"),
         )
-        
+
         metricas = stats
-        
+
         # Normalizar valores None a 0
-        metricas['tiempo_respuesta_promedio'] = stats['tiempo_respuesta_promedio'] or 0
-        metricas['tiempo_espera_promedio'] = stats['tiempo_espera_promedio'] or 0
-        metricas['satisfaccion_promedio'] = stats['satisfaccion_promedio'] or 0
-        
+        metricas["tiempo_respuesta_promedio"] = stats["tiempo_respuesta_promedio"] or 0
+        metricas["tiempo_espera_promedio"] = stats["tiempo_espera_promedio"] or 0
+        metricas["satisfaccion_promedio"] = stats["satisfaccion_promedio"] or 0
+
         # Operadores (consulta separada optimizada)
         operadores_stats = ColaAsignacion.objects.aggregate(
-            operadores_activos=Count('id', filter=Q(activo=True)),
-            operadores_disponibles=Count('id', filter=Q(
-                activo=True,
-                conversaciones_actuales__lt=models.F('max_conversaciones')
-            ))
+            operadores_activos=Count("id", filter=Q(activo=True)),
+            operadores_disponibles=Count(
+                "id", filter=Q(activo=True, conversaciones_actuales__lt=models.F("max_conversaciones"))
+            ),
         )
         metricas.update(operadores_stats)
-        
+
         # Convertir segundos a minutos
-        metricas['tiempo_respuesta_promedio_min'] = round(metricas['tiempo_respuesta_promedio'] / 60, 1)
-        metricas['tiempo_espera_promedio_min'] = round(metricas['tiempo_espera_promedio'] / 60, 1)
-        
+        metricas["tiempo_respuesta_promedio_min"] = round(metricas["tiempo_respuesta_promedio"] / 60, 1)
+        metricas["tiempo_espera_promedio_min"] = round(metricas["tiempo_espera_promedio"] / 60, 1)
+
         return metricas
-    
+
     @staticmethod
     def actualizar_metricas_operador(operador):
         """Actualiza las métricas de un operador específico"""
-        metricas, created = MetricasOperador.objects.get_or_create(
-            operador=operador
-        )
+        metricas, created = MetricasOperador.objects.get_or_create(operador=operador)
         metricas.actualizar_metricas()
         return metricas
-    
+
     @staticmethod
     def actualizar_todas_las_metricas():
         """Actualiza las métricas de todos los operadores"""
-        operadores = User.objects.filter(
-            groups__name__in=['Conversaciones', 'OperadorCharla']
-        ).prefetch_related('groups')
-        
+        operadores = User.objects.filter(groups__name__in=["Conversaciones", "OperadorCharla"]).prefetch_related(
+            "groups"
+        )
+
         for operador in operadores:
             MetricasService.actualizar_metricas_operador(operador)
 
 
 class NotificacionService:
     """Servicio para notificaciones en tiempo real"""
-    
+
     @staticmethod
     def notificar_nueva_conversacion(conversacion):
         """Notifica a los operadores sobre una nueva conversación"""
@@ -185,7 +186,7 @@ class NotificacionService:
         try:
             # from channels.layers import get_channel_layer
             # from asgiref.sync import async_to_sync
-            # 
+            #
             # channel_layer = get_channel_layer()
             # async_to_sync(channel_layer.group_send)(
             #     'conversaciones_operadores',
@@ -203,7 +204,7 @@ class NotificacionService:
             logger.info(f"Notificación enviada para conversación {conversacion.id}")
         except Exception as e:
             logger.error(f"Error al enviar notificación: {e}")
-    
+
     @staticmethod
     def notificar_mensaje(conversacion, mensaje):
         """Notifica sobre un nuevo mensaje en una conversación"""

@@ -62,9 +62,7 @@ class ApiCorsMiddleware:
         response["Access-Control-Allow-Origin"] = origin
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        response["Access-Control-Allow-Headers"] = (
-            "Authorization, Content-Type, Accept, X-CSRFToken, X-Requested-With"
-        )
+        response["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, X-CSRFToken, X-Requested-With"
         response["Access-Control-Max-Age"] = "86400"
         response["Vary"] = "Origin"
         if request.META.get("HTTP_ACCESS_CONTROL_REQUEST_PRIVATE_NETWORK") == "true":
@@ -83,11 +81,11 @@ class PortalCiudadanoMiddleware:
     def __call__(self, request):
         if (
             rbac.es_ciudadano_portal(request.user)
-            and not request.path.startswith('/portal/')
-            and not request.path.startswith('/static/')
-            and not request.path.startswith('/media/')
+            and not request.path.startswith("/portal/")
+            and not request.path.startswith("/static/")
+            and not request.path.startswith("/media/")
         ):
-            return redirect('portal:ciudadano_mi_perfil')
+            return redirect("portal:ciudadano_mi_perfil")
         return self.get_response(request)
 
 

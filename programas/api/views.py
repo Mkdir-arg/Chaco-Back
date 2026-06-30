@@ -3,6 +3,7 @@
 Auth por token (DRF authtoken). El territorial solo ve/gestiona SUS relevamientos
 y formularios. Capacidad requerida: ``becas.campo``.
 """
+
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -179,17 +180,15 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(FormularioSerializer(formulario).data, status=status.HTTP_201_CREATED)
 
 
-class FormularioViewSet(
-    mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
-):
+class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated, CampoBecasPermission]
     serializer_class = FormularioSerializer
 
     def get_queryset(self):
-        return Formulario.objects.filter(
-            relevamiento__territorial=self.request.user
-        ).select_related("relevamiento", "ciudadano")
+        return Formulario.objects.filter(relevamiento__territorial=self.request.user).select_related(
+            "relevamiento", "ciudadano"
+        )
 
     def perform_update(self, serializer):
         formulario = serializer.save()

@@ -4,6 +4,7 @@ Acceso: Coordinador y Admin (capacidad ``becas.relevamientos``). El alcance por
 segmento se aplica en la query (un coordinador solo ve/gestiona relevamientos de
 sus segmentos asignados); el Admin ve todos.
 """
+
 import csv
 
 from django.contrib import messages
@@ -12,12 +13,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
-from programas.forms import ConvocatoriaForm, RelevamientoForm, ReprogramarForm, ReasignarTerritorialForm
+from programas.forms import ConvocatoriaForm, ReasignarTerritorialForm, RelevamientoForm, ReprogramarForm
 from programas.models import Convocatoria, Formulario, Relevamiento
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
 from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
@@ -151,9 +152,7 @@ class ConvocatoriaUpdateView(_RelevMixin, UpdateView):
 @login_required
 @requiere(CAP)
 def convocatoria_toggle_activo(request, pk):
-    conv = get_object_or_404(
-        Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk
-    )
+    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
     if request.method == "POST":
         conv.activo = not conv.activo
         conv.save(update_fields=["activo", "modificado"])
@@ -164,9 +163,7 @@ def convocatoria_toggle_activo(request, pk):
 @login_required
 @requiere(CAP)
 def convocatoria_export_beneficiarios(request, pk):
-    conv = get_object_or_404(
-        Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk
-    )
+    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="beneficiarios_convocatoria_{conv.pk}.csv"'
     response.write("﻿")  # BOM para Excel
@@ -192,9 +189,7 @@ def convocatoria_export_beneficiarios(request, pk):
 @login_required
 @requiere(CAP)
 def convocatoria_export_relevamientos(request, pk):
-    conv = get_object_or_404(
-        Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk
-    )
+    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="relevamientos_convocatoria_{conv.pk}.csv"'
     response.write("﻿")
@@ -203,10 +198,16 @@ def convocatoria_export_relevamientos(request, pk):
     relevamientos = conv.relevamientos.select_related("territorial").order_by("-fecha_asignada")
     for r in relevamientos:
         terr = r.territorial.get_full_name() or r.territorial.username
-        writer.writerow([
-            r.nombre, terr, r.zona, r.fecha_asignada.strftime("%d/%m/%Y"),
-            r.get_estado_display(), r.formularios.count(),
-        ])
+        writer.writerow(
+            [
+                r.nombre,
+                terr,
+                r.zona,
+                r.fecha_asignada.strftime("%d/%m/%Y"),
+                r.get_estado_display(),
+                r.formularios.count(),
+            ]
+        )
     return response
 
 
@@ -234,9 +235,7 @@ class RelevamientoListView(_RelevMixin, ListView):
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["estado_actual"] = self.request.GET.get("estado", "")
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
-        ctx["form_crear"] = RelevamientoForm(
-            segmentos_permitidos=segmentos_visibles(self.request.user)
-        )
+        ctx["form_crear"] = RelevamientoForm(segmentos_permitidos=segmentos_visibles(self.request.user))
         ctx["siguiente_nombre"] = f"Relevamiento {Relevamiento.objects.count() + 1:03d}"
         return ctx
 

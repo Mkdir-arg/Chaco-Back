@@ -1,15 +1,15 @@
-﻿from legajos.models import Ciudadano
+from legajos.models import Ciudadano
 from programas.models import InscripcionPrograma, Programa
 
 
 def get_portal_home_context():
     return {
-        "programas": Programa.objects.filter(estado='ACTIVO').order_by("orden"),
+        "programas": Programa.objects.filter(estado="ACTIVO").order_by("orden"),
         "instituciones": [],
         "stats": {
             "ciudadanos": Ciudadano.objects.count(),
             "instituciones": 0,
-            "programas": Programa.objects.filter(estado='ACTIVO').count(),
+            "programas": Programa.objects.filter(estado="ACTIVO").count(),
             "inscripciones_activas": InscripcionPrograma.objects.filter(
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"]
             ).count(),

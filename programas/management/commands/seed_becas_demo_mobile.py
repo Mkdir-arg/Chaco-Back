@@ -6,6 +6,7 @@ Crea una estructura similar al mockup de Programa Becas:
 - 10 relevamientos asignados al usuario territorial de prueba;
 - algunos formularios cargados para ver personas dentro del relevamiento.
 """
+
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
@@ -25,7 +26,6 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
-
 
 COMMON_QUESTIONS = [
     ("Apellido y nombre", TipoCampo.STRING, None),
@@ -109,16 +109,96 @@ SEGMENTOS = [
 
 
 RELEVAMIENTOS = [
-    ("Convocatoria Becas 2026 - Carbon", "Produccion Territorial / Fuego y Barro", "Carbon", "Resistencia - Zona Norte", 0, Relevamiento.Estado.ASIGNADO, "Acceso por camino vecinal; coordinar con referente local."),
-    ("Convocatoria Becas 2026 - Carbon", "Produccion Territorial / Fuego y Barro", "Carbon", "Pcia. Roque Saenz Pena", 1, Relevamiento.Estado.EN_CURSO, "Operativo con referentes barriales."),
-    ("Convocatoria Becas 2026 - Carbon", "Produccion Territorial / Fuego y Barro", "Carbon", "Villa Angela", 2, Relevamiento.Estado.ASIGNADO, "Operativo conjunto con Desarrollo Social."),
-    ("Convocatoria Becas 2026 - Ladrillo", "Produccion Territorial / Fuego y Barro", "Ladrillo", "Charata", 3, Relevamiento.Estado.ASIGNADO, "Productores ladrilleros zona oeste."),
-    ("Convocatoria Becas 2026 - Ladrillo", "Produccion Territorial / Fuego y Barro", "Ladrillo", "Quitilipi", 4, Relevamiento.Estado.EN_CURSO, "Relevar predios productivos familiares."),
-    ("Becas Superior 2026 - Universitario", "Nivel Superior", "Universitario", "Resistencia - Centro", 0, Relevamiento.Estado.ASIGNADO, "Instituciones universitarias del microcentro."),
-    ("Becas Superior 2026 - Universitario", "Nivel Superior", "Universitario", "Barranqueras", 1, Relevamiento.Estado.EN_CURSO, "Turno tarde con estudiantes universitarios."),
-    ("Becas Superior 2026 - Terciario", "Nivel Superior", "Terciario", "Fontana", 2, Relevamiento.Estado.ASIGNADO, "Institutos terciarios y anexos."),
-    ("Becas Secundario 2026 - Ciclo Basico", "Nivel Secundario", "Ciclo Basico", "General San Martin", 3, Relevamiento.Estado.ASIGNADO, "Escuelas secundarias de ciclo basico."),
-    ("Becas Secundario 2026 - Ciclo Orientado", "Nivel Secundario", "Ciclo Orientado", "Machagai", 4, Relevamiento.Estado.ASIGNADO, "Escuelas secundarias de ciclo orientado."),
+    (
+        "Convocatoria Becas 2026 - Carbon",
+        "Produccion Territorial / Fuego y Barro",
+        "Carbon",
+        "Resistencia - Zona Norte",
+        0,
+        Relevamiento.Estado.ASIGNADO,
+        "Acceso por camino vecinal; coordinar con referente local.",
+    ),
+    (
+        "Convocatoria Becas 2026 - Carbon",
+        "Produccion Territorial / Fuego y Barro",
+        "Carbon",
+        "Pcia. Roque Saenz Pena",
+        1,
+        Relevamiento.Estado.EN_CURSO,
+        "Operativo con referentes barriales.",
+    ),
+    (
+        "Convocatoria Becas 2026 - Carbon",
+        "Produccion Territorial / Fuego y Barro",
+        "Carbon",
+        "Villa Angela",
+        2,
+        Relevamiento.Estado.ASIGNADO,
+        "Operativo conjunto con Desarrollo Social.",
+    ),
+    (
+        "Convocatoria Becas 2026 - Ladrillo",
+        "Produccion Territorial / Fuego y Barro",
+        "Ladrillo",
+        "Charata",
+        3,
+        Relevamiento.Estado.ASIGNADO,
+        "Productores ladrilleros zona oeste.",
+    ),
+    (
+        "Convocatoria Becas 2026 - Ladrillo",
+        "Produccion Territorial / Fuego y Barro",
+        "Ladrillo",
+        "Quitilipi",
+        4,
+        Relevamiento.Estado.EN_CURSO,
+        "Relevar predios productivos familiares.",
+    ),
+    (
+        "Becas Superior 2026 - Universitario",
+        "Nivel Superior",
+        "Universitario",
+        "Resistencia - Centro",
+        0,
+        Relevamiento.Estado.ASIGNADO,
+        "Instituciones universitarias del microcentro.",
+    ),
+    (
+        "Becas Superior 2026 - Universitario",
+        "Nivel Superior",
+        "Universitario",
+        "Barranqueras",
+        1,
+        Relevamiento.Estado.EN_CURSO,
+        "Turno tarde con estudiantes universitarios.",
+    ),
+    (
+        "Becas Superior 2026 - Terciario",
+        "Nivel Superior",
+        "Terciario",
+        "Fontana",
+        2,
+        Relevamiento.Estado.ASIGNADO,
+        "Institutos terciarios y anexos.",
+    ),
+    (
+        "Becas Secundario 2026 - Ciclo Basico",
+        "Nivel Secundario",
+        "Ciclo Basico",
+        "General San Martin",
+        3,
+        Relevamiento.Estado.ASIGNADO,
+        "Escuelas secundarias de ciclo basico.",
+    ),
+    (
+        "Becas Secundario 2026 - Ciclo Orientado",
+        "Nivel Secundario",
+        "Ciclo Orientado",
+        "Machagai",
+        4,
+        Relevamiento.Estado.ASIGNADO,
+        "Escuelas secundarias de ciclo orientado.",
+    ),
 ]
 
 

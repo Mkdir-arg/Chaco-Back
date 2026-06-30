@@ -1,3 +1,3 @@
-app_name = 'tramites'
+app_name = "tramites"
 
 urlpatterns = []

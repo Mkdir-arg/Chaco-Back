@@ -11,6 +11,7 @@ Ejecutar tras cada ``migrate``::
 
     python manage.py seed_rbac
 """
+
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
@@ -107,9 +108,7 @@ class Command(BaseCommand):
                 "activo": True,
             },
         )
-        op_group.permissions.set(
-            [codename_a_perm[rbac.codename_de(c)] for c in caps_operador]
-        )
+        op_group.permissions.set([codename_a_perm[rbac.codename_de(c)] for c in caps_operador])
         self.stdout.write(self.style.SUCCESS("  ✓ Operador de backoffice con 6 capacidades"))
 
         # 4. Asignar Administrador a los superusuarios (garantiza acceso post-deploy).
@@ -117,11 +116,7 @@ class Command(BaseCommand):
         for su in superusers:
             su.groups.add(admin_group)
         if superusers:
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"  ✓ Rol asignado a {superusers.count()} superusuario(s)"
-                )
-            )
+            self.stdout.write(self.style.SUCCESS(f"  ✓ Rol asignado a {superusers.count()} superusuario(s)"))
         else:
             self.stdout.write(
                 self.style.WARNING(

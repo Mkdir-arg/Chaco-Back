@@ -4,10 +4,11 @@ Solo el Admin del programa (capacidad ``becas.configurar``) accede a estas
 vistas: ABM de segmentos/subsegmentos (con validación de cupo RN-40), asignación
 de coordinadores, ABM de requisitos nativos y de preguntas globales.
 """
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Sum
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
@@ -15,7 +16,6 @@ from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, requiere
-from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 from programas.forms import (
     AsignacionCoordinadorForm,
     PreguntaGlobalForm,
@@ -32,6 +32,7 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
 CAP_CONFIG = "becas.configurar"
 
@@ -75,9 +76,7 @@ def _requisitos_segmento_ajax(request, segmento, message="Requisito guardado."):
 
 
 def _requisitos_reqseg_qs(segmento_id=None, subsegmento_id=None):
-    qs = RequisitoNativo.objects.select_related("segmento", "subsegmento").order_by(
-        "segmento__nombre", "orden", "id"
-    )
+    qs = RequisitoNativo.objects.select_related("segmento", "subsegmento").order_by("segmento__nombre", "orden", "id")
     if segmento_id:
         qs = qs.filter(segmento_id=segmento_id)
     if subsegmento_id:
@@ -123,9 +122,7 @@ class SegmentoCreateView(_ConfigBecasMixin, CreateView):
     def form_valid(self, form):
         self.object = form.save()
         # El coordinador del alta se persiste como asignación (modal del kit).
-        AsignacionCoordinador.objects.create(
-            segmento=self.object, coordinador=form.cleaned_data["coordinador"]
-        )
+        AsignacionCoordinador.objects.create(segmento=self.object, coordinador=form.cleaned_data["coordinador"])
         # "Guardar y configurar": ir al detalle a cargar subsegmentos/cupos.
         detalle = reverse("becas:segmento_detalle", args=[self.object.pk])
         if is_ajax(self.request):
@@ -172,8 +169,8 @@ class SegmentoDetailView(_ConfigBecasMixin, DetailView):
         subsegmentos = list(seg.subsegmentos.all().order_by("nombre"))
         ctx["subsegmentos"] = subsegmentos
         ctx["subsegmentos_cupo_total"] = sum(s.cupo_maximo for s in subsegmentos)
-        ctx["coordinadores"] = (
-            seg.asignaciones_coordinador.select_related("coordinador").order_by("coordinador__username")
+        ctx["coordinadores"] = seg.asignaciones_coordinador.select_related("coordinador").order_by(
+            "coordinador__username"
         )
         ctx["requisitos"] = seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
         ctx["form_segmento"] = SegmentoForm(instance=seg)
@@ -375,9 +372,7 @@ class RequisitosSegmentoView(_ConfigBecasMixin, ListView):
     context_object_name = "requisitos"
 
     def get_queryset(self):
-        return _requisitos_reqseg_qs(
-            self.request.GET.get("segmento"), self.request.GET.get("subsegmento")
-        )
+        return _requisitos_reqseg_qs(self.request.GET.get("segmento"), self.request.GET.get("subsegmento"))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -401,9 +396,7 @@ class SubsegmentoDetailView(_ConfigBecasMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         sub = self.object
         ctx["segmento"] = sub.segmento
-        ctx["requisitos_heredados"] = sub.segmento.requisitos.filter(
-            subsegmento__isnull=True
-        ).order_by("orden", "id")
+        ctx["requisitos_heredados"] = sub.segmento.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
         ctx["requisitos_propios"] = sub.requisitos.order_by("orden", "id")
         ctx["form_requisito"] = RequisitoNativoForm(segmento=sub.segmento, subsegmento=sub)
         return ctx
@@ -504,9 +497,5 @@ def pregunta_eliminar(request, pk):
 def segmento_subsegmentos_json(request, pk):
     """Devuelve los subsegmentos activos de un segmento para el filtrado dinámico."""
     segmento = get_object_or_404(Segmento, pk=pk)
-    data = list(
-        segmento.subsegmentos.filter(activo=True)
-        .order_by("nombre")
-        .values("id", "nombre", "cupo_maximo")
-    )
+    data = list(segmento.subsegmentos.filter(activo=True).order_by("nombre").values("id", "nombre", "cupo_maximo"))
     return JsonResponse(data, safe=False)

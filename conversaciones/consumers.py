@@ -4,10 +4,10 @@ import logging
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from .models import Conversacion, Mensaje
-from .permisos import puede_operar
 from core import rbac
 
+from .models import Conversacion, Mensaje
+from .permisos import puede_operar
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,9 @@ class ConversacionConsumer(AsyncWebsocketConsumer):
             ciudadano = conversacion.ciudadano_relacionado if hasattr(conversacion, "ciudadano_relacionado") else None
 
             if ciudadano:
-                ultimo_mensaje_ciudadano = conversacion.mensajes.filter(remitente="ciudadano").order_by("-fecha_envio").first()
+                ultimo_mensaje_ciudadano = (
+                    conversacion.mensajes.filter(remitente="ciudadano").order_by("-fecha_envio").first()
+                )
 
                 if ultimo_mensaje_ciudadano:
                     tiempo_respuesta = mensaje.fecha_envio - ultimo_mensaje_ciudadano.fecha_envio

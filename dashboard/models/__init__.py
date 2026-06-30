@@ -12,9 +12,7 @@ class Dashboard(models.Model):
         primary_key=True,
         help_text="Llave única para identificar el registro en el dashboard.",
     )
-    cantidad = models.BigIntegerField(
-        default=0, help_text="Cantidad asociada al registro en el dashboard."
-    )
+    cantidad = models.BigIntegerField(default=0, help_text="Cantidad asociada al registro en el dashboard.")
 
     def aumentar_cantidad(self, cantidad: int = 1):
         self.cantidad += cantidad

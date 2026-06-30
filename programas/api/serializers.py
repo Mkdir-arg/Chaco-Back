@@ -1,4 +1,5 @@
 """Serializers de la API de campo de Becas (#82)."""
+
 from rest_framework import serializers
 
 from programas.models import Formulario, Relevamiento
@@ -13,8 +14,15 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Relevamiento
         fields = [
-            "id", "nombre", "zona", "fecha_asignada", "estado",
-            "segmento", "convocatoria_nombre", "fecha_finalizado", "formularios_count",
+            "id",
+            "nombre",
+            "zona",
+            "fecha_asignada",
+            "estado",
+            "segmento",
+            "convocatoria_nombre",
+            "fecha_finalizado",
+            "formularios_count",
         ]
 
     def get_formularios_count(self, obj):
@@ -37,16 +45,34 @@ class FormularioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Formulario
         fields = [
-            "id", "relevamiento", "estado", "motivo_rechazo", "validado_renaper",
-            "ciudadano", "ciudadano_dni", "datos_identificacion",
-            "celular", "email_contacto",
-            "apoderado_nombre", "apoderado_apellido", "apoderado_fecha_nacimiento",
-            "gps_lat", "gps_lng", "data",
-            "creado", "modificado",
+            "id",
+            "relevamiento",
+            "estado",
+            "motivo_rechazo",
+            "validado_renaper",
+            "ciudadano",
+            "ciudadano_dni",
+            "datos_identificacion",
+            "celular",
+            "email_contacto",
+            "apoderado_nombre",
+            "apoderado_apellido",
+            "apoderado_fecha_nacimiento",
+            "gps_lat",
+            "gps_lng",
+            "data",
+            "creado",
+            "modificado",
         ]
         read_only_fields = [
-            "id", "relevamiento", "estado", "motivo_rechazo",
-            "ciudadano", "ciudadano_dni", "creado", "modificado",
+            "id",
+            "relevamiento",
+            "estado",
+            "motivo_rechazo",
+            "ciudadano",
+            "ciudadano_dni",
+            "creado",
+            "modificado",
         ]
 
     def validate(self, attrs):

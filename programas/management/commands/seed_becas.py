@@ -13,6 +13,7 @@ Ejecutar tras ``migrate`` (las capacidades ``becas.*`` se materializan ahí)::
 
     python manage.py seed_becas
 """
+
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
@@ -137,14 +138,11 @@ class Command(BaseCommand):
         creados = asegurar_adjuntos_obligatorios()
         self.stdout.write(
             self.style.SUCCESS(
-                f"  ✓ Adjuntos obligatorios asegurados ({creados} nuevos, "
-                f"{len(ADJUNTOS_OBLIGATORIOS)} totales)"
+                f"  ✓ Adjuntos obligatorios asegurados ({creados} nuevos, {len(ADJUNTOS_OBLIGATORIOS)} totales)"
             )
         )
 
         asegurar_roles_becas(programa)
-        self.stdout.write(
-            self.style.SUCCESS(f"  ✓ Roles RBAC asegurados: {', '.join(ROLES_BECAS)}")
-        )
+        self.stdout.write(self.style.SUCCESS(f"  ✓ Roles RBAC asegurados: {', '.join(ROLES_BECAS)}"))
 
         self.stdout.write(self.style.SUCCESS("\nSeed Becas completo."))

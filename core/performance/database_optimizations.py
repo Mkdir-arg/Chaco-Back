@@ -1,14 +1,13 @@
 import logging
 
 from django.db import connection
-from django.core.management.base import BaseCommand
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseOptimizer:
     """Optimizaciones avanzadas de base de datos"""
-    
+
     @staticmethod
     def optimize_mysql_config():
         """Optimiza configuración MySQL 8.0 para mejor performance"""
@@ -19,7 +18,7 @@ class DatabaseOptimizer:
             "SET GLOBAL innodb_log_buffer_size = 67108864;",  # 64MB
             "SET GLOBAL innodb_flush_log_at_trx_commit = 2;",
         ]
-        
+
         with connection.cursor() as cursor:
             for sql in optimizations:
                 try:
@@ -27,18 +26,18 @@ class DatabaseOptimizer:
                     logger.info("Applied: %s", sql)
                 except Exception as e:
                     logger.warning("Skipped: %s - %s", sql, e)
-    
+
     @staticmethod
     def analyze_tables():
         """Analiza tablas para optimizar estadísticas"""
         tables = [
-            'legajos_legajoatencion',
-            'conversaciones_conversacion',
-            'conversaciones_mensaje',
-            'legajos_ciudadano',
-            'core_institucion'
+            "legajos_legajoatencion",
+            "conversaciones_conversacion",
+            "conversaciones_mensaje",
+            "legajos_ciudadano",
+            "core_institucion",
         ]
-        
+
         with connection.cursor() as cursor:
             for table in tables:
                 try:

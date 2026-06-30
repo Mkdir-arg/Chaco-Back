@@ -215,6 +215,28 @@
                 </template>
             </a>
         </div>
+        {% if request.user|puede:"ciudadano.crear" %}
+        <template x-if="!sidebarCollapsed">
+            <div style="margin-left: 20px; margin-bottom: 2px;">
+                <a href="{% url 'legajos:ciudadano_nuevo' %}"
+                   class="flex items-center gap-2 transition-colors duration-150"
+                   style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                          {% if 'ciudadanos/nuevo' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                   onmouseover="{% if 'ciudadanos/nuevo' not in pagina_actual %}this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-body)'{% endif %}"
+                   onmouseout="{% if 'ciudadanos/nuevo' in pagina_actual %}this.style.background='var(--bg-brand)'; this.style.color='#fff'{% else %}this.style.background='transparent'; this.style.color='var(--text-body-subtle)'{% endif %}"
+                   {% if 'ciudadanos/nuevo' in pagina_actual %}aria-current="page"{% endif %}>
+                    {# user-plus icon #}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                         style="color: {% if 'ciudadanos/nuevo' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"/>
+                    </svg>
+                    Nuevo ciudadano
+                </a>
+            </div>
+        </template>
+        {% endif %}
         {% endif %}
 
         {# ── Relevamientos ────────────────────────────────────── #}

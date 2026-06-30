@@ -20,6 +20,3 @@ def invalidate_legajo_cache(sender, **kwargs):
     invalidate_cache_pattern("legajos_list")
     invalidate_cache_pattern("reportes")
     invalidate_cache_pattern("dashboard")
-
-
-

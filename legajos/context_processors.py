@@ -9,7 +9,7 @@ ALERTAS_CRITICAS_CACHE_TIMEOUT = 30
 
 
 def alertas_criticas_cache_key(user_id):
-    return f'alertas_criticas_user_{user_id}'
+    return f"alertas_criticas_user_{user_id}"
 
 
 @async_unsafe
@@ -32,4 +32,4 @@ def alertas_eventos_criticos(request):
             )
             eventos_pendientes = []
 
-    return {'eventos_criticos_pendientes': eventos_pendientes}
+    return {"eventos_criticos_pendientes": eventos_pendientes}

@@ -5,6 +5,7 @@ segmento. Permite listar los formularios de un relevamiento finalizado, editar
 campos de contacto/apoderado (cada cambio queda en ``TracaFormulario``) y
 aprobar/rechazar (con motivo) caso a caso. La validación SIS es un placeholder.
 """
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -65,9 +66,7 @@ class RevisionRelevamientoListView(_RevisionMixin, ListView):
 @login_required
 @requiere(CAP)
 def revision_formularios(request, relevamiento_pk):
-    relevamiento = get_object_or_404(
-        Relevamiento.objects.select_related("convocatoria__segmento"), pk=relevamiento_pk
-    )
+    relevamiento = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=relevamiento_pk)
     _assert_scope_relevamiento(request, relevamiento)
 
     formularios = relevamiento.formularios.select_related("ciudadano").order_by("-creado")
@@ -149,9 +148,7 @@ def formulario_detalle(request, pk):
 @login_required
 @requiere(CAP)
 def formulario_aprobar(request, pk):
-    formulario = get_object_or_404(
-        Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk
-    )
+    formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method == "POST":
         formulario.estado = Formulario.Estado.APROBADO
@@ -165,9 +162,7 @@ def formulario_aprobar(request, pk):
 @login_required
 @requiere(CAP)
 def formulario_rechazar(request, pk):
-    formulario = get_object_or_404(
-        Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk
-    )
+    formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method == "POST":
         motivo = (request.POST.get("motivo") or "").strip()

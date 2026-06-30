@@ -14,9 +14,7 @@ class PortalRegistroService:
             last_name=cleaned_data["last_name"],
             is_active=False,
         )
-        grupo_institucion, _ = Group.objects.get_or_create(
-            name="EncargadoInstitucion"
-        )
+        grupo_institucion, _ = Group.objects.get_or_create(name="EncargadoInstitucion")
         user.groups.add(grupo_institucion)
         return user
 

@@ -1,4 +1,5 @@
-﻿from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta
 
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -10,8 +11,6 @@ from rest_framework.response import Response
 from legajos.models import AlertaCiudadano, Ciudadano
 from programas.models import DerivacionPrograma, InscripcionPrograma
 from users.models import User
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +61,9 @@ def buscar_ciudadanos(request):
         return Response({"results": []})
 
     try:
-        ciudadanos = (
-            Ciudadano.objects.only("id", "nombre", "apellido", "dni")
-            .filter(Q(nombre__icontains=query) | Q(apellido__icontains=query) | Q(dni__icontains=query))[:8]
-        )
+        ciudadanos = Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(
+            Q(nombre__icontains=query) | Q(apellido__icontains=query) | Q(dni__icontains=query)
+        )[:8]
 
         resultados = [{"id": c.id, "nombre": f"{c.apellido}, {c.nombre}", "dni": c.dni} for c in ciudadanos]
         return Response({"results": resultados})
@@ -116,7 +114,9 @@ def alertas_criticas(request):
 def actividad_reciente(request):
     """Obtiene actividad reciente del sistema."""
     try:
-        inscripciones = InscripcionPrograma.objects.select_related("ciudadano", "programa", "responsable").order_by("-creado")[:4]
+        inscripciones = InscripcionPrograma.objects.select_related("ciudadano", "programa", "responsable").order_by(
+            "-creado"
+        )[:4]
         derivaciones = DerivacionPrograma.objects.select_related(
             "ciudadano", "programa_origen", "programa_destino", "derivado_por"
         ).order_by("-creado")[:3]

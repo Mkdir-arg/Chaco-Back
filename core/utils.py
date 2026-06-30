@@ -1,7 +1,7 @@
 """Utilidades generales usadas en diferentes módulos del proyecto."""
 
-import logging
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -92,9 +92,7 @@ def format_serializer_errors(serializer):
                 # Errores sin campo específico
                 error_messages.append(str(error))
             else:
-                error_messages.append(
-                    f"{field}: {str(error)}"
-                )  # Errores en campos específicos
+                error_messages.append(f"{field}: {str(error)}")  # Errores en campos específicos
 
     error_message_str = " | ".join(error_messages)
     return error_message_str

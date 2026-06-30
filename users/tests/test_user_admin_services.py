@@ -16,14 +16,10 @@ def _perm(codigo):
 class UsuariosAdminServiceTests(TestCase):
     def setUp(self):
         self.group_admin = Group.objects.create(name="Administrador")
-        RolMeta.objects.create(
-            grupo=self.group_admin, categoria="Sistema", activo=True, protegido=True
-        )
+        RolMeta.objects.create(grupo=self.group_admin, categoria="Sistema", activo=True, protegido=True)
         # El rol Administrador otorga las capacidades de administración (como el seed),
         # para que la auto-protección reconozca a sus usuarios como administradores.
-        self.group_admin.permissions.add(
-            _perm("usuario.administrar"), _perm("rol.administrar")
-        )
+        self.group_admin.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
         self.group_op = Group.objects.create(name="Operador")
         RolMeta.objects.create(grupo=self.group_op, categoria="Backoffice", activo=True)
 

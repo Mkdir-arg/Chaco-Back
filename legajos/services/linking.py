@@ -29,22 +29,28 @@ def get_legajos_queryset_for_ciudadano(ciudadano, base_queryset=None):
 
 
 def get_legajo_ids_for_programas(programa_ids):
-    return InscripcionPrograma.objects.filter(
-        programa_id__in=programa_ids,
-        legajo_id__isnull=False,
-    ).values_list("legajo_id", flat=True).distinct()
+    return (
+        InscripcionPrograma.objects.filter(
+            programa_id__in=programa_ids,
+            legajo_id__isnull=False,
+        )
+        .values_list("legajo_id", flat=True)
+        .distinct()
+    )
 
 
 def get_programa_ids_for_legajo_ids(legajo_ids):
-    return InscripcionPrograma.objects.filter(
-        legajo_id__in=legajo_ids,
-    ).values_list("programa_id", flat=True).distinct()
+    return (
+        InscripcionPrograma.objects.filter(
+            legajo_id__in=legajo_ids,
+        )
+        .values_list("programa_id", flat=True)
+        .distinct()
+    )
 
 
 def annotate_legajo_link_data(queryset):
-    inscripciones = InscripcionPrograma.objects.filter(legajo_id=OuterRef("pk")).order_by(
-        "-fecha_inscripcion"
-    )
+    inscripciones = InscripcionPrograma.objects.filter(legajo_id=OuterRef("pk")).order_by("-fecha_inscripcion")
     return queryset.annotate(
         linked_ciudadano_id=Subquery(inscripciones.values("ciudadano_id")[:1]),
         linked_ciudadano_nombre=Subquery(inscripciones.values("ciudadano__nombre")[:1]),
@@ -57,12 +63,16 @@ def annotate_legajo_link_data(queryset):
 def get_active_legajo_for_ciudadano(ciudadano):
     from ..models import LegajoAtencion
 
-    return get_legajos_queryset_for_ciudadano(
-        ciudadano,
-        base_queryset=LegajoAtencion.objects.filter(
-            estado__in=[
-                LegajoAtencion.Estado.ABIERTO,
-                LegajoAtencion.Estado.EN_SEGUIMIENTO,
-            ]
-        ),
-    ).order_by("-fecha_admision").first()
+    return (
+        get_legajos_queryset_for_ciudadano(
+            ciudadano,
+            base_queryset=LegajoAtencion.objects.filter(
+                estado__in=[
+                    LegajoAtencion.Estado.ABIERTO,
+                    LegajoAtencion.Estado.EN_SEGUIMIENTO,
+                ]
+            ),
+        )
+        .order_by("-fecha_admision")
+        .first()
+    )

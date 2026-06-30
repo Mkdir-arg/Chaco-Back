@@ -4,6 +4,7 @@ Uso::
 
     permission_classes = [RequiereCapacidad("usuario.administrar")]
 """
+
 from rest_framework.permissions import BasePermission
 
 from core import rbac

@@ -1,12 +1,14 @@
 from functools import cached_property
 
 from django.conf import settings
-from django.db import models
 from django.contrib.auth.models import User
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from core.models import TimeStamped, LegajoBase
+from django.db import models
+
+from core.models import LegajoBase, TimeStamped
+
 # from simple_history.models import HistoricalRecords  # Comentado temporalmente
 
 
@@ -29,25 +31,13 @@ class Ciudadano(TimeStamped):
 
     # Datos territoriales
     provincia = models.ForeignKey(
-        'core.Provincia',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='ciudadanos'
+        "core.Provincia", on_delete=models.SET_NULL, null=True, blank=True, related_name="ciudadanos"
     )
     municipio = models.ForeignKey(
-        'core.Municipio',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='ciudadanos'
+        "core.Municipio", on_delete=models.SET_NULL, null=True, blank=True, related_name="ciudadanos"
     )
     localidad = models.ForeignKey(
-        'core.Localidad',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='ciudadanos'
+        "core.Localidad", on_delete=models.SET_NULL, null=True, blank=True, related_name="ciudadanos"
     )
 
     activo = models.BooleanField(default=True, db_index=True)
@@ -57,118 +47,142 @@ class Ciudadano(TimeStamped):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ciudadano_perfil',
-        verbose_name='Usuario del portal',
+        related_name="ciudadano_perfil",
+        verbose_name="Usuario del portal",
     )
 
     # --- Perfil ampliado ---
 
     foto = models.ImageField(
-        upload_to='ciudadanos/fotos/',
+        upload_to="ciudadanos/fotos/",
         blank=True,
         null=True,
-        verbose_name='Foto',
+        verbose_name="Foto",
     )
 
     # Situación habitacional
     class TipoVivienda(models.TextChoices):
-        PROPIA = 'PROPIA', 'Propia'
-        ALQUILADA = 'ALQUILADA', 'Alquilada'
-        PRESTADA = 'PRESTADA', 'Prestada / cedida'
-        VILLA = 'VILLA', 'Villa / asentamiento'
-        SIN_TECHO = 'SIN_TECHO', 'Sin techo'
-        OTRO = 'OTRO', 'Otro'
+        PROPIA = "PROPIA", "Propia"
+        ALQUILADA = "ALQUILADA", "Alquilada"
+        PRESTADA = "PRESTADA", "Prestada / cedida"
+        VILLA = "VILLA", "Villa / asentamiento"
+        SIN_TECHO = "SIN_TECHO", "Sin techo"
+        OTRO = "OTRO", "Otro"
 
     class TenenciaVivienda(models.TextChoices):
-        TITULAR = 'TITULAR', 'Titular'
-        CONYUGE = 'CONYUGE', 'Cónyuge / conviviente'
-        FAMILIAR = 'FAMILIAR', 'Familiar'
-        INQUILINO = 'INQUILINO', 'Inquilino'
-        OCUPANTE = 'OCUPANTE', 'Ocupante sin título'
-        OTRO = 'OTRO', 'Otro'
+        TITULAR = "TITULAR", "Titular"
+        CONYUGE = "CONYUGE", "Cónyuge / conviviente"
+        FAMILIAR = "FAMILIAR", "Familiar"
+        INQUILINO = "INQUILINO", "Inquilino"
+        OCUPANTE = "OCUPANTE", "Ocupante sin título"
+        OTRO = "OTRO", "Otro"
 
     tipo_vivienda = models.CharField(
-        max_length=20, choices=TipoVivienda.choices, blank=True, verbose_name='Tipo de vivienda',
+        max_length=20,
+        choices=TipoVivienda.choices,
+        blank=True,
+        verbose_name="Tipo de vivienda",
     )
     tenencia_vivienda = models.CharField(
-        max_length=20, choices=TenenciaVivienda.choices, blank=True, verbose_name='Tenencia de vivienda',
+        max_length=20,
+        choices=TenenciaVivienda.choices,
+        blank=True,
+        verbose_name="Tenencia de vivienda",
     )
-    condiciones_vivienda = models.TextField(blank=True, verbose_name='Condiciones de la vivienda')
+    condiciones_vivienda = models.TextField(blank=True, verbose_name="Condiciones de la vivienda")
 
     # Situación laboral
     class SituacionLaboral(models.TextChoices):
-        EMPLEADO_FORMAL = 'EMPLEADO_FORMAL', 'Empleado formal'
-        EMPLEADO_INFORMAL = 'EMPLEADO_INFORMAL', 'Empleado informal'
-        CUENTAPROPISTA = 'CUENTAPROPISTA', 'Cuenta propia'
-        DESEMPLEADO = 'DESEMPLEADO', 'Desempleado'
-        JUBILADO = 'JUBILADO', 'Jubilado / pensionado'
-        ESTUDIANTE = 'ESTUDIANTE', 'Estudiante'
-        SIN_ACTIVIDAD = 'SIN_ACTIVIDAD', 'Sin actividad'
-        OTRO = 'OTRO', 'Otro'
+        EMPLEADO_FORMAL = "EMPLEADO_FORMAL", "Empleado formal"
+        EMPLEADO_INFORMAL = "EMPLEADO_INFORMAL", "Empleado informal"
+        CUENTAPROPISTA = "CUENTAPROPISTA", "Cuenta propia"
+        DESEMPLEADO = "DESEMPLEADO", "Desempleado"
+        JUBILADO = "JUBILADO", "Jubilado / pensionado"
+        ESTUDIANTE = "ESTUDIANTE", "Estudiante"
+        SIN_ACTIVIDAD = "SIN_ACTIVIDAD", "Sin actividad"
+        OTRO = "OTRO", "Otro"
 
     class IngresoEstimado(models.TextChoices):
-        SIN_INGRESO = 'SIN_INGRESO', 'Sin ingreso'
-        MENOS_CBT = 'MENOS_CBT', 'Menos de una CBT'
-        ENTRE_1_2_CBT = 'ENTRE_1_2_CBT', 'Entre 1 y 2 CBT'
-        MAS_2_CBT = 'MAS_2_CBT', 'Más de 2 CBT'
+        SIN_INGRESO = "SIN_INGRESO", "Sin ingreso"
+        MENOS_CBT = "MENOS_CBT", "Menos de una CBT"
+        ENTRE_1_2_CBT = "ENTRE_1_2_CBT", "Entre 1 y 2 CBT"
+        MAS_2_CBT = "MAS_2_CBT", "Más de 2 CBT"
 
     situacion_laboral = models.CharField(
-        max_length=20, choices=SituacionLaboral.choices, blank=True, verbose_name='Situación laboral',
+        max_length=20,
+        choices=SituacionLaboral.choices,
+        blank=True,
+        verbose_name="Situación laboral",
     )
     ingreso_estimado = models.CharField(
-        max_length=20, choices=IngresoEstimado.choices, blank=True, verbose_name='Ingreso estimado',
+        max_length=20,
+        choices=IngresoEstimado.choices,
+        blank=True,
+        verbose_name="Ingreso estimado",
     )
-    obra_social = models.CharField(max_length=200, blank=True, verbose_name='Obra social / prepaga')
+    obra_social = models.CharField(max_length=200, blank=True, verbose_name="Obra social / prepaga")
 
     # Situación educativa
     class NivelEducativo(models.TextChoices):
-        SIN_INSTRUCCION = 'SIN_INSTRUCCION', 'Sin instrucción'
-        PRIMARIO_INCOMPLETO = 'PRIMARIO_INCOMPLETO', 'Primario incompleto'
-        PRIMARIO_COMPLETO = 'PRIMARIO_COMPLETO', 'Primario completo'
-        SECUNDARIO_INCOMPLETO = 'SECUNDARIO_INCOMPLETO', 'Secundario incompleto'
-        SECUNDARIO_COMPLETO = 'SECUNDARIO_COMPLETO', 'Secundario completo'
-        TERCIARIO = 'TERCIARIO', 'Terciario / universitario'
-        POSGRADO = 'POSGRADO', 'Posgrado'
+        SIN_INSTRUCCION = "SIN_INSTRUCCION", "Sin instrucción"
+        PRIMARIO_INCOMPLETO = "PRIMARIO_INCOMPLETO", "Primario incompleto"
+        PRIMARIO_COMPLETO = "PRIMARIO_COMPLETO", "Primario completo"
+        SECUNDARIO_INCOMPLETO = "SECUNDARIO_INCOMPLETO", "Secundario incompleto"
+        SECUNDARIO_COMPLETO = "SECUNDARIO_COMPLETO", "Secundario completo"
+        TERCIARIO = "TERCIARIO", "Terciario / universitario"
+        POSGRADO = "POSGRADO", "Posgrado"
 
     nivel_educativo = models.CharField(
-        max_length=25, choices=NivelEducativo.choices, blank=True, verbose_name='Nivel educativo',
+        max_length=25,
+        choices=NivelEducativo.choices,
+        blank=True,
+        verbose_name="Nivel educativo",
     )
 
     # Cobertura médica (sensible)
-    cobertura_medica = models.CharField(max_length=200, blank=True, verbose_name='Cobertura médica')
-    medicacion_habitual = models.TextField(blank=True, verbose_name='Medicación habitual')
+    cobertura_medica = models.CharField(max_length=200, blank=True, verbose_name="Cobertura médica")
+    medicacion_habitual = models.TextField(blank=True, verbose_name="Medicación habitual")
 
     # Documentación migratoria
     class DniFisico(models.TextChoices):
-        TIENE = 'TIENE', 'Tiene DNI'
-        EN_TRAMITE = 'EN_TRAMITE', 'En trámite'
-        NO_TIENE = 'NO_TIENE', 'No tiene'
+        TIENE = "TIENE", "Tiene DNI"
+        EN_TRAMITE = "EN_TRAMITE", "En trámite"
+        NO_TIENE = "NO_TIENE", "No tiene"
 
     class EstadoRenaper(models.TextChoices):
-        REGISTRADO = 'REGISTRADO', 'Registrado'
-        NO_REGISTRADO = 'NO_REGISTRADO', 'No registrado'
-        CON_OBSERVACION = 'CON_OBSERVACION', 'Con observación'
-        FALLECIDO = 'FALLECIDO', 'Fallecido'
+        REGISTRADO = "REGISTRADO", "Registrado"
+        NO_REGISTRADO = "NO_REGISTRADO", "No registrado"
+        CON_OBSERVACION = "CON_OBSERVACION", "Con observación"
+        FALLECIDO = "FALLECIDO", "Fallecido"
 
     class EstadoMigratorio(models.TextChoices):
-        NACIONAL = 'NACIONAL', 'Nacional'
-        RESIDENTE_PERMANENTE = 'RESIDENTE_PERMANENTE', 'Residente permanente'
-        RESIDENTE_TEMPORARIO = 'RESIDENTE_TEMPORARIO', 'Residente temporario'
-        SOLICITANTE_ASILO = 'SOLICITANTE_ASILO', 'Solicitante de asilo'
-        IRREGULAR = 'IRREGULAR', 'Situación irregular'
+        NACIONAL = "NACIONAL", "Nacional"
+        RESIDENTE_PERMANENTE = "RESIDENTE_PERMANENTE", "Residente permanente"
+        RESIDENTE_TEMPORARIO = "RESIDENTE_TEMPORARIO", "Residente temporario"
+        SOLICITANTE_ASILO = "SOLICITANTE_ASILO", "Solicitante de asilo"
+        IRREGULAR = "IRREGULAR", "Situación irregular"
 
     dni_fisico = models.CharField(
-        max_length=15, choices=DniFisico.choices, blank=True, verbose_name='DNI físico',
+        max_length=15,
+        choices=DniFisico.choices,
+        blank=True,
+        verbose_name="DNI físico",
     )
     estado_renaper = models.CharField(
-        max_length=20, choices=EstadoRenaper.choices, blank=True, verbose_name='Estado RENAPER',
+        max_length=20,
+        choices=EstadoRenaper.choices,
+        blank=True,
+        verbose_name="Estado RENAPER",
     )
     estado_migratorio = models.CharField(
-        max_length=25, choices=EstadoMigratorio.choices, blank=True, verbose_name='Estado migratorio',
+        max_length=25,
+        choices=EstadoMigratorio.choices,
+        blank=True,
+        verbose_name="Estado migratorio",
     )
 
     # Observaciones generales
-    observaciones = models.TextField(blank=True, verbose_name='Observaciones')
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
 
     # Historial de cambios
     # history = HistoricalRecords()  # Comentado temporalmente
@@ -204,9 +218,12 @@ class Ciudadano(TimeStamped):
         if not self.fecha_nacimiento:
             return None
         from datetime import date
+
         hoy = date.today()
-        return hoy.year - self.fecha_nacimiento.year - (
-            (hoy.month, hoy.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day)
+        return (
+            hoy.year
+            - self.fecha_nacimiento.year
+            - ((hoy.month, hoy.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))
         )
 
 
@@ -225,23 +242,16 @@ class LegajoAtencion(LegajoBase):
         null=True,
         blank=True,
         related_name="legajos_atencion_responsable",
-        limit_choices_to={'groups__name': 'Responsable'},
+        limit_choices_to={"groups__name": "Responsable"},
         verbose_name="Responsable",
-        help_text="Usuario con rol de Responsable asignado al legajo"
+        help_text="Usuario con rol de Responsable asignado al legajo",
     )
     via_ingreso = models.CharField(
-        max_length=20,
-        choices=ViaIngreso.choices,
-        default=ViaIngreso.ESPONTANEA,
-        db_index=True
+        max_length=20, choices=ViaIngreso.choices, default=ViaIngreso.ESPONTANEA, db_index=True
     )
     fecha_admision = models.DateField(auto_now_add=True, db_index=True)
     plan_vigente = models.BooleanField(default=False, db_index=True)
-    nivel_riesgo = models.CharField(
-        max_length=20,
-        default="BAJO",
-        db_index=True
-    )
+    nivel_riesgo = models.CharField(max_length=20, default="BAJO", db_index=True)
 
     # Historial de cambios
     # history = HistoricalRecords()  # Comentado temporalmente
@@ -295,20 +305,19 @@ class LegajoAtencion(LegajoBase):
         from django.urls import reverse
 
         if self.ciudadano_id:
-            return reverse('legajos:ciudadano_detalle', kwargs={'pk': self.ciudadano_id})
-        return reverse('legajos:lista')
+            return reverse("legajos:ciudadano_detalle", kwargs={"pk": self.ciudadano_id})
+        return reverse("legajos:lista")
 
     def puede_cerrar(self):
         """Verifica si el legajo puede cerrarse"""
         from datetime import datetime, timedelta
-        if self.estado == 'CERRADO':
+
+        if self.estado == "CERRADO":
             return False, "El legajo ya está cerrado"
 
         # Verificar seguimiento reciente (últimos 30 días)
         fecha_limite = datetime.now().date() - timedelta(days=30)
-        tiene_seguimiento_reciente = self.historial_contactos.filter(
-            creado__date__gte=fecha_limite
-        ).exists()
+        tiene_seguimiento_reciente = self.historial_contactos.filter(creado__date__gte=fecha_limite).exists()
 
         if self.plan_vigente and not tiene_seguimiento_reciente:
             return False, "Requiere seguimiento reciente o justificación para cerrar"
@@ -318,11 +327,12 @@ class LegajoAtencion(LegajoBase):
     def cerrar(self, motivo_cierre=None, usuario=None):
         """Cierra el legajo"""
         from datetime import datetime
+
         puede, mensaje = self.puede_cerrar()
         if not puede and not motivo_cierre:
             raise ValidationError(mensaje)
 
-        self.estado = 'CERRADO'
+        self.estado = "CERRADO"
         self.fecha_cierre = datetime.now().date()
         if motivo_cierre:
             if not self.notas:
@@ -333,10 +343,10 @@ class LegajoAtencion(LegajoBase):
 
     def reabrir(self, motivo_reapertura=None, usuario=None):
         """Reabre el legajo"""
-        if self.estado != 'CERRADO':
+        if self.estado != "CERRADO":
             raise ValidationError("Solo se pueden reabrir legajos cerrados")
 
-        self.estado = 'EN_SEGUIMIENTO'
+        self.estado = "EN_SEGUIMIENTO"
         self.fecha_cierre = None
         if motivo_reapertura:
             if not self.notas:
@@ -349,6 +359,7 @@ class LegajoAtencion(LegajoBase):
     def dias_desde_admision(self):
         """Días transcurridos desde la admisión"""
         from datetime import datetime
+
         return (datetime.now().date() - self.fecha_admision).days
 
     # Managers
@@ -358,8 +369,6 @@ class LegajoAtencion(LegajoBase):
     def tiempo_primer_contacto(self):
         """Días hasta el primer seguimiento"""
         return None
-
-
 
 
 class Adjunto(TimeStamped):
@@ -406,29 +415,15 @@ class AlertaCiudadano(TimeStamped):
         MEDIA = "MEDIA", "Media"
         BAJA = "BAJA", "Baja"
 
-    ciudadano = models.ForeignKey(
-        Ciudadano,
-        on_delete=models.CASCADE,
-        related_name="alertas"
-    )
-    legajo = models.ForeignKey(
-        LegajoAtencion,
-        on_delete=models.CASCADE,
-        related_name="alertas",
-        null=True,
-        blank=True
-    )
+    ciudadano = models.ForeignKey(Ciudadano, on_delete=models.CASCADE, related_name="alertas")
+    legajo = models.ForeignKey(LegajoAtencion, on_delete=models.CASCADE, related_name="alertas", null=True, blank=True)
     tipo = models.CharField(max_length=30, choices=TipoAlerta.choices, db_index=True)
     prioridad = models.CharField(max_length=10, choices=Prioridad.choices, db_index=True)
     mensaje = models.CharField(max_length=200)
     activa = models.BooleanField(default=True, db_index=True)
     fecha_cierre = models.DateTimeField(null=True, blank=True, db_index=True)
     cerrada_por = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="alertas_cerradas"
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="alertas_cerradas"
     )
 
     class Meta:
@@ -449,6 +444,7 @@ class AlertaCiudadano(TimeStamped):
     def cerrar(self, usuario=None):
         """Cerrar la alerta"""
         from django.utils import timezone
+
         self.activa = False
         self.fecha_cierre = timezone.now()
         self.cerrada_por = usuario
@@ -458,9 +454,9 @@ class AlertaCiudadano(TimeStamped):
     def color_css(self):
         """Retorna las clases CSS según la prioridad"""
         colores = {
-            'CRITICA': 'bg-red-100 text-red-800 border-red-200',
-            'ALTA': 'bg-orange-100 text-orange-800 border-orange-200',
-            'MEDIA': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-            'BAJA': 'bg-blue-100 text-blue-800 border-blue-200',
+            "CRITICA": "bg-red-100 text-red-800 border-red-200",
+            "ALTA": "bg-orange-100 text-orange-800 border-orange-200",
+            "MEDIA": "bg-yellow-100 text-yellow-800 border-yellow-200",
+            "BAJA": "bg-blue-100 text-blue-800 border-blue-200",
         }
-        return colores.get(self.prioridad, 'bg-gray-100 text-gray-800 border-gray-200')
+        return colores.get(self.prioridad, "bg-gray-100 text-gray-800 border-gray-200")

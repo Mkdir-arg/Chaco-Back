@@ -1,10 +1,10 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
 from django.utils import timezone
 
-from ..models.nachec import CasoNachec
 from programas.models import DerivacionPrograma
+
+from ..models.nachec import CasoNachec
 
 
 @receiver(post_save, sender=DerivacionPrograma)
@@ -27,19 +27,18 @@ def crear_caso_nachec_desde_derivacion(sender, instance, created, **kwargs):
             ).first()
             if caso:
                 caso.estado = "RECHAZADO"
-                caso.observaciones = (
-                    (caso.observaciones or "")
-                    + f"\n\nDerivación rechazada: {instance.respuesta}"
-                )
+                caso.observaciones = (caso.observaciones or "") + f"\n\nDerivación rechazada: {instance.respuesta}"
                 caso.save()
         return
 
     if instance.programa_destino.tipo not in ["NACHEC", "ÑACHEC"]:
         return
 
-    if CasoNachec.objects.filter(ciudadano_titular=instance.ciudadano).exclude(
-        estado__in=["CERRADO", "RECHAZADO", "SUSPENDIDO"]
-    ).exists():
+    if (
+        CasoNachec.objects.filter(ciudadano_titular=instance.ciudadano)
+        .exclude(estado__in=["CERRADO", "RECHAZADO", "SUSPENDIDO"])
+        .exists()
+    ):
         return
 
     CasoNachec.objects.create(
@@ -54,7 +53,5 @@ def crear_caso_nachec_desde_derivacion(sender, instance, created, **kwargs):
             instance.motivo
             or f"Derivado desde {instance.programa_origen.nombre if instance.programa_origen else 'Sistema'}"
         ),
-        observaciones=(
-            f"Derivado desde {instance.programa_origen.nombre if instance.programa_origen else 'Sistema'}"
-        ),
+        observaciones=(f"Derivado desde {instance.programa_origen.nombre if instance.programa_origen else 'Sistema'}"),
     )

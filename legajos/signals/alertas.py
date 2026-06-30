@@ -26,11 +26,7 @@ def detectar_cambio_riesgo(sender, instance, **kwargs):
     """Detecta cambios en el nivel de riesgo."""
     if not instance.pk:
         return
-    nivel_anterior = (
-        LegajoAtencion.objects.filter(pk=instance.pk)
-        .values_list("nivel_riesgo", flat=True)
-        .first()
-    )
+    nivel_anterior = LegajoAtencion.objects.filter(pk=instance.pk).values_list("nivel_riesgo", flat=True).first()
     if nivel_anterior is None:
         return
     if nivel_anterior != instance.nivel_riesgo and instance.nivel_riesgo == "ALTO":

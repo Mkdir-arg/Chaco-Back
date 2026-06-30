@@ -1,4 +1,5 @@
 """Tests del ABM de Relevamientos de Becas (#76)."""
+
 from datetime import date, timedelta
 from io import StringIO
 
@@ -8,12 +9,12 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import AsignacionCoordinador, Convocatoria, Relevamiento, Segmento
 from programas.management.commands.seed_becas import (
     ROL_ADMIN,
     ROL_COORDINADOR,
     ROL_TERRITORIAL,
 )
+from programas.models import AsignacionCoordinador, Convocatoria, Relevamiento, Segmento
 
 
 class _BaseRelevTest(TestCase):
@@ -39,12 +40,16 @@ class _BaseRelevTest(TestCase):
         self.territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
 
         self.rel_a = Relevamiento.objects.create(
-            convocatoria=self.conv_a, territorial=self.territorial,
-            fecha_asignada=date(2026, 6, 1), zona="Zona A",
+            convocatoria=self.conv_a,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Zona A",
         )
         self.rel_b = Relevamiento.objects.create(
-            convocatoria=self.conv_b, territorial=self.territorial,
-            fecha_asignada=date(2026, 6, 1), zona="Zona B",
+            convocatoria=self.conv_b,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Zona B",
         )
 
 
@@ -145,16 +150,22 @@ class VencidoTests(_BaseRelevTest):
     def test_esta_vencido(self):
         ayer = timezone.localdate() - timedelta(days=1)
         rel = Relevamiento.objects.create(
-            convocatoria=self.conv_a, territorial=self.territorial,
-            fecha_asignada=ayer, zona="Vieja", estado=Relevamiento.Estado.ASIGNADO,
+            convocatoria=self.conv_a,
+            territorial=self.territorial,
+            fecha_asignada=ayer,
+            zona="Vieja",
+            estado=Relevamiento.Estado.ASIGNADO,
         )
         self.assertTrue(rel.esta_vencido)
 
     def test_no_vencido_si_terminado(self):
         ayer = timezone.localdate() - timedelta(days=1)
         rel = Relevamiento.objects.create(
-            convocatoria=self.conv_a, territorial=self.territorial,
-            fecha_asignada=ayer, zona="Vieja", estado=Relevamiento.Estado.TERMINADO,
+            convocatoria=self.conv_a,
+            territorial=self.territorial,
+            fecha_asignada=ayer,
+            zona="Vieja",
+            estado=Relevamiento.Estado.TERMINADO,
         )
         self.assertFalse(rel.esta_vencido)
 
@@ -165,9 +176,12 @@ class ConvocatoriaTests(_BaseRelevTest):
         resp = self.client.post(
             reverse("becas:convocatoria_crear"),
             {
-                "nombre": "Conv nueva", "segmento": self.seg_a.pk,
-                "fecha_inicio": "2026-01-01", "fecha_fin": "2026-12-31",
-                "descripcion": "", "activo": "on",
+                "nombre": "Conv nueva",
+                "segmento": self.seg_a.pk,
+                "fecha_inicio": "2026-01-01",
+                "fecha_fin": "2026-12-31",
+                "descripcion": "",
+                "activo": "on",
             },
         )
         self.assertEqual(resp.status_code, 302)

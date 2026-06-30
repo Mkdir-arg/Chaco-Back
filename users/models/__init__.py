@@ -29,9 +29,7 @@ class RolMeta(models.Model):
     ``group.permissions``.
     """
 
-    grupo = models.OneToOneField(
-        Group, on_delete=models.CASCADE, related_name="meta", verbose_name="Rol"
-    )
+    grupo = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="meta", verbose_name="Rol")
     descripcion = models.TextField(blank=True, default="", verbose_name="Descripción")
     categoria = models.CharField(
         max_length=20,
@@ -80,27 +78,27 @@ class SolicitudCambioEmail(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='solicitudes_cambio_email',
-        verbose_name='Usuario',
+        related_name="solicitudes_cambio_email",
+        verbose_name="Usuario",
     )
-    nuevo_email = models.EmailField(verbose_name='Nuevo email')
+    nuevo_email = models.EmailField(verbose_name="Nuevo email")
     token = models.UUIDField(
         default=uuid.uuid4,
         unique=True,
         db_index=True,
         editable=False,
-        verbose_name='Token de confirmación',
+        verbose_name="Token de confirmación",
     )
     creado = models.DateTimeField(auto_now_add=True)
     confirmado = models.BooleanField(default=False)
     expirado = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = 'Solicitud de cambio de email'
-        verbose_name_plural = 'Solicitudes de cambio de email'
+        verbose_name = "Solicitud de cambio de email"
+        verbose_name_plural = "Solicitudes de cambio de email"
         indexes = [
-            models.Index(fields=['user', 'confirmado']),
-            models.Index(fields=['creado']),
+            models.Index(fields=["user", "confirmado"]),
+            models.Index(fields=["creado"]),
         ]
 
     def __str__(self):
@@ -109,8 +107,5 @@ class SolicitudCambioEmail(models.Model):
     @property
     def esta_vigente(self):
         from datetime import timedelta
-        return (
-            not self.confirmado
-            and not self.expirado
-            and (timezone.now() - self.creado) < timedelta(hours=24)
-        )
+
+        return not self.confirmado and not self.expirado and (timezone.now() - self.creado) < timedelta(hours=24)

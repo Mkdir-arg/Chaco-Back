@@ -3,8 +3,9 @@ Utilidades básicas para gestión de cache.
 """
 
 import logging
+
 from django.core.cache import cache
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 logger = logging.getLogger("django")
@@ -22,10 +23,10 @@ def invalidate_cache_keys(*cache_keys):
 def invalidate_ciudadano_cache(ciudadano_id=None):
     """Invalida cache relacionado con ciudadanos."""
     keys_to_invalidate = ["contar_ciudadanos"]
-    
+
     if ciudadano_id:
         keys_to_invalidate.append(f"ciudadano_{ciudadano_id}")
-    
+
     invalidate_cache_keys(*keys_to_invalidate)
 
 

@@ -1,4 +1,4 @@
-﻿from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
@@ -59,9 +59,7 @@ class RolesServiceTests(TestCase):
 
         self.assertEqual(group.meta.categoria, "Backoffice")
         self.assertFalse(group.meta.protegido)
-        self.assertCountEqual(
-            rbac.capacidades_de_grupo(group), ["ciudadano.ver", "ciudadano.crear"]
-        )
+        self.assertCountEqual(rbac.capacidades_de_grupo(group), ["ciudadano.ver", "ciudadano.crear"])
 
     def test_editar_rol_actualiza_capacidades(self):
         _rol_admin()  # garantiza que quede al menos un admin
@@ -132,23 +130,27 @@ class RolCategoriaFormTests(TestCase):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
 
     def test_alta_rol_becas_con_programa(self):  # TC-64-01
-        form = RolForm(data={
-            "name": "Coordinador Becas",
-            "categoria": rbac.CATEGORIA_BECAS,
-            "programa": self.becas.pk,
-            "capacidades": ["relevamiento.gestionar"],
-        })
+        form = RolForm(
+            data={
+                "name": "Coordinador Becas",
+                "categoria": rbac.CATEGORIA_BECAS,
+                "programa": self.becas.pk,
+                "capacidades": ["relevamiento.gestionar"],
+            }
+        )
         self.assertTrue(form.is_valid(), form.errors)
         group = RolesAdminService.crear(form)
         self.assertEqual(group.meta.categoria, rbac.CATEGORIA_BECAS)
         self.assertEqual(group.meta.programa_id, self.becas.pk)
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
-        form = RolForm(data={
-            "name": "Operador legajos",
-            "categoria": "Backoffice",
-            "capacidades": ["ciudadano.ver"],
-        })
+        form = RolForm(
+            data={
+                "name": "Operador legajos",
+                "categoria": "Backoffice",
+                "capacidades": ["ciudadano.ver"],
+            }
+        )
         self.assertTrue(form.is_valid(), form.errors)
         group = RolesAdminService.crear(form)
         self.assertIsNone(group.meta.programa_id)
@@ -158,9 +160,13 @@ class RolCategoriaFormTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_categoria_backoffice_con_programa_valida(self):  # RN-1 eliminada: FK es libre
-        form = RolForm(data={
-            "name": "Rol Backoffice", "categoria": "Backoffice", "programa": self.becas.pk,
-        })
+        form = RolForm(
+            data={
+                "name": "Rol Backoffice",
+                "categoria": "Backoffice",
+                "programa": self.becas.pk,
+            }
+        )
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_modelo_sin_constraint_programa(self):
@@ -179,8 +185,10 @@ class RolAlcanceTests(TestCase):
         # Rol administrador de Becas (programa.configurar) + su usuario.
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
-            grupo=self.rol_admin_becas, categoria=rbac.CATEGORIA_PROGRAMA,
-            programa=self.becas, activo=True,
+            grupo=self.rol_admin_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
         )
         self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
@@ -189,13 +197,17 @@ class RolAlcanceTests(TestCase):
         # Otro rol de Becas, un rol de Ã‘achec y un rol global.
         self.rol_becas = Group.objects.create(name="Territorial Becas")
         RolMeta.objects.create(
-            grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA,
-            programa=self.becas, activo=True,
+            grupo=self.rol_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
         )
         self.rol_nachec = Group.objects.create(name="Territorial Ã‘achec")
         RolMeta.objects.create(
-            grupo=self.rol_nachec, categoria=rbac.CATEGORIA_PROGRAMA,
-            programa=self.nachec, activo=True,
+            grupo=self.rol_nachec,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.nachec,
+            activo=True,
         )
         self.rol_global = Group.objects.create(name="Backoffice X")
         RolMeta.objects.create(grupo=self.rol_global, categoria="Backoffice", activo=True)
@@ -250,8 +262,12 @@ class RolAlcanceTests(TestCase):
 
     def test_form_global_programa_combo(self):  # TC-66-04
         form = RolForm(
-            data={"name": "Rol Ñachec", "categoria": rbac.CATEGORIA_NACHEC,
-                  "programa": self.nachec.pk, "capacidades": ["relevamiento.gestionar"]},
+            data={
+                "name": "Rol Ñachec",
+                "categoria": rbac.CATEGORIA_NACHEC,
+                "programa": self.nachec.pk,
+                "capacidades": ["relevamiento.gestionar"],
+            },
             operador=self.su,
         )
         self.assertTrue(form.is_valid(), form.errors)

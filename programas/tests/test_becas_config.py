@@ -1,4 +1,5 @@
 """Tests del backoffice de Configuración de Becas (#74)."""
+
 from io import StringIO
 
 from django.contrib.auth.models import Group, User
@@ -6,6 +7,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
     PreguntaGlobal,
@@ -14,7 +16,6 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
-from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 
 
 class _BaseConfigTest(TestCase):
@@ -50,7 +51,12 @@ class SegmentoCrudTests(_BaseConfigTest):
     def test_crear_segmento(self):
         resp = self.client.post(
             reverse("becas:segmento_crear"),
-            {"nombre": "Producción", "descripcion": "", "cupo_maximo": 200, "activo": "on"},
+            {
+                "nombre": "Producción",
+                "descripcion": "Población objetivo del segmento productivo",
+                "cupo_maximo": 200,
+                "coordinador": self.coord.pk,
+            },
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Segmento.objects.filter(nombre="Producción", cupo_maximo=200).exists())
@@ -114,7 +120,7 @@ class CoordinadorTests(_BaseConfigTest):
 
     def test_no_asignar_usuario_sin_rol_coordinador(self):
         otro = User.objects.create_user("otro", password="x")  # sin rol coordinador
-        resp = self.client.post(
+        self.client.post(
             reverse("becas:coordinador_asignar", args=[self.seg.pk]),
             {"coordinador": otro.pk},
         )
@@ -137,7 +143,7 @@ class RequisitoTests(_BaseConfigTest):
     def test_crear_requisito_segmento(self):
         resp = self.client.post(
             reverse("becas:requisito_crear", args=[self.seg.pk]),
-            {"texto": "Actividad", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "on"},
+            {"texto": "Actividad", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "True"},
         )
         self.assertEqual(resp.status_code, 302)
         req = RequisitoNativo.objects.get(texto="Actividad")
@@ -147,7 +153,13 @@ class RequisitoTests(_BaseConfigTest):
     def test_crear_requisito_subsegmento(self):
         resp = self.client.post(
             reverse("becas:requisito_crear", args=[self.seg.pk]) + f"?subsegmento={self.sub.pk}",
-            {"texto": "Tipo horno", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "on", "subsegmento": self.sub.pk},
+            {
+                "texto": "Tipo horno",
+                "tipo": TipoCampo.STRING,
+                "orden": 1,
+                "obligatorio": "True",
+                "subsegmento": self.sub.pk,
+            },
         )
         self.assertEqual(resp.status_code, 302)
         req = RequisitoNativo.objects.get(texto="Tipo horno")
@@ -157,7 +169,10 @@ class RequisitoTests(_BaseConfigTest):
         resp = self.client.post(
             reverse("becas:requisito_crear", args=[self.seg.pk]),
             {
-                "texto": "Material", "tipo": TipoCampo.SELECTOR, "orden": 1, "obligatorio": "on",
+                "texto": "Material",
+                "tipo": TipoCampo.SELECTOR,
+                "orden": 1,
+                "obligatorio": "True",
                 "opciones_texto": "Ladrillo\nCarbón\nOtro",
             },
         )
@@ -175,8 +190,11 @@ class PreguntaGlobalTests(_BaseConfigTest):
         resp = self.client.post(
             reverse("becas:pregunta_crear"),
             {
-                "texto": "Tenencia de la vivienda", "tipo": TipoCampo.SELECTOR,
-                "orden": 1, "obligatorio": "on", "activo": "on",
+                "texto": "Tenencia de la vivienda",
+                "tipo": TipoCampo.SELECTOR,
+                "orden": 1,
+                "obligatorio": "on",
+                "activo": "on",
                 "opciones_texto": "Propia\nAlquilada\nPrestada",
             },
         )

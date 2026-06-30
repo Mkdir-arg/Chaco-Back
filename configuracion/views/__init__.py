@@ -14,25 +14,25 @@ from .geografia import (
     ProvinciaListView,
     ProvinciaUpdateView,
 )
-from .secretaria import (
-    SecretariaListView,
-    SecretariaCreateView,
-    SecretariaUpdateView,
-    SecretariaDeleteView,
-    SubsecretariaListView,
-    SubsecretariaCreateView,
-    SubsecretariaUpdateView,
-    SubsecretariaDeleteView,
-)
 from .programas import (
+    programa_cambiar_estado,
+    programa_editar_paso1,
+    programa_editar_paso2,
+    programa_editar_paso3,
+    programa_editar_paso4,
     programa_list,
     programa_wizard_paso1,
     programa_wizard_paso2,
     programa_wizard_paso3,
     programa_wizard_paso4,
-    programa_editar_paso1,
-    programa_editar_paso2,
-    programa_editar_paso3,
-    programa_editar_paso4,
-    programa_cambiar_estado,
+)
+from .secretaria import (
+    SecretariaCreateView,
+    SecretariaDeleteView,
+    SecretariaListView,
+    SecretariaUpdateView,
+    SubsecretariaCreateView,
+    SubsecretariaDeleteView,
+    SubsecretariaListView,
+    SubsecretariaUpdateView,
 )

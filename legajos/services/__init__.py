@@ -1,5 +1,7 @@
 """Servicios para la app de legajos."""
 
+from programas.services.solapas import SolapasService  # noqa: F401
+
 from .alertas import AlertasService  # noqa: F401
 from .ciudadanos import CiudadanosService, RenaperLookupError  # noqa: F401
 from .contactos import (  # noqa: F401
@@ -18,4 +20,3 @@ from .nachec import (  # noqa: F401
     ServicioTransicionNachec,
 )
 from .programas import BajaProgramaService  # noqa: F401
-from programas.services.solapas import SolapasService  # noqa: F401

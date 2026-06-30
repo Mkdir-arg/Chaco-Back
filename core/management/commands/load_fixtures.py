@@ -1,8 +1,9 @@
-import os
 import json
-from django.core.management.base import BaseCommand
+import os
+
 from django.apps import apps
 from django.core import serializers
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
 
@@ -56,9 +57,7 @@ class Command(BaseCommand):
         """
         try:
             with open(fixture_path, "r", encoding="utf-8") as f:
-                objects = list(
-                    serializers.deserialize("json", f, ignorenonexistent=True)
-                )
+                objects = list(serializers.deserialize("json", f, ignorenonexistent=True))
         except Exception as e:
             self.stderr.write(f"❌ No se pudo deserializar {fixture_path}: {e}")
             return
@@ -68,19 +67,12 @@ class Command(BaseCommand):
             for obj in objects:
                 try:
                     # obj.object tiene pk si viene en el fixture
-                    pk_exists = bool(
-                        getattr(obj.object, obj.object._meta.pk.attname, None)
-                    )
+                    pk_exists = bool(getattr(obj.object, obj.object._meta.pk.attname, None))
                     # save() hará INSERT o UPDATE según existencia en DB
                     obj.save()  # maneja FKs y M2M luego del save
                     # Heurística de conteo:
                     # si venía con PK y ese PK ya existía en BD → updated; si no → created
-                    if (
-                        pk_exists
-                        and obj.object.__class__.objects.filter(
-                            pk=obj.object.pk
-                        ).exists()
-                    ):
+                    if pk_exists and obj.object.__class__.objects.filter(pk=obj.object.pk).exists():
                         # No sabemos si existía antes del save sin otra query previa.
                         # Compromiso: contamos como updated si ya había PK en defaults.
                         updated += 1
@@ -88,13 +80,9 @@ class Command(BaseCommand):
                         created += 1
                 except Exception as e:
                     failed += 1
-                    self.stderr.write(
-                        f"⚠️  Falló guardar registro de {fixture_path}: {e}"
-                    )
+                    self.stderr.write(f"⚠️  Falló guardar registro de {fixture_path}: {e}")
 
-        self.stdout.write(
-            f"✅ {fixture_path}: created={created}, updated≈{updated}, failed={failed}"
-        )
+        self.stdout.write(f"✅ {fixture_path}: created={created}, updated≈{updated}, failed={failed}")
 
     def load_fixtures(self):
         fixtures = []

@@ -33,9 +33,7 @@ def usuarios_visibles_para(user):
     if es_admin_global_usuarios(user):
         return qs
     programas = programas_administrables(user)
-    return qs.filter(
-        groups__meta__programa__in=programas, groups__meta__activo=True
-    ).distinct()
+    return qs.filter(groups__meta__programa__in=programas, groups__meta__activo=True).distinct()
 
 
 def alcance_roles_ids(user):
@@ -49,6 +47,7 @@ def alcance_roles_ids(user):
     if es_admin_global_usuarios(user):
         return None
     from users.forms import _roles_asignables_queryset
+
     return set(_roles_asignables_queryset(user).values_list("id", flat=True))
 
 
@@ -61,6 +60,4 @@ def puede_gestionar_usuario(operador, target):
     if es_admin_global_usuarios(operador):
         return True
     programas = set(programas_administrables(operador).values_list("pk", flat=True))
-    return target.groups.filter(
-        meta__programa__in=programas, meta__activo=True
-    ).exists()
+    return target.groups.filter(meta__programa__in=programas, meta__activo=True).exists()

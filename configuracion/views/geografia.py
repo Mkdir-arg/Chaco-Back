@@ -17,16 +17,16 @@ class _ConfigMixin(CapacidadRequeridaMixin):
 
 class ProvinciaListView(_ConfigMixin, LoginRequiredMixin, ListView):
     model = Provincia
-    template_name = 'configuracion/provincia_list.html'
-    context_object_name = 'provincias'
+    template_name = "configuracion/provincia_list.html"
+    context_object_name = "provincias"
     paginate_by = 20
 
 
 class ProvinciaCreateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUrlMixin, CreateView):
     model = Provincia
     form_class = ProvinciaForm
-    template_name = 'configuracion/provincia_form.html'
-    success_url = reverse_lazy('configuracion:provincias')
+    template_name = "configuracion/provincia_form.html"
+    success_url = reverse_lazy("configuracion:provincias")
 
     def form_valid(self, form):
         super().form_valid(form)
@@ -36,8 +36,8 @@ class ProvinciaCreateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUr
 class ProvinciaUpdateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUrlMixin, UpdateView):
     model = Provincia
     form_class = ProvinciaForm
-    template_name = 'configuracion/provincia_form.html'
-    success_url = reverse_lazy('configuracion:provincias')
+    template_name = "configuracion/provincia_form.html"
+    success_url = reverse_lazy("configuracion:provincias")
 
     def form_valid(self, form):
         super().form_valid(form)
@@ -46,22 +46,22 @@ class ProvinciaUpdateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUr
 
 class ProvinciaDeleteView(_ConfigMixin, LoginRequiredMixin, DeleteView):
     model = Provincia
-    template_name = 'configuracion/provincia_confirm_delete.html'
-    success_url = reverse_lazy('configuracion:provincias')
+    template_name = "configuracion/provincia_confirm_delete.html"
+    success_url = reverse_lazy("configuracion:provincias")
 
 
 class MunicipioListView(_ConfigMixin, LoginRequiredMixin, ListView):
     model = Municipio
-    template_name = 'configuracion/municipio_list.html'
-    context_object_name = 'municipios'
+    template_name = "configuracion/municipio_list.html"
+    context_object_name = "municipios"
     paginate_by = 20
 
 
 class MunicipioCreateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUrlMixin, CreateView):
     model = Municipio
     form_class = MunicipioForm
-    template_name = 'configuracion/municipio_form.html'
-    success_url = reverse_lazy('configuracion:municipios')
+    template_name = "configuracion/municipio_form.html"
+    success_url = reverse_lazy("configuracion:municipios")
 
     def form_valid(self, form):
         super().form_valid(form)
@@ -71,8 +71,8 @@ class MunicipioCreateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUr
 class MunicipioUpdateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUrlMixin, UpdateView):
     model = Municipio
     form_class = MunicipioForm
-    template_name = 'configuracion/municipio_form.html'
-    success_url = reverse_lazy('configuracion:municipios')
+    template_name = "configuracion/municipio_form.html"
+    success_url = reverse_lazy("configuracion:municipios")
 
     def form_valid(self, form):
         super().form_valid(form)
@@ -81,22 +81,22 @@ class MunicipioUpdateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUr
 
 class MunicipioDeleteView(_ConfigMixin, LoginRequiredMixin, DeleteView):
     model = Municipio
-    template_name = 'configuracion/municipio_confirm_delete.html'
-    success_url = reverse_lazy('configuracion:municipios')
+    template_name = "configuracion/municipio_confirm_delete.html"
+    success_url = reverse_lazy("configuracion:municipios")
 
 
 class LocalidadListView(_ConfigMixin, LoginRequiredMixin, ListView):
     model = Localidad
-    template_name = 'configuracion/localidad_list.html'
-    context_object_name = 'localidades'
+    template_name = "configuracion/localidad_list.html"
+    context_object_name = "localidades"
     paginate_by = 20
 
 
 class LocalidadCreateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUrlMixin, CreateView):
     model = Localidad
     form_class = LocalidadForm
-    template_name = 'configuracion/localidad_form.html'
-    success_url = reverse_lazy('configuracion:localidades')
+    template_name = "configuracion/localidad_form.html"
+    success_url = reverse_lazy("configuracion:localidades")
 
     def form_valid(self, form):
         super().form_valid(form)
@@ -106,8 +106,8 @@ class LocalidadCreateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUr
 class LocalidadUpdateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUrlMixin, UpdateView):
     model = Localidad
     form_class = LocalidadForm
-    template_name = 'configuracion/localidad_form.html'
-    success_url = reverse_lazy('configuracion:localidades')
+    template_name = "configuracion/localidad_form.html"
+    success_url = reverse_lazy("configuracion:localidades")
 
     def form_valid(self, form):
         super().form_valid(form)
@@ -116,5 +116,5 @@ class LocalidadUpdateView(_ConfigMixin, LoginRequiredMixin, TimestampedSuccessUr
 
 class LocalidadDeleteView(_ConfigMixin, LoginRequiredMixin, DeleteView):
     model = Localidad
-    template_name = 'configuracion/localidad_confirm_delete.html'
-    success_url = reverse_lazy('configuracion:localidades')
+    template_name = "configuracion/localidad_confirm_delete.html"
+    success_url = reverse_lazy("configuracion:localidades")

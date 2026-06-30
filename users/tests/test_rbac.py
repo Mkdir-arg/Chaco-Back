@@ -1,4 +1,6 @@
-﻿from django.contrib.auth.models import AnonymousUser, Group, Permission, User
+from io import StringIO
+
+from django.contrib.auth.models import AnonymousUser, Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.template.loader import render_to_string
@@ -24,9 +26,7 @@ def render_sidebar(user):
     req = RequestFactory().get("/")
     req.user = user
     req.resolver_match = None
-    return render_to_string(
-        "includes/sidebar/opciones.html", {"request": req, "branding": {}}
-    )
+    return render_to_string("includes/sidebar/opciones.html", {"request": req, "branding": {}})
 
 
 class TraduccionCapacidadTests(TestCase):
@@ -94,8 +94,8 @@ class SeedRbacTests(TestCase):
     def test_seed_idempotente_y_administrador_completo(self):
         Group.objects.create(name="GrupoPrevio")  # sin RolMeta
 
-        call_command("seed_rbac", verbosity=0)
-        call_command("seed_rbac", verbosity=0)  # 2da corrida: no debe duplicar
+        call_command("seed_rbac", verbosity=0, stdout=StringIO())
+        call_command("seed_rbac", verbosity=0, stdout=StringIO())  # 2da corrida: no debe duplicar
 
         ct = ContentType.objects.get_for_model(Capacidad)
         total_caps = len(rbac.todas_las_capacidades())
@@ -111,7 +111,7 @@ class SeedRbacTests(TestCase):
 
     def test_seed_asigna_rol_a_superusuario(self):
         su = User.objects.create_superuser("root", "root@example.com", "x")
-        call_command("seed_rbac", verbosity=0)
+        call_command("seed_rbac", verbosity=0, stdout=StringIO())
         su = User.objects.get(pk=su.pk)
         self.assertTrue(su.groups.filter(name=rbac.ROL_ADMINISTRADOR).exists())
         self.assertTrue(rbac.puede(su, "usuario.administrar"))
@@ -179,9 +179,7 @@ class VistasProtegidasPorCapacidadTests(TestCase):
 
     def test_dashboard_sin_capacidad_redirige(self):
         self.client.force_login(self._user_con("ciudadano.ver"))  # no tiene dashboard.ver
-        self.assertEqual(
-            self.client.get(reverse("legajos:dashboard_contactos")).status_code, 302
-        )
+        self.assertEqual(self.client.get(reverse("legajos:dashboard_contactos")).status_code, 302)
 
 
 class PortalCiudadanoSinLegajoTests(TestCase):
@@ -205,9 +203,7 @@ class MotorPuedeProgramaTests(TestCase):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
         self.rol = Group.objects.create(name="Territorial Becas")
-        RolMeta.objects.create(
-            grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
-        )
+        RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
         self.rol.permissions.add(_perm("relevamiento.gestionar"))
         self.user = User.objects.create_user("terri", password="x")
         self.user.groups.add(self.rol)
@@ -260,6 +256,7 @@ class MotorPuedeProgramaTests(TestCase):
 
     def test_template_tag_puede_en(self):  # TC-65-09
         from core.templatetags.rbac import puede_en
+
         u = self._u()
         self.assertTrue(puede_en(u, "relevamiento.gestionar", programa=self.becas))
         self.assertFalse(puede_en(u, "relevamiento.gestionar", programa=self.nachec))
@@ -288,9 +285,7 @@ class MotorPuedeProgramaTests(TestCase):
         # RegresiÃ³n: la cap del user estÃ¡ en Becas; que un rol AJENO de Ã‘achec tenga
         # la misma cap no debe hacer que puede(..., programa=Ã±achec) dÃ© True.
         otro = Group.objects.create(name="Territorial Ã‘achec ajeno")
-        RolMeta.objects.create(
-            grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True
-        )
+        RolMeta.objects.create(grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True)
         otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en otro
         u = self._u()
         self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
@@ -302,9 +297,7 @@ class AutoProteccionProgramaTests(TestCase):
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.rol = Group.objects.create(name="Admin Becas")
-        RolMeta.objects.create(
-            grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
-        )
+        RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
         self.rol.permissions.add(_perm("programa.configurar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol)
@@ -335,9 +328,7 @@ class AutoProteccionProgramaTests(TestCase):
         rbac.asegurar_admin_restante(programa=self.becas)  # no lanza
 
     def test_es_subclase_de_sin_administrador_error(self):
-        self.assertTrue(
-            issubclass(rbac.SinAdministradorProgramaError, rbac.SinAdministradorError)
-        )
+        self.assertTrue(issubclass(rbac.SinAdministradorProgramaError, rbac.SinAdministradorError))
 
     def test_check_global_retrocompatible_sin_programa(self):
         # Sin programa sigue siendo el check global (no hay admin global â†’ lanza).

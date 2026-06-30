@@ -10,8 +10,8 @@ from .models import (
     Formulario,
     InscripcionPrograma,
     ListaEspera,
-    Programa,
     PreguntaGlobal,
+    Programa,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -28,18 +28,30 @@ class ProgramaAdmin(admin.ModelAdmin):
     ordering = ("orden", "nombre")
 
     fieldsets = (
-        ("Información Básica", {
-            "fields": ("codigo", "nombre", "tipo", "descripcion"),
-        }),
-        ("Configuración Visual", {
-            "fields": ("color", "icono", "orden"),
-        }),
-        ("Opciones", {
-            "fields": ("naturaleza", "tiene_turnos", "cupo_maximo", "tiene_lista_espera", "subsecretaria"),
-        }),
-        ("Estado", {
-            "fields": ("estado",),
-        }),
+        (
+            "Información Básica",
+            {
+                "fields": ("codigo", "nombre", "tipo", "descripcion"),
+            },
+        ),
+        (
+            "Configuración Visual",
+            {
+                "fields": ("color", "icono", "orden"),
+            },
+        ),
+        (
+            "Opciones",
+            {
+                "fields": ("naturaleza", "tiene_turnos", "cupo_maximo", "tiene_lista_espera", "subsecretaria"),
+            },
+        ),
+        (
+            "Estado",
+            {
+                "fields": ("estado",),
+            },
+        ),
     )
 
     def ver_programa_button(self, obj):
@@ -51,6 +63,7 @@ class ProgramaAdmin(admin.ModelAdmin):
             url,
             obj.color,
         )
+
     ver_programa_button.short_description = "Acciones"
 
 
@@ -65,22 +78,37 @@ class InscripcionProgramaAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related("ciudadano", "programa", "responsable")
 
     fieldsets = (
-        ("Información Básica", {
-            "fields": ("codigo", "ciudadano", "programa"),
-        }),
-        ("Estado", {
-            "fields": ("estado", "via_ingreso", "responsable"),
-        }),
-        ("Fechas", {
-            "fields": ("fecha_inscripcion", "fecha_inicio", "fecha_cierre"),
-        }),
-        ("Observaciones", {
-            "fields": ("notas", "motivo_cierre"),
-        }),
-        ("Auditoría", {
-            "fields": ("creado", "modificado"),
-            "classes": ("collapse",),
-        }),
+        (
+            "Información Básica",
+            {
+                "fields": ("codigo", "ciudadano", "programa"),
+            },
+        ),
+        (
+            "Estado",
+            {
+                "fields": ("estado", "via_ingreso", "responsable"),
+            },
+        ),
+        (
+            "Fechas",
+            {
+                "fields": ("fecha_inscripcion", "fecha_inicio", "fecha_cierre"),
+            },
+        ),
+        (
+            "Observaciones",
+            {
+                "fields": ("notas", "motivo_cierre"),
+            },
+        ),
+        (
+            "Auditoría",
+            {
+                "fields": ("creado", "modificado"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 
@@ -92,25 +120,45 @@ class DerivacionProgramaAdmin(admin.ModelAdmin):
     readonly_fields = ("creado", "modificado", "fecha_respuesta")
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related(
-            "ciudadano", "programa_origen", "programa_destino",
-            "derivado_por", "respondido_por", "inscripcion_creada",
+        return (
+            super()
+            .get_queryset(request)
+            .select_related(
+                "ciudadano",
+                "programa_origen",
+                "programa_destino",
+                "derivado_por",
+                "respondido_por",
+                "inscripcion_creada",
+            )
         )
 
     fieldsets = (
-        ("Información Básica", {
-            "fields": ("ciudadano", "programa_origen", "programa_destino"),
-        }),
-        ("Derivación", {
-            "fields": ("motivo", "urgencia", "estado", "derivado_por"),
-        }),
-        ("Respuesta", {
-            "fields": ("respuesta", "fecha_respuesta", "respondido_por", "inscripcion_creada"),
-        }),
-        ("Auditoría", {
-            "fields": ("creado", "modificado"),
-            "classes": ("collapse",),
-        }),
+        (
+            "Información Básica",
+            {
+                "fields": ("ciudadano", "programa_origen", "programa_destino"),
+            },
+        ),
+        (
+            "Derivación",
+            {
+                "fields": ("motivo", "urgencia", "estado", "derivado_por"),
+            },
+        ),
+        (
+            "Respuesta",
+            {
+                "fields": ("respuesta", "fecha_respuesta", "respondido_por", "inscripcion_creada"),
+            },
+        ),
+        (
+            "Auditoría",
+            {
+                "fields": ("creado", "modificado"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 

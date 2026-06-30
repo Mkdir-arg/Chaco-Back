@@ -1,6 +1,6 @@
+import logging
 import os
 import sys
-import logging
 from pathlib import Path
 
 from django.contrib.messages import constants as messages
@@ -253,9 +253,7 @@ else:
     }
 
 SESSION_ENGINE = (
-    "django.contrib.sessions.backends.cache"
-    if ENVIRONMENT == "prd"
-    else "django.contrib.sessions.backends.db"
+    "django.contrib.sessions.backends.cache" if ENVIRONMENT == "prd" else "django.contrib.sessions.backends.db"
 )
 SESSION_CACHE_ALIAS = "sessions"
 SESSION_COOKIE_AGE = 86400
@@ -328,13 +326,46 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
-        "info_file": {"level": "INFO", "filters": ["info_only"], "class": "core.utils.DailyFileHandler", "filename": str(LOG_DIR / "info.log"), "formatter": "verbose"},
-        "error_file": {"level": "ERROR", "filters": ["error_only"], "class": "core.utils.DailyFileHandler", "filename": str(LOG_DIR / "error.log"), "formatter": "verbose"},
-        "warning_file": {"level": "WARNING", "filters": ["warning_only"], "class": "core.utils.DailyFileHandler", "filename": str(LOG_DIR / "warning.log"), "formatter": "verbose"},
-        "critical_file": {"level": "CRITICAL", "filters": ["critical_only"], "class": "core.utils.DailyFileHandler", "filename": str(LOG_DIR / "critical.log"), "formatter": "verbose"},
-        "data_file": {"level": "INFO", "filters": ["data_only"], "class": "core.utils.DailyFileHandler", "filename": str(LOG_DIR / "data.log"), "formatter": "json_data"},
+        "info_file": {
+            "level": "INFO",
+            "filters": ["info_only"],
+            "class": "core.utils.DailyFileHandler",
+            "filename": str(LOG_DIR / "info.log"),
+            "formatter": "verbose",
+        },
+        "error_file": {
+            "level": "ERROR",
+            "filters": ["error_only"],
+            "class": "core.utils.DailyFileHandler",
+            "filename": str(LOG_DIR / "error.log"),
+            "formatter": "verbose",
+        },
+        "warning_file": {
+            "level": "WARNING",
+            "filters": ["warning_only"],
+            "class": "core.utils.DailyFileHandler",
+            "filename": str(LOG_DIR / "warning.log"),
+            "formatter": "verbose",
+        },
+        "critical_file": {
+            "level": "CRITICAL",
+            "filters": ["critical_only"],
+            "class": "core.utils.DailyFileHandler",
+            "filename": str(LOG_DIR / "critical.log"),
+            "formatter": "verbose",
+        },
+        "data_file": {
+            "level": "INFO",
+            "filters": ["data_only"],
+            "class": "core.utils.DailyFileHandler",
+            "filename": str(LOG_DIR / "data.log"),
+            "formatter": "json_data",
+        },
     },
-    "root": {"handlers": ["console", "info_file", "error_file", "warning_file", "critical_file", "data_file"], "level": "DEBUG" if DEBUG else "INFO"},
+    "root": {
+        "handlers": ["console", "info_file", "error_file", "warning_file", "critical_file", "data_file"],
+        "level": "DEBUG" if DEBUG else "INFO",
+    },
     "loggers": {
         "django": {"handlers": [], "level": "DEBUG" if DEBUG else "INFO", "propagate": True},
         "django.request": {"handlers": ["error_file", "warning_file"], "level": "WARNING", "propagate": False},

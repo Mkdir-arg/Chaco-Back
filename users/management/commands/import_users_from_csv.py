@@ -35,9 +35,7 @@ class Command(BaseCommand):
         try:
             reference_user = user_model.objects.get(pk=reference_user_id)
         except user_model.DoesNotExist as exc:
-            raise CommandError(
-                f"No se encontró el usuario de referencia con id={reference_user_id}."
-            ) from exc
+            raise CommandError(f"No se encontró el usuario de referencia con id={reference_user_id}.") from exc
 
         reference_groups = list(reference_user.groups.all())
 
@@ -58,29 +56,20 @@ class Command(BaseCommand):
             missing_columns = expected_columns - headers
             if missing_columns:
                 missing = ", ".join(sorted(missing_columns))
-                raise CommandError(
-                    f"El CSV no contiene las columnas requeridas: {missing}"
-                )
+                raise CommandError(f"El CSV no contiene las columnas requeridas: {missing}")
 
             for row in reader:
                 username = (row.get("Usuario") or "").strip()
                 if not username:
-                    self.stdout.write(
-                        self.style.WARNING(
-                            "Se encontró una fila sin valor en 'Usuario'; se omite."
-                        )
-                    )
+                    self.stdout.write(self.style.WARNING("Se encontró una fila sin valor en 'Usuario'; se omite."))
                     continue
 
                 email = (row.get("Email") or "").strip()
                 first_name = (row.get("Nombre completo") or "").strip()
                 last_name = (row.get("Apellido") or "").strip()
-                rol = (row.get("Rol") or "").strip()
                 raw_password = (row.get("Contraseña") or "").strip()
 
-                user, created = user_model.objects.get_or_create(
-                    username=username, defaults={"email": email}
-                )
+                user, created = user_model.objects.get_or_create(username=username, defaults={"email": email})
                 if created:
                     created_count += 1
                 else:
@@ -97,14 +86,8 @@ class Command(BaseCommand):
                 user.groups.set(reference_groups)
 
                 action = "creado" if created else "actualizado"
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Usuario '{username}' {action} y grupos replicados."
-                    )
-                )
+                self.stdout.write(self.style.SUCCESS(f"Usuario '{username}' {action} y grupos replicados."))
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Proceso finalizado. Usuarios creados: {created_count}, actualizados: {updated_count}."
-            )
+            self.style.SUCCESS(f"Proceso finalizado. Usuarios creados: {created_count}, actualizados: {updated_count}.")
         )

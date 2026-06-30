@@ -5,6 +5,7 @@ Reemplazan al filtro ``has_group`` (por nombre de grupo). Uso en templates::
     {% load rbac %}
     {% if request.user|puede:"ciudadano.ver" %} ... {% endif %}
 """
+
 from django import template
 
 from core import rbac

@@ -2,13 +2,13 @@ from django.urls import include, path
 
 from ..views import alertas as views_alertas
 from ..views import ciudadanos as views_ciudadanos
+from ..views import ciudadanos_api as views_ciudadanos_api
 from ..views import contactos_api as views_contactos_api
 from ..views import contactos_panel as views_contactos_panel
 from ..views import dashboard_simple as views_simple
 from ..views import derivacion as views_derivacion
 from ..views import derivacion_programa as views_derivacion_programa
 from ..views import programas as views_programas
-from ..views import ciudadanos_api as views_ciudadanos_api
 
 app_name = "legajos"
 
@@ -33,8 +33,16 @@ urlpatterns = [
     path("dashboard-contactos/", views_contactos_panel.dashboard_contactos_simple, name="dashboard_contactos"),
     path("reportes/", views_simple.reportes_view, name="reportes"),
     path("reportes/exportar-csv/", views_simple.exportar_reportes_csv, name="exportar_csv"),
-    path("derivaciones-ciudadano/<int:derivacion_id>/aceptar/", views_derivacion_programa.aceptar_derivacion_programa, name="derivacion_ciudadano_aceptar"),
-    path("derivaciones-ciudadano/<int:derivacion_id>/rechazar/", views_derivacion_programa.rechazar_derivacion_programa, name="derivacion_ciudadano_rechazar"),
+    path(
+        "derivaciones-ciudadano/<int:derivacion_id>/aceptar/",
+        views_derivacion_programa.aceptar_derivacion_programa,
+        name="derivacion_ciudadano_aceptar",
+    ),
+    path(
+        "derivaciones-ciudadano/<int:derivacion_id>/rechazar/",
+        views_derivacion_programa.rechazar_derivacion_programa,
+        name="derivacion_ciudadano_rechazar",
+    ),
     path("test-contactos/", views_simple.dashboard_contactos_simple, name="test_contactos"),
     path("test-api/", views_simple.test_api, name="test_api"),
     path(

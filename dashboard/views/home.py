@@ -1,15 +1,12 @@
 from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Q
 from django.utils import timezone
 from django.views.generic import TemplateView
 
-from legajos.models import AlertaCiudadano, Ciudadano
+from dashboard.utils import contar_ciudadanos, contar_usuarios
 from programas.models import InscripcionPrograma
 from users.models import User
-
-from dashboard.utils import contar_ciudadanos, contar_usuarios
 
 
 # NOTA: esta vista NO se cachea con cache_page/cache_view. Era una página
@@ -25,10 +22,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         from dashboard.utils import (
             contar_alertas_activas,
-            contar_ciudadanos,
             contar_legajos,
             contar_seguimientos_hoy,
-            contar_usuarios,
         )
 
         context["total_usuarios"] = contar_usuarios()
@@ -47,8 +42,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         hoy = timezone.now().date()
         inicio_mes = hoy.replace(day=1)
-        context["registros_mes"] = InscripcionPrograma.objects.filter(
-            fecha_inscripcion__gte=inicio_mes
-        ).count()
+        context["registros_mes"] = InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count()
 
         return context

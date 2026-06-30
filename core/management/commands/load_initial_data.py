@@ -136,13 +136,27 @@ class Command(BaseCommand):
         ciudadano_user = User.objects.filter(username="ciudadano1").first()
         if ciudadano_user and not Ciudadano.objects.filter(usuario=ciudadano_user).exists():
             Ciudadano.objects.create(
-                usuario=ciudadano_user, dni="30111222", nombre="Juan", apellido="Perez",
-                genero="Masculino", telefono="3700000000", email="ciudadano1@demo.local",
-                domicilio="Calle Falsa 123", tipo_vivienda="Casa", tenencia_vivienda="Propia",
-                condiciones_vivienda="Buenas", situacion_laboral="Empleado", ingreso_estimado="Medio",
-                obra_social="Ninguna", nivel_educativo="Secundario", cobertura_medica="Publica",
-                medicacion_habitual="Ninguna", dni_fisico="Si", estado_renaper="No verificado",
-                estado_migratorio="Nacional", observaciones="Ciudadano demo",
+                usuario=ciudadano_user,
+                dni="30111222",
+                nombre="Juan",
+                apellido="Perez",
+                genero="Masculino",
+                telefono="3700000000",
+                email="ciudadano1@demo.local",
+                domicilio="Calle Falsa 123",
+                tipo_vivienda="Casa",
+                tenencia_vivienda="Propia",
+                condiciones_vivienda="Buenas",
+                situacion_laboral="Empleado",
+                ingreso_estimado="Medio",
+                obra_social="Ninguna",
+                nivel_educativo="Secundario",
+                cobertura_medica="Publica",
+                medicacion_habitual="Ninguna",
+                dni_fisico="Si",
+                estado_renaper="No verificado",
+                estado_migratorio="Nacional",
+                observaciones="Ciudadano demo",
             )
             self.stdout.write(self.style.SUCCESS("  ✓ Legajo demo para ciudadano1 (portal)"))
 

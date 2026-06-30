@@ -4,6 +4,7 @@
 - ``ve_todas_las_conversaciones``: supervisor/superusuario ve toda la cola.
 - ``es_operador_restringido``: operador básico, ve solo sus conversaciones asignadas.
 """
+
 from core import rbac
 
 
@@ -14,11 +15,7 @@ def puede_operar(user):
 def ve_todas_las_conversaciones(user):
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return (
-        user.is_superuser
-        or rbac.puede(user, "conversacion.configurar")
-        or rbac.puede(user, "conversacion.metricas")
-    )
+    return user.is_superuser or rbac.puede(user, "conversacion.configurar") or rbac.puede(user, "conversacion.metricas")
 
 
 def es_operador_restringido(user):

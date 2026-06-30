@@ -5,6 +5,7 @@
 gateado por permiso y es tolerante a fallos (si algo no está disponible,
 no rompe el render: simplemente no muestra el badge).
 """
+
 from core import rbac
 
 

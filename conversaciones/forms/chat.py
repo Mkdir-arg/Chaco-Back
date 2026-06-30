@@ -8,10 +8,10 @@ class RenaperConsultaForm(forms.Form):
     sexo = forms.CharField(max_length=1)
 
     def clean_dni(self):
-        return self.cleaned_data['dni'].strip()
+        return self.cleaned_data["dni"].strip()
 
     def clean_sexo(self):
-        return self.cleaned_data['sexo'].strip().upper()
+        return self.cleaned_data["sexo"].strip().upper()
 
 
 class IniciarConversacionForm(forms.Form):
@@ -22,22 +22,23 @@ class IniciarConversacionForm(forms.Form):
     prioridad = forms.ChoiceField(choices=Conversacion.PRIORIDAD_CHOICES, required=False)
 
     def clean_tipo(self):
-        return (self.cleaned_data.get('tipo') or 'anonima').strip()
+        return (self.cleaned_data.get("tipo") or "anonima").strip()
 
     def clean_dni(self):
-        return (self.cleaned_data.get('dni') or '').strip()
+        return (self.cleaned_data.get("dni") or "").strip()
 
     def clean_sexo(self):
-        return (self.cleaned_data.get('sexo') or '').strip().upper()
+        return (self.cleaned_data.get("sexo") or "").strip().upper()
 
     def clean_prioridad(self):
-        return (self.cleaned_data.get('prioridad') or 'normal').strip()
+        return (self.cleaned_data.get("prioridad") or "normal").strip()
+
 
 class MensajeConversacionForm(forms.Form):
     mensaje = forms.CharField()
 
     def clean_mensaje(self):
-        return self.cleaned_data['mensaje'].strip()
+        return self.cleaned_data["mensaje"].strip()
 
 
 class AsignarConversacionForm(forms.Form):
@@ -50,7 +51,7 @@ class ConfigurarColaForm(forms.Form):
     activo = forms.BooleanField(required=False)
 
     def clean_max_conversaciones(self):
-        return self.cleaned_data.get('max_conversaciones') or 5
+        return self.cleaned_data.get("max_conversaciones") or 5
 
 
 class EvaluarConversacionForm(forms.Form):

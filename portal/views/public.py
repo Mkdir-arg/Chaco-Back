@@ -1,8 +1,8 @@
-from django.contrib import messages
 from django.http import JsonResponse
 from django.views.generic import TemplateView
 
 from core.selectors.geografia import get_localidades_values, get_municipios_values
+
 from ..selectors import get_portal_home_context
 
 

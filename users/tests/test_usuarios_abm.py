@@ -1,4 +1,4 @@
-﻿from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
 from django.urls import NoReverseMatch, reverse
@@ -22,9 +22,7 @@ def _perm(codigo):
 
 def _admin(username):
     g, _ = Group.objects.get_or_create(name="Admins")
-    RolMeta.objects.get_or_create(
-        grupo=g, defaults={"categoria": "Sistema", "activo": True}
-    )
+    RolMeta.objects.get_or_create(grupo=g, defaults={"categoria": "Sistema", "activo": True})
     g.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
     u = User.objects.create_user(username, password="x")
     u.groups.add(g)
@@ -95,8 +93,10 @@ class UsuarioAlcanceProgramaTests(TestCase):
         # Admin de programa Becas (programa.configurar).
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
-            grupo=self.rol_admin_becas, categoria=rbac.CATEGORIA_PROGRAMA,
-            programa=self.becas, activo=True,
+            grupo=self.rol_admin_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
         )
         self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
@@ -104,9 +104,13 @@ class UsuarioAlcanceProgramaTests(TestCase):
 
         # Roles operativos por programa + un rol global.
         self.rol_becas = Group.objects.create(name="Operador Becas")
-        RolMeta.objects.create(grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
+        RolMeta.objects.create(
+            grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
+        )
         self.rol_nachec = Group.objects.create(name="Operador Ã‘achec")
-        RolMeta.objects.create(grupo=self.rol_nachec, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True)
+        RolMeta.objects.create(
+            grupo=self.rol_nachec, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True
+        )
         self.rol_global = Group.objects.create(name="Backoffice X")
         RolMeta.objects.create(grupo=self.rol_global, categoria="Backoffice", activo=True)
 
@@ -114,8 +118,10 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
     def test_listado_filtrado_por_programa(self):  # TC-67-01 / TC-67-09
-        u_becas = User.objects.create_user("u-becas", password="x"); u_becas.groups.add(self.rol_becas)
-        u_nachec = User.objects.create_user("u-nachec", password="x"); u_nachec.groups.add(self.rol_nachec)
+        u_becas = User.objects.create_user("u-becas", password="x")
+        u_becas.groups.add(self.rol_becas)
+        u_nachec = User.objects.create_user("u-nachec", password="x")
+        u_nachec.groups.add(self.rol_nachec)
         u_sin = User.objects.create_user("u-sin", password="x")
 
         visibles = set(usuarios_visibles_para(self.admin_becas))
@@ -140,30 +146,33 @@ class UsuarioAlcanceProgramaTests(TestCase):
         user = User.objects.create_user("multi2", password="x")
         user.groups.add(self.rol_becas, self.rol_nachec)
         form = CustomUserChangeForm(
-            data={"username": "multi2", "email": "", "password": "", "groups": [],
-                  "first_name": "", "last_name": ""},
-            instance=user, operador=self.admin_becas,
+            data={"username": "multi2", "email": "", "password": "", "groups": [], "first_name": "", "last_name": ""},
+            instance=user,
+            operador=self.admin_becas,
         )
         self.assertTrue(form.is_valid(), form.errors)
-        UsuariosAdminService.update_user_from_form(
-            form, alcance_group_ids=alcance_roles_ids(self.admin_becas)
-        )
+        UsuariosAdminService.update_user_from_form(form, alcance_group_ids=alcance_roles_ids(self.admin_becas))
         nombres = set(user.groups.values_list("name", flat=True))
-        self.assertIn("Operador Ã‘achec", nombres)   # rol fuera de alcance preservado
+        self.assertIn("Operador Ã‘achec", nombres)  # rol fuera de alcance preservado
         self.assertNotIn("Operador Becas", nombres)  # rol en alcance, deseleccionado
 
     def test_editar_datos_generales_afecta_la_cuenta(self):  # TC-67-04
         user = User.objects.create_user("multi3", password="x")
         user.groups.add(self.rol_becas, self.rol_nachec)
         form = CustomUserChangeForm(
-            data={"username": "multi3", "email": "nuevo@x.com", "password": "",
-                  "groups": [str(self.rol_becas.pk)], "first_name": "N", "last_name": "A"},
-            instance=user, operador=self.admin_becas,
+            data={
+                "username": "multi3",
+                "email": "nuevo@x.com",
+                "password": "",
+                "groups": [str(self.rol_becas.pk)],
+                "first_name": "N",
+                "last_name": "A",
+            },
+            instance=user,
+            operador=self.admin_becas,
         )
         self.assertTrue(form.is_valid(), form.errors)
-        UsuariosAdminService.update_user_from_form(
-            form, alcance_group_ids=alcance_roles_ids(self.admin_becas)
-        )
+        UsuariosAdminService.update_user_from_form(form, alcance_group_ids=alcance_roles_ids(self.admin_becas))
         user.refresh_from_db()
         self.assertEqual(user.email, "nuevo@x.com")
         self.assertTrue(user.groups.filter(name="Operador Ã‘achec").exists())
@@ -176,7 +185,8 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertEqual(resp.status_code, 302)
 
     def test_admin_global_ve_todos(self):  # TC-67-07
-        u_nachec = User.objects.create_user("u-nachec", password="x"); u_nachec.groups.add(self.rol_nachec)
+        u_nachec = User.objects.create_user("u-nachec", password="x")
+        u_nachec.groups.add(self.rol_nachec)
         visibles = set(usuarios_visibles_para(self.su))
         self.assertIn(u_nachec, visibles)
         self.assertIn(self.admin_becas, visibles)
@@ -191,13 +201,12 @@ class UsuarioAlcanceProgramaTests(TestCase):
         # Consistencia de alcance: un usuario cuyo Ãºnico vÃ­nculo con Becas es un rol
         # INACTIVO no debe ser visible ni gestionable por el admin de Becas.
         inactivo = Group.objects.create(name="Becas inactivo")
-        RolMeta.objects.create(
-            grupo=inactivo, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=False
-        )
+        RolMeta.objects.create(grupo=inactivo, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=False)
         u = User.objects.create_user("solo-inactivo", password="x")
         u.groups.add(inactivo)
         self.assertNotIn(u, set(usuarios_visibles_para(self.admin_becas)))
         from users.selectors.usuarios import puede_gestionar_usuario
+
         self.assertFalse(puede_gestionar_usuario(self.admin_becas, u))
 
 
@@ -214,15 +223,23 @@ class ProgramaSinAdminTests(TestCase):
         self.jefe.groups.add(self.rol_global)
         # MarÃ­a, Ãºnica administradora de Becas.
         self.rol_becas = Group.objects.create(name="Admin Becas")
-        RolMeta.objects.create(grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
+        RolMeta.objects.create(
+            grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
+        )
         self.rol_becas.permissions.add(_perm("programa.configurar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol_becas)
 
     def _form_sin_roles(self, user):
         return CustomUserChangeForm(
-            data={"username": user.username, "email": "", "password": "", "groups": [],
-                  "first_name": "", "last_name": ""},
+            data={
+                "username": user.username,
+                "email": "",
+                "password": "",
+                "groups": [],
+                "first_name": "",
+                "last_name": "",
+            },
             instance=user,
         )
 
@@ -256,7 +273,9 @@ class SidebarAdministracionTests(TestCase):
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.rol_becas = Group.objects.create(name="Admin Becas")
-        RolMeta.objects.create(grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
+        RolMeta.objects.create(
+            grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
+        )
         self.rol_becas.permissions.add(_perm("programa.configurar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol_becas)

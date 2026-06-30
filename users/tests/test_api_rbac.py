@@ -26,7 +26,11 @@ class ApiUsuariosRbacTests(TestCase):
     def test_crear_usuario_sin_capacidad_devuelve_403(self):
         c = APIClient()
         c.force_authenticate(User.objects.create_user("plano", password="x"))
-        resp = c.post("/api/users/users/", {"username": "nuevo", "password": "clave12345", "password_confirm": "clave12345"}, format="json")
+        resp = c.post(
+            "/api/users/users/",
+            {"username": "nuevo", "password": "clave12345", "password_confirm": "clave12345"},
+            format="json",
+        )
         self.assertEqual(resp.status_code, 403)
 
     def test_crear_usuario_con_capacidad_ok(self):

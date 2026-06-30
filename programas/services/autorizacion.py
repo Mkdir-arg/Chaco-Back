@@ -11,6 +11,7 @@ Regla (#79):
 El RBAC tiene alcance de *programa*, no de *segmento*; el alcance por segmento lo
 aporta este módulo combinando la capacidad con ``AsignacionCoordinador``.
 """
+
 from django.core.exceptions import PermissionDenied
 
 from core import rbac

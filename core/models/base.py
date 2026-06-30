@@ -1,8 +1,7 @@
 from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
-from django.core.exceptions import ValidationError
-from django.utils import timezone
 
 
 def generate_codigo():
@@ -27,7 +26,6 @@ class Provincia(models.Model):
 
 
 class Mes(models.Model):
-
     nombre = models.CharField(max_length=255)
 
     def __str__(self):
@@ -40,7 +38,6 @@ class Mes(models.Model):
 
 
 class Dia(models.Model):
-
     nombre = models.CharField(max_length=255)
 
     def __str__(self):
@@ -58,9 +55,7 @@ class Municipio(models.Model):
     """
 
     nombre = models.CharField(max_length=255)
-    provincia = models.ForeignKey(
-        Provincia, on_delete=models.CASCADE, null=True, blank=True
-    )
+    provincia = models.ForeignKey(Provincia, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return str(self.nombre)
@@ -81,9 +76,7 @@ class Localidad(models.Model):
     """
 
     nombre = models.CharField(max_length=255)
-    municipio = models.ForeignKey(
-        Municipio, on_delete=models.CASCADE, null=True, blank=True
-    )
+    municipio = models.ForeignKey(Municipio, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return str(self.nombre)
@@ -110,6 +103,7 @@ class Sexo(models.Model):
 
 class TimeStamped(models.Model):
     """Modelo abstracto para timestamps automáticos"""
+
     creado = models.DateTimeField(auto_now_add=True)
     modificado = models.DateTimeField(auto_now=True)
 
@@ -136,14 +130,10 @@ class LegajoBase(TimeStamped):
     fecha_apertura = models.DateField(auto_now_add=True)
     fecha_cierre = models.DateField(null=True, blank=True)
     responsable = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="legajos_responsable"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="legajos_responsable"
     )
     confidencialidad = models.CharField(
-        max_length=20,
-        choices=Confidencialidad.choices,
-        default=Confidencialidad.NORMAL
+        max_length=20, choices=Confidencialidad.choices, default=Confidencialidad.NORMAL
     )
     notas = models.TextField(blank=True)
 

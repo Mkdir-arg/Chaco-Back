@@ -15,6 +15,7 @@ Reglas:
 - El grupo ``Ciudadanos`` es un **marcador de identidad** del portal, no una
   capacidad de backoffice (ver :func:`es_ciudadano_portal`).
 """
+
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
@@ -193,20 +194,12 @@ def perm_de(codigo):
 
 def todas_las_capacidades():
     """Lista plana ``[(codename, etiqueta), ...]`` para ``Capacidad.Meta.permissions``."""
-    return [
-        (codename_de(codigo), etiqueta)
-        for modulo in CATALOGO
-        for (codigo, etiqueta) in modulo["capacidades"]
-    ]
+    return [(codename_de(codigo), etiqueta) for modulo in CATALOGO for (codigo, etiqueta) in modulo["capacidades"]]
 
 
 def codigos_de_capacidad():
     """Lista de códigos de capacidad (``"ciudadano.ver"``...)."""
-    return [
-        codigo
-        for modulo in CATALOGO
-        for (codigo, _etiqueta) in modulo["capacidades"]
-    ]
+    return [codigo for modulo in CATALOGO for (codigo, _etiqueta) in modulo["capacidades"]]
 
 
 def codigos_de_programa():
@@ -278,14 +271,16 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False):
         tab_id = modulo.get("tab", "backoffice")
         if tab_id not in tabs:
             continue
-        tabs[tab_id]["modulos"].append({
-            "modulo": modulo["modulo"],
-            "label": modulo["label"],
-            "capacidades": [
-                {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
-                for (codigo, etiqueta) in modulo["capacidades"]
-            ],
-        })
+        tabs[tab_id]["modulos"].append(
+            {
+                "modulo": modulo["modulo"],
+                "label": modulo["label"],
+                "capacidades": [
+                    {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+                    for (codigo, etiqueta) in modulo["capacidades"]
+                ],
+            }
+        )
     return list(tabs.values())
 
 
@@ -309,9 +304,7 @@ def _capacidades_activas(user):
         cache = frozenset(codigos_de_capacidad())
     else:
         codenames = set(
-            Permission.objects.filter(
-                group__user=user, group__meta__activo=True
-            )
+            Permission.objects.filter(group__user=user, group__meta__activo=True)
             .values_list("codename", flat=True)
             .distinct()
         )
@@ -351,8 +344,7 @@ def _capacidades_activas_en_programa(user, programa):
         # global cualquiera la tiene).
         codenames = set(
             Permission.objects.filter(
-                Q(group__meta__programa=programa_pk)
-                | Q(group__meta__programa__isnull=True),
+                Q(group__meta__programa=programa_pk) | Q(group__meta__programa__isnull=True),
                 group__user=user,
                 group__meta__activo=True,
                 codename__in=codenames_programa,
@@ -477,10 +469,7 @@ def usuarios_que_administran(excluir_ids=()):
     return (
         User.objects.filter(is_active=True)
         .exclude(id__in=list(excluir_ids))
-        .filter(
-            Q(is_superuser=True)
-            | Q(groups__meta__activo=True, groups__permissions__codename__in=codenames)
-        )
+        .filter(Q(is_superuser=True) | Q(groups__meta__activo=True, groups__permissions__codename__in=codenames))
         .distinct()
     )
 

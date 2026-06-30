@@ -1,12 +1,10 @@
-from django.urls import path
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
+from django.urls import path
 
 from .views import (
     alerts_api,
     inicio_view,
-    relevamiento_detail_view,
-    relevamientos_view,
     load_localidad,
     load_municipios,
     load_subsecretarias,
@@ -16,14 +14,18 @@ from .views import (
     phase2_metrics_api,
     query_analysis_api,
     realtime_metrics_api,
+    relevamiento_detail_view,
+    relevamientos_view,
     run_phase2_tests_api,
     system_metrics_api,
 )
 
 app_name = "core"
 
+
 def dashboard_redirect(request):
-    return redirect('dashboard:inicio')
+    return redirect("dashboard:inicio")
+
 
 urlpatterns = [
     path("inicio/", login_required(inicio_view), name="inicio"),

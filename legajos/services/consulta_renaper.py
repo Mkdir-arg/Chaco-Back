@@ -1,11 +1,11 @@
-﻿import datetime
+import datetime
 import logging
 import random
 import time
 import unicodedata
-import urllib3
 
 import requests
+import urllib3
 from django.conf import settings
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError, RequestException
@@ -275,7 +275,16 @@ def consultar_datos_renaper(dni, sexo):
     if getattr(settings, "RENAPER_TEST_MODE", False):
         time.sleep(2)
 
-        nombres = ["Juan Carlos", "Maria Elena", "Roberto", "Ana Sofia", "Carlos Alberto", "Lucia", "Fernando", "Valentina"]
+        nombres = [
+            "Juan Carlos",
+            "Maria Elena",
+            "Roberto",
+            "Ana Sofia",
+            "Carlos Alberto",
+            "Lucia",
+            "Fernando",
+            "Valentina",
+        ]
         apellidos = ["Perez", "Gonzalez", "Rodriguez", "Lopez", "Martinez", "Garcia", "Fernandez", "Morales"]
         calles = ["Av. Corrientes", "Av. Santa Fe", "Rivadavia", "San Martin", "Belgrano", "Mitre", "9 de Julio"]
         provincias = ["Buenos Aires", "Cordoba", "Santa Fe", "Mendoza", "Tucuman"]

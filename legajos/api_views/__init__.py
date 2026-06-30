@@ -1,19 +1,18 @@
-from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from django.db.models import Count
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
 from ..models import (
-    Ciudadano,
     AlertaCiudadano,
+    Ciudadano,
 )
 from ..serializers import (
-    CiudadanoSerializer,
     AlertaCiudadanoSerializer,
+    CiudadanoSerializer,
 )
 from ..services import AlertasService, FiltrosUsuarioService
 from ..services.consulta_renaper import consultar_datos_renaper
@@ -25,23 +24,23 @@ from ..services.consulta_renaper import consultar_datos_renaper
     retrieve=extend_schema(description="Obtiene un ciudadano específico"),
     update=extend_schema(description="Actualiza un ciudadano"),
     partial_update=extend_schema(description="Actualiza parcialmente un ciudadano"),
-    destroy=extend_schema(description="Elimina un ciudadano")
+    destroy=extend_schema(description="Elimina un ciudadano"),
 )
 class CiudadanoViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar ciudadanos.
-    
+
     Permite realizar operaciones CRUD sobre los ciudadanos del sistema.
     """
-    queryset = Ciudadano.objects.annotate(legajos_count=Count('inscripciones_programas'))
+
+    queryset = Ciudadano.objects.annotate(legajos_count=Count("inscripciones_programas"))
     serializer_class = CiudadanoSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['dni', 'genero', 'activo']
-    search_fields = ['nombre', 'apellido', 'dni']
-    ordering_fields = ['apellido', 'nombre', 'creado']
-    ordering = ['apellido', 'nombre']
-
+    filterset_fields = ["dni", "genero", "activo"]
+    search_fields = ["nombre", "apellido", "dni"]
+    ordering_fields = ["apellido", "nombre", "creado"]
+    ordering = ["apellido", "nombre"]
 
 
 @extend_schema_view(
@@ -51,77 +50,76 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet para consultar alertas del sistema.
     """
-    queryset = AlertaCiudadano.objects.select_related('ciudadano', 'legajo', 'cerrada_por')
+
+    queryset = AlertaCiudadano.objects.select_related("ciudadano", "legajo", "cerrada_por")
     serializer_class = AlertaCiudadanoSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['prioridad', 'tipo', 'ciudadano']
-    ordering = ['-creado']  # Ordenar por fecha de creación descendente
-    
+    filterset_fields = ["prioridad", "tipo", "ciudadano"]
+    ordering = ["-creado"]  # Ordenar por fecha de creación descendente
+
     def get_queryset(self):
         """Filtrar alertas según el usuario autenticado"""
-        return FiltrosUsuarioService.obtener_alertas_usuario(self.request.user).select_related('ciudadano', 'legajo', 'cerrada_por')
-    
+        return FiltrosUsuarioService.obtener_alertas_usuario(self.request.user).select_related(
+            "ciudadano", "legajo", "cerrada_por"
+        )
+
     @extend_schema(description="Obtiene contador de alertas activas")
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def count(self, request):
         """Obtiene el contador de alertas activas"""
         alertas_usuario = self.get_queryset()
         count = alertas_usuario.count()
-        count_criticas = alertas_usuario.filter(prioridad='CRITICA').count()
-        
-        return Response({
-            'count': count,
-            'criticas': count_criticas
-        })
-    
+        count_criticas = alertas_usuario.filter(prioridad="CRITICA").count()
+
+        return Response({"count": count, "criticas": count_criticas})
+
     @extend_schema(description="Cierra una alerta específica")
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def cerrar(self, request, pk=None):
         """Cierra una alerta específica"""
         success = AlertasService.cerrar_alerta(pk, request.user)
-        
+
         if success:
-            return Response({'message': 'Alerta cerrada correctamente'})
+            return Response({"message": "Alerta cerrada correctamente"})
         else:
-            return Response(
-                {'error': 'Alerta no encontrada'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Alerta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def consultar_renaper_api(request):
-    dni = str(request.data.get('dni') or '').strip()
-    sexo = str(request.data.get('sexo') or '').strip().upper()
+    dni = str(request.data.get("dni") or "").strip()
+    sexo = str(request.data.get("sexo") or "").strip().upper()
 
     if not dni or not sexo:
         return Response(
-            {'success': False, 'error': 'DNI y sexo son requeridos.'},
+            {"success": False, "error": "DNI y sexo son requeridos."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     resultado = consultar_datos_renaper(dni, sexo)
-    if not resultado.get('success'):
+    if not resultado.get("success"):
         return Response(
             {
-                'success': False,
-                'error': resultado.get('error') or 'No se pudo validar con RENAPER.',
-                'fallecido': bool(resultado.get('fallecido')),
+                "success": False,
+                "error": resultado.get("error") or "No se pudo validar con RENAPER.",
+                "fallecido": bool(resultado.get("fallecido")),
             },
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
-    datos = resultado.get('data') or {}
-    return Response({
-        'success': True,
-        'data': {
-            'dni': datos.get('dni') or dni,
-            'apellido': datos.get('apellido') or '',
-            'nombre': datos.get('nombre') or '',
-            'fecha_nacimiento': datos.get('fecha_nacimiento') or '',
-            'sexo': datos.get('genero') or sexo,
-        },
-        'datos_api': resultado.get('datos_api') or {},
-    })
+    datos = resultado.get("data") or {}
+    return Response(
+        {
+            "success": True,
+            "data": {
+                "dni": datos.get("dni") or dni,
+                "apellido": datos.get("apellido") or "",
+                "nombre": datos.get("nombre") or "",
+                "fecha_nacimiento": datos.get("fecha_nacimiento") or "",
+                "sexo": datos.get("genero") or sexo,
+            },
+            "datos_api": resultado.get("datos_api") or {},
+        }
+    )

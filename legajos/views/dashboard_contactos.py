@@ -4,8 +4,6 @@ Las vistas antiguas dependian de modelos retirados. La navegacion actual usa
 ``legajos.views.contactos_panel.dashboard_contactos_simple``.
 """
 
-from .contactos_panel import dashboard_contactos_simple as dashboard_contactos
-
 
 def metricas_contactos_api(request):
     from django.http import JsonResponse

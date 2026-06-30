@@ -5,13 +5,13 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils import timezone
 
-from .linking import get_legajos_queryset_for_ciudadano
 from ..models import (
     AlertaCiudadano,
     Ciudadano,
     LegajoAtencion,
 )
 from ..models.contactos import HistorialContacto, VinculoFamiliar
+from .linking import get_legajos_queryset_for_ciudadano
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +98,7 @@ class AlertasService:
         ultimo_contacto = HistorialContacto.objects.filter(legajo=legajo).order_by("-fecha_contacto").first()
 
         if ultimo_contacto:
-            dias_sin_contacto = (
-                timezone.now().date() - ultimo_contacto.fecha_contacto.date()
-            ).days
+            dias_sin_contacto = (timezone.now().date() - ultimo_contacto.fecha_contacto.date()).days
             if dias_sin_contacto > 30:
                 alertas.append(
                     AlertasService._crear_alerta(
@@ -210,10 +208,14 @@ class AlertasService:
     @staticmethod
     def obtener_alertas_ciudadano(ciudadano_id):
         """Obtiene alertas activas de un ciudadano."""
-        return AlertaCiudadano.objects.filter(
-            ciudadano_id=ciudadano_id,
-            activa=True,
-        ).select_related("legajo").order_by("-prioridad", "-creado")
+        return (
+            AlertaCiudadano.objects.filter(
+                ciudadano_id=ciudadano_id,
+                activa=True,
+            )
+            .select_related("legajo")
+            .order_by("-prioridad", "-creado")
+        )
 
     @staticmethod
     def cerrar_alerta(alerta_id, usuario=None):

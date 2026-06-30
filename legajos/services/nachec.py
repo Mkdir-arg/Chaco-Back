@@ -47,8 +47,7 @@ class ServicioTransicionNachec:
         estados_permitidos = cls.TRANSICIONES_PERMITIDAS.get(caso.estado, [])
         if nuevo_estado not in estados_permitidos:
             raise ValidationError(
-                f"No se puede cambiar de {caso.get_estado_display()} a "
-                f"{EstadoCaso(nuevo_estado).label}"
+                f"No se puede cambiar de {caso.get_estado_display()} a {EstadoCaso(nuevo_estado).label}"
             )
 
     @classmethod
@@ -358,14 +357,10 @@ class ServicioOperacionNachec:
     def build_envio_asignacion_context(caso):
         tarea_validacion = TareaNachec.objects.filter(caso=caso, tipo=TipoTarea.VALIDACION).first()
         validaciones = {
-            "tarea_completada": bool(
-                tarea_validacion and tarea_validacion.estado == EstadoTarea.COMPLETADA
-            ),
+            "tarea_completada": bool(tarea_validacion and tarea_validacion.estado == EstadoTarea.COMPLETADA),
             "tiene_dni": bool(caso.ciudadano_titular and caso.ciudadano_titular.dni),
             "tiene_prioridad": bool(caso.prioridad),
-            "tiene_municipio": bool(
-                caso.ciudadano_titular and caso.ciudadano_titular.municipio
-            ),
+            "tiene_municipio": bool(caso.ciudadano_titular and caso.ciudadano_titular.municipio),
             "tiene_localidad": bool(caso.localidad and caso.localidad != "Sin especificar"),
         }
         puede_confirmar = all(
@@ -420,9 +415,7 @@ class ServicioOperacionNachec:
         estado_anterior = caso.estado
         caso.estado = EstadoCaso.A_ASIGNAR
         caso.fecha_envio_asignacion = timezone.now()
-        sla_horas = {"URGENTE": 12, "ALTA": 12, "MEDIA": 24, "BAJA": 48}.get(
-            caso.prioridad, 24
-        )
+        sla_horas = {"URGENTE": 12, "ALTA": 12, "MEDIA": 24, "BAJA": 48}.get(caso.prioridad, 24)
         caso.sla_asignacion_hasta = timezone.now() + timedelta(hours=sla_horas)
         caso.save()
 
@@ -495,8 +488,7 @@ Observaciones: {observaciones}""",
             tarea_asignacion.estado = EstadoTarea.COMPLETADA
             tarea_asignacion.fecha_completada = timezone.now()
             tarea_asignacion.resultado = (
-                f"Asignado a {territorial.get_full_name()}. "
-                f"SLA relevamiento: {fecha_limite_obj.strftime('%d/%m/%Y')}"
+                f"Asignado a {territorial.get_full_name()}. SLA relevamiento: {fecha_limite_obj.strftime('%d/%m/%Y')}"
             )
             tarea_asignacion.save()
 
@@ -513,7 +505,7 @@ Datos del caso:
 - Dirección: {caso.direccion}
 - Prioridad: {caso.get_prioridad_display()}
 
-Fecha límite: {fecha_limite_obj.strftime('%d/%m/%Y')}"""
+Fecha límite: {fecha_limite_obj.strftime("%d/%m/%Y")}"""
 
         tarea_relevamiento = TareaNachec.objects.filter(
             caso=caso,
@@ -545,8 +537,8 @@ Fecha límite: {fecha_limite_obj.strftime('%d/%m/%Y')}"""
             estado_nuevo=caso.estado,
             usuario=coordinador,
             observacion=f"""Territorial asignado: {territorial.get_full_name()}
-SLA relevamiento: {fecha_limite_obj.strftime('%d/%m/%Y')}
-SLA asignación cumplido: {'Sí' if sla_cumplido else 'No'}
+SLA relevamiento: {fecha_limite_obj.strftime("%d/%m/%Y")}
+SLA asignación cumplido: {"Sí" if sla_cumplido else "No"}
 Instrucciones: {instrucciones[:100]}...""",
         )
 
@@ -561,12 +553,16 @@ Instrucciones: {instrucciones[:100]}...""",
         from django.contrib.auth import get_user_model
 
         user_model = get_user_model()
-        return user_model.objects.filter(is_active=True).annotate(
-            casos_activos=Count(
-                "casos_nachec_territorial",
-                filter=Q(casos_nachec_territorial__estado__in=cls.ESTADOS_CASOS_ACTIVOS),
+        return (
+            user_model.objects.filter(is_active=True)
+            .annotate(
+                casos_activos=Count(
+                    "casos_nachec_territorial",
+                    filter=Q(casos_nachec_territorial__estado__in=cls.ESTADOS_CASOS_ACTIVOS),
+                )
             )
-        ).order_by("first_name", "last_name", "username")
+            .order_by("first_name", "last_name", "username")
+        )
 
     @classmethod
     def build_reasignacion_context(cls, caso):
@@ -633,9 +629,7 @@ Instrucciones: {instrucciones[:100]}...""",
             estado__in=[EstadoTarea.PENDIENTE, EstadoTarea.EN_PROCESO],
         ).first()
         if not tarea_relevamiento:
-            raise ValidationError(
-                "No existe tarea de relevamiento para este caso. Contactar coordinación."
-            )
+            raise ValidationError("No existe tarea de relevamiento para este caso. Contactar coordinación.")
 
         sla_vencido = bool(caso.sla_relevamiento and timezone.now().date() > caso.sla_relevamiento)
         estado_anterior = caso.estado

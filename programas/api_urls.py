@@ -1,4 +1,5 @@
 """URLs de la API de campo de Becas (#82). Namespace ``becas_api``."""
+
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 

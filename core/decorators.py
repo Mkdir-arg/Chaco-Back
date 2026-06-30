@@ -15,7 +15,7 @@ def ciudadano_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not es_ciudadano_portal(request.user):
-            return redirect('portal:ciudadano_login')
+            return redirect("portal:ciudadano_login")
         # Un ciudadano del portal SIN legajo vinculado es un estado inválido
         # (p. ej. el grupo "Ciudadanos" se asignó a mano): degradar sin 500.
         from legajos.models import Ciudadano
@@ -29,7 +29,7 @@ def ciudadano_required(view_func):
                 "Tu cuenta no tiene un legajo de ciudadano asociado. Contactá al administrador.",
             )
             logout(request)
-            return redirect('portal:ciudadano_login')
+            return redirect("portal:ciudadano_login")
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view

@@ -1,4 +1,5 @@
 """Tests de los modelos de Becas (#73)."""
+
 from datetime import date
 from io import StringIO
 
@@ -12,7 +13,6 @@ from programas.models import (
     AsignacionCoordinador,
     Convocatoria,
     Formulario,
-    ListaEspera,
     PreguntaGlobal,
     Programa,
     Relevamiento,
@@ -45,9 +45,7 @@ class SeedBecasCommandTests(TestCase):
         call_command("seed_becas", stdout=StringIO())
         call_command("seed_becas", stdout=StringIO())
         self.assertEqual(Programa.objects.filter(codigo="BECAS").count(), 1)
-        self.assertEqual(
-            PreguntaGlobal.objects.filter(texto="Foto DNI - Frente").count(), 1
-        )
+        self.assertEqual(PreguntaGlobal.objects.filter(texto="Foto DNI - Frente").count(), 1)
 
 
 class SegmentoCupoTests(TestCase):
@@ -112,8 +110,10 @@ class RelevamientoTests(TestCase):
         self.territorial = User.objects.create_user("terri")
         self.segmento = Segmento.objects.create(nombre="Seg", cupo_maximo=50)
         self.conv = Convocatoria.objects.create(
-            nombre="Conv", segmento=self.segmento,
-            fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31),
+            nombre="Conv",
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
         )
 
     def test_estados_definidos(self):
@@ -125,8 +125,10 @@ class RelevamientoTests(TestCase):
 
     def test_nombre_autogenerado(self):
         rel = Relevamiento.objects.create(
-            convocatoria=self.conv, territorial=self.territorial,
-            fecha_asignada=date(2026, 6, 1), zona="Centro",
+            convocatoria=self.conv,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Centro",
         )
         self.assertEqual(rel.nombre, "Relevamiento 001")
         self.assertEqual(rel.estado, Relevamiento.Estado.ASIGNADO)
@@ -144,12 +146,17 @@ class CamposFormularioTests(TestCase):
             texto="Tipo de horno", tipo=TipoCampo.STRING, segmento=self.segmento, subsegmento=self.sub, orden=2
         )
         self.conv_sin_sub = Convocatoria.objects.create(
-            nombre="Sin sub", segmento=self.segmento,
-            fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31),
+            nombre="Sin sub",
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
         )
         self.conv_con_sub = Convocatoria.objects.create(
-            nombre="Con sub", segmento=self.segmento, subsegmento=self.sub,
-            fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31),
+            nombre="Con sub",
+            segmento=self.segmento,
+            subsegmento=self.sub,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
         )
 
     def test_pregunta_inactiva_no_aparece(self):
@@ -195,17 +202,23 @@ class FormularioTests(TestCase):
         self.territorial = User.objects.create_user("terri")
         self.segmento = Segmento.objects.create(nombre="Seg", cupo_maximo=50)
         self.conv = Convocatoria.objects.create(
-            nombre="Conv", segmento=self.segmento,
-            fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31),
+            nombre="Conv",
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
         )
         self.rel = Relevamiento.objects.create(
-            convocatoria=self.conv, territorial=self.territorial,
-            fecha_asignada=date(2026, 6, 1), zona="Centro",
+            convocatoria=self.conv,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Centro",
         )
 
     def test_data_guarda_estructura(self):
         form = Formulario.objects.create(
-            relevamiento=self.rel, celular="3624100200", email_contacto="a@b.com",
+            relevamiento=self.rel,
+            celular="3624100200",
+            email_contacto="a@b.com",
             data={"globales": {"1": "Propia"}, "requisitos": {"5": "Ladrillo"}},
         )
         form.refresh_from_db()
@@ -214,11 +227,16 @@ class FormularioTests(TestCase):
 
     def test_traza_edicion(self):
         form = Formulario.objects.create(
-            relevamiento=self.rel, celular="3624100100", email_contacto="a@b.com",
+            relevamiento=self.rel,
+            celular="3624100100",
+            email_contacto="a@b.com",
         )
         TracaFormulario.objects.create(
-            formulario=form, editado_por=self.user,
-            campo="celular", valor_anterior="3624100100", valor_nuevo="3624200200",
+            formulario=form,
+            editado_por=self.user,
+            campo="celular",
+            valor_anterior="3624100100",
+            valor_nuevo="3624200200",
         )
         traza = form.trazas.get()
         self.assertEqual(traza.valor_anterior, "3624100100")
@@ -227,11 +245,16 @@ class FormularioTests(TestCase):
 
     def test_sync_offline_crea_ciudadano(self):
         form = Formulario.objects.create(
-            relevamiento=self.rel, celular="3624100200", email_contacto="a@b.com",
+            relevamiento=self.rel,
+            celular="3624100200",
+            email_contacto="a@b.com",
             ciudadano=None,
             datos_identificacion={
-                "dni": "99887766", "nombre": "Juan", "apellido": "Pérez",
-                "fecha_nacimiento": "1990-01-15", "origen": "manual",
+                "dni": "99887766",
+                "nombre": "Juan",
+                "apellido": "Pérez",
+                "fecha_nacimiento": "1990-01-15",
+                "origen": "manual",
             },
         )
         resolver_ciudadano_offline(form)
@@ -244,7 +267,9 @@ class FormularioTests(TestCase):
     def test_sync_offline_linkea_ciudadano_existente_sin_modificar(self):
         existente = Ciudadano.objects.create(dni="55554444", nombre="Ana", apellido="López")
         form = Formulario.objects.create(
-            relevamiento=self.rel, celular="3624100200", email_contacto="a@b.com",
+            relevamiento=self.rel,
+            celular="3624100200",
+            email_contacto="a@b.com",
             ciudadano=None,
             datos_identificacion={"dni": "55554444", "nombre": "OTRO", "apellido": "OTRO"},
         )
@@ -270,6 +295,7 @@ class ProgramasGenericosIntactosTests(TestCase):
 
     def test_modelos_genericos_funcionan(self):
         from programas.models import DerivacionPrograma, InscripcionPrograma  # noqa: F401
+
         prog = Programa.objects.create(codigo="X1", nombre="Otro", estado="ACTIVO")
         ciud = Ciudadano.objects.create(dni="11112222", nombre="N", apellido="A")
         insc = InscripcionPrograma.objects.create(ciudadano=ciud, programa=prog)

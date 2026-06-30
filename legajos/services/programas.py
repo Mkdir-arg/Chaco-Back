@@ -1,6 +1,7 @@
-﻿"""
+"""
 Servicios para gestión operativa de programas sociales.
 """
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -25,9 +26,7 @@ class BajaProgramaService:
         from programas.models import InscripcionPrograma
 
         try:
-            inscripcion = InscripcionPrograma.objects.select_for_update().get(
-                id=inscripcion_id
-            )
+            inscripcion = InscripcionPrograma.objects.select_for_update().get(id=inscripcion_id)
         except InscripcionPrograma.DoesNotExist:
             raise ValueError("Inscripción no encontrada.")
 
@@ -38,14 +37,13 @@ class BajaProgramaService:
         ]
         if inscripcion.estado not in estados_validos:
             raise ValueError(
-                f"No se puede dar de baja una inscripción con estado "
-                f"'{inscripcion.get_estado_display()}'."
+                f"No se puede dar de baja una inscripción con estado '{inscripcion.get_estado_display()}'."
             )
 
         # 1. Dar de baja la inscripción
         inscripcion.estado = InscripcionPrograma.Estado.DADO_DE_BAJA
         inscripcion.motivo_cierre = motivo
         inscripcion.fecha_cierre = timezone.now().date()
-        inscripcion.save(update_fields=['estado', 'motivo_cierre', 'fecha_cierre'])
+        inscripcion.save(update_fields=["estado", "motivo_cierre", "fecha_cierre"])
 
         return inscripcion

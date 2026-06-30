@@ -1,4 +1,5 @@
 """Consultas de lectura para el ABM de Roles."""
+
 from django.contrib.auth.models import Group
 from django.db.models import Count
 
@@ -69,10 +70,7 @@ def roles_visibles_para(user):
     Cada ``item``: ``{"group", "meta", "num_usuarios", "capacidades"}``.
     """
     global_ = es_admin_global(user)
-    programas_ok = (
-        None if global_
-        else set(programas_administrables(user).values_list("pk", flat=True))
-    )
+    programas_ok = None if global_ else set(programas_administrables(user).values_list("pk", flat=True))
 
     groups = (
         Group.objects.select_related("meta", "meta__programa")
@@ -108,10 +106,7 @@ def roles_visibles_para(user):
     categorias = [(cat, por_categoria[cat]) for cat in cats if por_categoria[cat]]
     if global_ and sin_categoria:
         categorias.append(("Sin categoría", sin_categoria))
-    programas = [
-        por_programa[pk]
-        for pk in sorted(por_programa, key=lambda k: por_programa[k][0].nombre)
-    ]
+    programas = [por_programa[pk] for pk in sorted(por_programa, key=lambda k: por_programa[k][0].nombre)]
     return {"categorias": categorias, "programas": programas}
 
 
@@ -141,11 +136,7 @@ def roles_por_categoria():
         categoria = meta.categoria if meta else None
         (por_categoria.get(categoria, sin_categoria)).append(item)
 
-    resultado = [
-        (categoria, por_categoria[categoria])
-        for categoria in rbac.CATEGORIAS_ROL
-        if por_categoria[categoria]
-    ]
+    resultado = [(categoria, por_categoria[categoria]) for categoria in rbac.CATEGORIAS_ROL if por_categoria[categoria]]
     if sin_categoria:
         resultado.append(("Sin categoría", sin_categoria))
     return resultado

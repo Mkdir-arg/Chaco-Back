@@ -47,17 +47,14 @@ class AdvancedFilterEngine:
     ) -> None:
         self.field_map = dict(field_map)
         self.field_types = dict(field_types)
-        self.allowed_ops = {
-            key: set(value) for key, value in (allowed_ops or {}).items()
-        }
+        self.allowed_ops = {key: set(value) for key, value in (allowed_ops or {}).items()}
         self.field_casts = dict(field_casts or {})
         self.param_name = param_name
 
         missing_mappings = set(self.field_types) - set(self.field_map)
         if missing_mappings:
             raise ValueError(
-                "AdvancedFilterEngine: field_types contiene claves sin mapeo: "
-                + ", ".join(sorted(missing_mappings))
+                "AdvancedFilterEngine: field_types contiene claves sin mapeo: " + ", ".join(sorted(missing_mappings))
             )
 
     def filter_queryset(self, queryset: QuerySet, request_or_get: Any) -> QuerySet:
@@ -250,9 +247,7 @@ class AdvancedFilterEngine:
         q_object = Q(**{lookup: casted})
         return ~q_object if negate else q_object
 
-    def _coerce_value(
-        self, field: str, value: Any, field_type: str
-    ) -> tuple[bool, Any]:
+    def _coerce_value(self, field: str, value: Any, field_type: str) -> tuple[bool, Any]:
         """Intenta castear ``value`` según el tipo del campo."""
 
         if field in self.field_casts:

@@ -58,14 +58,11 @@ def _roles_asignables_queryset(operador=None):
     Si ``operador`` es un **admin de programa** (no global), se acota a los roles
     de los programas que administra; un admin global (o sin operador) ve todos.
     """
-    qs = (
-        Group.objects.filter(meta__activo=True)
-        .exclude(meta__categoria=rbac.CATEGORIA_PORTAL)
-        .order_by("name")
-    )
+    qs = Group.objects.filter(meta__activo=True).exclude(meta__categoria=rbac.CATEGORIA_PORTAL).order_by("name")
     if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
         return qs
     from users.selectors.roles import programas_administrables
+
     return qs.filter(meta__programa__in=programas_administrables(operador))
 
 
@@ -199,11 +196,7 @@ class CustomUserChangeForm(forms.ModelForm):
     def __init__(self, *args, operador=None, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
-        es_global = (
-            operador is None
-            or operador.is_superuser
-            or rbac.puede(operador, "usuario.administrar")
-        )
+        es_global = operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar")
         asignables = _roles_asignables_queryset(operador)
         # Admin global: incluye los roles ya asignados (aunque estén inactivos)
         # para no perder asignaciones al editar. Admin de programa: NO se unen los

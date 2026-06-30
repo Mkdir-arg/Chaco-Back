@@ -2,19 +2,22 @@
 Modelos para el Programa Ñachec - Asistencia Social Familiar
 Reutiliza: Ciudadano, VinculoFamiliar, Adjunto, User
 """
-from django.db import models
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-from core.models import TimeStamped
-from .base import Ciudadano
 
+from django.contrib.auth.models import User
+from django.db import models
+
+from core.models import TimeStamped
+
+from .base import Ciudadano
 
 # ============================================================================
 # TEXT CHOICES - Estados y Opciones
 # ============================================================================
 
+
 class EstadoCaso(models.TextChoices):
     """Estados del caso Ñachec"""
+
     DERIVADO = "DERIVADO", "Derivado"
     EN_REVISION = "EN_REVISION", "En Revisión"
     A_ASIGNAR = "A_ASIGNAR", "A Asignar"
@@ -31,6 +34,7 @@ class EstadoCaso(models.TextChoices):
 
 class PrioridadCaso(models.TextChoices):
     """Prioridad del caso"""
+
     BAJA = "BAJA", "Baja"
     MEDIA = "MEDIA", "Media"
     ALTA = "ALTA", "Alta"
@@ -39,6 +43,7 @@ class PrioridadCaso(models.TextChoices):
 
 class RangoIngreso(models.TextChoices):
     """Rango de ingreso mensual"""
+
     SIN_INGRESOS = "SIN_INGRESOS", "Sin ingresos"
     HASTA_50K = "HASTA_50K", "Hasta $50.000"
     ENTRE_50K_100K = "50K_100K", "$50.000 - $100.000"
@@ -48,6 +53,7 @@ class RangoIngreso(models.TextChoices):
 
 class FuenteIngreso(models.TextChoices):
     """Fuente principal de ingresos"""
+
     FORMAL = "FORMAL", "Trabajo formal"
     INFORMAL = "INFORMAL", "Trabajo informal"
     PLANES = "PLANES", "Planes sociales"
@@ -58,6 +64,7 @@ class FuenteIngreso(models.TextChoices):
 
 class SituacionLaboral(models.TextChoices):
     """Situación laboral del titular"""
+
     EMPLEADO = "EMPLEADO", "Empleado"
     DESEMPLEADO = "DESEMPLEADO", "Desempleado"
     CHANGAS = "CHANGAS", "Changas/Ocasional"
@@ -68,6 +75,7 @@ class SituacionLaboral(models.TextChoices):
 
 class TipoVivienda(models.TextChoices):
     """Tipo de vivienda"""
+
     PROPIA = "PROPIA", "Propia"
     ALQUILADA = "ALQUILADA", "Alquilada"
     PRESTADA = "PRESTADA", "Prestada"
@@ -78,6 +86,7 @@ class TipoVivienda(models.TextChoices):
 
 class MaterialVivienda(models.TextChoices):
     """Material predominante de la vivienda"""
+
     LADRILLO = "LADRILLO", "Ladrillo"
     MADERA = "MADERA", "Madera"
     CHAPA = "CHAPA", "Chapa"
@@ -87,6 +96,7 @@ class MaterialVivienda(models.TextChoices):
 
 class CoberturaSalud(models.TextChoices):
     """Cobertura de salud"""
+
     OBRA_SOCIAL = "OBRA_SOCIAL", "Obra social"
     PREPAGA = "PREPAGA", "Prepaga"
     PUBLICA = "PUBLICA", "Pública"
@@ -95,6 +105,7 @@ class CoberturaSalud(models.TextChoices):
 
 class AccesoAlimentos(models.TextChoices):
     """Acceso a alimentos"""
+
     SUFICIENTE = "SUFICIENTE", "Suficiente"
     INSUFICIENTE = "INSUFICIENTE", "Insuficiente"
     CRITICO = "CRITICO", "Crítico"
@@ -102,6 +113,7 @@ class AccesoAlimentos(models.TextChoices):
 
 class TipoPrestacion(models.TextChoices):
     """Tipos de prestación"""
+
     ALIMENTARIA = "ALIMENTARIA", "Alimentaria"
     VIVIENDA = "VIVIENDA", "Vivienda"
     CAPACITACION = "CAPACITACION", "Capacitación"
@@ -114,6 +126,7 @@ class TipoPrestacion(models.TextChoices):
 
 class EstadoPrestacion(models.TextChoices):
     """Estados de la prestación"""
+
     CREADA = "CREADA", "Creada"
     PROGRAMADA = "PROGRAMADA", "Programada"
     EN_PROCESO = "EN_PROCESO", "En Proceso"
@@ -125,6 +138,7 @@ class EstadoPrestacion(models.TextChoices):
 
 class FrecuenciaPrestacion(models.TextChoices):
     """Frecuencia de la prestación"""
+
     UNICA = "UNICA", "Única"
     SEMANAL = "SEMANAL", "Semanal"
     QUINCENAL = "QUINCENAL", "Quincenal"
@@ -133,6 +147,7 @@ class FrecuenciaPrestacion(models.TextChoices):
 
 class TipoTarea(models.TextChoices):
     """Tipos de tarea"""
+
     RELEVAMIENTO = "RELEVAMIENTO", "Relevamiento inicial"
     AMPLIACION = "AMPLIACION", "Ampliación de información"
     ENTREGA = "ENTREGA", "Programar entrega"
@@ -144,6 +159,7 @@ class TipoTarea(models.TextChoices):
 
 class EstadoTarea(models.TextChoices):
     """Estados de la tarea"""
+
     PENDIENTE = "PENDIENTE", "Pendiente"
     EN_PROCESO = "EN_PROCESO", "En Proceso"
     COMPLETADA = "COMPLETADA", "Completada"
@@ -152,12 +168,14 @@ class EstadoTarea(models.TextChoices):
 
 class TipoSeguimiento(models.TextChoices):
     """Tipo de seguimiento territorial"""
+
     VISITA = "VISITA", "Visita domiciliaria"
     LLAMADA = "LLAMADA", "Llamada telefónica"
 
 
 class ResultadoSeguimiento(models.TextChoices):
     """Resultado del seguimiento"""
+
     MEJORA = "MEJORA", "Mejora"
     IGUAL = "IGUAL", "Igual"
     PEOR = "PEOR", "Peor"
@@ -165,6 +183,7 @@ class ResultadoSeguimiento(models.TextChoices):
 
 class CategoriaVulnerabilidad(models.TextChoices):
     """Categoría de vulnerabilidad"""
+
     ALTO = "ALTO", "Alto"
     MEDIO = "MEDIO", "Medio"
     BAJO = "BAJO", "Bajo"
@@ -174,28 +193,17 @@ class CategoriaVulnerabilidad(models.TextChoices):
 # MODELOS
 # ============================================================================
 
+
 class CasoNachec(TimeStamped):
     """Caso del Programa Ñachec - Instancia operativa"""
 
     # Ciudadano titular (reutiliza modelo existente)
-    ciudadano_titular = models.ForeignKey(
-        Ciudadano,
-        on_delete=models.PROTECT,
-        related_name="casos_nachec"
-    )
+    ciudadano_titular = models.ForeignKey(Ciudadano, on_delete=models.PROTECT, related_name="casos_nachec")
 
     # Estado y prioridad
-    estado = models.CharField(
-        max_length=20,
-        choices=EstadoCaso.choices,
-        default=EstadoCaso.DERIVADO,
-        db_index=True
-    )
+    estado = models.CharField(max_length=20, choices=EstadoCaso.choices, default=EstadoCaso.DERIVADO, db_index=True)
     prioridad = models.CharField(
-        max_length=10,
-        choices=PrioridadCaso.choices,
-        default=PrioridadCaso.MEDIA,
-        db_index=True
+        max_length=10, choices=PrioridadCaso.choices, default=PrioridadCaso.MEDIA, db_index=True
     )
 
     # Ubicación
@@ -206,32 +214,16 @@ class CasoNachec(TimeStamped):
 
     # Asignaciones (roles)
     operador_admision = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="casos_nachec_admision"
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="casos_nachec_admision"
     )
     coordinador = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="casos_nachec_coordinacion"
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="casos_nachec_coordinacion"
     )
     territorial = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="casos_nachec_territorial"
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="casos_nachec_territorial"
     )
     referente_programa = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="casos_nachec_referente"
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="casos_nachec_referente"
     )
 
     # Fechas clave
@@ -275,7 +267,7 @@ class CasoNachec(TimeStamped):
     def recalcular_estado_por_prestaciones(self):
         """Recalcula estado del caso según prestaciones activas del plan vigente"""
         # Solo aplica si caso está en EN_EJECUCION o EN_SEGUIMIENTO
-        if self.estado not in ['EN_EJECUCION', 'EN_SEGUIMIENTO']:
+        if self.estado not in ["EN_EJECUCION", "EN_SEGUIMIENTO"]:
             return False
 
         # Obtener plan vigente
@@ -285,40 +277,36 @@ class CasoNachec(TimeStamped):
 
         # Contar prestaciones activas
         prestaciones_activas = PrestacionNachec.objects.filter(
-            plan=plan_vigente,
-            estado__in=['PROGRAMADA', 'EN_PROCESO', 'EN_CURSO']
+            plan=plan_vigente, estado__in=["PROGRAMADA", "EN_PROCESO", "EN_CURSO"]
         ).count()
 
         estado_anterior = self.estado
         cambio = False
 
-        if prestaciones_activas == 0 and self.estado == 'EN_EJECUCION':
-            self.estado = 'EN_SEGUIMIENTO'
+        if prestaciones_activas == 0 and self.estado == "EN_EJECUCION":
+            self.estado = "EN_SEGUIMIENTO"
             cambio = True
-        elif prestaciones_activas > 0 and self.estado == 'EN_SEGUIMIENTO':
-            self.estado = 'EN_EJECUCION'
+        elif prestaciones_activas > 0 and self.estado == "EN_SEGUIMIENTO":
+            self.estado = "EN_EJECUCION"
             cambio = True
 
         if cambio:
             self.save()
-            return {'cambio': True, 'estado_anterior': estado_anterior, 'estado_nuevo': self.estado, 'prestaciones_activas': prestaciones_activas}
+            return {
+                "cambio": True,
+                "estado_anterior": estado_anterior,
+                "estado_nuevo": self.estado,
+                "prestaciones_activas": prestaciones_activas,
+            }
 
-        return {'cambio': False}
+        return {"cambio": False}
 
 
 class RelevamientoNachec(TimeStamped):
     """Relevamiento sociofamiliar"""
 
-    caso = models.OneToOneField(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="relevamiento"
-    )
-    territorial = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="relevamientos_nachec"
-    )
+    caso = models.OneToOneField(CasoNachec, on_delete=models.CASCADE, related_name="relevamiento")
+    territorial = models.ForeignKey(User, on_delete=models.PROTECT, related_name="relevamientos_nachec")
 
     # Composición familiar
     cantidad_convivientes = models.PositiveIntegerField()
@@ -327,44 +315,21 @@ class RelevamientoNachec(TimeStamped):
     detalle_discapacidad = models.TextField(blank=True)
 
     # Ingresos y empleo
-    ingreso_mensual_rango = models.CharField(
-        max_length=20,
-        choices=RangoIngreso.choices
-    )
-    fuente_ingreso = models.CharField(
-        max_length=20,
-        choices=FuenteIngreso.choices
-    )
-    situacion_laboral = models.CharField(
-        max_length=20,
-        choices=SituacionLaboral.choices
-    )
+    ingreso_mensual_rango = models.CharField(max_length=20, choices=RangoIngreso.choices)
+    fuente_ingreso = models.CharField(max_length=20, choices=FuenteIngreso.choices)
+    situacion_laboral = models.CharField(max_length=20, choices=SituacionLaboral.choices)
 
     # Vivienda
-    tipo_vivienda = models.CharField(
-        max_length=20,
-        choices=TipoVivienda.choices
-    )
-    material_predominante = models.CharField(
-        max_length=20,
-        choices=MaterialVivienda.choices
-    )
+    tipo_vivienda = models.CharField(max_length=20, choices=TipoVivienda.choices)
+    material_predominante = models.CharField(max_length=20, choices=MaterialVivienda.choices)
     tiene_agua = models.BooleanField(default=False)
     tiene_luz = models.BooleanField(default=False)
     tiene_gas = models.BooleanField(default=False)
     tiene_cloaca = models.BooleanField(default=False)
-    personas_por_habitacion = models.DecimalField(
-        max_digits=4,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
+    personas_por_habitacion = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
 
     # Salud
-    cobertura_salud = models.CharField(
-        max_length=20,
-        choices=CoberturaSalud.choices
-    )
+    cobertura_salud = models.CharField(max_length=20, choices=CoberturaSalud.choices)
     condiciones_cronicas = models.TextField(blank=True)
 
     # Educación
@@ -372,13 +337,8 @@ class RelevamientoNachec(TimeStamped):
     motivo_no_escolarizacion = models.TextField(blank=True)
 
     # Alimentación
-    acceso_alimentos = models.CharField(
-        max_length=20,
-        choices=AccesoAlimentos.choices
-    )
-    frecuencia_comidas = models.PositiveIntegerField(
-        help_text="Cantidad de comidas diarias"
-    )
+    acceso_alimentos = models.CharField(max_length=20, choices=AccesoAlimentos.choices)
+    frecuencia_comidas = models.PositiveIntegerField(help_text="Cantidad de comidas diarias")
 
     # Riesgos y urgencias
     hay_violencia = models.BooleanField(default=False)
@@ -387,18 +347,8 @@ class RelevamientoNachec(TimeStamped):
     urgencia_alimentaria = models.BooleanField(default=False)
 
     # Geolocalización
-    latitud = models.DecimalField(
-        max_digits=10,
-        decimal_places=7,
-        null=True,
-        blank=True
-    )
-    longitud = models.DecimalField(
-        max_digits=10,
-        decimal_places=7,
-        null=True,
-        blank=True
-    )
+    latitud = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitud = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
 
     # Estado del relevamiento
     completado = models.BooleanField(default=False)
@@ -434,46 +384,46 @@ class RelevamientoNachec(TimeStamped):
             familia += 5
         if self.hay_discapacidad:
             familia += 5
-        detalle['familia'] = min(familia, 15)
+        detalle["familia"] = min(familia, 15)
 
         # Ingresos (0-25)
         ingresos = 0
-        if self.ingreso_mensual_rango in ['SIN_INGRESOS', 'HASTA_50K']:
+        if self.ingreso_mensual_rango in ["SIN_INGRESOS", "HASTA_50K"]:
             ingresos += 15
-        elif self.ingreso_mensual_rango == '50K_100K':
+        elif self.ingreso_mensual_rango == "50K_100K":
             ingresos += 10
-        if self.fuente_ingreso in ['NINGUNO', 'PLANES']:
+        if self.fuente_ingreso in ["NINGUNO", "PLANES"]:
             ingresos += 5
-        if self.situacion_laboral == 'DESEMPLEADO':
+        if self.situacion_laboral == "DESEMPLEADO":
             ingresos += 5
-        detalle['ingresos'] = min(ingresos, 25)
+        detalle["ingresos"] = min(ingresos, 25)
 
         # Vivienda (0-20)
         vivienda = 0
-        if self.tipo_vivienda in ['PRECARIA', 'CALLE', 'OCUPADA']:
+        if self.tipo_vivienda in ["PRECARIA", "CALLE", "OCUPADA"]:
             vivienda += 10
-        if self.material_predominante in ['CARTON', 'CHAPA']:
+        if self.material_predominante in ["CARTON", "CHAPA"]:
             vivienda += 5
         servicios = sum([self.tiene_agua, self.tiene_luz, self.tiene_gas, self.tiene_cloaca])
         if servicios <= 1:
             vivienda += 5
         elif servicios == 2:
             vivienda += 3
-        detalle['vivienda'] = min(vivienda, 20)
+        detalle["vivienda"] = min(vivienda, 20)
 
         # Salud/Alimentación (0-25)
         salud = 0
-        if self.cobertura_salud == 'NINGUNA':
+        if self.cobertura_salud == "NINGUNA":
             salud += 8
-        if self.acceso_alimentos == 'CRITICO':
+        if self.acceso_alimentos == "CRITICO":
             salud += 10
-        elif self.acceso_alimentos == 'INSUFICIENTE':
+        elif self.acceso_alimentos == "INSUFICIENTE":
             salud += 5
         if self.frecuencia_comidas < 2:
             salud += 7
         elif self.frecuencia_comidas == 2:
             salud += 3
-        detalle['salud'] = min(salud, 25)
+        detalle["salud"] = min(salud, 25)
 
         # Riesgos (0-15)
         riesgos = 0
@@ -481,18 +431,18 @@ class RelevamientoNachec(TimeStamped):
             riesgos += 8
         if self.urgencia_alimentaria:
             riesgos += 7
-        detalle['riesgos'] = min(riesgos, 15)
+        detalle["riesgos"] = min(riesgos, 15)
 
         # Total
         score = sum(detalle.values())
 
         # Categoría
         if score <= 30:
-            categoria = 'BAJO'
+            categoria = "BAJO"
         elif score <= 60:
-            categoria = 'MEDIO'
+            categoria = "MEDIO"
         else:
-            categoria = 'ALTO'
+            categoria = "ALTO"
 
         return score, categoria, detalle
 
@@ -507,45 +457,39 @@ class RelevamientoNachec(TimeStamped):
             self.material_predominante,
             self.cobertura_salud,
             self.acceso_alimentos,
-            self.frecuencia_comidas
+            self.frecuencia_comidas,
         ]
         return all(campo for campo in campos_obligatorios)
 
     def faltantes_por_seccion(self):
         """Devuelve dict con campos faltantes por sección del wizard"""
-        faltantes = {
-            'familia': [],
-            'ingresos': [],
-            'vivienda': [],
-            'salud': [],
-            'riesgos': []
-        }
+        faltantes = {"familia": [], "ingresos": [], "vivienda": [], "salud": [], "riesgos": []}
 
         # Familia
         if not self.cantidad_convivientes:
-            faltantes['familia'].append('Cantidad de convivientes')
+            faltantes["familia"].append("Cantidad de convivientes")
 
         # Ingresos
         if not self.ingreso_mensual_rango:
-            faltantes['ingresos'].append('Rango de ingreso')
+            faltantes["ingresos"].append("Rango de ingreso")
         if not self.fuente_ingreso:
-            faltantes['ingresos'].append('Fuente de ingreso')
+            faltantes["ingresos"].append("Fuente de ingreso")
         if not self.situacion_laboral:
-            faltantes['ingresos'].append('Situación laboral')
+            faltantes["ingresos"].append("Situación laboral")
 
         # Vivienda
         if not self.tipo_vivienda:
-            faltantes['vivienda'].append('Tipo de vivienda')
+            faltantes["vivienda"].append("Tipo de vivienda")
         if not self.material_predominante:
-            faltantes['vivienda'].append('Material predominante')
+            faltantes["vivienda"].append("Material predominante")
 
         # Salud
         if not self.cobertura_salud:
-            faltantes['salud'].append('Cobertura de salud')
+            faltantes["salud"].append("Cobertura de salud")
         if not self.acceso_alimentos:
-            faltantes['salud'].append('Acceso a alimentos')
+            faltantes["salud"].append("Acceso a alimentos")
         if not self.frecuencia_comidas:
-            faltantes['salud'].append('Frecuencia de comidas')
+            faltantes["salud"].append("Frecuencia de comidas")
 
         return faltantes
 
@@ -553,48 +497,26 @@ class RelevamientoNachec(TimeStamped):
 class EvaluacionVulnerabilidad(TimeStamped):
     """Evaluación de vulnerabilidad con scoring"""
 
-    caso = models.OneToOneField(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="evaluacion"
-    )
-    relevamiento = models.ForeignKey(
-        RelevamientoNachec,
-        on_delete=models.PROTECT,
-        related_name="evaluaciones"
-    )
-    evaluador = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="evaluaciones_nachec"
-    )
+    caso = models.OneToOneField(CasoNachec, on_delete=models.CASCADE, related_name="evaluacion")
+    relevamiento = models.ForeignKey(RelevamientoNachec, on_delete=models.PROTECT, related_name="evaluaciones")
+    evaluador = models.ForeignKey(User, on_delete=models.PROTECT, related_name="evaluaciones_nachec")
 
     # Scoring del relevamiento (copiado para trazabilidad)
     score_total = models.PositiveIntegerField(help_text="Score 0-100")
     score_version = models.CharField(max_length=10, default="v1")
     categoria_sugerida = models.CharField(
-        max_length=10,
-        choices=CategoriaVulnerabilidad.choices,
-        help_text="Categoría calculada por scoring"
+        max_length=10, choices=CategoriaVulnerabilidad.choices, help_text="Categoría calculada por scoring"
     )
 
     # Dictamen profesional
     dictamen = models.TextField(help_text="Dictamen del evaluador (min 20 caracteres)")
     categoria_final = models.CharField(
-        max_length=10,
-        choices=CategoriaVulnerabilidad.choices,
-        help_text="Categoría final confirmada por evaluador"
+        max_length=10, choices=CategoriaVulnerabilidad.choices, help_text="Categoría final confirmada por evaluador"
     )
 
     # Override
-    override_categoria = models.BooleanField(
-        default=False,
-        help_text="True si categoría final difiere de sugerida"
-    )
-    justificacion_override = models.TextField(
-        blank=True,
-        help_text="Justificación obligatoria si hay override"
-    )
+    override_categoria = models.BooleanField(default=False, help_text="True si categoría final difiere de sugerida")
+    justificacion_override = models.TextField(blank=True, help_text="Justificación obligatoria si hay override")
 
     fecha_evaluacion = models.DateTimeField(auto_now_add=True)
 
@@ -609,23 +531,13 @@ class EvaluacionVulnerabilidad(TimeStamped):
 class PlanIntervencionNachec(TimeStamped):
     """Plan de intervención con componentes"""
 
-    caso = models.ForeignKey(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="planes"
-    )
-    referente = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="planes_nachec"
-    )
+    caso = models.ForeignKey(CasoNachec, on_delete=models.CASCADE, related_name="planes")
+    referente = models.ForeignKey(User, on_delete=models.PROTECT, related_name="planes_nachec")
 
     # Objetivo y horizonte
     objetivo_general = models.TextField()
     fecha_inicio = models.DateField()
-    horizonte_dias = models.PositiveIntegerField(
-        help_text="30, 60 o 90 días"
-    )
+    horizonte_dias = models.PositiveIntegerField(help_text="30, 60 o 90 días")
 
     # Componentes (líneas de acción)
     incluye_alimentacion = models.BooleanField(default=False)
@@ -652,65 +564,33 @@ class PlanIntervencionNachec(TimeStamped):
 class PrestacionNachec(TimeStamped):
     """Prestación concreta (ayuda)"""
 
-    plan = models.ForeignKey(
-        PlanIntervencionNachec,
-        on_delete=models.CASCADE,
-        related_name="prestaciones"
-    )
-    caso = models.ForeignKey(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="prestaciones"
-    )
+    plan = models.ForeignKey(PlanIntervencionNachec, on_delete=models.CASCADE, related_name="prestaciones")
+    caso = models.ForeignKey(CasoNachec, on_delete=models.CASCADE, related_name="prestaciones")
 
     # Tipo y descripción
-    tipo = models.CharField(
-        max_length=20,
-        choices=TipoPrestacion.choices,
-        db_index=True
-    )
+    tipo = models.CharField(max_length=20, choices=TipoPrestacion.choices, db_index=True)
     subtipo = models.CharField(max_length=100, blank=True)
     descripcion = models.TextField()
 
     # Estado y frecuencia
     estado = models.CharField(
-        max_length=20,
-        choices=EstadoPrestacion.choices,
-        default=EstadoPrestacion.CREADA,
-        db_index=True
+        max_length=20, choices=EstadoPrestacion.choices, default=EstadoPrestacion.CREADA, db_index=True
     )
-    frecuencia = models.CharField(
-        max_length=20,
-        choices=FrecuenciaPrestacion.choices
-    )
+    frecuencia = models.CharField(max_length=20, choices=FrecuenciaPrestacion.choices)
 
     # Fechas
     fecha_programada = models.DateField(null=True, blank=True)
     fecha_entregada = models.DateField(null=True, blank=True)
-    sla_hasta = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Fecha límite de cumplimiento (SLA)"
-    )
+    sla_hasta = models.DateTimeField(null=True, blank=True, help_text="Fecha límite de cumplimiento (SLA)")
 
     # Responsable y lugar
-    responsable = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="prestaciones_nachec"
-    )
+    responsable = models.ForeignKey(User, on_delete=models.PROTECT, related_name="prestaciones_nachec")
     lugar_entrega = models.CharField(max_length=200, blank=True)
 
     # Confirmación de entrega
     receptor_nombre = models.CharField(max_length=120, blank=True)
-    confirmacion_firma = models.FileField(
-        upload_to="nachec/confirmaciones/",
-        blank=True
-    )
-    confirmacion_foto = models.FileField(
-        upload_to="nachec/confirmaciones/",
-        blank=True
-    )
+    confirmacion_firma = models.FileField(upload_to="nachec/confirmaciones/", blank=True)
+    confirmacion_foto = models.FileField(upload_to="nachec/confirmaciones/", blank=True)
     confirmacion_codigo = models.CharField(max_length=50, blank=True)
 
     observaciones = models.TextField(blank=True)
@@ -731,52 +611,23 @@ class PrestacionNachec(TimeStamped):
 class TareaNachec(TimeStamped):
     """Tarea asignable con vencimiento"""
 
-    caso = models.ForeignKey(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="tareas"
-    )
+    caso = models.ForeignKey(CasoNachec, on_delete=models.CASCADE, related_name="tareas")
     prestacion = models.ForeignKey(
-        PrestacionNachec,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="tareas"
+        PrestacionNachec, on_delete=models.CASCADE, null=True, blank=True, related_name="tareas"
     )
 
     # Tipo y descripción
-    tipo = models.CharField(
-        max_length=20,
-        choices=TipoTarea.choices,
-        db_index=True
-    )
+    tipo = models.CharField(max_length=20, choices=TipoTarea.choices, db_index=True)
     titulo = models.CharField(max_length=200)
     descripcion = models.TextField()
 
     # Asignación
-    asignado_a = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="tareas_nachec_asignadas"
-    )
-    creado_por = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="tareas_nachec_creadas"
-    )
+    asignado_a = models.ForeignKey(User, on_delete=models.PROTECT, related_name="tareas_nachec_asignadas")
+    creado_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name="tareas_nachec_creadas")
 
     # Estado y prioridad
-    estado = models.CharField(
-        max_length=20,
-        choices=EstadoTarea.choices,
-        default=EstadoTarea.PENDIENTE,
-        db_index=True
-    )
-    prioridad = models.CharField(
-        max_length=10,
-        choices=PrioridadCaso.choices,
-        default=PrioridadCaso.MEDIA
-    )
+    estado = models.CharField(max_length=20, choices=EstadoTarea.choices, default=EstadoTarea.PENDIENTE, db_index=True)
+    prioridad = models.CharField(max_length=10, choices=PrioridadCaso.choices, default=PrioridadCaso.MEDIA)
 
     # Fechas
     fecha_vencimiento = models.DateField(db_index=True)
@@ -801,29 +652,15 @@ class TareaNachec(TimeStamped):
 class SeguimientoTerritorial(TimeStamped):
     """Seguimiento territorial periódico"""
 
-    caso = models.ForeignKey(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="seguimientos"
-    )
-    territorial = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="seguimientos_nachec"
-    )
+    caso = models.ForeignKey(CasoNachec, on_delete=models.CASCADE, related_name="seguimientos")
+    territorial = models.ForeignKey(User, on_delete=models.PROTECT, related_name="seguimientos_nachec")
 
     # Tipo y fecha
-    tipo = models.CharField(
-        max_length=10,
-        choices=TipoSeguimiento.choices
-    )
+    tipo = models.CharField(max_length=10, choices=TipoSeguimiento.choices)
     fecha_seguimiento = models.DateTimeField()
 
     # Resultado
-    resultado = models.CharField(
-        max_length=10,
-        choices=ResultadoSeguimiento.choices
-    )
+    resultado = models.CharField(max_length=10, choices=ResultadoSeguimiento.choices)
     cambios_detectados = models.TextField()
     proxima_accion = models.TextField()
     fecha_proxima_revision = models.DateField()
@@ -848,18 +685,10 @@ class SeguimientoTerritorial(TimeStamped):
 class HistorialEstadoCaso(TimeStamped):
     """Historial de cambios de estado del caso"""
 
-    caso = models.ForeignKey(
-        CasoNachec,
-        on_delete=models.CASCADE,
-        related_name="historial_estados"
-    )
+    caso = models.ForeignKey(CasoNachec, on_delete=models.CASCADE, related_name="historial_estados")
     estado_anterior = models.CharField(max_length=20)
     estado_nuevo = models.CharField(max_length=20)
-    usuario = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="cambios_estado_nachec"
-    )
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT, related_name="cambios_estado_nachec")
     observacion = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 

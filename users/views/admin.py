@@ -9,16 +9,16 @@ from django.views import View
 from django.views.generic import CreateView, ListView, UpdateView
 
 from core import rbac
-from core.rbac import CapacidadRequeridaMixin
 from core.mixins import TimestampedSuccessUrlMixin
+from core.rbac import CapacidadRequeridaMixin
+
 from ..forms import CustomUserChangeForm, UserCreationForm
-from ..services import UsuariosService
-from ..services.admin import UsuariosAdminService
 from ..selectors.usuarios import (
     alcance_roles_ids,
     puede_gestionar_usuario,
-    usuarios_visibles_para,
 )
+from ..services import UsuariosService
+from ..services.admin import UsuariosAdminService
 
 logger = logging.getLogger(__name__)
 
@@ -129,11 +129,7 @@ class UserToggleActivoView(AdminRequiredMixin, View):
         try:
             with transaction.atomic():
                 # Programas que administra (antes de desactivar): no dejarlos huérfanos.
-                programas = (
-                    UsuariosAdminService._programas_que_administra(user)
-                    if user.is_active
-                    else set()
-                )
+                programas = UsuariosAdminService._programas_que_administra(user) if user.is_active else set()
                 user.is_active = not user.is_active
                 user.save(update_fields=["is_active"])
                 if not user.is_active:
@@ -143,7 +139,5 @@ class UserToggleActivoView(AdminRequiredMixin, View):
         except rbac.SinAdministradorError as exc:
             messages.error(request, str(exc))
             return redirect("users:usuarios")
-        messages.success(
-            request, "Usuario activado." if user.is_active else "Usuario desactivado."
-        )
+        messages.success(request, "Usuario activado." if user.is_active else "Usuario desactivado.")
         return redirect("users:usuarios")

@@ -1,16 +1,17 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from ..api_views import (
-    CiudadanoViewSet,
     AlertasViewSet,
+    CiudadanoViewSet,
     consultar_renaper_api,
 )
 
 router = DefaultRouter()
-router.register(r'ciudadanos', CiudadanoViewSet)
-router.register(r'alertas', AlertasViewSet)
+router.register(r"ciudadanos", CiudadanoViewSet)
+router.register(r"alertas", AlertasViewSet)
 
 urlpatterns = [
-    path('renaper/consultar/', consultar_renaper_api, name='renaper_consultar'),
-    path('', include(router.urls)),
+    path("renaper/consultar/", consultar_renaper_api, name="renaper_consultar"),
+    path("", include(router.urls)),
 ]

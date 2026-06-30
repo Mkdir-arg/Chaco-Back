@@ -8,6 +8,7 @@ contenido de ``target`` con ese HTML. Si el form es inválido, devuelve
 
 Las vistas siguen funcionando sin AJAX (fallback a redirect tradicional).
 """
+
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 

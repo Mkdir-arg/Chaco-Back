@@ -34,7 +34,7 @@ class RegistroCiudadanoLegajoYaVinculadoError(RegistroCiudadanoError):
 
 
 def get_login_cache_key(ip):
-    return f'login_intentos_{ip}'
+    return f"login_intentos_{ip}"
 
 
 def get_login_intentos(ip):
@@ -59,9 +59,9 @@ def preparar_registro_ciudadano(*, dni, genero):
         if ciudadano.usuario_id:
             raise RegistroCiudadanoCuentaExistenteError()
         return {
-            'flujo': 'legajo_existente',
-            'ciudadano_id': ciudadano.pk,
-            'dni': dni,
+            "flujo": "legajo_existente",
+            "ciudadano_id": ciudadano.pk,
+            "dni": dni,
         }
 
     try:
@@ -69,46 +69,46 @@ def preparar_registro_ciudadano(*, dni, genero):
     except Exception as exc:
         raise RegistroCiudadanoServicioNoDisponibleError() from exc
 
-    if not resultado.get('success'):
+    if not resultado.get("success"):
         raise RegistroCiudadanoIdentidadNoVerificadaError()
 
-    datos_renaper = resultado['data']
+    datos_renaper = resultado["data"]
     return {
-        'flujo': 'nuevo',
-        'dni': dni,
-        'genero': genero,
-        'nombre': datos_renaper.get('nombre', ''),
-        'apellido': datos_renaper.get('apellido', ''),
+        "flujo": "nuevo",
+        "dni": dni,
+        "genero": genero,
+        "nombre": datos_renaper.get("nombre", ""),
+        "apellido": datos_renaper.get("apellido", ""),
     }
 
 
 @transaction.atomic
 def completar_registro_ciudadano(*, datos_registro, email, telefono, password):
-    if not datos_registro or 'dni' not in datos_registro:
+    if not datos_registro or "dni" not in datos_registro:
         raise RegistroCiudadanoSesionInvalidaError()
 
-    dni = datos_registro['dni']
+    dni = datos_registro["dni"]
     if User.objects.filter(username=dni).exists():
         raise RegistroCiudadanoCuentaExistenteError()
 
-    grupo, _ = Group.objects.get_or_create(name='Ciudadanos')
-    flujo = datos_registro.get('flujo')
+    grupo, _ = Group.objects.get_or_create(name="Ciudadanos")
+    flujo = datos_registro.get("flujo")
 
-    if flujo == 'legajo_existente':
-        ciudadano = Ciudadano.objects.select_for_update().get(pk=datos_registro['ciudadano_id'])
+    if flujo == "legajo_existente":
+        ciudadano = Ciudadano.objects.select_for_update().get(pk=datos_registro["ciudadano_id"])
         if ciudadano.usuario_id:
             raise RegistroCiudadanoLegajoYaVinculadoError()
         nombre = ciudadano.nombre
         apellido = ciudadano.apellido
     else:
         ciudadano = None
-        nombre = datos_registro.get('nombre', '')
-        apellido = datos_registro.get('apellido', '')
+        nombre = datos_registro.get("nombre", "")
+        apellido = datos_registro.get("apellido", "")
 
     user = User.objects.create_user(username=dni, email=email, password=password)
     user.groups.add(grupo)
 
-    if flujo == 'legajo_existente':
+    if flujo == "legajo_existente":
         ciudadano.usuario = user
         if email:
             ciudadano.email = email
@@ -121,8 +121,8 @@ def completar_registro_ciudadano(*, datos_registro, email, telefono, password):
             nombre=nombre,
             apellido=apellido,
             email=email,
-            telefono=telefono or '',
-            genero=datos_registro.get('genero', 'X'),
+            telefono=telefono or "",
+            genero=datos_registro.get("genero", "X"),
             usuario=user,
         )
 

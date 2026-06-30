@@ -2,6 +2,7 @@
 
 Acceso restringido a la capacidad ``rol.administrar``. Reemplaza a ``GroupListView``.
 """
+
 from django.contrib import messages
 from django.contrib.auth.models import Group
 from django.shortcuts import get_object_or_404, redirect, render
@@ -40,9 +41,7 @@ class RolListView(_RolesPermMixin, TemplateView):
 
 class RolDetailView(_RolesPermMixin, View):
     def get(self, request, pk):
-        group = get_object_or_404(
-            Group.objects.select_related("meta", "meta__programa"), pk=pk
-        )
+        group = get_object_or_404(Group.objects.select_related("meta", "meta__programa"), pk=pk)
         if not puede_gestionar_rol(request.user, group):
             return _fuera_de_alcance(request)
         return render(
@@ -71,16 +70,12 @@ class RolCreateView(_RolesPermMixin, View):
             RolesAdminService.crear(form)
             messages.success(request, "Rol creado correctamente.")
             return redirect("users:roles")
-        return render(
-            request, "rol/rol_form.html", {"form": form, "es_edicion": False}
-        )
+        return render(request, "rol/rol_form.html", {"form": form, "es_edicion": False})
 
 
 class RolUpdateView(_RolesPermMixin, View):
     def _get_group(self, pk):
-        return get_object_or_404(
-            Group.objects.select_related("meta", "meta__programa"), pk=pk
-        )
+        return get_object_or_404(Group.objects.select_related("meta", "meta__programa"), pk=pk)
 
     def get(self, request, pk):
         group = self._get_group(pk)
@@ -122,9 +117,7 @@ class RolUpdateView(_RolesPermMixin, View):
 
 class RolDeleteView(_RolesPermMixin, View):
     def post(self, request, pk):
-        group = get_object_or_404(
-            Group.objects.select_related("meta", "meta__programa"), pk=pk
-        )
+        group = get_object_or_404(Group.objects.select_related("meta", "meta__programa"), pk=pk)
         if not puede_gestionar_rol(request.user, group):
             return _fuera_de_alcance(request)
         try:
@@ -138,9 +131,7 @@ class RolDeleteView(_RolesPermMixin, View):
 
 class RolToggleActivoView(_RolesPermMixin, View):
     def post(self, request, pk):
-        group = get_object_or_404(
-            Group.objects.select_related("meta", "meta__programa"), pk=pk
-        )
+        group = get_object_or_404(Group.objects.select_related("meta", "meta__programa"), pk=pk)
         if not puede_gestionar_rol(request.user, group):
             return _fuera_de_alcance(request)
         try:

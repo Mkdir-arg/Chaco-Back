@@ -1,4 +1,5 @@
 """Tests de la API REST de campo de Becas (#82)."""
+
 from datetime import date
 from io import StringIO
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 
 from legajos.models import Ciudadano
+from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     Convocatoria,
     Formulario,
@@ -18,7 +20,6 @@ from programas.models import (
     Segmento,
     TipoCampo,
 )
-from programas.management.commands.seed_becas import ROL_TERRITORIAL, ROL_COORDINADOR
 
 
 class _BaseApiTest(APITestCase):
@@ -34,12 +35,16 @@ class _BaseApiTest(APITestCase):
         self.terri2.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
 
         self.rel = Relevamiento.objects.create(
-            convocatoria=self.conv, territorial=self.terri,
-            fecha_asignada=date(2026, 6, 1), zona="Centro",
+            convocatoria=self.conv,
+            territorial=self.terri,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Centro",
         )
         self.rel_ajeno = Relevamiento.objects.create(
-            convocatoria=self.conv, territorial=self.terri2,
-            fecha_asignada=date(2026, 6, 1), zona="Otra",
+            convocatoria=self.conv,
+            territorial=self.terri2,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Otra",
         )
 
     def autenticar(self, user):
@@ -246,7 +251,8 @@ class FormularioSyncTests(_BaseApiTest):
         resp = self.client.post(
             url,
             {
-                "celular": "3624111222", "email_contacto": "x@y.com",
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
                 "datos_identificacion": {"dni": "50500500", "nombre": "OTRO", "apellido": "OTRO"},
             },
             format="json",

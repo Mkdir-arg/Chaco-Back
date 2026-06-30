@@ -10,13 +10,19 @@ class SolapasService:
     """Solapas dinámicas del legajo ciudadano basadas en inscripciones a programas."""
 
     SOLAPAS_ESTATICAS = [
-        {"id": "resumen",        "nombre": "Resumen",          "icono": "gauge-high",        "orden": 0,   "estatica": True},
-        {"id": "conversaciones", "nombre": "Conversaciones",    "icono": "comments",          "orden": 860, "estatica": True},
-        {"id": "derivaciones",   "nombre": "Derivaciones",      "icono": "share-nodes",       "orden": 870, "estatica": True},
-        {"id": "alertas",        "nombre": "Alertas",           "icono": "bell",              "orden": 880, "estatica": True},
-        {"id": "linea_tiempo",   "nombre": "Línea de tiempo",   "icono": "clock-rotate-left", "orden": 950, "estatica": True},
-        {"id": "red_familiar",   "nombre": "Red Familiar",      "icono": "users",             "orden": 998, "estatica": True},
-        {"id": "archivos",       "nombre": "Archivos",          "icono": "folder-open",       "orden": 999, "estatica": True},
+        {"id": "resumen", "nombre": "Resumen", "icono": "gauge-high", "orden": 0, "estatica": True},
+        {"id": "conversaciones", "nombre": "Conversaciones", "icono": "comments", "orden": 860, "estatica": True},
+        {"id": "derivaciones", "nombre": "Derivaciones", "icono": "share-nodes", "orden": 870, "estatica": True},
+        {"id": "alertas", "nombre": "Alertas", "icono": "bell", "orden": 880, "estatica": True},
+        {
+            "id": "linea_tiempo",
+            "nombre": "Línea de tiempo",
+            "icono": "clock-rotate-left",
+            "orden": 950,
+            "estatica": True,
+        },
+        {"id": "red_familiar", "nombre": "Red Familiar", "icono": "users", "orden": 998, "estatica": True},
+        {"id": "archivos", "nombre": "Archivos", "icono": "folder-open", "orden": 999, "estatica": True},
     ]
 
     @classmethod
@@ -35,19 +41,21 @@ class SolapasService:
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
-            solapas.append({
-                "id": f"programa_{tipo_normalizado}",
-                "nombre": programa.nombre,
-                "icono": programa.icono or "star",
-                "color": programa.color,
-                "url_name": cls._obtener_url_programa(tipo_normalizado),
-                "url_params": {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id},
-                "orden": 100 + programa.orden,
-                "estatica": False,
-                "programa": programa,
-                "inscripcion": inscripcion,
-                "badge": cls._obtener_badge_programa(inscripcion),
-            })
+            solapas.append(
+                {
+                    "id": f"programa_{tipo_normalizado}",
+                    "nombre": programa.nombre,
+                    "icono": programa.icono or "star",
+                    "color": programa.color,
+                    "url_name": cls._obtener_url_programa(tipo_normalizado),
+                    "url_params": {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id},
+                    "orden": 100 + programa.orden,
+                    "estatica": False,
+                    "programa": programa,
+                    "inscripcion": inscripcion,
+                    "badge": cls._obtener_badge_programa(inscripcion),
+                }
+            )
 
         badges = cls.obtener_badges_ciudadano(ciudadano)
         solapas_final = []
@@ -111,6 +119,7 @@ class SolapasService:
 
         try:
             from conversaciones.models import Mensaje
+
             mensajes_count = Mensaje.objects.filter(
                 conversacion__dni_ciudadano=ciudadano.dni,
                 conversacion__estado__in=["pendiente", "activa"],

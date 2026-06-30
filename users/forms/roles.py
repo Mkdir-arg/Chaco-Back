@@ -16,9 +16,7 @@ class RolForm(forms.Form):
     name = forms.CharField(
         max_length=150,
         label="Nombre del rol",
-        widget=forms.TextInput(
-            attrs={"class": _INPUT_CLASS, "placeholder": "Ej: Operador de legajos"}
-        ),
+        widget=forms.TextInput(attrs={"class": _INPUT_CLASS, "placeholder": "Ej: Operador de legajos"}),
     )
     descripcion = forms.CharField(
         required=False,
@@ -70,9 +68,7 @@ class RolForm(forms.Form):
             ]
             self.fields["categoria"].required = True
             self.fields["categoria"].initial = rbac.CATEGORIA_BECAS
-            self.fields["capacidades"].choices = [
-                (c, c) for c in sorted(rbac.codigos_de_programa())
-            ]
+            self.fields["capacidades"].choices = [(c, c) for c in sorted(rbac.codigos_de_programa())]
             self.fields["programa"].required = False
             if progs.count() == 1:
                 self.programa_fijo = progs.first()
@@ -108,7 +104,9 @@ class RolForm(forms.Form):
 
     def _activos(self):
         if self.is_bound:
-            return self.data.getlist("capacidades") if hasattr(self.data, "getlist") else self.data.get("capacidades", [])
+            return (
+                self.data.getlist("capacidades") if hasattr(self.data, "getlist") else self.data.get("capacidades", [])
+            )
         return self.fields["capacidades"].initial or []
 
     def arbol_capacidades(self):

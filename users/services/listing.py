@@ -5,11 +5,20 @@ from django.urls import reverse
 from core.services.advanced_filters import AdvancedFilterEngine
 from users.selectors import get_usuarios_queryset
 from users.selectors.usuarios import usuarios_visibles_para
+
 from .filter_config import (
     FIELD_MAP as BENEFICIARIO_FILTER_MAP,
+)
+from .filter_config import (
     FIELD_TYPES as BENEFICIARIO_FIELD_TYPES,
+)
+from .filter_config import (
     NUM_OPS as BENEFICIARIO_NUM_OPS,
+)
+from .filter_config import (
     TEXT_OPS as BENEFICIARIO_TEXT_OPS,
+)
+from .filter_config import (
     get_filters_ui_config,
 )
 
@@ -33,11 +42,7 @@ class UsuariosService:
         Con ``operador`` se acota el listado al alcance del operador (admin de
         programa ve solo usuarios con algún rol de sus programas).
         """
-        base_qs = (
-            usuarios_visibles_para(operador)
-            if operador is not None
-            else get_usuarios_queryset()
-        )
+        base_qs = usuarios_visibles_para(operador) if operador is not None else get_usuarios_queryset()
         return BENEFICIARIO_ADVANCED_FILTER.filter_queryset(base_qs, request_or_get)
 
     @staticmethod

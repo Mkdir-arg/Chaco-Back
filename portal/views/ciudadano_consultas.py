@@ -18,10 +18,10 @@ from ..services.consultas import (
 def ciudadano_mis_consultas(request):
     ciudadano = get_ciudadano_perfil(request.user)
     context = {
-        'ciudadano': ciudadano,
-        'conversaciones': get_ciudadano_conversaciones(request.user, ciudadano),
+        "ciudadano": ciudadano,
+        "conversaciones": get_ciudadano_conversaciones(request.user, ciudadano),
     }
-    return render(request, 'portal/ciudadano/mis_consultas.html', context)
+    return render(request, "portal/ciudadano/mis_consultas.html", context)
 
 
 @ciudadano_required
@@ -29,13 +29,13 @@ def ciudadano_consulta_detalle(request, pk):
     ciudadano = get_ciudadano_perfil(request.user)
     conversacion = get_ciudadano_conversacion_or_404(request.user, ciudadano, pk)
     context = {
-        'ciudadano': ciudadano,
-        'conversacion': conversacion,
-        'mensajes': conversacion.mensajes.order_by('fecha_envio'),
-        'puede_enviar': conversacion.estado != 'cerrada',
-        'mensaje_form': CiudadanoEnviarMensajeForm(),
+        "ciudadano": ciudadano,
+        "conversacion": conversacion,
+        "mensajes": conversacion.mensajes.order_by("fecha_envio"),
+        "puede_enviar": conversacion.estado != "cerrada",
+        "mensaje_form": CiudadanoEnviarMensajeForm(),
     }
-    return render(request, 'portal/ciudadano/consulta_detalle.html', context)
+    return render(request, "portal/ciudadano/consulta_detalle.html", context)
 
 
 @ciudadano_required
@@ -43,20 +43,20 @@ def ciudadano_nueva_consulta(request):
     ciudadano = get_ciudadano_perfil(request.user)
     form = CiudadanoNuevaConsultaForm(request.POST or None)
 
-    if request.method == 'POST' and form.is_valid():
+    if request.method == "POST" and form.is_valid():
         conversacion = crear_consulta_ciudadana(
             ciudadano=ciudadano,
             user=request.user,
-            motivo=form.cleaned_data['motivo'],
+            motivo=form.cleaned_data["motivo"],
         )
-        return redirect('portal:ciudadano_consulta_detalle', pk=conversacion.pk)
+        return redirect("portal:ciudadano_consulta_detalle", pk=conversacion.pk)
 
     return render(
         request,
-        'portal/ciudadano/nueva_consulta.html',
+        "portal/ciudadano/nueva_consulta.html",
         {
-            'ciudadano': ciudadano,
-            'form': form,
+            "ciudadano": ciudadano,
+            "form": form,
         },
     )
 
@@ -67,10 +67,10 @@ def ciudadano_enviar_mensaje(request, pk):
     conversacion = get_ciudadano_conversacion_or_404(request.user, ciudadano, pk)
     form = CiudadanoEnviarMensajeForm(request.POST or None)
 
-    if request.method == 'POST' and form.is_valid():
+    if request.method == "POST" and form.is_valid():
         crear_mensaje_ciudadano_desde_portal(
             conversacion=conversacion,
-            texto=form.cleaned_data['texto'],
+            texto=form.cleaned_data["texto"],
         )
 
-    return redirect('portal:ciudadano_consulta_detalle', pk=pk)
+    return redirect("portal:ciudadano_consulta_detalle", pk=pk)

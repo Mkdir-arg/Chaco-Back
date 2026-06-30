@@ -1,9 +1,10 @@
-﻿from datetime import date
+from datetime import date
 
 from django.db.models import Q
 
-from ..models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
+
+from ..models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from ..models.nachec import (
     CasoNachec,
     EvaluacionVulnerabilidad,
@@ -36,22 +37,27 @@ def buscar_ciudadanos_rapido(q):
         return []
 
     from datetime import date as _date
+
     hoy = _date.today()
     resultados = []
-    for c in qs.order_by('apellido', 'nombre')[:10]:
+    for c in qs.order_by("apellido", "nombre")[:10]:
         edad = None
         if c.fecha_nacimiento:
-            edad = hoy.year - c.fecha_nacimiento.year - (
-                (hoy.month, hoy.day) < (c.fecha_nacimiento.month, c.fecha_nacimiento.day)
+            edad = (
+                hoy.year
+                - c.fecha_nacimiento.year
+                - ((hoy.month, hoy.day) < (c.fecha_nacimiento.month, c.fecha_nacimiento.day))
             )
-        resultados.append({
-            'id': c.pk,
-            'nombre': c.nombre,
-            'apellido': c.apellido,
-            'dni': c.dni,
-            'edad': edad,
-            'foto_url': c.foto.url if c.foto else None,
-        })
+        resultados.append(
+            {
+                "id": c.pk,
+                "nombre": c.nombre,
+                "apellido": c.apellido,
+                "dni": c.dni,
+                "edad": edad,
+                "foto_url": c.foto.url if c.foto else None,
+            }
+        )
     return resultados
 
 
@@ -59,9 +65,7 @@ def get_ciudadanos_queryset(search=""):
     queryset = Ciudadano.objects.filter(activo=True)
     if search:
         queryset = queryset.filter(
-            Q(dni__icontains=search)
-            | Q(nombre__icontains=search)
-            | Q(apellido__icontains=search)
+            Q(dni__icontains=search) | Q(nombre__icontains=search) | Q(apellido__icontains=search)
         )
     return queryset.order_by("apellido", "nombre")
 
@@ -71,19 +75,13 @@ def get_ciudadanos_dashboard_metrics():
         estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO]
     ).count()
     total_inscripciones = InscripcionPrograma.objects.count()
-    tasa_adherencia = round(
-        (total_inscripciones_activas / total_inscripciones * 100)
-        if total_inscripciones > 0
-        else 0
-    )
+    tasa_adherencia = round((total_inscripciones_activas / total_inscripciones * 100) if total_inscripciones > 0 else 0)
 
     return {
         "total_ciudadanos": Ciudadano.objects.filter(activo=True).count(),
         "legajos_activos": total_inscripciones_activas,
         "alertas_criticas": AlertaCiudadano.objects.filter(activa=True).count(),
-        "seguimientos_hoy": InscripcionPrograma.objects.filter(
-            fecha_inscripcion=date.today()
-        ).count(),
+        "seguimientos_hoy": InscripcionPrograma.objects.filter(fecha_inscripcion=date.today()).count(),
         "tasa_adherencia": tasa_adherencia,
         "casos_alto_riesgo": DerivacionPrograma.objects.filter(
             estado=DerivacionPrograma.Estado.PENDIENTE,
@@ -93,8 +91,6 @@ def get_ciudadanos_dashboard_metrics():
 
 
 def build_ciudadano_detail_context(ciudadano, user=None):
-    import datetime
-    from django.utils import timezone
 
     from core.rbac import puede
 
@@ -103,34 +99,39 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # Generar alertas on-the-fly antes de consultar (best-effort)
     try:
         from ..services.alertas import AlertasService
+
         AlertasService.generar_alertas_ciudadano(ciudadano.pk)
     except Exception:
         pass
 
-    acompanamientos = InscripcionPrograma.objects.filter(
-        ciudadano=ciudadano,
-        programa__tipo__in=[
-            Programa.TipoPrograma.ACOMPANAMIENTO_SOCIAL,
-        ],
-        estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO],
-    ).select_related('programa', 'responsable').order_by('-fecha_inscripcion')
+    acompanamientos = (
+        InscripcionPrograma.objects.filter(
+            ciudadano=ciudadano,
+            programa__tipo__in=[
+                Programa.TipoPrograma.ACOMPANAMIENTO_SOCIAL,
+            ],
+            estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO],
+        )
+        .select_related("programa", "responsable")
+        .order_by("-fecha_inscripcion")
+    )
 
     context = {
-        'puede_ver_sensible': puede_ver_sensible,
-        'legajos': LegajoAtencion.objects.none(),
-        'acompanamientos': acompanamientos,
-        'acompanamientos_activos_count': acompanamientos.count(),
-        'solapas': [
+        "puede_ver_sensible": puede_ver_sensible,
+        "legajos": LegajoAtencion.objects.none(),
+        "acompanamientos": acompanamientos,
+        "acompanamientos_activos_count": acompanamientos.count(),
+        "solapas": [
             solapa
             for solapa in SolapasService.obtener_solapas_ciudadano(ciudadano)
-            if solapa['id'] != 'legajos' and 'ACOMPANAMIENTO' not in solapa['id']
+            if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
         ],
-        'programas_activos': SolapasService.obtener_programas_activos(ciudadano),
+        "programas_activos": SolapasService.obtener_programas_activos(ciudadano),
     }
-    context['solapas_programas'] = [s for s in context['solapas'] if not s['estatica']]
+    context["solapas_programas"] = [s for s in context["solapas"] if not s["estatica"]]
 
     # Historial de programas: inscripciones que ya no están vigentes
-    context['historial_programas'] = SolapasService.obtener_historial_programas(ciudadano).filter(
+    context["historial_programas"] = SolapasService.obtener_historial_programas(ciudadano).filter(
         estado__in=[
             InscripcionPrograma.Estado.CERRADO,
             InscripcionPrograma.Estado.SUSPENDIDO,
@@ -139,56 +140,57 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     )
 
     # --- Instituciones vinculadas (vía legajos) ---
-    context['instituciones_ciudadano'] = []
+    context["instituciones_ciudadano"] = []
 
     # --- Conversaciones ---
     try:
         from conversaciones.models import Conversacion
-        context['conversaciones_ciudadano'] = (
-            Conversacion.objects
-            .filter(dni_ciudadano=ciudadano.dni)
-            .order_by('-fecha_inicio')[:20]
-        )
+
+        context["conversaciones_ciudadano"] = Conversacion.objects.filter(dni_ciudadano=ciudadano.dni).order_by(
+            "-fecha_inicio"
+        )[:20]
     except Exception:
-        context['conversaciones_ciudadano'] = []
+        context["conversaciones_ciudadano"] = []
 
     # --- Derivaciones ---
-    context['derivaciones_ciudadano'] = (
-        ciudadano.derivaciones_programas
-        .select_related('programa_origen', 'programa_destino', 'derivado_por')
-        .order_by('-creado')[:20]
-    )
+    context["derivaciones_ciudadano"] = ciudadano.derivaciones_programas.select_related(
+        "programa_origen", "programa_destino", "derivado_por"
+    ).order_by("-creado")[:20]
 
     # --- Alertas ---
-    context['alertas_ciudadano'] = (
-        ciudadano.alertas
-        .filter(activa=True)
-        .order_by('prioridad', '-creado')
-    )
+    context["alertas_ciudadano"] = ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
 
     # --- Línea de tiempo ---
     linea = []
 
-    for ins in InscripcionPrograma.objects.filter(ciudadano=ciudadano).select_related('programa').order_by('-fecha_inscripcion')[:20]:
-        linea.append({
-            'fecha': ins.fecha_inscripcion,
-            'icono': 'user-plus',
-            'color_hex': ins.programa.color or '#3B82F6',
-            'titulo': f'Inscripción a {ins.programa.nombre}',
-            'descripcion': ins.get_estado_display(),
-        })
+    for ins in (
+        InscripcionPrograma.objects.filter(ciudadano=ciudadano)
+        .select_related("programa")
+        .order_by("-fecha_inscripcion")[:20]
+    ):
+        linea.append(
+            {
+                "fecha": ins.fecha_inscripcion,
+                "icono": "user-plus",
+                "color_hex": ins.programa.color or "#3B82F6",
+                "titulo": f"Inscripción a {ins.programa.nombre}",
+                "descripcion": ins.get_estado_display(),
+            }
+        )
 
-    for deriv in ciudadano.derivaciones_programas.select_related('programa_destino').order_by('-creado')[:10]:
-        linea.append({
-            'fecha': deriv.creado.date() if hasattr(deriv.creado, 'date') else deriv.creado,
-            'icono': 'share-nodes',
-            'color_hex': '#F97316',
-            'titulo': f'Derivación a {deriv.programa_destino.nombre}',
-            'descripcion': deriv.get_estado_display(),
-        })
+    for deriv in ciudadano.derivaciones_programas.select_related("programa_destino").order_by("-creado")[:10]:
+        linea.append(
+            {
+                "fecha": deriv.creado.date() if hasattr(deriv.creado, "date") else deriv.creado,
+                "icono": "share-nodes",
+                "color_hex": "#F97316",
+                "titulo": f"Derivación a {deriv.programa_destino.nombre}",
+                "descripcion": deriv.get_estado_display(),
+            }
+        )
 
-    linea.sort(key=lambda x: x['fecha'], reverse=True)
-    context['linea_tiempo'] = linea[:50]
+    linea.sort(key=lambda x: x["fecha"], reverse=True)
+    context["linea_tiempo"] = linea[:50]
 
     caso_nachec = (
         CasoNachec.objects.filter(ciudadano_titular=ciudadano)
@@ -201,20 +203,16 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         return context
 
     context["caso_nachec"] = caso_nachec
-    context["relevamiento"] = RelevamientoNachec.objects.filter(
-        caso=caso_nachec
-    ).order_by("-creado").first()
-    context["evaluacion"] = EvaluacionVulnerabilidad.objects.filter(
-        caso=caso_nachec
-    ).first()
+    context["relevamiento"] = RelevamientoNachec.objects.filter(caso=caso_nachec).order_by("-creado").first()
+    context["evaluacion"] = EvaluacionVulnerabilidad.objects.filter(caso=caso_nachec).first()
     context["plan_vigente"] = PlanIntervencionNachec.objects.filter(
         caso=caso_nachec,
         vigente=True,
     ).first()
-    context["prestaciones"] = PrestacionNachec.objects.filter(
-        caso=caso_nachec
-    ).select_related("responsable").order_by("-creado")[:10]
-    context["historial_estados"] = HistorialEstadoCaso.objects.filter(
-        caso=caso_nachec
-    ).select_related("usuario").order_by("-timestamp")[:10]
+    context["prestaciones"] = (
+        PrestacionNachec.objects.filter(caso=caso_nachec).select_related("responsable").order_by("-creado")[:10]
+    )
+    context["historial_estados"] = (
+        HistorialEstadoCaso.objects.filter(caso=caso_nachec).select_related("usuario").order_by("-timestamp")[:10]
+    )
     return context
