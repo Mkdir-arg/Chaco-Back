@@ -50,7 +50,7 @@ class SegmentoCrudTests(_BaseConfigTest):
     def test_crear_segmento(self):
         resp = self.client.post(
             reverse("becas:segmento_crear"),
-            {"nombre": "Producción", "descripcion": "", "cupo_maximo": 200, "activo": "on"},
+            {"nombre": "Producción", "descripcion": "Población objetivo", "cupo_maximo": 200, "coordinador": self.coord.pk},
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Segmento.objects.filter(nombre="Producción", cupo_maximo=200).exists())
@@ -137,7 +137,7 @@ class RequisitoTests(_BaseConfigTest):
     def test_crear_requisito_segmento(self):
         resp = self.client.post(
             reverse("becas:requisito_crear", args=[self.seg.pk]),
-            {"texto": "Actividad", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "on"},
+            {"texto": "Actividad", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "True"},
         )
         self.assertEqual(resp.status_code, 302)
         req = RequisitoNativo.objects.get(texto="Actividad")
@@ -147,7 +147,7 @@ class RequisitoTests(_BaseConfigTest):
     def test_crear_requisito_subsegmento(self):
         resp = self.client.post(
             reverse("becas:requisito_crear", args=[self.seg.pk]) + f"?subsegmento={self.sub.pk}",
-            {"texto": "Tipo horno", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "on", "subsegmento": self.sub.pk},
+            {"texto": "Tipo horno", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "True", "subsegmento": self.sub.pk},
         )
         self.assertEqual(resp.status_code, 302)
         req = RequisitoNativo.objects.get(texto="Tipo horno")
@@ -157,7 +157,7 @@ class RequisitoTests(_BaseConfigTest):
         resp = self.client.post(
             reverse("becas:requisito_crear", args=[self.seg.pk]),
             {
-                "texto": "Material", "tipo": TipoCampo.SELECTOR, "orden": 1, "obligatorio": "on",
+                "texto": "Material", "tipo": TipoCampo.SELECTOR, "orden": 1, "obligatorio": "True",
                 "opciones_texto": "Ladrillo\nCarbón\nOtro",
             },
         )
