@@ -1,247 +1,488 @@
 {% extends "includes/base.html" %}
 {% load static rbac %}
 
-{% block title %}Ciudadano{% endblock %}
+{% block title %}Ciudadanos{% endblock %}
 
 {% block main-content %}
-<div class="min-h-screen bg-white p-4 lg:p-8">
-    <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between animate-fade-in">
-            <div>
-                <h1 class="text-3xl font-bold text-[#252F40]">Ciudadanos registrados</h1>
-                <p class="text-sm text-[#8C8C8C] mt-1">
-                    {{ metricas.legajos_activos }} programas activos
-                </p>
-            </div>
-            {% if request.user|puede:"ciudadano.crear" %}
-            <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-base">
-                <i class="fas fa-plus"></i>
-                Nuevo Ciudadano
-            </a>
-            {% endif %}
-        </div>
+<div class="cl-ciudadanos">
 
-        <!-- Dashboard de Métricas -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0s">
-                <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-users text-2xl" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.total_ciudadanos }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Total Ciudadanos</p>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.1s">
-                <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-folder-open text-2xl" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.legajos_activos }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Programas Activos</p>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.2s">
-                <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-exclamation-triangle text-2xl" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.alertas_criticas }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Alertas Activas</p>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.3s">
-                <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-calendar-check text-2xl" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.seguimientos_hoy }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Altas Hoy</p>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.4s">
-                <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-chart-line text-2xl" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.tasa_adherencia }}%</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Participación Activa</p>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up" style="animation-delay: 0.5s">
-                <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-heartbeat text-2xl" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                    <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ metricas.casos_alto_riesgo }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Derivaciones Altas</p>
-            </div>
-        </div>
-
-        <!-- Buscador -->
-        <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
-            <form method="get" class="relative">
-                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8C8C]"></i>
-                <input type="text" name="search" value="{{ request.GET.search }}" placeholder="Buscar por nombre, apellido o DNI (mín. 3 caracteres)..." class="w-full pl-12 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#252F40] placeholder-[#8C8C8C] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all">
-            </form>
-        </div>
-
-        <!-- Filtros -->
-        <div class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm flex flex-wrap gap-3 items-center">
-            <select class="px-4 py-2 border border-[#E5E7EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
-                <option>Todos los riesgos</option>
-                <option>Alto</option>
-                <option>Medio</option>
-                <option>Bajo</option>
-            </select>
-            <select class="px-4 py-2 border border-[#E5E7EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
-                <option>Todos los estados</option>
-                <option>Abierto</option>
-                <option>En Seguimiento</option>
-                <option>Cerrado</option>
-            </select>
-            <button class="btn-nodo btn-secondary btn-sm">
-                <i class="fas fa-bell"></i>Con alertas
-            </button>
-            <button class="btn-nodo btn-secondary btn-sm">
-                <i class="fas fa-calendar-times"></i>Sin plan vigente
-            </button>
-            <button class="btn-nodo btn-tertiary btn-base ml-auto">
-                <i class="fas fa-download text-xs"></i>Exportar
-            </button>
-        </div>
-
-        <!-- Tabla -->
-        <div class="bg-white rounded-xl border border-[#E5E7EB] overflow-hidden shadow-lg">
-            {% if ciudadanos %}
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                        <tr>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Ciudadano</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">DNI</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Dispositivo</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase tracking-wide">Responsable</th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Riesgo</th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Estado</th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Alertas</th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-[#374151] uppercase tracking-wide">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-[#E5E7EB]">
-                        {% for ciudadano in ciudadanos %}
-                        <tr class="hover:bg-[#F9FAFB] transition-colors">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white font-bold shadow-md">
-                                        {{ ciudadano.nombre|first }}{{ ciudadano.apellido|first }}
-                                    </div>
-                                    <div>
-                                        <p class="font-semibold text-[#252F40]">{{ ciudadano.nombre }} {{ ciudadano.apellido }}</p>
-                                        <p class="text-xs text-[#8C8C8C]">Ingreso: {{ ciudadano.fecha_creacion|date:"d/m/Y"|default:"-" }}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="text-sm font-mono text-[#4A5565]">{{ ciudadano.dni }}</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div>
-                                    <p class="text-sm font-semibold text-[#252F40]">-</p>
-                                    <p class="text-xs text-[#8C8C8C]">Sin asignar</p>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="text-sm text-[#4A5565]">-</span>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <span class="inline-flex items-center px-2 h-5 text-xs font-medium rounded-md text-[#006045] bg-[#ECFDF5] border border-[#A4F4CF]" style="border-radius: 6px;">
-                                    BAJO
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <span class="inline-flex items-center px-2 h-5 text-xs font-medium rounded-md text-[#101828] bg-[#FFFFFF] border border-[#E5E7EB]" style="border-radius: 6px;">
-                                    Abierto
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <span class="text-xs text-[#8C8C8C]">-</span>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="p-2 rounded-lg transition-colors inline-block" style="color: #F26DF9; background-color: transparent;" onmouseover="this.style.backgroundColor='#FDF4FF'" onmouseout="this.style.backgroundColor='transparent'">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginación -->
-            {% if is_paginated %}
-            <div class="px-6 py-4 border-t border-[#E5E7EB] flex items-center justify-between">
-                <p class="text-sm text-[#8C8C8C]">
-                    Página {{ page_obj.number }} de {{ paginator.num_pages }}
-                </p>
-                <div class="flex gap-2">
-                    {% if page_obj.has_previous %}
-                    <a href="?page={{ page_obj.previous_page_number }}" class="btn-nodo btn-secondary btn-sm">
-                        Anterior
-                    </a>
-                    {% endif %}
-                    {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}" class="btn-nodo btn-secondary btn-sm">
-                        Siguiente
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-            {% else %}
-            <div class="p-12 text-center">
-                <i class="fas fa-users text-6xl text-[#8C8C8C] mb-4 opacity-50"></i>
-                <h3 class="text-xl font-semibold text-[#252F40] mb-2">No se encontraron ciudadanos</h3>
-                <p class="text-[#8C8C8C] mb-6">Comienza agregando el primer ciudadano al sistema</p>
-                {% if request.user|puede:"ciudadano.crear" %}
-                <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-base">
-                    <i class="fas fa-plus"></i>Agregar Ciudadano
-                </a>
-                {% endif %}
-            </div>
-            {% endif %}
-        </div>
+  {# ── PageHeader ─────────────────────────────────────────────────────────── #}
+  <div class="cl-page-header">
+    <div>
+      <p class="cl-breadcrumb">
+        Legajos
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="display:inline-block;vertical-align:middle;color:var(--text-body-subtle)"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+        <span style="color:var(--text-body);font-weight:600;">Ciudadanos</span>
+      </p>
+      <h1 class="cl-h1">Ciudadanos registrados</h1>
+      <p class="cl-subtitle">
+        Gestioná y buscá los legajos de los ciudadanos del sistema.
+      </p>
     </div>
+    {% if request.user|puede:"ciudadano.crear" %}
+    <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-base">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Nuevo ciudadano
+    </a>
+    {% endif %}
+  </div>
+
+  {# ── Stat cards ──────────────────────────────────────────────────────────── #}
+  <div class="cl-stat-grid">
+
+    <div class="cl-stat-card">
+      <div class="cl-stat-top">
+        <p class="cl-stat-label">Total ciudadanos</p>
+        <span class="cl-stat-icon cl-stat-icon--brand" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+        </span>
+      </div>
+      <p class="cl-stat-value">{{ metricas.total_ciudadanos }}</p>
+    </div>
+
+    <div class="cl-stat-card">
+      <div class="cl-stat-top">
+        <p class="cl-stat-label">Programas activos</p>
+        <span class="cl-stat-icon cl-stat-icon--brand" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/></svg>
+        </span>
+      </div>
+      <p class="cl-stat-value">{{ metricas.legajos_activos }}</p>
+    </div>
+
+    <div class="cl-stat-card">
+      <div class="cl-stat-top">
+        <p class="cl-stat-label">Alertas activas</p>
+        <span class="cl-stat-icon cl-stat-icon--danger" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+        </span>
+      </div>
+      <p class="cl-stat-value">{{ metricas.alertas_criticas }}</p>
+    </div>
+
+    <div class="cl-stat-card">
+      <div class="cl-stat-top">
+        <p class="cl-stat-label">Altas hoy</p>
+        <span class="cl-stat-icon cl-stat-icon--success" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-6h.008v.008H12V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 15h.008v.008H12V15zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM9.75 15h.008v.008H9.75V15zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+        </span>
+      </div>
+      <p class="cl-stat-value">{{ metricas.seguimientos_hoy }}</p>
+    </div>
+
+    <div class="cl-stat-card">
+      <div class="cl-stat-top">
+        <p class="cl-stat-label">Participación activa</p>
+        <span class="cl-stat-icon cl-stat-icon--brand" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        </span>
+      </div>
+      <p class="cl-stat-value">{{ metricas.tasa_adherencia }}%</p>
+    </div>
+
+    <div class="cl-stat-card">
+      <div class="cl-stat-top">
+        <p class="cl-stat-label">Derivaciones altas</p>
+        <span class="cl-stat-icon cl-stat-icon--warning" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+        </span>
+      </div>
+      <p class="cl-stat-value">{{ metricas.casos_alto_riesgo }}</p>
+    </div>
+
+  </div>
+
+  {# ── Buscador (FilterBar) ─────────────────────────────────────────────────── #}
+  <div class="cl-filterbar">
+    <form method="get" class="cl-search-wrap" role="search">
+      <span class="cl-search-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+      </span>
+      <input
+        type="text"
+        name="search"
+        value="{{ request.GET.search }}"
+        placeholder="Buscá por nombre, apellido o DNI (mín. 3 caracteres)..."
+        class="cl-search-input"
+        aria-label="Buscar ciudadanos"
+      >
+    </form>
+    <a href="{% url 'legajos:ciudadanos' %}" class="btn-nodo btn-tertiary btn-base" style="white-space:nowrap;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+      Exportar
+    </a>
+  </div>
+
+  {# ── TableCard ────────────────────────────────────────────────────────────── #}
+  <div class="cl-table-card">
+    {% if ciudadanos %}
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th class="cl-th" style="text-align:left;">Ciudadano</th>
+            <th class="cl-th" style="text-align:left;">DNI</th>
+            <th class="cl-th" style="text-align:center;width:72px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ciudadano in ciudadanos %}
+          <tr class="cl-tr">
+            <td class="cl-td">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div class="cl-avatar" aria-hidden="true">
+                  {{ ciudadano.nombre|first }}{{ ciudadano.apellido|first }}
+                </div>
+                <div>
+                  <p style="font-weight:600;font-size:13.5px;color:var(--text-heading);margin:0;">{{ ciudadano.nombre }} {{ ciudadano.apellido }}</p>
+                  <p style="font-size:12px;color:var(--text-body-subtle);margin:0;">Ingreso: {{ ciudadano.fecha_creacion|date:"d/m/Y"|default:"—" }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="cl-td">
+              <span style="font-size:13.5px;color:var(--text-body);">{{ ciudadano.dni }}</span>
+            </td>
+            <td class="cl-td" style="text-align:center;">
+              <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="cl-icon-btn" aria-label="Ver detalle de {{ ciudadano.nombre }} {{ ciudadano.apellido }}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Paginación ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="cl-pagination">
+      <p class="cl-pagination-info">
+        Página {{ page_obj.number }} de {{ paginator.num_pages }}
+      </p>
+      <div style="display:flex;align-items:center;gap:8px;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="btn-nodo btn-tertiary btn-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+          Anterior
+        </a>
+        {% endif %}
+        <span class="cl-pagination-pages">{{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="btn-nodo btn-tertiary btn-sm">
+          Siguiente
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# ── Empty state ──────────────────────────────────────────────────────── #}
+    <div class="cl-empty-state">
+      <span class="cl-empty-icon" aria-hidden="true">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+      </span>
+      {% if request.GET.search %}
+      <h3 class="cl-empty-title">Sin resultados para "{{ request.GET.search }}"</h3>
+      <p class="cl-empty-msg">Revisá el término de búsqueda o intentá con otro nombre o DNI.</p>
+      {% else %}
+      <h3 class="cl-empty-title">No hay ciudadanos registrados</h3>
+      <p class="cl-empty-msg">Empezá agregando el primer ciudadano al sistema.</p>
+      {% if request.user|puede:"ciudadano.crear" %}
+      <a href="{% url 'legajos:ciudadano_nuevo' %}" class="btn-nodo btn-brand btn-base" style="margin-top:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Agregar ciudadano
+      </a>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
 </div>
 
 <style>
-@keyframes fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* ── Scope: .cl-ciudadanos ────────────────────────────────────────────────── */
+.cl-ciudadanos {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-@keyframes slide-up {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* PageHeader */
+.cl-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cl-breadcrumb {
+  font-size: 12.5px;
+  color: var(--text-body-subtle);
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cl-h1 {
+  font-family: var(--font-sans);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-heading);
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  margin: 0;
+}
+.cl-subtitle {
+  font-size: 14px;
+  color: var(--text-body-subtle);
+  margin: 4px 0 0;
+  max-width: 620px;
 }
 
-.animate-fade-in {
-    animation: fade-in 0.6s ease-out;
+/* Stat cards grid */
+.cl-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1200px) { .cl-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 768px)  { .cl-stat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px)  { .cl-stat-grid { grid-template-columns: 1fr; } }
+
+.cl-stat-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-base);
+  border-radius: var(--rounded-xl);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: box-shadow var(--duration-normal, 300ms) var(--ease-standard, ease);
+}
+.cl-stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+.cl-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cl-stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-body-subtle);
+  margin: 0;
+}
+.cl-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  flex-shrink: 0;
+}
+.cl-stat-icon--brand {
+  background: var(--bg-brand-soft);
+  color: var(--text-fg-brand);
+}
+.cl-stat-icon--danger {
+  background: var(--bg-danger-soft);
+  color: var(--text-fg-danger);
+}
+.cl-stat-icon--success {
+  background: var(--bg-success-soft);
+  color: var(--text-fg-success);
+}
+.cl-stat-icon--warning {
+  background: var(--bg-warning-soft);
+  color: var(--text-fg-warning);
+}
+.cl-stat-value {
+  font-family: var(--font-sans);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-heading);
+  line-height: 1;
+  margin: 0;
 }
 
-.animate-slide-up {
-    animation: slide-up 0.6s ease-out;
-    animation-fill-mode: both;
+/* FilterBar */
+.cl-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cl-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+.cl-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-body-subtle);
+  pointer-events: none;
+  display: flex;
+}
+.cl-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px 0 42px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--text-heading);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-base);
+  border-radius: var(--rounded-full);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.cl-search-input::placeholder {
+  color: var(--text-body-subtle);
+}
+.cl-search-input:focus {
+  border-color: var(--border-brand);
+  box-shadow: var(--ring-brand);
+}
+
+/* TableCard */
+.cl-table-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-base);
+  border-radius: var(--rounded-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Table header */
+.cl-th {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-body-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 11px 16px;
+  background: var(--bg-secondary);
+  border: none;
+  white-space: nowrap;
+}
+
+/* Table rows */
+.cl-tr {
+  transition: background-color 150ms ease;
+}
+.cl-tr:hover {
+  background: var(--bg-tertiary);
+}
+.cl-td {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--text-body);
+  padding: 13px 16px;
+  border-top: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+/* Avatar */
+.cl-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Icon button (acciones de tabla) */
+.cl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--text-fg-brand);
+  background: transparent;
+  transition: background-color 150ms ease;
+  text-decoration: none;
+}
+.cl-icon-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-fg-brand);
+  text-decoration: none;
+}
+.cl-icon-btn:focus-visible {
+  outline: 2px solid var(--border-brand);
+  outline-offset: 2px;
+}
+
+/* Pagination */
+.cl-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cl-pagination-info {
+  font-size: 12.5px;
+  color: var(--text-body-subtle);
+  margin: 0;
+}
+.cl-pagination-pages {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+/* Empty state */
+.cl-empty-state {
+  padding: 56px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.cl-empty-icon {
+  color: var(--text-fg-brand);
+  display: flex;
+}
+.cl-empty-title {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0;
+}
+.cl-empty-msg {
+  font-size: 14px;
+  color: var(--text-body);
+  max-width: 360px;
+  margin: 0;
+}
+
+/* ── Dark mode overrides ──────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  /* tokens ya invierten via data-theme=dark en base.html; este bloque es fallback */
 }
 </style>
 {% endblock %}
