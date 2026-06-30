@@ -82,7 +82,7 @@ class IntelligentQueryOptimizer:
 
                     # Analizar patrón de query
                     pattern_type = self._identify_query_pattern(query_text)
-                    query_hash = hashlib.md5(query_text.encode()).hexdigest()
+                    query_hash = hashlib.md5(query_text.encode(), usedforsecurity=False).hexdigest()
 
                     # Almacenar estadísticas
                     self.performance_stats[query_hash] = {

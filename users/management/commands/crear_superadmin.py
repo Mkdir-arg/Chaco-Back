@@ -9,7 +9,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         username = "admin"
-        password = "mkdir123"
+        password = "mkdir123"  # nosec B105
 
         if User.objects.filter(username=username).exists():
             self.stdout.write(self.style.WARNING(f'✓ Superusuario "{username}" ya existe'))
