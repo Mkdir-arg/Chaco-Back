@@ -1,0 +1,71 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches:
+      - development
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - ".github/workflows/pr-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff lint
+        run: ruff check . --output-format=github
+
+  format:
+    name: Ruff Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Check formatting
+        run: ruff format --check . --diff
+
+  bandit:
+    name: Bandit Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: pip install "bandit[toml]"
+
+      - name: Run Bandit
+        run: bandit -r . -c pyproject.toml --format github

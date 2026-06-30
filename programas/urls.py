@@ -17,6 +17,7 @@ urlpatterns = [
 
     # --- Subsegmentos ---
     path("config/segmentos/<int:segmento_pk>/subsegmentos/nuevo/", cfg.subsegmento_crear, name="subsegmento_crear"),
+    path("config/segmentos/<int:pk>/subsegmentos-json/", cfg.segmento_subsegmentos_json, name="segmento_subsegmentos_json"),
     path("config/subsegmentos/<int:pk>/", cfg.SubsegmentoDetailView.as_view(), name="subsegmento_detalle"),
     path("config/subsegmentos/<int:pk>/editar/", cfg.subsegmento_editar, name="subsegmento_editar"),
     path("config/subsegmentos/<int:pk>/eliminar/", cfg.subsegmento_eliminar, name="subsegmento_eliminar"),

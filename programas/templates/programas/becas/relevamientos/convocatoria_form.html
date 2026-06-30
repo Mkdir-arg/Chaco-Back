@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% block title %}Becas · Nueva convocatoria{% endblock %}
+{% block title %}Becas · {% if convocatoria %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}{% endblock %}
 
 {% block main-content %}
 <div class="max-w-2xl mx-auto">
@@ -8,19 +8,104 @@
     <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
     <a href="{% url 'becas:convocatorias' %}" class="hover:underline">Convocatorias</a>
     <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <span class="font-semibold text-body">Nueva</span>
+    <span class="font-semibold text-body">{% if convocatoria %}Editar{% else %}Nueva{% endif %}</span>
   </nav>
-  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">Nueva convocatoria</h1>
-  <form method="post" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
+  <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
+    {% if convocatoria %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}
+  </h1>
+  <form method="post"
+        x-data="convocatoriaForm('{{ form.segmento.value|default:'' }}', '{{ form.subsegmento.value|default:'' }}')"
+        class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+
+    {# nombre #}
+    {% with field=form.nombre %}{% include "programas/becas/_field.html" %}{% endwith %}
+
+    {# segmento — con listener Alpine para filtrar subsegmentos #}
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-heading mb-1" for="{{ form.segmento.id_for_label }}">
+        {{ form.segmento.label }} <span class="text-fg-danger">*</span>
+      </label>
+      <select name="segmento"
+              id="{{ form.segmento.id_for_label }}"
+              class="nodo-field"
+              @change="onSegmentoChange($event.target.value)">
+        {% for val, label in form.segmento.field.choices %}
+          <option value="{{ val }}"{% if val|stringformat:"s" == form.segmento.value|stringformat:"s" %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% for error in form.segmento.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+    </div>
+
+    {# subsegmento — se repuebla dinámicamente, deshabilitado sin segmento #}
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-heading mb-1" for="{{ form.subsegmento.id_for_label }}">
+        {{ form.subsegmento.label }}
+      </label>
+      <select name="subsegmento"
+              id="{{ form.subsegmento.id_for_label }}"
+              class="nodo-field"
+              :disabled="!segmentoId">
+        <option value="">---------</option>
+        <template x-for="sub in subsegmentos" :key="sub.id">
+          <option :value="sub.id" :selected="subsegmentoId == sub.id" x-text="sub.nombre"></option>
+        </template>
+      </select>
+      <template x-if="!segmentoId">
+        <p class="mt-1 text-xs text-body-subtle">Seleccioná un segmento primero.</p>
+      </template>
+      {% for error in form.subsegmento.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+    </div>
+
+    {# campos restantes #}
+    {% with field=form.fecha_inicio %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.fecha_fin %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.descripcion %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.activo %}{% include "programas/becas/_field.html" %}{% endwith %}
+
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[#F3F4F6]">
       <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar convocatoria</button>
     </div>
   </form>
 </div>
+
+<script>
+function convocatoriaForm(segmentoIdRaw, subsegmentoIdRaw) {
+  return {
+    segmentoId: segmentoIdRaw ? parseInt(segmentoIdRaw) : null,
+    subsegmentoId: subsegmentoIdRaw ? parseInt(subsegmentoIdRaw) : null,
+    subsegmentos: [],
+
+    async init() {
+      if (this.segmentoId) {
+        await this.fetchSubsegmentos(this.segmentoId);
+      }
+    },
+
+    async onSegmentoChange(value) {
+      this.segmentoId = value ? parseInt(value) : null;
+      this.subsegmentoId = null;
+      this.subsegmentos = [];
+      if (this.segmentoId) {
+        await this.fetchSubsegmentos(this.segmentoId);
+      }
+    },
+
+    async fetchSubsegmentos(segmentoId) {
+      try {
+        const resp = await fetch(`{% url 'becas:segmento_subsegmentos_json' pk=0 %}`.replace('/0/', `/${segmentoId}/`));
+        if (resp.ok) {
+          this.subsegmentos = await resp.json();
+        }
+      } catch (_) {
+        this.subsegmentos = [];
+      }
+    },
+  };
+}
+</script>
 {% endblock %}
