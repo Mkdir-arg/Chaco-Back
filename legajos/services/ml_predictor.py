@@ -28,8 +28,6 @@ class RiskPredictor:
 
         ahora = timezone.now()
         hace_30_dias = ahora - timedelta(days=30)
-        hace_15_dias = ahora - timedelta(days=15)
-        hace_7_dias = ahora - timedelta(days=7)
 
         # Factor 1: Tiempo sin contacto (peso: 35%)
         ultimo_seguimiento = HistorialContacto.objects.filter(legajo=legajo).order_by("-fecha_contacto").first()

@@ -133,7 +133,7 @@ def debug_alertas(request):
         <li><strong>Grupos:</strong> {", ".join(grupos_usuario) if grupos_usuario else "Ninguno"}</li>
         <li><strong>Rol:</strong> {rol}</li>
     </ul>
-    
+
     <h2>Estadísticas del Sistema:</h2>
     <ul>
         <li>Total de alertas: {total_alertas}</li>
@@ -142,7 +142,7 @@ def debug_alertas(request):
         <li>Ciudadanos: {ciudadanos_count}</li>
         <li>Legajos: {legajos_count}</li>
     </ul>
-    
+
     <h2>Endpoints disponibles:</h2>
     <ul>
         <li><a href="/legajos/alertas/count/">/legajos/alertas/count/</a></li>
@@ -150,7 +150,7 @@ def debug_alertas(request):
         <li><a href="/legajos/alertas/">/legajos/alertas/</a> (Dashboard)</li>
         <li><a href="/api/legajos/alertas/">/api/legajos/alertas/</a> (API)</li>
     </ul>
-    
+
     <h2>Últimas 5 alertas (filtradas para ti):</h2>
     """
 
@@ -168,16 +168,16 @@ def debug_alertas(request):
     debug_info += """
     <h2>Crear alertas de prueba:</h2>
     <p>Ejecuta: <code>python manage.py crear_alertas_prueba</code></p>
-    
+
     <script>
     // Test JavaScript
     console.log('Testing alertas endpoints...');
-    
+
     fetch('/legajos/alertas/count/')
         .then(r => r.json())
         .then(d => console.log('Count endpoint:', d))
         .catch(e => console.error('Count error:', e));
-        
+
     fetch('/legajos/alertas/preview/')
         .then(r => r.json())
         .then(d => console.log('Preview endpoint:', d))

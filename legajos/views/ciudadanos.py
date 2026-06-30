@@ -102,7 +102,7 @@ class CiudadanoManualView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateVie
         return initial
 
     def form_valid(self, form):
-        response = super().form_valid(form)
+        super().form_valid(form)
         CiudadanosService.invalidate_ciudadanos_cache()
         messages.success(
             self.request,
@@ -145,7 +145,7 @@ class CiudadanoConfirmarView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
+        super().form_valid(form)
         CiudadanosService.clear_renaper_data(self.request.session)
         CiudadanosService.invalidate_ciudadanos_cache()
         messages.success(

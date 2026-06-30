@@ -120,7 +120,7 @@ class CoordinadorTests(_BaseConfigTest):
 
     def test_no_asignar_usuario_sin_rol_coordinador(self):
         otro = User.objects.create_user("otro", password="x")  # sin rol coordinador
-        resp = self.client.post(
+        self.client.post(
             reverse("becas:coordinador_asignar", args=[self.seg.pk]),
             {"coordinador": otro.pk},
         )

@@ -126,8 +126,6 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
                 RelevamientoNachec,
             )
 
-            hoy = timezone.now().date()
-
             # Fase 1: Captación
             derivaciones_totales = casos_nachec.count()
             derivaciones_aceptadas = casos_nachec.exclude(estado="RECHAZADO").count()

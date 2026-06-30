@@ -50,7 +50,7 @@ class Command(BaseCommand):
 
             # Verificar perfil
             try:
-                perfil = usuario.profile
+                usuario.profile
             except Profile.DoesNotExist:
                 self.stdout.write(self.style.WARNING(f"Usuario {usuario.username}: Sin perfil"))
                 tiene_problemas = True

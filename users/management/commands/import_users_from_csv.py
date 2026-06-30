@@ -67,7 +67,6 @@ class Command(BaseCommand):
                 email = (row.get("Email") or "").strip()
                 first_name = (row.get("Nombre completo") or "").strip()
                 last_name = (row.get("Apellido") or "").strip()
-                rol = (row.get("Rol") or "").strip()
                 raw_password = (row.get("Contraseña") or "").strip()
 
                 user, created = user_model.objects.get_or_create(username=username, defaults={"email": email})

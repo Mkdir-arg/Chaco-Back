@@ -91,7 +91,7 @@ def derivar_a_programa(request, ciudadano_id):
         return redirect("legajos:ciudadano_detalle", ciudadano_id=ciudadano_id)
 
     # Crear derivación
-    derivacion = DerivacionPrograma.objects.create(
+    DerivacionPrograma.objects.create(
         ciudadano=ciudadano,
         programa_origen=programa_origen,
         inscripcion_origen=inscripcion_origen,
@@ -122,7 +122,7 @@ def inscribir_a_programa(request, ciudadano_id):
         programa = get_object_or_404(Programa, id=programa_id, estado=Programa.Estado.ACTIVO)
 
         try:
-            inscripcion = SolapasService.crear_inscripcion_directa(
+            SolapasService.crear_inscripcion_directa(
                 ciudadano=ciudadano, programa=programa, responsable=request.user, notas=notas
             )
 
@@ -161,7 +161,7 @@ def aceptar_derivacion_programa(request, derivacion_id):
             responsable = get_object_or_404(User, id=responsable_id)
 
         try:
-            inscripcion = derivacion.aceptar(usuario=request.user, responsable=responsable)
+            derivacion.aceptar(usuario=request.user, responsable=responsable)
 
             messages.success(
                 request,
