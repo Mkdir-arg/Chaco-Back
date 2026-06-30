@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Sum
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
@@ -532,3 +533,19 @@ def pregunta_eliminar(request, pk):
         pregunta.delete()
         messages.success(request, "Pregunta eliminada.")
     return redirect("becas:preguntas")
+
+
+# ---------------------------------------------------------------------------
+# API JSON — uso interno del formulario de convocatoria
+# ---------------------------------------------------------------------------
+@login_required
+@requiere(CAP_CONFIG)
+def segmento_subsegmentos_json(request, pk):
+    """Devuelve los subsegmentos activos de un segmento para el filtrado dinámico."""
+    segmento = get_object_or_404(Segmento, pk=pk)
+    data = list(
+        segmento.subsegmentos.filter(activo=True)
+        .order_by("nombre")
+        .values("id", "nombre", "cupo_maximo")
+    )
+    return JsonResponse(data, safe=False)

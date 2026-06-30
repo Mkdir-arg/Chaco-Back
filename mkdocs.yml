@@ -3,6 +3,11 @@ site_url: https://Mkdir-arg.github.io/Chaco/
 docs_dir: docs/client
 site_dir: site
 
+# Páginas que se construyen y son accesibles por enlace, pero no aparecen en el menú.
+# La estimación de Becas se llega desde "Programa Becas → Documentos relacionados".
+not_in_nav: |
+  /funcionalidades/estimacion-programa-becas.md
+
 theme:
   name: material
   language: es
@@ -97,15 +102,6 @@ nav:
     - funcionalidades/index.md
     - Programa Becas: funcionalidades/programa-becas.md
     - Programa Dispositivos: funcionalidades/programa-dispositivos.md
-    - Estimación Programa Becas: funcionalidades/estimacion-programa-becas.md
-  - Plantillas operativas:
-    - templates/index.md
-    - Caso de prueba base: templates/caso-prueba-base.md
-    - Instancia de prueba: templates/instancia-prueba.md
-    - Minuta de reunión: templates/minuta-reunion.md
-    - Estimación de horas: templates/estimacion.md
-    - Reporte de pruebas: templates/reporte-pruebas.md
-    - Acta de cierre: templates/acta-cierre.md
 
 extra:
   social:

@@ -1,0 +1,98 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - development
+
+permissions:
+  contents: read
+
+jobs:
+  django-check:
+    name: Django System Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Django system check
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+          DJANGO_DEBUG: "False"
+          DJANGO_ALLOWED_HOSTS: localhost
+        run: python manage.py check --deploy
+
+  migration-check:
+    name: Migration Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check for missing migrations
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "False"
+        run: python manage.py makemigrations --check --dry-run
+
+  tests-and-coverage:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install coverage
+
+      - name: Run tests with coverage
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: coverage run manage.py test --verbosity=2
+
+      - name: Coverage report
+        run: coverage report
