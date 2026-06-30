@@ -59,7 +59,7 @@ class MenuRestringidoTests(TestCase):
     def test_admin_ve_menu_completo(self):  # TC-59-07
         su = User.objects.create_superuser("root", "root@example.com", "x")
         html = render_sidebar(su)
-        self.assertIn(reverse("legajos:ciudadano_nuevo"), html)
+        self.assertNotIn(reverse("legajos:ciudadano_nuevo"), html)  # ocultado del menú por decisión de producto
         self.assertIn(reverse("conversaciones:configurar_cola"), html)
         self.assertIn(reverse("legajos:dashboard_contactos"), html)
         # Usamos href= para evitar falso positivo por substring de /becas/relevamientos/
