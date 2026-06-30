@@ -19,6 +19,73 @@
         background-color: #fff;
         color: var(--badge-color, var(--bg-brand));
     }
+
+    /* ── Clases scopeadas para HTML inyectado por JS ── */
+    .cd-row:hover { background-color: var(--bg-tertiary); }
+    .cd-cell      { color: var(--text-heading); font-size: 13.5px; }
+    .cd-muted     { color: var(--text-body-subtle); font-size: 13.5px; }
+    .cd-link      { color: var(--text-fg-brand); }
+    .cd-link:hover{ color: var(--text-fg-brand-strong); }
+    .cd-avatar    { background: var(--gradient-brand); }
+    /* tipo-vínculo: badge neutro inline */
+    .cd-badge-type {
+        display: inline-flex; align-items: center;
+        padding: 3px 10px; border-radius: 9999px;
+        font-size: 12px; font-weight: 600; line-height: 1.3;
+        background: var(--bg-secondary); border: 1px solid var(--border-base);
+        color: var(--text-body);
+    }
+    /* factor de riesgo */
+    .cd-factor    { color: var(--text-body); font-size: 13.5px; }
+    .cd-factor-icon { color: var(--text-body-subtle); }
+    /* recomendación */
+    .cd-rec-text  { color: var(--text-heading); font-size: 13.5px; font-weight: 500; }
+    /* íconos de tipo de archivo */
+    .cd-icon-danger  { color: var(--text-fg-danger); }
+    .cd-icon-info    { color: var(--text-fg-brand); }
+    .cd-icon-success { color: var(--text-fg-success); }
+    .cd-icon-muted   { color: var(--text-body-subtle); }
+    /* error en tabla */
+    .cd-err       { color: var(--text-fg-danger); }
+    /* barras de progreso de riesgo */
+    .cd-bar-danger  { background-color: var(--bg-danger); }
+    .cd-bar-warning { background-color: var(--bg-warning); }
+    .cd-bar-success { background-color: var(--bg-success); }
+    .cd-bar-muted   { background-color: var(--bg-quaternary); }
+    /* fondos suaves de tarjetas de recomendación */
+    .cd-rec-bg-danger  { background-color: var(--bg-danger-soft); }
+    .cd-rec-bg-warning { background-color: var(--bg-warning-soft); }
+    .cd-rec-bg-info    { background-color: var(--bg-info-soft); }
+    .cd-rec-bg-muted   { background-color: var(--bg-secondary); }
+    /* bordes de tarjetas de recomendación */
+    .cd-rec-border-danger  { border-color: var(--border-danger-subtle); }
+    .cd-rec-border-warning { border-color: var(--border-warning-subtle); }
+    .cd-rec-border-info    { border-color: var(--border-brand-subtle); }
+    .cd-rec-border-muted   { border-color: var(--border-base); }
+    /* colores de texto de prioridad */
+    .cd-text-danger  { color: var(--text-fg-danger); }
+    .cd-text-warning { color: var(--text-fg-warning-subtle); }
+    .cd-text-info    { color: var(--text-fg-info); }
+    .cd-text-muted   { color: var(--text-body-subtle); }
+    /* resultado de búsqueda de ciudadano */
+    .cd-result    { border-bottom: 1px solid var(--border-base); padding: 8px; cursor: pointer; }
+    .cd-result:hover { background-color: var(--bg-tertiary); }
+    .cd-result-name { font-weight: 600; color: var(--text-heading); }
+    .cd-result-dni  { font-size: 13.5px; color: var(--text-body-subtle); }
+    /* botón ícono destructivo */
+    .cd-btn-del {
+        display: inline-flex; align-items: center; justify-content: center;
+        height: 36px; width: 36px; border-radius: 8px;
+        color: var(--text-fg-danger); transition: background-color 0.15s;
+    }
+    .cd-btn-del:hover { background-color: var(--bg-danger-soft); }
+    /* botón ícono neutro (descarga) */
+    .cd-btn-dl {
+        display: inline-flex; align-items: center; justify-content: center;
+        height: 36px; width: 36px; border-radius: 8px;
+        color: var(--text-fg-brand); transition: background-color 0.15s;
+    }
+    .cd-btn-dl:hover { background-color: var(--bg-brand-softer); }
 </style>
 
 <!-- Header compacto al scrollear -->
@@ -1151,17 +1218,17 @@ document.getElementById('buscarCiudadano').addEventListener('input', function() 
                 const resultados = document.getElementById('resultadosBusqueda');
                 if (data.results && data.results.length > 0) {
                     resultados.innerHTML = data.results.map(c => `
-                        <div class="cursor-pointer border-b p-2 hover:bg-slate-100" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
-                            <div class="font-medium">${c.apellido}, ${c.nombre}</div>
-                            <div class="text-sm text-slate-500">DNI: ${c.dni}</div>
+                        <div class="cd-result" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
+                            <div class="cd-result-name">${c.apellido}, ${c.nombre}</div>
+                            <div class="cd-result-dni">DNI: ${c.dni}</div>
                         </div>
                     `).join('');
                 } else {
-                    resultados.innerHTML = '<div class="p-2 text-slate-500">No se encontraron ciudadanos</div>';
+                    resultados.innerHTML = '<div class="p-2 cd-muted">No se encontraron ciudadanos</div>';
                 }
             })
             .catch(() => {
-                document.getElementById('resultadosBusqueda').innerHTML = '<div class="p-2 text-red-500">Error en la búsqueda</div>';
+                document.getElementById('resultadosBusqueda').innerHTML = '<div class="p-2 cd-err">Error en la búsqueda</div>';
             });
     }, 300);
 });
@@ -1197,30 +1264,30 @@ function cargarVinculos() {
                     const tipoVinculo = vinculo.tipo_vinculo_display || vinculo.tipo_vinculo;
 
                     const badges = [];
-                    if (vinculo.convive) badges.push('<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Convive</span>');
-                    if (vinculo.es_contacto_emergencia) badges.push('<span class="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Emergencia</span>');
-                    if (vinculo.es_referente_tratamiento) badges.push('<span class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Referente</span>');
+                    if (vinculo.convive) badges.push('<span class="badge badge-success">Convive</span>');
+                    if (vinculo.es_contacto_emergencia) badges.push('<span class="badge badge-danger">Emergencia</span>');
+                    if (vinculo.es_referente_tratamiento) badges.push('<span class="badge badge-info">Referente</span>');
 
                     return `
-                        <tr class="hover:bg-slate-50">
+                        <tr class="cd-row">
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex items-center">
-                                    <div class="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500">
+                                    <div class="cd-avatar mr-3 flex h-10 w-10 items-center justify-center rounded-full">
                                         <span class="text-sm font-semibold text-white">${nombre.charAt(0)}${apellido.charAt(0)}</span>
                                     </div>
-                                    <div class="text-sm font-medium text-slate-900">${nombre} ${apellido}</div>
+                                    <div class="cd-cell font-medium">${nombre} ${apellido}</div>
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4">
-                                <span class="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">${tipoVinculo}</span>
+                                <span class="cd-badge-type">${tipoVinculo}</span>
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${dni}</td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${telefono}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${dni}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${telefono}</td>
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex flex-wrap gap-1">${badges.join('')}</div>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
-                                <button onclick="eliminarVinculo(${vinculo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar vínculo">
+                                <button onclick="eliminarVinculo(${vinculo.id})" class="cd-btn-del" title="Eliminar vínculo">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -1234,7 +1301,7 @@ function cargarVinculos() {
             }
         })
         .catch(() => {
-            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-500">Error al cargar vínculos</td></tr>';
+            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center cd-err">Error al cargar vínculos</td></tr>';
         });
 }
 
@@ -1256,14 +1323,34 @@ function renderizarGrafoRed(vinculos) {
     }
     wrapper.classList.remove('hidden');
 
+    // Leer tokens del DS en runtime para que el grafo respete marca y dark-mode
+    const _cs = getComputedStyle(document.documentElement);
+    const _clr = (v) => _cs.getPropertyValue(v).trim();
+    const visColors = {
+        centralBg:     _clr('--color-navy-700') || '#252f40',
+        centralBorder: _clr('--border-brand') || '#5059bc',
+        centralFont:   '#ffffff',
+        dangerBg:      _clr('--bg-danger-soft') || '#fef0f2',
+        dangerBorder:  _clr('--border-danger') || '#c70036',
+        successBg:     _clr('--bg-success-soft') || '#ecfdf5',
+        successBorder: _clr('--border-success') || '#007a55',
+        hlBg:          _clr('--bg-brand-softer') || '#fef3ff',
+        hlBorder:      _clr('--border-brand') || '#5059bc',
+        nodeFont:      _clr('--text-heading') || '#252f40',
+        edgeColor:     _clr('--border-base-strong') || '#d1d5db',
+        edgeFont:      _clr('--text-body-subtle') || '#6b7280',
+        edgeFontStroke:_clr('--bg-primary') || '#ffffff',
+        edgeHighlight: _clr('--border-brand') || '#5059bc',
+    };
+
     const nodes = [{
         id: 'central',
         label: '{{ ciudadano.apellido|escapejs }}, {{ ciudadano.nombre|escapejs }}',
         title: 'DNI {{ ciudadano.dni }} (este legajo)',
         shape: 'box',
         margin: 10,
-        color: { background: '#0f172a', border: '#0f172a' },
-        font: { color: '#ffffff', size: 14, face: 'sans-serif' },
+        color: { background: visColors.centralBg, border: visColors.centralBorder },
+        font: { color: visColors.centralFont, size: 14, face: 'Manrope, sans-serif' },
         fixed: false
     }];
     const edges = [];
@@ -1280,11 +1367,11 @@ function renderizarGrafoRed(vinculos) {
             shape: 'box',
             margin: 8,
             color: {
-                background: esEmergencia ? '#fef2f2' : '#ecfdf5',
-                border: esEmergencia ? '#ef4444' : '#10b981',
-                highlight: { background: '#dbeafe', border: '#3b82f6' }
+                background: esEmergencia ? visColors.dangerBg  : visColors.successBg,
+                border:     esEmergencia ? visColors.dangerBorder : visColors.successBorder,
+                highlight:  { background: visColors.hlBg, border: visColors.hlBorder }
             },
-            font: { color: '#0f172a', size: 13, face: 'sans-serif' },
+            font: { color: visColors.nodeFont, size: 13, face: 'Manrope, sans-serif' },
             ciudadanoId: det.id || null
         });
 
@@ -1292,8 +1379,8 @@ function renderizarGrafoRed(vinculos) {
             from: 'central',
             to: nodeId,
             label: vinculo.tipo_vinculo_display || vinculo.tipo_vinculo,
-            font: { size: 11, color: '#64748b', strokeWidth: 4, strokeColor: '#f8fafc' },
-            color: { color: '#94a3b8', highlight: '#3b82f6' },
+            font: { size: 11, color: visColors.edgeFont, strokeWidth: 4, strokeColor: visColors.edgeFontStroke },
+            color: { color: visColors.edgeColor, highlight: visColors.edgeHighlight },
             dashes: !vinculo.convive,
             width: vinculo.convive ? 2 : 1
         });
@@ -1423,30 +1510,30 @@ function cargarArchivos() {
                     const icono = getIconoArchivo(extension);
 
                     return `
-                        <tr class="hover:bg-slate-50">
+                        <tr class="cd-row">
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex items-center">
                                     <i class="${icono} mr-3 text-2xl"></i>
                                     <div>
-                                        <div class="text-sm font-medium text-slate-900">${archivo.nombre}</div>
-                                        <div class="text-sm text-slate-500">${formatearTamano(archivo.tamano)}</div>
+                                        <div class="cd-cell font-medium">${archivo.nombre}</div>
+                                        <div class="cd-muted">${formatearTamano(archivo.tamano)}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${archivo.etiqueta || '-'}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${archivo.etiqueta || '-'}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
                                 ${archivo.tipo_origen === 'ciudadano' ?
-                                    '<span class="text-slate-500">Ciudadano</span>' :
-                                    `<a href="/legajos/${archivo.legajo_id}/" class="text-blue-600 hover:text-blue-700">Acompañamiento</a>`
+                                    '<span class="cd-muted">Ciudadano</span>' :
+                                    `<a href="/legajos/${archivo.legajo_id}/" class="cd-link font-medium">Acompañamiento</a>`
                                 }
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${fecha}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${fecha}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
                                 <div class="flex items-center justify-center gap-2">
-                                    <a href="${archivo.url}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700" title="Descargar">
+                                    <a href="${archivo.url}" target="_blank" class="cd-btn-dl" title="Descargar">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button onclick="eliminarArchivo(${archivo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar">
+                                    <button onclick="eliminarArchivo(${archivo.id})" class="cd-btn-del" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -1461,20 +1548,21 @@ function cargarArchivos() {
             }
         })
         .catch(() => {
-            document.getElementById('tabla-archivos').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Error al cargar archivos</td></tr>';
+            document.getElementById('tabla-archivos').innerHTML = '<tr><td colspan="5" class="py-4 text-center cd-err">Error al cargar archivos</td></tr>';
         });
 }
 
 function getIconoArchivo(extension) {
+    // Colores por token: danger=PDF, info/brand=Word, success=imagen, muted=genérico
     const iconos = {
-        'pdf': 'fas fa-file-pdf text-red-500',
-        'doc': 'fas fa-file-word text-blue-500',
-        'docx': 'fas fa-file-word text-blue-500',
-        'jpg': 'fas fa-file-image text-green-500',
-        'jpeg': 'fas fa-file-image text-green-500',
-        'png': 'fas fa-file-image text-green-500'
+        'pdf':  'fas fa-file-pdf cd-icon-danger',
+        'doc':  'fas fa-file-word cd-icon-info',
+        'docx': 'fas fa-file-word cd-icon-info',
+        'jpg':  'fas fa-file-image cd-icon-success',
+        'jpeg': 'fas fa-file-image cd-icon-success',
+        'png':  'fas fa-file-image cd-icon-success'
     };
-    return iconos[extension] || 'fas fa-file text-slate-500';
+    return iconos[extension] || 'fas fa-file cd-icon-muted';
 }
 
 function formatearTamano(bytes) {
@@ -1560,18 +1648,18 @@ function cargarActividades() {
                     const tipoColor = getTipoColor(actividad.tipo);
 
                     return `
-                        <tr class="hover:bg-slate-50">
-                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-900">${fecha}</td>
+                        <tr class="cd-row">
+                            <td class="whitespace-nowrap px-4 py-4 cd-cell">${fecha}</td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${tipoColor}">
+                                <span class="badge ${tipoColor}">
                                     <i class="${tipoIcon} mr-1"></i>
                                     ${getTipoNombre(actividad.tipo)}
                                 </span>
                             </td>
-                            <td class="px-4 py-4 text-sm text-slate-900">${actividad.descripcion}</td>
-                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-900">${actividad.usuario_nombre || 'Sistema'}</td>
+                            <td class="px-4 py-4 cd-cell">${actividad.descripcion}</td>
+                            <td class="whitespace-nowrap px-4 py-4 cd-cell">${actividad.usuario_nombre || 'Sistema'}</td>
                             <td class="whitespace-nowrap px-4 py-4 text-sm">
-                                <a href="/legajos/${actividad.legajo_id}/" class="text-blue-600 hover:text-blue-800">
+                                <a href="/legajos/${actividad.legajo_id}/" class="cd-link font-medium">
                                     ${actividad.legajo_codigo || actividad.legajo_id}
                                 </a>
                             </td>
@@ -1587,7 +1675,7 @@ function cargarActividades() {
             }
         })
         .catch(() => {
-            document.getElementById('tabla-actividades').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Error al cargar actividades</td></tr>';
+            document.getElementById('tabla-actividades').innerHTML = '<tr><td colspan="5" class="py-4 text-center cd-err">Error al cargar actividades</td></tr>';
         });
 }
 
@@ -1609,20 +1697,21 @@ function getTipoIcon(tipo) {
 }
 
 function getTipoColor(tipo) {
+    // Devuelve la clase de variante del badge DS (se usa como: badge badge-<variante>)
     const colores = {
-        'SEGUIMIENTO': 'bg-blue-100 text-blue-800',
-        'EVALUACION': 'bg-purple-100 text-purple-800',
-        'PLAN': 'bg-green-100 text-green-800',
-        'DERIVACION': 'bg-yellow-100 text-yellow-800',
-        'EVENTO': 'bg-red-100 text-red-800',
-        'CONTACTO': 'bg-indigo-100 text-indigo-800',
-        'CHAT': 'bg-pink-100 text-pink-800',
-        'ASIGNACION': 'bg-teal-100 text-teal-800',
-        'APERTURA': 'bg-emerald-100 text-emerald-800',
-        'CIERRE': 'bg-slate-100 text-slate-800',
-        'VINCULO': 'bg-orange-100 text-orange-800'
+        'SEGUIMIENTO': 'badge-info',
+        'EVALUACION':  'badge-brand',
+        'PLAN':        'badge-success',
+        'DERIVACION':  'badge-warning',
+        'EVENTO':      'badge-danger',
+        'CONTACTO':    'badge-info',
+        'CHAT':        'badge-brand',
+        'ASIGNACION':  'badge-info',
+        'APERTURA':    'badge-success',
+        'CIERRE':      'badge-gray',
+        'VINCULO':     'badge-warning'
     };
-    return colores[tipo] || 'bg-slate-100 text-slate-800';
+    return colores[tipo] || 'badge-gray';
 }
 
 function getTipoNombre(tipo) {
@@ -1655,19 +1744,19 @@ function cargarPrediccionRiesgo() {
 
             const abandonoNivel = document.getElementById('abandono-nivel');
             abandonoNivel.textContent = abandono.nivel;
-            abandonoNivel.className = 'rounded-full px-3 py-1 text-xs font-bold ' + getNivelColor(abandono.nivel);
+            abandonoNivel.className = 'badge ' + getNivelColor(abandono.nivel);
             document.getElementById('abandono-bar').className = 'h-3 rounded-full transition-all duration-500 ' + getBarColor(abandono.nivel);
 
             const abandonoFactores = document.getElementById('abandono-factores');
             if (abandono.factores.length > 0) {
                 abandonoFactores.innerHTML = abandono.factores.map(factor => `
-                    <div class="flex items-start text-sm text-slate-600">
-                        <i class="fas fa-circle mr-2 mt-1 text-xs text-slate-400"></i>
+                    <div class="flex items-start cd-factor">
+                        <i class="fas fa-circle mr-2 mt-1 text-xs cd-factor-icon"></i>
                         <span>${factor}</span>
                     </div>
                 `).join('');
             } else {
-                abandonoFactores.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>Sin factores de riesgo identificados</p>';
+                abandonoFactores.innerHTML = '<p class="cd-factor"><i class="fas fa-check mr-1 cd-icon-success"></i>Sin factores de riesgo identificados</p>';
             }
 
             const evento = data.evento_critico;
@@ -1676,19 +1765,19 @@ function cargarPrediccionRiesgo() {
 
             const eventoNivel = document.getElementById('evento-nivel');
             eventoNivel.textContent = evento.nivel;
-            eventoNivel.className = 'rounded-full px-3 py-1 text-xs font-bold ' + getNivelColor(evento.nivel);
+            eventoNivel.className = 'badge ' + getNivelColor(evento.nivel);
             document.getElementById('evento-bar').className = 'h-3 rounded-full transition-all duration-500 ' + getBarColor(evento.nivel);
 
             const eventoFactores = document.getElementById('evento-factores');
             if (evento.factores.length > 0) {
                 eventoFactores.innerHTML = evento.factores.map(factor => `
-                    <div class="flex items-start text-sm text-slate-600">
-                        <i class="fas fa-circle mr-2 mt-1 text-xs text-slate-400"></i>
+                    <div class="flex items-start cd-factor">
+                        <i class="fas fa-circle mr-2 mt-1 text-xs cd-factor-icon"></i>
                         <span>${factor}</span>
                     </div>
                 `).join('');
             } else {
-                eventoFactores.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>Sin factores de riesgo identificados</p>';
+                eventoFactores.innerHTML = '<p class="cd-factor"><i class="fas fa-check mr-1 cd-icon-success"></i>Sin factores de riesgo identificados</p>';
             }
 
             const recomendaciones = document.getElementById('recomendaciones-container');
@@ -1697,66 +1786,71 @@ function cargarPrediccionRiesgo() {
                     <div class="flex items-start rounded-lg border p-3 ${getPrioridadBg(rec.prioridad)} ${getPrioridadBorder(rec.prioridad)}">
                         <span class="mr-3 text-2xl">${rec.icono}</span>
                         <div class="flex-1">
-                            <span class="text-sm font-medium text-slate-800">${rec.texto}</span>
+                            <span class="cd-rec-text">${rec.texto}</span>
                             <span class="ml-2 text-xs font-bold ${getPrioridadText(rec.prioridad)}">${rec.prioridad}</span>
                         </div>
                     </div>
                 `).join('');
             } else {
-                recomendaciones.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>No hay recomendaciones pendientes</p>';
+                recomendaciones.innerHTML = '<p class="cd-factor"><i class="fas fa-check mr-1 cd-icon-success"></i>No hay recomendaciones pendientes</p>';
             }
         })
         .catch(() => { /* sin datos de predicción: la sección queda con sus placeholders */ });
 }
 
 function getNivelColor(nivel) {
+    // Devuelve la clase de variante del badge DS (se usa como: badge badge-<variante>)
     const colores = {
-        'CRITICO': 'bg-red-100 text-red-800',
-        'ALTO': 'bg-orange-100 text-orange-800',
-        'MEDIO': 'bg-yellow-100 text-yellow-800',
-        'BAJO': 'bg-green-100 text-green-800'
+        'CRITICO': 'badge-danger',
+        'ALTO':    'badge-warning',
+        'MEDIO':   'badge-warning',
+        'BAJO':    'badge-success'
     };
-    return colores[nivel] || 'bg-slate-100 text-slate-800';
+    return colores[nivel] || 'badge-gray';
 }
 
 function getBarColor(nivel) {
+    // Devuelve clase de fondo para la barra de progreso del nivel de riesgo
     const colores = {
-        'CRITICO': 'bg-red-500',
-        'ALTO': 'bg-orange-500',
-        'MEDIO': 'bg-yellow-500',
-        'BAJO': 'bg-green-500'
+        'CRITICO': 'cd-bar-danger',
+        'ALTO':    'cd-bar-warning',
+        'MEDIO':   'cd-bar-warning',
+        'BAJO':    'cd-bar-success'
     };
-    return colores[nivel] || 'bg-slate-500';
+    return colores[nivel] || 'cd-bar-muted';
 }
 
 function getPrioridadBg(prioridad) {
+    // Fondo suave de la tarjeta de recomendación
     const colores = {
-        'CRITICA': 'bg-red-50',
-        'ALTA': 'bg-orange-50',
-        'MEDIA': 'bg-yellow-50',
-        'BAJA': 'bg-blue-50'
+        'CRITICA': 'cd-rec-bg-danger',
+        'ALTA':    'cd-rec-bg-warning',
+        'MEDIA':   'cd-rec-bg-warning',
+        'BAJA':    'cd-rec-bg-info'
     };
-    return colores[prioridad] || 'bg-slate-50';
+    return colores[prioridad] || 'cd-rec-bg-muted';
 }
 
 function getPrioridadBorder(prioridad) {
+    // Borde de la tarjeta de recomendación
     const colores = {
-        'CRITICA': 'border-red-200',
-        'ALTA': 'border-orange-200',
-        'MEDIA': 'border-yellow-200',
-        'BAJA': 'border-blue-200'
+        'CRITICA': 'cd-rec-border-danger',
+        'ALTA':    'cd-rec-border-warning',
+        'MEDIA':   'cd-rec-border-warning',
+        'BAJA':    'cd-rec-border-info'
     };
-    return colores[prioridad] || 'border-slate-200';
+    return colores[prioridad] || 'cd-rec-border-muted';
 }
 
 function getPrioridadText(prioridad) {
+    // Color del texto de prioridad en la recomendación
     const colores = {
-        'CRITICA': 'text-red-600',
-        'ALTA': 'text-orange-600',
-        'MEDIA': 'text-yellow-600',
-        'BAJA': 'text-blue-600'
+        'CRITICA': 'cd-text-danger',
+        'ALTA':    'cd-text-warning',
+        'MEDIA':   'cd-text-warning',
+        'BAJA':    'cd-text-info'
     };
-    return colores[prioridad] || 'text-slate-600';
+    return colores[prioridad] || 'cd-text-muted';
 }
 </script>
 {% endblock %}
