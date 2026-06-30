@@ -1,4 +1,5 @@
 """Filtros de template del backoffice de Becas."""
+
 from django import template
 
 register = template.Library()

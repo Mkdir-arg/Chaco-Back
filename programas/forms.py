@@ -97,15 +97,19 @@ class SubsegmentoForm(forms.ModelForm):
         model = Subsegmento
         fields = ["nombre", "descripcion", "cupo_maximo"]
         widgets = {
-            "nombre": forms.TextInput(attrs={
-                "class": INPUT_CLASS,
-                "placeholder": "Ej: Ladrillo",
-            }),
-            "descripcion": forms.Textarea(attrs={
-                "class": INPUT_CLASS,
-                "rows": 2,
-                "placeholder": "Opcional",
-            }),
+            "nombre": forms.TextInput(
+                attrs={
+                    "class": INPUT_CLASS,
+                    "placeholder": "Ej: Ladrillo",
+                }
+            ),
+            "descripcion": forms.Textarea(
+                attrs={
+                    "class": INPUT_CLASS,
+                    "rows": 2,
+                    "placeholder": "Opcional",
+                }
+            ),
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 
