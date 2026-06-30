@@ -1,0 +1,28 @@
+[tool.ruff]
+line-length = 120
+exclude = ["migrations", "mobile", ".venv", "staticfiles", "docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.bandit]
+exclude_dirs = ["migrations", "tests", "mobile", ".venv", "docs"]
+skips = ["B101"]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "manage.py",
+    "*/settings*",
+    "mobile/*",
+    ".venv/*",
+    "staticfiles/*",
+    "docs/*",
+]
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
