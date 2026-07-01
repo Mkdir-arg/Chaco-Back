@@ -18,6 +18,7 @@ python-dotenv==1.2.2
 gunicorn==23.0.0
 
 # Development Tools (solo para desarrollo)
+setuptools==80.9.0
 django-extensions==3.2.3
 debugpy==1.8.5
 
