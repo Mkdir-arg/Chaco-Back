@@ -6,38 +6,105 @@
 {% block main-content %}
 <style>
     .tab-button.tab-active {
-        background-color: var(--tab-color, #1d4ed8);
-        border-color: var(--tab-color, #1d4ed8);
+        background-color: var(--tab-color, var(--bg-brand));
+        border-color: var(--tab-color, var(--border-brand));
         color: #fff;
-        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        box-shadow: var(--shadow-xs);
     }
     .tab-button .tab-badge {
-        background-color: var(--badge-color, #1d4ed8);
+        background-color: var(--badge-color, var(--bg-brand));
         color: #fff;
     }
     .tab-button.tab-active .tab-badge {
         background-color: #fff;
-        color: var(--badge-color, #1d4ed8);
+        color: var(--badge-color, var(--bg-brand));
     }
+
+    /* ── Clases scopeadas para HTML inyectado por JS ── */
+    .cd-row:hover { background-color: var(--bg-tertiary); }
+    .cd-cell      { color: var(--text-heading); font-size: 13.5px; }
+    .cd-muted     { color: var(--text-body-subtle); font-size: 13.5px; }
+    .cd-link      { color: var(--text-fg-brand); }
+    .cd-link:hover{ color: var(--text-fg-brand-strong); }
+    .cd-avatar    { background: var(--gradient-brand); }
+    /* tipo-vínculo: badge neutro inline */
+    .cd-badge-type {
+        display: inline-flex; align-items: center;
+        padding: 3px 10px; border-radius: 9999px;
+        font-size: 12px; font-weight: 600; line-height: 1.3;
+        background: var(--bg-secondary); border: 1px solid var(--border-base);
+        color: var(--text-body);
+    }
+    /* factor de riesgo */
+    .cd-factor    { color: var(--text-body); font-size: 13.5px; }
+    .cd-factor-icon { color: var(--text-body-subtle); }
+    /* recomendación */
+    .cd-rec-text  { color: var(--text-heading); font-size: 13.5px; font-weight: 500; }
+    /* íconos de tipo de archivo */
+    .cd-icon-danger  { color: var(--text-fg-danger); }
+    .cd-icon-info    { color: var(--text-fg-brand); }
+    .cd-icon-success { color: var(--text-fg-success); }
+    .cd-icon-muted   { color: var(--text-body-subtle); }
+    /* error en tabla */
+    .cd-err       { color: var(--text-fg-danger); }
+    /* barras de progreso de riesgo */
+    .cd-bar-danger  { background-color: var(--bg-danger); }
+    .cd-bar-warning { background-color: var(--bg-warning); }
+    .cd-bar-success { background-color: var(--bg-success); }
+    .cd-bar-muted   { background-color: var(--bg-quaternary); }
+    /* fondos suaves de tarjetas de recomendación */
+    .cd-rec-bg-danger  { background-color: var(--bg-danger-soft); }
+    .cd-rec-bg-warning { background-color: var(--bg-warning-soft); }
+    .cd-rec-bg-info    { background-color: var(--bg-info-soft); }
+    .cd-rec-bg-muted   { background-color: var(--bg-secondary); }
+    /* bordes de tarjetas de recomendación */
+    .cd-rec-border-danger  { border-color: var(--border-danger-subtle); }
+    .cd-rec-border-warning { border-color: var(--border-warning-subtle); }
+    .cd-rec-border-info    { border-color: var(--border-brand-subtle); }
+    .cd-rec-border-muted   { border-color: var(--border-base); }
+    /* colores de texto de prioridad */
+    .cd-text-danger  { color: var(--text-fg-danger); }
+    .cd-text-warning { color: var(--text-fg-warning-subtle); }
+    .cd-text-info    { color: var(--text-fg-info); }
+    .cd-text-muted   { color: var(--text-body-subtle); }
+    /* resultado de búsqueda de ciudadano */
+    .cd-result    { border-bottom: 1px solid var(--border-base); padding: 8px; cursor: pointer; }
+    .cd-result:hover { background-color: var(--bg-tertiary); }
+    .cd-result-name { font-weight: 600; color: var(--text-heading); }
+    .cd-result-dni  { font-size: 13.5px; color: var(--text-body-subtle); }
+    /* botón ícono destructivo */
+    .cd-btn-del {
+        display: inline-flex; align-items: center; justify-content: center;
+        height: 36px; width: 36px; border-radius: 8px;
+        color: var(--text-fg-danger); transition: background-color 0.15s;
+    }
+    .cd-btn-del:hover { background-color: var(--bg-danger-soft); }
+    /* botón ícono neutro (descarga) */
+    .cd-btn-dl {
+        display: inline-flex; align-items: center; justify-content: center;
+        height: 36px; width: 36px; border-radius: 8px;
+        color: var(--text-fg-brand); transition: background-color 0.15s;
+    }
+    .cd-btn-dl:hover { background-color: var(--bg-brand-softer); }
 </style>
 
 <!-- Header compacto al scrollear -->
-<div id="sticky-header" class="fixed inset-x-0 top-0 z-40 hidden border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+<div id="sticky-header" class="fixed inset-x-0 top-0 z-20 hidden border-b shadow-sm backdrop-blur" style="border-color: var(--border-base); background: var(--bg-primary);">
     <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
-        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-900">
+        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style="background: var(--gradient-brand);">
             <span class="text-sm font-bold text-white">{{ ciudadano.nombre.0 }}{{ ciudadano.apellido.0 }}</span>
         </div>
         <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-bold text-slate-900">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</p>
-            <p class="text-xs text-slate-500">DNI {{ ciudadano.dni }}</p>
+            <p class="truncate text-sm font-bold" style="color: var(--text-heading);">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</p>
+            <p class="text-xs" style="color: var(--text-body-subtle);">DNI {{ ciudadano.dni }}</p>
         </div>
         {% if alertas_ciudadano %}
-        <button onclick="cambiarTab('alertas')" class="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
-            <i class="fas fa-bell text-[10px]"></i>{{ alertas_ciudadano.count }}
+        <button onclick="cambiarTab('alertas')" class="badge badge-danger flex-shrink-0" aria-label="Ver alertas">
+            <i class="fas fa-bell" aria-hidden="true"></i>{{ alertas_ciudadano.count }}
         </button>
         {% endif %}
-        <a href="{% url 'legajos:ciudadano_editar' ciudadano.pk %}" class="inline-flex flex-shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-            <i class="fas fa-pen"></i><span class="hidden sm:inline">Editar</span>
+        <a href="{% url 'legajos:ciudadano_editar' ciudadano.pk %}" class="btn-nodo btn-secondary btn-xs flex-shrink-0">
+            <i class="fas fa-pen" aria-hidden="true"></i><span class="hidden sm:inline">Editar</span>
         </a>
     </div>
 </div>
@@ -45,36 +112,33 @@
 <div class="space-y-8">
 
     <!-- Informacion personal -->
-    <section class="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 bg-slate-50 px-5 py-4 lg:px-6">
+    <section class="mb-8 overflow-hidden rounded-xl border shadow-sm" style="border-color: var(--border-base); background: var(--bg-primary);">
+        <div class="border-b px-5 py-4 lg:px-6" style="border-color: var(--border-base); background: var(--bg-secondary);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <nav aria-label="Breadcrumb">
-                    <ol class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    <ol class="flex flex-wrap items-center gap-2 text-sm" style="color: var(--text-body-subtle);">
                         <li>
-                            <a href="{% url 'legajos:ciudadanos' %}" class="inline-flex items-center gap-2 font-medium text-slate-600 transition hover:text-blue-700">
-                                <i class="fas fa-users text-xs text-slate-400"></i>
+                            <a href="{% url 'legajos:ciudadanos' %}" class="inline-flex items-center gap-2 font-semibold transition" style="color: var(--text-body); hover:color: var(--text-fg-brand);">
+                                <i class="fas fa-users text-xs" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                                 <span>Ciudadanos</span>
                             </a>
                         </li>
-                        <li><i class="fas fa-chevron-right text-[10px] text-slate-300"></i></li>
-                        <li class="max-w-full truncate font-medium text-slate-900">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</li>
+                        <li><i class="fas fa-chevron-right text-[10px]" aria-hidden="true" style="color: var(--border-base-strong);"></i></li>
+                        <li class="max-w-full truncate font-semibold" style="color: var(--text-heading);">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</li>
                     </ol>
                 </nav>
 
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                        <span class="h-2 w-2 rounded-full bg-blue-600"></span>
-                        Ficha integral
-                    </span>
+                    <span class="badge badge-info badge-dot">Ficha integral</span>
                     {% if linea_tiempo %}
-                    <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                        <i class="fas fa-clock-rotate-left text-[10px] text-slate-400"></i>
+                    <span class="badge badge-gray">
+                        <i class="fas fa-clock-rotate-left text-[10px]" aria-hidden="true"></i>
                         Última actividad {{ linea_tiempo.0.fecha|date:"d/m/Y" }}
                     </span>
                     {% endif %}
                     {% if alertas_ciudadano %}
-                    <button onclick="cambiarTab('alertas')" class="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
-                        <i class="fas fa-bell text-[10px]"></i>
+                    <button onclick="cambiarTab('alertas')" class="badge badge-danger transition hover:opacity-80">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
                         {{ alertas_ciudadano.count }} alerta{{ alertas_ciudadano.count|pluralize }}
                     </button>
                     {% endif %}
@@ -87,39 +151,39 @@
                 <div class="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
                     <div class="flex-shrink-0">
                         {% if ciudadano.foto %}
-                        <img src="{{ ciudadano.foto.url }}" alt="Foto de {{ ciudadano.nombre_completo }}" class="h-24 w-24 rounded-2xl object-cover shadow-sm ring-1 ring-slate-200 sm:h-28 sm:w-28">
+                        <img src="{{ ciudadano.foto.url }}" alt="Foto de {{ ciudadano.nombre_completo }}" class="h-24 w-24 rounded-2xl object-cover sm:h-28 sm:w-28" style="box-shadow: var(--shadow-brand); border: 1px solid var(--border-base);">
                         {% else %}
-                        <div class="flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-900 shadow-sm ring-1 ring-slate-200 sm:h-28 sm:w-28">
+                        <div class="flex h-24 w-24 items-center justify-center rounded-2xl sm:h-28 sm:w-28" style="background: var(--gradient-brand); box-shadow: var(--shadow-brand);">
                             <span class="text-3xl font-bold text-white sm:text-4xl">{{ ciudadano.nombre.0 }}{{ ciudadano.apellido.0 }}</span>
                         </div>
                         {% endif %}
                     </div>
 
                     <div class="min-w-0">
-                        <p class="mb-2 text-xs font-semibold uppercase text-slate-500">Ciudadano</p>
-                        <h1 class="break-words text-3xl font-bold text-slate-950 sm:text-4xl">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</h1>
+                        <p class="mb-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .08em;">Ciudadano</p>
+                        <h1 class="break-words" style="font-size: 32px; font-weight: 800; color: var(--text-heading); letter-spacing: -0.6px;">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</h1>
                         <div class="mt-4 flex flex-wrap gap-2 text-sm">
-                            <span class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
-                                <i class="fas fa-id-card text-slate-400"></i>
+                            <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-tertiary); color: var(--text-body);">
+                                <i class="fas fa-id-card" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                                 DNI {{ ciudadano.dni }}
-                                <button onclick="copiarDni('{{ ciudadano.dni }}')" type="button" class="text-slate-400 transition hover:text-blue-600" title="Copiar DNI" aria-label="Copiar DNI">
-                                    <i class="far fa-copy"></i>
+                                <button onclick="copiarDni('{{ ciudadano.dni }}')" type="button" style="color: var(--text-body-subtle);" class="transition" aria-label="Copiar DNI">
+                                    <i class="far fa-copy" aria-hidden="true"></i>
                                 </button>
                             </span>
                             {% if ciudadano.edad %}
-                            <span class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
-                                <i class="fas fa-cake-candles text-slate-400"></i>
+                            <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-tertiary); color: var(--text-body);">
+                                <i class="fas fa-cake-candles" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                                 {{ ciudadano.edad }} años
                             </span>
                             {% endif %}
                             {% if ciudadano.genero %}
-                            <span class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
-                                <i class="fas fa-user text-slate-400"></i>
+                            <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-tertiary); color: var(--text-body);">
+                                <i class="fas fa-user" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                                 {{ ciudadano.get_genero_display|default:ciudadano.genero }}
                             </span>
                             {% endif %}
-                            <span class="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700">
-                                <i class="fas fa-folder-open text-emerald-500"></i>
+                            <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-brand-softer); color: var(--text-fg-brand);">
+                                <i class="fas fa-folder-open" aria-hidden="true" style="color: var(--text-fg-brand);"></i>
                                 {{ acompanamientos_activos_count }} acompa&ntilde;amiento{{ acompanamientos_activos_count|pluralize }}
                             </span>
                         </div>
@@ -127,52 +191,52 @@
                 </div>
 
                 <div class="flex flex-col gap-2 sm:flex-row xl:w-64 xl:flex-col">
-                    <a href="{% url 'legajos:ciudadano_editar' ciudadano.pk %}" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-100">
-                        <i class="fas fa-pen"></i>
+                    <a href="{% url 'legajos:ciudadano_editar' ciudadano.pk %}" class="btn-nodo btn-secondary btn-base">
+                        <i class="fas fa-pen" aria-hidden="true"></i>
                         <span>Editar</span>
                     </a>
-                    <a href="{% url 'legajos:derivar_programa' ciudadano.pk %}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200">
-                        <i class="fas fa-share-nodes"></i>
+                    <a href="{% url 'legajos:derivar_programa' ciudadano.pk %}" class="btn-nodo btn-brand btn-base">
+                        <i class="fas fa-share-nodes" aria-hidden="true"></i>
                         <span>Derivar a Programa</span>
                     </a>
                 </div>
             </div>
 
-            <dl class="mt-6 grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
+            <dl class="mt-6 grid gap-px overflow-hidden rounded-xl sm:grid-cols-2 xl:grid-cols-4" style="border: 1px solid var(--border-base); background: var(--border-base);">
                 {% if ciudadano.fecha_nacimiento %}
-                <div class="bg-white px-4 py-3">
-                    <dt class="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                        <i class="fas fa-cake-candles text-amber-500"></i>
+                <div class="px-4 py-3" style="background: var(--bg-primary);">
+                    <dt class="flex items-center gap-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">
+                        <i class="fas fa-cake-candles" aria-hidden="true" style="color: var(--text-fg-brand);"></i>
                         Nacimiento
                     </dt>
-                    <dd class="mt-1 text-sm font-semibold text-slate-900">{{ ciudadano.fecha_nacimiento|date:"d/m/Y" }}{% if ciudadano.edad %} <span class="font-normal text-slate-500">({{ ciudadano.edad }} años)</span>{% endif %}</dd>
+                    <dd class="mt-1 text-sm font-bold" style="color: var(--text-heading);">{{ ciudadano.fecha_nacimiento|date:"d/m/Y" }}{% if ciudadano.edad %} <span class="font-normal" style="color: var(--text-body-subtle);">({{ ciudadano.edad }} años)</span>{% endif %}</dd>
                 </div>
                 {% endif %}
                 {% if ciudadano.telefono %}
-                <div class="bg-white px-4 py-3">
-                    <dt class="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                        <i class="fas fa-phone text-slate-400"></i>
-                        Telefono
+                <div class="px-4 py-3" style="background: var(--bg-primary);">
+                    <dt class="flex items-center gap-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">
+                        <i class="fas fa-phone" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
+                        Teléfono
                     </dt>
-                    <dd class="mt-1 text-sm font-semibold text-slate-900">{{ ciudadano.telefono }}</dd>
+                    <dd class="mt-1 text-sm font-bold" style="color: var(--text-heading);">{{ ciudadano.telefono }}</dd>
                 </div>
                 {% endif %}
                 {% if ciudadano.email %}
-                <div class="bg-white px-4 py-3">
-                    <dt class="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                        <i class="fas fa-envelope text-slate-400"></i>
+                <div class="px-4 py-3" style="background: var(--bg-primary);">
+                    <dt class="flex items-center gap-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">
+                        <i class="fas fa-envelope" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                         Email
                     </dt>
-                    <dd class="mt-1 break-all text-sm font-semibold text-slate-900">{{ ciudadano.email }}</dd>
+                    <dd class="mt-1 break-all text-sm font-bold" style="color: var(--text-heading);">{{ ciudadano.email }}</dd>
                 </div>
                 {% endif %}
                 {% if ciudadano.domicilio %}
-                <div class="bg-white px-4 py-3">
-                    <dt class="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-                        <i class="fas fa-location-dot text-slate-400"></i>
+                <div class="px-4 py-3" style="background: var(--bg-primary);">
+                    <dt class="flex items-center gap-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">
+                        <i class="fas fa-location-dot" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                         Domicilio
                     </dt>
-                    <dd class="mt-1 text-sm font-semibold text-slate-900">{{ ciudadano.domicilio }}</dd>
+                    <dd class="mt-1 text-sm font-bold" style="color: var(--text-heading);">{{ ciudadano.domicilio }}</dd>
                 </div>
                 {% endif %}
             </dl>
@@ -180,18 +244,18 @@
             {% if solapas_programas %}
             <!-- Programas activos -->
             <div class="mt-6">
-                <p class="mb-3 text-xs font-semibold uppercase text-slate-500">Programas activos</p>
+                <p class="mb-3 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Programas activos</p>
                 <div class="flex flex-wrap gap-3">
                     {% for solapa in solapas_programas %}
-                    <button onclick="{% if solapa.url %}window.location.href='{{ solapa.url }}'{% else %}cambiarTab('{{ solapa.id }}'){% endif %}" type="button" class="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow">
-                        <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-white" style="background-color: {{ solapa.color|default:'#3B82F6' }};">
-                            <i class="fas fa-{{ solapa.icono }}"></i>
+                    <button onclick="{% if solapa.url %}window.location.href='{{ solapa.url }}'{% else %}cambiarTab('{{ solapa.id }}'){% endif %}" type="button" class="group flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+                        <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-white" style="background-color: {{ solapa.color|default:'var(--bg-brand)' }};">
+                            <i class="fas fa-{{ solapa.icono }}" aria-hidden="true"></i>
                         </span>
                         <span class="min-w-0">
-                            <span class="block truncate text-sm font-semibold text-slate-900">{{ solapa.nombre }}</span>
-                            <span class="block text-xs text-slate-500">{% if solapa.inscripcion %}{{ solapa.inscripcion.get_estado_display }} · desde {{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}{% elif solapa.badge.title %}{{ solapa.badge.title }}{% endif %}</span>
+                            <span class="block truncate text-sm font-semibold" style="color: var(--text-heading);">{{ solapa.nombre }}</span>
+                            <span class="block text-xs" style="color: var(--text-body-subtle);">{% if solapa.inscripcion %}{{ solapa.inscripcion.get_estado_display }} · desde {{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}{% elif solapa.badge.title %}{{ solapa.badge.title }}{% endif %}</span>
                         </span>
-                        <i class="fas fa-chevron-right ml-2 text-xs text-slate-300 transition group-hover:text-slate-500"></i>
+                        <i class="fas fa-chevron-right ml-2 text-xs transition" aria-hidden="true" style="color: var(--border-base-strong);"></i>
                     </button>
                     {% endfor %}
                 </div>
@@ -205,102 +269,102 @@
     <!-- Perfil social -->
     {% with tiene_social=ciudadano.tipo_vivienda|add:ciudadano.situacion_laboral|add:ciudadano.nivel_educativo|add:ciudadano.dni_fisico|add:ciudadano.estado_renaper|add:ciudadano.observaciones %}
     {% if tiene_social or puede_ver_sensible %}
-    <section class="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-6 py-4">
+    <section class="mb-8 rounded-xl border shadow-sm" style="border-color: var(--border-base); background: var(--bg-primary);">
+        <div class="border-b px-6 py-4" style="border-color: var(--border-base);">
             <div class="flex items-center gap-3">
-                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                    <i class="fas fa-address-card"></i>
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                    <i class="fas fa-address-card" aria-hidden="true"></i>
                 </span>
                 <div>
-                    <h2 class="text-lg font-semibold text-slate-900">Perfil social</h2>
-                    <p class="mt-1 text-sm text-slate-500">Resumen contextual para intervención, acompañamiento y seguimiento.</p>
+                    <h2 class="text-lg font-bold" style="color: var(--text-heading);">Perfil social</h2>
+                    <p class="mt-1 text-sm" style="color: var(--text-body-subtle);">Resumen contextual para intervención, acompañamiento y seguimiento.</p>
                 </div>
             </div>
         </div>
         <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% if ciudadano.tipo_vivienda %}
-                <div class="rounded-2xl border border-orange-100 bg-orange-50/60 p-5">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Tipo de vivienda</p>
-                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_tipo_vivienda_display }}</p>
+                <div class="rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Tipo de vivienda</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.get_tipo_vivienda_display }}</p>
                     {% if ciudadano.tenencia_vivienda %}
-                    <p class="text-xs text-slate-500 mt-0.5">{{ ciudadano.get_tenencia_vivienda_display }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--text-body-subtle);">{{ ciudadano.get_tenencia_vivienda_display }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% if ciudadano.condiciones_vivienda %}
-                <div class="rounded-2xl border border-orange-100 bg-orange-50/60 p-5 md:col-span-2">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Condiciones de la vivienda</p>
-                    <p class="text-sm text-slate-700">{{ ciudadano.condiciones_vivienda }}</p>
+                <div class="rounded-xl border p-5 md:col-span-2" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Condiciones de la vivienda</p>
+                    <p class="text-sm" style="color: var(--text-body);">{{ ciudadano.condiciones_vivienda }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.situacion_laboral %}
-                <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Situación laboral</p>
-                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_situacion_laboral_display }}</p>
+                <div class="rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Situación laboral</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.get_situacion_laboral_display }}</p>
                     {% if ciudadano.ingreso_estimado %}
-                    <p class="text-xs text-slate-500 mt-0.5">Ingreso: {{ ciudadano.get_ingreso_estimado_display }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--text-body-subtle);">Ingreso: {{ ciudadano.get_ingreso_estimado_display }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% if ciudadano.obra_social %}
-                <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Obra social</p>
-                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.obra_social }}</p>
+                <div class="rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Obra social</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.obra_social }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.nivel_educativo %}
-                <div class="rounded-2xl border border-green-100 bg-green-50/60 p-5">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Nivel educativo</p>
-                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_nivel_educativo_display }}</p>
+                <div class="rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Nivel educativo</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.get_nivel_educativo_display }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.dni_fisico %}
-                <div class="rounded-2xl border border-purple-100 bg-purple-50/60 p-5">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">DNI físico</p>
-                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_dni_fisico_display }}</p>
+                <div class="rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">DNI físico</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.get_dni_fisico_display }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.estado_renaper %}
-                <div class="rounded-2xl border border-purple-100 bg-purple-50/60 p-5">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Estado RENAPER</p>
-                    <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_estado_renaper_display }}</p>
+                <div class="rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Estado RENAPER</p>
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.get_estado_renaper_display }}</p>
                 </div>
                 {% endif %}
                 {% if ciudadano.observaciones %}
-                <div class="rounded-2xl border border-yellow-100 bg-yellow-50/60 p-5 md:col-span-3">
-                    <p class="text-xs text-slate-500 uppercase font-medium mb-1">Observaciones</p>
-                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ ciudadano.observaciones }}</p>
+                <div class="rounded-xl border p-5 md:col-span-3" style="border-color: var(--border-warning-subtle); background: var(--bg-secondary);">
+                    <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Observaciones</p>
+                    <p class="text-sm whitespace-pre-line" style="color: var(--text-body);">{{ ciudadano.observaciones }}</p>
                 </div>
                 {% endif %}
             </div>
 
             {% if puede_ver_sensible %}
-            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                <p class="text-xs text-slate-500 font-semibold uppercase mb-4 flex items-center">
-                    <i class="fas fa-lock mr-2"></i>Datos sensibles
+            <div class="mt-6 rounded-xl border p-6" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                <p class="text-xs font-bold uppercase mb-4 flex items-center gap-2" style="color: var(--text-body-subtle); letter-spacing: .05em;">
+                    <i class="fas fa-lock" aria-hidden="true"></i>Datos sensibles
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {% if ciudadano.cobertura_medica %}
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p class="text-xs text-slate-500 uppercase font-medium mb-1">Cobertura médica</p>
-                        <p class="text-sm font-semibold text-slate-800">{{ ciudadano.cobertura_medica }}</p>
+                    <div class="rounded-xl border p-4" style="border-color: var(--border-base); background: var(--bg-primary);">
+                        <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Cobertura médica</p>
+                        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.cobertura_medica }}</p>
                     </div>
                     {% endif %}
                     {% if ciudadano.estado_migratorio %}
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p class="text-xs text-slate-500 uppercase font-medium mb-1">Estado migratorio</p>
-                        <p class="text-sm font-semibold text-slate-800">{{ ciudadano.get_estado_migratorio_display }}</p>
+                    <div class="rounded-xl border p-4" style="border-color: var(--border-base); background: var(--bg-primary);">
+                        <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Estado migratorio</p>
+                        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ ciudadano.get_estado_migratorio_display }}</p>
                     </div>
                     {% endif %}
                     {% if ciudadano.medicacion_habitual %}
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4 md:col-span-2">
-                        <p class="text-xs text-slate-500 uppercase font-medium mb-1">Medicación habitual</p>
-                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ ciudadano.medicacion_habitual }}</p>
+                    <div class="rounded-xl border p-4 md:col-span-2" style="border-color: var(--border-base); background: var(--bg-primary);">
+                        <p class="text-xs font-bold uppercase mb-1" style="color: var(--text-body-subtle); letter-spacing: .05em;">Medicación habitual</p>
+                        <p class="text-sm whitespace-pre-line" style="color: var(--text-body);">{{ ciudadano.medicacion_habitual }}</p>
                     </div>
                     {% endif %}
                     {% if not ciudadano.cobertura_medica and not ciudadano.estado_migratorio and not ciudadano.medicacion_habitual %}
-                    <p class="text-sm text-slate-400 col-span-3">Sin datos sensibles registrados.</p>
+                    <p class="text-sm col-span-3" style="color: var(--text-disabled);">Sin datos sensibles registrados.</p>
                     {% endif %}
                 </div>
             </div>
@@ -313,22 +377,22 @@
     <!-- Alertas — resumen rápido -->
     {% if alertas_ciudadano %}
     <div class="mb-8">
-        <div class="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-3 rounded-xl border px-6 py-4 sm:flex-row sm:items-center sm:justify-between" style="border-color: var(--border-danger-subtle); background: var(--bg-danger-soft); box-shadow: var(--shadow-sm);">
             <div class="flex items-center gap-3">
-                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 font-bold text-sm">{{ alertas_ciudadano.count }}</span>
-                <span class="text-sm font-medium text-red-900">
+                <span class="badge badge-danger inline-flex items-center justify-center font-bold">{{ alertas_ciudadano.count }}</span>
+                <span class="text-sm font-semibold" style="color: var(--text-fg-danger);">
                     {% if alertas_ciudadano.count == 1 %}Hay 1 alerta activa{% else %}Hay {{ alertas_ciudadano.count }} alertas activas{% endif %}
                 </span>
             </div>
-            <button onclick="cambiarTab('alertas')" class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-4 py-2 text-left text-sm font-medium text-red-700 transition hover:bg-red-100 sm:text-right">
-                Ver alertas <i class="fas fa-arrow-right ml-1"></i>
+            <button onclick="cambiarTab('alertas')" class="btn-nodo btn-danger btn-sm">
+                <i class="fas fa-arrow-right" aria-hidden="true"></i>Ver alertas
             </button>
         </div>
     </div>
     {% endif %}
 
     <!-- Solapas de navegación -->
-    <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div class="mb-8 rounded-xl border p-3" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
         <nav class="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Secciones del legajo">
             {% for solapa in solapas %}
             <button
@@ -339,10 +403,10 @@
                 data-tab="{{ solapa.id }}"
                 aria-controls="tab-{{ solapa.id }}"
                 aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
-                style="--tab-color: {% if solapa.estatica %}#1d4ed8{% else %}{{ solapa.color|default:'#1d4ed8' }}{% endif %};{% if solapa.badge %} --badge-color: {{ solapa.badge.color_hex|default:'#1d4ed8' }};{% endif %}"
-                class="tab-button {% if forloop.first %}tab-active{% endif %} inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                style="--tab-color: {% if solapa.estatica %}var(--bg-brand){% else %}{{ solapa.color|default:'var(--bg-brand)' }}{% endif %};{% if solapa.badge %} --badge-color: {{ solapa.badge.color_hex|default:'var(--bg-brand)' }};{% endif %} border-color: var(--border-base); background: var(--bg-primary); color: var(--text-body);"
+                class="tab-button {% if forloop.first %}tab-active{% endif %} inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
             >
-                <i class="fas fa-{{ solapa.icono }} mr-2"></i>{{ solapa.nombre }}
+                <i class="fas fa-{{ solapa.icono }} mr-2" aria-hidden="true"></i>{{ solapa.nombre }}
                 {% if solapa.badge %}
                     {% if solapa.badge.tipo == 'numero' %}
                     <span class="tab-badge ml-1.5 inline-flex h-5 min-w-[1.2rem] items-center justify-center rounded-full px-1 text-xs font-bold">{{ solapa.badge.valor }}</span>
@@ -350,7 +414,7 @@
                     <span class="ml-2 inline-block h-2 w-2 rounded-full" style="background-color: {{ solapa.badge.color_hex }};"{% if solapa.badge.title %} title="{{ solapa.badge.title }}"{% endif %}></span>
                     {% endif %}
                 {% elif not solapa.estatica %}
-                <span class="ml-2 inline-block h-2 w-2 rounded-full" style="background-color: {{ solapa.color|default:'#3B82F6' }};"></span>
+                <span class="ml-2 inline-block h-2 w-2 rounded-full" style="background-color: {{ solapa.color|default:'var(--bg-brand)' }};"></span>
                 {% endif %}
             </button>
             {% endfor %}
@@ -361,107 +425,104 @@
     <div id="tab-resumen" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumen">
 
         <!-- Indicadores -->
-        <div class="mt-2 mb-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
-            <h3 class="mb-6 flex items-center gap-3 text-xl font-bold text-slate-900">
-                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                    <i class="fas fa-chart-simple"></i>
+        <div class="mt-2 mb-10 rounded-xl border p-6 lg:p-8" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <h3 class="mb-6 flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                    <i class="fas fa-chart-simple" aria-hidden="true"></i>
                 </span>
                 Indicadores del legajo
             </h3>
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="mb-1 text-sm font-medium text-slate-500">Programas activos</p>
-                            <p class="text-3xl font-bold text-slate-900">{{ programas_activos|length }}</p>
+                            <p class="mb-1 text-sm font-semibold" style="color: var(--text-body-subtle);">Programas activos</p>
+                            <p class="text-3xl font-bold" style="color: var(--text-heading);">{{ programas_activos|length }}</p>
                         </div>
-                        <div class="rounded-full bg-blue-50 p-4">
-                            <i class="fas fa-layer-group text-2xl text-blue-500"></i>
+                        <div class="rounded-xl p-3" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                            <i class="fas fa-layer-group text-xl" aria-hidden="true"></i>
                         </div>
                     </div>
-                    <p class="mt-4 text-xs text-slate-500">Inscripciones vigentes en programas</p>
+                    <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Inscripciones vigentes en programas</p>
                 </div>
 
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="mb-1 text-sm font-medium text-slate-500">Vínculos familiares</p>
-                            <p class="text-3xl font-bold text-slate-900" id="total-vinculos">—</p>
+                            <p class="mb-1 text-sm font-semibold" style="color: var(--text-body-subtle);">Vínculos familiares</p>
+                            <p class="text-3xl font-bold" id="total-vinculos" style="color: var(--text-heading);">—</p>
                         </div>
-                        <div class="rounded-full bg-emerald-50 p-4">
-                            <i class="fas fa-users text-2xl text-emerald-500"></i>
+                        <div class="rounded-xl p-3" style="background: var(--bg-success-soft); color: var(--text-fg-success);">
+                            <i class="fas fa-users text-xl" aria-hidden="true"></i>
                         </div>
                     </div>
-                    <p class="mt-4 text-xs text-slate-500">Red familiar registrada</p>
+                    <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Red familiar registrada</p>
                 </div>
 
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="mb-1 text-sm font-medium text-slate-500">Archivos adjuntos</p>
-                            <p class="text-3xl font-bold text-slate-900" id="total-archivos-dash">—</p>
+                            <p class="mb-1 text-sm font-semibold" style="color: var(--text-body-subtle);">Archivos adjuntos</p>
+                            <p class="text-3xl font-bold" id="total-archivos-dash" style="color: var(--text-heading);">—</p>
                         </div>
-                        <div class="rounded-full bg-slate-100 p-4">
-                            <i class="fas fa-paperclip text-2xl text-slate-500"></i>
+                        <div class="rounded-xl p-3" style="background: var(--bg-tertiary); color: var(--text-body-subtle);">
+                            <i class="fas fa-paperclip text-xl" aria-hidden="true"></i>
                         </div>
                     </div>
-                    <p class="mt-4 text-xs text-slate-500">Documentos disponibles</p>
+                    <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Documentos disponibles</p>
                 </div>
 
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="rounded-xl border p-6 transition-all duration-300" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="mb-1 text-sm font-medium text-slate-500">Alertas activas</p>
-                            <p class="text-3xl font-bold text-slate-900">{{ alertas_ciudadano.count }}</p>
+                            <p class="mb-1 text-sm font-semibold" style="color: var(--text-body-subtle);">Alertas activas</p>
+                            <p class="text-3xl font-bold" style="color: var(--text-heading);">{{ alertas_ciudadano.count }}</p>
                         </div>
-                        <div class="rounded-full bg-red-50 p-4">
-                            <i class="fas fa-triangle-exclamation text-2xl text-red-500"></i>
+                        <div class="rounded-xl p-3" style="background: var(--bg-danger-soft); color: var(--text-fg-danger);">
+                            <i class="fas fa-triangle-exclamation text-xl" aria-hidden="true"></i>
                         </div>
                     </div>
-                    <p class="mt-4 text-xs text-slate-500">Requieren atención</p>
+                    <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Requieren atención</p>
                 </div>
             </div>
         </div>
 
         {% if historial_programas %}
         <!-- Historial de programas -->
-        <div class="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <h3 class="flex items-center gap-3 text-lg font-semibold text-slate-900">
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                        <i class="fas fa-box-archive"></i>
+        <div class="mb-8 overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <div class="flex items-center justify-between border-b px-6 py-4" style="border-color: var(--border-base);">
+                <h3 class="flex items-center gap-3 text-base font-bold" style="color: var(--text-heading);">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl" style="background: var(--bg-tertiary); color: var(--text-body-subtle);">
+                        <i class="fas fa-box-archive" aria-hidden="true"></i>
                     </span>
                     Historial de programas
                 </h3>
-                <span class="text-sm text-slate-500">{{ historial_programas|length }} inscripci{{ historial_programas|length|pluralize:"ón,ones" }} finalizada{{ historial_programas|length|pluralize }}</span>
+                <span class="text-sm" style="color: var(--text-body-subtle);">{{ historial_programas|length }} inscripci{{ historial_programas|length|pluralize:"ón,ones" }} finalizada{{ historial_programas|length|pluralize }}</span>
             </div>
-            <div class="divide-y divide-slate-200">
+            <div class="divide-y" style="border-color: var(--border-base);">
                 {% for inscripcion in historial_programas %}
-                <div class="px-6 py-4 transition-colors hover:bg-slate-50">
+                <div class="px-6 py-4 transition-colors" style="hover:background: var(--bg-tertiary);">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex min-w-0 items-center gap-3">
-                            <span class="h-3 w-3 flex-shrink-0 rounded-full" style="background-color: {{ inscripcion.programa.color|default:'#94A3B8' }};"></span>
+                            <span class="h-3 w-3 flex-shrink-0 rounded-full" style="background-color: {{ inscripcion.programa.color|default:'var(--text-body-subtle)' }};"></span>
                             <div class="min-w-0">
-                                <span class="text-sm font-semibold text-slate-900">{{ inscripcion.programa.nombre }}</span>
+                                <span class="text-sm font-semibold" style="color: var(--text-heading);">{{ inscripcion.programa.nombre }}</span>
                                 {% if inscripcion.responsable %}
-                                <span class="ml-2 text-xs text-slate-500">· {{ inscripcion.responsable.get_full_name|default:inscripcion.responsable.username }}</span>
+                                <span class="ml-2 text-xs" style="color: var(--text-body-subtle);">· {{ inscripcion.responsable.get_full_name|default:inscripcion.responsable.username }}</span>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="flex flex-shrink-0 items-center gap-2">
-                            <span class="text-xs text-slate-500">
+                            <span class="text-xs" style="color: var(--text-body-subtle);">
                                 {{ inscripcion.fecha_inscripcion|date:"d/m/Y" }}{% if inscripcion.fecha_cierre %} → {{ inscripcion.fecha_cierre|date:"d/m/Y" }}{% endif %}
                             </span>
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                {% if inscripcion.estado == 'CERRADO' %}bg-slate-100 text-slate-600
-                                {% elif inscripcion.estado == 'SUSPENDIDO' %}bg-amber-100 text-amber-700
-                                {% else %}bg-red-100 text-red-700{% endif %}">
+                            <span class="badge {% if inscripcion.estado == 'CERRADO' %}badge-gray{% elif inscripcion.estado == 'SUSPENDIDO' %}badge-warning{% else %}badge-danger{% endif %}">
                                 {{ inscripcion.get_estado_display }}
                             </span>
                         </div>
                     </div>
                     {% if inscripcion.motivo_cierre %}
-                    <p class="mt-1 truncate pl-6 text-xs text-slate-500">{{ inscripcion.motivo_cierre|truncatechars:140 }}</p>
+                    <p class="mt-1 truncate pl-6 text-xs" style="color: var(--text-body-subtle);">{{ inscripcion.motivo_cierre|truncatechars:140 }}</p>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -470,31 +531,31 @@
         {% endif %}
 
         <!-- Predicción de Riesgo con IA -->
-        <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
-            <h3 class="mb-6 flex items-center gap-3 text-xl font-bold text-slate-900">
-                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-                    <i class="fas fa-brain"></i>
+        <div class="mb-8 rounded-xl border p-6 lg:p-8" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <h3 class="mb-6 flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                    <i class="fas fa-brain" aria-hidden="true"></i>
                 </span>
                 Predicción de Riesgo con IA
-                <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-normal text-slate-500">Beta</span>
+                <span class="badge badge-gray font-normal">Beta</span>
             </h3>
 
             <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <!-- Riesgo de Abandono -->
-                <div class="rounded-xl border border-slate-200 bg-white p-6">
+                <div class="rounded-xl border p-6" style="border-color: var(--border-base); background: var(--bg-primary);">
                     <div class="mb-4 flex items-center justify-between">
-                        <h4 class="flex items-center font-bold text-slate-800">
-                            <i class="fas fa-user-slash mr-2 text-orange-500"></i>
+                        <h4 class="flex items-center font-bold" style="color: var(--text-heading);">
+                            <i class="fas fa-user-slash mr-2" aria-hidden="true" style="color: var(--text-fg-warning);"></i>
                             Riesgo de Abandono
                         </h4>
-                        <span id="abandono-nivel" class="rounded-full px-3 py-1 text-xs font-bold">-</span>
+                        <span id="abandono-nivel" class="badge">-</span>
                     </div>
                     <div class="mb-4">
                         <div class="mb-2 flex items-center justify-between">
-                            <span class="text-sm text-slate-600">Probabilidad</span>
-                            <span id="abandono-score" class="text-2xl font-bold text-slate-800">-</span>
+                            <span class="text-sm" style="color: var(--text-body);">Probabilidad</span>
+                            <span id="abandono-score" class="text-2xl font-bold" style="color: var(--text-heading);">-</span>
                         </div>
-                        <div class="h-3 w-full rounded-full bg-slate-200">
+                        <div class="h-3 w-full rounded-full" style="background: var(--bg-tertiary);">
                             <div id="abandono-bar" class="h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                     </div>
@@ -502,20 +563,20 @@
                 </div>
 
                 <!-- Riesgo de Evento Crítico -->
-                <div class="rounded-xl border border-slate-200 bg-white p-6">
+                <div class="rounded-xl border p-6" style="border-color: var(--border-base); background: var(--bg-primary);">
                     <div class="mb-4 flex items-center justify-between">
-                        <h4 class="flex items-center font-bold text-slate-800">
-                            <i class="fas fa-triangle-exclamation mr-2 text-red-500"></i>
+                        <h4 class="flex items-center font-bold" style="color: var(--text-heading);">
+                            <i class="fas fa-triangle-exclamation mr-2" aria-hidden="true" style="color: var(--text-fg-danger);"></i>
                             Riesgo de Evento Crítico
                         </h4>
-                        <span id="evento-nivel" class="rounded-full px-3 py-1 text-xs font-bold">-</span>
+                        <span id="evento-nivel" class="badge">-</span>
                     </div>
                     <div class="mb-4">
                         <div class="mb-2 flex items-center justify-between">
-                            <span class="text-sm text-slate-600">Próximos 30 días</span>
-                            <span id="evento-score" class="text-2xl font-bold text-slate-800">-</span>
+                            <span class="text-sm" style="color: var(--text-body);">Próximos 30 días</span>
+                            <span id="evento-score" class="text-2xl font-bold" style="color: var(--text-heading);">-</span>
                         </div>
-                        <div class="h-3 w-full rounded-full bg-slate-200">
+                        <div class="h-3 w-full rounded-full" style="background: var(--bg-tertiary);">
                             <div id="evento-bar" class="h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
                     </div>
@@ -524,10 +585,10 @@
             </div>
 
             <!-- Recomendaciones Automáticas -->
-            <div class="rounded-xl border border-slate-200 bg-white p-6">
-                <h4 class="mb-4 flex items-center font-bold text-slate-800">
-                    <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
-                    Recomendaciones Automáticas
+            <div class="rounded-xl border p-6" style="border-color: var(--border-base); background: var(--bg-primary);">
+                <h4 class="mb-4 flex items-center font-bold" style="color: var(--text-heading);">
+                    <i class="fas fa-lightbulb mr-2" aria-hidden="true" style="color: var(--text-fg-brand);"></i>
+                    Recomendaciones automáticas
                 </h4>
                 <div id="recomendaciones-container" class="space-y-3"></div>
             </div>
@@ -535,38 +596,38 @@
 
         <!-- Actividad Reciente -->
         <div class="mt-8">
-            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                 <div class="p-6 lg:p-8">
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h3 class="flex items-center gap-3 text-xl font-bold text-slate-900">
-                            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                                <i class="fas fa-list-check"></i>
+                        <h3 class="flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
+                            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-success-soft); color: var(--text-fg-success);">
+                                <i class="fas fa-list-check" aria-hidden="true"></i>
                             </span>
-                            Actividad Reciente
+                            Actividad reciente
                         </h3>
-                        <div class="w-fit rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
-                            <span class="text-lg font-bold text-slate-900" id="total-actividades">-</span>
-                            <span class="text-sm text-slate-500">registros</span>
+                        <div class="w-fit rounded-full border px-4 py-2" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                            <span class="text-lg font-bold" id="total-actividades" style="color: var(--text-heading);">-</span>
+                            <span class="text-sm" style="color: var(--text-body-subtle);">registros</span>
                         </div>
                     </div>
 
                     <div class="table-scroll-wrapper">
                         <table class="w-full">
-                            <thead class="border-b border-slate-200 bg-slate-50">
+                            <thead class="border-b" style="border-color: var(--border-base); background: var(--bg-secondary);">
                                 <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Fecha/Hora</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Tipo</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Descripción</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Usuario</th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Legajo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Fecha/Hora</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Tipo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Descripción</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Usuario</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Legajo</th>
                                 </tr>
                             </thead>
-                            <tbody id="tabla-actividades" class="divide-y divide-slate-200"></tbody>
+                            <tbody id="tabla-actividades" class="divide-y" style="border-color: var(--border-light);"></tbody>
                         </table>
                     </div>
                     <div id="mensaje-sin-actividades" class="hidden py-12 text-center">
-                        <i class="fas fa-clipboard-list mb-3 text-4xl text-slate-200"></i>
-                        <p class="text-sm text-slate-500">No hay actividades registradas</p>
+                        <i class="fas fa-clipboard-list mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
+                        <p class="text-sm" style="color: var(--text-body-subtle);">No hay actividades registradas</p>
                     </div>
                 </div>
             </div>
@@ -577,104 +638,95 @@
     {% for solapa in solapas_programas %}
     {% if 'NACHEC' not in solapa.id and solapa.id != 'becas' %}
     <div id="tab-{{ solapa.id }}" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-{{ solapa.id }}">
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" style="border-top: 4px solid {{ solapa.color|default:'#3B82F6' }};">
-            <div class="border-b border-slate-200 px-6 py-5">
+        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm); border-top: 4px solid {{ solapa.color|default:'var(--bg-brand)' }};">
+            <div class="border-b px-6 py-5" style="border-color: var(--border-base);">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex items-center gap-4">
-                        <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white" style="background-color: {{ solapa.color|default:'#3B82F6' }};">
-                            <i class="fas fa-{{ solapa.icono }} text-lg"></i>
+                        <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white" style="background-color: {{ solapa.color|default:'var(--bg-brand)' }};">
+                            <i class="fas fa-{{ solapa.icono }} text-lg" aria-hidden="true"></i>
                         </span>
                         <div>
-                            <h3 class="text-lg font-bold text-slate-900">{{ solapa.programa.nombre }}</h3>
-                            <p class="text-sm text-slate-500">
+                            <h3 class="text-lg font-bold" style="color: var(--text-heading);">{{ solapa.programa.nombre }}</h3>
+                            <p class="text-sm" style="color: var(--text-body-subtle);">
                                 {{ solapa.programa.get_tipo_display|default:solapa.programa.tipo }}
                                 {% if solapa.inscripcion.codigo %} · Inscripción {{ solapa.inscripcion.codigo }}{% endif %}
                             </p>
                         </div>
                     </div>
-                    <span class="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold
-                        {% if solapa.inscripcion.estado == 'ACTIVO' %}bg-green-100 text-green-700
-                        {% elif solapa.inscripcion.estado == 'EN_SEGUIMIENTO' %}bg-blue-100 text-blue-700
-                        {% elif solapa.inscripcion.estado == 'PENDIENTE' %}bg-amber-100 text-amber-700
-                        {% else %}bg-slate-100 text-slate-600{% endif %}">
-                        <span class="h-2 w-2 rounded-full
-                            {% if solapa.inscripcion.estado == 'ACTIVO' %}bg-green-500
-                            {% elif solapa.inscripcion.estado == 'EN_SEGUIMIENTO' %}bg-blue-500
-                            {% elif solapa.inscripcion.estado == 'PENDIENTE' %}bg-amber-500
-                            {% else %}bg-slate-400{% endif %}"></span>
+                    <span class="badge badge-dot w-fit
+                        {% if solapa.inscripcion.estado == 'ACTIVO' %}badge-success
+                        {% elif solapa.inscripcion.estado == 'EN_SEGUIMIENTO' %}badge-info
+                        {% elif solapa.inscripcion.estado == 'PENDIENTE' %}badge-warning
+                        {% else %}badge-gray{% endif %}">
                         {{ solapa.inscripcion.get_estado_display }}
                     </span>
                 </div>
             </div>
 
             <div class="p-6">
-                <dl class="grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
-                    <div class="bg-white px-4 py-3">
-                        <dt class="text-xs font-semibold uppercase text-slate-500">Vía de ingreso</dt>
-                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ solapa.inscripcion.get_via_ingreso_display }}</dd>
+                <dl class="grid gap-px overflow-hidden rounded-xl sm:grid-cols-2 xl:grid-cols-4" style="border: 1px solid var(--border-base); background: var(--border-base);">
+                    <div class="px-4 py-3" style="background: var(--bg-primary);">
+                        <dt class="text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Vía de ingreso</dt>
+                        <dd class="mt-1 text-sm font-semibold" style="color: var(--text-heading);">{{ solapa.inscripcion.get_via_ingreso_display }}</dd>
                     </div>
-                    <div class="bg-white px-4 py-3">
-                        <dt class="text-xs font-semibold uppercase text-slate-500">Fecha de inscripción</dt>
-                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}</dd>
+                    <div class="px-4 py-3" style="background: var(--bg-primary);">
+                        <dt class="text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Fecha de inscripción</dt>
+                        <dd class="mt-1 text-sm font-semibold" style="color: var(--text-heading);">{{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}</dd>
                     </div>
-                    <div class="bg-white px-4 py-3">
-                        <dt class="text-xs font-semibold uppercase text-slate-500">Fecha de inicio</dt>
-                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ solapa.inscripcion.fecha_inicio|date:"d/m/Y"|default:"—" }}</dd>
+                    <div class="px-4 py-3" style="background: var(--bg-primary);">
+                        <dt class="text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Fecha de inicio</dt>
+                        <dd class="mt-1 text-sm font-semibold" style="color: var(--text-heading);">{{ solapa.inscripcion.fecha_inicio|date:"d/m/Y"|default:"—" }}</dd>
                     </div>
-                    <div class="bg-white px-4 py-3">
-                        <dt class="text-xs font-semibold uppercase text-slate-500">Responsable</dt>
-                        <dd class="mt-1 text-sm font-semibold text-slate-900">{% if solapa.inscripcion.responsable %}{{ solapa.inscripcion.responsable.get_full_name|default:solapa.inscripcion.responsable.username }}{% else %}—{% endif %}</dd>
+                    <div class="px-4 py-3" style="background: var(--bg-primary);">
+                        <dt class="text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Responsable</dt>
+                        <dd class="mt-1 text-sm font-semibold" style="color: var(--text-heading);">{% if solapa.inscripcion.responsable %}{{ solapa.inscripcion.responsable.get_full_name|default:solapa.inscripcion.responsable.username }}{% else %}—{% endif %}</dd>
                     </div>
                 </dl>
 
                 {% if solapa.programa.descripcion %}
-                <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
-                    <p class="mb-1 text-xs font-semibold uppercase text-slate-500">Sobre el programa</p>
-                    <p class="text-sm text-slate-700">{{ solapa.programa.descripcion }}</p>
+                <div class="mt-6 rounded-xl border p-5" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                    <p class="mb-1 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Sobre el programa</p>
+                    <p class="text-sm" style="color: var(--text-body);">{{ solapa.programa.descripcion }}</p>
                 </div>
                 {% endif %}
 
                 {% if solapa.inscripcion.notas %}
-                <div class="mt-6 rounded-xl border border-amber-100 bg-amber-50/60 p-5">
-                    <p class="mb-1 text-xs font-semibold uppercase text-slate-500">Notas de la inscripción</p>
-                    <p class="whitespace-pre-line text-sm text-slate-700">{{ solapa.inscripcion.notas }}</p>
+                <div class="mt-6 rounded-xl border p-5" style="border-color: var(--border-warning-subtle); background: var(--bg-secondary);">
+                    <p class="mb-1 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Notas de la inscripción</p>
+                    <p class="whitespace-pre-line text-sm" style="color: var(--text-body);">{{ solapa.inscripcion.notas }}</p>
                 </div>
                 {% endif %}
 
                 <!-- Derivaciones vinculadas a este programa -->
                 <div class="mt-8">
-                    <h4 class="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
-                        <i class="fas fa-share-nodes text-slate-400"></i>
+                    <h4 class="mb-4 flex items-center gap-2 text-sm font-bold uppercase" style="color: var(--text-body); letter-spacing: .05em;">
+                        <i class="fas fa-share-nodes" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                         Derivaciones vinculadas
                     </h4>
-                    <div class="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200">
+                    <div class="overflow-hidden rounded-xl border divide-y" style="border-color: var(--border-base);">
                         {% for deriv in derivaciones_ciudadano %}
                         {% if deriv.programa_destino_id == solapa.programa.id or deriv.programa_origen_id == solapa.programa.id %}
-                        <div class="flex items-center justify-between bg-white px-5 py-3 transition-colors hover:bg-slate-50">
+                        <div class="flex items-center justify-between px-5 py-3 transition-colors" style="background: var(--bg-primary);">
                             <div class="min-w-0">
-                                <span class="text-sm font-semibold text-slate-900">
+                                <span class="text-sm font-semibold" style="color: var(--text-heading);">
                                     {% if deriv.programa_destino_id == solapa.programa.id %}Recibida{% else %}Enviada a {{ deriv.programa_destino.nombre }}{% endif %}
                                 </span>
                                 {% if deriv.programa_origen and deriv.programa_destino_id == solapa.programa.id %}
-                                <span class="ml-2 text-xs text-slate-500">desde {{ deriv.programa_origen.nombre }}</span>
+                                <span class="ml-2 text-xs" style="color: var(--text-body-subtle);">desde {{ deriv.programa_origen.nombre }}</span>
                                 {% endif %}
-                                {% if deriv.motivo %}<p class="mt-0.5 truncate text-xs text-slate-500">{{ deriv.motivo|truncatechars:100 }}</p>{% endif %}
+                                {% if deriv.motivo %}<p class="mt-0.5 truncate text-xs" style="color: var(--text-body-subtle);">{{ deriv.motivo|truncatechars:100 }}</p>{% endif %}
                             </div>
                             <div class="ml-4 flex flex-shrink-0 items-center gap-2">
-                                <span class="text-xs text-slate-500">{{ deriv.creado|date:"d/m/Y" }}</span>
-                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                    {% if deriv.estado == 'PENDIENTE' %}bg-orange-100 text-orange-700
-                                    {% elif deriv.estado == 'ACEPTADA' %}bg-green-100 text-green-700
-                                    {% elif deriv.estado == 'RECHAZADA' %}bg-red-100 text-red-700
-                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                <span class="text-xs" style="color: var(--text-body-subtle);">{{ deriv.creado|date:"d/m/Y" }}</span>
+                                <span class="badge {% if deriv.estado == 'PENDIENTE' %}badge-warning{% elif deriv.estado == 'ACEPTADA' %}badge-success{% elif deriv.estado == 'RECHAZADA' %}badge-danger{% else %}badge-gray{% endif %}">
                                     {{ deriv.get_estado_display }}
                                 </span>
                             </div>
                         </div>
                         {% endif %}
                         {% empty %}
-                        <div class="bg-white px-5 py-8 text-center">
-                            <p class="text-sm text-slate-500">Sin derivaciones vinculadas a este programa.</p>
+                        <div class="px-5 py-8 text-center" style="background: var(--bg-primary);">
+                            <p class="text-sm" style="color: var(--text-body-subtle);">Sin derivaciones vinculadas a este programa.</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -696,29 +748,26 @@
 
     <!-- Tab: Conversaciones -->
     <div id="tab-conversaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-conversaciones">
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-6 py-4">
-                <h3 class="flex items-center text-lg font-semibold text-slate-900">
-                    <i class="fas fa-comments mr-2 text-purple-500"></i>Conversaciones
+        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <div class="border-b px-6 py-4" style="border-color: var(--border-base);">
+                <h3 class="flex items-center text-base font-bold" style="color: var(--text-heading);">
+                    <i class="fas fa-comments mr-2" aria-hidden="true" style="color: var(--text-fg-brand);"></i>Conversaciones
                 </h3>
             </div>
             {% if conversaciones_ciudadano %}
-            <div class="divide-y divide-slate-200">
+            <div class="divide-y" style="border-color: var(--border-light);">
                 {% for conv in conversaciones_ciudadano %}
-                <div class="px-6 py-4 transition-colors hover:bg-slate-50">
+                <div class="px-6 py-4 transition-colors hover:bg-[var(--bg-tertiary)]">
                     <div class="flex items-center justify-between">
                         <div>
-                            <span class="text-sm font-medium text-slate-900">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
+                            <span class="text-sm font-semibold" style="color: var(--text-heading);">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
                             {% if conv.operador_asignado %}
-                            <span class="ml-2 text-xs text-slate-500">· {{ conv.operador_asignado.get_full_name|default:conv.operador_asignado.username }}</span>
+                            <span class="ml-2 text-xs" style="color: var(--text-body-subtle);">· {{ conv.operador_asignado.get_full_name|default:conv.operador_asignado.username }}</span>
                             {% endif %}
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-500">{{ conv.fecha_inicio|date:"d/m/Y H:i" }}</span>
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                {% if conv.estado == 'activa' %}bg-green-100 text-green-700
-                                {% elif conv.estado == 'pendiente' %}bg-yellow-100 text-yellow-700
-                                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                            <span class="text-xs" style="color: var(--text-body-subtle);">{{ conv.fecha_inicio|date:"d/m/Y H:i" }}</span>
+                            <span class="badge {% if conv.estado == 'activa' %}badge-success{% elif conv.estado == 'pendiente' %}badge-warning{% else %}badge-gray{% endif %}">
                                 {{ conv.get_estado_display|default:conv.estado }}
                             </span>
                         </div>
@@ -728,8 +777,8 @@
             </div>
             {% else %}
             <div class="py-16 text-center">
-                <i class="fas fa-comment-slash mb-3 text-4xl text-slate-200"></i>
-                <p class="text-sm text-slate-500">No hay conversaciones registradas para este ciudadano.</p>
+                <i class="fas fa-comment-slash mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
+                <p class="text-sm" style="color: var(--text-body-subtle);">No hay conversaciones registradas para este ciudadano.</p>
             </div>
             {% endif %}
         </div>
@@ -737,47 +786,43 @@
 
     <!-- Tab: Derivaciones -->
     <div id="tab-derivaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-derivaciones">
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-6 py-4">
-                <h3 class="flex items-center text-lg font-semibold text-slate-900">
-                    <i class="fas fa-share-nodes mr-2 text-orange-500"></i>Derivaciones
+        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <div class="border-b px-6 py-4" style="border-color: var(--border-base);">
+                <h3 class="flex items-center text-base font-bold" style="color: var(--text-heading);">
+                    <i class="fas fa-share-nodes mr-2" aria-hidden="true" style="color: var(--text-fg-brand);"></i>Derivaciones
                 </h3>
             </div>
             {% if derivaciones_ciudadano %}
-            <div class="divide-y divide-slate-200">
+            <div class="divide-y" style="border-color: var(--border-light);">
                 {% for deriv in derivaciones_ciudadano %}
-                <div class="px-6 py-4 transition-colors hover:bg-slate-50">
+                <div class="px-6 py-4 transition-colors hover:bg-[var(--bg-tertiary)]">
                     <div class="flex items-center justify-between">
                         <div>
-                            <span class="text-sm font-semibold text-slate-900">{{ deriv.programa_destino.nombre }}</span>
+                            <span class="text-sm font-semibold" style="color: var(--text-heading);">{{ deriv.programa_destino.nombre }}</span>
                             {% if deriv.programa_origen %}
-                            <span class="ml-2 text-xs text-slate-500">desde {{ deriv.programa_origen.nombre }}</span>
+                            <span class="ml-2 text-xs" style="color: var(--text-body-subtle);">desde {{ deriv.programa_origen.nombre }}</span>
                             {% endif %}
                             {% if deriv.derivado_por %}
-                            <span class="ml-2 text-xs text-slate-500">· {{ deriv.derivado_por.get_full_name|default:deriv.derivado_por.username }}</span>
+                            <span class="ml-2 text-xs" style="color: var(--text-body-subtle);">· {{ deriv.derivado_por.get_full_name|default:deriv.derivado_por.username }}</span>
                             {% endif %}
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-500">{{ deriv.creado|date:"d/m/Y" }}</span>
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                {% if deriv.estado == 'PENDIENTE' %}bg-orange-100 text-orange-700
-                                {% elif deriv.estado == 'ACEPTADA' %}bg-green-100 text-green-700
-                                {% elif deriv.estado == 'RECHAZADA' %}bg-red-100 text-red-700
-                                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                            <span class="text-xs" style="color: var(--text-body-subtle);">{{ deriv.creado|date:"d/m/Y" }}</span>
+                            <span class="badge {% if deriv.estado == 'PENDIENTE' %}badge-warning{% elif deriv.estado == 'ACEPTADA' %}badge-success{% elif deriv.estado == 'RECHAZADA' %}badge-danger{% else %}badge-gray{% endif %}">
                                 {{ deriv.get_estado_display }}
                             </span>
                         </div>
                     </div>
                     {% if deriv.motivo %}
-                    <p class="mt-1 truncate text-xs text-slate-500">{{ deriv.motivo|truncatechars:120 }}</p>
+                    <p class="mt-1 truncate text-xs" style="color: var(--text-body-subtle);">{{ deriv.motivo|truncatechars:120 }}</p>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
             {% else %}
             <div class="py-16 text-center">
-                <i class="fas fa-share-nodes mb-3 text-4xl text-slate-200"></i>
-                <p class="text-sm text-slate-500">No hay derivaciones registradas para este ciudadano.</p>
+                <i class="fas fa-share-nodes mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
+                <p class="text-sm" style="color: var(--text-body-subtle);">No hay derivaciones registradas para este ciudadano.</p>
             </div>
             {% endif %}
         </div>
@@ -785,36 +830,37 @@
 
     <!-- Tab: Alertas -->
     <div id="tab-alertas" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-alertas">
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <h3 class="flex items-center text-lg font-semibold text-slate-900">
-                    <i class="fas fa-bell mr-2 text-red-500"></i>Alertas activas
+        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <div class="flex items-center justify-between border-b px-6 py-4" style="border-color: var(--border-base);">
+                <h3 class="flex items-center text-base font-bold" style="color: var(--text-heading);">
+                    <i class="fas fa-bell mr-2" aria-hidden="true" style="color: var(--text-fg-danger);"></i>Alertas activas
                 </h3>
-                <span class="text-sm text-slate-500">{{ alertas_ciudadano.count }} alerta{{ alertas_ciudadano.count|pluralize }}</span>
+                <span class="text-sm" style="color: var(--text-body-subtle);">{{ alertas_ciudadano.count }} alerta{{ alertas_ciudadano.count|pluralize }}</span>
             </div>
             {% if alertas_ciudadano %}
-            <div class="divide-y divide-slate-200">
+            <div class="divide-y" style="border-color: var(--border-light);">
                 {% for alerta in alertas_ciudadano %}
-                <div class="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-slate-50">
+                <div class="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-[var(--bg-tertiary)]">
                     <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full
-                        {% if alerta.prioridad == 'CRITICA' %}bg-red-100 text-red-600
-                        {% elif alerta.prioridad == 'ALTA' %}bg-orange-100 text-orange-600
-                        {% elif alerta.prioridad == 'MEDIA' %}bg-yellow-100 text-yellow-600
-                        {% else %}bg-slate-100 text-slate-500{% endif %}">
-                        <i class="fas fa-triangle-exclamation text-xs"></i>
+                        {% if alerta.prioridad == 'CRITICA' %}text-[color:var(--text-fg-danger)]
+                        {% elif alerta.prioridad == 'ALTA' %}text-[color:var(--text-fg-warning)]
+                        {% elif alerta.prioridad == 'MEDIA' %}text-[color:var(--text-fg-warning)]
+                        {% else %}text-[color:var(--text-body-subtle)]{% endif %}"
+                        style="{% if alerta.prioridad == 'CRITICA' %}background:var(--bg-danger-soft){% elif alerta.prioridad == 'ALTA' or alerta.prioridad == 'MEDIA' %}background:var(--bg-warning-soft){% else %}background:var(--bg-tertiary){% endif %};">
+                        <i class="fas fa-triangle-exclamation text-xs" aria-hidden="true"></i>
                     </span>
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-slate-900">{{ alerta.get_tipo_display }}</p>
-                        <p class="mt-0.5 text-xs text-slate-500">{{ alerta.mensaje }}</p>
+                        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ alerta.get_tipo_display }}</p>
+                        <p class="mt-0.5 text-xs" style="color: var(--text-body-subtle);">{{ alerta.mensaje }}</p>
                     </div>
-                    <span class="whitespace-nowrap text-xs text-slate-500">{{ alerta.creado|date:"d/m/Y" }}</span>
+                    <span class="whitespace-nowrap text-xs" style="color: var(--text-body-subtle);">{{ alerta.creado|date:"d/m/Y" }}</span>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
             <div class="py-16 text-center">
-                <i class="fas fa-circle-check mb-3 text-4xl text-green-200"></i>
-                <p class="text-sm text-slate-500">No hay alertas activas. Todo en orden.</p>
+                <i class="fas fa-circle-check mb-3 text-4xl" aria-hidden="true" style="color: var(--border-success-subtle);"></i>
+                <p class="text-sm" style="color: var(--text-body-subtle);">No hay alertas activas. Todo en orden.</p>
             </div>
             {% endif %}
         </div>
@@ -822,29 +868,29 @@
 
     <!-- Tab: Línea de tiempo -->
     <div id="tab-linea_tiempo" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-linea_tiempo">
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-6 py-4">
-                <h3 class="flex items-center text-lg font-semibold text-slate-900">
-                    <i class="fas fa-clock-rotate-left mr-2 text-indigo-500"></i>Línea de tiempo
+        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+            <div class="border-b px-6 py-4" style="border-color: var(--border-base);">
+                <h3 class="flex items-center text-base font-bold" style="color: var(--text-heading);">
+                    <i class="fas fa-clock-rotate-left mr-2" aria-hidden="true" style="color: var(--text-fg-brand);"></i>Línea de tiempo
                 </h3>
             </div>
             {% if linea_tiempo %}
             <div class="px-6 py-6">
                 <div class="relative">
-                    <div class="absolute bottom-0 left-4 top-0 w-0.5 bg-slate-200"></div>
+                    <div class="absolute bottom-0 left-4 top-0 w-0.5" style="background: var(--border-base);"></div>
                     <div class="space-y-6">
                         {% for evento in linea_tiempo %}
                         <div class="relative flex items-start pl-10">
-                            <span class="absolute left-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow"
-                                  style="background-color: {{ evento.color_hex }};">
-                                <i class="fas fa-{{ evento.icono }} text-xs text-white"></i>
+                            <span class="absolute left-0 flex h-8 w-8 items-center justify-center rounded-full border-2"
+                                  style="background-color: {{ evento.color_hex }}; border-color: var(--bg-primary); box-shadow: var(--shadow-xs);">
+                                <i class="fas fa-{{ evento.icono }} text-xs text-white" aria-hidden="true"></i>
                             </span>
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-slate-900">{{ evento.titulo }}</p>
+                                <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ evento.titulo }}</p>
                                 {% if evento.descripcion %}
-                                <p class="mt-0.5 text-xs text-slate-500">{{ evento.descripcion }}</p>
+                                <p class="mt-0.5 text-xs" style="color: var(--text-body-subtle);">{{ evento.descripcion }}</p>
                                 {% endif %}
-                                <p class="mt-1 text-xs text-slate-500">{{ evento.fecha|date:"d/m/Y" }}</p>
+                                <p class="mt-1 text-xs" style="color: var(--text-body-subtle);">{{ evento.fecha|date:"d/m/Y" }}</p>
                             </div>
                         </div>
                         {% endfor %}
@@ -853,8 +899,8 @@
             </div>
             {% else %}
             <div class="py-16 text-center">
-                <i class="fas fa-clock-rotate-left mb-3 text-4xl text-slate-200"></i>
-                <p class="text-sm text-slate-500">No hay eventos registrados en la línea de tiempo.</p>
+                <i class="fas fa-clock-rotate-left mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
+                <p class="text-sm" style="color: var(--text-body-subtle);">No hay eventos registrados en la línea de tiempo.</p>
             </div>
             {% endif %}
         </div>
@@ -862,99 +908,99 @@
 
     <!-- Tab: Red Familiar -->
     <div id="tab-red_familiar" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-red_familiar">
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
+        <div class="rounded-xl border p-6 lg:p-8" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
             <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <h3 class="flex items-center gap-3 text-xl font-bold text-slate-900">
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                        <i class="fas fa-users"></i>
+                <h3 class="flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-success-soft); color: var(--text-fg-success);">
+                        <i class="fas fa-users" aria-hidden="true"></i>
                     </span>
-                    Red Familiar
+                    Red familiar
                 </h3>
-                <button onclick="abrirModalVinculo()" class="w-fit rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50">
-                    <i class="fas fa-user-plus mr-2"></i>Agregar familiar
+                <button onclick="abrirModalVinculo()" class="btn-nodo btn-tertiary btn-sm w-fit">
+                    <i class="fas fa-user-plus" aria-hidden="true"></i>Agregar familiar
                 </button>
             </div>
 
             <!-- Grafo navegable de la red familiar -->
             <div id="grafo-red-wrapper" class="mb-8 hidden">
                 <div class="mb-3 flex items-center justify-between">
-                    <h4 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700">
-                        <i class="fas fa-circle-nodes text-slate-400"></i>
+                    <h4 class="flex items-center gap-2 text-sm font-bold uppercase" style="color: var(--text-body); letter-spacing: .05em;">
+                        <i class="fas fa-circle-nodes" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
                         Grafo de la red
                     </h4>
-                    <span class="text-xs text-slate-500">
-                        <i class="fas fa-hand-pointer mr-1"></i>Clic en un familiar para abrir su legajo · arrastrá para reorganizar
+                    <span class="text-xs" style="color: var(--text-body-subtle);">
+                        <i class="fas fa-hand-pointer mr-1" aria-hidden="true"></i>Clic en un familiar para abrir su legajo · arrastrá para reorganizar
                     </span>
                 </div>
-                <div id="grafo-red-familiar" class="h-96 w-full rounded-xl border border-slate-200 bg-slate-50"></div>
+                <div id="grafo-red-familiar" class="h-96 w-full rounded-xl border" style="border-color: var(--border-base); background: var(--bg-secondary);"></div>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="border-b border-slate-200 bg-slate-50">
+                    <thead class="border-b" style="border-color: var(--border-base); background: var(--bg-secondary);">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Ciudadano</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Relación</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">DNI</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Teléfono</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Estado</th>
-                            <th class="w-28 px-6 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-700">Acciones</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Ciudadano</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Relación</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">DNI</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Teléfono</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Estado</th>
+                            <th class="w-28 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-vinculos" class="divide-y divide-slate-200"></tbody>
+                    <tbody id="tabla-vinculos" class="divide-y" style="border-color: var(--border-light);"></tbody>
                 </table>
             </div>
             <div id="mensaje-sin-vinculos" class="hidden py-12 text-center">
-                <i class="fas fa-users mb-3 text-4xl text-slate-200"></i>
-                <p class="text-sm text-slate-500">No hay vínculos registrados</p>
+                <i class="fas fa-users mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
+                <p class="text-sm" style="color: var(--text-body-subtle);">No hay vínculos registrados</p>
             </div>
         </div>
     </div>
 
     <!-- Tab: Archivos -->
     <div id="tab-archivos" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-archivos">
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
             <div class="p-6 lg:p-8">
                 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 class="flex items-center gap-3 text-xl font-bold text-slate-900">
-                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                            <i class="fas fa-paperclip"></i>
+                    <h3 class="flex items-center gap-3 text-lg font-bold" style="color: var(--text-heading);">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-tertiary); color: var(--text-body-subtle);">
+                            <i class="fas fa-paperclip" aria-hidden="true"></i>
                         </span>
                         Archivos
                     </h3>
                     <div class="flex items-center gap-4">
-                        <button onclick="abrirModalArchivos()" class="flex items-center gap-2 rounded-xl bg-slate-700 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800">
-                            <i class="fas fa-upload"></i>
-                            <span>Subir Archivo</span>
+                        <button onclick="abrirModalArchivos()" class="btn-nodo btn-brand btn-sm">
+                            <i class="fas fa-upload" aria-hidden="true"></i>
+                            <span>Subir archivo</span>
                         </button>
-                        <div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
-                            <span class="text-lg font-bold text-slate-900" id="total-archivos">-</span>
-                            <span class="text-sm text-slate-500">archivos</span>
+                        <div class="rounded-full border px-4 py-2" style="border-color: var(--border-base); background: var(--bg-secondary);">
+                            <span class="text-lg font-bold" id="total-archivos" style="color: var(--text-heading);">-</span>
+                            <span class="text-sm" style="color: var(--text-body-subtle);">archivos</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="border-b border-slate-200 bg-slate-50">
+                        <thead class="border-b" style="border-color: var(--border-base); background: var(--bg-secondary);">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Archivo</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Etiqueta</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Origen</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Fecha</th>
-                                <th class="w-28 px-6 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-700">Acciones</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Archivo</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Etiqueta</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Origen</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Fecha</th>
+                                <th class="w-28 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tabla-archivos" class="divide-y divide-slate-200"></tbody>
+                        <tbody id="tabla-archivos" class="divide-y" style="border-color: var(--border-light);"></tbody>
                     </table>
                 </div>
                 <div id="mensaje-sin-archivos" class="hidden py-12 text-center">
-                    <i class="fas fa-folder-open mb-4 text-4xl text-slate-200"></i>
-                    <h3 class="mb-2 text-lg font-semibold text-slate-900">No hay archivos subidos</h3>
-                    <p class="mb-6 text-slate-500">Subí documentos, imágenes y otros archivos relacionados con el legajo</p>
-                    <button onclick="abrirModalArchivos()" class="mx-auto flex items-center gap-2 rounded-lg bg-slate-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800">
-                        <i class="fas fa-upload"></i>
-                        <span>Subir Primer Archivo</span>
+                    <i class="fas fa-folder-open mb-4 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
+                    <h3 class="mb-2 text-lg font-semibold" style="color: var(--text-heading);">No hay archivos subidos</h3>
+                    <p class="mb-6" style="color: var(--text-body-subtle);">Subí documentos, imágenes y otros archivos relacionados con el legajo</p>
+                    <button onclick="abrirModalArchivos()" class="btn-nodo btn-brand btn-sm mx-auto">
+                        <i class="fas fa-upload" aria-hidden="true"></i>
+                        <span>Subir primer archivo</span>
                     </button>
                 </div>
             </div>
@@ -965,28 +1011,34 @@
 </div>
 
 <!-- Modal Nuevo Vínculo -->
-<div id="modalVinculo" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+<div id="modalVinculo" class="fixed inset-0 z-50 hidden" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
     <div class="flex min-h-screen items-center justify-center p-4">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-slate-900">Agregar Vínculo Familiar</h3>
-                <button onclick="cerrarModal('modalVinculo')" class="text-slate-400 hover:text-slate-600" aria-label="Cerrar">
-                    <i class="fas fa-times"></i>
+        <div class="w-full max-w-md overflow-hidden" style="background: var(--bg-white); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);" role="dialog" aria-modal="true" aria-labelledby="modal-vinculo-title">
+            <div class="flex items-center justify-between border-b px-6 py-5" style="border-color: var(--border-light);">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                        <i class="fas fa-user-plus text-sm" aria-hidden="true"></i>
+                    </span>
+                    <h3 id="modal-vinculo-title" class="text-lg font-bold" style="color: var(--text-heading);">Agregar vínculo familiar</h3>
+                </div>
+                <button onclick="cerrarModal('modalVinculo')" class="rounded-lg p-1 transition" style="color: var(--text-body-subtle);" aria-label="Cerrar">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
             <form id="formVinculo">
                 {% csrf_token %}
-                <div class="space-y-4">
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Buscar Ciudadano</label>
-                        <input type="text" id="buscarCiudadano" placeholder="Nombre, apellido o DNI..." class="w-full rounded-lg border border-slate-300 px-3 py-2" required>
+            <div class="p-6">
+                <div class="flex flex-col gap-5">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Buscar ciudadano</label>
+                        <input type="text" id="buscarCiudadano" placeholder="Nombre, apellido o DNI..." class="nodo-field w-full" required>
                         <input type="hidden" name="ciudadano_id" id="ciudadanoSeleccionado">
-                        <div id="resultadosBusqueda" class="mt-2 max-h-40 overflow-y-auto"></div>
+                        <div id="resultadosBusqueda" class="mt-2 max-h-40 overflow-y-auto rounded-lg border" style="border-color: var(--border-base);"></div>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Relación</label>
-                        <select name="relacion" class="w-full rounded-lg border border-slate-300 px-3 py-2" required>
-                            <option value="">Seleccionar...</option>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Relación</label>
+                        <select name="relacion" class="nodo-field w-full" required>
+                            <option value="">Seleccioná...</option>
                             <option value="PADRE">Padre</option>
                             <option value="MADRE">Madre</option>
                             <option value="HIJO">Hijo/a</option>
@@ -997,20 +1049,21 @@
                             <option value="OTRO">Otro</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Teléfono</label>
-                        <input type="text" name="telefono" class="w-full rounded-lg border border-slate-300 px-3 py-2">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Teléfono</label>
+                        <input type="text" name="telefono" class="nodo-field w-full">
                     </div>
-                    <div class="flex items-center">
-                        <input type="checkbox" name="convive" class="mr-2">
-                        <label class="text-sm text-slate-700">Convive con el ciudadano</label>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="convive" class="mr-1">
+                        <label class="text-sm" style="color: var(--text-body);">Convive con el ciudadano</label>
                     </div>
                 </div>
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" onclick="cerrarModal('modalVinculo')" class="rounded-lg border border-slate-300 px-4 py-2 text-slate-600 hover:bg-slate-50">
+            </div>
+            <div class="flex justify-end gap-3 border-t px-6 py-4" style="border-color: var(--border-light); background: var(--bg-secondary);">
+                    <button type="button" onclick="cerrarModal('modalVinculo')" class="btn-nodo btn-tertiary btn-sm">
                         Cancelar
                     </button>
-                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                    <button type="submit" class="btn-nodo btn-brand btn-sm">
                         Guardar
                     </button>
                 </div>
@@ -1020,34 +1073,41 @@
 </div>
 
 <!-- Modal Subir Archivos -->
-<div id="modalArchivos" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+<div id="modalArchivos" class="fixed inset-0 z-50 hidden" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
     <div class="flex min-h-screen items-center justify-center p-4">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-slate-900">Subir Archivos</h3>
-                <button onclick="cerrarModal('modalArchivos')" class="text-slate-400 hover:text-slate-600" aria-label="Cerrar">
-                    <i class="fas fa-times"></i>
+        <div class="w-full max-w-md overflow-hidden" style="background: var(--bg-white); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl);" role="dialog" aria-modal="true" aria-labelledby="modal-archivos-title">
+            <div class="flex items-center justify-between border-b px-6 py-5" style="border-color: var(--border-light);">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl" style="background: var(--bg-brand-soft); color: var(--text-fg-brand);">
+                        <i class="fas fa-upload text-sm" aria-hidden="true"></i>
+                    </span>
+                    <h3 id="modal-archivos-title" class="text-lg font-bold" style="color: var(--text-heading);">Subir archivos</h3>
+                </div>
+                <button onclick="cerrarModal('modalArchivos')" class="rounded-lg p-1 transition" style="color: var(--text-body-subtle);" aria-label="Cerrar">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
             <form id="formArchivos" enctype="multipart/form-data">
                 {% csrf_token %}
-                <div class="space-y-4">
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Archivo</label>
-                        <input type="file" name="archivo" class="w-full rounded-lg border border-slate-300 px-3 py-2" required multiple>
-                        <p class="mt-1 text-xs text-slate-500">Formatos permitidos: PDF, DOC, DOCX, JPG, PNG (Máx. 10MB)</p>
+            <div class="p-6">
+                <div class="flex flex-col gap-5">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Archivo</label>
+                        <input type="file" name="archivo" class="nodo-field w-full" required multiple>
+                        <p class="text-xs" style="color: var(--text-body-subtle);">Formatos permitidos: PDF, DOC, DOCX, JPG, PNG (Máx. 10 MB)</p>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Etiqueta/Descripción</label>
-                        <input type="text" name="etiqueta" class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Ej: Informe médico, Consentimiento, etc.">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-semibold" style="color: var(--text-heading);">Etiqueta/Descripción</label>
+                        <input type="text" name="etiqueta" class="nodo-field w-full" placeholder="Ej: Informe médico, Consentimiento, etc.">
                     </div>
                 </div>
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" onclick="cerrarModal('modalArchivos')" class="rounded-lg border border-slate-300 px-4 py-2 text-slate-600 hover:bg-slate-50">
+            </div>
+            <div class="flex justify-end gap-3 border-t px-6 py-4" style="border-color: var(--border-light); background: var(--bg-secondary);">
+                    <button type="button" onclick="cerrarModal('modalArchivos')" class="btn-nodo btn-tertiary btn-sm">
                         Cancelar
                     </button>
-                    <button type="submit" class="rounded-lg bg-slate-700 px-4 py-2 text-white hover:bg-slate-800">
-                        Subir Archivos
+                    <button type="submit" class="btn-nodo btn-brand btn-sm">
+                        Subir archivos
                     </button>
                 </div>
             </form>
@@ -1158,17 +1218,17 @@ document.getElementById('buscarCiudadano').addEventListener('input', function() 
                 const resultados = document.getElementById('resultadosBusqueda');
                 if (data.results && data.results.length > 0) {
                     resultados.innerHTML = data.results.map(c => `
-                        <div class="cursor-pointer border-b p-2 hover:bg-slate-100" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
-                            <div class="font-medium">${c.apellido}, ${c.nombre}</div>
-                            <div class="text-sm text-slate-500">DNI: ${c.dni}</div>
+                        <div class="cd-result" onclick="seleccionarCiudadano(${c.id}, '${c.nombre} ${c.apellido}', '${c.dni}')">
+                            <div class="cd-result-name">${c.apellido}, ${c.nombre}</div>
+                            <div class="cd-result-dni">DNI: ${c.dni}</div>
                         </div>
                     `).join('');
                 } else {
-                    resultados.innerHTML = '<div class="p-2 text-slate-500">No se encontraron ciudadanos</div>';
+                    resultados.innerHTML = '<div class="p-2 cd-muted">No se encontraron ciudadanos</div>';
                 }
             })
             .catch(() => {
-                document.getElementById('resultadosBusqueda').innerHTML = '<div class="p-2 text-red-500">Error en la búsqueda</div>';
+                document.getElementById('resultadosBusqueda').innerHTML = '<div class="p-2 cd-err">Error en la búsqueda</div>';
             });
     }, 300);
 });
@@ -1204,30 +1264,30 @@ function cargarVinculos() {
                     const tipoVinculo = vinculo.tipo_vinculo_display || vinculo.tipo_vinculo;
 
                     const badges = [];
-                    if (vinculo.convive) badges.push('<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Convive</span>');
-                    if (vinculo.es_contacto_emergencia) badges.push('<span class="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Emergencia</span>');
-                    if (vinculo.es_referente_tratamiento) badges.push('<span class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Referente</span>');
+                    if (vinculo.convive) badges.push('<span class="badge badge-success">Convive</span>');
+                    if (vinculo.es_contacto_emergencia) badges.push('<span class="badge badge-danger">Emergencia</span>');
+                    if (vinculo.es_referente_tratamiento) badges.push('<span class="badge badge-info">Referente</span>');
 
                     return `
-                        <tr class="hover:bg-slate-50">
+                        <tr class="cd-row">
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex items-center">
-                                    <div class="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500">
+                                    <div class="cd-avatar mr-3 flex h-10 w-10 items-center justify-center rounded-full">
                                         <span class="text-sm font-semibold text-white">${nombre.charAt(0)}${apellido.charAt(0)}</span>
                                     </div>
-                                    <div class="text-sm font-medium text-slate-900">${nombre} ${apellido}</div>
+                                    <div class="cd-cell font-medium">${nombre} ${apellido}</div>
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4">
-                                <span class="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">${tipoVinculo}</span>
+                                <span class="cd-badge-type">${tipoVinculo}</span>
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${dni}</td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${telefono}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${dni}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${telefono}</td>
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex flex-wrap gap-1">${badges.join('')}</div>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
-                                <button onclick="eliminarVinculo(${vinculo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar vínculo">
+                                <button onclick="eliminarVinculo(${vinculo.id})" class="cd-btn-del" title="Eliminar vínculo">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -1241,7 +1301,7 @@ function cargarVinculos() {
             }
         })
         .catch(() => {
-            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-500">Error al cargar vínculos</td></tr>';
+            document.getElementById('tabla-vinculos').innerHTML = '<tr><td colspan="6" class="py-4 text-center cd-err">Error al cargar vínculos</td></tr>';
         });
 }
 
@@ -1263,14 +1323,34 @@ function renderizarGrafoRed(vinculos) {
     }
     wrapper.classList.remove('hidden');
 
+    // Leer tokens del DS en runtime para que el grafo respete marca y dark-mode
+    const _cs = getComputedStyle(document.documentElement);
+    const _clr = (v) => _cs.getPropertyValue(v).trim();
+    const visColors = {
+        centralBg:     _clr('--color-navy-700') || '#252f40',
+        centralBorder: _clr('--border-brand') || '#5059bc',
+        centralFont:   '#ffffff',
+        dangerBg:      _clr('--bg-danger-soft') || '#fef0f2',
+        dangerBorder:  _clr('--border-danger') || '#c70036',
+        successBg:     _clr('--bg-success-soft') || '#ecfdf5',
+        successBorder: _clr('--border-success') || '#007a55',
+        hlBg:          _clr('--bg-brand-softer') || '#fef3ff',
+        hlBorder:      _clr('--border-brand') || '#5059bc',
+        nodeFont:      _clr('--text-heading') || '#252f40',
+        edgeColor:     _clr('--border-base-strong') || '#d1d5db',
+        edgeFont:      _clr('--text-body-subtle') || '#6b7280',
+        edgeFontStroke:_clr('--bg-primary') || '#ffffff',
+        edgeHighlight: _clr('--border-brand') || '#5059bc',
+    };
+
     const nodes = [{
         id: 'central',
         label: '{{ ciudadano.apellido|escapejs }}, {{ ciudadano.nombre|escapejs }}',
         title: 'DNI {{ ciudadano.dni }} (este legajo)',
         shape: 'box',
         margin: 10,
-        color: { background: '#0f172a', border: '#0f172a' },
-        font: { color: '#ffffff', size: 14, face: 'sans-serif' },
+        color: { background: visColors.centralBg, border: visColors.centralBorder },
+        font: { color: visColors.centralFont, size: 14, face: 'Manrope, sans-serif' },
         fixed: false
     }];
     const edges = [];
@@ -1287,11 +1367,11 @@ function renderizarGrafoRed(vinculos) {
             shape: 'box',
             margin: 8,
             color: {
-                background: esEmergencia ? '#fef2f2' : '#ecfdf5',
-                border: esEmergencia ? '#ef4444' : '#10b981',
-                highlight: { background: '#dbeafe', border: '#3b82f6' }
+                background: esEmergencia ? visColors.dangerBg  : visColors.successBg,
+                border:     esEmergencia ? visColors.dangerBorder : visColors.successBorder,
+                highlight:  { background: visColors.hlBg, border: visColors.hlBorder }
             },
-            font: { color: '#0f172a', size: 13, face: 'sans-serif' },
+            font: { color: visColors.nodeFont, size: 13, face: 'Manrope, sans-serif' },
             ciudadanoId: det.id || null
         });
 
@@ -1299,8 +1379,8 @@ function renderizarGrafoRed(vinculos) {
             from: 'central',
             to: nodeId,
             label: vinculo.tipo_vinculo_display || vinculo.tipo_vinculo,
-            font: { size: 11, color: '#64748b', strokeWidth: 4, strokeColor: '#f8fafc' },
-            color: { color: '#94a3b8', highlight: '#3b82f6' },
+            font: { size: 11, color: visColors.edgeFont, strokeWidth: 4, strokeColor: visColors.edgeFontStroke },
+            color: { color: visColors.edgeColor, highlight: visColors.edgeHighlight },
             dashes: !vinculo.convive,
             width: vinculo.convive ? 2 : 1
         });
@@ -1336,10 +1416,10 @@ function eliminarVinculo(vinculoId) {
         text: 'Esta acción no se puede deshacer.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
         confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
+        cancelButtonText: 'Cancelar',
+        customClass: { confirmButton: 'btn-nodo btn-danger', cancelButton: 'btn-nodo btn-tertiary' },
+        buttonsStyling: false
     }).then((result) => {
         if (!result.isConfirmed) return;
         fetch(`/api/legajos/contactos/vinculos-familiares/${vinculoId}/`, {
@@ -1430,30 +1510,30 @@ function cargarArchivos() {
                     const icono = getIconoArchivo(extension);
 
                     return `
-                        <tr class="hover:bg-slate-50">
+                        <tr class="cd-row">
                             <td class="whitespace-nowrap px-6 py-4">
                                 <div class="flex items-center">
                                     <i class="${icono} mr-3 text-2xl"></i>
                                     <div>
-                                        <div class="text-sm font-medium text-slate-900">${archivo.nombre}</div>
-                                        <div class="text-sm text-slate-500">${formatearTamano(archivo.tamano)}</div>
+                                        <div class="cd-cell font-medium">${archivo.nombre}</div>
+                                        <div class="cd-muted">${formatearTamano(archivo.tamano)}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${archivo.etiqueta || '-'}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${archivo.etiqueta || '-'}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
                                 ${archivo.tipo_origen === 'ciudadano' ?
-                                    '<span class="text-slate-500">Ciudadano</span>' :
-                                    `<a href="/legajos/${archivo.legajo_id}/" class="text-blue-600 hover:text-blue-700">Acompañamiento</a>`
+                                    '<span class="cd-muted">Ciudadano</span>' :
+                                    `<a href="/legajos/${archivo.legajo_id}/" class="cd-link font-medium">Acompañamiento</a>`
                                 }
                             </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-900">${fecha}</td>
+                            <td class="whitespace-nowrap px-6 py-4 cd-cell">${fecha}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
                                 <div class="flex items-center justify-center gap-2">
-                                    <a href="${archivo.url}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700" title="Descargar">
+                                    <a href="${archivo.url}" target="_blank" class="cd-btn-dl" title="Descargar">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button onclick="eliminarArchivo(${archivo.id})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 hover:text-red-600" title="Eliminar">
+                                    <button onclick="eliminarArchivo(${archivo.id})" class="cd-btn-del" title="Eliminar">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -1468,20 +1548,21 @@ function cargarArchivos() {
             }
         })
         .catch(() => {
-            document.getElementById('tabla-archivos').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Error al cargar archivos</td></tr>';
+            document.getElementById('tabla-archivos').innerHTML = '<tr><td colspan="5" class="py-4 text-center cd-err">Error al cargar archivos</td></tr>';
         });
 }
 
 function getIconoArchivo(extension) {
+    // Colores por token: danger=PDF, info/brand=Word, success=imagen, muted=genérico
     const iconos = {
-        'pdf': 'fas fa-file-pdf text-red-500',
-        'doc': 'fas fa-file-word text-blue-500',
-        'docx': 'fas fa-file-word text-blue-500',
-        'jpg': 'fas fa-file-image text-green-500',
-        'jpeg': 'fas fa-file-image text-green-500',
-        'png': 'fas fa-file-image text-green-500'
+        'pdf':  'fas fa-file-pdf cd-icon-danger',
+        'doc':  'fas fa-file-word cd-icon-info',
+        'docx': 'fas fa-file-word cd-icon-info',
+        'jpg':  'fas fa-file-image cd-icon-success',
+        'jpeg': 'fas fa-file-image cd-icon-success',
+        'png':  'fas fa-file-image cd-icon-success'
     };
-    return iconos[extension] || 'fas fa-file text-slate-500';
+    return iconos[extension] || 'fas fa-file cd-icon-muted';
 }
 
 function formatearTamano(bytes) {
@@ -1498,10 +1579,10 @@ function eliminarArchivo(archivoId) {
         text: 'Esta acción no se puede deshacer.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
         confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
+        cancelButtonText: 'Cancelar',
+        customClass: { confirmButton: 'btn-nodo btn-danger', cancelButton: 'btn-nodo btn-tertiary' },
+        buttonsStyling: false
     }).then((result) => {
         if (!result.isConfirmed) return;
         fetch(`/legajos/archivos/${archivoId}/eliminar/`, {
@@ -1567,18 +1648,18 @@ function cargarActividades() {
                     const tipoColor = getTipoColor(actividad.tipo);
 
                     return `
-                        <tr class="hover:bg-slate-50">
-                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-900">${fecha}</td>
+                        <tr class="cd-row">
+                            <td class="whitespace-nowrap px-4 py-4 cd-cell">${fecha}</td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${tipoColor}">
+                                <span class="badge ${tipoColor}">
                                     <i class="${tipoIcon} mr-1"></i>
                                     ${getTipoNombre(actividad.tipo)}
                                 </span>
                             </td>
-                            <td class="px-4 py-4 text-sm text-slate-900">${actividad.descripcion}</td>
-                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-900">${actividad.usuario_nombre || 'Sistema'}</td>
+                            <td class="px-4 py-4 cd-cell">${actividad.descripcion}</td>
+                            <td class="whitespace-nowrap px-4 py-4 cd-cell">${actividad.usuario_nombre || 'Sistema'}</td>
                             <td class="whitespace-nowrap px-4 py-4 text-sm">
-                                <a href="/legajos/${actividad.legajo_id}/" class="text-blue-600 hover:text-blue-800">
+                                <a href="/legajos/${actividad.legajo_id}/" class="cd-link font-medium">
                                     ${actividad.legajo_codigo || actividad.legajo_id}
                                 </a>
                             </td>
@@ -1594,7 +1675,7 @@ function cargarActividades() {
             }
         })
         .catch(() => {
-            document.getElementById('tabla-actividades').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Error al cargar actividades</td></tr>';
+            document.getElementById('tabla-actividades').innerHTML = '<tr><td colspan="5" class="py-4 text-center cd-err">Error al cargar actividades</td></tr>';
         });
 }
 
@@ -1616,20 +1697,21 @@ function getTipoIcon(tipo) {
 }
 
 function getTipoColor(tipo) {
+    // Devuelve la clase de variante del badge DS (se usa como: badge badge-<variante>)
     const colores = {
-        'SEGUIMIENTO': 'bg-blue-100 text-blue-800',
-        'EVALUACION': 'bg-purple-100 text-purple-800',
-        'PLAN': 'bg-green-100 text-green-800',
-        'DERIVACION': 'bg-yellow-100 text-yellow-800',
-        'EVENTO': 'bg-red-100 text-red-800',
-        'CONTACTO': 'bg-indigo-100 text-indigo-800',
-        'CHAT': 'bg-pink-100 text-pink-800',
-        'ASIGNACION': 'bg-teal-100 text-teal-800',
-        'APERTURA': 'bg-emerald-100 text-emerald-800',
-        'CIERRE': 'bg-slate-100 text-slate-800',
-        'VINCULO': 'bg-orange-100 text-orange-800'
+        'SEGUIMIENTO': 'badge-info',
+        'EVALUACION':  'badge-brand',
+        'PLAN':        'badge-success',
+        'DERIVACION':  'badge-warning',
+        'EVENTO':      'badge-danger',
+        'CONTACTO':    'badge-info',
+        'CHAT':        'badge-brand',
+        'ASIGNACION':  'badge-info',
+        'APERTURA':    'badge-success',
+        'CIERRE':      'badge-gray',
+        'VINCULO':     'badge-warning'
     };
-    return colores[tipo] || 'bg-slate-100 text-slate-800';
+    return colores[tipo] || 'badge-gray';
 }
 
 function getTipoNombre(tipo) {
@@ -1662,19 +1744,19 @@ function cargarPrediccionRiesgo() {
 
             const abandonoNivel = document.getElementById('abandono-nivel');
             abandonoNivel.textContent = abandono.nivel;
-            abandonoNivel.className = 'rounded-full px-3 py-1 text-xs font-bold ' + getNivelColor(abandono.nivel);
+            abandonoNivel.className = 'badge ' + getNivelColor(abandono.nivel);
             document.getElementById('abandono-bar').className = 'h-3 rounded-full transition-all duration-500 ' + getBarColor(abandono.nivel);
 
             const abandonoFactores = document.getElementById('abandono-factores');
             if (abandono.factores.length > 0) {
                 abandonoFactores.innerHTML = abandono.factores.map(factor => `
-                    <div class="flex items-start text-sm text-slate-600">
-                        <i class="fas fa-circle mr-2 mt-1 text-xs text-slate-400"></i>
+                    <div class="flex items-start cd-factor">
+                        <i class="fas fa-circle mr-2 mt-1 text-xs cd-factor-icon"></i>
                         <span>${factor}</span>
                     </div>
                 `).join('');
             } else {
-                abandonoFactores.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>Sin factores de riesgo identificados</p>';
+                abandonoFactores.innerHTML = '<p class="cd-factor"><i class="fas fa-check mr-1 cd-icon-success"></i>Sin factores de riesgo identificados</p>';
             }
 
             const evento = data.evento_critico;
@@ -1683,19 +1765,19 @@ function cargarPrediccionRiesgo() {
 
             const eventoNivel = document.getElementById('evento-nivel');
             eventoNivel.textContent = evento.nivel;
-            eventoNivel.className = 'rounded-full px-3 py-1 text-xs font-bold ' + getNivelColor(evento.nivel);
+            eventoNivel.className = 'badge ' + getNivelColor(evento.nivel);
             document.getElementById('evento-bar').className = 'h-3 rounded-full transition-all duration-500 ' + getBarColor(evento.nivel);
 
             const eventoFactores = document.getElementById('evento-factores');
             if (evento.factores.length > 0) {
                 eventoFactores.innerHTML = evento.factores.map(factor => `
-                    <div class="flex items-start text-sm text-slate-600">
-                        <i class="fas fa-circle mr-2 mt-1 text-xs text-slate-400"></i>
+                    <div class="flex items-start cd-factor">
+                        <i class="fas fa-circle mr-2 mt-1 text-xs cd-factor-icon"></i>
                         <span>${factor}</span>
                     </div>
                 `).join('');
             } else {
-                eventoFactores.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>Sin factores de riesgo identificados</p>';
+                eventoFactores.innerHTML = '<p class="cd-factor"><i class="fas fa-check mr-1 cd-icon-success"></i>Sin factores de riesgo identificados</p>';
             }
 
             const recomendaciones = document.getElementById('recomendaciones-container');
@@ -1704,66 +1786,75 @@ function cargarPrediccionRiesgo() {
                     <div class="flex items-start rounded-lg border p-3 ${getPrioridadBg(rec.prioridad)} ${getPrioridadBorder(rec.prioridad)}">
                         <span class="mr-3 text-2xl">${rec.icono}</span>
                         <div class="flex-1">
-                            <span class="text-sm font-medium text-slate-800">${rec.texto}</span>
+                            <span class="cd-rec-text">${rec.texto}</span>
                             <span class="ml-2 text-xs font-bold ${getPrioridadText(rec.prioridad)}">${rec.prioridad}</span>
                         </div>
                     </div>
                 `).join('');
             } else {
-                recomendaciones.innerHTML = '<p class="text-sm text-green-600"><i class="fas fa-check mr-1"></i>No hay recomendaciones pendientes</p>';
+                recomendaciones.innerHTML = '<p class="cd-factor"><i class="fas fa-check mr-1 cd-icon-success"></i>No hay recomendaciones pendientes</p>';
             }
         })
         .catch(() => { /* sin datos de predicción: la sección queda con sus placeholders */ });
 }
 
 function getNivelColor(nivel) {
+    // Devuelve la clase de variante del badge DS (se usa como: badge badge-<variante>)
     const colores = {
-        'CRITICO': 'bg-red-100 text-red-800',
-        'ALTO': 'bg-orange-100 text-orange-800',
-        'MEDIO': 'bg-yellow-100 text-yellow-800',
-        'BAJO': 'bg-green-100 text-green-800'
+        'CRITICO': 'badge-danger',
+        'ALTO':    'badge-warning',
+        'MEDIO':   'badge-warning',
+        'BAJO':    'badge-success'
     };
-    return colores[nivel] || 'bg-slate-100 text-slate-800';
+    return colores[nivel] || 'badge-gray';
 }
 
 function getBarColor(nivel) {
+    // Devuelve clase de fondo para la barra de progreso del nivel de riesgo
     const colores = {
-        'CRITICO': 'bg-red-500',
-        'ALTO': 'bg-orange-500',
-        'MEDIO': 'bg-yellow-500',
-        'BAJO': 'bg-green-500'
+        'CRITICO': 'cd-bar-danger',
+        'ALTO':    'cd-bar-warning',
+        'MEDIO':   'cd-bar-warning',
+        'BAJO':    'cd-bar-success'
     };
-    return colores[nivel] || 'bg-slate-500';
+    return colores[nivel] || 'cd-bar-muted';
 }
 
 function getPrioridadBg(prioridad) {
+    // Fondo suave de la tarjeta de recomendación
     const colores = {
-        'CRITICA': 'bg-red-50',
-        'ALTA': 'bg-orange-50',
-        'MEDIA': 'bg-yellow-50',
-        'BAJA': 'bg-blue-50'
+        'CRITICA': 'cd-rec-bg-danger',
+        'ALTA':    'cd-rec-bg-warning',
+        'MEDIA':   'cd-rec-bg-warning',
+        'BAJA':    'cd-rec-bg-info'
     };
-    return colores[prioridad] || 'bg-slate-50';
+    return colores[prioridad] || 'cd-rec-bg-muted';
 }
 
 function getPrioridadBorder(prioridad) {
+    // Borde de la tarjeta de recomendación
     const colores = {
-        'CRITICA': 'border-red-200',
-        'ALTA': 'border-orange-200',
-        'MEDIA': 'border-yellow-200',
-        'BAJA': 'border-blue-200'
+        'CRITICA': 'cd-rec-border-danger',
+        'ALTA':    'cd-rec-border-warning',
+        'MEDIA':   'cd-rec-border-warning',
+        'BAJA':    'cd-rec-border-info'
     };
-    return colores[prioridad] || 'border-slate-200';
+    return colores[prioridad] || 'cd-rec-border-muted';
 }
 
 function getPrioridadText(prioridad) {
+    // Color del texto de prioridad en la recomendación
     const colores = {
-        'CRITICA': 'text-red-600',
-        'ALTA': 'text-orange-600',
-        'MEDIA': 'text-yellow-600',
-        'BAJA': 'text-blue-600'
+        'CRITICA': 'cd-text-danger',
+        'ALTA':    'cd-text-warning',
+        'MEDIA':   'cd-text-warning',
+        'BAJA':    'cd-text-info'
     };
-    return colores[prioridad] || 'text-slate-600';
+    return colores[prioridad] || 'cd-text-muted';
 }
 </script>
+{% endblock %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% endblock %}

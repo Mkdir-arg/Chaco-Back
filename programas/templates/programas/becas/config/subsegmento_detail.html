@@ -2,41 +2,88 @@
 {% block title %}Becas · {{ subsegmento.nombre }}{% endblock %}
 
 {% block main-content %}
-<div class="max-w-3xl mx-auto space-y-6">
+<style>[x-cloak]{display:none!important}</style>
+<div class="space-y-5"
+     x-data="{
+       modalReqNuevo: false,
+       modalReqEdit: false,
+       modalSubEdit: false,
+       editReqUrl: '',
+       editReqTexto: '',
+       editReqTipo: '',
+       editReqObligatorio: 'True',
+       editReqOrden: 0,
+       editReqOpciones: '',
+       openReqEdit(url, texto, tipo, obligatorio, orden, opciones) {
+         this.editReqUrl = url;
+         this.editReqTexto = texto;
+         this.editReqTipo = tipo;
+         this.editReqObligatorio = obligatorio;
+         this.editReqOrden = orden;
+         this.editReqOpciones = (opciones || []).join('\n');
+         this.modalReqEdit = true;
+       }
+     }"
+     @becas-saved.window="modalReqNuevo=false; modalReqEdit=false; modalSubEdit=false">
 
+  {# Volver #}
   <div>
-    <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-3">
-      <span>Programa Becas</span>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <a href="{% url 'becas:segmentos' %}" class="hover:underline">Segmentos</a>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="hover:underline">{{ segmento.nombre }}</a>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <span class="font-semibold text-body">{{ subsegmento.nombre }}</span>
-    </nav>
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ subsegmento.nombre }}</h1>
-        <p class="text-sm text-body-subtle mt-1">Cupo máximo: {{ subsegmento.cupo_maximo }}</p>
+    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
+      <i class="fas fa-arrow-left"></i> Volver al segmento
+    </a>
+  </div>
+
+  {# Header card #}
+  <div class="bg-white rounded-xl border border-base shadow-sm p-5">
+    <div class="flex items-center gap-4 flex-wrap">
+
+      {# Tile ícono #}
+      <div class="w-[46px] h-[46px] rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+           style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+        <i class="fas fa-layer-group"></i>
       </div>
-      <a href="{% url 'becas:subsegmento_editar' subsegmento.pk %}" class="btn-nodo btn-secondary btn-sm">
-        <i class="fas fa-edit"></i> Editar
-      </a>
+
+      {# Centro #}
+      <div class="flex-1 min-w-[200px]">
+        <p class="text-xs text-body-subtle mb-0.5">
+          Segmento padre:
+          <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="font-semibold hover:underline">
+            <strong>{{ segmento.nombre }}</strong>
+          </a>
+        </p>
+        <h1 class="text-xl font-extrabold text-heading tracking-tight">{{ subsegmento.nombre }}</h1>
+        {% if subsegmento.descripcion %}
+        <p class="text-sm text-body-subtle mt-0.5">{{ subsegmento.descripcion }}</p>
+        {% endif %}
+      </div>
+
+      {# Derecha: cupo + editar #}
+      <div class="text-right flex-shrink-0">
+        <p class="text-[11px] font-bold uppercase tracking-wide text-body-subtle mb-0.5">Cupo máximo</p>
+        <p class="text-xl font-extrabold text-heading mb-2">{{ subsegmento.cupo_maximo }}</p>
+        <button type="button" @click="modalSubEdit=true" class="btn-nodo btn-secondary btn-sm" aria-label="Editar subsegmento">
+          <i class="fas fa-edit"></i> Editar
+        </button>
+      </div>
+
     </div>
   </div>
 
-  {# Requisitos heredados #}
-  <section>
-    <h2 class="text-lg font-bold text-heading mb-3">Requisitos heredados del segmento</h2>
+  {# ======================================================= #}
+  {# Sección: Requisitos heredados del segmento (solo lectura) #}
+  {# ======================================================= #}
+  <section class="space-y-3">
+    <h2 class="text-lg font-bold text-heading">Requisitos heredados del segmento</h2>
+
     {% if requisitos_heredados %}
-    <div class="space-y-2">
+    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
       {% for req in requisitos_heredados %}
-      <div class="flex items-center justify-between bg-white rounded-xl border border-[#E5E7EB] px-4 py-3">
-        <span class="text-sm text-body">
-          {{ req.texto }}
-          <span class="badge badge-brand ml-2">{{ req.get_tipo_display }}</span>
-        </span>
-        <span class="badge badge-gray">Heredado</span>
+      <div class="flex items-center justify-between px-4 py-3{% if not forloop.first %} border-t border-light{% endif %}">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm text-body">{{ req.texto }}</span>
+          <span class="badge badge-gray">{{ req.get_tipo_display }}</span>
+        </div>
+        <span class="badge badge-gray ml-3 flex-shrink-0">Heredado</span>
       </div>
       {% endfor %}
     </div>
@@ -45,45 +92,281 @@
     {% endif %}
   </section>
 
-  {# Requisitos propios #}
-  <section>
-    <h2 class="text-lg font-bold text-heading mb-3">Requisitos propios del subsegmento</h2>
-    {% if requisitos_propios %}
-    <div class="space-y-2 mb-4">
-      {% for req in requisitos_propios %}
-      <div class="flex items-center justify-between bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-4 py-3">
-        <span class="text-sm text-body">
-          {{ req.texto }}
-          <span class="badge badge-brand ml-2">{{ req.get_tipo_display }}</span>
-        </span>
-        <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
-                data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
-                data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
-          <i class="fas fa-trash"></i>
+  {# ======================================================= #}
+  {# Sección: Requisitos propios del subsegmento              #}
+  {# ======================================================= #}
+  <section class="space-y-3">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-lg font-bold text-heading">Requisitos del subsegmento</h2>
+        <p class="text-sm text-body-subtle mt-0.5">Requisitos propios de este subsegmento (se suman a los heredados del segmento padre).</p>
+      </div>
+      <button type="button" @click="modalReqNuevo=true" class="btn-nodo btn-brand btn-base" aria-label="Agregar nuevo requisito">
+        <i class="fas fa-plus"></i> Nuevo requisito
+      </button>
+    </div>
+
+    <div id="reqs-propios-panel">
+      {% include "programas/becas/config/_requisitos_propios_panel.html" %}
+    </div>
+  </section>
+
+  {# ============================================================== #}
+  {# Modal: Nuevo requisito                                          #}
+  {# ============================================================== #}
+  <div x-show="modalReqNuevo" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+       style="background:rgba(0,0,0,.5)"
+       @click="modalReqNuevo=false">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-clipboard-list"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
+        </div>
+        <button type="button" @click="modalReqNuevo=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <i class="fas fa-xmark text-base"></i>
         </button>
       </div>
-      {% endfor %}
+
+      {% comment %}FORM envuelve body + footer{% endcomment %}
+      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" data-ajax>
+        {% csrf_token %}
+        <input type="hidden" name="scope" value="subsegmento">
+        <input type="hidden" name="subsegmento" value="{{ subsegmento.pk }}">
+
+        {% comment %}BODY{% endcomment %}
+        <div class="p-6 space-y-5">
+
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Pregunta<span class="text-fg-danger" style="margin-left:3px">*</span>
+            </label>
+            {{ form_requisito.texto }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[13px] font-semibold text-heading mb-1.5">
+                Tipo de campo<span class="text-fg-danger" style="margin-left:3px">*</span>
+              </label>
+              {{ form_requisito.tipo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
+            </div>
+            <div>
+              <label class="block text-[13px] font-semibold text-heading mb-1.5">Obligatorio</label>
+              {{ form_requisito.obligatorio }}
+            </div>
+            <div>
+              <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
+              {{ form_requisito.orden }}
+            </div>
+          </div>
+
+          <div data-opciones-wrapper>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">{{ form_requisito.opciones_texto.label }}</label>
+            {{ form_requisito.opciones_texto }}
+            <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
+          </div>
+
+          <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
+        </div>
+
+        {% comment %}FOOTER{% endcomment %}
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
+             style="border-color:var(--border-light)">
+          <button type="button" @click="modalReqNuevo=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base">Crear requisito</button>
+        </div>
+
+      </form>
     </div>
-    {% else %}
-    <p class="text-sm text-body-subtle mb-4">Sin requisitos propios.</p>
-    {% endif %}
-    <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}?subsegmento={{ subsegmento.pk }}" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 space-y-3">
-      {% csrf_token %}
-      <input type="hidden" name="subsegmento" value="{{ subsegmento.pk }}">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>{{ form_requisito.texto.label_tag }}{{ form_requisito.texto }}</div>
-        <div>{{ form_requisito.tipo.label_tag }}{{ form_requisito.tipo }}</div>
+  </div>
+
+  {# ============================================================== #}
+  {# Modal: Editar requisito                                         #}
+  {# ============================================================== #}
+  <div x-show="modalReqEdit" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+       style="background:rgba(0,0,0,.5)"
+       @click="modalReqEdit=false">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-edit"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
+        </div>
+        <button type="button" @click="modalReqEdit=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <i class="fas fa-xmark text-base"></i>
+        </button>
       </div>
-      <div>
-        {{ form_requisito.opciones_texto.label_tag }}{{ form_requisito.opciones_texto }}
-        <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
+
+      {% comment %}FORM envuelve body + footer{% endcomment %}
+      <form method="post" :action="editReqUrl" data-ajax data-reset="false">
+        {% csrf_token %}
+        <input type="hidden" name="scope" value="subsegmento">
+
+        {% comment %}BODY{% endcomment %}
+        <div class="p-6 space-y-5">
+
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Pregunta<span class="text-fg-danger" style="margin-left:3px">*</span>
+            </label>
+            <input type="text" name="texto" x-model="editReqTexto" required
+              class="nodo-field w-full">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[13px] font-semibold text-heading mb-1.5">
+                Tipo de campo<span class="text-fg-danger" style="margin-left:3px">*</span>
+              </label>
+              <select name="tipo" x-model="editReqTipo" class="nodo-field w-full">
+                {% for val, label in form_requisito.tipo.field.choices %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[13px] font-semibold text-heading mb-1.5">Obligatorio</label>
+              <select name="obligatorio" x-model="editReqObligatorio" class="nodo-field w-full">
+                <option value="True">Obligatorio</option>
+                <option value="False">Opcional</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
+              <input type="number" name="orden" x-model="editReqOrden" min="0" class="nodo-field w-full">
+            </div>
+          </div>
+
+          <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">Opciones (una por línea)</label>
+            <textarea name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field w-full"></textarea>
+            <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
+          </div>
+
+          <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
+        </div>
+
+        {% comment %}FOOTER{% endcomment %}
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
+             style="border-color:var(--border-light)">
+          <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# ============================================================== #}
+  {# Modal: Editar subsegmento                                       #}
+  {# ============================================================== #}
+  <div x-show="modalSubEdit" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+       style="background:rgba(0,0,0,.5)"
+       @click="modalSubEdit=false">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[540px] overflow-hidden" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Editar subsegmento</h3>
+        </div>
+        <button type="button" @click="modalSubEdit=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <i class="fas fa-xmark text-base"></i>
+        </button>
       </div>
-      <button type="submit" class="btn-nodo btn-tertiary btn-base">
-        <i class="fas fa-plus"></i> Agregar requisito propio
-      </button>
-    </form>
-  </section>
+
+      {% comment %}FORM envuelve body + footer{% endcomment %}
+      <form method="post" action="{% url 'becas:subsegmento_editar' subsegmento.pk %}" data-ajax data-reset="false">
+        {% csrf_token %}
+        <input type="hidden" name="origin" value="detalle">
+
+        {% comment %}BODY{% endcomment %}
+        <div class="p-6 space-y-5">
+
+          {% comment %}Nombre{% endcomment %}
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
+            </label>
+            <input type="text" name="nombre" required class="nodo-field" value="{{ subsegmento.nombre }}">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+          </div>
+
+          {% comment %}Descripción{% endcomment %}
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Descripción
+            </label>
+            <textarea name="descripcion" rows="2" class="nodo-field">{{ subsegmento.descripcion }}</textarea>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="descripcion"></p>
+          </div>
+
+          {% comment %}Cupo máximo{% endcomment %}
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Cupo máximo<span class="text-fg-danger" style="margin-left:3px">*</span>
+            </label>
+            <input type="number" name="cupo_maximo" min="0" required class="nodo-field" value="{{ subsegmento.cupo_maximo }}">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
+          </div>
+
+          <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
+        </div>
+
+        {% comment %}FOOTER{% endcomment %}
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary"
+             style="border-color:var(--border-light)">
+          <button type="button" @click="modalSubEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}
+{% block customJS %}
+{% include "programas/becas/_ajax_js.html" %}
+<script>
+(function () {
+  var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
+  function toggleOpciones(tipoSelect, opcionesWrapper) {
+    opcionesWrapper.style.display = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1 ? '' : 'none';
+  }
+  document.querySelectorAll('form[action*="requisitos"]').forEach(function (form) {
+    var tipoSelect = form.querySelector('select[name="tipo"]');
+    var opcionesWrapper = form.querySelector('[data-opciones-wrapper]');
+    if (!tipoSelect || !opcionesWrapper) return;
+    toggleOpciones(tipoSelect, opcionesWrapper);
+    tipoSelect.addEventListener('change', function () { toggleOpciones(tipoSelect, opcionesWrapper); });
+  });
+})();
+</script>
+{% endblock %}

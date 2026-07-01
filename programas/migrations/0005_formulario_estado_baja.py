@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("programas", "0003_relevamiento_observaciones"),
+        ("programas", "0004_subsegmento_descripcion"),
     ]
 
     operations = [

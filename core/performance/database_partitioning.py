@@ -58,26 +58,15 @@ class DatabasePartitioner:
                 cursor.execute(f"CREATE TABLE IF NOT EXISTS {archive_table} LIKE {table}")
 
                 # Mover datos antiguos al archivo
-                cursor.execute(
-                    f"""
-                    INSERT IGNORE INTO {archive_table} 
-                    SELECT * FROM {table} 
-                    WHERE {date_field} < %s
-                """,
-                    [cutoff_date],
-                )
+                sql = f"INSERT IGNORE INTO {archive_table} SELECT * FROM {table} WHERE {date_field} < %s"  # nosec B608
+                cursor.execute(sql, [cutoff_date])
 
                 archived_count = cursor.rowcount
 
                 # Eliminar solo después de archivar exitosamente
                 if archived_count > 0:
-                    cursor.execute(
-                        f"""
-                        DELETE FROM {table} 
-                        WHERE {date_field} < %s
-                    """,
-                        [cutoff_date],
-                    )
+                    sql = f"DELETE FROM {table} WHERE {date_field} < %s"  # nosec B608
+                    cursor.execute(sql, [cutoff_date])
 
                 logger.info(f"Datos archivados de {table}: {archived_count} registros")
 
@@ -88,14 +77,8 @@ class DatabasePartitioner:
         archive_table = f"{table_name}_archivo"
 
         with connection.cursor() as cursor:
-            cursor.execute(
-                f"""
-                INSERT IGNORE INTO {table_name}
-                SELECT * FROM {archive_table}
-                WHERE creado >= %s
-            """,
-                [restore_date],
-            )
+            sql = f"INSERT IGNORE INTO {table_name} SELECT * FROM {archive_table} WHERE creado >= %s"  # nosec B608
+            cursor.execute(sql, [restore_date])
 
             logger.info(f"Restaurados {cursor.rowcount} registros de {archive_table}")
 

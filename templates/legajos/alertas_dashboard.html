@@ -36,7 +36,7 @@
 
 {% block main-content %}
 <div
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+    class="px-4 sm:px-6 lg:px-8"
     x-data="alertasDashboard()"
     data-close-alert-url-template="{% url 'legajos:cerrar_alerta_ajax' 0 %}"
     data-count-alerts-url="{% url 'legajos:alertas_count_ajax' %}">

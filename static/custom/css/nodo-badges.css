@@ -33,3 +33,14 @@
 .badge-danger  { background: #FEF0F2; border: 1px solid #FFCCD3; color: #8B0836; }
 .badge-warning { background: #FFF8F1; border: 1px solid #FCD9BD; color: #771D1D; }
 .badge-info    { background: #F5F3FF; border: 1px solid #DDD6FE; color: #3730A3; }
+
+/* Size modifier (movido desde nodo-brand.css). Lo usan plantillas legacy como
+   programa_detail.html: `badge-nodo badge-sm badge-<variante>`. Aporta la geometría
+   del badge (padding/font/pill); las variantes de arriba aportan solo color. */
+.badge-sm {
+    padding: 0.25rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    font-weight: 500 !important;
+    border-radius: 9999px !important;
+}

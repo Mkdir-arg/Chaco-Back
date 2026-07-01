@@ -1,0 +1,61 @@
+{% if requisitos_propios %}
+<div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr style="background:var(--bg-secondary);border-bottom:1px solid var(--border-base)">
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Pregunta</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requisitos_propios %}
+      <tr style="border-top:1px solid var(--border-light)" class="hover:bg-secondary transition-colors">
+        <td class="px-4 py-[13px] text-sm text-body-subtle font-semibold">{{ req.orden }}</td>
+        <td class="px-4 py-[13px] text-sm text-heading font-medium">{{ req.texto }}</td>
+        <td class="px-4 py-[13px] text-sm">
+          <span class="badge badge-gray">{{ req.get_tipo_display }}</span>
+        </td>
+        <td class="px-4 py-[13px] text-sm">
+          {% if req.obligatorio %}
+            <span class="badge badge-brand">Obligatorio</span>
+          {% else %}
+            <span class="badge badge-gray">Opcional</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-[13px] text-sm text-right">
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar" aria-label="Editar requisito"
+              @click="openReqEdit(
+                '{% url 'becas:requisito_editar' req.pk %}',
+                '{{ req.texto|escapejs }}',
+                '{{ req.tipo }}',
+                '{{ req.obligatorio|yesno:'True,False' }}',
+                {{ req.orden }},
+                [{% for o in req.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}]
+              )">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar" aria-label="Eliminar requisito"
+                    data-confirm-url="{% url 'becas:requisito_eliminar' req.pk %}"
+                    data-confirm-title="¿Eliminar requisito?"
+                    data-confirm-text="{{ req.texto }}"
+                    data-confirm-ok="Sí, eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="py-12 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
+  <div style="color:var(--text-fg-brand)"><i class="fas fa-clipboard-list text-4xl"></i></div>
+  <p class="text-[17px] font-bold text-heading">Sin requisitos propios</p>
+  <p class="text-sm text-body max-w-xs">Agregá los requisitos específicos de este subsegmento.</p>
+</div>
+{% endif %}

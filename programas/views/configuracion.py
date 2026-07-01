@@ -75,6 +75,20 @@ def _requisitos_segmento_ajax(request, segmento, message="Requisito guardado."):
     )
 
 
+def _requisitos_subsegmento_ajax(request, subsegmento, message="Requisito guardado."):
+    return ajax_ok(
+        request,
+        target="#reqs-propios-panel",
+        partial="programas/becas/config/_requisitos_propios_panel.html",
+        context={
+            "requisitos_propios": subsegmento.requisitos.order_by("orden", "id"),
+            "subsegmento": subsegmento,
+            "segmento": subsegmento.segmento,
+        },
+        message=message,
+    )
+
+
 def _requisitos_reqseg_qs(segmento_id=None, subsegmento_id=None):
     qs = RequisitoNativo.objects.select_related("segmento", "subsegmento").order_by("segmento__nombre", "orden", "id")
     if segmento_id:
@@ -236,8 +250,29 @@ def subsegmento_editar(request, pk):
         form = SubsegmentoForm(request.POST, instance=sub, segmento=sub.segmento)
         if form.is_valid():
             form.save()
+            if is_ajax(request):
+                origin = request.POST.get("origin")
+                if origin == "panel":
+                    subs = list(sub.segmento.subsegmentos.all().order_by("nombre"))
+                    return ajax_ok(
+                        request,
+                        target="#subs-panel",
+                        partial="programas/becas/config/_subsegmentos_panel.html",
+                        context={
+                            "subsegmentos": subs,
+                            "subsegmentos_cupo_total": sum(s.cupo_maximo for s in subs),
+                        },
+                        message="Subsegmento actualizado.",
+                    )
+                else:
+                    return ajax_redirect(
+                        reverse("becas:subsegmento_detalle", args=[sub.pk]),
+                        message="Subsegmento actualizado.",
+                    )
             messages.success(request, "Subsegmento actualizado.")
             return redirect("becas:segmento_detalle", pk=sub.segmento_id)
+        elif is_ajax(request):
+            return ajax_errors(form)
     else:
         form = SubsegmentoForm(instance=sub, segmento=sub.segmento)
     return render(
@@ -303,6 +338,8 @@ def requisito_crear(request, segmento_pk):
         if form.is_valid():
             form.save()
             if is_ajax(request):
+                if request.POST.get("scope") == "subsegmento" and subsegmento:
+                    return _requisitos_subsegmento_ajax(request, subsegmento, message="Requisito agregado.")
                 if request.POST.get("scope") == "reqseg":
                     return _requisitos_reqseg_ajax(request, message="Requisito agregado.")
                 return _requisitos_segmento_ajax(request, segmento, message="Requisito agregado.")
@@ -346,6 +383,8 @@ def requisito_editar(request, pk):
         if form.is_valid():
             form.save()
             if is_ajax(request):
+                if request.POST.get("scope") == "subsegmento" and subsegmento:
+                    return _requisitos_subsegmento_ajax(request, subsegmento, message="Requisito actualizado.")
                 if request.POST.get("scope") == "reqseg":
                     return _requisitos_reqseg_ajax(request, message="Requisito actualizado.")
                 return _requisitos_segmento_ajax(request, segmento, message="Requisito actualizado.")

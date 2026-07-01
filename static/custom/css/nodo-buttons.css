@@ -36,7 +36,7 @@
 .btn-sm {
     height: 36px;
     min-width: 143px;
-    padding: 8px 12px;
+    padding: 8px 14px;
     font-size: 14px;
 }
 
@@ -75,7 +75,7 @@
 }
 
 .btn-brand:hover {
-    filter: brightness(0.90);
+    filter: brightness(0.93);
     color: #ffffff !important;
     text-decoration: none;
 }
@@ -101,7 +101,7 @@
 }
 
 .btn-danger:hover {
-    filter: brightness(0.90);
+    filter: brightness(0.93);
     color: #ffffff !important;
     text-decoration: none;
 }

@@ -19,12 +19,9 @@
                             sans:        ['Manrope', 'sans-serif'],
                             // Manrope es la única familia del sistema; 'brand' queda como alias.
                             brand:       ['Manrope', 'sans-serif'],
-                            // legacy (mantener para compatibilidad con templates existentes)
-                            lora:        ['Lora', 'serif'],
-                            montserrat:  ['Montserrat', 'sans-serif'],
                         },
                         fontSize: {
-                            xxs: '8px', xs: '12px', sm: '14px', base: '16px',
+                            xs: '12px', sm: '14px', base: '16px',
                             lg: '18px', xl: '20px', '2xl': '24px', '3xl': '30px',
                             '4xl': '36px', '5xl': '48px', '6xl': '60px',
                         },
@@ -122,7 +119,7 @@
         <!-- Google Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Lora:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         
         <!-- Font Awesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -140,7 +137,8 @@
         <link rel="stylesheet" href="{% static 'custom/css/nodo-brand.css' %}" />
         <style>
             :root {
-                                --color-primario: #00203A;
+                /* === puente legacy: consumido por custom.css, paleta-unificada.css, main.css, dashboard.css === */
+                --color-primario: #00203A;
                 --color-primario-claro: #5059BC;
                 --color-primario-oscuro: #00203A;
                 --color-secundario: #5059BC;
@@ -149,46 +147,44 @@
                 --color-acento: #F26DF9;
                 --color-acento-claro: #C8D29C;
                 --color-acento-oscuro: #8A9A46;
-                --fondo-principal: #F8FAFC;
-                --fondo-secundario: #FFFFFF;
+                /* === canvas — repuntados a tokens semánticos para que dark mode funcione === */
+                --fondo-principal: var(--bg-secondary);
+                --fondo-secundario: var(--bg-white);
+                /* === puente legacy: consumido por main.css (.sidebar-container) y custom.css === */
                 --fondo-sidebar: linear-gradient(135deg, #00203A 0%, #00203A 100%);
-                --texto-primario: #00203A;
-                --texto-secundario: #00203A;
-                --nodo-magenta: #F26DF9;
-                --nodo-purple: #5059BC;
-                --nodo-violet: #00203A;
-                --nodo-cyan: #C8D29C;
-                --nodo-text-primary: #00203A;
-                --nodo-text-secondary: #00203A;
-                --nodo-text-tertiary: #5059BC;
-                --nodo-text-muted: #8C8C8C;
-                --nodo-border: #C8D29C;
-                --nodo-bg-white: #FFFFFF;
+                /* === puente legacy: consumido por custom.css (.texto-primario) === */
+                --texto-primario: var(--text-heading);
+                --texto-secundario: var(--text-body);
+                /* override que neutraliza valores legacy de nodo-brand.css hasta su migración (Fase 4/5) */
+                /* nodo-brand.css define sus propios :root con valores off-brand (#FF0080, #7928CA, #08B8CC).
+                   Este bloque viene DESPUÉS en el orden de carga y pisa esas definiciones con tokens
+                   semánticos de marca. Sin estos overrides gana el legacy → colores off-brand en runtime. */
+                /* consumidos como background/gradient */
                 --nodo-gradient: var(--gradient-brand);
-                --login-button-gradient: var(--gradient-brand);
-                --login-button-hover-overlay: rgba(0, 0, 0, 0.20);
-                --login-button-focus-border: #5059BC;
-                --login-button-focus-shadow: #E5E7EB;
-                --login-button-disabled-bg: #F3F4F6;
-                --login-button-disabled-border: #E5E7E8;
-                --login-button-disabled-text: #99A1AF;
-                --button-tertiary-text: #5059BC;
-                --button-tertiary-bg: #FFFFFF;
-                --button-tertiary-border: #5059BC;
-                --button-tertiary-hover-text: #5059BC;
-                --button-tertiary-hover-bg: #DEE1FF;
-                --button-tertiary-hover-border: #5059BC;
-                --button-tertiary-focus-text: #2331C9;
-                --button-tertiary-focus-bg: #DEE1FF;
-                --button-tertiary-focus-border: #2331C9;
-                --button-tertiary-focus-shadow: #F3F4F6;
-                --button-tertiary-disabled-text: #5059BC;
-                --button-tertiary-disabled-bg: #F0F2FF;
-                --button-tertiary-disabled-border: #5059BC;
-                --nav-active-color: #A54FA9;
-                --nav-active-hover-color: #8C3E90;
-                --ui-highlight-color: #A54FA9;
+                --nodo-bg-white: var(--bg-white);
+                --nodo-bg-gray: var(--bg-secondary);
+                --nodo-shadow-md: var(--shadow-sm);
+                /* consumidos como color sólido de marca (hover links, focus shadow) */
+                --nodo-purple: var(--bg-brand);
+                /* consumido como --tw-ring-color en focus rings de clases Tailwind legacy */
+                --nodo-magenta: var(--bg-brand);
+                /* consumido como color de acento cyan — apuntado a brand para evitar cyan off-brand */
+                --nodo-cyan: var(--text-fg-brand);
+                /* consumidos como color de texto */
+                --nodo-text-primary: var(--text-heading);
+                --nodo-text-secondary: var(--text-heading);
+                --nodo-text-tertiary: var(--text-body);
+                --nodo-text-muted: var(--text-body-subtle);
+                --nodo-border: var(--border-base);
+                /* === navbar accent — repuntados de magenta off-brand a tokens de marca === */
+                --nav-active-color: var(--bg-brand);
+                --nav-active-hover-color: var(--bg-brand-strong);
+                --ui-highlight-color: var(--bg-brand);
                 --ui-highlight-gradient: var(--gradient-brand);
+                /* === disabled del botón login — repuntados a tokens semánticos === */
+                --login-button-disabled-bg: var(--bg-disabled);
+                --login-button-disabled-border: var(--border-base);
+                --login-button-disabled-text: var(--text-disabled);
             }
         </style>
         
@@ -230,21 +226,71 @@
                     <div class="min-w-0 px-4 sm:px-6 lg:px-8">
                         {% if messages %}
                             {% for message in messages %}
-                                <div class="mb-4 rounded-md p-4 {{ message.tags }}" x-data="{ show: true }" x-show="show">
-                                    <div class="flex">
-                                        <div class="flex-shrink-0">
-                                            <i class="fas fa-info-circle h-5 w-5"></i>
-                                        </div>
-                                        <div class="ml-3">
-                                            <p class="text-sm font-medium">{{ message }}</p>
-                                        </div>
-                                        <div class="ml-auto pl-3">
-                                            <button @click="show = false" class="inline-flex rounded-md p-1.5 hover:bg-gray-100">
-                                                <i class="fas fa-times h-5 w-5"></i>
-                                            </button>
+                                {% if message.tags == 'success' %}
+                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-success-soft);border-color:var(--border-success);color:var(--text-fg-success);" x-data="{ show: true }" x-show="show">
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-check-circle" aria-hidden="true" style="color:var(--text-fg-success);"></i>
+                                            </div>
+                                            <div class="ml-3 flex-1">
+                                                <p class="text-sm font-medium">{{ message }}</p>
+                                            </div>
+                                            <div class="ml-auto pl-3">
+                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-success);" onmouseover="this.style.background='var(--bg-success-medium)'" onmouseout="this.style.background='transparent'">
+                                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                {% elif message.tags == 'error' %}
+                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-danger-soft);border-color:var(--border-danger);color:var(--text-fg-danger);" x-data="{ show: true }" x-show="show">
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-exclamation-circle" aria-hidden="true" style="color:var(--text-fg-danger);"></i>
+                                            </div>
+                                            <div class="ml-3 flex-1">
+                                                <p class="text-sm font-medium">{{ message }}</p>
+                                            </div>
+                                            <div class="ml-auto pl-3">
+                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-danger);" onmouseover="this.style.background='var(--bg-danger-medium)'" onmouseout="this.style.background='transparent'">
+                                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% elif message.tags == 'warning' %}
+                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-warning-soft);border-color:var(--border-warning);color:var(--text-fg-warning);" x-data="{ show: true }" x-show="show">
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-exclamation-triangle" aria-hidden="true" style="color:var(--text-fg-warning);"></i>
+                                            </div>
+                                            <div class="ml-3 flex-1">
+                                                <p class="text-sm font-medium">{{ message }}</p>
+                                            </div>
+                                            <div class="ml-auto pl-3">
+                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-warning);" onmouseover="this.style.background='var(--bg-warning-medium)'" onmouseout="this.style.background='transparent'">
+                                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-info-soft);border-color:var(--border-brand);color:var(--text-fg-brand);" x-data="{ show: true }" x-show="show">
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-info-circle" aria-hidden="true" style="color:var(--text-fg-brand);"></i>
+                                            </div>
+                                            <div class="ml-3 flex-1">
+                                                <p class="text-sm font-medium">{{ message }}</p>
+                                            </div>
+                                            <div class="ml-auto pl-3">
+                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-brand);" onmouseover="this.style.background='var(--bg-brand-soft)'" onmouseout="this.style.background='transparent'">
+                                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         {% endif %}
                         
@@ -260,20 +306,20 @@
         {% include 'components/alertas_eventos.html' %}
         
         <!-- Sistema de Modales Modernos -->
-        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[100] hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[1001] hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
             <div class="flex min-h-[100dvh] items-end justify-center p-0 sm:min-h-screen sm:items-center sm:p-4">
-                <div id="modal-content" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
+                <div id="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
                     <!-- Modal Header -->
                     <div id="modal-header" class="modal-header border-b border-gray-200 p-4 sm:p-6">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
                                 <div id="modal-icon" class="w-10 h-10 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-info-circle text-xl"></i>
+                                    <i class="fas fa-info-circle text-xl" aria-hidden="true"></i>
                                 </div>
                                 <h3 id="modal-title" class="text-lg font-semibold text-gray-900">Información</h3>
                             </div>
-                            <button id="modal-close" class="touch-target text-gray-400 transition-colors hover:text-gray-600">
-                                <i class="fas fa-times text-xl"></i>
+                            <button id="modal-close" aria-label="Cerrar" class="touch-target text-gray-400 transition-colors hover:text-gray-600">
+                                <i class="fas fa-times text-xl" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
@@ -299,7 +345,6 @@
         
         <!-- Mobile Enhancements Script -->
         <script src="{% static 'custom/js/mobile-enhancements.js' %}"></script>
-        <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
         
         <!-- Sistema de Modales Modernos -->
         <script>
@@ -316,73 +361,118 @@
                         const cancelBtn = document.getElementById('modal-cancel');
                         const closeBtn = document.getElementById('modal-close');
                         
-                        // Configurar tipo de modal
+                        // Configurar tipo de modal.
                         // iconColor usa clases Tailwind mapeadas a los tokens del sistema (sin hex hardcodeado).
-                        // btnColor siempre es btn-brand (gradiente de marca) según la spec de confirmaciones.
                         const types = {
-                            success: { icon: 'fa-check-circle',      iconColor: 'bg-[color:var(--bg-success-soft)] text-[color:var(--text-fg-success)]' },
-                            error:   { icon: 'fa-exclamation-circle', iconColor: 'bg-[color:var(--bg-danger-soft)] text-[color:var(--text-fg-danger)]' },
-                            warning: { icon: 'fa-exclamation-triangle',iconColor: 'bg-[color:var(--bg-warning-soft)] text-[color:var(--text-fg-warning)]' },
-                            info:    { icon: 'fa-info-circle',        iconColor: 'bg-[color:var(--bg-brand-soft)] text-[color:var(--text-fg-brand)]' },
-                            confirm: { icon: 'fa-question-circle',    iconColor: 'bg-[color:var(--bg-tertiary)] text-[color:var(--text-body-subtle)]' }
+                            success: { icon: 'fa-check-circle',        iconColor: 'bg-[color:var(--bg-success-soft)] text-[color:var(--text-fg-success)]' },
+                            error:   { icon: 'fa-exclamation-circle',  iconColor: 'bg-[color:var(--bg-danger-soft)] text-[color:var(--text-fg-danger)]' },
+                            warning: { icon: 'fa-exclamation-triangle', iconColor: 'bg-[color:var(--bg-warning-soft)] text-[color:var(--text-fg-warning)]' },
+                            info:    { icon: 'fa-info-circle',         iconColor: 'bg-[color:var(--bg-brand-soft)] text-[color:var(--text-fg-brand)]' },
+                            confirm: { icon: 'fa-question-circle',     iconColor: 'bg-[color:var(--bg-tertiary)] text-[color:var(--text-body-subtle)]' }
                         };
-                        
+
                         const type = types[options.type] || types.info;
-                        
+
                         // Configurar contenido
                         icon.className = `w-10 h-10 rounded-lg flex items-center justify-center ${type.iconColor}`;
                         icon.querySelector('i').className = `fas ${type.icon} text-xl`;
                         title.textContent = options.title || 'Información';
                         message.textContent = options.message || '';
 
-                        // Configurar botones — confirmar siempre usa gradiente de marca (btn-brand)
+                        // Configurar botón confirmar.
+                        // Por defecto usa btn-brand (gradiente de marca).
+                        // Para confirmaciones destructivas pasá options.danger = true
+                        // (o options.confirmVariant = 'danger'): el botón toma btn-danger
+                        // (rojo semántico del sistema). No rompe llamadas existentes sin el flag.
                         confirmBtn.textContent = options.confirmText || 'Aceptar';
-                        confirmBtn.className = 'btn-nodo btn-brand btn-sm w-full sm:w-auto';
-                        
+                        const isDestructive = options.danger === true || options.confirmVariant === 'danger';
+                        confirmBtn.className = isDestructive
+                            ? 'btn-nodo btn-danger btn-sm w-full sm:w-auto'
+                            : 'btn-nodo btn-brand btn-sm w-full sm:w-auto';
+
                         if (options.type === 'confirm') {
                             cancelBtn.classList.remove('hidden');
                             cancelBtn.textContent = options.cancelText || 'Cancelar';
                         } else {
                             cancelBtn.classList.add('hidden');
                         }
-                        
+
+                        // Guardar el elemento que tenía el foco antes de abrir el modal
+                        // para restituirlo al cerrar (requisito a11y focus-return).
+                        const previouslyFocused = document.activeElement;
+
+                        // Trampa de foco: Tab / Shift+Tab ciclan solo entre los elementos
+                        // focusables del modal.
+                        const focusTrap = function(e) {
+                            if (e.key !== 'Tab') return;
+                            const focusable = Array.from(
+                                content.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+                            ).filter(el => !el.disabled && !el.classList.contains('hidden'));
+                            if (focusable.length === 0) return;
+                            const first = focusable[0];
+                            const last = focusable[focusable.length - 1];
+                            if (e.shiftKey) {
+                                if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                            } else {
+                                if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                            }
+                        };
+
+                        // Escape cierra el modal.
+                        const escHandler = function(e) {
+                            if (e.key === 'Escape') closeModal();
+                        };
+
+                        // Configurar eventos de cierre (definidos antes de usarlos en los handlers)
+                        const closeModal = () => {
+                            document.removeEventListener('keydown', focusTrap);
+                            document.removeEventListener('keydown', escHandler);
+                            overlay.style.opacity = '0';
+                            content.style.transform = 'scale(0.95)';
+                            content.style.opacity = '0';
+                            setTimeout(() => {
+                                overlay.classList.add('hidden');
+                                // Devolver el foco al elemento que lo tenía antes de abrir.
+                                if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+                                    previouslyFocused.focus();
+                                }
+                            }, 300);
+                        };
+
                         // Mostrar modal
                         overlay.classList.remove('hidden');
                         setTimeout(() => {
                             overlay.style.opacity = '1';
                             content.style.transform = 'scale(1)';
                             content.style.opacity = '1';
+                            // Mover el foco al botón confirmar al abrir (primer focusable relevante).
+                            confirmBtn.focus();
                         }, 10);
-                        
-                        // Configurar eventos
-                        const closeModal = () => {
-                            overlay.style.opacity = '0';
-                            content.style.transform = 'scale(0.95)';
-                            content.style.opacity = '0';
-                            setTimeout(() => {
-                                overlay.classList.add('hidden');
-                            }, 300);
-                        };
-                        
+
+                        document.addEventListener('keydown', focusTrap);
+                        document.addEventListener('keydown', escHandler);
+
                         confirmBtn.onclick = () => {
                             if (options.onConfirm) options.onConfirm();
                             closeModal();
                         };
-                        
+
                         cancelBtn.onclick = () => {
                             if (options.onCancel) options.onCancel();
                             closeModal();
                         };
-                        
+
                         closeBtn.onclick = closeModal;
-                        
+
                         overlay.onclick = (e) => {
                             if (e.target === overlay) closeModal();
                         };
                     }
                 };
-                
-                // Función global para mostrar alertas modernas
+
+                // Función global para mostrar alertas modernas.
+                // alert() nativo está prohibido; si ModernModal no estuviera disponible
+                // (no debería ocurrir en producción) se registra un error de diagnóstico.
                 window.showModernAlert = function(type, title, message) {
                     if (typeof ModernModal !== 'undefined') {
                         ModernModal.show({
@@ -391,7 +481,7 @@
                             message: message
                         });
                     } else {
-                        alert(message);
+                        console.error('ModernModal no disponible', message);
                     }
                 };
             });

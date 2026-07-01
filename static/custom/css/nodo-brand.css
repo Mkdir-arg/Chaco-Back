@@ -1,30 +1,30 @@
 /* NODO Brand - Manual de Marca */
 
 :root {
-    /* Colores principales */
-    --nodo-magenta: #FF0080;
-    --nodo-purple: #7928CA;
-    --nodo-violet: #8908CC;
-    --nodo-cyan: #08B8CC;
-    --nodo-fuchsia: #CC0884;
-    
+    /* Colores principales — alias legacy → tokens semánticos */
+    --nodo-magenta: var(--bg-pink);
+    --nodo-purple: var(--bg-brand);
+    --nodo-violet: var(--bg-brand);
+    --nodo-cyan: var(--bg-cyan);
+    --nodo-fuchsia: var(--bg-pink);
+
     /* Colores de texto */
-    --nodo-text-primary: #141414;
-    --nodo-text-secondary: #252F40;
-    --nodo-text-tertiary: #4A5565;
-    --nodo-text-muted: #8C8C8C;
-    --nodo-text-icon: #56606A;
-    
+    --nodo-text-primary: var(--text-black);
+    --nodo-text-secondary: var(--text-heading);
+    --nodo-text-tertiary: var(--text-body);
+    --nodo-text-muted: var(--text-body-subtle);
+    --nodo-text-icon: var(--text-body-subtle);
+
     /* Colores de fondo */
-    --nodo-bg-white: #FFFFFF;
-    --nodo-bg-gray: #F9FAFB;
-    --nodo-border: #E5E7EB;
-    
+    --nodo-bg-white: var(--bg-white);
+    --nodo-bg-gray: var(--bg-secondary);
+    --nodo-border: var(--border-base);
+
     /* Gradiente principal — CHACO brand (Jacarandá → Rosa) */
-    --nodo-gradient: linear-gradient(45deg, #5059bc 0%, #f98dff 100%);
+    --nodo-gradient: var(--gradient-brand);
 
     /* Sombras */
-    --nodo-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --nodo-shadow-md: var(--shadow-sm);
 }
 
 /* Tipografía — CHACO brand font: Manrope */
@@ -38,20 +38,20 @@ body {
 .bg-blue-500,
 .bg-primario {
     background: var(--nodo-gradient) !important;
-    color: #ffffff !important;
+    color: var(--text-white) !important;
 }
 
 .text-arg-azul,
 .text-blue-600,
 .text-blue-500,
 .text-primario {
-    color: #5059bc !important;
+    color: var(--text-fg-brand) !important;
 }
 
 .border-arg-azul,
 .border-blue-600,
 .border-blue-500 {
-    border-color: #5059bc !important;
+    border-color: var(--border-brand) !important;
 }
 
 .hover\:bg-blue-700:hover {
@@ -71,65 +71,33 @@ body {
 }
 
 /* Botones Brand */
+/* IMPACTO: ~4 botones legacy (btn-primary, btn-success) dependen de este gradiente automático.
+   Eliminación estructural requiere migración dedicada. Se conserva tokenizado + .btn-danger excluido. */
 .btn-brand,
-button[type="submit"]:not(.btn-secondary):not(.btn-tertiary),
+button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger),
 .bg-gradient-to-r {
     background: var(--nodo-gradient) !important;
-    color: white !important;
+    color: var(--text-white) !important;
     border: none !important;
     transition: all 0.2s ease !important;
 }
 
 .btn-brand:hover,
-button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):hover {
+button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):hover {
     filter: brightness(0.85) !important;
 }
 
 .btn-brand:focus,
-button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):focus {
-    box-shadow: 0 0 0 2px var(--nodo-purple) !important;
+button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):focus {
+    box-shadow: 0 0 0 2px var(--bg-brand) !important;
 }
 
-/* Badges */
-.badge-brand {
-    background: #FFB9DC !important;
-    color: #A11F60 !important;
-    border: 1px solid #101828 !important;
-}
+/* Badges (.badge-brand/.badge-success/.badge-warning/.badge-danger ahora en nodo-badges.css) */
 
-.badge-success,
-.bg-green-100 {
-    background: #ECFDF5 !important;
-    color: #006045 !important;
-    border: 1px solid #A4F4CF !important;
-}
-
-.badge-warning,
-.bg-yellow-100 {
-    background: #FFF8F1 !important;
-    color: #771D1D !important;
-    border: 1px solid #FCD9BD !important;
-}
-
-.badge-danger,
-.bg-red-100 {
-    background: #FEF0F2 !important;
-    color: #8B0836 !important;
-    border: 1px solid #FFCCD3 !important;
-}
-
-.badge-sm {
-    padding: 0.25rem 0.75rem !important;
-    font-size: 0.875rem !important;
-    line-height: 1.25rem !important;
-    font-weight: 500 !important;
-    border-radius: 9999px !important;
-}
-
-/* Badges cyan */
+/* Badges azul/info — tinte del sistema (antes rgba cyan hardcodeada) */
 .bg-blue-100,
 .bg-cyan-100 {
-    background: rgba(8, 184, 204, 0.1) !important;
+    background: var(--bg-info-soft) !important;
 }
 
 .text-blue-800,
@@ -138,10 +106,6 @@ button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):focus {
 }
 
 /* Módulos y tarjetas */
-.bg-white {
-    background: var(--nodo-bg-white) !important;
-}
-
 .shadow-lg,
 .shadow-md {
     box-shadow: var(--nodo-shadow-md) !important;
@@ -189,11 +153,11 @@ a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]):hover {
 
 /* Iconos de acción */
 .text-green-600 {
-    color: #006045 !important;
+    color: var(--text-fg-success) !important;
 }
 
 .text-green-600:hover {
-    color: #004d37 !important;
+    color: var(--text-fg-success-strong) !important;
 }
 
 /* Paginación */
@@ -207,15 +171,15 @@ a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]):hover {
 }
 
 .hover\:bg-gray-100:hover {
-    background: #F3F4F6 !important;
+    background: var(--bg-tertiary) !important;
 }
 
 /* Botones deshabilitados */
 button:disabled,
 .btn-disabled {
-    background: #F3F4F6 !important;
-    color: #99A1AF !important;
-    border-color: #E5E7EB !important;
+    background: var(--bg-disabled) !important;
+    color: var(--text-disabled) !important;
+    border-color: var(--border-base) !important;
     cursor: not-allowed !important;
 }
 
