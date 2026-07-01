@@ -66,7 +66,7 @@
 | 2026-06-24 | Matías Fariña | Gestión del sprint | Actualización del detalle de horas y seguimiento | 75 min |
 | 2026-06-24 | Agostina Coppola | Análisis funcional | Análisis de legajos en curso | 120 min |
 | 2026-06-24 | Juani Portilla | Becas | Desarrollo del módulo de asignación de cupos (en curso) | 90 min |
-| 2026-06-24 | Pablo Cao | App mobile y app web | Ajuste de diseño y maqueta de la app; merge de `development`; limpieza de la app web para quitar la capa de branding dinamico y dejar Chaco fijo sin depender del `.env`; validacion de Django y templates principales. | 274 min |
+| 2026-06-24 | Pablo Cao | App mobile y app web | Ajuste de diseño y maqueta de la app; merge de development; limpieza de la app web para quitar la capa de branding dinamico y dejar Chaco fijo sin depender del .env; validacion de Django y templates principales. | 274 min |
 
 | 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 370 min |
 | 2026-06-24 | Juani Portilla | Becas #73 — Modelos de datos | Modelos de dominio Becas: Segmento, Subsegmento, Convocatoria, Relevamiento, Formulario, TracaFormulario, helpers y seed | 90 min |
@@ -77,6 +77,7 @@
 | 2026-06-24 | Juani Portilla | Becas #82 — API REST app de campo | Auth por token, relevamientos asignados, definición de formulario, iniciar/finalizar/reabrir y CRUD con sync offline | 90 min |
 | 2026-06-26 | Pablo Cao | App mobile Becas | Integracion de app mobile con API Becas, usuario demo, ajustes de inicio, navegacion, badges de relevamientos y header compacto con degradado | 87 min |
 | 2026-06-28 | Pablo Cao | App mobile Becas | Ajustes de inicio y relevamientos, soporte offline con cache local, formulario con validacion RENAPER, CORS para Expo web, limpieza completa de Supabase y validaciones de Django/Expo | 231 min |
+| 2026-07-01 | Pablo Cao | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
 
 
 ---
@@ -85,4 +86,4 @@
 
 !!! success "Contador total"
 
-    **11952 minutos** (199 h 12 min)
+    **12260 minutos** (204 h 20 min)

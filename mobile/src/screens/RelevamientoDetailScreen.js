@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Pressable, Alert, Modal, TextInput } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import NetInfo from '@react-native-community/netinfo';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -41,6 +43,7 @@ const emptyDniForm = {
 };
 
 const RENAPER_RESET_FIELDS = ['dni_numero', 'dni_sexo', 'apellido', 'nombres', 'fecha_nacimiento'];
+const DYNAMIC_ATTACHMENTS_DIR = `${FileSystemLegacy.documentDirectory || ''}dynamic-question-images`;
 
 export default function RelevamientoDetailScreen({ relevamientoId, onClose, syncStatus = 'synced', syncPendingCount = 0, onSyncPress }) {
   const { theme, typography } = useTheme();
@@ -58,6 +61,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [scannerVisible, setScannerVisible] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
+  const scannerLockedRef = useRef(false);
   const [scannerCameraKey, setScannerCameraKey] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const [maxVisitedStep, setMaxVisitedStep] = useState(1);
@@ -73,6 +77,8 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   const [submittingFormulario, setSubmittingFormulario] = useState(false);
   const [formularios, setFormularios] = useState([]);
   const [formMode, setFormMode] = useState(false);
+  const gpsCoordsRef = useRef(null);
+  const gpsCapturePromiseRef = useRef(null);
 
   useEffect(() => {
     let mounted = true;
@@ -123,17 +129,32 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   };
 
   const assignedSteps = [
-    { id: 1, title: 'DNI', icon: 'card-outline' },
-    { id: 2, title: 'Fotos', icon: 'camera-outline' },
-    { id: 3, title: 'RENAPER', icon: 'shield-checkmark-outline' },
-    { id: 4, title: 'Campos', icon: 'list-outline' },
-    { id: 5, title: 'Confirmar', icon: 'checkmark-circle-outline' },
+    { id: 1, title: 'Identidad', icon: 'card-outline' },
+    { id: 2, title: 'Persona', icon: 'person-outline' },
+    { id: 3, title: 'Globales', icon: 'list-outline' },
+    { id: 4, title: 'Segmento', icon: 'layers-outline' },
+    { id: 5, title: 'Subsegmento', icon: 'git-branch-outline' },
+    { id: 6, title: 'Fotos', icon: 'camera-outline' },
+    { id: 7, title: 'Confirmar', icon: 'checkmark-circle-outline' },
   ];
 
   const isAssignedFlow = detail?.source === 'asignado';
 
+  const clearPersonIdentityFields = (form = {}) => ({
+    ...form,
+    dni_tramite: '',
+    apellido: '',
+    nombres: '',
+    fecha_nacimiento: '',
+    ejemplar: '',
+    fecha_emision: '',
+  });
+
   const updateDniField = (key, value) => {
-    setDniForm((prev) => ({ ...prev, [key]: value }));
+    setDniForm((prev) => {
+      const next = { ...prev, [key]: value };
+      return ['dni_numero', 'dni_sexo'].includes(key) ? clearPersonIdentityFields(next) : next;
+    });
     if (RENAPER_RESET_FIELDS.includes(key)) {
       setIdentificationOrigin('manual');
       setRenaperStatus('PENDIENTE');
@@ -143,6 +164,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   };
 
   const cleanDigits = (value = '') => String(value || '').replace(/\D/g, '');
+
+  const goToAssignedStep = (step) => {
+    setCurrentStep(step);
+    setMaxVisitedStep((prev) => Math.max(prev, step));
+  };
 
   const toIsoDate = (value = '') => {
     const text = String(value || '').trim();
@@ -404,12 +430,19 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         nextForm[key] = String(value).trim();
       }
     });
-    if (!Object.keys(nextForm).length) {
-      Alert.alert('DNI', 'No pude leer datos utiles del codigo. Probemos manualmente.');
+    const hasDocumentIdentity = !!cleanDigits(nextForm.dni_numero)
+      && !!normalizeSex(nextForm.dni_sexo)
+      && !!String(nextForm.apellido || '').trim()
+      && !!String(nextForm.nombres || '').trim();
+    if (!hasDocumentIdentity) {
+      setScannerVisible(false);
       setScannerLocked(false);
+      setTimeout(() => {
+        Alert.alert('DNI', 'No pude leer datos utiles del codigo. Probemos manualmente.');
+      }, 220);
       return;
     }
-    setDniForm((prev) => ({ ...prev, ...nextForm }));
+    setDniForm({ ...emptyDniForm, ...nextForm });
     setIdentificationOrigin('scan');
     setRenaperStatus('VALIDADO');
     setRenaperResult({
@@ -426,6 +459,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     });
     setRenaperError('');
     closeDniScanner();
+    goToAssignedStep(2);
   };
 
   const getBarcodeTypeLabel = (type = '') => {
@@ -443,20 +477,142 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         return;
       }
     }
+    scannerLockedRef.current = false;
     setScannerLocked(false);
     setScannerCameraKey((prev) => prev + 1);
     setScannerVisible(true);
   };
 
   const closeDniScanner = () => {
+    scannerLockedRef.current = false;
     setScannerVisible(false);
     setScannerLocked(false);
   };
 
   const handleDniBarcodeScanned = ({ data, type }) => {
-    if (scannerLocked) return;
+    if (scannerLockedRef.current) return;
+    scannerLockedRef.current = true;
     setScannerLocked(true);
     applyDniScanResult(parseDniCode(data, getBarcodeTypeLabel(type)));
+  };
+
+  const sanitizeLocalFileName = (value = 'imagen') =>
+    String(value || 'imagen')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w.-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'imagen';
+
+  const persistDynamicImage = async (asset, field) => {
+    if (!asset?.uri || Platform.OS === 'web' || !FileSystemLegacy.documentDirectory) {
+      return asset;
+    }
+
+    const dirInfo = await FileSystemLegacy.getInfoAsync(DYNAMIC_ATTACHMENTS_DIR);
+    if (!dirInfo.exists) {
+      await FileSystemLegacy.makeDirectoryAsync(DYNAMIC_ATTACHMENTS_DIR, { intermediates: true });
+    }
+
+    const rawName = asset.fileName || asset.uri.split('/').pop() || `${field?.id || 'imagen'}.jpg`;
+    const fileName = `${Date.now()}_${sanitizeLocalFileName(rawName)}`;
+    const targetUri = `${DYNAMIC_ATTACHMENTS_DIR}/${fileName}`;
+    await FileSystemLegacy.copyAsync({ from: asset.uri, to: targetUri });
+    return { ...asset, uri: targetUri, fileName };
+  };
+
+  const buildDynamicImageDataUri = async (asset, persistedAsset) => {
+    const mimeType = asset?.mimeType || persistedAsset?.mimeType || 'image/jpeg';
+    if (asset?.base64) {
+      return `data:${mimeType};base64,${asset.base64}`;
+    }
+    if (!persistedAsset?.uri || Platform.OS === 'web') {
+      return null;
+    }
+    try {
+      const base64 = await FileSystemLegacy.readAsStringAsync(persistedAsset.uri, {
+        encoding: FileSystemLegacy.EncodingType.Base64,
+      });
+      return base64 ? `data:${mimeType};base64,${base64}` : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const saveDynamicImageAsset = async (field, asset, source) => {
+    if (!asset?.uri) throw new Error('No se pudo obtener la imagen.');
+    const persisted = await persistDynamicImage(asset, field);
+    const dataUri = await buildDynamicImageDataUri(asset, persisted);
+    setDynamicValues((prev) => ({
+      ...prev,
+      [field.id]: {
+        uri: persisted.uri,
+        dataUri,
+        fileName: persisted.fileName || persisted.uri.split('/').pop() || 'imagen.jpg',
+        mimeType: persisted.mimeType || 'image/jpeg',
+        width: persisted.width || null,
+        height: persisted.height || null,
+        size: persisted.fileSize || persisted.size || null,
+        source,
+        capturedAt: new Date().toISOString(),
+      },
+    }));
+  };
+
+  const pickDynamicImage = async (field, source) => {
+    try {
+      const permission = source === 'camera'
+        ? await ImagePicker.getCameraPermissionsAsync()
+        : await ImagePicker.getMediaLibraryPermissionsAsync();
+      const requestPermission = source === 'camera'
+        ? ImagePicker.requestCameraPermissionsAsync
+        : ImagePicker.requestMediaLibraryPermissionsAsync;
+      const granted = permission?.granted || (await requestPermission())?.granted;
+      if (!granted) {
+        Alert.alert(source === 'camera' ? 'Camara' : 'Galeria', 'Necesitamos permiso para adjuntar la imagen.');
+        return;
+      }
+
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: 'images', allowsEditing: false, quality: 0.78, base64: true })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: false, quality: 0.78, base64: true });
+
+      if (result?.canceled) return;
+      await saveDynamicImageAsset(field, result?.assets?.[0], source);
+    } catch (e) {
+      Alert.alert('Imagen', e?.message || 'No se pudo adjuntar la imagen.');
+    }
+  };
+
+  const openDynamicImageActions = (field) => {
+    Alert.alert(
+      field?.etiqueta || 'Imagen',
+      'Adjuntar imagen',
+      [
+        { text: 'Camara', onPress: () => pickDynamicImage(field, 'camera') },
+        { text: 'Galeria', onPress: () => pickDynamicImage(field, 'gallery') },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
+  };
+
+  const removeDynamicImage = (field) => {
+    setDynamicValues((prev) => {
+      const next = { ...prev };
+      delete next[field.id];
+      return next;
+    });
+  };
+
+  const previewDynamicImage = (field) => {
+    const file = dynamicValues[field.id];
+    if (!file?.uri && !file?.dataUri) {
+      openDynamicImageActions(field);
+      return;
+    }
+    setPreviewUri(file.uri || file.dataUri);
+    setPreviewName(file.fileName || field.etiqueta || 'Imagen');
+    setPreviewVisible(true);
   };
 
   const openDniPhotoCamera = async (target) => {
@@ -503,10 +659,18 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   const getMissingDniFields = () => {
     const required = [
       ['dni_numero', 'Numero de DNI'],
-      ['apellido', 'Apellido'],
-      ['nombres', 'Nombre'],
-      ['fecha_nacimiento', 'Fecha de nacimiento'],
       ['dni_sexo', 'Sexo'],
+    ];
+    return required
+      .filter(([key]) => !String(dniForm[key] || '').trim())
+      .map(([, label]) => label);
+  };
+
+  const getMissingPersonFields = () => {
+    const required = [
+      ['apellido', 'Apellido'],
+      ['nombres', 'Nombres'],
+      ['fecha_nacimiento', 'Fecha de nacimiento'],
     ];
     return required
       .filter(([key]) => !String(dniForm[key] || '').trim())
@@ -520,10 +684,70 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     setDniPhotos({ frente: null, dorso: null });
     setDynamicValues({});
     setContactForm({ celular: '', email_contacto: '' });
+    gpsCoordsRef.current = null;
     setIdentificationOrigin('manual');
     setRenaperStatus('PENDIENTE');
     setRenaperResult(null);
     setRenaperError('');
+  };
+
+  const setGpsCoordsFromPosition = (position) => {
+    if (!position?.coords) return null;
+    const coords = {
+      gps_lat: String(Number(position.coords.latitude).toFixed(6)),
+      gps_lng: String(Number(position.coords.longitude).toFixed(6)),
+    };
+    gpsCoordsRef.current = coords;
+    return coords;
+  };
+
+  const captureGpsSilently = () => {
+    if (gpsCapturePromiseRef.current) return gpsCapturePromiseRef.current;
+
+    gpsCapturePromiseRef.current = (async () => {
+      try {
+        let permission = await Location.getForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          permission = await Location.requestForegroundPermissionsAsync();
+        }
+        if (permission.status !== 'granted') return null;
+
+        const lastKnown = await Location.getLastKnownPositionAsync({
+          maxAge: 5 * 60 * 1000,
+          requiredAccuracy: 200,
+        });
+        if (lastKnown) {
+          setGpsCoordsFromPosition(lastKnown);
+        }
+
+        const current = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        return setGpsCoordsFromPosition(current);
+      } catch {
+        return null;
+      } finally {
+        gpsCapturePromiseRef.current = null;
+      }
+    })();
+
+    return gpsCapturePromiseRef.current;
+  };
+
+  const getGpsCoordsForSubmit = async () => {
+    if (gpsCapturePromiseRef.current) {
+      await Promise.race([
+        gpsCapturePromiseRef.current,
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    } else if (!gpsCoordsRef.current) {
+      captureGpsSilently();
+      await Promise.race([
+        gpsCapturePromiseRef.current,
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    }
+    return gpsCoordsRef.current || {};
   };
 
   const refreshFormularios = async () => {
@@ -539,7 +763,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     if (!String(contactForm.email_contacto || '').trim()) missing.push('Email');
     (detail?.campos_definicion || []).forEach((field) => {
       const tipo = String(field.tipo || '').toUpperCase();
-      if (tipo !== 'ARCHIVO' && field.requerido && !String(dynamicValues[field.id] || '').trim()) {
+      if (!field.requerido) return;
+      const value = dynamicValues[field.id];
+      if (tipo === 'ARCHIVO') {
+        if (!value?.uri && !value?.dataUri) missing.push(field.etiqueta || field.texto || 'Imagen requerida');
+      } else if (!String(value || '').trim()) {
         missing.push(field.etiqueta || field.texto || 'Campo requerido');
       }
     });
@@ -553,7 +781,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       const bucket = field.scope === 'requisitos' ? 'requisitos' : 'globales';
       const tipo = String(field.tipo || '').toUpperCase();
       data[bucket][String(field.original_id || field.id)] = tipo === 'ARCHIVO'
-        ? { pendiente_upload: true }
+        ? (dynamicValues[field.id] || null)
         : (dynamicValues[field.id] || '');
     });
     data.meta = {
@@ -568,6 +796,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
 
     setSubmittingFormulario(true);
     try {
+      const gpsCoords = await getGpsCoordsForSubmit();
       const result = await relevamientoService.saveBecasFormulario({
         relevamiento_id: detail.id,
         celular: contactForm.celular.trim(),
@@ -581,6 +810,8 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
           origen: identificationOrigin,
         },
         validado_renaper: ['scan', 'renaper'].includes(identificationOrigin),
+        gps_lat: gpsCoords.gps_lat || null,
+        gps_lng: gpsCoords.gps_lng || null,
         data,
         campos_definicion: detail?.campos_definicion || [],
         finalizar: false,
@@ -608,18 +839,18 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
 
   const nextAssignedStep = () => {
     if (currentStep === 1) {
-      const missing = getMissingDniFields();
+      Alert.alert('Identificacion', 'Escanea el documento o valida DNI y sexo con RENAPER para continuar.');
+      return;
+    }
+    if (currentStep === 2) {
+      const missing = getMissingPersonFields();
       if (missing.length) {
-        Alert.alert('Datos del DNI', `Completa antes de continuar: ${missing.join(', ')}.`);
+        Alert.alert('Datos de la persona', `Completa antes de continuar: ${missing.join(', ')}.`);
         return;
       }
     }
-    if (currentStep === 2 && (!dniPhotos.frente?.uri || !dniPhotos.dorso?.uri)) {
+    if (currentStep === 6 && (!dniPhotos.frente?.uri || !dniPhotos.dorso?.uri)) {
       Alert.alert('Fotos DNI', 'Carga la foto del frente y del dorso del DNI para continuar.');
-      return;
-    }
-    if (currentStep === 3 && renaperStatus === 'VALIDANDO') {
-      Alert.alert('RENAPER', 'Espera a que termine la validacion RENAPER.');
       return;
     }
     if (currentStep === assignedSteps.length) {
@@ -643,6 +874,18 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       return;
     }
 
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected || netState.isInternetReachable === false) {
+      setDniForm((prev) => clearPersonIdentityFields(prev));
+      setIdentificationOrigin('manual');
+      setRenaperStatus('ERROR');
+      setRenaperResult(null);
+      setRenaperError('Sin conexion. Continua con carga manual; quedara pendiente de validacion RENAPER.');
+      Alert.alert('Sin conexion', 'Continua con la carga manual de la persona. El formulario quedara como No validado RENAPER.');
+      goToAssignedStep(2);
+      return;
+    }
+
     setRenaperLoading(true);
     setRenaperError('');
     setRenaperStatus('VALIDANDO');
@@ -661,11 +904,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
 
       const renaperData = payload.data || {};
       const nextDniForm = {
-        ...dniForm,
+        ...emptyDniForm,
         dni_numero: cleanDigits(renaperData.dni) || dniForm.dni_numero,
-        apellido: renaperData.apellido || dniForm.apellido,
-        nombres: renaperData.nombre || dniForm.nombres,
-        fecha_nacimiento: normalizeDateText(renaperData.fecha_nacimiento) || dniForm.fecha_nacimiento,
+        apellido: renaperData.apellido || '',
+        nombres: renaperData.nombre || '',
+        fecha_nacimiento: normalizeDateText(renaperData.fecha_nacimiento) || '',
         dni_sexo: normalizeSex(renaperData.sexo) || dniForm.dni_sexo,
       };
       setDniForm(nextDniForm);
@@ -677,11 +920,15 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       });
       setIdentificationOrigin('renaper');
       setRenaperStatus('VALIDADO');
+      goToAssignedStep(2);
     } catch (e) {
+      setDniForm((prev) => clearPersonIdentityFields(prev));
       setIdentificationOrigin('manual');
       setRenaperStatus('ERROR');
       setRenaperResult(null);
       setRenaperError(e?.message || 'No se pudo consultar RENAPER.');
+      Alert.alert('RENAPER', 'No se pudo validar ahora. Continua con carga manual; quedara pendiente de validacion.');
+      goToAssignedStep(2);
     } finally {
       setRenaperLoading(false);
     }
@@ -734,17 +981,39 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     }
 
     if (tipo === 'ARCHIVO') {
+      const fileValue = dynamicValues[field.id];
       return (
         <View key={field.id} style={styles.formGroup}>
           <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>
             {field.etiqueta}{field.requerido ? ' *' : ''}
           </Text>
-          <View style={[styles.filePlaceholder, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
-            <Ionicons name="cloud-upload-outline" size={22} color={theme.colors.icon} />
-            <Text style={[styles.filePlaceholderText, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>
-              Adjuntos disponibles en el siguiente paso de implementacion
-            </Text>
-          </View>
+          {fileValue?.uri || fileValue?.dataUri ? (
+            <View style={[styles.dynamicImageBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
+              <TouchableOpacity activeOpacity={0.86} onPress={() => previewDynamicImage(field)} style={styles.dynamicImagePreviewWrap}>
+                <Image source={{ uri: fileValue.uri || fileValue.dataUri }} style={styles.dynamicImagePreview} resizeMode="cover" />
+              </TouchableOpacity>
+              <View style={styles.dynamicImageActions}>
+                <TouchableOpacity onPress={() => openDynamicImageActions(field)} style={[styles.dynamicImageAction, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
+                  <Ionicons name="swap-horizontal-outline" size={16} color={theme.colors.text} />
+                  <Text style={[styles.dynamicImageActionText, { color: theme.colors.text, fontFamily: typography.bold }]}>CAMBIAR</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removeDynamicImage(field)} style={[styles.dynamicImageAction, styles.dynamicImageDeleteAction, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
+                  <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              onPress={() => openDynamicImageActions(field)}
+              style={[styles.filePlaceholder, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}
+            >
+              <Ionicons name="image-outline" size={24} color={theme.colors.icon} />
+              <Text style={[styles.filePlaceholderText, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>
+                Tocar para sacar foto o elegir de galeria
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       );
     }
@@ -770,6 +1039,57 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       </View>
     );
   };
+
+  const getQuestionGroups = () => {
+    const definicion = detail?.definicion_formulario || {};
+    const globales = definicion.globales || [];
+    const requisitos = definicion.requisitos || [];
+    return {
+      globales,
+      segmento: requisitos.filter((field) => Number(field.orden || 0) < 100),
+      subsegmento: requisitos.filter((field) => Number(field.orden || 0) >= 100),
+    };
+  };
+
+  const renderQuestionStep = ({ title, fields, emptyText, includeContact = false }) => (
+    <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>{title}</Text>
+      {includeContact ? (
+        <>
+          <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Contacto</Text>
+          <View style={styles.formGroup}>
+            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Celular *</Text>
+            <TextInput
+              value={contactForm.celular}
+              onChangeText={(value) => setContactForm((prev) => ({ ...prev, celular: value }))}
+              keyboardType="phone-pad"
+              style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+              placeholder="Ej: 3624100200"
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+          <View style={styles.formGroup}>
+            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Email *</Text>
+            <TextInput
+              value={contactForm.email_contacto}
+              onChangeText={(value) => setContactForm((prev) => ({ ...prev, email_contacto: value }))}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+              placeholder="nombre@dominio.com"
+              placeholderTextColor={theme.colors.textSoft}
+            />
+          </View>
+          <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Preguntas globales</Text>
+        </>
+      ) : null}
+      {fields.length === 0 ? (
+        <Text style={[styles.row, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>{emptyText}</Text>
+      ) : (
+        fields.map(renderDynamicField)
+      )}
+    </View>
+  );
 
   const signaturePaths = useMemo(
     () => detail?.firma_paths || detail?.payload?.firma_paths || [],
@@ -932,36 +1252,57 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     if (currentStep === 1) {
       return (
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Datos del DNI</Text>
-          <Text style={[styles.stepHelp, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>
-            Carga los datos visibles del documento. Las fotos de frente y dorso quedan como obligatorias para el flujo final.
-          </Text>
-          <TouchableOpacity onPress={openDniScanner} style={[styles.scanAction, { backgroundColor: theme.colors.primary }]}>
-            <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
-            <Text style={[styles.scanActionText, { fontFamily: typography.bold }]}>ESCANEAR DNI</Text>
+          <View style={[styles.identityHeader, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+            <View style={[styles.identityHeaderIcon, { backgroundColor: `${theme.colors.primary}16` }]}>
+              <Ionicons name="card-outline" size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.identityHeaderText}>
+              <Text style={[styles.cardTitle, styles.identityTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>
+                Identificacion
+              </Text>
+              <Text style={[styles.identitySubtitle, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>
+                Documento y sexo para RENAPER
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={openDniScanner}
+            style={[styles.scanAction, { backgroundColor: theme.colors.primary, shadowColor: theme.colors.primary }]}
+          >
+            <View style={styles.scanActionIcon}>
+              <Ionicons name="scan-outline" size={24} color="#FFFFFF" />
+            </View>
+            <Text style={[styles.scanActionText, { fontFamily: typography.bold }]}>ESCANEAR DOCUMENTO</Text>
+            <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={[styles.scanHint, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>
-            Lee QR de DNI nuevo y PDF417 de DNI anterior.
-          </Text>
-          <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Identidad</Text>
-          {renderDniInput('Apellido', 'apellido', 'Ej: Perez')}
-          {renderDniInput('Nombres', 'nombres', 'Ej: Juan Carlos')}
+
+          <View style={styles.identityDivider}>
+            <View style={[styles.identityDividerLine, { backgroundColor: theme.colors.border }]} />
+            <Text style={[styles.identityDividerText, { color: theme.colors.textSoft, fontFamily: typography.bold }]}>
+              O CARGA MANUAL
+            </Text>
+            <View style={[styles.identityDividerLine, { backgroundColor: theme.colors.border }]} />
+          </View>
+
           <View style={styles.formGroup}>
             <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Numero de DNI *</Text>
-            <TextInput
-              value={dniForm.dni_numero}
-              onChangeText={(value) => updateDniField('dni_numero', value)}
-              keyboardType="number-pad"
-              style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
-              placeholder="Ej: 30111222"
-              placeholderTextColor={theme.colors.textSoft}
-            />
+            <View style={[styles.identityInputShell, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
+              <Ionicons name="id-card-outline" size={20} color={theme.colors.icon} />
+              <TextInput
+                value={dniForm.dni_numero}
+                onChangeText={(value) => updateDniField('dni_numero', value)}
+                keyboardType="number-pad"
+                style={[styles.identityTextInput, { color: theme.colors.text, fontFamily: typography.semibold }]}
+                placeholder="Ej: 30111222"
+                placeholderTextColor={theme.colors.textSoft}
+              />
+            </View>
           </View>
-          {renderDniInput('Fecha de nacimiento', 'fecha_nacimiento', 'DD/MM/AAAA')}
-          <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Documento</Text>
           <View style={styles.formGroup}>
             <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Sexo DNI *</Text>
-            <View style={styles.optionWrap}>
+            <View style={[styles.sexSegmented, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
               {['M', 'F', 'X'].map((option) => {
                 const selected = dniForm.dni_sexo === option;
                 return (
@@ -969,12 +1310,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
                     key={option}
                     onPress={() => updateDniField('dni_sexo', option)}
                     style={[
-                      styles.optionChip,
-                      { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
-                      selected && { borderColor: theme.colors.primary, backgroundColor: `${theme.colors.primary}18` },
+                      styles.sexSegment,
+                      selected && { backgroundColor: theme.colors.primary },
                     ]}
                   >
-                    <Text style={[styles.optionText, { color: selected ? theme.colors.primary : theme.colors.text, fontFamily: selected ? typography.bold : typography.medium }]}>
+                    <Text style={[styles.sexSegmentText, { color: selected ? '#FFFFFF' : theme.colors.text, fontFamily: selected ? typography.bold : typography.medium }]}>
                       {option}
                     </Text>
                   </Pressable>
@@ -982,24 +1322,114 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
               })}
             </View>
           </View>
-          <View style={styles.formGroup}>
-            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Numero de tramite</Text>
-            <TextInput
-              value={dniForm.dni_tramite}
-              onChangeText={(value) => updateDniField('dni_tramite', value)}
-              keyboardType="number-pad"
-              style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
-              placeholder="Opcional"
-              placeholderTextColor={theme.colors.textSoft}
-            />
-          </View>
-          {renderDniInput('Ejemplar', 'ejemplar', 'Ej: A')}
-          {renderDniInput('Fecha de emision', 'fecha_emision', 'DD/MM/AAAA')}
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={validateRenaper}
+            disabled={renaperLoading}
+            style={[styles.scanAction, { backgroundColor: theme.colors.primary, shadowColor: theme.colors.primary }, renaperLoading && { opacity: 0.72 }]}
+          >
+            <View style={styles.scanActionIcon}>
+              {renaperLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="shield-checkmark-outline" size={24} color="#FFFFFF" />
+              )}
+            </View>
+            <Text style={[styles.scanActionText, { fontFamily: typography.bold }]}>
+              {renaperLoading ? 'VALIDANDO...' : 'VALIDAR CON RENAPER'}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+          {!!renaperError && (
+            <Text style={[styles.renaperInlineError, { color: theme.colors.danger, fontFamily: typography.medium }]}>
+              {renaperError}
+            </Text>
+          )}
         </View>
       );
     }
 
     if (currentStep === 2) {
+      const isManualIdentity = !['scan', 'renaper'].includes(identificationOrigin);
+      const originLabel = identificationOrigin === 'scan'
+        ? 'Datos leidos del documento'
+        : (identificationOrigin === 'renaper' ? 'Datos devueltos por RENAPER' : 'Carga manual sin validacion RENAPER');
+      const statusColor = isManualIdentity ? theme.colors.warning : theme.colors.success;
+      const statusIcon = isManualIdentity ? 'alert-circle-outline' : 'checkmark-circle-outline';
+
+      return (
+        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={[styles.personStatus, { backgroundColor: `${statusColor}18` }]}>
+            <Ionicons name={statusIcon} size={20} color={statusColor} />
+            <Text style={[styles.personStatusText, { color: statusColor, fontFamily: typography.bold }]}>
+              {originLabel}
+            </Text>
+          </View>
+
+          <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Datos de la persona</Text>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Numero de DNI</Text>
+            <View style={[styles.identityReadOnlyBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
+              <Text style={[styles.identityReadOnlyText, { color: theme.colors.text, fontFamily: typography.bold }]}>{dniForm.dni_numero || '-'}</Text>
+            </View>
+          </View>
+          {isManualIdentity ? (
+            <>
+              {renderDniInput('Apellido *', 'apellido', 'Ej: Perez')}
+              {renderDniInput('Nombres *', 'nombres', 'Ej: Juan Carlos')}
+              {renderDniInput('Fecha de nacimiento *', 'fecha_nacimiento', 'DD/MM/AAAA')}
+            </>
+          ) : (
+            <>
+              {[
+                ['Apellido', dniForm.apellido],
+                ['Nombres', dniForm.nombres],
+                ['Fecha de nacimiento', dniForm.fecha_nacimiento],
+                ['Sexo', normalizeSex(dniForm.dni_sexo) || dniForm.dni_sexo],
+              ].map(([label, value]) => (
+                <View key={label} style={styles.formGroup}>
+                  <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>{label}</Text>
+                  <View style={[styles.identityReadOnlyBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
+                    <Text style={[styles.identityReadOnlyText, { color: theme.colors.text, fontFamily: typography.bold }]}>{value || '-'}</Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      );
+    }
+
+    if (currentStep === 3) {
+      const groups = getQuestionGroups();
+      return renderQuestionStep({
+        title: 'Preguntas globales',
+        fields: groups.globales,
+        emptyText: 'No hay preguntas globales configuradas.',
+        includeContact: true,
+      });
+    }
+
+    if (currentStep === 4) {
+      const groups = getQuestionGroups();
+      return renderQuestionStep({
+        title: 'Preguntas del segmento',
+        fields: groups.segmento,
+        emptyText: 'No hay preguntas del segmento configuradas.',
+      });
+    }
+
+    if (currentStep === 5) {
+      const groups = getQuestionGroups();
+      return renderQuestionStep({
+        title: 'Preguntas del subsegmento',
+        fields: groups.subsegmento,
+        emptyText: 'No hay preguntas del subsegmento configuradas.',
+      });
+    }
+
+    if (currentStep === 6) {
       const renderPhotoCard = (target, label) => {
         const photo = dniPhotos[target];
         return (
@@ -1042,157 +1472,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       );
     }
 
-    if (currentStep === 3) {
-      const statusColor = renaperStatus === 'VALIDADO'
-        ? theme.colors.success
-        : (renaperStatus === 'NO_COINCIDE' || renaperStatus === 'ERROR' ? theme.colors.danger : theme.colors.warning);
-      const statusLabel = {
-        PENDIENTE: 'Pendiente de validacion',
-        VALIDANDO: 'Consultando RENAPER',
-        VALIDADO: 'Los datos coinciden',
-        NO_COINCIDE: 'Los datos no coinciden',
-        ERROR: 'No se pudo validar',
-      }[renaperStatus] || 'Pendiente de validacion';
-      const statusIcon = renaperStatus === 'VALIDADO'
-        ? 'checkmark-circle'
-        : (renaperStatus === 'NO_COINCIDE' || renaperStatus === 'ERROR' ? 'alert-circle' : 'time-outline');
-      const documentRows = [
-        ['Numero de DNI', dniForm.dni_numero],
-        ['Apellido', dniForm.apellido],
-        ['Nombre', dniForm.nombres],
-        ['Fecha de nacimiento', dniForm.fecha_nacimiento],
-        ['Sexo', normalizeSex(dniForm.dni_sexo) || dniForm.dni_sexo],
-      ];
-      const renaperRows = renaperResult?.data ? [
-        ['Numero de DNI', renaperResult.data.dni],
-        ['Apellido', renaperResult.data.apellido],
-        ['Nombre', renaperResult.data.nombre],
-        ['Fecha de nacimiento', normalizeDateText(renaperResult.data.fecha_nacimiento)],
-        ['Sexo', normalizeSex(renaperResult.data.sexo)],
-      ] : [];
-      const identityDataTitle = renaperResult?.source === 'scan' ? 'Datos del escaneo' : 'Datos RENAPER';
-
-      return (
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Validacion RENAPER</Text>
-          <Text style={[styles.stepHelp, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>
-            Revisa los datos obtenidos del documento y comparalos contra RENAPER.
-          </Text>
-          <View style={[styles.renaperStatus, { backgroundColor: `${statusColor}18` }]}>
-            {renaperLoading ? (
-              <ActivityIndicator color={statusColor} />
-            ) : (
-              <Ionicons name={statusIcon} size={20} color={statusColor} />
-            )}
-            <Text style={[styles.renaperStatusText, { color: statusColor, fontFamily: typography.bold }]}>
-              {statusLabel}
-            </Text>
-          </View>
-
-          <Text style={[styles.renaperSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Datos del documento</Text>
-          <View style={[styles.renaperDataBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
-            {documentRows.map(([label, value]) => (
-              <View key={label} style={styles.kvRow}>
-                <Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>{label}</Text>
-                <Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{value || '-'}</Text>
-              </View>
-            ))}
-          </View>
-
-          <TouchableOpacity
-            onPress={validateRenaper}
-            disabled={renaperLoading}
-            style={[styles.primaryAction, { backgroundColor: theme.colors.primary }, renaperLoading && { opacity: 0.72 }]}
-          >
-            <Ionicons name="shield-checkmark-outline" size={18} color="#FFFFFF" />
-            <Text style={[styles.primaryActionText, { fontFamily: typography.bold }]}>
-              {renaperLoading ? 'VALIDANDO...' : 'VALIDAR RENAPER'}
-            </Text>
-          </TouchableOpacity>
-
-          {!!renaperError && (
-            <Text style={[styles.renaperError, { color: theme.colors.danger, fontFamily: typography.medium }]}>
-              {renaperError}
-            </Text>
-          )}
-
-          {!!renaperResult?.data && (
-            <>
-              <Text style={[styles.renaperSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>{identityDataTitle}</Text>
-              <View style={[styles.renaperDataBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
-                {renaperRows.map(([label, value]) => (
-                  <View key={label} style={styles.kvRow}>
-                    <Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>{label}</Text>
-                    <Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{value || '-'}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {!!renaperResult.comparisons?.length && (
-                <>
-                  <Text style={[styles.renaperSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Comparacion</Text>
-                  {renaperResult.comparisons.map((item) => {
-                    const color = item.matches ? theme.colors.success : theme.colors.danger;
-                    return (
-                      <View key={item.key} style={[styles.renaperCompareRow, { borderColor: theme.colors.border }]}>
-                        <View style={styles.renaperCompareValues}>
-                          <Text style={[styles.renaperCompareLabel, { color: theme.colors.text, fontFamily: typography.bold }]}>{item.label}</Text>
-                          <Text style={[styles.renaperCompareValue, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>Doc: {item.documentValue || '-'}</Text>
-                          <Text style={[styles.renaperCompareValue, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>RENAPER: {item.renaperValue || '-'}</Text>
-                        </View>
-                        <View style={[styles.renaperCompareBadge, { backgroundColor: `${color}18` }]}>
-                          <Ionicons name={item.matches ? 'checkmark' : 'close'} size={16} color={color} />
-                        </View>
-                      </View>
-                    );
-                  })}
-                </>
-              )}
-            </>
-          )}
-        </View>
-      );
-    }
-
-    if (currentStep === 4) {
-      const fields = detail?.campos_definicion || [];
-      return (
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Campos del relevamiento</Text>
-          <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Contacto</Text>
-          <View style={styles.formGroup}>
-            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Celular *</Text>
-            <TextInput
-              value={contactForm.celular}
-              onChangeText={(value) => setContactForm((prev) => ({ ...prev, celular: value }))}
-              keyboardType="phone-pad"
-              style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
-              placeholder="Ej: 3624100200"
-              placeholderTextColor={theme.colors.textSoft}
-            />
-          </View>
-          <View style={styles.formGroup}>
-            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Email *</Text>
-            <TextInput
-              value={contactForm.email_contacto}
-              onChangeText={(value) => setContactForm((prev) => ({ ...prev, email_contacto: value }))}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
-              placeholder="nombre@dominio.com"
-              placeholderTextColor={theme.colors.textSoft}
-            />
-          </View>
-          <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Preguntas y requisitos</Text>
-          {fields.length === 0 ? (
-            <Text style={[styles.row, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>No hay campos dinamicos configurados.</Text>
-          ) : (
-            fields.map(renderDynamicField)
-          )}
-        </View>
-      );
-    }
-
     return (
       <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Confirmacion</Text>
@@ -1205,30 +1484,17 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>RENAPER</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{renaperStatus}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Origen identidad</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{identificationOrigin}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Direccion</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{readValue('direccion_objetivo')}</Text></View>
-        <Text style={[styles.stepHelp, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>
-          La confirmacion final va a guardar localmente el relevamiento y sincronizarlo cuando vuelva internet.
-        </Text>
-        <TouchableOpacity
-          style={[styles.primaryAction, { backgroundColor: theme.colors.success }]}
-          onPress={submitAssignedFormulario}
-          disabled={submittingFormulario}
-        >
-          {submittingFormulario ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-          )}
-          <Text style={[styles.primaryActionText, { fontFamily: typography.bold }]}>
-            {submittingFormulario ? 'ENVIANDO...' : 'CONFIRMAR RELEVAMIENTO'}
-          </Text>
-        </TouchableOpacity>
       </View>
     );
   };
 
   if (isAssignedFlow && formMode) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <KeyboardAvoidingView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.bannerWrap}>
           <Banner
             title={readValue('titulo') !== '-' ? readValue('titulo') : 'Relevamiento'}
@@ -1285,7 +1551,18 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
           </ScrollView>
         </View>
 
-        <ScrollView contentContainerStyle={styles.assignedContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[
+            styles.assignedContent,
+            {
+              paddingBottom: (!loading && !error && currentStep > 1)
+                ? Math.max(insets.bottom, 16) + 136
+                : Math.max(insets.bottom, 16) + 32,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        >
           {loading ? (
             <ActivityIndicator size="large" color={theme.colors.primary} />
           ) : error ? (
@@ -1295,7 +1572,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
           )}
         </ScrollView>
 
-        {!loading && !error ? (
+        {!loading && !error && currentStep > 1 ? (
           <View
             style={[
               styles.assignedFooter,
@@ -1318,7 +1595,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
               style={[styles.primaryFooterButton, { backgroundColor: theme.colors.primary, opacity: submittingFormulario ? 0.7 : 1 }]}
             >
               <Text style={[styles.primaryFooterText, { fontFamily: typography.bold }]}>
-                {currentStep === assignedSteps.length ? (submittingFormulario ? 'GUARDANDO...' : 'GUARDAR PERSONA') : 'SIGUIENTE'}
+                {currentStep === assignedSteps.length ? (submittingFormulario ? 'ENVIANDO...' : 'CONFIRMAR RELEVAMIENTO') : 'SIGUIENTE'}
               </Text>
               <Ionicons name={currentStep === assignedSteps.length ? 'checkmark' : 'chevron-forward'} size={18} color="#FFFFFF" />
             </TouchableOpacity>
@@ -1356,7 +1633,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
           </Modal>
         ) : null}
 
-      </View>
+      </KeyboardAvoidingView>
     );
   };
 
@@ -1408,6 +1685,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
               <TouchableOpacity
                 onPress={() => {
                   resetPersonForm();
+                  captureGpsSilently();
                   setFormMode(true);
                 }}
                 style={[styles.primaryAction, { backgroundColor: theme.colors.primary }]}
@@ -1965,6 +2243,123 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 14,
   },
+  identityHeader: {
+    minHeight: 74,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: 12,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  identityHeaderIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  identityHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  identityTitle: {
+    marginBottom: 2,
+  },
+  identitySubtitle: {
+    fontSize: fontSizes.xs,
+  },
+  identityInputShell: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  identityTextInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: fontSizes.base,
+  },
+  identityReadOnlyBox: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  identityReadOnlyText: {
+    fontSize: fontSizes.sm,
+  },
+  identityDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  identityDividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  identityDividerText: {
+    fontSize: fontSizes.xxs,
+    marginHorizontal: 10,
+    letterSpacing: 0,
+  },
+  sexSegmented: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: 4,
+    flexDirection: 'row',
+  },
+  sexSegment: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sexSegmentText: {
+    fontSize: fontSizes.sm,
+  },
+  renaperManualAction: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    marginTop: 2,
+  },
+  renaperManualActionText: {
+    fontSize: fontSizes.xs,
+    marginLeft: 8,
+  },
+  renaperInlineError: {
+    fontSize: fontSizes.xs,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  personStatus: {
+    minHeight: 44,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  personStatusText: {
+    flex: 1,
+    fontSize: fontSizes.sm,
+    marginLeft: 8,
+  },
   formGroup: {
     marginBottom: 14,
   },
@@ -2226,17 +2621,33 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xxs,
   },
   scanAction: {
-    minHeight: 46,
+    minHeight: 66,
     borderRadius: radii.lg,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     flexDirection: 'row',
-    marginBottom: 8,
+    marginTop: 2,
+    marginBottom: 0,
+    paddingHorizontal: 14,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  scanActionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   scanActionText: {
     color: '#FFFFFF',
-    fontSize: fontSizes.xs,
-    marginLeft: 8,
+    fontSize: fontSizes.sm,
+    flex: 1,
+    marginHorizontal: 12,
+    textAlign: 'left',
   },
   scanHint: {
     fontSize: fontSizes.xs,
@@ -2256,6 +2667,47 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     marginTop: 6,
     textAlign: 'center',
+  },
+  dynamicImageBox: {
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: 8,
+  },
+  dynamicImagePreviewWrap: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  dynamicImagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  dynamicImageActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 8,
+  },
+  dynamicImageAction: {
+    flex: 1,
+    minHeight: 34,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  dynamicImageDeleteAction: {
+    flex: 0,
+    width: 44,
+    paddingHorizontal: 0,
+  },
+  dynamicImageActionText: {
+    fontSize: fontSizes.xxs,
+    marginLeft: 6,
   },
   assignedFooter: {
     borderTopWidth: 1,

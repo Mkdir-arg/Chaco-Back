@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, ProtectedError
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
@@ -12,6 +12,11 @@ from ..forms.secretaria import SecretariaForm, SubsecretariaForm
 
 _CAPS = ["config.administrar"]
 _REDIRECT = "/"
+
+
+# ---------------------------------------------------------------------------
+# Secretaría
+# ---------------------------------------------------------------------------
 
 
 class SecretariaListView(LoginRequiredMixin, CapacidadRequeridaMixin, ListView):
@@ -31,6 +36,7 @@ class SecretariaListView(LoginRequiredMixin, CapacidadRequeridaMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["search"] = self.request.GET.get("search", "")
+        context.setdefault("form", SecretariaForm())
         return context
 
 
@@ -47,6 +53,19 @@ class SecretariaCreateView(LoginRequiredMixin, CapacidadRequeridaMixin, CreateVi
         messages.success(self.request, f'Secretaría "{self.object.nombre}" creada exitosamente.')
         return response
 
+    def form_invalid(self, form):
+        secretarias = Secretaria.objects.annotate(cant_subsecretarias=Count("subsecretarias")).order_by("nombre")
+        return render(
+            self.request,
+            "configuracion/secretaria_list.html",
+            {
+                "secretarias": secretarias,
+                "search": "",
+                "form": form,
+                "abrir_modal_crear": True,
+            },
+        )
+
 
 class SecretariaUpdateView(LoginRequiredMixin, CapacidadRequeridaMixin, UpdateView):
     model = Secretaria
@@ -60,6 +79,19 @@ class SecretariaUpdateView(LoginRequiredMixin, CapacidadRequeridaMixin, UpdateVi
         response = super().form_valid(form)
         messages.success(self.request, f'Secretaría "{self.object.nombre}" actualizada.')
         return response
+
+    def form_invalid(self, form):
+        secretarias = Secretaria.objects.annotate(cant_subsecretarias=Count("subsecretarias")).order_by("nombre")
+        return render(
+            self.request,
+            "configuracion/secretaria_list.html",
+            {
+                "secretarias": secretarias,
+                "search": "",
+                "form": form,
+                "abrir_modal_pk": self.object.pk,
+            },
+        )
 
 
 class SecretariaDeleteView(LoginRequiredMixin, CapacidadRequeridaMixin, DeleteView):
@@ -81,6 +113,11 @@ class SecretariaDeleteView(LoginRequiredMixin, CapacidadRequeridaMixin, DeleteVi
             return redirect(self.success_url)
 
 
+# ---------------------------------------------------------------------------
+# Subsecretaría
+# ---------------------------------------------------------------------------
+
+
 class SubsecretariaListView(LoginRequiredMixin, CapacidadRequeridaMixin, ListView):
     model = Subsecretaria
     template_name = "configuracion/subsecretaria_list.html"
@@ -99,6 +136,7 @@ class SubsecretariaListView(LoginRequiredMixin, CapacidadRequeridaMixin, ListVie
         context = super().get_context_data(**kwargs)
         context["secretarias"] = Secretaria.objects.filter(activo=True).order_by("nombre")
         context["secretaria_filtro"] = self.request.GET.get("secretaria", "")
+        context.setdefault("form", SubsecretariaForm())
         return context
 
 
@@ -115,6 +153,24 @@ class SubsecretariaCreateView(LoginRequiredMixin, CapacidadRequeridaMixin, Creat
         messages.success(self.request, f'Subsecretaría "{self.object.nombre}" creada exitosamente.')
         return response
 
+    def form_invalid(self, form):
+        subsecretarias = (
+            Subsecretaria.objects.select_related("secretaria")
+            .annotate(cant_programas=Count("programa"))
+            .order_by("secretaria__nombre", "nombre")
+        )
+        return render(
+            self.request,
+            "configuracion/subsecretaria_list.html",
+            {
+                "subsecretarias": subsecretarias,
+                "secretarias": Secretaria.objects.filter(activo=True).order_by("nombre"),
+                "secretaria_filtro": "",
+                "form": form,
+                "abrir_modal_crear": True,
+            },
+        )
+
 
 class SubsecretariaUpdateView(LoginRequiredMixin, CapacidadRequeridaMixin, UpdateView):
     model = Subsecretaria
@@ -128,6 +184,24 @@ class SubsecretariaUpdateView(LoginRequiredMixin, CapacidadRequeridaMixin, Updat
         response = super().form_valid(form)
         messages.success(self.request, f'Subsecretaría "{self.object.nombre}" actualizada.')
         return response
+
+    def form_invalid(self, form):
+        subsecretarias = (
+            Subsecretaria.objects.select_related("secretaria")
+            .annotate(cant_programas=Count("programa"))
+            .order_by("secretaria__nombre", "nombre")
+        )
+        return render(
+            self.request,
+            "configuracion/subsecretaria_list.html",
+            {
+                "subsecretarias": subsecretarias,
+                "secretarias": Secretaria.objects.filter(activo=True).order_by("nombre"),
+                "secretaria_filtro": "",
+                "form": form,
+                "abrir_modal_pk": self.object.pk,
+            },
+        )
 
 
 class SubsecretariaDeleteView(LoginRequiredMixin, CapacidadRequeridaMixin, DeleteView):

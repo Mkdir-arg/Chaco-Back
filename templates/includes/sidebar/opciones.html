@@ -203,6 +203,8 @@
                 </template>
             </a>
         </div>
+        {# Ocultado a pedido — "Nuevo ciudadano" del menú lateral (el alta sigue accesible por URL) #}
+        {% comment %}
         {% if request.user|puede:"ciudadano.crear" %}
         <template x-if="!sidebarCollapsed">
             <div style="margin-left: 20px; margin-bottom: 2px;">
@@ -223,11 +225,13 @@
             </div>
         </template>
         {% endif %}
+        {% endcomment %}
         {% endif %}
 
         {# Relevamientos (core) — feature legacy removida en development; ítem de sidebar eliminado #}
 
-        {# ── Conversaciones ───────────────────────────────────── #}
+        {# Ocultado a pedido — "Conversaciones" del menú lateral #}
+        {% comment %}
         {% if request.user|puede:"conversacion.operar" %}
         <div class="relative" style="margin-bottom: 2px;">
             <a href="{% url 'conversaciones:lista' %}"
@@ -262,6 +266,7 @@
             </a>
         </div>
         {% endif %}
+        {% endcomment %}
 
         {# ── Reportes ─────────────────────────────────────────── #}
         {% if request.user|puede:"reporte.ver" %}

@@ -14,7 +14,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "La camara se usa para escanear el DNI argentino y capturar documentacion del relevamiento."
+        "NSCameraUsageDescription": "La camara se usa para escanear el DNI argentino y capturar documentacion del relevamiento.",
+        "NSLocationWhenInUseUsageDescription": "La ubicacion se guarda junto al formulario para registrar donde se realizo el relevamiento."
       }
     },
     "android": {
@@ -25,6 +26,8 @@
       "package": "com.pablocao.relevamientochaco",
       "permissions": [
         "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE"
       ]
@@ -46,6 +49,12 @@
         }
       ],
       "expo-image-picker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "La ubicacion se guarda junto al formulario para registrar donde se realizo el relevamiento."
+        }
+      ],
       "expo-screen-orientation",
       "expo-sqlite",
       "expo-font",
