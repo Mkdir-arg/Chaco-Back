@@ -4,82 +4,262 @@
 {% block title %}Localidades{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-        <div>
-            <h1 class="text-2xl sm:text-3xl font-lora font-bold text-gray-900">Localidades</h1>
-            <p class="text-gray-600 mt-2">Gestión de localidades del sistema</p>
-        </div>
-        <a href="{% url 'configuracion:localidad_crear' %}" class="bg-arg-azul text-white px-6 py-3 rounded-xl hover:bg-arg-secundario transition-colors font-medium text-center">
-            <i class="fas fa-plus mr-2"></i>Nueva Localidad
-        </a>
-    </div>
+<div x-data="{
+    modalCrear: {% if abrir_modal_crear %}true{% else %}false{% endif %},
+    modalEditarPk: {% if abrir_modal_pk %}{{ abrir_modal_pk }}{% else %}null{% endif %},
+    abrirEditar(pk) { this.modalEditarPk = pk; },
+    cerrarEditar() { this.modalEditarPk = null; }
+}" @keydown.escape.window="modalCrear = false; cerrarEditar()">
 
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        {% if localidades %}
-            <div class="hidden md:block overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Nombre</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Municipio</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Provincia</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        {% for localidad in localidades %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ localidad.nombre }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-900">{{ localidad.municipio.nombre }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-600">{{ localidad.municipio.provincia.nombre }}</td>
-                            <td class="px-6 py-4 text-sm">
-                                <div class="flex gap-2">
-                                    <a href="{% url 'configuracion:localidad_editar' localidad.pk %}" class="text-green-600 hover:text-green-800">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{% url 'configuracion:localidad_eliminar' localidad.pk %}" class="text-red-600 hover:text-red-800">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="md:hidden divide-y divide-gray-200">
+{# Page Header #}
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    <div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+            <a href="/" style="font-size:12.5px; color:var(--text-body-subtle); text-decoration:none;">Inicio</a>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-body-subtle); flex-shrink:0;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+            <span style="font-size:12.5px; color:var(--text-body); font-weight:600;">Localidades</span>
+        </div>
+        <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; margin:0 0 4px;">Localidades</h1>
+        <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Gestión de localidades del sistema</p>
+    </div>
+    <a href="{% url 'configuracion:localidad_crear' %}"
+       class="btn-nodo btn-brand"
+       @click.prevent="modalCrear = true"
+       aria-label="Nueva localidad">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Nueva localidad
+    </a>
+</div>
+
+{# Messages #}
+{% if messages %}
+<div style="margin-bottom:16px; display:flex; flex-direction:column; gap:8px;">
+    {% for message in messages %}
+    <div role="alert" style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; font-size:14px; font-weight:600;
+        {% if message.tags == 'error' %}background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle); color:var(--text-fg-danger);
+        {% else %}background:var(--bg-success-soft); border:1px solid var(--border-success-subtle); color:var(--text-fg-success);{% endif %}">
+        {% if message.tags == 'error' %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% else %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% endif %}
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{# TableCard #}
+<div style="background:var(--bg-white); border:1px solid var(--border-base); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden;">
+    {% if localidades %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Nombre</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Municipio</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Provincia</th>
+                    <th scope="col" style="padding:11px 16px; text-align:right; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em; width:100px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
                 {% for localidad in localidades %}
-                <div class="p-4 hover:bg-gray-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="font-medium text-gray-900">{{ localidad.nombre }}</div>
-                        <div class="flex gap-2">
-                            <a href="{% url 'configuracion:localidad_editar' localidad.pk %}" class="text-green-600 hover:text-green-800 p-2">
-                                <i class="fas fa-edit"></i>
+                <tr style="transition:background 150ms;" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''">
+                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body); border-top:1px solid var(--border-light);">{{ localidad.nombre }}</td>
+                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body-subtle); border-top:1px solid var(--border-light);">{{ localidad.municipio.nombre }}</td>
+                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body-subtle); border-top:1px solid var(--border-light);">{{ localidad.municipio.provincia.nombre }}</td>
+                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
+                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
+                            <a href="{% url 'configuracion:localidad_editar' localidad.pk %}"
+                               @click.prevent="abrirEditar({{ localidad.pk }})"
+                               style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; text-decoration:none; transition:background 150ms;"
+                               onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'"
+                               aria-label="Editar {{ localidad.nombre }}">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
                             </a>
-                            <a href="{% url 'configuracion:localidad_eliminar' localidad.pk %}" class="text-red-600 hover:text-red-800 p-2">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            <button type="button"
+                                    style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; color:var(--text-fg-danger); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
+                                    onmouseenter="this.style.background='var(--bg-danger-soft)'" onmouseleave="this.style.background='transparent'"
+                                    aria-label="Eliminar {{ localidad.nombre }}"
+                                    data-delete-url="{% url 'configuracion:localidad_eliminar' localidad.pk %}"
+                                    data-delete-name="{{ localidad.nombre|escapejs }}"
+                                    onclick="confirmarEliminar(this)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+
+                {# Modal Editar por fila #}
+                <template x-if="modalEditarPk === {{ localidad.pk }}">
+                    <div style="position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;"
+                         role="dialog" aria-modal="true" aria-labelledby="titulo-editar-loc-{{ localidad.pk }}"
+                         @click.self="cerrarEditar()">
+                        <div style="background:var(--bg-white); border-radius:16px; box-shadow:var(--shadow-xl); width:100%; max-width:540px; overflow:hidden;">
+                            <div style="display:flex; align-items:center; gap:12px; padding:20px 24px; border-bottom:1px solid var(--border-light);">
+                                <div style="width:40px; height:40px; border-radius:8px; background:var(--bg-brand-soft); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                </div>
+                                <h2 id="titulo-editar-loc-{{ localidad.pk }}" style="font-size:18px; font-weight:700; color:var(--text-heading); margin:0; flex:1;">Editar localidad</h2>
+                                <button @click="cerrarEditar()" style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; border:none; background:transparent; cursor:pointer; color:var(--text-body-subtle);" aria-label="Cerrar">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <form method="post" action="{% url 'configuracion:localidad_editar' localidad.pk %}">
+                                {% csrf_token %}
+                                <div style="padding:24px; display:flex; flex-direction:column; gap:20px;">
+                                    {% if abrir_modal_pk == localidad.pk %}
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <label for="{{ form.municipio.id_for_label }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                                            Municipio <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                                        </label>
+                                        {{ form.municipio }}
+                                        {% if form.municipio.errors %}<div style="font-size:12px; color:var(--text-fg-danger);" role="alert">{{ form.municipio.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <label for="{{ form.nombre.id_for_label }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                                            Nombre <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                                        </label>
+                                        {{ form.nombre }}
+                                        {% if form.nombre.errors %}<div style="font-size:12px; color:var(--text-fg-danger);" role="alert">{{ form.nombre.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    {% else %}
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <label for="id_municipio_editar_{{ localidad.pk }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                                            Municipio <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                                        </label>
+                                        <select id="id_municipio_editar_{{ localidad.pk }}" name="municipio" class="nodo-field" required>
+                                            {% for muni in form.fields.municipio.queryset %}
+                                            <option value="{{ muni.pk }}" {% if muni.pk == localidad.municipio_id %}selected{% endif %}>{{ muni.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <label for="id_nombre_editar_loc_{{ localidad.pk }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                                            Nombre <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                                        </label>
+                                        <input type="text" id="id_nombre_editar_loc_{{ localidad.pk }}" name="nombre"
+                                               value="{{ localidad.nombre }}" class="nodo-field"
+                                               placeholder="Ej: Barranqueras" required>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div style="display:flex; justify-content:flex-end; gap:12px; padding:16px 24px; border-top:1px solid var(--border-light); background:var(--bg-secondary);">
+                                    <button type="button" @click="cerrarEditar()" class="btn-nodo btn-tertiary">Cancelar</button>
+                                    <button type="submit" class="btn-nodo btn-brand">Guardar cambios</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                    <div class="text-sm text-gray-600 space-y-1">
-                        <div><span class="font-medium">Municipio:</span> {{ localidad.municipio.nombre }}</div>
-                        <div><span class="font-medium">Provincia:</span> {{ localidad.municipio.provincia.nombre }}</div>
-                    </div>
-                </div>
+                </template>
                 {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding:56px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+        <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay localidades registradas</h3>
+        <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Agregá la primera localidad para comenzar a configurar la geografía del sistema.</p>
+        <a href="{% url 'configuracion:localidad_crear' %}" class="btn-nodo btn-brand" style="margin-top:6px;" @click.prevent="modalCrear = true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Nueva localidad
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{# Modal Crear #}
+<div x-show="modalCrear"
+     style="position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;"
+     role="dialog" aria-modal="true" aria-labelledby="titulo-crear-localidad"
+     @click.self="modalCrear = false">
+    <div style="background:var(--bg-white); border-radius:16px; box-shadow:var(--shadow-xl); width:100%; max-width:540px; overflow:hidden;">
+        <div style="display:flex; align-items:center; gap:12px; padding:20px 24px; border-bottom:1px solid var(--border-light);">
+            <div style="width:40px; height:40px; border-radius:8px; background:var(--bg-brand-soft); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
             </div>
-        {% else %}
-            <div class="p-12 text-center">
-                <i class="fas fa-map-marker-alt text-6xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-900 mb-2">No hay localidades registradas</h3>
-                <p class="text-gray-600 mb-6">Comienza agregando la primera localidad</p>
-                <a href="{% url 'configuracion:localidad_crear' %}" class="bg-arg-azul text-white px-6 py-3 rounded-xl hover:bg-arg-secundario transition-colors">
-                    <i class="fas fa-plus mr-2"></i>Agregar Localidad
-                </a>
+            <h2 id="titulo-crear-localidad" style="font-size:18px; font-weight:700; color:var(--text-heading); margin:0; flex:1;">Nueva localidad</h2>
+            <button @click="modalCrear = false" style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; border:none; background:transparent; cursor:pointer; color:var(--text-body-subtle);" aria-label="Cerrar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'configuracion:localidad_crear' %}">
+            {% csrf_token %}
+            <div style="padding:24px; display:flex; flex-direction:column; gap:20px;">
+                {% if abrir_modal_crear %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label for="{{ form.municipio.id_for_label }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                        Municipio <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                    </label>
+                    {{ form.municipio }}
+                    {% if form.municipio.errors %}<div style="font-size:12px; color:var(--text-fg-danger);" role="alert">{{ form.municipio.errors.0 }}</div>{% endif %}
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label for="{{ form.nombre.id_for_label }}" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                        Nombre <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                    </label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}<div style="font-size:12px; color:var(--text-fg-danger);" role="alert">{{ form.nombre.errors.0 }}</div>{% endif %}
+                </div>
+                {% else %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label for="id_municipio_crear" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                        Municipio <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                    </label>
+                    <select id="id_municipio_crear" name="municipio" class="nodo-field" required>
+                        <option value="">Seleccioná un municipio</option>
+                        {% for muni in form.fields.municipio.queryset %}
+                        <option value="{{ muni.pk }}">{{ muni.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label for="id_nombre_crear_loc" style="font-size:13px; font-weight:600; color:var(--text-heading);">
+                        Nombre <span style="color:var(--text-fg-danger); margin-left:3px;" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" id="id_nombre_crear_loc" name="nombre" class="nodo-field" placeholder="Ej: Barranqueras" required>
+                </div>
+                {% endif %}
             </div>
-        {% endif %}
+            <div style="display:flex; justify-content:flex-end; gap:12px; padding:16px 24px; border-top:1px solid var(--border-light); background:var(--bg-secondary);">
+                <button type="button" @click="modalCrear = false" class="btn-nodo btn-tertiary">Cancelar</button>
+                <button type="submit" class="btn-nodo btn-brand">Guardar</button>
+            </div>
+        </form>
     </div>
 </div>
+
+<form id="form-eliminar-localidad" method="post" style="display:none;">{% csrf_token %}</form>
+
+</div>{# /x-data #}
+{% endblock %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function confirmarEliminar(btn) {
+    const url = btn.dataset.deleteUrl;
+    const nombre = btn.dataset.deleteName;
+    Swal.fire({
+        title: '¿Eliminar localidad?',
+        text: '"' + nombre + '" será eliminada. Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+            confirmButton: 'btn-nodo btn-danger',
+            cancelButton: 'btn-nodo btn-tertiary',
+        },
+        buttonsStyling: false,
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            const form = document.getElementById('form-eliminar-localidad');
+            form.action = url;
+            form.submit();
+        }
+    });
+}
+</script>
 {% endblock %}
