@@ -2,10 +2,27 @@
 {% block title %}Becas · Cupo · {{ segmento.nombre }}{% endblock %}
 
 {% block main-content %}
-<style>[x-cloak]{display:none!important}</style>
+<style>
+[x-cloak]{display:none!important}
+/* Los estados activo/inactivo van por clase (no por :style de Alpine): un :style con
+   string reemplaza todo el atributo style inline al reevaluarse, perdiendo el
+   display:flex/gap/padding estáticos y desalineando el ícono del label al cambiar de tab. */
+.becas-tab-btn{display:flex;align-items:center;gap:6px;padding:12px 16px;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;transition:color var(--duration-fast,150ms),border-color var(--duration-fast,150ms);}
+.becas-tab-btn.is-inactive{color:var(--text-body-subtle,#6B7280);font-weight:500;}
+.becas-tab-btn.is-inactive:hover{color:var(--text-body);}
+.becas-tab-btn.is-active{color:var(--text-fg-brand,#5059BC);border-bottom-color:var(--bg-brand,#5059BC);font-weight:700;}
+</style>
 
 <div class="max-w-6xl mx-auto space-y-5"
      x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'beneficiarios' }">
+
+  {# Volver #}
+  <div>
+    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+      Volver al segmento
+    </a>
+  </div>
 
   {# ===== PageHeader ===== #}
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
@@ -25,10 +42,6 @@
       </p>
     </div>
     <div class="flex items-center gap-3">
-      <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-sm">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-        Volver a segmentos
-      </a>
       <button type="button" disabled class="btn-nodo btn-tertiary btn-sm" style="background:var(--bg-disabled);color:var(--text-disabled);cursor:not-allowed;border-color:var(--border-base);" aria-disabled="true">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
         Exportar
@@ -118,11 +131,10 @@
   <div style="background:var(--bg-white,#fff);border:1px solid var(--border-base,#E5E7EB);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden;">
 
     {# Tabs header #}
-    <div style="border-bottom:1px solid var(--border-base,#E5E7EB);display:flex;gap:4px;padding:0 8px;">
+    <div style="border-bottom:1px solid var(--border-base,#E5E7EB);display:flex;gap:12px;padding:0 8px;">
       <button @click="tab='beneficiarios'" type="button"
-              style="padding:12px 16px;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color var(--duration-fast,150ms),border-color var(--duration-fast,150ms);display:flex;align-items:center;gap:6px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;"
-              :style="tab==='beneficiarios' ? 'color:var(--text-fg-brand,#5059BC);border-bottom-color:var(--bg-brand,#5059BC);font-weight:700;' : 'color:var(--text-body-subtle,#6B7280);font-weight:500;'"
-              :class="tab==='beneficiarios' ? '' : 'hover:text-body'">
+              class="becas-tab-btn"
+              :class="tab==='beneficiarios' ? 'is-active' : 'is-inactive'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
         Beneficiarios
         <span x-cloak
@@ -130,9 +142,8 @@
               style="font-size:11px;font-weight:700;padding:1px 7px;">{{ beneficiarios|length }}</span>
       </button>
       <button @click="tab='lista_espera'" type="button"
-              style="padding:12px 16px;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color var(--duration-fast,150ms),border-color var(--duration-fast,150ms);display:flex;align-items:center;gap:6px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;"
-              :style="tab==='lista_espera' ? 'color:var(--text-fg-brand,#5059BC);border-bottom-color:var(--bg-brand,#5059BC);font-weight:700;' : 'color:var(--text-body-subtle,#6B7280);font-weight:500;'"
-              :class="tab==='lista_espera' ? '' : 'hover:text-body'">
+              class="becas-tab-btn"
+              :class="tab==='lista_espera' ? 'is-active' : 'is-inactive'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
         Lista de espera
         <span x-cloak
@@ -140,9 +151,8 @@
               style="font-size:11px;font-weight:700;padding:1px 7px;">{{ lista_espera|length }}</span>
       </button>
       <button @click="tab='pendientes'" type="button"
-              style="padding:12px 16px;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color var(--duration-fast,150ms),border-color var(--duration-fast,150ms);display:flex;align-items:center;gap:6px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;"
-              :style="tab==='pendientes' ? 'color:var(--text-fg-brand,#5059BC);border-bottom-color:var(--bg-brand,#5059BC);font-weight:700;' : 'color:var(--text-body-subtle,#6B7280);font-weight:500;'"
-              :class="tab==='pendientes' ? '' : 'hover:text-body'">
+              class="becas-tab-btn"
+              :class="tab==='pendientes' ? 'is-active' : 'is-inactive'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         Pendientes de cupo
         <span x-cloak
@@ -371,26 +381,19 @@
 {% endblock %}
 
 {% block customJS %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (function () {
   'use strict';
 
   function confirmarBaja(formularioPk, nombreCiudadano) {
-    Swal.fire({
+    ModernModal.show({
+      type: 'confirm',
+      danger: true,
       title: '¿Dar de baja al beneficiario?',
-      html: 'Se liberará 1 cupo en <strong>{{ segmento.nombre|escapejs }}</strong>. ¿Confirmar?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Confirmar',
-      cancelButtonText: 'Cancelar',
-      customClass: {
-        confirmButton: 'btn-nodo btn-danger',
-        cancelButton: 'btn-nodo btn-tertiary'
-      },
-      buttonsStyling: false
-    }).then(function (result) {
-      if (result.isConfirmed) {
+      message: 'Se liberará 1 cupo en "{{ segmento.nombre|escapejs }}". ¿Confirmar?',
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
         var form = document.getElementById('form-baja-' + formularioPk);
         if (form) form.submit();
       }
@@ -398,20 +401,13 @@
   }
 
   function confirmarPromover(lePk, nombreCiudadano) {
-    Swal.fire({
+    ModernModal.show({
+      type: 'confirm',
       title: '¿Promover a ' + nombreCiudadano + ' como beneficiario?',
-      html: 'Ocupará 1 cupo en <strong>{{ segmento.nombre|escapejs }}</strong>.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Promover',
-      cancelButtonText: 'Cancelar',
-      customClass: {
-        confirmButton: 'btn-nodo btn-brand',
-        cancelButton: 'btn-nodo btn-tertiary'
-      },
-      buttonsStyling: false
-    }).then(function (result) {
-      if (result.isConfirmed) {
+      message: 'Ocupará 1 cupo en "{{ segmento.nombre|escapejs }}".',
+      confirmText: 'Promover',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
         var form = document.getElementById('form-promover-' + lePk);
         if (form) form.submit();
       }
@@ -419,20 +415,13 @@
   }
 
   function confirmarAgregarEspera(formularioPk, nombreCiudadano) {
-    Swal.fire({
+    ModernModal.show({
+      type: 'confirm',
       title: '¿Agregar a lista de espera?',
-      html: 'El formulario de <strong>' + nombreCiudadano + '</strong> se agregará al final de la lista de espera de <strong>{{ segmento.nombre|escapejs }}</strong>.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Agregar',
-      cancelButtonText: 'Cancelar',
-      customClass: {
-        confirmButton: 'btn-nodo btn-brand',
-        cancelButton: 'btn-nodo btn-tertiary'
-      },
-      buttonsStyling: false
-    }).then(function (result) {
-      if (result.isConfirmed) {
+      message: 'El formulario de "' + nombreCiudadano + '" se agregará al final de la lista de espera de "{{ segmento.nombre|escapejs }}".',
+      confirmText: 'Agregar',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
         var form = document.getElementById('form-espera-' + formularioPk);
         if (form) form.submit();
       }

@@ -1,0 +1,11 @@
+{% if item.es_archivo %}
+  {% if item.adjunto %}
+  <a href="{{ item.adjunto.archivo.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-fg-brand font-semibold hover:underline">
+    <i class="fas fa-paperclip"></i> Ver archivo
+  </a>
+  {% else %}
+  <span class="badge badge-danger">Sin adjunto</span>
+  {% endif %}
+{% else %}
+  {{ item.valor }}
+{% endif %}

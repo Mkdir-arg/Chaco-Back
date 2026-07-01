@@ -746,6 +746,15 @@
     {% endif %}
     {% endfor %}
 
+    {# Tab: Becas (contenido dedicado) #}
+    {% for solapa in solapas_programas %}
+    {% if solapa.id == 'becas' %}
+    <div id="tab-becas" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-becas">
+        {% include "programas/becas/_resumen_ciudadano.html" with formularios=becas_formularios estado_texto=becas_estado_texto estado_color=becas_estado_color segmento_nombre=becas_segmento_nombre fecha_envio=becas_fecha_envio Formulario=becas_Formulario %}
+    </div>
+    {% endif %}
+    {% endfor %}
+
     <!-- Tab: Conversaciones -->
     <div id="tab-conversaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-conversaciones">
         <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">

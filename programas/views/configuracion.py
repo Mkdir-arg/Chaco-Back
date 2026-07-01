@@ -161,10 +161,24 @@ class SegmentoUpdateView(_ConfigBecasMixin, UpdateView):
 
     def form_valid(self, form):
         self.object = form.save()
+        self._asignar_coordinador_si_corresponde()
         if is_ajax(self.request):
             return _segmentos_ajax(self.request, "Segmento actualizado.")
         messages.success(self.request, "Segmento actualizado.")
         return redirect(self.get_success_url())
+
+    def _asignar_coordinador_si_corresponde(self):
+        """Si el desplegable de coordinador trae un valor, asigna (RN de AsignacionCoordinadorForm)."""
+        coordinador_id = self.request.POST.get("coordinador")
+        if not coordinador_id:
+            return
+        form_coord = AsignacionCoordinadorForm({"coordinador": coordinador_id}, segmento=self.object)
+        if form_coord.is_valid():
+            form_coord.save()
+            messages.success(self.request, "Coordinador asignado.")
+        else:
+            for err in form_coord.errors.get("coordinador", []):
+                messages.error(self.request, err)
 
     def form_invalid(self, form):
         if is_ajax(self.request):

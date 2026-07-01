@@ -757,6 +757,53 @@ class Formulario(TimeStamped):
         return f"Formulario #{self.pk} (sin ciudadano)"
 
 
+class AdjuntoFormulario(TimeStamped):
+    """Archivo subido por el territorial para un campo tipo ARCHIVO (pregunta
+    global o requisito nativo) de un formulario (#82)."""
+
+    formulario = models.ForeignKey(
+        Formulario,
+        on_delete=models.CASCADE,
+        related_name="adjuntos",
+        verbose_name="Formulario",
+    )
+    pregunta_global = models.ForeignKey(
+        PreguntaGlobal,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="adjuntos_formulario",
+        verbose_name="Pregunta global",
+    )
+    requisito_nativo = models.ForeignKey(
+        RequisitoNativo,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="adjuntos_formulario",
+        verbose_name="Requisito nativo",
+    )
+    archivo = models.FileField(upload_to="becas/adjuntos/%Y/%m/", verbose_name="Archivo")
+
+    class Meta:
+        verbose_name = "Adjunto de formulario"
+        verbose_name_plural = "Adjuntos de formulario"
+        ordering = ["-creado"]
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(pregunta_global__isnull=False, requisito_nativo__isnull=True)
+                    | models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=False)
+                ),
+                name="adjunto_formulario_una_sola_referencia",
+            )
+        ]
+
+    def __str__(self):
+        campo = self.pregunta_global or self.requisito_nativo
+        return f"Formulario #{self.formulario_id} · {campo}"
+
+
 class TracaFormulario(models.Model):
     """Registro inmutable de una edición de campo de un formulario (RN-14/29).
     Solo se agrega, nunca se modifica."""

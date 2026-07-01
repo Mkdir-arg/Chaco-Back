@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from programas.models import Formulario, Relevamiento
+from programas.models import AdjuntoFormulario, Formulario, Relevamiento
 from programas.services.becas import definicion_formulario
 
 
@@ -83,4 +83,20 @@ class FormularioSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"datos_identificacion": "Se requiere al menos el DNI en datos_identificacion."}
                 )
+        return attrs
+
+
+class AdjuntoFormularioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdjuntoFormulario
+        fields = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
+        read_only_fields = ["id", "formulario", "creado"]
+
+    def validate(self, attrs):
+        pregunta = attrs.get("pregunta_global")
+        requisito = attrs.get("requisito_nativo")
+        if bool(pregunta) == bool(requisito):
+            raise serializers.ValidationError(
+                "Se requiere exactamente uno: pregunta_global o requisito_nativo."
+            )
         return attrs

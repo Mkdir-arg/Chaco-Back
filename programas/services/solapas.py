@@ -203,10 +203,9 @@ class SolapasService:
     def _obtener_solapa_becas(cls, ciudadano):
         """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
 
-        Usa URL pre-resuelta para evitar conflicto con url_params del template.
+        Sin 'url': se renderiza embebida en el legajo (tab-becas), igual que Resumen
+        o Conversaciones, en vez de redirigir a la página standalone.
         """
-        from django.urls import reverse
-
         from programas.models import Formulario, ListaEspera
         from programas.services.cupo import estado_relevante_becas
 
@@ -235,7 +234,55 @@ class SolapasService:
             "orden": 200,
             "estatica": False,
             "badge": badge,
-            "url": reverse("becas:becas_ciudadano_detalle", kwargs={"pk": ciudadano.pk}),
+        }
+
+    @classmethod
+    def obtener_resumen_becas_ciudadano(cls, ciudadano):
+        """Datos del resumen de Becas de un ciudadano (issue #80).
+
+        Reusado por la vista standalone (programas.views.solapas_becas) y por la tab
+        embebida "Becas" del legajo (legajos.selectors.ciudadanos.build_ciudadano_detail_context).
+        """
+        from programas.models import Formulario
+        from programas.services.cupo import estado_relevante_becas
+
+        formularios = list(
+            Formulario.objects.filter(ciudadano=ciudadano)
+            .select_related(
+                "relevamiento__convocatoria__segmento",
+                "relevamiento__convocatoria__subsegmento",
+            )
+            .prefetch_related("lista_espera")
+            .order_by("-creado")
+        )
+
+        # Anotar cada formulario con en_espera_activa usando el prefetch (sin queries extra)
+        for f in formularios:
+            f.en_espera_activa = any(not le.promovido for le in f.lista_espera.all())
+
+        if formularios:
+            estados = {f.estado for f in formularios}
+            en_espera = any(f.en_espera_activa for f in formularios)
+            estado_texto, estado_color = estado_relevante_becas(estados, en_espera)
+        else:
+            estado_texto, estado_color = "—", "gray"
+
+        # Stat cards basadas en formulario más reciente
+        formulario_reciente = formularios[0] if formularios else None
+        segmento_nombre = (
+            formulario_reciente.relevamiento.convocatoria.segmento.nombre
+            if formulario_reciente
+            else "—"
+        )
+        fecha_envio = formulario_reciente.creado if formulario_reciente else None
+
+        return {
+            "formularios": formularios,
+            "estado_texto": estado_texto,
+            "estado_color": estado_color,
+            "segmento_nombre": segmento_nombre,
+            "fecha_envio": fecha_envio,
+            "Formulario": Formulario,  # para acceder a Estado choices en template
         }
 
     @classmethod

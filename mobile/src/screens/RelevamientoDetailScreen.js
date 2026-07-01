@@ -582,6 +582,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         },
         validado_renaper: ['scan', 'renaper'].includes(identificationOrigin),
         data,
+        campos_definicion: detail?.campos_definicion || [],
         finalizar: false,
       });
       if (result?.syncResult?.offline || result?.syncResult?.failed > 0) {

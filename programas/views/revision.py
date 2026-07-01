@@ -9,7 +9,7 @@ aprobar/rechazar (con motivo) caso a caso. La validación SIS es un placeholder.
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView
 
@@ -20,9 +20,11 @@ from programas.models import (
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
+    TipoCampo,
 )
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
 from programas.services.becas import registrar_traza
+from programas.services.cupo import agregar_a_lista_espera, get_cupo_stats
 
 CAP = "becas.revisar"
 
@@ -88,17 +90,32 @@ def revision_formularios(request, relevamiento_pk):
 
 
 def _respuestas_resueltas(formulario):
-    """Arma listas legibles de respuestas (pregunta/requisito → valor)."""
+    """Arma listas legibles de respuestas (pregunta/requisito → valor).
+
+    Los campos tipo ARCHIVO no traen el archivo en ``data`` (ahí la app de
+    campo solo deja un placeholder tipo ``{"pendiente_upload": true}``): el
+    archivo real se resuelve contra ``AdjuntoFormulario`` (#82).
+    """
     data = formulario.data or {}
     globales = data.get("globales", {}) or {}
     requisitos = data.get("requisitos", {}) or {}
 
-    preg_map = {str(p.pk): p.texto for p in PreguntaGlobal.objects.all()}
+    preguntas = {str(p.pk): p for p in PreguntaGlobal.objects.all()}
     req_ids = [int(k) for k in requisitos.keys() if str(k).isdigit()]
-    req_map = {str(r.pk): r.texto for r in RequisitoNativo.objects.filter(pk__in=req_ids)}
+    requisitos_map = {str(r.pk): r for r in RequisitoNativo.objects.filter(pk__in=req_ids)}
 
-    globales_list = [(preg_map.get(str(k), f"Pregunta #{k}"), v) for k, v in globales.items()]
-    requisitos_list = [(req_map.get(str(k), f"Requisito #{k}"), v) for k, v in requisitos.items()]
+    adjuntos_pregunta = {a.pregunta_global_id: a for a in formulario.adjuntos.filter(pregunta_global__isnull=False)}
+    adjuntos_requisito = {a.requisito_nativo_id: a for a in formulario.adjuntos.filter(requisito_nativo__isnull=False)}
+
+    def _fila(campo_map, adjuntos_map, k, v):
+        campo = campo_map.get(str(k))
+        label = campo.texto if campo else f"Campo #{k}"
+        es_archivo = campo is not None and campo.tipo == TipoCampo.ARCHIVO
+        adjunto = adjuntos_map.get(int(k)) if es_archivo and str(k).isdigit() else None
+        return {"label": label, "valor": v, "es_archivo": es_archivo, "adjunto": adjunto}
+
+    globales_list = [_fila(preguntas, adjuntos_pregunta, k, v) for k, v in globales.items()]
+    requisitos_list = [_fila(requisitos_map, adjuntos_requisito, k, v) for k, v in requisitos.items()]
     return globales_list, requisitos_list
 
 
@@ -151,11 +168,25 @@ def formulario_aprobar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method == "POST":
-        formulario.estado = Formulario.Estado.APROBADO
-        formulario.motivo_rechazo = ""
-        formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
-        registrar_traza(formulario, request.user, [("estado", "ENVIADO", "APROBADO")])
-        messages.success(request, "Formulario aprobado.")
+        segmento = formulario.relevamiento.convocatoria.segmento
+        # RN-02/RN-03: el cupo se consume solo si hay disponibilidad; sin cupo,
+        # la persona validada-OK va a lista de espera (no se marca APROBADO,
+        # para no contarla en cupo_ocupado mientras espera).
+        if get_cupo_stats(segmento)["cupo_disponible"] > 0:
+            formulario.estado = Formulario.Estado.APROBADO
+            formulario.motivo_rechazo = ""
+            formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+            registrar_traza(formulario, request.user, [("estado", "ENVIADO", "APROBADO")])
+            messages.success(request, "Formulario aprobado.")
+        else:
+            try:
+                agregar_a_lista_espera(formulario, segmento, request.user)
+                messages.warning(
+                    request,
+                    f"No hay cupo disponible en {segmento.nombre}: se agregó a la lista de espera.",
+                )
+            except ValidationError as e:
+                messages.error(request, e.message)
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 

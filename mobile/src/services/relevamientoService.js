@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SQLite from 'expo-sqlite';
-import { becasRequest } from './becasApi';
+import { becasRequest, becasUploadFile } from './becasApi';
 
 const LOCAL_RELEVAMIENTOS_KEY = 'field_relevamientos_records';
 const SYNC_QUEUE_KEY = 'field_relevamientos_sync_queue';
@@ -728,6 +728,33 @@ const readQueue = async () => {
   return rows.map(mapOutboxRow);
 };
 
+// Sube al backend las fotos de DNI ya capturadas por la cámara (hoy quedaban
+// solo como URI local en data.meta.dni_fotos, sin llegar nunca al servidor).
+// Matchea por texto del campo ARCHIVO ("Frente"/"Dorso") contra
+// campos_definicion — el id real de la PreguntaGlobal no es fijo entre
+// entornos. Si falla la subida de una foto no bloquea el alta del formulario:
+// queda pendiente y se puede reintentar/cargar a mano desde el backoffice.
+const subirAdjuntosDniFormulario = async (formularioId, camposDefinicion = [], dniFotos = {}) => {
+  const archivos = (camposDefinicion || []).filter((f) => f.tipo === 'ARCHIVO');
+  const campoFrente = archivos.find((f) => /frente/i.test(f.texto || ''));
+  const campoDorso = archivos.find((f) => /dorso/i.test(f.texto || ''));
+  const pendientes = [
+    campoFrente?.original_id && dniFotos?.frente ? { field: campoFrente, uri: dniFotos.frente } : null,
+    campoDorso?.original_id && dniFotos?.dorso ? { field: campoDorso, uri: dniFotos.dorso } : null,
+  ].filter(Boolean);
+
+  for (const { field, uri } of pendientes) {
+    try {
+      await becasUploadFile(`/api/becas/formularios/${formularioId}/adjuntos/`, {
+        fileUri: uri,
+        fields: { pregunta_global: field.original_id },
+      });
+    } catch (error) {
+      console.warn(`No se pudo subir el adjunto "${field.texto}":`, error?.message);
+    }
+  }
+};
+
 const syncRemoteBecasFormulario = async (payload = {}) => {
   const relevamientoId = payload.relevamiento_id || payload.relevamientoId;
   if (!relevamientoId) {
@@ -749,6 +776,11 @@ const syncRemoteBecasFormulario = async (payload = {}) => {
       data: payload.data || { globales: {}, requisitos: {} },
     },
   });
+
+  const dniFotos = payload?.data?.meta?.dni_fotos;
+  if (dniFotos && (dniFotos.frente || dniFotos.dorso)) {
+    await subirAdjuntosDniFormulario(formulario.id, payload.campos_definicion, dniFotos);
+  }
 
   if (payload.finalizar !== false) {
     try {
