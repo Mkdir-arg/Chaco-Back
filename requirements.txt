@@ -1,3 +1,6 @@
+# Requerido por django-silk 5.0.4 (usa pkg_resources); setuptools>=81 lo eliminó
+setuptools<81
+
 # Django Core
 Django==4.2.30
 djangorestframework==3.15.2
