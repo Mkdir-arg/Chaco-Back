@@ -67,7 +67,6 @@
 | 2026-06-24 | Agostina Coppola | Análisis funcional | Análisis de legajos en curso | 120 min |
 | 2026-06-24 | Juani Portilla | Becas | Desarrollo del módulo de asignación de cupos (en curso) | 90 min |
 | 2026-06-24 | Pablo Cao | App mobile y app web | Ajuste de diseño y maqueta de la app; merge de development; limpieza de la app web para quitar la capa de branding dinamico y dejar Chaco fijo sin depender del .env; validacion de Django y templates principales. | 274 min |
-
 | 2026-06-18 | Agostina Coppola | Análisis y testing | Testing requerimientos y análisis de legajos dispositivos/merenderos  | 370 min |
 | 2026-06-24 | Juani Portilla | Becas #73 — Modelos de datos | Modelos de dominio Becas: Segmento, Subsegmento, Convocatoria, Relevamiento, Formulario, TracaFormulario, helpers y seed | 90 min |
 | 2026-06-24 | Juani Portilla | Becas #79 — Roles RBAC | Roles Admin/Coordinador/Territorial integrados al motor de capacidades con scoping por segmento | 90 min |
@@ -82,8 +81,22 @@
 
 ---
 
+## :material-account-group: Consumo de junio por persona
+
+| Persona | Foco principal (según registros) | Horas junio |
+|---|---|---:|
+| Juani Portilla | Desarrollo backend (RBAC + Becas) y Design System | 56 h 45 min |
+| Agostina Coppola | Análisis funcional y testing (legajos, dispositivos/merenderos) | 52 h 17 min |
+| Matías Fariña | Análisis funcional, estimación y gestión del sprint | 49 h 11 min |
+| Pablo Cao | App móvil de relevamiento (diseño, desarrollo e integración) | 40 h 59 min |
+| **Total junio 2026** | | **199 h 12 min** |
+
+---
+
 ## :material-counter: Total consumido
 
 !!! success "Contador total"
 
     **12260 minutos** (204 h 20 min)
+
+    Junio 2026: **11.952 min (199 h 12 min)** · Julio 2026 (al 01/07): **308 min (5 h 8 min)**
