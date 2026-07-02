@@ -16,7 +16,12 @@ trabajaron pero no se cargaron en su momento.
    financiero de junio. **Nada entra al reporte cliente sin pasar por acá.**
 
 Estado actual del registro público (ya cargado, no repetir):
-**Junio = 199 h 12 min** — Juani 56:45 · Agostina 52:17 · Matías 49:11 · Pablo 40:59.
+**Junio = 499 h 12 min** — Juani 113:25 · Matías 112:31 · Agostina 112:17 · Pablo 95:59 · Equipo UX 65:00.
+
+> **Actualización 02/07/2026:** se consolidaron en el registro público **300 h** de regularización
+> (23/06–30/06): front de la app de campo (Pablo, 55 h), backend de Becas (Juani, 56:40),
+> análisis del programa Dispositivos (Matías 63:20 + Agostina 60:00) y mockups del equipo UX (65 h).
+> Las grillas por persona de abajo quedan como respaldo histórico del relevamiento.
 
 ---
 
