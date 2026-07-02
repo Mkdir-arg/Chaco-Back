@@ -4,187 +4,116 @@
    ======================================== */
 
 :root {
-  /* === COLORES PRIMARIOS === */
-  --color-primario: #1e3a8a;           /* Azul institucional principal */
-  --color-primario-claro: #3b82f6;     /* Azul primario claro */
-  --color-primario-oscuro: #1e40af;    /* Azul primario oscuro */
-  
-  /* === COLORES SECUNDARIOS === */
-  --color-secundario: #475569;         /* Gris azulado profesional */
-  --color-secundario-claro: #64748b;   /* Gris azulado claro */
-  --color-secundario-oscuro: #334155;  /* Gris azulado oscuro */
-  
-  /* === COLORES DE ACENTO === */
-  --color-acento: #0f766e;             /* Verde azulado formal */
-  --color-acento-claro: #14b8a6;       /* Verde azulado claro */
-  --color-acento-oscuro: #0d9488;      /* Verde azulado oscuro */
-  
+  /* === COLORES PRIMARIOS (solo --color-primario tiene consumo vivo: custom.css .card-header) === */
+  --color-primario: var(--border-base);
+
   /* === COLORES DE ESTADO === */
-  --color-exito: #059669;              /* Verde éxito */
-  --color-exito-claro: #10b981;        /* Verde éxito claro */
-  --color-exito-fondo: #ecfdf5;        /* Fondo verde claro */
-  
-  --color-advertencia: #d97706;        /* Naranja advertencia */
-  --color-advertencia-claro: #f59e0b;  /* Naranja advertencia claro */
-  --color-advertencia-fondo: #fffbeb;  /* Fondo naranja claro */
-  
-  --color-error: #dc2626;              /* Rojo error */
-  --color-error-claro: #ef4444;        /* Rojo error claro */
-  --color-error-fondo: #fef2f2;        /* Fondo rojo claro */
-  
-  --color-info: #2563eb;               /* Azul información */
-  --color-info-claro: #3b82f6;         /* Azul información claro */
-  --color-info-fondo: #eff6ff;         /* Fondo azul claro */
-  
-  /* === COLORES NEUTROS === */
-  --color-blanco: #ffffff;
-  --color-gris-50: #f8fafc;
-  --color-gris-100: #f1f5f9;
-  --color-gris-200: #e2e8f0;
-  --color-gris-300: #cbd5e1;
-  --color-gris-400: #94a3b8;
-  --color-gris-500: #64748b;
-  --color-gris-600: #475569;
-  --color-gris-700: #334155;
-  --color-gris-800: #1e293b;
-  --color-gris-900: #0f172a;
-  
+  --color-exito-fondo: var(--bg-success-soft);
+  /* consumo vivo marginal: borde de .alert-info (modal_reabrir_caso.html) y clases generadas por JS (performance_dashboard.html) */
+  --color-info: var(--border-brand);
+
+  /* === COLORES NEUTROS (vivos: gris-50/100 en el gradiente de .card-header legacy) === */
+  --color-gris-50: var(--bg-secondary);
+  --color-gris-100: var(--bg-tertiary);
+
   /* === COLORES DE FONDO === */
-  --fondo-principal: #f8fafc;
-  --fondo-secundario: #ffffff;
-  --fondo-sidebar: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
-  --fondo-header: var(--color-primario);
-  --fondo-footer: var(--color-gris-800);
-  
+  --fondo-principal: var(--bg-secondary);
+
   /* === COLORES DE TEXTO === */
-  --texto-primario: var(--color-gris-900);
-  --texto-secundario: var(--color-gris-600);
-  --texto-claro: var(--color-gris-400);
-  --texto-blanco: var(--color-blanco);
-  
-  /* === COLORES DE BORDE === */
-  --borde-principal: var(--color-gris-200);
-  --borde-secundario: var(--color-gris-300);
-  --borde-acento: var(--color-acento);
-  
-  /* === SOMBRAS === */
-  --sombra-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --sombra-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  
-  /* === TRANSICIONES === */
-  --transicion-rapida: 150ms ease-in-out;
-  --transicion-normal: 300ms ease-in-out;
-  --transicion-lenta: 500ms ease-in-out;
+  --texto-primario: var(--text-heading);
+
+  /* === SOMBRAS (viva: --sombra-sm en text-shadow de .card-title legacy) === */
+  --sombra-sm: var(--shadow-xs);
 }
 
 /* ========================================
    CLASES UTILITARIAS DE COLORES
+   NOTA: sin consumidores en templates (código muerto). Se conservan por ser
+   parte del puente legacy, tokenizadas para no referenciar variables eliminadas.
    ======================================== */
 
 /* Fondos */
 .bg-primario { background-color: var(--color-primario) !important; }
-.bg-primario-claro { background-color: var(--color-primario-claro) !important; }
-.bg-primario-oscuro { background-color: var(--color-primario-oscuro) !important; }
+.bg-secundario { background-color: var(--bg-brand) !important; }
+.bg-acento { background-color: var(--bg-pink) !important; }
 
-.bg-secundario { background-color: var(--color-secundario) !important; }
-.bg-secundario-claro { background-color: var(--color-secundario-claro) !important; }
-.bg-secundario-oscuro { background-color: var(--color-secundario-oscuro) !important; }
-
-.bg-acento { background-color: var(--color-acento) !important; }
-.bg-acento-claro { background-color: var(--color-acento-claro) !important; }
-.bg-acento-oscuro { background-color: var(--color-acento-oscuro) !important; }
-
-.bg-exito { background-color: var(--color-exito) !important; }
-.bg-advertencia { background-color: var(--color-advertencia) !important; }
-.bg-error { background-color: var(--color-error) !important; }
-.bg-info { background-color: var(--color-info) !important; }
+.bg-exito { background-color: var(--bg-success) !important; }
+.bg-advertencia { background-color: var(--bg-warning) !important; }
+.bg-error { background-color: var(--bg-danger) !important; }
+.bg-info { background-color: var(--bg-info-soft) !important; }
 
 /* Textos */
 .text-primario { color: var(--color-primario) !important; }
-.text-primario-claro { color: var(--color-primario-claro) !important; }
-.text-primario-oscuro { color: var(--color-primario-oscuro) !important; }
+.text-secundario { color: var(--text-fg-brand) !important; }
+.text-acento { color: var(--text-fg-brand) !important; }
 
-.text-secundario { color: var(--color-secundario) !important; }
-.text-secundario-claro { color: var(--color-secundario-claro) !important; }
-.text-secundario-oscuro { color: var(--color-secundario-oscuro) !important; }
-
-.text-acento { color: var(--color-acento) !important; }
-.text-acento-claro { color: var(--color-acento-claro) !important; }
-.text-acento-oscuro { color: var(--color-acento-oscuro) !important; }
-
-.text-exito { color: var(--color-exito) !important; }
-.text-advertencia { color: var(--color-advertencia) !important; }
-.text-error { color: var(--color-error) !important; }
-.text-info { color: var(--color-info) !important; }
+.text-exito { color: var(--text-fg-success) !important; }
+.text-advertencia { color: var(--text-fg-warning-subtle) !important; }
+.text-error { color: var(--text-fg-danger) !important; }
+.text-info { color: var(--text-fg-info) !important; }
 
 /* Bordes */
 .border-primario { border-color: var(--color-primario) !important; }
-.border-secundario { border-color: var(--color-secundario) !important; }
-.border-acento { border-color: var(--color-acento) !important; }
+.border-secundario { border-color: var(--border-brand) !important; }
+.border-acento { border-color: var(--border-brand) !important; }
 
 /* ========================================
    COMPONENTES BASE CON PALETA UNIFICADA
+   NOTA: sin consumidores en templates (código muerto). Tokenizadas por consistencia.
    ======================================== */
 
 /* Botones */
 .btn-primario {
-  background-color: var(--color-primario);
-  border-color: var(--color-primario);
-  color: var(--color-blanco);
-  transition: var(--transicion-normal);
+  background-color: var(--bg-brand);
+  border-color: var(--bg-brand);
+  color: var(--text-white);
 }
 
 .btn-primario:hover {
-  background-color: var(--color-primario-oscuro);
-  border-color: var(--color-primario-oscuro);
+  background-color: var(--bg-brand-strong);
+  border-color: var(--bg-brand-strong);
   transform: translateY(-1px);
-  box-shadow: var(--sombra-md);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-secundario {
-  background-color: var(--color-secundario);
-  border-color: var(--color-secundario);
-  color: var(--color-blanco);
-  transition: var(--transicion-normal);
+  background-color: var(--bg-brand);
+  border-color: var(--bg-brand);
+  color: var(--text-white);
 }
 
 .btn-secundario:hover {
-  background-color: var(--color-secundario-oscuro);
-  border-color: var(--color-secundario-oscuro);
+  background-color: var(--bg-brand-strong);
+  border-color: var(--bg-brand-strong);
 }
 
 .btn-acento {
-  background-color: var(--color-acento);
-  border-color: var(--color-acento);
-  color: var(--color-blanco);
-  transition: var(--transicion-normal);
+  background-color: var(--bg-pink);
+  border-color: var(--bg-pink);
+  color: var(--text-white);
 }
 
 .btn-acento:hover {
-  background-color: var(--color-acento-oscuro);
-  border-color: var(--color-acento-oscuro);
+  filter: brightness(0.93);
 }
 
 /* Cards */
 .card-unificada {
-  background-color: var(--fondo-secundario);
-  border: 1px solid var(--borde-principal);
+  background-color: var(--bg-white);
+  border: 1px solid var(--border-base);
   border-radius: 12px;
   box-shadow: var(--sombra-sm);
-  transition: var(--transicion-normal);
 }
 
 .card-unificada:hover {
-  box-shadow: var(--sombra-md);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
 .card-header-unificada {
-  background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-claro) 100%);
-  color: var(--color-blanco);
-  border-bottom: 2px solid var(--color-acento);
+  background: var(--gradient-brand);
+  color: var(--text-white);
+  border-bottom: 2px solid var(--bg-pink);
   border-radius: 12px 12px 0 0;
   padding: 1rem 1.5rem;
 }
@@ -192,68 +121,65 @@
 /* Alertas */
 .alert-exito {
   background-color: var(--color-exito-fondo);
-  border-color: var(--color-exito);
-  color: var(--color-exito-oscuro);
+  border-color: var(--bg-success);
+  color: var(--text-fg-success-strong);
 }
 
 .alert-advertencia {
-  background-color: var(--color-advertencia-fondo);
-  border-color: var(--color-advertencia);
-  color: var(--color-advertencia-oscuro);
+  background-color: var(--bg-warning-soft);
+  border-color: var(--bg-warning);
+  color: var(--text-fg-warning-subtle);
 }
 
 .alert-error {
-  background-color: var(--color-error-fondo);
-  border-color: var(--color-error);
-  color: var(--color-error-oscuro);
+  background-color: var(--bg-danger-soft);
+  border-color: var(--bg-danger);
+  color: var(--text-fg-danger-strong);
 }
 
 .alert-info {
-  background-color: var(--color-info-fondo);
+  background-color: var(--bg-info-soft);
   border-color: var(--color-info);
-  color: var(--color-info-oscuro);
+  color: var(--text-fg-info);
 }
 
 /* Badges */
 .badge-primario {
   background-color: var(--color-primario);
-  color: var(--color-blanco);
+  color: var(--text-white);
 }
 
 .badge-secundario {
-  background-color: var(--color-secundario);
-  color: var(--color-blanco);
+  background-color: var(--bg-brand);
+  color: var(--text-white);
 }
 
 .badge-acento {
-  background-color: var(--color-acento);
-  color: var(--color-blanco);
+  background-color: var(--bg-pink);
+  color: var(--text-white);
 }
 
 .badge-exito {
-  background-color: var(--color-exito);
-  color: var(--color-blanco);
+  background-color: var(--bg-success);
+  color: var(--text-white);
 }
 
 .badge-advertencia {
-  background-color: var(--color-advertencia);
-  color: var(--color-blanco);
+  background-color: var(--bg-warning);
+  color: var(--text-white);
 }
 
 .badge-error {
-  background-color: var(--color-error);
-  color: var(--color-blanco);
+  background-color: var(--bg-danger);
+  color: var(--text-white);
 }
 
 /* ========================================
    MODO OSCURO (OPCIONAL)
+   NOTA: sin activador en runtime (base.js que setea data-theme no se carga).
    ======================================== */
 
 [data-theme="dark"] {
-  --fondo-principal: var(--color-gris-900);
-  --fondo-secundario: var(--color-gris-800);
-  --texto-primario: var(--color-gris-100);
-  --texto-secundario: var(--color-gris-300);
-  --borde-principal: var(--color-gris-700);
-  --borde-secundario: var(--color-gris-600);
+  --fondo-principal: var(--bg-secondary);
+  --texto-primario: var(--text-heading);
 }

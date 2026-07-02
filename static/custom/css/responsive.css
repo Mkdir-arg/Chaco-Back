@@ -318,8 +318,8 @@ code,
 
 .card-responsive-header {
     padding: 1rem;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    border-bottom: 1px solid var(--border-base);
+    background: var(--bg-secondary);
 }
 
 .card-responsive-body {
@@ -432,11 +432,11 @@ code,
 /* High contrast mode support */
 @media (prefers-contrast: high) {
     .card-responsive {
-        border: 2px solid #000;
+        border: 2px solid var(--text-black);
     }
-    
+
     .btn-primary {
-        border: 2px solid #000;
+        border: 2px solid var(--text-black);
     }
 }
 
@@ -451,13 +451,13 @@ code,
 
 /* Focus improvements for accessibility */
 .focus-visible:focus {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--border-brand);
     outline-offset: 2px;
 }
 
 /* Loading states */
 .loading-skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 50%, var(--bg-tertiary) 75%);
     background-size: 200% 100%;
     animation: loading 1.5s infinite;
 }
@@ -483,5 +483,5 @@ code,
     top: 0;
     z-index: 10;
     background: white;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-base);
 }

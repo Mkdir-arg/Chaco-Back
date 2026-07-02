@@ -70,22 +70,22 @@
   </div>
 
   {# Pestañas #}
-  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
-    <div class="border-b border-[#E5E7EB] flex gap-1 px-2">
+  <div class="bg-white rounded-xl border border-base shadow-sm">
+    <div class="border-b border-base flex gap-1 px-2">
       <button @click="tab='info'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='info' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-id-card"></i> Información general
       </button>
       <button @click="tab='subs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='subs' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='subs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-list"></i> Subsegmentos
         <span class="badge badge-gray ml-0.5">{{ subsegmentos|length }}</span>
       </button>
       <button @click="tab='reqs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='reqs' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='reqs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-clipboard-list"></i> Requisitos del segmento
         <span class="badge badge-gray ml-0.5">{{ requisitos|length }}</span>
       </button>
@@ -96,7 +96,7 @@
 
       {# Stat cards de cupo #}
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+        <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm text-body-subtle font-medium">Cupo total</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)">
@@ -105,7 +105,7 @@
           </div>
           <p class="text-3xl font-bold text-heading">{{ segmento.cupo_maximo }}</p>
         </div>
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+        <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm text-body-subtle font-medium">Cupo distribuido</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-success-soft text-fg-success">
@@ -114,7 +114,7 @@
           </div>
           <p class="text-3xl font-bold text-heading">{{ segmento.cupo_distribuido }}</p>
         </div>
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+        <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm text-body-subtle font-medium">Cupo disponible</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand">
@@ -158,7 +158,7 @@
           </form>
 
           {# Coordinadores asignados — lista con botones de quitar + alta (issue #74) #}
-          <div class="border-t border-[#F3F4F6] pt-5">
+          <div class="border-t border-light pt-5">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-sm font-bold text-heading">Coordinadores asignados</h3>
             </div>
@@ -196,20 +196,20 @@
 
         {# Columna derecha: ocupación + resumen #}
         <div class="space-y-5">
-          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Distribución del cupo</h3>
             {% widthratio segmento.cupo_distribuido segmento.cupo_maximo 100 as pct %}
             <div class="flex justify-between text-sm mb-1">
               <span class="text-body-subtle">{{ segmento.cupo_distribuido }} de {{ segmento.cupo_maximo }}</span>
               <span class="font-bold text-heading">{{ pct }}%</span>
             </div>
-            <div class="h-2 w-full rounded-full bg-[#F3F4F6] overflow-hidden">
+            <div class="h-2 w-full rounded-full bg-tertiary overflow-hidden">
               <div class="h-2 rounded-full" style="width: {{ pct }}%; background: var(--gradient-brand)"></div>
             </div>
             <p class="text-xs text-body-subtle mt-2">{{ segmento.cupo_disponible }} lugares disponibles</p>
           </div>
 
-          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Resumen</h3>
             <dl class="space-y-2.5 text-sm">
               <div class="flex justify-between items-center">

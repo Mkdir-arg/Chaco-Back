@@ -1,7 +1,7 @@
-{# Envío de formularios de modales vía fetch() (sin recarga). Marcar el form con
+{% comment %}Envío de formularios de modales vía fetch() (sin recarga). Marcar el form con
    data-ajax. Errores inline: poner <p data-error="nombre_campo"> dentro del form.
    Al guardar OK, se dispara el evento window 'becas-saved' (los modales Alpine lo
-   escuchan para cerrarse) y se reemplaza el contenido del target devuelto. #}
+   escuchan para cerrarse) y se reemplaza el contenido del target devuelto.{% endcomment %}
 <script>
 (function () {
   function getCookie(name) {

@@ -10,7 +10,7 @@
         <div class="flex items-center gap-4 mb-4">
             <div class="flex items-center justify-center" >
                 
-                <i class="fas fa-user-plus text-transparent" style="font-size: 1.5rem; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                <i class="fas fa-user-plus text-transparent" style="font-size: 1.5rem; background-image: var(--gradient-brand); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                 
             </div>
             <div>
@@ -25,7 +25,7 @@
                 <li>
                     <a href="{% url 'legajos:ciudadanos' %}" class="text-gray-400 hover:text-gray-500">
                         
-                        <i class="fas fa-users text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+                        <i class="fas fa-users text-transparent" style="background-image: var(--gradient-brand); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                         
                         <span class="sr-only">Ciudadanos</span>
                     </a>
@@ -49,62 +49,62 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Datos de RENAPER -->
         <div class="lg:col-span-1">
-            <div class="rounded-lg p-6" style="background: #F5F5F5; border: 1px solid #576784;">
+            <div class="rounded-lg p-6" style="background: var(--bg-secondary); border: 1px solid var(--border-base);">
                 <div class="flex items-center mb-4">
-                    <i class="fas fa-database text-lg mr-2" style="color: #576784;"></i>
-                    <h3 class="text-lg font-medium" style="color: #576784;">Datos de RENAPER</h3>
+                    <i class="fas fa-database text-lg mr-2" style="color: var(--text-body-subtle);"></i>
+                    <h3 class="text-lg font-medium" style="color: var(--text-heading);">Datos de RENAPER</h3>
                 </div>
-                
+
                 {% if datos_api %}
                     <div class="space-y-3 text-sm">
                         {% if datos_api.apellido %}
                             <div>
-                                <span class="font-medium" style="color: #576784;">Apellido:</span>
-                                <span style="color: #576784;">{{ datos_api.apellido }}</span>
+                                <span class="font-medium" style="color: var(--text-heading);">Apellido:</span>
+                                <span style="color: var(--text-body);">{{ datos_api.apellido }}</span>
                             </div>
                         {% endif %}
-                        
+
                         {% if datos_api.nombres %}
                             <div>
-                                <span class="font-medium" style="color: #576784;">Nombres:</span>
-                                <span style="color: #576784;">{{ datos_api.nombres }}</span>
+                                <span class="font-medium" style="color: var(--text-heading);">Nombres:</span>
+                                <span style="color: var(--text-body);">{{ datos_api.nombres }}</span>
                             </div>
                         {% endif %}
-                        
+
                         {% if datos_api.fechaNacimiento %}
                             <div>
-                                <span class="font-medium" style="color: #576784;">Fecha Nacimiento:</span>
-                                <span style="color: #576784;">{{ datos_api.fechaNacimiento }}</span>
+                                <span class="font-medium" style="color: var(--text-heading);">Fecha Nacimiento:</span>
+                                <span style="color: var(--text-body);">{{ datos_api.fechaNacimiento }}</span>
                             </div>
                         {% endif %}
-                        
+
                         {% if datos_api.calle %}
                             <div>
-                                <span class="font-medium" style="color: #576784;">Domicilio:</span>
-                                <span style="color: #576784;">{{ datos_api.calle }} {{ datos_api.numero }}</span>
-                                {% if datos_api.piso %}<br><span style="color: #576784;">Piso: {{ datos_api.piso }}</span>{% endif %}
-                                {% if datos_api.departamento %}<br><span style="color: #576784;">Depto: {{ datos_api.departamento }}</span>{% endif %}
+                                <span class="font-medium" style="color: var(--text-heading);">Domicilio:</span>
+                                <span style="color: var(--text-body);">{{ datos_api.calle }} {{ datos_api.numero }}</span>
+                                {% if datos_api.piso %}<br><span style="color: var(--text-body);">Piso: {{ datos_api.piso }}</span>{% endif %}
+                                {% if datos_api.departamento %}<br><span style="color: var(--text-body);">Depto: {{ datos_api.departamento }}</span>{% endif %}
                             </div>
                         {% endif %}
-                        
+
                         {% if datos_api.ciudad %}
                             <div>
-                                <span class="font-medium" style="color: #576784;">Ciudad:</span>
-                                <span style="color: #576784;">{{ datos_api.ciudad }}</span>
+                                <span class="font-medium" style="color: var(--text-heading);">Ciudad:</span>
+                                <span style="color: var(--text-body);">{{ datos_api.ciudad }}</span>
                             </div>
                         {% endif %}
-                        
+
                         {% if datos_api.provincia %}
                             <div>
-                                <span class="font-medium" style="color: #576784;">Provincia:</span>
-                                <span style="color: #576784;">{{ datos_api.provincia }}</span>
+                                <span class="font-medium" style="color: var(--text-heading);">Provincia:</span>
+                                <span style="color: var(--text-body);">{{ datos_api.provincia }}</span>
                             </div>
                         {% endif %}
                     </div>
                 {% endif %}
-                
-                <div class="mt-4 p-3 rounded-md" style="background: #F5F5F5;">
-                    <p class="text-xs" style="color: #576784;">
+
+                <div class="mt-4 p-3 rounded-md" style="background: var(--bg-tertiary);">
+                    <p class="text-xs" style="color: var(--text-body-subtle);">
                         <i class="fas fa-info-circle mr-1"></i>
                         Estos datos fueron obtenidos automáticamente de RENAPER y se han precargado en el formulario.
                     </p>
@@ -233,8 +233,8 @@
                             Volver
                         </a>
                         
-                        <button type="submit" 
-                                class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <button type="submit"
+                                class="btn-nodo btn-brand btn-base">
                             <i class="fas fa-save mr-2"></i>
                             Crear Ciudadano
                         </button>

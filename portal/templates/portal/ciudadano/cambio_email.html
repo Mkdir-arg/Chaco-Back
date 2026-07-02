@@ -8,11 +8,18 @@
 {% if messages %}
 <div class="mb-6 space-y-2 animate-fadeInUp">
     {% for message in messages %}
-    <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
-                {% if message.tags == 'success' %}bg-green-50 text-green-700 border border-green-200
-                {% elif message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
-                {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
-        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} flex-shrink-0"></i>
+    <div class="flex items-center gap-3 px-4 py-3 text-sm font-medium"
+         style="border-radius: var(--radius-xl);
+                {% if message.tags == 'success' %}background: var(--bg-success-soft); color: var(--text-fg-success); border: 1px solid var(--border-success-subtle);
+                {% elif message.tags == 'error' %}background: var(--bg-danger-soft); color: var(--text-fg-danger); border: 1px solid var(--border-danger-subtle);
+                {% else %}background: var(--bg-info-soft); color: var(--text-fg-info); border: 1px solid var(--color-brand-200);{% endif %}">
+        {% if message.tags == 'success' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>
+        {% elif message.tags == 'error' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path></svg>
+        {% else %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path></svg>
+        {% endif %}
         {{ message }}
     </div>
     {% endfor %}
@@ -20,34 +27,37 @@
 {% endif %}
 
 <div class="max-w-lg mx-auto animate-fadeInUp">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6">
+    <div class="bg-white p-6" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
 
         <!-- Encabezado -->
         <div class="flex items-center space-x-3 mb-6">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                <i class="fas fa-envelope text-white"></i>
+            <div class="w-10 h-10 flex items-center justify-center" style="border-radius: var(--radius-lg); background: var(--gradient-brand);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #fff;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"></path>
+                </svg>
             </div>
             <div>
-                <h2 class="text-lg font-bold text-[#252F40]">Cambiar email</h2>
-                <p class="text-xs text-[#8C8C8C]">Recibirás un enlace de confirmación</p>
+                <h2 class="text-lg font-bold" style="color: var(--text-heading);">Cambiar email</h2>
+                <p class="text-xs" style="color: var(--text-body-subtle);">Recibirás un enlace de confirmación</p>
             </div>
         </div>
 
         <!-- Email actual -->
-        <div class="mb-5 px-4 py-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
-            <p class="text-xs text-[#8C8C8C] mb-0.5">Email actual</p>
+        <div class="mb-5 px-4 py-3" style="border-radius: var(--radius-xl); background: var(--bg-secondary); border: 1px solid var(--border-base);">
+            <p class="text-xs mb-0.5" style="color: var(--text-body-subtle);">Email actual</p>
             {% if ciudadano.email %}
-            <p class="text-sm font-medium text-[#252F40] break-all">{{ ciudadano.email }}</p>
+            <p class="text-sm font-medium break-all" style="color: var(--text-heading);">{{ ciudadano.email }}</p>
             {% else %}
-            <p class="text-sm text-[#C0C0C0] italic">Sin email registrado</p>
+            <p class="text-sm italic" style="color: var(--text-disabled);">Sin email registrado</p>
             {% endif %}
         </div>
 
         <!-- Aviso informativo -->
-        <div class="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
-            <i class="fas fa-info-circle mt-0.5 flex-shrink-0"></i>
-            <p>Recibirás un email de confirmación en la nueva dirección. El cambio no se aplicará hasta que hagas clic en el enlace de confirmación. El enlace vence en 24 horas.</p>
+        <div class="mb-5 flex items-start gap-3 px-4 py-3 text-sm" style="border-radius: var(--radius-xl); background: var(--bg-info-soft); border: 1px solid var(--color-brand-200); color: var(--text-fg-info);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; margin-top:2px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path>
+            </svg>
+            <p class="m-0">Recibirás un email de confirmación en la nueva dirección. El cambio no se aplicará hasta que hagas clic en el enlace de confirmación. El enlace vence en 24 horas.</p>
         </div>
 
         <!-- Formulario -->
@@ -55,13 +65,13 @@
             {% csrf_token %}
 
             {% if form.non_field_errors %}
-            <div class="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+            <div class="mb-4 px-4 py-3 text-sm" style="border-radius: var(--radius-xl); background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); color: var(--text-fg-danger);">
                 {% for error in form.non_field_errors %}{{ error }}{% endfor %}
             </div>
             {% endif %}
 
             <div class="mb-5">
-                <label for="{{ form.nuevo_email.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                <label for="{{ form.nuevo_email.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
                     Nuevo email
                 </label>
                 <input type="email"
@@ -70,19 +80,18 @@
                        value="{{ form.nuevo_email.value|default:'' }}"
                        placeholder="tu@nuevo-email.com"
                        autofocus
-                       class="w-full px-3 py-2 rounded-xl border text-sm text-[#252F40] focus:outline-none focus:ring-2 transition
-                              {% if form.nuevo_email.errors %}border-red-400 focus:ring-red-200{% else %}border-[#E5E7EB] focus:ring-[#E5E7EB]{% endif %}">
+                       class="nodo-field w-full"
+                       style="{% if form.nuevo_email.errors %}border-color: var(--border-danger); box-shadow: var(--ring-danger);{% endif %}">
                 {% if form.nuevo_email.errors %}
-                <p class="mt-1 text-xs text-red-600">{{ form.nuevo_email.errors|join:', ' }}</p>
+                <p class="mt-1 text-xs" style="color: var(--text-fg-danger);">{{ form.nuevo_email.errors|join:', ' }}</p>
                 {% endif %}
             </div>
 
-            <button type="submit"
-                    class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                    style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                    onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                    onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
-                <i class="fas fa-paper-plane mr-2"></i>Enviar confirmación
+            <button type="submit" class="btn-nodo btn-brand btn-base w-full">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.126A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5"></path>
+                </svg>
+                Enviar confirmación
             </button>
         </form>
 
@@ -90,8 +99,10 @@
         <div class="mt-4 text-center">
             <a href="{% url 'portal:ciudadano_mis_datos' %}"
                class="text-sm transition-colors"
-               style="color: #5059BC;">
-                <i class="fas fa-arrow-left mr-1"></i>Volver a Mis Datos
+               style="color: var(--text-fg-brand);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:inline; vertical-align:-2px; margin-right:4px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"></path>
+                </svg>Volver a Mis Datos
             </a>
         </div>
 

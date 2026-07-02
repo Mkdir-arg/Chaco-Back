@@ -8,19 +8,19 @@
 
     <!-- Header del Programa -->
     <div class="mb-8">
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-            <div class="relative p-8" style="background: linear-gradient(135deg, {{ programa.color }}15 0%, {{ programa.color }}05 100%);">
+        <div class="bg-white rounded-2xl shadow-sm border border-[var(--border-base)] overflow-hidden">
+            <div class="relative p-8" style="background: linear-gradient(135deg, {{ programa.color|default:'var(--bg-brand)' }}15 0%, {{ programa.color|default:'var(--bg-brand)' }}05 100%);">
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center space-x-6">
-                        <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: {{ programa.color }};">
+                        <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: {{ programa.color|default:'var(--bg-brand)' }};">
                             <i class="fas fa-{{ programa.icono }} text-3xl text-white"></i>
                         </div>
                         <div>
-                            <h2 class="text-3xl font-bold text-[#252F40] mb-1">{{ programa.nombre }}</h2>
-                            <p class="text-[#8C8C8C] text-lg">{{ programa.descripcion|default:"Gestión Operativa del Programa" }}</p>
+                            <h2 class="text-3xl font-bold text-[var(--text-heading)] mb-1">{{ programa.nombre }}</h2>
+                            <p class="text-[var(--text-body-subtle)] text-lg">{{ programa.descripcion|default:"Gestión Operativa del Programa" }}</p>
                         </div>
                     </div>
-                    <a href="{% url 'legajos:programas' %}" class="bg-white text-[#4A5565] px-6 py-3 rounded-xl hover:bg-[#F9FAFB] transition-all border border-[#E5E7EB] flex items-center space-x-2">
+                    <a href="{% url 'legajos:programas' %}" class="btn-nodo btn-tertiary btn-base">
                         <i class="fas fa-arrow-left"></i>
                         <span>Volver</span>
                     </a>
@@ -28,36 +28,36 @@
 
                 <!-- Métricas Rápidas -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div class="bg-white rounded-xl p-4 border border-[#E5E7EB]">
+                    <div class="bg-white rounded-xl p-4 border border-[var(--border-base)]">
                         <div class="flex items-center space-x-2 mb-2">
-                            <i class="fas fa-building text-[#3B82F6]"></i>
-                            <span class="text-[#8C8C8C] text-sm font-medium">Instituciones</span>
+                            <i class="fas fa-building" style="color: var(--text-fg-info)"></i>
+                            <span class="text-[var(--text-body-subtle)] text-sm font-medium">Instituciones</span>
                         </div>
-                        <p class="text-[#252F40] font-semibold text-2xl">{{ total_instituciones }}</p>
+                        <p class="text-[var(--text-heading)] font-semibold text-2xl">{{ total_instituciones }}</p>
                     </div>
-                    
-                    <div class="bg-white rounded-xl p-4 border border-[#E5E7EB]">
+
+                    <div class="bg-white rounded-xl p-4 border border-[var(--border-base)]">
                         <div class="flex items-center space-x-2 mb-2">
-                            <i class="fas fa-inbox text-[#F59E0B]"></i>
-                            <span class="text-[#8C8C8C] text-sm font-medium">Derivaciones Pendientes</span>
+                            <i class="fas fa-inbox" style="color: var(--text-fg-warning)"></i>
+                            <span class="text-[var(--text-body-subtle)] text-sm font-medium">Derivaciones Pendientes</span>
                         </div>
-                        <p class="text-[#252F40] font-semibold text-2xl">{{ total_derivaciones_pendientes }}</p>
+                        <p class="text-[var(--text-heading)] font-semibold text-2xl">{{ total_derivaciones_pendientes }}</p>
                     </div>
-                    
-                    <div class="bg-white rounded-xl p-4 border border-[#E5E7EB]">
+
+                    <div class="bg-white rounded-xl p-4 border border-[var(--border-base)]">
                         <div class="flex items-center space-x-2 mb-2">
-                            <i class="fas fa-users text-[#10B981]"></i>
-                            <span class="text-[#8C8C8C] text-sm font-medium">Casos Activos</span>
+                            <i class="fas fa-users" style="color: var(--text-fg-success)"></i>
+                            <span class="text-[var(--text-body-subtle)] text-sm font-medium">Casos Activos</span>
                         </div>
-                        <p class="text-[#252F40] font-semibold text-2xl">{{ total_casos_activos }}</p>
+                        <p class="text-[var(--text-heading)] font-semibold text-2xl">{{ total_casos_activos }}</p>
                     </div>
-                    
-                    <div class="bg-white rounded-xl p-4 border border-[#E5E7EB]">
+
+                    <div class="bg-white rounded-xl p-4 border border-[var(--border-base)]">
                         <div class="flex items-center space-x-2 mb-2">
-                            <i class="fas fa-chart-line text-[#8B5CF6]"></i>
-                            <span class="text-[#8C8C8C] text-sm font-medium">Total Casos</span>
+                            <i class="fas fa-chart-line" style="color: var(--text-fg-brand)"></i>
+                            <span class="text-[var(--text-body-subtle)] text-sm font-medium">Total Casos</span>
                         </div>
-                        <p class="text-[#252F40] font-semibold text-2xl">{{ total_casos_totales }}</p>
+                        <p class="text-[var(--text-heading)] font-semibold text-2xl">{{ total_casos_totales }}</p>
                     </div>
                 </div>
             </div>
@@ -66,25 +66,25 @@
 
     <!-- Tabs de Navegación -->
     <div class="bg-white rounded-xl shadow-lg mb-8">
-        <div class="border-b border-gray-200">
+        <div class="border-b border-[var(--border-base)]">
             <nav class="flex -mb-px overflow-x-auto">
-                <button onclick="cambiarTab('dashboard')" data-tab="dashboard" class="tab-button border-b-2 border-blue-500 text-blue-600 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                <button onclick="cambiarTab('dashboard')" data-tab="dashboard" class="tab-button border-b-2 py-4 px-6 font-medium whitespace-nowrap flex items-center" style="border-color: var(--bg-brand); color: var(--text-fg-brand)">
                     <i class="fas fa-chart-bar mr-2"></i>Dashboard
                 </button>
-                <button onclick="cambiarTab('derivaciones')" data-tab="derivaciones" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                <button onclick="cambiarTab('derivaciones')" data-tab="derivaciones" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-inbox mr-2"></i>Derivaciones
                     {% if total_derivaciones_pendientes > 0 %}
                     <span class="ml-2 badge-nodo badge-sm badge-warning">{{ total_derivaciones_pendientes }}</span>
                     {% endif %}
                 </button>
-                <button onclick="cambiarTab('acompanamientos')" data-tab="acompanamientos" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                <button onclick="cambiarTab('acompanamientos')" data-tab="acompanamientos" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-hands-helping mr-2"></i>Acompañamientos
                     <span class="ml-2 badge-nodo badge-sm badge-success">{{ total_acompanamientos_activos }}</span>
                 </button>
-                <button onclick="cambiarTab('instituciones')" data-tab="instituciones" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                <button onclick="cambiarTab('instituciones')" data-tab="instituciones" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-building mr-2"></i>Instituciones
                 </button>
-                <button onclick="cambiarTab('indicadores')" data-tab="indicadores" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-6 font-medium whitespace-nowrap flex items-center">
+                <button onclick="cambiarTab('indicadores')" data-tab="indicadores" class="tab-button border-b-2 border-transparent py-4 px-6 font-medium whitespace-nowrap flex items-center" style="color: var(--text-body-subtle)">
                     <i class="fas fa-chart-pie mr-2"></i>Indicadores
                 </button>
             </nav>
@@ -97,48 +97,48 @@
             
             <!-- Métricas Principales -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                             <i class="fas fa-users text-blue-600 text-xl"></i>
                         </div>
-                        <span class="text-xs text-[#8C8C8C] font-medium">Total</span>
+                        <span class="text-xs text-[var(--text-body-subtle)] font-medium">Total</span>
                     </div>
-                    <h3 class="text-3xl font-bold text-[#252F40] mb-1">{{ total_acompanamientos_activos }}</h3>
-                    <p class="text-sm text-[#8C8C8C]">Acompañamientos Activos</p>
+                    <h3 class="text-3xl font-bold text-[var(--text-heading)] mb-1">{{ total_acompanamientos_activos }}</h3>
+                    <p class="text-sm text-[var(--text-body-subtle)]">Acompañamientos Activos</p>
                 </div>
                 
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
                             <i class="fas fa-inbox text-yellow-600 text-xl"></i>
                         </div>
-                        <span class="text-xs text-[#8C8C8C] font-medium">Pendientes</span>
+                        <span class="text-xs text-[var(--text-body-subtle)] font-medium">Pendientes</span>
                     </div>
-                    <h3 class="text-3xl font-bold text-[#252F40] mb-1">{{ total_derivaciones_pendientes }}</h3>
-                    <p class="text-sm text-[#8C8C8C]">Derivaciones por Procesar</p>
+                    <h3 class="text-3xl font-bold text-[var(--text-heading)] mb-1">{{ total_derivaciones_pendientes }}</h3>
+                    <p class="text-sm text-[var(--text-body-subtle)]">Derivaciones por Procesar</p>
                 </div>
                 
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
                             <i class="fas fa-building text-green-600 text-xl"></i>
                         </div>
-                        <span class="text-xs text-[#8C8C8C] font-medium">Activas</span>
+                        <span class="text-xs text-[var(--text-body-subtle)] font-medium">Activas</span>
                     </div>
-                    <h3 class="text-3xl font-bold text-[#252F40] mb-1">{{ total_instituciones }}</h3>
-                    <p class="text-sm text-[#8C8C8C]">Instituciones Operando</p>
+                    <h3 class="text-3xl font-bold text-[var(--text-heading)] mb-1">{{ total_instituciones }}</h3>
+                    <p class="text-sm text-[var(--text-body-subtle)]">Instituciones Operando</p>
                 </div>
                 
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
                         <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
                             <i class="fas fa-chart-line text-purple-600 text-xl"></i>
                         </div>
-                        <span class="text-xs text-[#8C8C8C] font-medium">Casos</span>
+                        <span class="text-xs text-[var(--text-body-subtle)] font-medium">Casos</span>
                     </div>
-                    <h3 class="text-3xl font-bold text-[#252F40] mb-1">{{ total_casos_activos }}</h3>
-                    <p class="text-sm text-[#8C8C8C]">Casos Institucionales</p>
+                    <h3 class="text-3xl font-bold text-[var(--text-heading)] mb-1">{{ total_casos_activos }}</h3>
+                    <p class="text-sm text-[var(--text-body-subtle)]">Casos Institucionales</p>
                 </div>
             </div>
             
@@ -146,13 +146,13 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 <!-- Estado de Derivaciones -->
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
-                    <h3 class="text-lg font-bold text-[#252F40] mb-4">Estado de Derivaciones</h3>
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
+                    <h3 class="text-lg font-bold text-[var(--text-heading)] mb-4">Estado de Derivaciones</h3>
                     <div class="space-y-3">
                         <div>
                             <div class="flex justify-between mb-1">
-                                <span class="text-sm text-[#8C8C8C]">Pendientes</span>
-                                <span class="text-sm font-semibold text-[#252F40]">{{ stats_ciudadanos.pendientes }}</span>
+                                <span class="text-sm text-[var(--text-body-subtle)]">Pendientes</span>
+                                <span class="text-sm font-semibold text-[var(--text-heading)]">{{ stats_ciudadanos.pendientes }}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-yellow-500 h-2 rounded-full" style="width: {% widthratio stats_ciudadanos.pendientes total_derivaciones 100 %}%"></div>
@@ -160,8 +160,8 @@
                         </div>
                         <div>
                             <div class="flex justify-between mb-1">
-                                <span class="text-sm text-[#8C8C8C]">Aceptadas</span>
-                                <span class="text-sm font-semibold text-[#252F40]">{{ stats_ciudadanos.aceptadas }}</span>
+                                <span class="text-sm text-[var(--text-body-subtle)]">Aceptadas</span>
+                                <span class="text-sm font-semibold text-[var(--text-heading)]">{{ stats_ciudadanos.aceptadas }}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-green-500 h-2 rounded-full" style="width: {% widthratio stats_ciudadanos.aceptadas total_derivaciones 100 %}%"></div>
@@ -169,35 +169,35 @@
                         </div>
                         <div>
                             <div class="flex justify-between mb-1">
-                                <span class="text-sm text-[#8C8C8C]">Rechazadas</span>
-                                <span class="text-sm font-semibold text-[#252F40]">{{ stats_ciudadanos.rechazadas }}</span>
+                                <span class="text-sm text-[var(--text-body-subtle)]">Rechazadas</span>
+                                <span class="text-sm font-semibold text-[var(--text-heading)]">{{ stats_ciudadanos.rechazadas }}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-red-500 h-2 rounded-full" style="width: {% widthratio stats_ciudadanos.rechazadas total_derivaciones 100 %}%"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-[#E5E7EB]">
+                    <div class="mt-4 pt-4 border-t border-[var(--border-base)]">
                         <div class="flex justify-between">
-                            <span class="text-sm font-medium text-[#8C8C8C]">Tasa de Aceptación</span>
+                            <span class="text-sm font-medium text-[var(--text-body-subtle)]">Tasa de Aceptación</span>
                             <span class="text-sm font-bold text-green-600">{{ tasa_aceptacion }}%</span>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Top Instituciones -->
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
-                    <h3 class="text-lg font-bold text-[#252F40] mb-4">Instituciones con Más Casos</h3>
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
+                    <h3 class="text-lg font-bold text-[var(--text-heading)] mb-4">Instituciones con Más Casos</h3>
                     <div class="space-y-3">
                         {% for ip in top_instituciones %}
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
-                                <p class="text-sm font-medium text-[#252F40]">{{ ip.institucion.nombre|truncatewords:4 }}</p>
+                                <p class="text-sm font-medium text-[var(--text-heading)]">{{ ip.institucion.nombre|truncatewords:4 }}</p>
                                 <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
                                     <div class="bg-blue-500 h-2 rounded-full" style="width: {% widthratio ip.casos_activos max_casos_institucion 100 %}%"></div>
                                 </div>
                             </div>
-                            <span class="ml-4 text-lg font-bold text-[#252F40]">{{ ip.casos_activos }}</span>
+                            <span class="ml-4 text-lg font-bold text-[var(--text-heading)]">{{ ip.casos_activos }}</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -205,18 +205,18 @@
             </div>
             
             <!-- Actividad Reciente -->
-            <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
-                <h3 class="text-lg font-bold text-[#252F40] mb-4">Actividad Reciente</h3>
+            <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
+                <h3 class="text-lg font-bold text-[var(--text-heading)] mb-4">Actividad Reciente</h3>
                 <div class="space-y-3">
                     {% for deriv in ultimas_derivaciones %}
-                    <div class="flex items-center justify-between py-3 border-b border-[#E5E7EB] last:border-0">
+                    <div class="flex items-center justify-between py-3 border-b border-[var(--border-base)] last:border-0">
                         <div class="flex items-center space-x-3">
                             <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                                 <i class="fas fa-user text-blue-600"></i>
                             </div>
                             <div>
-                                <p class="text-sm font-medium text-[#252F40]">{{ deriv.ciudadano.nombre_completo }}</p>
-                                <p class="text-xs text-[#8C8C8C]">{{ deriv.creado|timesince }} - {{ deriv.get_estado_display }}</p>
+                                <p class="text-sm font-medium text-[var(--text-heading)]">{{ deriv.ciudadano.nombre_completo }}</p>
+                                <p class="text-xs text-[var(--text-body-subtle)]">{{ deriv.creado|timesince }} - {{ deriv.get_estado_display }}</p>
                             </div>
                         </div>
                         <span class="badge-nodo badge-sm {% if deriv.estado == 'PENDIENTE' %}badge-warning{% elif deriv.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
@@ -224,7 +224,7 @@
                         </span>
                     </div>
                     {% empty %}
-                    <p class="text-center text-[#8C8C8C] py-4">No hay actividad reciente</p>
+                    <p class="text-center text-[var(--text-body-subtle)] py-4">No hay actividad reciente</p>
                     {% endfor %}
                 </div>
             </div>
@@ -237,9 +237,9 @@
         <div class="space-y-6">
             
             <!-- Derivaciones de Ciudadanos -->
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+            <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-8">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-2xl font-bold text-[#252F40]">Derivaciones de Ciudadanos</h3>
+                    <h3 class="text-2xl font-bold text-[var(--text-heading)]">Derivaciones de Ciudadanos</h3>
                     <div class="flex gap-2">
                         <span class="badge-nodo badge-sm badge-warning">{{ stats_ciudadanos.pendientes }} Pendientes</span>
                         <span class="badge-nodo badge-sm badge-success">{{ stats_ciudadanos.aceptadas }} Aceptadas</span>
@@ -250,25 +250,25 @@
                 {% if derivaciones_ciudadanos %}
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                        <thead class="bg-[var(--bg-secondary)] border-b border-[var(--border-base)]">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Origen</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Urgencia</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Origen</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Urgencia</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Fecha</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[#E5E7EB]">
+                        <tbody class="divide-y divide-[var(--border-base)]">
                             {% for derivacion in derivaciones_ciudadanos %}
-                            <tr class="hover:bg-[#F9FAFB]">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                            <tr class="hover:bg-[var(--bg-secondary)]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">
                                     <a href="{% url 'legajos:ciudadano_detalle' derivacion.ciudadano.pk %}" class="text-blue-600 hover:underline">
                                         {{ derivacion.ciudadano.nombre_completo }}
                                     </a>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ derivacion.programa_origen.nombre|default:"Espontáneo" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">{{ derivacion.programa_origen.nombre|default:"Espontáneo" }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="badge-nodo badge-sm {% if derivacion.estado == 'PENDIENTE' %}badge-warning{% elif derivacion.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
                                         {{ derivacion.get_estado_display }}
@@ -279,7 +279,7 @@
                                         {{ derivacion.get_urgencia_display }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     {% if derivacion.estado == 'PENDIENTE' %}
                                     <form method="post" action="{% url 'legajos:derivacion_ciudadano_aceptar' derivacion.pk %}" class="inline">
@@ -306,26 +306,26 @@
             </div>
             
             <!-- Derivaciones Institucionales -->
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
-                <h3 class="text-2xl font-bold text-[#252F40] mb-6">Derivaciones a Instituciones</h3>
+            <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-8">
+                <h3 class="text-2xl font-bold text-[var(--text-heading)] mb-6">Derivaciones a Instituciones</h3>
                 
                 {% if derivaciones_institucionales %}
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                        <thead class="bg-[var(--bg-secondary)] border-b border-[var(--border-base)]">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Institución</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Urgencia</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Fecha</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Ciudadano</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Institución</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Estado</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Urgencia</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Fecha</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[#E5E7EB]">
+                        <tbody class="divide-y divide-[var(--border-base)]">
                             {% for derivacion in derivaciones_institucionales %}
-                            <tr class="hover:bg-[#F9FAFB]">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ derivacion.ciudadano.nombre_completo }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">{{ derivacion.institucion.nombre }}</td>
+                            <tr class="hover:bg-[var(--bg-secondary)]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">{{ derivacion.ciudadano.nombre_completo }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">{{ derivacion.institucion.nombre }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="badge-nodo badge-sm {% if derivacion.estado == 'PENDIENTE' %}badge-warning{% elif derivacion.estado == 'ACEPTADA' %}badge-success{% else %}badge-danger{% endif %}">
                                         {{ derivacion.get_estado_display }}
@@ -336,7 +336,7 @@
                                         {{ derivacion.get_urgencia_display }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -352,9 +352,9 @@
 
     <!-- Tab: Acompañamientos -->
     <div id="tab-acompanamientos" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
+        <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-8">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-[#252F40]">Acompañamientos Activos</h3>
+                <h3 class="text-2xl font-bold text-[var(--text-heading)]">Acompañamientos Activos</h3>
                 <div class="flex gap-2">
                     <span class="badge-nodo badge-sm badge-success">{{ stats_acompanamientos.activos }} Activos</span>
                     <span class="badge-nodo badge-sm badge-warning">{{ stats_acompanamientos.seguimiento }} En Seguimiento</span>
@@ -366,34 +366,34 @@
             {% if acompanamientos %}
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                    <thead class="bg-[var(--bg-secondary)] border-b border-[var(--border-base)]">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Código</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ciudadano</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Institución</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Estado</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Responsable</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Inscripción</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Acciones</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Código</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Ciudadano</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Institución</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Estado</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Responsable</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Inscripción</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-[#E5E7EB]">
+                    <tbody class="divide-y divide-[var(--border-base)]">
                         {% for acomp in acompanamientos %}
-                        <tr class="hover:bg-[#F9FAFB]">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#252F40]">{{ acomp.codigo }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                        <tr class="hover:bg-[var(--bg-secondary)]">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-heading)]">{{ acomp.codigo }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">
                                 <a href="{% url 'legajos:ciudadano_detalle' acomp.ciudadano.pk %}" class="text-blue-600 hover:underline">
                                     {{ acomp.ciudadano.nombre_completo }}
                                 </a>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ acomp.institucion_nombre|default:"-" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ acomp.institucion_nombre|default:"-" }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="badge-nodo badge-sm {% if acomp.estado == 'ACTIVO' %}badge-success{% elif acomp.estado == 'EN_SEGUIMIENTO' %}badge-warning{% elif acomp.estado == 'DADO_DE_BAJA' %}badge-danger{% else %}badge-gray{% endif %}">
                                     {{ acomp.get_estado_display }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ acomp.responsable.get_full_name|default:"-" }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">{{ acomp.fecha_inscripcion|date:"d/m/Y" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ acomp.responsable.get_full_name|default:"-" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ acomp.fecha_inscripcion|date:"d/m/Y" }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="flex items-center gap-3">
                                     <a href="{% url 'legajos:ciudadano_detalle' acomp.ciudadano.id %}" class="text-blue-600 hover:underline">
@@ -421,30 +421,30 @@
 
     <!-- Tab: Instituciones -->
     <div id="tab-instituciones" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-8">
-            <h3 class="text-2xl font-bold text-[#252F40] mb-6">Instituciones Participantes</h3>
+        <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-8">
+            <h3 class="text-2xl font-bold text-[var(--text-heading)] mb-6">Instituciones Participantes</h3>
             
             {% if instituciones %}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for ip in instituciones %}
-                <div class="bg-white border border-[#E5E7EB] rounded-xl p-6 hover:shadow-lg transition-all">
-                    <h4 class="text-lg font-semibold text-[#252F40] mb-2">{{ ip.institucion.nombre }}</h4>
-                    <p class="text-sm text-[#8C8C8C] mb-4">{{ ip.institucion.get_tipo_display }}</p>
+                <div class="bg-white border border-[var(--border-base)] rounded-xl p-6 hover:shadow-lg transition-all">
+                    <h4 class="text-lg font-semibold text-[var(--text-heading)] mb-2">{{ ip.institucion.nombre }}</h4>
+                    <p class="text-sm text-[var(--text-body-subtle)] mb-4">{{ ip.institucion.get_tipo_display }}</p>
                     
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <p class="text-xs text-[#8C8C8C]">Casos Activos</p>
-                            <p class="text-xl font-bold text-[#10B981]">{{ ip.casos_activos }}</p>
+                            <p class="text-xs text-[var(--text-body-subtle)]">Casos Activos</p>
+                            <p class="text-xl font-bold" style="color: var(--text-fg-success)">{{ ip.casos_activos }}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-[#8C8C8C]">Pendientes</p>
-                            <p class="text-xl font-bold text-[#F59E0B]">{{ ip.derivaciones_pendientes }}</p>
+                            <p class="text-xs text-[var(--text-body-subtle)]">Pendientes</p>
+                            <p class="text-xl font-bold" style="color: var(--text-fg-warning)">{{ ip.derivaciones_pendientes }}</p>
                         </div>
                     </div>
                     
                     {% if ip.cupo_maximo %}
-                    <div class="mt-4 pt-4 border-t border-[#E5E7EB]">
-                        <p class="text-xs text-[#8C8C8C] mb-1">Cupo</p>
+                    <div class="mt-4 pt-4 border-t border-[var(--border-base)]">
+                        <p class="text-xs text-[var(--text-body-subtle)] mb-1">Cupo</p>
                         <div class="flex items-center space-x-2">
                             <div class="flex-1 bg-gray-200 rounded-full h-2">
                                 <div class="bg-blue-500 h-2 rounded-full" style="width: {{ ip.casos_activos|floatformat:0 }}%"></div>
@@ -467,9 +467,9 @@
         <div class="space-y-6">
             
             <!-- Filtros y Exportación -->
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-6">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-2xl font-bold text-[#252F40]">Indicadores Programáticos</h3>
+                    <h3 class="text-2xl font-bold text-[var(--text-heading)]">Indicadores Programáticos</h3>
                     <div class="flex gap-2">
                         <button onclick="exportarIndicadores('excel')" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center space-x-2">
                             <i class="fas fa-file-excel"></i>
@@ -485,59 +485,59 @@
             
             <!-- Indicadores de Rendimiento -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-sm font-medium text-[#8C8C8C]">Tasa de Aceptación</h4>
+                        <h4 class="text-sm font-medium text-[var(--text-body-subtle)]">Tasa de Aceptación</h4>
                         <i class="fas fa-check-circle text-green-500"></i>
                     </div>
-                    <p class="text-3xl font-bold text-[#252F40] mb-2">{{ tasa_aceptacion }}%</p>
-                    <p class="text-xs text-[#8C8C8C]">{{ stats_ciudadanos.aceptadas }} de {{ total_derivaciones }} derivaciones</p>
+                    <p class="text-3xl font-bold text-[var(--text-heading)] mb-2">{{ tasa_aceptacion }}%</p>
+                    <p class="text-xs text-[var(--text-body-subtle)]">{{ stats_ciudadanos.aceptadas }} de {{ total_derivaciones }} derivaciones</p>
                 </div>
                 
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-sm font-medium text-[#8C8C8C]">Cobertura Institucional</h4>
+                        <h4 class="text-sm font-medium text-[var(--text-body-subtle)]">Cobertura Institucional</h4>
                         <i class="fas fa-building text-blue-500"></i>
                     </div>
-                    <p class="text-3xl font-bold text-[#252F40] mb-2">{{ total_instituciones }}</p>
-                    <p class="text-xs text-[#8C8C8C]">Instituciones activas</p>
+                    <p class="text-3xl font-bold text-[var(--text-heading)] mb-2">{{ total_instituciones }}</p>
+                    <p class="text-xs text-[var(--text-body-subtle)]">Instituciones activas</p>
                 </div>
                 
-                <div class="bg-white rounded-xl p-6 border border-[#E5E7EB] shadow-sm">
+                <div class="bg-white rounded-xl p-6 border border-[var(--border-base)] shadow-sm">
                     <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-sm font-medium text-[#8C8C8C]">Promedio Casos/Institución</h4>
+                        <h4 class="text-sm font-medium text-[var(--text-body-subtle)]">Promedio Casos/Institución</h4>
                         <i class="fas fa-chart-bar text-purple-500"></i>
                     </div>
-                    <p class="text-3xl font-bold text-[#252F40] mb-2">{{ promedio_casos_institucion }}</p>
-                    <p class="text-xs text-[#8C8C8C]">Casos activos por institución</p>
+                    <p class="text-3xl font-bold text-[var(--text-heading)] mb-2">{{ promedio_casos_institucion }}</p>
+                    <p class="text-xs text-[var(--text-body-subtle)]">Casos activos por institución</p>
                 </div>
             </div>
             
             <!-- Comparativa por Institución -->
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
-                <h3 class="text-lg font-bold text-[#252F40] mb-6">Comparativa por Institución</h3>
+            <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-6">
+                <h3 class="text-lg font-bold text-[var(--text-heading)] mb-6">Comparativa por Institución</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                        <thead class="bg-[var(--bg-secondary)] border-b border-[var(--border-base)]">
                             <tr>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Institución</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Casos Activos</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Derivaciones Pendientes</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Cupo</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[#374151] uppercase">Ocupación</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Institución</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Casos Activos</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Derivaciones Pendientes</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Cupo</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Ocupación</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[#E5E7EB]">
+                        <tbody class="divide-y divide-[var(--border-base)]">
                             {% for ip in instituciones %}
-                            <tr class="hover:bg-[#F9FAFB]">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#252F40]">{{ ip.institucion.nombre }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                            <tr class="hover:bg-[var(--bg-secondary)]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-heading)]">{{ ip.institucion.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">
                                     <span class="badge-nodo badge-sm badge-success">{{ ip.casos_activos }}</span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#252F40]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-heading)]">
                                     <span class="badge-nodo badge-sm badge-warning">{{ ip.derivaciones_pendientes }}</span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#8C8C8C]">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">
                                     {% if ip.cupo_maximo %}
                                         {{ ip.casos_activos }}/{{ ip.cupo_maximo }}
                                     {% else %}
@@ -551,10 +551,10 @@
                                             {% widthratio ip.casos_activos ip.cupo_maximo 100 as ocupacion %}
                                             <div class="h-2 rounded-full {% if ocupacion >= 90 %}bg-red-500{% elif ocupacion >= 70 %}bg-yellow-500{% else %}bg-green-500{% endif %}" style="width: {{ ocupacion }}%"></div>
                                         </div>
-                                        <span class="text-xs font-medium text-[#8C8C8C]">{{ ocupacion }}%</span>
+                                        <span class="text-xs font-medium text-[var(--text-body-subtle)]">{{ ocupacion }}%</span>
                                     </div>
                                     {% else %}
-                                    <span class="text-xs text-[#8C8C8C]">-</span>
+                                    <span class="text-xs text-[var(--text-body-subtle)]">-</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -565,25 +565,25 @@
             </div>
             
             <!-- Evolución Temporal -->
-            <div class="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6">
-                <h3 class="text-lg font-bold text-[#252F40] mb-6">Evolución de Acompañamientos</h3>
+            <div class="bg-white rounded-xl shadow-sm border border-[var(--border-base)] p-6">
+                <h3 class="text-lg font-bold text-[var(--text-heading)] mb-6">Evolución de Acompañamientos</h3>
                 <div class="space-y-4">
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="text-center">
                             <p class="text-2xl font-bold text-green-600">{{ stats_acompanamientos.activos }}</p>
-                            <p class="text-xs text-[#8C8C8C]">Activos</p>
+                            <p class="text-xs text-[var(--text-body-subtle)]">Activos</p>
                         </div>
                         <div class="text-center">
                             <p class="text-2xl font-bold text-blue-600">{{ stats_acompanamientos.seguimiento }}</p>
-                            <p class="text-xs text-[#8C8C8C]">En Seguimiento</p>
+                            <p class="text-xs text-[var(--text-body-subtle)]">En Seguimiento</p>
                         </div>
                         <div class="text-center">
                             <p class="text-2xl font-bold text-gray-600">{{ stats_acompanamientos.cerrados }}</p>
-                            <p class="text-xs text-[#8C8C8C]">Cerrados</p>
+                            <p class="text-xs text-[var(--text-body-subtle)]">Cerrados</p>
                         </div>
                         <div class="text-center">
                             <p class="text-2xl font-bold text-purple-600">{{ total_acompanamientos_totales }}</p>
-                            <p class="text-xs text-[#8C8C8C]">Total Histórico</p>
+                            <p class="text-xs text-[var(--text-body-subtle)]">Total Histórico</p>
                         </div>
                     </div>
                 </div>
@@ -594,6 +594,8 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>.swal2-actions { gap: 12px; }</style>
 <script>
 function cambiarTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -601,15 +603,17 @@ function cambiarTab(tabName) {
     });
     
     document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove('border-blue-500', 'text-blue-600');
-        button.classList.add('border-transparent', 'text-gray-500');
+        button.classList.add('border-transparent');
+        button.style.borderColor = '';
+        button.style.color = 'var(--text-body-subtle)';
     });
-    
+
     document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-    
+
     const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
-    activeButton.classList.add('border-blue-500', 'text-blue-600');
-    activeButton.classList.remove('border-transparent', 'text-gray-500');
+    activeButton.classList.remove('border-transparent');
+    activeButton.style.borderColor = 'var(--bg-brand)';
+    activeButton.style.color = 'var(--text-fg-brand)';
 }
 
 function exportarIndicadores(formato) {
@@ -626,7 +630,8 @@ function confirmarBaja(inscripcionId, nombreCiudadano) {
         showCancelButton: true,
         confirmButtonText: 'Confirmar baja',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#DC2626',
+        buttonsStyling: false,
+        customClass: { confirmButton: 'btn-nodo btn-danger', cancelButton: 'btn-nodo btn-tertiary' },
         focusConfirm: false,
         preConfirm: () => {
             const motivo = document.getElementById('swal-motivo').value.trim();

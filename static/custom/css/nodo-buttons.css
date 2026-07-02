@@ -81,7 +81,7 @@
 }
 
 .btn-brand:focus {
-    outline: 2px solid #5059bc;
+    outline: 2px solid var(--border-brand, #5059bc);
     outline-offset: 2px;
     color: #ffffff !important;
 }
@@ -110,28 +110,28 @@
 
 /* Secondary Button */
 .btn-secondary {
-    background: #F9FAFB;
-    color: #4A5565;
-    border: 1px solid #E5E7EB;
+    background: var(--bg-secondary, #F9FAFB);
+    color: var(--color-gray-600, #4A5565);
+    border: 1px solid var(--border-base, #E5E7EB);
 }
 
 .btn-secondary:hover {
-    background: #F3F4F6;
-    color: #101828;
-    border: 1px solid #E5E7EB;
+    background: var(--bg-tertiary, #F3F4F6);
+    color: var(--color-gray-900, #101828);
+    border: 1px solid var(--border-base, #E5E7EB);
 }
 
 .btn-secondary:focus {
-    background: #F3F4F6;
-    color: #101828;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 1px 0 2px #F3F4F6;
+    background: var(--bg-tertiary, #F3F4F6);
+    color: var(--color-gray-900, #101828);
+    border: 1px solid var(--border-base, #E5E7EB);
+    box-shadow: 0 1px 0 2px var(--bg-tertiary, #F3F4F6);
 }
 
 .btn-secondary:disabled {
-    background: #F3F4F6;
-    border: 1px solid #E5E7E8;
-    color: #99A1AF;
+    background: var(--bg-disabled, #F3F4F6);
+    border: 1px solid var(--border-base, #E5E7EB);
+    color: var(--text-fg-disabled, #99A1AF);
 }
 
 /* Tertiary Button — outlined brand */

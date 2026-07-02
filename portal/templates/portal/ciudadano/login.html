@@ -4,14 +4,16 @@
 
 {% block content %}
 <div class="max-w-md mx-auto">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 animate-fadeInUp">
+    <div class="bg-white p-8 animate-fadeInUp" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
         <!-- Encabezado -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                <i class="fas fa-user text-white text-2xl"></i>
+            <div class="inline-flex items-center justify-center w-16 h-16 mb-4" style="border-radius: var(--radius-xl); background: var(--gradient-brand);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #fff;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+                </svg>
             </div>
-            <h2 class="text-2xl font-bold text-[#252F40]">Acceso ciudadano</h2>
-            <p class="text-[#8C8C8C] mt-2 text-sm">Ingresá con tu DNI y contraseña</p>
+            <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Acceso ciudadano</h2>
+            <p class="mt-2 text-sm" style="color: var(--text-body-subtle);">Ingresá con tu DNI y contraseña</p>
         </div>
 
         <!-- Formulario -->
@@ -19,22 +21,29 @@
             {% csrf_token %}
 
             {% if form.non_field_errors %}
-                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                    {% for error in form.non_field_errors %}
-                        <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
-                    {% endfor %}
+                <div class="mb-4 p-3 flex items-start gap-2 text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); border-radius: var(--radius-lg); color: var(--text-fg-danger);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; margin-top:2px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                    </svg>
+                    <div>
+                        {% for error in form.non_field_errors %}
+                            <p class="m-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
                 </div>
             {% endif %}
 
             <div class="space-y-4">
                 <!-- DNI -->
                 <div>
-                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
                         {{ form.username.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
-                            <i class="fas fa-id-card"></i>
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"></path>
+                            </svg>
                         </span>
                         <input
                             type="text"
@@ -42,61 +51,73 @@
                             id="{{ form.username.id_for_label }}"
                             placeholder="Ingresá tu DNI"
                             autofocus
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 {% if form.username.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field w-full"
+                            style="padding-left: 40px; {% if form.username.errors %}border-color: var(--border-danger); box-shadow: var(--ring-danger);{% endif %}"
                             value="{{ form.username.value|default:'' }}"
                         >
                     </div>
                     {% for error in form.username.errors %}
-                        <p class="text-red-600 text-xs mt-1"><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                        <p class="text-xs mt-1 flex items-center gap-1" style="color: var(--text-fg-danger);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                            </svg>
+                            {{ error }}
+                        </p>
                     {% endfor %}
                 </div>
 
                 <!-- Contraseña -->
                 <div>
-                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
                         {{ form.password.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
-                            <i class="fas fa-lock"></i>
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"></path>
+                            </svg>
                         </span>
                         <input
                             type="password"
                             name="{{ form.password.html_name }}"
                             id="{{ form.password.id_for_label }}"
                             placeholder="Ingresá tu contraseña"
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 {% if form.password.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field w-full"
+                            style="padding-left: 40px; {% if form.password.errors %}border-color: var(--border-danger); box-shadow: var(--ring-danger);{% endif %}"
                         >
                     </div>
                     {% for error in form.password.errors %}
-                        <p class="text-red-600 text-xs mt-1"><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                        <p class="text-xs mt-1 flex items-center gap-1" style="color: var(--text-fg-danger);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                            </svg>
+                            {{ error }}
+                        </p>
                     {% endfor %}
                 </div>
             </div>
 
             <!-- Olvidé mi contraseña -->
             <div class="text-right mt-2">
-                <a href="{% url 'portal:ciudadano_password_reset' %}" class="text-sm text-[#8C8C8C] hover:underline">
+                <a href="{% url 'portal:ciudadano_password_reset' %}" class="text-sm hover:underline" style="color: var(--text-body-subtle);">
                     ¿Olvidaste tu contraseña?
                 </a>
             </div>
 
             <!-- Botón -->
-            <button
-                type="submit"
-                class="w-full mt-6 py-3 text-white font-semibold rounded-xl transition-all duration-300 shadow-md hover:shadow-xl"
-                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
-                <i class="fas fa-sign-in-alt mr-2"></i>Ingresar
+            <button type="submit" class="btn-nodo btn-brand btn-lg w-full mt-6">
+                Ingresar
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25"></path>
+                </svg>
             </button>
         </form>
 
         <!-- Separador -->
-        <div class="mt-6 pt-6 border-t border-[#E5E7EB] text-center">
-            <p class="text-sm text-[#8C8C8C]">
+        <div class="mt-6 pt-6 text-center" style="border-top: 1px solid var(--border-base);">
+            <p class="text-sm" style="color: var(--text-body-subtle);">
                 ¿Aún no tenés cuenta?
-                <a href="{% url 'portal:ciudadano_registro_step1' %}" class="font-medium hover:underline" style="color: #5059BC;">
+                <a href="{% url 'portal:ciudadano_registro_step1' %}" class="font-semibold hover:underline" style="color: var(--text-fg-brand);">
                     Registrate aquí
                 </a>
             </p>

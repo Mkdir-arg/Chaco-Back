@@ -15,12 +15,11 @@
     .card-lift { transition: transform 0.25s ease, box-shadow 0.25s ease; }
     .card-lift:hover { transform: translateY(-5px); box-shadow: 0 20px 40px -8px rgba(0,0,0,0.12); }
 
+    .link-warning:hover { color: var(--text-fg-warning); }
+
     /* Hero */
     .hero-bg {
-        background: linear-gradient(135deg,
-            #5059BC 0%,
-            #F26DF9 60%,
-            #1e1b4b 100%);
+        background: var(--gradient-brand);
         position: relative; overflow: hidden;
     }
     .hero-blob-1 {
@@ -43,18 +42,18 @@
 
     /* Stats strip */
     .stats-strip {
-        background: #fff;
+        background: var(--bg-primary);
         border-radius: 1.5rem;
         box-shadow: 0 4px 24px -4px rgba(0,0,0,0.10);
-        border: 1px solid #E5E7EB;
+        border: 1px solid var(--border-base);
     }
-    .stat-divider { border-left: 1px solid #E5E7EB; }
+    .stat-divider { border-left: 1px solid var(--border-base); }
 
     /* Accesos rápidos */
     .access-pill {
         display: inline-flex; align-items: center; gap: 0.4rem;
         font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.75rem;
-        border-radius: 99px; background: #F3F4F6; color: #6B7280;
+        border-radius: 99px; background: var(--bg-tertiary); color: var(--text-body-subtle);
     }
 
     /* Programas */
@@ -68,7 +67,7 @@
     .inst-type-badge {
         font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
         text-transform: uppercase; padding: 0.2rem 0.6rem; border-radius: 99px;
-        background: #EEF2FF; color: #4F46E5;
+        background: var(--bg-info-soft); color: var(--text-fg-info);
     }
 
     /* Turnos */
@@ -77,9 +76,7 @@
 
     /* CTA final */
     .cta-section {
-        background: linear-gradient(135deg,
-            #5059BC 0%,
-            #F26DF9 100%);
+        background: var(--gradient-brand);
         border-radius: 2rem; overflow: hidden; position: relative;
     }
     .cta-section::before {
@@ -103,7 +100,7 @@
             <!-- Texto principal -->
             <div class="flex-1 text-center lg:text-left">
                 <div class="inline-flex items-center gap-2 bg-white bg-opacity-15 backdrop-blur-sm px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest mb-6">
-                    <span class="w-2 h-2 rounded-full bg-green-300 dot-live"></span>
+                    <span class="w-2 h-2 rounded-full dot-live" style="background: var(--text-fg-success);"></span>
                     Servicios digitales disponibles
                 </div>
 
@@ -119,7 +116,7 @@
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                     <a href="{% url 'portal:ciudadano_login' %}"
                        class="inline-flex items-center justify-center gap-2 bg-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:scale-105"
-                       style="color: #5059BC;">
+                       style="color: var(--text-fg-brand);">
                         <i class="fas fa-user-circle text-lg"></i>
                         Accedé a tu perfil
                     </a>
@@ -157,20 +154,20 @@
     ══════════════════════════════════════════════════════ -->
     <div class="stats-strip p-6 mb-14 grid grid-cols-2 md:grid-cols-4 gap-0">
         <div class="text-center px-6 py-2">
-            <div class="text-3xl font-extrabold text-[#252F40]">{{ stats.ciudadanos }}</div>
-            <div class="text-xs text-[#8C8C8C] font-medium mt-1">Ciudadanos registrados</div>
+            <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.ciudadanos }}</div>
+            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Ciudadanos registrados</div>
         </div>
         <div class="text-center px-6 py-2 stat-divider">
-            <div class="text-3xl font-extrabold text-[#252F40]">{{ stats.programas }}</div>
-            <div class="text-xs text-[#8C8C8C] font-medium mt-1">Programas activos</div>
+            <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.programas }}</div>
+            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Programas activos</div>
         </div>
         <div class="text-center px-6 py-2 stat-divider">
-            <div class="text-3xl font-extrabold text-[#252F40]">{{ stats.instituciones }}</div>
-            <div class="text-xs text-[#8C8C8C] font-medium mt-1">Instituciones NODO</div>
+            <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.instituciones }}</div>
+            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Instituciones NODO</div>
         </div>
         <div class="text-center px-6 py-2 stat-divider">
-            <div class="text-3xl font-extrabold text-[#252F40]">{{ stats.inscripciones_activas }}</div>
-            <div class="text-xs text-[#8C8C8C] font-medium mt-1">Personas acompañadas</div>
+            <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.inscripciones_activas }}</div>
+            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Personas acompañadas</div>
         </div>
     </div>
 
@@ -181,10 +178,10 @@
         <div class="grid md:grid-cols-2 gap-6">
 
             <!-- CIUDADANOS -->
-            <div class="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden card-lift">
+            <div class="bg-white rounded-3xl border border-[var(--border-base)] overflow-hidden card-lift">
                 <!-- Cabecera con color -->
                 <div class="p-8 text-white relative overflow-hidden"
-                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                     style="background: var(--gradient-brand);">
                     <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
                     <div class="relative z-10">
                         <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
@@ -200,9 +197,9 @@
                 <div class="p-8">
                     <div class="space-y-3 mb-7">
                         {% for item in ciudadano_items %}
-                        <div class="flex items-center gap-3 text-sm text-[#252F40]">
+                        <div class="flex items-center gap-3 text-sm text-[var(--text-heading)]">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                 style="background: #5059BC;">
+                                 style="background: var(--bg-brand);">
                                 <i class="fas fa-check text-white" style="font-size: 0.6rem;"></i>
                             </div>
                             {{ item }}
@@ -212,12 +209,12 @@
                     <div class="flex gap-3">
                         <a href="{% url 'portal:ciudadano_login' %}"
                            class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
-                           style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
+                           style="background: var(--gradient-brand);">
                             <i class="fas fa-sign-in-alt mr-2"></i>Ingresar
                         </a>
                         <a href="{% url 'portal:ciudadano_registro_step1' %}"
                            class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
-                           style="color: #5059BC; border-color: #5059BC;">
+                           style="color: var(--text-fg-brand); border-color: var(--border-brand);">
                             <i class="fas fa-user-plus mr-2"></i>Registrarme
                         </a>
                     </div>
@@ -225,9 +222,9 @@
             </div>
 
             <!-- INSTITUCIONES -->
-            <div class="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden card-lift">
+            <div class="bg-white rounded-3xl border border-[var(--border-base)] overflow-hidden card-lift">
                 <div class="p-8 text-white relative overflow-hidden"
-                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                     style="background: var(--gradient-brand);">
                     <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
                     <div class="relative z-10">
                         <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
@@ -242,9 +239,9 @@
                 <div class="p-8">
                     <div class="space-y-3 mb-7">
                         {% for item in institucion_items %}
-                        <div class="flex items-center gap-3 text-sm text-[#252F40]">
+                        <div class="flex items-center gap-3 text-sm text-[var(--text-heading)]">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                 style="background: #5059BC;">
+                                 style="background: var(--bg-brand);">
                                 <i class="fas fa-check text-white" style="font-size: 0.6rem;"></i>
                             </div>
                             {{ item }}
@@ -254,12 +251,12 @@
                     <div class="flex gap-3">
                         <a href="{% url 'portal:ciudadano_login' %}"
                            class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
-                           style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
+                           style="background: var(--gradient-brand);">
                             <i class="fas fa-rocket mr-2"></i>Iniciar trámite
                         </a>
                         <a href="{% url 'portal:ciudadano_login' %}"
                            class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
-                           style="color: #5059BC; border-color: #5059BC;">
+                           style="color: var(--text-fg-brand); border-color: var(--border-brand);">
                             <i class="fas fa-search mr-2"></i>Consultar estado
                         </a>
                     </div>
@@ -275,45 +272,45 @@
     <section class="section">
         <div class="flex items-end justify-between mb-8">
             <div>
-                <div class="section-label" style="background: #EEF2FF; color: #4F46E5;">
+                <div class="section-label" style="background: var(--bg-info-soft); color: var(--text-fg-info);">
                     <i class="fas fa-hands-helping"></i> Programas sociales
                 </div>
-                <h2 class="text-2xl font-extrabold text-[#252F40]">Programas municipales</h2>
-                <p class="text-[#8C8C8C] mt-1 text-sm">Conocé los programas disponibles y a cuáles podés inscribirte</p>
+                <h2 class="text-2xl font-extrabold text-[var(--text-heading)]">Programas municipales</h2>
+                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Conocé los programas disponibles y a cuáles podés inscribirte</p>
             </div>
             <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_programas' %}"
                class="hidden md:inline-flex items-center gap-2 text-sm font-semibold transition-colors"
-               style="color: #5059BC;">
+               style="color: var(--text-fg-brand);">
                 Ver mis programas <i class="fas fa-arrow-right text-xs"></i>
             </a>
         </div>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {% for programa in programas %}
-            <div class="programa-card bg-white rounded-2xl border border-[#E5E7EB] p-6 card-lift"
-                 style="--programa-color: {{ programa.color }};">
+            <div class="programa-card bg-white rounded-2xl border border-[var(--border-base)] p-6 card-lift"
+                 style="--programa-color: {{ programa.color|default:'var(--bg-brand)' }};">
                 <div class="flex items-start gap-4 mb-4">
                     <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                         style="background: {{ programa.color }}1A;">
-                        <i class="fas fa-{{ programa.icono }} text-lg" style="color: {{ programa.color }};"></i>
+                         style="background: {{ programa.color|default:'var(--bg-brand)' }}1A;">
+                        <i class="fas fa-{{ programa.icono }} text-lg" style="color: {{ programa.color|default:'var(--bg-brand)' }};"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h3 class="font-bold text-[#252F40] leading-tight">{{ programa.nombre }}</h3>
+                        <h3 class="font-bold text-[var(--text-heading)] leading-tight">{{ programa.nombre }}</h3>
                         <div class="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                             style="background: {{ programa.color }}1A; color: {{ programa.color }};">
+                             style="background: {{ programa.color|default:'var(--bg-brand)' }}1A; color: {{ programa.color|default:'var(--bg-brand)' }};">
                             Activo
                         </div>
                     </div>
                 </div>
                 {% if programa.descripcion %}
-                <p class="text-[#8C8C8C] text-sm leading-relaxed line-clamp-2">{{ programa.descripcion }}</p>
+                <p class="text-[var(--text-body-subtle)] text-sm leading-relaxed line-clamp-2">{{ programa.descripcion }}</p>
                 {% else %}
-                <p class="text-[#8C8C8C] text-sm italic">Programa de atención municipal</p>
+                <p class="text-[var(--text-body-subtle)] text-sm italic">Programa de atención municipal</p>
                 {% endif %}
-                <div class="mt-4 pt-4 border-t border-[#F3F4F6]">
+                <div class="mt-4 pt-4 border-t border-[var(--border-light)]">
                     <a href="{% url 'portal:ciudadano_login' %}"
                        class="inline-flex items-center gap-1 text-xs font-semibold transition-colors"
-                       style="color: {{ programa.color }};">
+                       style="color: {{ programa.color|default:'var(--bg-brand)' }};">
                         Consultá tu inscripción <i class="fas fa-arrow-right text-xs"></i>
                     </a>
                 </div>
@@ -330,31 +327,32 @@
     <section class="section">
         <div class="flex items-end justify-between mb-8">
             <div>
-                <div class="section-label" style="background: #FFF7ED; color: #EA580C;">
+                <div class="section-label" style="background: var(--bg-warning-soft); color: var(--text-fg-warning-subtle);">
                     <i class="fas fa-network-wired"></i> Red territorial
                 </div>
-                <h2 class="text-2xl font-extrabold text-[#252F40]">Instituciones de la red</h2>
-                <p class="text-[#8C8C8C] mt-1 text-sm">Organizaciones que trabajan junto al municipio en el territorio</p>
+                <h2 class="text-2xl font-extrabold text-[var(--text-heading)]">Instituciones de la red</h2>
+                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Organizaciones que trabajan junto al municipio en el territorio</p>
             </div>
             <a href="{% url 'portal:ciudadano_login' %}"
-               class="hidden md:inline-flex items-center gap-2 text-sm font-semibold text-orange-600 transition-colors hover:text-orange-700">
+               class="hidden md:inline-flex items-center gap-2 text-sm font-semibold transition-colors link-warning"
+               style="color: var(--text-fg-warning-subtle);">
                 Registrar institución <i class="fas fa-arrow-right text-xs"></i>
             </a>
         </div>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {% for inst in instituciones %}
-            <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6 card-lift flex flex-col gap-4">
+            <div class="bg-white rounded-2xl border border-[var(--border-base)] p-6 card-lift flex flex-col gap-4">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
-                        <i class="fas fa-building text-orange-500 text-lg"></i>
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background: var(--bg-warning-soft);">
+                        <i class="fas fa-building text-lg" style="color: var(--text-fg-warning-subtle);"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h3 class="font-bold text-[#252F40] truncate">{{ inst.nombre }}</h3>
+                        <h3 class="font-bold text-[var(--text-heading)] truncate">{{ inst.nombre }}</h3>
                         <span class="inst-type-badge">{{ inst.tipo }}</span>
                     </div>
                 </div>
-                <div class="space-y-1.5 text-sm text-[#8C8C8C]">
+                <div class="space-y-1.5 text-sm text-[var(--text-body-subtle)]">
                     {% if inst.localidad %}
                     <div class="flex items-center gap-2">
                         <i class="fas fa-map-marker-alt w-4 text-center"></i>
@@ -399,7 +397,7 @@
                 <div class="flex flex-col sm:flex-row gap-4">
                     <a href="{% url 'portal:ciudadano_login' %}"
                        class="inline-flex items-center justify-center gap-2 bg-white font-bold py-4 px-8 rounded-2xl transition-all hover:shadow-xl hover:scale-105"
-                       style="color: #5059BC;">
+                       style="color: var(--text-fg-brand);">
                         <i class="fas fa-sign-in-alt"></i> Ingresar
                     </a>
                     <a href="{% url 'portal:ciudadano_registro_step1' %}"
@@ -411,32 +409,32 @@
         </div>
 
         <!-- Contacto y ayuda -->
-        <div class="md:col-span-2 bg-white rounded-3xl border border-[#E5E7EB] p-8 flex flex-col justify-between">
+        <div class="md:col-span-2 bg-white rounded-3xl border border-[var(--border-base)] p-8 flex flex-col justify-between">
             <div>
-                <div class="section-label bg-gray-100 text-gray-600 mb-5">
+                <div class="section-label" style="background: var(--bg-tertiary); color: var(--text-body-subtle);">
                     <i class="fas fa-headset"></i> Ayuda
                 </div>
-                <h3 class="font-extrabold text-[#252F40] text-xl mb-5">¿Necesitás ayuda?</h3>
+                <h3 class="font-extrabold text-[var(--text-heading)] text-xl mb-5">¿Necesitás ayuda?</h3>
                 <div class="space-y-3 mb-6">
-                    <div class="flex items-center gap-3 bg-gray-50 rounded-xl p-3.5 border border-[#E5E7EB]">
-                        <i class="fas fa-phone w-5 text-center" style="color: #5059BC;"></i>
+                    <div class="flex items-center gap-3 rounded-xl p-3.5 border border-[var(--border-base)]" style="background: var(--bg-secondary);">
+                        <i class="fas fa-phone w-5 text-center" style="color: var(--text-fg-brand);"></i>
                         <div>
-                            <p class="text-xs text-[#8C8C8C] font-medium">Línea gratuita</p>
-                            <p class="font-bold text-[#252F40] text-sm">0800-222-1133</p>
+                            <p class="text-xs text-[var(--text-body-subtle)] font-medium">Línea gratuita</p>
+                            <p class="font-bold text-[var(--text-heading)] text-sm">0800-222-1133</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3 bg-gray-50 rounded-xl p-3.5 border border-[#E5E7EB]">
-                        <i class="fas fa-clock w-5 text-center" style="color: #5059BC;"></i>
+                    <div class="flex items-center gap-3 rounded-xl p-3.5 border border-[var(--border-base)]" style="background: var(--bg-secondary);">
+                        <i class="fas fa-clock w-5 text-center" style="color: var(--text-fg-brand);"></i>
                         <div>
-                            <p class="text-xs text-[#8C8C8C] font-medium">Horario</p>
-                            <p class="font-bold text-[#252F40] text-sm">Lunes a Viernes, 9–17 hs</p>
+                            <p class="text-xs text-[var(--text-body-subtle)] font-medium">Horario</p>
+                            <p class="font-bold text-[var(--text-heading)] text-sm">Lunes a Viernes, 9–17 hs</p>
                         </div>
                     </div>
                 </div>
             </div>
             <button onclick="document.getElementById('chat-button').click()"
                     class="w-full text-white font-bold py-3.5 rounded-xl transition-all hover:opacity-90"
-                    style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
+                    style="background: var(--gradient-brand);">
                 <i class="fas fa-comments mr-2"></i>Chatear con un operador
             </button>
         </div>

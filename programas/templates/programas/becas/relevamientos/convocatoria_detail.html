@@ -27,29 +27,29 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+  <div class="bg-white rounded-xl border border-base shadow-sm">
     {# Tabs #}
-    <div class="border-b border-[#E5E7EB] flex gap-1 px-2 flex-wrap">
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap">
       <button @click="tab='info'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='info' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-id-card"></i> Información general
       </button>
       <button @click="tab='rel'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='rel' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='rel' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-folder-open"></i> Relevamientos
         <span class="badge badge-gray ml-0.5">{{ n_relevamientos }}</span>
       </button>
       <button @click="tab='ben'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='ben' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='ben' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-users"></i> Beneficiarios
         <span class="badge badge-gray ml-0.5">{{ n_beneficiarios }}</span>
       </button>
       <button @click="tab='rep'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='rep' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='rep' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-chart-simple"></i> Reportes
       </button>
     </div>
@@ -107,28 +107,28 @@
         {# Cards laterales — datos reales #}
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
-            <div class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm">
+            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
               <div class="flex items-center justify-between mb-2">
                 <p class="text-xs text-body-subtle font-medium">Cupo segmento</p>
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)"><i class="fas fa-users text-xs"></i></div>
               </div>
               <p class="text-2xl font-bold text-heading">{{ cupo_segmento }}</p>
             </div>
-            <div class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm">
+            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
               <div class="flex items-center justify-between mb-2">
                 <p class="text-xs text-body-subtle font-medium">Aprobados</p>
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-success-soft text-fg-success"><i class="fas fa-check-circle text-xs"></i></div>
               </div>
               <p class="text-2xl font-bold text-heading">{{ n_aprobados }}</p>
             </div>
-            <div class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm">
+            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
               <div class="flex items-center justify-between mb-2">
                 <p class="text-xs text-body-subtle font-medium">Relevamientos</p>
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-folder-open text-xs"></i></div>
               </div>
               <p class="text-2xl font-bold text-heading">{{ n_relevamientos }}</p>
             </div>
-            <div class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm">
+            <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
               <div class="flex items-center justify-between mb-2">
                 <p class="text-xs text-body-subtle font-medium">Beneficiarios</p>
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-user text-xs"></i></div>
@@ -136,7 +136,7 @@
               <p class="text-2xl font-bold text-heading">{{ n_beneficiarios }}</p>
             </div>
           </div>
-          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Datos de la convocatoria</h3>
             <dl class="space-y-2.5 text-sm">
               <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>{% else %}<span class="badge badge-gray">Inactiva</span>{% endif %}</dd></div>
@@ -155,10 +155,10 @@
         <a href="{% url 'becas:relevamiento_crear' %}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-plus"></i> Nuevo relevamiento</a>
       </div>
       {% if relevamientos %}
-      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
         <table class="w-full border-collapse">
           <thead>
-            <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <tr class="bg-secondary border-b border-base">
               <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
               <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
               <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Zona</th>
@@ -169,15 +169,15 @@
           </thead>
           <tbody>
             {% for rel in relevamientos %}
-            <tr class="hover:bg-[#F9FAFB]">
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">
+            <tr class="hover:bg-secondary">
+              <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
                 <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:underline">{{ rel.nombre }}</a>
               </td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.zona|default:"—" }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">{% with rel=rel %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona|default:"—" }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light text-center">{% with rel=rel %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light text-right">
                 <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver detalle"><i class="fas fa-chevron-right"></i></a>
               </td>
             </tr>
@@ -186,7 +186,7 @@
         </table>
       </div>
       {% else %}
-      <div class="py-10 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+      <div class="py-10 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
         <div class="text-fg-brand"><i class="fas fa-clipboard-list text-4xl"></i></div>
         <p class="text-base font-bold text-heading">Sin relevamientos</p>
         <p class="text-sm text-body max-w-xs">Esta convocatoria no tiene relevamientos asignados aún.</p>
@@ -201,10 +201,10 @@
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> Exportar CSV</a>
       </div>
       {% if beneficiarios %}
-      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
         <table class="w-full border-collapse">
           <thead>
-            <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+            <tr class="bg-secondary border-b border-base">
               <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">DNI</th>
               <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre y apellido</th>
               <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamiento</th>
@@ -214,23 +214,23 @@
           </thead>
           <tbody>
             {% for f in beneficiarios %}
-            <tr class="hover:bg-[#F9FAFB]">
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{% if f.ciudadano %}{{ f.ciudadano.dni }}{% else %}{{ f.datos_identificacion.dni|default:"—" }}{% endif %}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-medium text-heading">
+            <tr class="hover:bg-secondary">
+              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{% if f.ciudadano %}{{ f.ciudadano.dni }}{% else %}{{ f.datos_identificacion.dni|default:"—" }}{% endif %}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light font-medium text-heading">
                 {% if f.ciudadano %}{{ f.ciudadano.nombre_completo }}{% else %}{{ f.datos_identificacion.nombre|default:"" }} {{ f.datos_identificacion.apellido|default:"" }}{% endif %}
               </td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ f.relevamiento.nombre }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.relevamiento.nombre }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light text-center">
                 {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado %}
               </td>
-              <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ f.creado|date:"d/m/Y" }}</td>
+              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.creado|date:"d/m/Y" }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       {% else %}
-      <div class="py-10 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+      <div class="py-10 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
         <div class="text-fg-brand"><i class="fas fa-users text-4xl"></i></div>
         <p class="text-base font-bold text-heading">Sin beneficiarios</p>
         <p class="text-sm text-body max-w-xs">Todavía no se cargaron formularios en los relevamientos de esta convocatoria.</p>
@@ -241,14 +241,14 @@
     {# ===== TAB: Reportes ===== #}
     <div x-show="tab==='rep'" x-cloak class="p-6 space-y-3">
       <p class="text-sm text-body-subtle mb-2">Exportaciones de esta convocatoria.</p>
-      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
+      <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-users"></i></div>
           <span class="text-sm font-semibold text-heading">Beneficiarios</span>
         </div>
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> CSV</a>
       </div>
-      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
+      <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-clipboard-list"></i></div>
           <span class="text-sm font-semibold text-heading">Avance de relevamientos</span>

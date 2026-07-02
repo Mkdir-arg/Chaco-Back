@@ -7,47 +7,40 @@
 <!-- Breadcrumb -->
 <div class="mb-6 animate-fadeInUp">
     <a href="{% url 'portal:ciudadano_mis_programas' %}"
-       class="inline-flex items-center text-sm text-[#8C8C8C] hover:text-[#252F40] transition-colors">
+       class="inline-flex items-center text-sm transition-colors"
+       style="color: var(--text-body-subtle)"
+       onmouseover="this.style.color='var(--text-heading)'"
+       onmouseout="this.style.color='var(--text-body-subtle)'">
         <i class="fas fa-arrow-left mr-2 text-xs"></i>Volver a Mis Programas
     </a>
 </div>
 
 <!-- Encabezado del programa -->
-<div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-5 mb-6 animate-fadeInUp">
+<div class="bg-white rounded-2xl shadow-sm border px-6 py-5 mb-6 animate-fadeInUp" style="border-color: var(--border-base)">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="flex items-center space-x-4">
             <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                 style="background: var(--gradient-brand);">
                 <i class="fas fa-clipboard-list text-white text-lg"></i>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-[#252F40]">{{ inscripcion.programa.nombre }}</h2>
-                <p class="text-sm text-[#8C8C8C] mt-0.5">{{ inscripcion.programa.get_tipo_display }}</p>
+                <h2 class="text-xl font-bold" style="color: var(--text-heading)">{{ inscripcion.programa.nombre }}</h2>
+                <p class="text-sm mt-0.5" style="color: var(--text-body-subtle)">{{ inscripcion.programa.get_tipo_display }}</p>
             </div>
         </div>
 
         <!-- Badge de estado -->
         <div class="flex-shrink-0">
             {% if inscripcion.estado == 'ACTIVO' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-700">
-                    <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>Activo
-                </span>
+                <span class="badge badge-dot badge-success">Activo</span>
             {% elif inscripcion.estado == 'EN_SEGUIMIENTO' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-                    <span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>En seguimiento
-                </span>
+                <span class="badge badge-dot badge-info">En seguimiento</span>
             {% elif inscripcion.estado == 'PENDIENTE' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700">
-                    <span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>En espera
-                </span>
+                <span class="badge badge-dot badge-warning">En espera</span>
             {% elif inscripcion.estado == 'SUSPENDIDO' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
-                    <span class="w-2 h-2 rounded-full bg-orange-400 mr-2"></span>Suspendido
-                </span>
+                <span class="badge badge-dot badge-warning">Suspendido</span>
             {% elif inscripcion.estado == 'CERRADO' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
-                    <span class="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>Finalizado
-                </span>
+                <span class="badge badge-dot badge-gray">Finalizado</span>
             {% endif %}
         </div>
     </div>
@@ -57,43 +50,43 @@
 <div class="grid md:grid-cols-2 gap-6">
 
     <!-- ── Card: Datos de mi inscripción ───────────────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 animate-fadeInUp">
+    <div class="bg-white rounded-2xl shadow-sm border p-6 animate-fadeInUp" style="border-color: var(--border-base)">
         <div class="flex items-center space-x-3 mb-5">
             <div class="w-9 h-9 rounded-lg flex items-center justify-center"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                 style="background: var(--gradient-brand);">
                 <i class="fas fa-id-card text-white text-sm"></i>
             </div>
-            <h3 class="text-base font-semibold text-[#252F40]">Datos de mi inscripción</h3>
+            <h3 class="text-base font-semibold" style="color: var(--text-heading)">Datos de mi inscripción</h3>
         </div>
 
         <dl class="space-y-4 text-sm">
             <div class="flex justify-between items-baseline gap-4">
-                <dt class="text-[#8C8C8C] flex-shrink-0">Código</dt>
-                <dd class="font-mono text-xs text-[#252F40] text-right">{{ inscripcion.codigo }}</dd>
+                <dt class="flex-shrink-0" style="color: var(--text-body-subtle)">Código</dt>
+                <dd class="font-mono text-xs text-right" style="color: var(--text-heading)">{{ inscripcion.codigo }}</dd>
             </div>
 
             <div class="flex justify-between items-baseline gap-4">
-                <dt class="text-[#8C8C8C] flex-shrink-0">Fecha de inscripción</dt>
-                <dd class="font-medium text-[#252F40]">{{ inscripcion.fecha_inscripcion|date:"d/m/Y" }}</dd>
+                <dt class="flex-shrink-0" style="color: var(--text-body-subtle)">Fecha de inscripción</dt>
+                <dd class="font-medium" style="color: var(--text-heading)">{{ inscripcion.fecha_inscripcion|date:"d/m/Y" }}</dd>
             </div>
 
             {% if inscripcion.fecha_inicio %}
             <div class="flex justify-between items-baseline gap-4">
-                <dt class="text-[#8C8C8C] flex-shrink-0">Fecha de inicio</dt>
-                <dd class="font-medium text-[#252F40]">{{ inscripcion.fecha_inicio|date:"d/m/Y" }}</dd>
+                <dt class="flex-shrink-0" style="color: var(--text-body-subtle)">Fecha de inicio</dt>
+                <dd class="font-medium" style="color: var(--text-heading)">{{ inscripcion.fecha_inicio|date:"d/m/Y" }}</dd>
             </div>
             {% endif %}
 
             {% if inscripcion.fecha_cierre %}
             <div class="flex justify-between items-baseline gap-4">
-                <dt class="text-[#8C8C8C] flex-shrink-0">Fecha de cierre</dt>
-                <dd class="font-medium text-[#252F40]">{{ inscripcion.fecha_cierre|date:"d/m/Y" }}</dd>
+                <dt class="flex-shrink-0" style="color: var(--text-body-subtle)">Fecha de cierre</dt>
+                <dd class="font-medium" style="color: var(--text-heading)">{{ inscripcion.fecha_cierre|date:"d/m/Y" }}</dd>
             </div>
             {% endif %}
 
             <div class="flex justify-between items-baseline gap-4">
-                <dt class="text-[#8C8C8C] flex-shrink-0">Cómo ingresaste</dt>
-                <dd class="font-medium text-[#252F40] text-right">
+                <dt class="flex-shrink-0" style="color: var(--text-body-subtle)">Cómo ingresaste</dt>
+                <dd class="font-medium text-right" style="color: var(--text-heading)">
                     {% if inscripcion.via_ingreso == 'DIRECTO' %}
                         Ingreso directo
                     {% elif inscripcion.via_ingreso == 'DERIVACION_INTERNA' %}
@@ -110,8 +103,8 @@
 
             {% if inscripcion.responsable %}
             <div class="flex justify-between items-baseline gap-4">
-                <dt class="text-[#8C8C8C] flex-shrink-0">Profesional a cargo</dt>
-                <dd class="font-medium text-[#252F40] text-right">
+                <dt class="flex-shrink-0" style="color: var(--text-body-subtle)">Profesional a cargo</dt>
+                <dd class="font-medium text-right" style="color: var(--text-heading)">
                     {% if inscripcion.responsable.get_full_name %}
                         {{ inscripcion.responsable.get_full_name }}
                     {% else %}
@@ -124,47 +117,47 @@
     </div>
 
     <!-- ── Card: Estado del programa ──────────────────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 animate-fadeInUp">
+    <div class="bg-white rounded-2xl shadow-sm border p-6 animate-fadeInUp" style="border-color: var(--border-base)">
         <div class="flex items-center space-x-3 mb-5">
             <div class="w-9 h-9 rounded-lg flex items-center justify-center"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                 style="background: var(--gradient-brand);">
                 <i class="fas fa-info-circle text-white text-sm"></i>
             </div>
-            <h3 class="text-base font-semibold text-[#252F40]">Estado actual</h3>
+            <h3 class="text-base font-semibold" style="color: var(--text-heading)">Estado actual</h3>
         </div>
 
         <div class="space-y-4 text-sm">
             {% if inscripcion.estado == 'ACTIVO' %}
-                <div class="p-4 rounded-xl bg-green-50 border border-green-200">
-                    <p class="font-semibold text-green-800 mb-1"><i class="fas fa-check-circle mr-2"></i>Participación activa</p>
-                    <p class="text-green-700 text-xs">Estás participando actualmente en este programa. El equipo está en contacto con tu caso.</p>
+                <div class="p-4 rounded-xl border" style="background: var(--bg-success-soft); border-color: var(--border-success-subtle)">
+                    <p class="font-semibold mb-1" style="color: var(--text-fg-success)"><i class="fas fa-check-circle mr-2"></i>Participación activa</p>
+                    <p class="text-xs" style="color: var(--text-fg-success)">Estás participando actualmente en este programa. El equipo está en contacto con tu caso.</p>
                 </div>
             {% elif inscripcion.estado == 'EN_SEGUIMIENTO' %}
-                <div class="p-4 rounded-xl bg-blue-50 border border-blue-200">
-                    <p class="font-semibold text-blue-800 mb-1"><i class="fas fa-eye mr-2"></i>En seguimiento</p>
-                    <p class="text-blue-700 text-xs">El equipo está realizando un seguimiento de tu situación de manera regular.</p>
+                <div class="p-4 rounded-xl border" style="background: var(--bg-info-soft); border-color: var(--color-brand-200)">
+                    <p class="font-semibold mb-1" style="color: var(--text-fg-info)"><i class="fas fa-eye mr-2"></i>En seguimiento</p>
+                    <p class="text-xs" style="color: var(--text-fg-info)">El equipo está realizando un seguimiento de tu situación de manera regular.</p>
                 </div>
             {% elif inscripcion.estado == 'PENDIENTE' %}
-                <div class="p-4 rounded-xl bg-yellow-50 border border-yellow-200">
-                    <p class="font-semibold text-yellow-800 mb-1"><i class="fas fa-clock mr-2"></i>En espera de asignación</p>
-                    <p class="text-yellow-700 text-xs">Tu inscripción fue recibida. Estamos procesando tu caso para asignarte un profesional.</p>
+                <div class="p-4 rounded-xl border" style="background: var(--bg-warning-soft); border-color: var(--border-warning-subtle)">
+                    <p class="font-semibold mb-1" style="color: var(--text-fg-warning)"><i class="fas fa-clock mr-2"></i>En espera de asignación</p>
+                    <p class="text-xs" style="color: var(--text-fg-warning)">Tu inscripción fue recibida. Estamos procesando tu caso para asignarte un profesional.</p>
                 </div>
             {% elif inscripcion.estado == 'SUSPENDIDO' %}
-                <div class="p-4 rounded-xl bg-orange-50 border border-orange-200">
-                    <p class="font-semibold text-orange-800 mb-1"><i class="fas fa-pause-circle mr-2"></i>Suspendido temporalmente</p>
-                    <p class="text-orange-700 text-xs">La participación en este programa está suspendida. Para más información, consultá con la oficina correspondiente.</p>
+                <div class="p-4 rounded-xl border" style="background: var(--bg-warning-soft); border-color: var(--border-warning-subtle)">
+                    <p class="font-semibold mb-1" style="color: var(--text-fg-warning)"><i class="fas fa-pause-circle mr-2"></i>Suspendido temporalmente</p>
+                    <p class="text-xs" style="color: var(--text-fg-warning)">La participación en este programa está suspendida. Para más información, consultá con la oficina correspondiente.</p>
                 </div>
             {% elif inscripcion.estado == 'CERRADO' %}
-                <div class="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                    <p class="font-semibold text-gray-700 mb-1"><i class="fas fa-flag-checkered mr-2"></i>Programa finalizado</p>
-                    <p class="text-gray-600 text-xs">Tu participación en este programa fue completada.</p>
+                <div class="p-4 rounded-xl border" style="background: var(--bg-secondary); border-color: var(--border-base)">
+                    <p class="font-semibold mb-1" style="color: var(--text-heading)"><i class="fas fa-flag-checkered mr-2"></i>Programa finalizado</p>
+                    <p class="text-xs" style="color: var(--text-body)">Tu participación en este programa fue completada.</p>
                 </div>
             {% endif %}
 
             {% if inscripcion.estado == 'CERRADO' and inscripcion.motivo_cierre %}
             <div class="pt-2">
-                <p class="text-xs text-[#8C8C8C] font-medium mb-1">Motivo del cierre</p>
-                <p class="text-sm text-[#252F40]">{{ inscripcion.motivo_cierre }}</p>
+                <p class="text-xs font-medium mb-1" style="color: var(--text-body-subtle)">Motivo del cierre</p>
+                <p class="text-sm" style="color: var(--text-heading)">{{ inscripcion.motivo_cierre }}</p>
             </div>
             {% endif %}
         </div>
@@ -174,48 +167,40 @@
 
 <!-- ── Card: Mis derivaciones (solo si existen) ───────────────────────── -->
 {% if derivaciones %}
-<div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 mt-6 animate-fadeInUp">
+<div class="bg-white rounded-2xl shadow-sm border p-6 mt-6 animate-fadeInUp" style="border-color: var(--border-base)">
     <div class="flex items-center space-x-3 mb-5">
         <div class="w-9 h-9 rounded-lg flex items-center justify-center"
-             style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+             style="background: var(--gradient-brand);">
             <i class="fas fa-exchange-alt text-white text-sm"></i>
         </div>
-        <h3 class="text-base font-semibold text-[#252F40]">Mis derivaciones a este programa</h3>
+        <h3 class="text-base font-semibold" style="color: var(--text-heading)">Mis derivaciones a este programa</h3>
     </div>
 
     <ul class="space-y-3">
         {% for deriv in derivaciones %}
-        <li class="p-4 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] text-sm">
+        <li class="p-4 rounded-xl border text-sm" style="background: var(--bg-secondary); border-color: var(--border-base)">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                     {% if deriv.programa_origen %}
-                        <p class="font-medium text-[#252F40]">
-                            Derivado/a desde <span class="text-[#5059BC]">{{ deriv.programa_origen.nombre }}</span>
+                        <p class="font-medium" style="color: var(--text-heading)">
+                            Derivado/a desde <span style="color: var(--text-fg-brand)">{{ deriv.programa_origen.nombre }}</span>
                         </p>
                     {% else %}
-                        <p class="font-medium text-[#252F40]">Derivación espontánea</p>
+                        <p class="font-medium" style="color: var(--text-heading)">Derivación espontánea</p>
                     {% endif %}
-                    <p class="text-xs text-[#8C8C8C] mt-0.5">
+                    <p class="text-xs mt-0.5" style="color: var(--text-body-subtle)">
                         el {{ deriv.creado|date:"d/m/Y" }}
                     </p>
                 </div>
                 <div class="flex-shrink-0">
                     {% if deriv.estado == 'PENDIENTE' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1.5"></span>En evaluación
-                        </span>
+                        <span class="badge badge-dot badge-warning">En evaluación</span>
                     {% elif deriv.estado == 'ACEPTADA' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Aceptada
-                        </span>
+                        <span class="badge badge-dot badge-success">Aceptada</span>
                     {% elif deriv.estado == 'RECHAZADA' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5"></span>No aceptada
-                        </span>
+                        <span class="badge badge-dot badge-danger">No aceptada</span>
                     {% elif deriv.estado == 'CANCELADA' %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></span>Cancelada
-                        </span>
+                        <span class="badge badge-dot badge-gray">Cancelada</span>
                     {% endif %}
                 </div>
             </div>

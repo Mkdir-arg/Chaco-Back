@@ -42,22 +42,22 @@
                 <small class="text-muted d-block mb-2">Plan Más Reciente (ID: {{ plan_mas_reciente.id }})</small>
                 <div class="d-flex flex-wrap gap-2">
                     {% if plan_mas_reciente.incluye_alimentacion %}
-                        <span class="badge bg-orange"><i class="fas fa-utensils"></i> Alimentación</span>
+                        <span class="badge badge-warning"><i class="fas fa-utensils"></i> Alimentación</span>
                     {% endif %}
                     {% if plan_mas_reciente.incluye_vivienda %}
-                        <span class="badge bg-blue"><i class="fas fa-home"></i> Vivienda</span>
+                        <span class="badge badge-info"><i class="fas fa-home"></i> Vivienda</span>
                     {% endif %}
                     {% if plan_mas_reciente.incluye_salud %}
-                        <span class="badge bg-red"><i class="fas fa-heartbeat"></i> Salud</span>
+                        <span class="badge badge-danger"><i class="fas fa-heartbeat"></i> Salud</span>
                     {% endif %}
                     {% if plan_mas_reciente.incluye_educacion %}
-                        <span class="badge bg-purple"><i class="fas fa-graduation-cap"></i> Educación</span>
+                        <span class="badge badge-brand"><i class="fas fa-graduation-cap"></i> Educación</span>
                     {% endif %}
                     {% if plan_mas_reciente.incluye_empleo %}
-                        <span class="badge bg-green"><i class="fas fa-briefcase"></i> Empleo</span>
+                        <span class="badge badge-success"><i class="fas fa-briefcase"></i> Empleo</span>
                     {% endif %}
                     {% if plan_mas_reciente.incluye_emprendimiento %}
-                        <span class="badge bg-yellow"><i class="fas fa-lightbulb"></i> Emprendimiento</span>
+                        <span class="badge badge-gray"><i class="fas fa-lightbulb"></i> Emprendimiento</span>
                     {% endif %}
                 </div>
             </div>
@@ -205,12 +205,3 @@ function toggleAccionOperativa(show) {
     }
 }
 </script>
-
-<style>
-.badge.bg-orange { background-color: #ff9800 !important; }
-.badge.bg-blue { background-color: #2196f3 !important; }
-.badge.bg-red { background-color: #f44336 !important; }
-.badge.bg-purple { background-color: #9c27b0 !important; }
-.badge.bg-green { background-color: #4caf50 !important; }
-.badge.bg-yellow { background-color: #ffc107 !important; color: #000 !important; }
-</style>
