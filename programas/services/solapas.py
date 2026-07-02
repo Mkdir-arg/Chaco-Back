@@ -217,9 +217,7 @@ class SolapasService:
         if not estados:
             return None
 
-        en_espera = ListaEspera.objects.filter(
-            formulario__ciudadano=ciudadano, promovido=False
-        ).exists()
+        en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
 
         texto, color = estado_relevante_becas(estados, en_espera)
         color_hex = {
@@ -275,11 +273,7 @@ class SolapasService:
 
         # Stat cards basadas en formulario más reciente
         formulario_reciente = formularios[0] if formularios else None
-        segmento_nombre = (
-            formulario_reciente.relevamiento.convocatoria.segmento.nombre
-            if formulario_reciente
-            else "—"
-        )
+        segmento_nombre = formulario_reciente.relevamiento.convocatoria.segmento.nombre if formulario_reciente else "—"
         fecha_envio = formulario_reciente.creado if formulario_reciente else None
 
         return {

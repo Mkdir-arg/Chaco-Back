@@ -56,9 +56,9 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, LoginRequiredMixin, DetailView
         )
 
         # Formularios ENVIADOS del segmento que aún no están en lista de espera
-        formularios_en_espera_ids = ListaEspera.objects.filter(
-            segmento=segmento, promovido=False
-        ).values_list("formulario_id", flat=True)
+        formularios_en_espera_ids = ListaEspera.objects.filter(segmento=segmento, promovido=False).values_list(
+            "formulario_id", flat=True
+        )
         pendientes = (
             Formulario.objects.filter(
                 estado=Formulario.Estado.ENVIADO,
@@ -106,9 +106,7 @@ def dar_baja_beneficiario_view(request, pk):
 @login_required
 def promover_lista_espera_view(request, pk):
     lista = get_object_or_404(
-        ListaEspera.objects.select_related(
-            "formulario__ciudadano", "segmento"
-        ),
+        ListaEspera.objects.select_related("formulario__ciudadano", "segmento"),
         pk=pk,
     )
     if not es_admin_becas(request.user):

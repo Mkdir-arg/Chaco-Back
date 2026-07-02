@@ -152,9 +152,7 @@ def agregar_a_lista_espera(formulario, segmento, user):
     # entradas con la misma posición.
     Segmento.objects.select_for_update().get(pk=segmento.pk)
 
-    max_pos = ListaEspera.objects.filter(
-        segmento=segmento, promovido=False
-    ).aggregate(m=Max("posicion"))["m"] or 0
+    max_pos = ListaEspera.objects.filter(segmento=segmento, promovido=False).aggregate(m=Max("posicion"))["m"] or 0
     posicion = max_pos + 1
 
     ListaEspera.objects.create(

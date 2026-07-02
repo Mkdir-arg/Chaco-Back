@@ -96,7 +96,5 @@ class AdjuntoFormularioSerializer(serializers.ModelSerializer):
         pregunta = attrs.get("pregunta_global")
         requisito = attrs.get("requisito_nativo")
         if bool(pregunta) == bool(requisito):
-            raise serializers.ValidationError(
-                "Se requiere exactamente uno: pregunta_global o requisito_nativo."
-            )
+            raise serializers.ValidationError("Se requiere exactamente uno: pregunta_global o requisito_nativo.")
         return attrs
