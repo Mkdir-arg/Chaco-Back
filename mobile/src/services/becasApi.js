@@ -96,6 +96,39 @@ export const loginBecas = async ({ username, password }) => {
   return user;
 };
 
+// Sube un archivo real (multipart) a un endpoint de la API de Becas — a diferencia
+// de becasRequest, no serializa el body a JSON: FormData con {uri, name, type}
+// es el formato que espera fetch de React Native para adjuntar un archivo local.
+export const becasUploadFile = async (path, { fileUri, fileField = 'archivo', fileName, mimeType = 'image/jpeg', fields = {} } = {}) => {
+  const token = await getBecasToken();
+  const formData = new FormData();
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value !== null && value !== undefined) formData.append(key, String(value));
+  });
+  formData.append(fileField, {
+    uri: fileUri,
+    name: fileName || fileUri.split('/').pop() || 'archivo.jpg',
+    type: mimeType,
+  });
+
+  const response = await fetch(buildUrl(path), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Token ${token}` } : {}),
+    },
+    body: formData,
+  });
+  const payload = await parseResponse(response);
+  if (!response.ok) {
+    const error = new Error(payload?.detail || payload?.non_field_errors?.[0] || `Error HTTP ${response.status}`);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
+};
+
 export const becasRequest = async (path, options = {}) => {
   const token = await getBecasToken();
   const headers = {

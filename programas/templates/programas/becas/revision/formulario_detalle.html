@@ -88,10 +88,10 @@
       <h3 class="font-bold text-heading mb-3">Cuestionario social</h3>
       {% if globales_list %}
       <dl class="space-y-3 text-sm">
-        {% for label, valor in globales_list %}
+        {% for item in globales_list %}
         <div class="border-b border-[#F3F4F6] pb-2 last:border-0">
-          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ label }}</dt>
-          <dd class="text-heading">{{ valor }}</dd>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ item.label }}</dt>
+          <dd class="text-heading">{% include "programas/becas/_respuesta_valor.html" %}</dd>
         </div>
         {% endfor %}
       </dl>
@@ -101,10 +101,10 @@
       <h3 class="font-bold text-heading mb-3">Requisitos del segmento</h3>
       {% if requisitos_list %}
       <dl class="space-y-3 text-sm">
-        {% for label, valor in requisitos_list %}
+        {% for item in requisitos_list %}
         <div class="border-b border-[#F3F4F6] pb-2 last:border-0">
-          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ label }}</dt>
-          <dd class="text-heading">{{ valor }}</dd>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ item.label }}</dt>
+          <dd class="text-heading">{% include "programas/becas/_respuesta_valor.html" %}</dd>
         </div>
         {% endfor %}
       </dl>
@@ -130,6 +130,34 @@
   </form>
   {% endif %}
 
+  {# Modal "Rechazar formulario" — pide motivo obligatorio (ModernModal no soporta input propio) #}
+  <div id="modal-rechazo-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-rechazo-title" class="w-full" style="max-width:520px;background:var(--bg-primary,#fff);border-radius:var(--radius-2xl,16px);box-shadow:var(--shadow-xl);overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--border-light,#F3F4F6);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:var(--radius-lg,8px);display:flex;align-items:center;justify-content:center;background:var(--bg-danger-soft,#FEF0F2);color:var(--text-fg-danger,#C70036);flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 id="modal-rechazo-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Rechazar formulario</h3>
+        </div>
+        <button type="button" id="modal-rechazo-close" aria-label="Cerrar" style="color:var(--text-body-subtle);background:none;border:none;cursor:pointer;line-height:1;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div style="padding:24px;">
+        <label for="modal-rechazo-motivo" style="display:block;font-size:13px;font-weight:600;color:var(--text-heading);margin-bottom:6px;">
+          Motivo del rechazo <span style="color:var(--text-fg-danger);">*</span>
+        </label>
+        <textarea id="modal-rechazo-motivo" class="nodo-field" rows="4" placeholder="Detallá el motivo..."></textarea>
+        <p id="modal-rechazo-error" class="hidden" style="font-size:12.5px;color:var(--text-fg-danger);margin-top:6px;">El motivo es obligatorio.</p>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--border-light,#F3F4F6);background:var(--bg-secondary,#F9FAFB);">
+        <button type="button" id="modal-rechazo-cancelar" class="btn-nodo btn-tertiary btn-sm">Cancelar</button>
+        <button type="button" id="modal-rechazo-confirmar" class="btn-nodo btn-danger btn-sm">Rechazar</button>
+      </div>
+    </div>
+  </div>
+
   {# Traza #}
   <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
     <h3 class="font-bold text-heading mb-3"><i class="fas fa-history mr-1 text-fg-brand"></i> Traza de cambios</h3>
@@ -151,39 +179,69 @@
 {% endblock %}
 
 {% block customJS %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const btnAprobar = document.getElementById('btn-aprobar');
   if (btnAprobar) {
     btnAprobar.addEventListener('click', function () {
-      Swal.fire({
-        title: '¿Aprobar formulario?', icon: 'question', showCancelButton: true,
-        confirmButtonColor: '#5059bc', cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Sí, aprobar', cancelButtonText: 'Cancelar',
-      }).then(function (r) { if (r.isConfirmed) document.getElementById('form-aprobar').submit(); });
-    });
-  }
-  const btnRechazar = document.getElementById('btn-rechazar');
-  if (btnRechazar) {
-    btnRechazar.addEventListener('click', function () {
-      Swal.fire({
-        title: 'Rechazar formulario',
-        input: 'textarea',
-        inputLabel: 'Motivo del rechazo (obligatorio)',
-        inputPlaceholder: 'Detallá el motivo...',
-        showCancelButton: true,
-        confirmButtonColor: '#5059bc', cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Rechazar', cancelButtonText: 'Cancelar',
-        inputValidator: function (value) { if (!value || !value.trim()) return 'El motivo es obligatorio.'; },
-      }).then(function (r) {
-        if (r.isConfirmed) {
-          document.getElementById('motivo-rechazo').value = r.value;
-          document.getElementById('form-rechazar').submit();
-        }
+      ModernModal.show({
+        type: 'confirm',
+        title: '¿Aprobar formulario?',
+        message: 'Si hay cupo disponible en el segmento, el formulario pasará a estado aprobado. Si no, se agregará a la lista de espera. ¿Confirmás?',
+        confirmText: 'Sí, aprobar',
+        cancelText: 'Cancelar',
+        onConfirm: function () { document.getElementById('form-aprobar').submit(); }
       });
     });
   }
+
+  // Modal "Rechazar formulario" con motivo obligatorio (markup propio de esta página).
+  const rechazoOverlay = document.getElementById('modal-rechazo-overlay');
+  const rechazoMotivo = document.getElementById('modal-rechazo-motivo');
+  const rechazoError = document.getElementById('modal-rechazo-error');
+  let rechazoPreviouslyFocused = null;
+
+  function abrirModalRechazo() {
+    rechazoPreviouslyFocused = document.activeElement;
+    rechazoMotivo.value = '';
+    rechazoError.classList.add('hidden');
+    rechazoOverlay.classList.remove('hidden');
+    rechazoOverlay.style.display = 'flex';
+    rechazoMotivo.focus();
+  }
+
+  function cerrarModalRechazo() {
+    rechazoOverlay.classList.add('hidden');
+    rechazoOverlay.style.display = 'none';
+    if (rechazoPreviouslyFocused && typeof rechazoPreviouslyFocused.focus === 'function') {
+      rechazoPreviouslyFocused.focus();
+    }
+  }
+
+  const btnRechazar = document.getElementById('btn-rechazar');
+  if (btnRechazar) {
+    btnRechazar.addEventListener('click', abrirModalRechazo);
+  }
+
+  document.getElementById('modal-rechazo-cancelar').addEventListener('click', cerrarModalRechazo);
+  document.getElementById('modal-rechazo-close').addEventListener('click', cerrarModalRechazo);
+  rechazoOverlay.addEventListener('click', function (e) {
+    if (e.target === rechazoOverlay) cerrarModalRechazo();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !rechazoOverlay.classList.contains('hidden')) cerrarModalRechazo();
+  });
+
+  document.getElementById('modal-rechazo-confirmar').addEventListener('click', function () {
+    const motivo = rechazoMotivo.value.trim();
+    if (!motivo) {
+      rechazoError.classList.remove('hidden');
+      rechazoMotivo.focus();
+      return;
+    }
+    document.getElementById('motivo-rechazo').value = motivo;
+    document.getElementById('form-rechazar').submit();
+  });
 });
 </script>
 {% endblock %}

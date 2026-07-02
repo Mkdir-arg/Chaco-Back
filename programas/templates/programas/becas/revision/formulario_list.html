@@ -87,13 +87,7 @@
               {% endif %}
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
-              {% if f.estado == 'APROBADO' %}
-                <span class="badge badge-success badge-dot">Aprobado</span>
-              {% elif f.estado == 'RECHAZADO' %}
-                <span class="badge badge-danger badge-dot">Rechazado</span>
-              {% else %}
-                <span class="badge badge-warning badge-dot">Enviado</span>
-              {% endif %}
+              {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado dot=True color_enviado="warning" %}
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
               <a href="{% url 'becas:formulario_detalle' f.pk %}" class="btn-nodo btn-tertiary btn-sm">

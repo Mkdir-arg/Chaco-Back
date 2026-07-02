@@ -221,9 +221,7 @@
               </td>
               <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ f.relevamiento.nombre }}</td>
               <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
-                {% if f.estado == 'APROBADO' %}<span class="badge badge-success">Aprobado</span>
-                {% elif f.estado == 'RECHAZADO' %}<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FEF0F2] text-[#9B1C1C]">Rechazado</span>
-                {% else %}<span class="badge badge-gray">Enviado</span>{% endif %}
+                {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado %}
               </td>
               <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ f.creado|date:"d/m/Y" }}</td>
             </tr>
