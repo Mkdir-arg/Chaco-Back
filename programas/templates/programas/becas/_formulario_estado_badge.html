@@ -1,0 +1,21 @@
+{% comment %}
+Badge de estado de un Formulario de Becas (única fuente para no duplicar el
+mapeo estado→badge en cada pantalla).
+
+Uso: {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado %}
+Parámetros opcionales:
+  en_espera_activa — bool, tiene prioridad sobre estado (muestra "Lista de espera").
+  dot              — bool, agrega el modificador badge-dot.
+  color_enviado    — color del badge para ENVIADO (default "gray").
+{% endcomment %}
+{% if en_espera_activa %}
+  <span class="badge badge-warning{% if dot %} badge-dot{% endif %}">Lista de espera</span>
+{% elif estado == 'APROBADO' %}
+  <span class="badge badge-success{% if dot %} badge-dot{% endif %}">Aprobado</span>
+{% elif estado == 'RECHAZADO' %}
+  <span class="badge badge-danger{% if dot %} badge-dot{% endif %}">Rechazado</span>
+{% elif estado == 'BAJA' %}
+  <span class="badge badge-gray{% if dot %} badge-dot{% endif %}">Dado de baja</span>
+{% else %}
+  <span class="badge badge-{{ color_enviado|default:"gray" }}{% if dot %} badge-dot{% endif %}">Enviado</span>
+{% endif %}

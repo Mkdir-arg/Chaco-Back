@@ -1,6 +1,6 @@
 {# Resumen de Becas de un ciudadano: stat cards + tabla de formularios + card Resultado SIS. #}
 {# Reusado por la página standalone (ciudadano_detalle.html) y por la tab embebida del legajo. #}
-{# Espera en contexto: formularios, estado_texto, estado_color, segmento_nombre, fecha_envio, Formulario. #}
+{# Espera en contexto: formularios, estado_texto, estado_color, segmento_nombre, fecha_envio. #}
 
 {# Stat cards #}
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -100,17 +100,7 @@
             {{ formulario.relevamiento.nombre }}
           </td>
           <td style="padding:13px 16px;">
-            {% if formulario.en_espera_activa %}
-              <span class="badge badge-warning">Lista de espera</span>
-            {% elif formulario.estado == Formulario.Estado.APROBADO %}
-              <span class="badge badge-success">Aprobado</span>
-            {% elif formulario.estado == Formulario.Estado.RECHAZADO %}
-              <span class="badge badge-danger">Rechazado</span>
-            {% elif formulario.estado == Formulario.Estado.BAJA %}
-              <span class="badge badge-gray">Dado de baja</span>
-            {% else %}
-              <span class="badge badge-gray">Enviado</span>
-            {% endif %}
+            {% include "programas/becas/_formulario_estado_badge.html" with estado=formulario.estado en_espera_activa=formulario.en_espera_activa %}
           </td>
           <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body-subtle); white-space:nowrap;">
             {{ formulario.creado|date:"d/m/Y" }}

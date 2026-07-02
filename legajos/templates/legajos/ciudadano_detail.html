@@ -636,7 +636,7 @@
 
     <!-- Tabs dinámicos de programas (genérico, server-side) -->
     {% for solapa in solapas_programas %}
-    {% if 'NACHEC' not in solapa.id and solapa.id != 'becas' %}
+    {% if not solapa.contenido_embebido %}
     <div id="tab-{{ solapa.id }}" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-{{ solapa.id }}">
         <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm); border-top: 4px solid {{ solapa.color|default:'var(--bg-brand)' }};">
             <div class="border-b px-6 py-5" style="border-color: var(--border-base);">

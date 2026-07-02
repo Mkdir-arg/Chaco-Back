@@ -139,15 +139,9 @@
               <label class="block text-sm font-medium text-heading mb-1">Descripción</label>
               {{ form_segmento.descripcion }}
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-heading mb-1">Cupo total <span class="text-fg-danger">*</span></label>
-                {{ form_segmento.cupo_maximo }}
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-heading mb-1">Coordinador asignado</label>
-                {{ form_coordinador.coordinador }}
-              </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Cupo total <span class="text-fg-danger">*</span></label>
+              {{ form_segmento.cupo_maximo }}
             </div>
             <label class="flex items-center gap-2 text-sm text-body cursor-pointer">
               {{ form_segmento.requiere_gps }} Requiere captura de GPS en el formulario
@@ -163,11 +157,13 @@
             </div>
           </form>
 
-          {# Coordinadores asignados — lista con botones de quitar #}
-          {% if coordinadores %}
+          {# Coordinadores asignados — lista con botones de quitar + alta (issue #74) #}
           <div class="border-t border-[#F3F4F6] pt-5">
-            <h3 class="text-sm font-bold text-heading mb-3">Coordinadores asignados</h3>
-            <div class="space-y-2">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-heading">Coordinadores asignados</h3>
+            </div>
+            {% if coordinadores %}
+            <div class="space-y-2 mb-4">
               {% for asig in coordinadores %}
               <div class="flex items-center justify-between bg-secondary-soft rounded-lg px-3 py-2">
                 <span class="text-sm text-body flex items-center gap-2">
@@ -186,8 +182,16 @@
               </div>
               {% endfor %}
             </div>
+            {% endif %}
+            <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3">
+              {% csrf_token %}
+              <div class="flex-1 min-w-[220px]">
+                <label class="block text-sm font-medium text-heading mb-1">Asignar coordinador</label>
+                {{ form_coordinador.coordinador }}
+              </div>
+              <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
+            </form>
           </div>
-          {% endif %}
         </div>
 
         {# Columna derecha: ocupación + resumen #}

@@ -180,7 +180,7 @@
                 onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background=''">
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
+                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:var(--text-white,#fff);font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
                     {{ formulario.ciudadano.nombre|slice:":1"|upper }}{{ formulario.ciudadano.apellido|slice:":1"|upper }}
                   </div>
                   <span style="font-weight:500;color:var(--text-heading);">{{ formulario.ciudadano.apellido }}, {{ formulario.ciudadano.nombre }}</span>
@@ -258,7 +258,7 @@
               </td>
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
+                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:var(--text-white,#fff);font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
                     {{ le.formulario.ciudadano.nombre|slice:":1"|upper }}{{ le.formulario.ciudadano.apellido|slice:":1"|upper }}
                   </div>
                   <span style="font-weight:500;color:var(--text-heading);">{{ le.formulario.ciudadano.apellido }}, {{ le.formulario.ciudadano.nombre }}</span>
@@ -278,8 +278,8 @@
                   <button type="button"
                           aria-label="Promover a {{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}"
                           onclick="confirmarPromover({{ le.pk }}, '{{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}')"
-                          style="display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:9999px;color:var(--text-fg-brand,#5059BC);background:#fff;border:1px solid var(--border-brand,#5059BC);font-size:12px;font-weight:600;cursor:pointer;gap:4px;transition:background var(--duration-fast,150ms);"
-                          onmouseover="this.style.background='var(--bg-brand-tint,#DEE1FF)'" onmouseout="this.style.background='#fff'">
+                          style="display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:9999px;color:var(--text-fg-brand,#5059BC);background:var(--bg-white,#fff);border:1px solid var(--border-brand,#5059BC);font-size:12px;font-weight:600;cursor:pointer;gap:4px;transition:background var(--duration-fast,150ms);"
+                          onmouseover="this.style.background='var(--bg-brand-tint,#DEE1FF)'" onmouseout="this.style.background='var(--bg-white,#fff)'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/></svg>
                     Promover
                   </button>
@@ -326,7 +326,7 @@
                 onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background=''">
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
+                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:var(--text-white,#fff);font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
                     {{ formulario.ciudadano.nombre|slice:":1"|upper }}{{ formulario.ciudadano.apellido|slice:":1"|upper }}
                   </div>
                   <span style="font-weight:500;color:var(--text-heading);">{{ formulario.ciudadano.apellido }}, {{ formulario.ciudadano.nombre }}</span>

@@ -72,11 +72,15 @@ def promover_lista_espera(lista_espera, user):
     if lista_espera.promovido:
         raise ValidationError("Esta entrada ya fue promovida.")
 
-    stats = get_cupo_stats(lista_espera.segmento)
+    segmento = lista_espera.segmento
+    # Mismo lock que agregar_a_lista_espera: sin él, dos promociones (o una
+    # promoción y una aprobación) concurrentes pueden leer el mismo
+    # cupo_disponible y exceder el cupo_maximo del segmento.
+    Segmento.objects.select_for_update().get(pk=segmento.pk)
+
+    stats = get_cupo_stats(segmento)
     if stats["cupo_disponible"] <= 0:
-        raise ValidationError(
-            f"No hay cupo disponible en el segmento '{lista_espera.segmento.nombre}'."
-        )
+        raise ValidationError(f"No hay cupo disponible en el segmento '{segmento.nombre}'.")
 
     formulario = lista_espera.formulario
     estado_anterior = formulario.estado
@@ -94,6 +98,35 @@ def promover_lista_espera(lista_espera, user):
             ("lista_espera.promovido", "False", "True"),
         ],
     )
+
+
+@transaction.atomic
+def aprobar_o_poner_en_espera(formulario, user):
+    """Aprueba un formulario ENVIADO si hay cupo; si no, lo agrega a lista de
+    espera (RN-02/03: el cupo se consume solo si hay disponibilidad).
+
+    Bloquea el segmento antes de leer el cupo para evitar que dos aprobaciones
+    concurrentes exceedan el cupo_maximo (mismo lock que agregar_a_lista_espera).
+    Raises ValidationError si el formulario no está en estado ENVIADO.
+
+    Retorna "aprobado" o "lista_espera" según el resultado.
+    """
+    if formulario.estado != Formulario.Estado.ENVIADO:
+        raise ValidationError("Solo se pueden aprobar formularios en estado ENVIADO.")
+
+    segmento = formulario.relevamiento.convocatoria.segmento
+    Segmento.objects.select_for_update().get(pk=segmento.pk)
+
+    if get_cupo_stats(segmento)["cupo_disponible"] > 0:
+        estado_anterior = formulario.estado
+        formulario.estado = Formulario.Estado.APROBADO
+        formulario.motivo_rechazo = ""
+        formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+        registrar_traza(formulario, user, [("estado", estado_anterior, Formulario.Estado.APROBADO)])
+        return "aprobado"
+
+    agregar_a_lista_espera(formulario, segmento, user)
+    return "lista_espera"
 
 
 @transaction.atomic

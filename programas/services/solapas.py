@@ -54,6 +54,9 @@ class SolapasService:
                     "programa": programa,
                     "inscripcion": inscripcion,
                     "badge": cls._obtener_badge_programa(inscripcion),
+                    # NACHEC tiene contenido dedicado (ciudadano_nachec_detail.html) en vez
+                    # del bloque genérico de programa: el template la excluye de ese loop.
+                    "contenido_embebido": tipo_normalizado == "NACHEC",
                 }
             )
 
@@ -234,6 +237,9 @@ class SolapasService:
             "orden": 200,
             "estatica": False,
             "badge": badge,
+            # Contenido dedicado (_resumen_ciudadano.html): el template la excluye
+            # del loop genérico de solapas de programa.
+            "contenido_embebido": True,
         }
 
     @classmethod

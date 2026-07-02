@@ -24,7 +24,7 @@ from programas.models import (
 )
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
 from programas.services.becas import registrar_traza
-from programas.services.cupo import agregar_a_lista_espera, get_cupo_stats
+from programas.services.cupo import aprobar_o_poner_en_espera
 
 CAP = "becas.revisar"
 
@@ -168,25 +168,19 @@ def formulario_aprobar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method == "POST":
-        segmento = formulario.relevamiento.convocatoria.segmento
-        # RN-02/RN-03: el cupo se consume solo si hay disponibilidad; sin cupo,
-        # la persona validada-OK va a lista de espera (no se marca APROBADO,
-        # para no contarla en cupo_ocupado mientras espera).
-        if get_cupo_stats(segmento)["cupo_disponible"] > 0:
-            formulario.estado = Formulario.Estado.APROBADO
-            formulario.motivo_rechazo = ""
-            formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
-            registrar_traza(formulario, request.user, [("estado", "ENVIADO", "APROBADO")])
-            messages.success(request, "Formulario aprobado.")
+        try:
+            resultado = aprobar_o_poner_en_espera(formulario, request.user)
+        except ValidationError as e:
+            messages.error(request, e.message)
         else:
-            try:
-                agregar_a_lista_espera(formulario, segmento, request.user)
+            if resultado == "aprobado":
+                messages.success(request, "Formulario aprobado.")
+            else:
+                segmento = formulario.relevamiento.convocatoria.segmento
                 messages.warning(
                     request,
                     f"No hay cupo disponible en {segmento.nombre}: se agregó a la lista de espera.",
                 )
-            except ValidationError as e:
-                messages.error(request, e.message)
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
