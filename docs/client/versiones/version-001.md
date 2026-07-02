@@ -21,7 +21,7 @@
 </div>
 
 !!! abstract "Objetivo"
-    Definir el funcionamiento del **Programa Becas** y desarrollar el **motor RBAC base** para dejar el sistema de permisos operativo.
+    Definir el funcionamiento de los programas **Becas** y **Dispositivos**, y desarrollar el **motor RBAC base** para dejar el sistema de permisos operativo.
 
 ---
 
@@ -31,9 +31,10 @@
 |:-:|---|:-:|:-:|:-:|:-:|
 | 1 | Programa Becas (análisis) | Alta | En análisis | — | 85h |
 | 2 | Motor RBAC base | Alta | Completado | — | 68h |
+| 3 | [Programa Dispositivos (análisis)](../funcionalidades/programa-dispositivos.md) | Alta | En análisis | — | — |
 
 !!! note "Horas por funcionalidad"
-    Las horas por funcionalidad corresponden al corte del 24/06 y están en consolidación. El total actualizado de la versión (504h 20min al 01/07) incluye además el desarrollo del backend de Becas, la app de campo, el Design System, los mockups del equipo UX y los análisis de dispositivos/merenderos y del programa Dispositivos — ver [detalle de consumo](version-001-consumo-horas.md).
+    Las horas por funcionalidad corresponden al corte del 24/06 y están en consolidación. El total actualizado de la versión (504h 20min al 01/07) incluye además el desarrollo del backend de Becas, la app de campo, el Design System, los mockups del equipo UX y los análisis de dispositivos/merenderos y del programa Dispositivos (funcionalidad 3, horas en consolidación) — ver [detalle de consumo](version-001-consumo-horas.md).
 
 ---
 
@@ -83,6 +84,31 @@
 ### :material-check-decagram-outline: Criterios de aceptación
 
 - [ ] Se pueden crear, editar y eliminar roles, y asignarles permisos.
+
+---
+
+## :material-home-city-outline: Funcionalidad 3 — Programa Dispositivos { #funcionalidad-3 }
+
+!!! info "Funcionalidad"
+    Gestión de cada **dispositivo** (hogares, residencias y espacios de atención) y
+    cada **merendero**: su legajo institucional, las admisiones y egresos de personas,
+    la disponibilidad de **camas** en tiempo real y la **prestación alimentaria**.
+
+### :material-format-list-checks: Tareas
+
+| Tarea | Estado | Hs est. | Hs reales |
+|---|:-:|:-:|:-:|
+| 1. [Análisis funcional del Programa Dispositivos](../funcionalidades/programa-dispositivos.md) | En progreso | — | — |
+
+### :material-clipboard-text-outline: Requerimientos
+
+| ID | Descripción | Prioridad | Estado |
+|---|---|:-:|:-:|
+| RQ-01 | Relevar y dejar definido el funcionamiento del Programa Dispositivos: legajo institucional, admisiones, camas y merenderos. | Alta | En análisis |
+
+### :material-check-decagram-outline: Criterios de aceptación
+
+- [ ] El funcionamiento del programa queda documentado y validado con el cliente.
 
 ---
 
