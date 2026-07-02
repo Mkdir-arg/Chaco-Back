@@ -28,15 +28,13 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <a href="{% url 'conversaciones:lista' %}" 
-                   class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
-                    <i class="fas fa-arrow-left mr-2"></i>Volver
+                <a href="{% url 'conversaciones:lista' %}" class="btn-nodo btn-tertiary btn-base">
+                    <i class="fas fa-arrow-left"></i>Volver
                 </a>
                 {% if conversacion.estado == 'activa' %}
-                <a href="{% url 'conversaciones:cerrar' conversacion.id %}" 
-                   class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-                   onclick="return confirm('¿Estás seguro de cerrar esta conversación?')">
-                    <i class="fas fa-times mr-2"></i>Cerrar
+                <a href="{% url 'conversaciones:cerrar' conversacion.id %}"
+                   class="js-cerrar-conversacion btn-nodo btn-danger btn-base">
+                    <i class="fas fa-times"></i>Cerrar
                 </a>
                 {% endif %}
             </div>
@@ -68,11 +66,10 @@
         {% if conversacion.estado == 'activa' and conversacion.operador_asignado == request.user %}
         <div class="border-t p-4">
             <div class="flex gap-2">
-                <input x-model="nuevoMensaje" @keyup.enter="enviarMensaje()" 
-                       type="text" placeholder="Escribe tu respuesta..."
-                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button @click="enviarMensaje()" 
-                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                <input x-model="nuevoMensaje" @keyup.enter="enviarMensaje()"
+                       type="text" placeholder="Escribí tu respuesta..."
+                       class="nodo-field flex-1">
+                <button @click="enviarMensaje()" class="btn-nodo btn-brand btn-base">
                     Enviar
                 </button>
             </div>
@@ -212,5 +209,34 @@
             }
         }
     }
+
+    // Confirmación destructiva (SweetAlert2) al cerrar la conversación
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest('.js-cerrar-conversacion');
+        if (!link) return;
+        e.preventDefault();
+        Swal.fire({
+            title: '¿Estás seguro?',
+            text: 'Esta conversación será cerrada.',
+            icon: 'warning',
+            showCancelButton: true,
+            buttonsStyling: false,
+            customClass: {
+                confirmButton: 'btn-nodo btn-danger',
+                cancelButton: 'btn-nodo btn-tertiary',
+            },
+            confirmButtonText: 'Cerrar conversación',
+            cancelButtonText: 'Cancelar',
+        }).then(function (r) {
+            if (r.isConfirmed) {
+                window.location.href = link.href;
+            }
+        });
+    });
 </script>
 {% endblock main-content %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>.swal2-actions { gap: 12px; }</style>
+{% endblock customJS %}

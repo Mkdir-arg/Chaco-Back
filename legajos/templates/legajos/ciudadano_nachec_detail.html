@@ -69,8 +69,8 @@
                         </div>
                         <div class="w-32 h-32">
                             <svg viewBox="0 0 36 36" class="circular-chart">
-                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eee" stroke-width="3"/>
-                                <path class="circle" stroke-dasharray="{{ relevamiento.score_total }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="{% if relevamiento.score_categoria == 'ALTO' %}#DC2626{% elif relevamiento.score_categoria == 'MEDIO' %}#F59E0B{% else %}#10B981{% endif %}" stroke-width="3"/>
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--bg-quaternary)" stroke-width="3"/>
+                                <path class="circle" stroke-dasharray="{{ relevamiento.score_total }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="{% if relevamiento.score_categoria == 'ALTO' %}var(--border-danger){% elif relevamiento.score_categoria == 'MEDIO' %}var(--border-warning){% else %}var(--border-success){% endif %}" stroke-width="3"/>
                             </svg>
                         </div>
                     </div>

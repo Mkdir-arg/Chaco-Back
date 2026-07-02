@@ -19,7 +19,7 @@
     width: 2px;
     margin-left: -1.5px;
     content: '';
-    background-color: #e9ecef;
+    background-color: var(--border-base);
 }
 
 .timeline-item {
@@ -36,42 +36,43 @@
     text-align: center;
     font-size: 1.2em;
     line-height: 44px;
-    color: white;
-    z-index: 100;
+    color: var(--text-white);
+    z-index: 1;
 }
 
 .timeline-panel {
     position: relative;
     margin-left: 80px;
-    background: white;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-base);
+    border-radius: var(--radius-xl);
     padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration-normal) var(--ease-standard), transform var(--duration-normal) var(--ease-standard);
+    cursor: pointer;
 }
 
 .timeline-panel:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-lg);
     transform: translateY(-2px);
 }
 
-.contact-type-LLAMADA { background-color: #28a745; }
-.contact-type-EMAIL { background-color: #17a2b8; }
-.contact-type-VISITA_DOM { background-color: #fd7e14; }
-.contact-type-REUNION { background-color: #6f42c1; }
-.contact-type-VIDEO { background-color: #20c997; }
-.contact-type-MENSAJE { background-color: #ffc107; }
+.contact-type-LLAMADA { background-color: var(--bg-success); }
+.contact-type-EMAIL { background-color: var(--bg-brand); }
+.contact-type-VISITA_DOM { background-color: var(--bg-warning); }
+.contact-type-REUNION { background-color: var(--bg-indigo); }
+.contact-type-VIDEO { background-color: var(--bg-success-strong); }
+.contact-type-MENSAJE { background-color: var(--bg-warning-strong); }
 
-.estado-EXITOSO { color: #28a745; }
-.estado-NO_CONTESTA { color: #dc3545; }
-.estado-OCUPADO { color: #ffc107; }
-.estado-CANCELADO { color: #6c757d; }
-.estado-REPROGRAMADO { color: #17a2b8; }
+.estado-EXITOSO { color: var(--text-fg-success); }
+.estado-NO_CONTESTA { color: var(--text-fg-danger); }
+.estado-OCUPADO { color: var(--text-fg-warning-subtle); }
+.estado-CANCELADO { color: var(--text-body-subtle); }
+.estado-REPROGRAMADO { color: var(--text-fg-brand); }
 
 .filter-card {
-    background: #f8f9fa;
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-xl);
     padding: 1rem;
     margin-bottom: 1.5rem;
 }
@@ -82,18 +83,18 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
+    z-index: 50;
 }
 
 .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #007bff;
+    border: 4px solid var(--border-light);
+    border-top: 4px solid var(--bg-brand);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -105,92 +106,82 @@
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid py-4">
+{% block main-content %}
+<div style="max-width:1180px;margin:0 auto">
     <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
+    <div class="mb-6">
+        <div class="d-flex justify-content-between align-items-center" style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <h1 style="font:800 28px/1.15 var(--font-sans);color:var(--text-heading);letter-spacing:-0.5px;margin:0;">Historial de Contactos</h1>
+                <p style="font-size:14px;color:var(--text-body-subtle);margin:4px 0 0;">
+                    <strong style="color:var(--text-body);">{{ legajo.ciudadano }}</strong> — Legajo: {{ legajo.codigo|slice:":8" }}...
+                </p>
+            </div>
+            <div>
+                <button type="button" class="btn-nodo btn-brand btn-base" onclick="abrirModalNuevoContacto()">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Nuevo Contacto
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filter-card">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Buscar</label>
+                <input type="text" class="nodo-field" id="searchInput"
+                       placeholder="Buscar en motivo o resumen...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Tipo de Contacto</label>
+                <select class="nodo-field" id="tipoFilter">
+                    <option value="">Todos los tipos</option>
+                    <option value="LLAMADA">Llamada Telefónica</option>
+                    <option value="EMAIL">Email</option>
+                    <option value="VISITA_DOM">Visita Domiciliaria</option>
+                    <option value="REUNION">Reunión Presencial</option>
+                    <option value="VIDEO">Videollamada</option>
+                    <option value="MENSAJE">Mensaje/WhatsApp</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Estado</label>
+                <select class="nodo-field" id="estadoFilter">
+                    <option value="">Todos los estados</option>
+                    <option value="EXITOSO">Exitoso</option>
+                    <option value="NO_CONTESTA">No contesta</option>
+                    <option value="OCUPADO">Ocupado</option>
+                    <option value="CANCELADO">Cancelado</option>
+                    <option value="REPROGRAMADO">Reprogramado</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" style="font:600 13px var(--font-sans);color:transparent;">&nbsp;</label>
                 <div>
-                    <h1 class="h3 mb-0">Historial de Contactos</h1>
-                    <p class="text-muted mb-0">
-                        <strong>{{ legajo.ciudadano }}</strong> - Legajo: {{ legajo.codigo|slice:":8" }}...
-                    </p>
-                </div>
-                <div>
-                    <button class="btn btn-primary" onclick="abrirModalNuevoContacto()">
-                        <i class="fas fa-plus"></i> Nuevo Contacto
+                    <button type="button" class="btn-nodo btn-tertiary btn-base w-100" onclick="limpiarFiltros()">
+                        <i class="fas fa-times" aria-hidden="true"></i> Limpiar
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="filter-card">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Buscar</label>
-                        <input type="text" class="form-control" id="searchInput" 
-                               placeholder="Buscar en motivo o resumen...">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Tipo de Contacto</label>
-                        <select class="form-select" id="tipoFilter">
-                            <option value="">Todos los tipos</option>
-                            <option value="LLAMADA">Llamada Telefónica</option>
-                            <option value="EMAIL">Email</option>
-                            <option value="VISITA_DOM">Visita Domiciliaria</option>
-                            <option value="REUNION">Reunión Presencial</option>
-                            <option value="VIDEO">Videollamada</option>
-                            <option value="MENSAJE">Mensaje/WhatsApp</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Estado</label>
-                        <select class="form-select" id="estadoFilter">
-                            <option value="">Todos los estados</option>
-                            <option value="EXITOSO">Exitoso</option>
-                            <option value="NO_CONTESTA">No contesta</option>
-                            <option value="OCUPADO">Ocupado</option>
-                            <option value="CANCELADO">Cancelado</option>
-                            <option value="REPROGRAMADO">Reprogramado</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
-                        <div>
-                            <button class="btn btn-outline-secondary w-100" onclick="limpiarFiltros()">
-                                <i class="fas fa-times"></i> Limpiar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Timeline -->
-    <div class="row">
-        <div class="col-12">
-            <div id="timeline-container">
-                <ul class="timeline" id="timeline">
-                    <!-- Los contactos se cargarán aquí -->
-                </ul>
-                
-                <div id="no-results" class="text-center py-5" style="display: none;">
-                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No se encontraron contactos</h5>
-                    <p class="text-muted">Intenta ajustar los filtros o crear un nuevo contacto</p>
-                </div>
-                
-                <div id="loading" class="text-center py-5">
-                    <div class="spinner mx-auto"></div>
-                    <p class="text-muted mt-3">Cargando contactos...</p>
-                </div>
-            </div>
+    <div id="timeline-container">
+        <ul class="timeline" id="timeline">
+            <!-- Los contactos se cargarán aquí -->
+        </ul>
+
+        <div id="no-results" class="text-center py-5" style="display: none;">
+            <i class="fas fa-search" aria-hidden="true" style="font-size:48px;color:var(--text-fg-brand);"></i>
+            <h5 style="font:700 17px var(--font-sans);color:var(--text-heading);margin-top:10px;">No se encontraron contactos</h5>
+            <p style="font-size:14px;color:var(--text-body);max-width:360px;margin:0 auto;">Intentá ajustar los filtros o crear un nuevo contacto</p>
+        </div>
+
+        <div id="loading" class="text-center py-5">
+            <div class="spinner mx-auto"></div>
+            <p style="color:var(--text-body-subtle);margin-top:1rem;">Cargando contactos...</p>
         </div>
     </div>
 </div>
@@ -198,19 +189,19 @@
 <!-- Modal Nuevo/Editar Contacto -->
 <div class="modal fade" id="modalContacto" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalContactoTitle">Nuevo Contacto</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content" style="border-radius:var(--radius-2xl);border:1px solid var(--border-base);box-shadow:var(--shadow-xl);overflow:hidden;">
+            <div class="modal-header" style="padding:20px 24px;border-bottom:1px solid var(--border-light);">
+                <h5 class="modal-title" id="modalContactoTitle" style="font:700 18px var(--font-sans);color:var(--text-heading);">Nuevo Contacto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form id="formContacto">
-                <div class="modal-body">
+                <div class="modal-body" style="padding:24px;">
                     {% csrf_token %}
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Tipo de Contacto *</label>
-                            <select class="form-select" name="tipo_contacto" required>
-                                <option value="">Seleccionar...</option>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Tipo de Contacto <span style="color:var(--text-fg-danger);">*</span></label>
+                            <select class="nodo-field" name="tipo_contacto" required>
+                                <option value="">Seleccioná...</option>
                                 <option value="LLAMADA">Llamada Telefónica</option>
                                 <option value="EMAIL">Email</option>
                                 <option value="VISITA_DOM">Visita Domiciliaria</option>
@@ -220,13 +211,13 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Fecha y Hora *</label>
-                            <input type="datetime-local" class="form-control" name="fecha_contacto" required>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Fecha y Hora <span style="color:var(--text-fg-danger);">*</span></label>
+                            <input type="datetime-local" class="nodo-field" name="fecha_contacto" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Estado *</label>
-                            <select class="form-select" name="estado" required>
-                                <option value="">Seleccionar...</option>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Estado <span style="color:var(--text-fg-danger);">*</span></label>
+                            <select class="nodo-field" name="estado" required>
+                                <option value="">Seleccioná...</option>
                                 <option value="EXITOSO">Exitoso</option>
                                 <option value="NO_CONTESTA">No contesta</option>
                                 <option value="OCUPADO">Ocupado</option>
@@ -235,54 +226,54 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Duración (minutos)</label>
-                            <input type="number" class="form-control" name="duracion_minutos" min="0" max="480">
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Duración (minutos)</label>
+                            <input type="number" class="nodo-field" name="duracion_minutos" min="0" max="480">
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Motivo del Contacto *</label>
-                            <input type="text" class="form-control" name="motivo" required>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Motivo del Contacto <span style="color:var(--text-fg-danger);">*</span></label>
+                            <input type="text" class="nodo-field" name="motivo" required>
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Resumen de la Conversación *</label>
-                            <textarea class="form-control" name="resumen" rows="4" required></textarea>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Resumen de la Conversación <span style="color:var(--text-fg-danger);">*</span></label>
+                            <textarea class="nodo-field" name="resumen" rows="4" required></textarea>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Acuerdos Alcanzados</label>
-                            <textarea class="form-control" name="acuerdos" rows="3"></textarea>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Acuerdos Alcanzados</label>
+                            <textarea class="nodo-field" name="acuerdos" rows="3"></textarea>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Próximos Pasos</label>
-                            <textarea class="form-control" name="proximos_pasos" rows="3"></textarea>
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Próximos Pasos</label>
+                            <textarea class="nodo-field" name="proximos_pasos" rows="3"></textarea>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Participantes</label>
-                            <input type="text" class="form-control" name="participantes">
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Participantes</label>
+                            <input type="text" class="nodo-field" name="participantes">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Ubicación</label>
-                            <input type="text" class="form-control" name="ubicacion">
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Ubicación</label>
+                            <input type="text" class="nodo-field" name="ubicacion">
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="seguimiento_requerido" id="seguimientoRequerido">
-                                <label class="form-check-label" for="seguimientoRequerido">
+                                <label class="form-check-label" for="seguimientoRequerido" style="font-size:14px;color:var(--text-body);">
                                     Requiere Seguimiento
                                 </label>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Fecha Próximo Contacto</label>
-                            <input type="date" class="form-control" name="fecha_proximo_contacto">
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Fecha Próximo Contacto</label>
+                            <input type="date" class="nodo-field" name="fecha_proximo_contacto">
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Archivo Adjunto</label>
-                            <input type="file" class="form-control" name="archivo_adjunto">
+                            <label class="form-label" style="font:600 13px var(--font-sans);color:var(--text-heading);">Archivo Adjunto</label>
+                            <input type="file" class="nodo-field" name="archivo_adjunto">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
+                <div class="modal-footer" style="padding:16px 24px;border-top:1px solid var(--border-light);background:var(--bg-secondary);">
+                    <button type="button" class="btn-nodo btn-tertiary btn-base" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn-nodo btn-brand btn-base">
                         <span id="btnSubmitText">Guardar Contacto</span>
                         <span id="btnSubmitSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
                     </button>
@@ -295,18 +286,18 @@
 <!-- Modal Detalle Contacto -->
 <div class="modal fade" id="modalDetalle" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Detalle del Contacto</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content" style="border-radius:var(--radius-2xl);border:1px solid var(--border-base);box-shadow:var(--shadow-xl);overflow:hidden;">
+            <div class="modal-header" style="padding:20px 24px;border-bottom:1px solid var(--border-light);">
+                <h5 class="modal-title" style="font:700 18px var(--font-sans);color:var(--text-heading);">Detalle del Contacto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <div class="modal-body" id="detalleContent">
+            <div class="modal-body" id="detalleContent" style="padding:24px;font-size:14px;color:var(--text-body);line-height:1.6;">
                 <!-- El contenido se carga dinámicamente -->
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-primary" onclick="editarContactoActual()">
-                    <i class="fas fa-edit"></i> Editar
+            <div class="modal-footer" style="padding:16px 24px;border-top:1px solid var(--border-light);background:var(--bg-secondary);">
+                <button type="button" class="btn-nodo btn-tertiary btn-base" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn-nodo btn-brand btn-base" onclick="editarContactoActual()">
+                    <i class="fas fa-edit" aria-hidden="true"></i> Editar
                 </button>
             </div>
         </div>
@@ -339,7 +330,7 @@ function cargarContactos() {
         tipo: document.getElementById('tipoFilter').value,
         estado: document.getElementById('estadoFilter').value
     });
-    
+
     fetch(`/legajos/${legajoId}/contactos/api/?${params}`)
         .then(response => response.json())
         .then(data => {
@@ -357,55 +348,55 @@ function renderTimeline() {
     const timeline = document.getElementById('timeline');
     const loading = document.getElementById('loading');
     const noResults = document.getElementById('no-results');
-    
+
     loading.style.display = 'none';
-    
+
     if (contactos.length === 0) {
         timeline.innerHTML = '';
         noResults.style.display = 'block';
         return;
     }
-    
+
     noResults.style.display = 'none';
-    
+
     let html = '';
     contactos.forEach(contacto => {
         const fecha = new Date(contacto.fecha_contacto);
-        const fechaFormateada = fecha.toLocaleDateString('es-ES', {
+        const fechaFormateada = fecha.toLocaleDateString('es-AR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
         });
-        const horaFormateada = fecha.toLocaleTimeString('es-ES', {
+        const horaFormateada = fecha.toLocaleTimeString('es-AR', {
             hour: '2-digit',
             minute: '2-digit'
         });
-        
+
         html += `
             <li class="timeline-item">
                 <div class="timeline-badge contact-type-${contacto.tipo_contacto}">
-                    <i class="fas ${getIconoTipo(contacto.tipo_contacto)}"></i>
+                    <i class="fas ${getIconoTipo(contacto.tipo_contacto)}" aria-hidden="true"></i>
                 </div>
                 <div class="timeline-panel" onclick="verDetalle(${contacto.id})">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="mb-0">${contacto.tipo_contacto_display}</h6>
-                        <small class="text-muted">${fechaFormateada} ${horaFormateada}</small>
+                        <h6 class="mb-0" style="font:700 14px var(--font-sans);color:var(--text-heading);">${contacto.tipo_contacto_display}</h6>
+                        <small style="color:var(--text-body-subtle);">${fechaFormateada} ${horaFormateada}</small>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge estado-${contacto.estado}">${contacto.estado_display}</span>
-                        ${contacto.duracion_minutos ? `<small class="text-muted">${contacto.duracion_formateada}</small>` : ''}
+                        <span class="estado-${contacto.estado}" style="font:600 13px var(--font-sans);">${contacto.estado_display}</span>
+                        ${contacto.duracion_minutos ? `<small style="color:var(--text-body-subtle);">${contacto.duracion_formateada}</small>` : ''}
                     </div>
-                    <p class="mb-2"><strong>${contacto.motivo}</strong></p>
-                    <p class="mb-2 text-muted">${truncarTexto(contacto.resumen, 100)}</p>
+                    <p class="mb-2"><strong style="color:var(--text-heading);">${contacto.motivo}</strong></p>
+                    <p class="mb-2" style="color:var(--text-body);">${truncarTexto(contacto.resumen, 100)}</p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Por: ${contacto.profesional}</small>
-                        ${contacto.seguimiento_requerido ? '<span class="badge bg-warning text-dark">Seguimiento</span>' : ''}
+                        <small style="color:var(--text-body-subtle);">Por: ${contacto.profesional}</small>
+                        ${contacto.seguimiento_requerido ? '<span class="badge badge-warning">Seguimiento</span>' : ''}
                     </div>
                 </div>
             </li>
         `;
     });
-    
+
     timeline.innerHTML = html;
 }
 
@@ -414,13 +405,13 @@ function configurarFiltros() {
     const searchInput = document.getElementById('searchInput');
     const tipoFilter = document.getElementById('tipoFilter');
     const estadoFilter = document.getElementById('estadoFilter');
-    
+
     let timeout;
     searchInput.addEventListener('input', function() {
         clearTimeout(timeout);
         timeout = setTimeout(cargarContactos, 300);
     });
-    
+
     tipoFilter.addEventListener('change', cargarContactos);
     estadoFilter.addEventListener('change', cargarContactos);
 }
@@ -440,12 +431,12 @@ function abrirModalNuevoContacto() {
     document.getElementById('modalContactoTitle').textContent = 'Nuevo Contacto';
     document.getElementById('btnSubmitText').textContent = 'Guardar Contacto';
     document.getElementById('formContacto').reset();
-    
+
     // Establecer fecha actual
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     document.querySelector('[name="fecha_contacto"]').value = now.toISOString().slice(0, 16);
-    
+
     new bootstrap.Modal(document.getElementById('modalContacto')).show();
 }
 
@@ -466,15 +457,15 @@ function verDetalle(contactoId) {
 // Mostrar detalle en modal
 function mostrarDetalle(contacto) {
     const fecha = new Date(contacto.fecha_contacto);
-    const fechaFormateada = fecha.toLocaleString('es-ES');
-    
+    const fechaFormateada = fecha.toLocaleString('es-AR');
+
     let html = `
         <div class="row g-3">
             <div class="col-md-6">
                 <strong>Tipo:</strong> ${contacto.tipo_contacto_display}
             </div>
             <div class="col-md-6">
-                <strong>Estado:</strong> <span class="badge estado-${contacto.estado}">${contacto.estado_display}</span>
+                <strong>Estado:</strong> <span class="estado-${contacto.estado}" style="font-weight:600;">${contacto.estado_display}</span>
             </div>
             <div class="col-md-6">
                 <strong>Fecha:</strong> ${fechaFormateada}
@@ -491,7 +482,7 @@ function mostrarDetalle(contacto) {
                 ${contacto.resumen}
             </div>
     `;
-    
+
     if (contacto.acuerdos) {
         html += `
             <div class="col-12">
@@ -500,7 +491,7 @@ function mostrarDetalle(contacto) {
             </div>
         `;
     }
-    
+
     if (contacto.proximos_pasos) {
         html += `
             <div class="col-12">
@@ -509,7 +500,7 @@ function mostrarDetalle(contacto) {
             </div>
         `;
     }
-    
+
     if (contacto.participantes) {
         html += `
             <div class="col-md-6">
@@ -517,7 +508,7 @@ function mostrarDetalle(contacto) {
             </div>
         `;
     }
-    
+
     if (contacto.ubicacion) {
         html += `
             <div class="col-md-6">
@@ -525,7 +516,7 @@ function mostrarDetalle(contacto) {
             </div>
         `;
     }
-    
+
     html += `
             <div class="col-md-6">
                 <strong>Profesional:</strong> ${contacto.profesional}
@@ -534,29 +525,29 @@ function mostrarDetalle(contacto) {
                 <strong>Seguimiento:</strong> ${contacto.seguimiento_requerido ? 'Sí' : 'No'}
             </div>
     `;
-    
+
     if (contacto.fecha_proximo_contacto) {
         const fechaProxima = new Date(contacto.fecha_proximo_contacto);
         html += `
             <div class="col-md-6">
-                <strong>Próximo Contacto:</strong> ${fechaProxima.toLocaleDateString('es-ES')}
+                <strong>Próximo Contacto:</strong> ${fechaProxima.toLocaleDateString('es-AR')}
             </div>
         `;
     }
-    
+
     if (contacto.archivo_adjunto) {
         html += `
             <div class="col-12">
-                <strong>Archivo:</strong> 
-                <a href="${contacto.archivo_adjunto}" target="_blank" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-download"></i> Descargar
+                <strong>Archivo:</strong>
+                <a href="${contacto.archivo_adjunto}" target="_blank" class="btn-nodo btn-tertiary btn-sm">
+                    <i class="fas fa-download" aria-hidden="true"></i> Descargar
                 </a>
             </div>
         `;
     }
-    
+
     html += '</div>';
-    
+
     document.getElementById('detalleContent').innerHTML = html;
     new bootstrap.Modal(document.getElementById('modalDetalle')).show();
 }
@@ -564,15 +555,15 @@ function mostrarDetalle(contacto) {
 // Editar contacto actual
 function editarContactoActual() {
     if (!contactoActual) return;
-    
+
     // Cerrar modal de detalle
     bootstrap.Modal.getInstance(document.getElementById('modalDetalle')).hide();
-    
+
     // Configurar modal de edición
     modoEdicion = true;
     document.getElementById('modalContactoTitle').textContent = 'Editar Contacto';
     document.getElementById('btnSubmitText').textContent = 'Actualizar Contacto';
-    
+
     // Llenar formulario
     const form = document.getElementById('formContacto');
     form.querySelector('[name="tipo_contacto"]').value = contactoActual.tipo_contacto;
@@ -585,33 +576,33 @@ function editarContactoActual() {
     form.querySelector('[name="ubicacion"]').value = contactoActual.ubicacion || '';
     form.querySelector('[name="duracion_minutos"]').value = contactoActual.duracion_minutos || '';
     form.querySelector('[name="seguimiento_requerido"]').checked = contactoActual.seguimiento_requerido;
-    
+
     // Fecha contacto
     const fechaContacto = new Date(contactoActual.fecha_contacto);
     fechaContacto.setMinutes(fechaContacto.getMinutes() - fechaContacto.getTimezoneOffset());
     form.querySelector('[name="fecha_contacto"]').value = fechaContacto.toISOString().slice(0, 16);
-    
+
     // Fecha próximo contacto
     if (contactoActual.fecha_proximo_contacto) {
         form.querySelector('[name="fecha_proximo_contacto"]').value = contactoActual.fecha_proximo_contacto;
     }
-    
+
     new bootstrap.Modal(document.getElementById('modalContacto')).show();
 }
 
 // Manejar envío del formulario
 document.getElementById('formContacto').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
-    const url = modoEdicion ? 
-        `/legajos/contactos/${contactoActual.id}/editar/` : 
+    const url = modoEdicion ?
+        `/legajos/contactos/${contactoActual.id}/editar/` :
         `/legajos/${legajoId}/contactos/crear/`;
-    
+
     // Mostrar loading
     document.getElementById('btnSubmitText').style.display = 'none';
     document.getElementById('btnSubmitSpinner').style.display = 'inline-block';
-    
+
     fetch(url, {
         method: 'POST',
         body: formData,

@@ -14,12 +14,12 @@
     <p class="text-sm text-body-subtle mt-1">Relevamientos finalizados, listos para revisar caso a caso</p>
   </div>
 
-  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% if relevamientos %}
     <div class="overflow-x-auto">
       <table class="w-full border-collapse">
         <thead>
-          <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+          <tr class="bg-secondary border-b border-base">
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamiento</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
@@ -29,12 +29,12 @@
         </thead>
         <tbody>
           {% for rel in relevamientos %}
-          <tr class="hover:bg-[#F9FAFB]">
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">{{ rel.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.convocatoria.segmento.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+          <tr class="hover:bg-secondary">
+            <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">{{ rel.nombre }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.convocatoria.segmento.nombre }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-right">
               <a href="{% url 'becas:revision_formularios' rel.pk %}" class="btn-nodo btn-tertiary btn-sm">
                 Revisar <i class="fas fa-arrow-right"></i>
               </a>

@@ -8,7 +8,7 @@
     <!-- Page header -->
     <div class="flex items-center justify-between">
         <div class="min-w-0 flex-1">
-            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold leading-7 text-gray-900 sm:truncate sm:tracking-tight">
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold leading-7 sm:truncate sm:tracking-tight" style="color: var(--text-heading)">
                 Dashboard
             </h2>
         </div>
@@ -17,36 +17,36 @@
     <!-- Stats cards -->
     <div class="mt-6 sm:mt-8">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-user-friends text-xl text-[#10B981]"></i>
+                    <i class="fas fa-user-friends text-xl" style="color: var(--text-fg-success)"></i>
                 </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ total_ciudadanos|default:0 }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Total Ciudadanos</p>
+                <p class="text-3xl font-bold mb-1" style="color: var(--text-heading)">{{ total_ciudadanos|default:0 }}</p>
+                <p class="text-xs uppercase tracking-wide" style="color: var(--text-body-subtle)">Total Ciudadanos</p>
             </div>
 
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-folder-open text-xl text-[#3B82F6]"></i>
+                    <i class="fas fa-folder-open text-xl" style="color: var(--text-fg-brand)"></i>
                 </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ legajos_abiertos|default:0 }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Legajos Activos</p>
+                <p class="text-3xl font-bold mb-1" style="color: var(--text-heading)">{{ legajos_abiertos|default:0 }}</p>
+                <p class="text-xs uppercase tracking-wide" style="color: var(--text-body-subtle)">Legajos Activos</p>
             </div>
 
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-calendar-check text-xl text-[#F59E0B]"></i>
+                    <i class="fas fa-calendar-check text-xl" style="color: var(--text-fg-warning)"></i>
                 </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ seguimientos_semana|default:0 }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Seguimientos Hoy</p>
+                <p class="text-3xl font-bold mb-1" style="color: var(--text-heading)">{{ seguimientos_semana|default:0 }}</p>
+                <p class="text-xs uppercase tracking-wide" style="color: var(--text-body-subtle)">Seguimientos Hoy</p>
             </div>
 
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-exclamation-triangle text-xl text-[#EF4444]"></i>
+                    <i class="fas fa-exclamation-triangle text-xl" style="color: var(--text-fg-danger)"></i>
                 </div>
-                <p class="text-3xl font-bold mb-1 text-[#252F40]">{{ legajos_riesgo_alto|default:0 }}</p>
-                <p class="text-xs text-[#8C8C8C] uppercase tracking-wide">Alertas Activas</p>
+                <p class="text-3xl font-bold mb-1" style="color: var(--text-heading)">{{ legajos_riesgo_alto|default:0 }}</p>
+                <p class="text-xs uppercase tracking-wide" style="color: var(--text-body-subtle)">Alertas Activas</p>
             </div>
         </div>
     </div>
@@ -57,14 +57,14 @@
             <div class="overflow-hidden rounded-lg bg-white px-4 py-4 sm:py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-green-600 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-success)">
                             <i class="fas fa-folder text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-4 sm:ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Legajos Abiertos</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ legajos_abiertos|default:"0" }}</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">Legajos Abiertos</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ legajos_abiertos|default:"0" }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -73,14 +73,14 @@
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-brand)">
                             <i class="fas fa-heartbeat text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">En Seguimiento</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ legajos_seguimiento|default:"0" }}</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">En Seguimiento</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ legajos_seguimiento|default:"0" }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -89,14 +89,14 @@
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-yellow-600 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-warning)">
                             <i class="fas fa-clock text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Derivaciones Pendientes</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ derivaciones_pendientes|default:"0" }}</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">Derivaciones Pendientes</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ derivaciones_pendientes|default:"0" }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -106,19 +106,19 @@
 
     <!-- Métricas de calidad -->
     <div class="mt-6 sm:mt-8">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Métricas de Calidad</h3>
+        <h3 class="text-lg font-medium mb-4" style="color: var(--text-heading)">Métricas de Calidad</h3>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="overflow-hidden rounded-lg bg-white px-4 py-4 sm:py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-indigo-500 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-brand)">
                             <i class="fas fa-clock text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-4 sm:ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">TTR Promedio</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ ttr_promedio|default:"0" }} días</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">TTR Promedio</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ ttr_promedio|default:"0" }} días</dd>
                         </dl>
                     </div>
                 </div>
@@ -127,14 +127,14 @@
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-green-600 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-success)">
                             <i class="fas fa-check-circle text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Adherencia</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ adherencia_adecuada|default:"0" }}%</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">Adherencia</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ adherencia_adecuada|default:"0" }}%</dd>
                         </dl>
                     </div>
                 </div>
@@ -143,14 +143,14 @@
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-purple-500 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-brand-strong)">
                             <i class="fas fa-calendar-week text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Nuevos Esta Semana</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ legajos_nuevos_semana|default:"0" }}</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">Nuevos Esta Semana</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ legajos_nuevos_semana|default:"0" }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -159,14 +159,14 @@
             <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-red-500 text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md text-white" style="background: var(--bg-danger)">
                             <i class="fas fa-exclamation-triangle text-sm"></i>
                         </div>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Seguimientos Semana</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ seguimientos_semana|default:"0" }}</dd>
+                            <dt class="truncate text-sm font-medium" style="color: var(--text-body-subtle)">Seguimientos Semana</dt>
+                            <dd class="text-lg font-medium" style="color: var(--text-heading)">{{ seguimientos_semana|default:"0" }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -180,10 +180,10 @@
             <div class="px-4 py-5 sm:p-6">
                 <div class="text-center">
                     <img class="mx-auto h-32 w-auto" src="{% static 'custom/img/sisoc_logo.png' %}" alt="NODO">
-                    <h3 class="mt-6 text-lg font-medium text-gray-900">
+                    <h3 class="mt-6 text-lg font-medium" style="color: var(--text-heading)">
                         Bienvenido a NODO
                     </h3>
-                    <p class="mt-2 text-sm text-gray-500">
+                    <p class="mt-2 text-sm" style="color: var(--text-body-subtle)">
                         Sistema de gestión básico para la Secretaría Nacional de Políticas Integrales sobre Drogas
                     </p>
                     <div class="mt-6">
@@ -206,39 +206,39 @@
     <!-- Legajos recientes -->
     {% if legajos_recientes %}
     <div class="mt-8">
-        <h3 class="text-lg font-medium text-gray-900">Legajos Recientes</h3>
+        <h3 class="text-lg font-medium" style="color: var(--text-heading)">Legajos Recientes</h3>
         <div class="mt-4 overflow-hidden bg-white shadow sm:rounded-md">
-            <ul class="divide-y divide-gray-200">
+            <ul class="divide-y" style="border-color: var(--border-base)">
                 {% for legajo in legajos_recientes %}
                 <li>
-                    <a href="{% url 'legajos:ciudadano_detalle' legajo.ciudadano.pk %}" class="block hover:bg-gray-50">
+                    <a href="{% url 'legajos:ciudadano_detalle' legajo.ciudadano.pk %}" class="block hover:bg-[var(--bg-tertiary)]">
                         <div class="px-4 py-4 sm:px-6">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0">
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-500">
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full" style="background: var(--gradient-brand)">
                                             <span class="text-xs font-medium leading-none text-white">{{ legajo.ciudadano.nombre|first }}{{ legajo.ciudadano.apellido|first }}</span>
                                         </span>
                                     </div>
                                     <div class="ml-4">
                                         <div class="flex items-center">
-                                            <p class="text-sm font-medium text-gray-900">{{ legajo.ciudadano.apellido }}, {{ legajo.ciudadano.nombre }}</p>
-                                            <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                                            <p class="text-sm font-medium" style="color: var(--text-heading)">{{ legajo.ciudadano.apellido }}, {{ legajo.ciudadano.nombre }}</p>
+                                            <span class="badge badge-gray ml-2">
                                                 {{ legajo.codigo|slice:":8" }}...
                                             </span>
                                         </div>
-                                        <p class="text-sm text-gray-500">{{ legajo.dispositivo.nombre }} • {{ legajo.fecha_apertura|date:"d/m/Y" }}</p>
+                                        <p class="text-sm" style="color: var(--text-body-subtle)">{{ legajo.dispositivo.nombre }} • {{ legajo.fecha_apertura|date:"d/m/Y" }}</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center space-x-2">
-                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                                        {% if legajo.estado == 'ABIERTO' %}bg-green-100 text-green-800
-                                        {% elif legajo.estado == 'EN_SEGUIMIENTO' %}bg-blue-100 text-blue-800
-                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    <span class="badge
+                                        {% if legajo.estado == 'ABIERTO' %}badge-success
+                                        {% elif legajo.estado == 'EN_SEGUIMIENTO' %}badge-info
+                                        {% else %}badge-gray{% endif %}">
                                         {{ legajo.get_estado_display }}
                                     </span>
                                     {% if legajo.nivel_riesgo == 'ALTO' %}
-                                    <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                    <span class="badge badge-danger">
                                         Riesgo Alto
                                     </span>
                                     {% endif %}
@@ -267,45 +267,45 @@
 
     <!-- Quick actions -->
     <div class="mt-6 sm:mt-8">
-        <h3 class="text-lg font-medium text-gray-900">Acciones Rápidas</h3>
+        <h3 class="text-lg font-medium" style="color: var(--text-heading)">Acciones Rápidas</h3>
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-users text-xl text-[#3B82F6]"></i>
+                    <i class="fas fa-users text-xl" style="color: var(--text-fg-brand)"></i>
                 </div>
                 <a href="{% url 'legajos:ciudadanos' %}" class="block">
-                    <p class="text-base font-semibold mb-1 text-[#252F40]">Gestionar Ciudadanos</p>
-                    <p class="text-xs text-[#8C8C8C]">Ver, buscar y administrar</p>
+                    <p class="text-base font-semibold mb-1" style="color: var(--text-heading)">Gestionar Ciudadanos</p>
+                    <p class="text-xs" style="color: var(--text-body-subtle)">Ver, buscar y administrar</p>
                 </a>
             </div>
 
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-folder-plus text-xl text-[#10B981]"></i>
+                    <i class="fas fa-folder-plus text-xl" style="color: var(--text-fg-success)"></i>
                 </div>
                 <a href="{% url 'legajos:ciudadano_nuevo' %}" class="block">
-                    <p class="text-base font-semibold mb-1 text-[#252F40]">Nuevo Ciudadano</p>
-                    <p class="text-xs text-[#8C8C8C]">Alta rápida por RENAPER</p>
+                    <p class="text-base font-semibold mb-1" style="color: var(--text-heading)">Nuevo Ciudadano</p>
+                    <p class="text-xs" style="color: var(--text-body-subtle)">Alta rápida por RENAPER</p>
                 </a>
             </div>
 
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-chart-bar text-xl text-[#8B5CF6]"></i>
+                    <i class="fas fa-chart-bar text-xl" style="color: var(--text-fg-brand-strong)"></i>
                 </div>
                 <a href="#" class="block">
-                    <p class="text-base font-semibold mb-1 text-[#252F40]">Reportes</p>
-                    <p class="text-xs text-[#8C8C8C]">Análisis y estadísticas</p>
+                    <p class="text-base font-semibold mb-1" style="color: var(--text-heading)">Reportes</p>
+                    <p class="text-xs" style="color: var(--text-body-subtle)">Análisis y estadísticas</p>
                 </a>
             </div>
 
-            <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all duration-300">
+            <div class="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all duration-300" style="border-color: var(--border-base)">
                 <div class="flex items-center justify-between mb-3">
-                    <i class="fas fa-cog text-xl text-[#8C8C8C]"></i>
+                    <i class="fas fa-cog text-xl" style="color: var(--text-body-subtle)"></i>
                 </div>
                 <a href="#" class="block">
-                    <p class="text-base font-semibold mb-1 text-[#252F40]">Configuración</p>
-                    <p class="text-xs text-[#8C8C8C]">Ajustes del sistema</p>
+                    <p class="text-base font-semibold mb-1" style="color: var(--text-heading)">Configuración</p>
+                    <p class="text-xs" style="color: var(--text-body-subtle)">Ajustes del sistema</p>
                 </a>
             </div>
         </div>

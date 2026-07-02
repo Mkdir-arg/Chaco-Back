@@ -6,7 +6,7 @@
 {% block content %}
 <div class="px-6 py-7">
 
-    {{/* ── PageHeader ── */}}
+    {# ── PageHeader ── #}
     <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
         <div>
             <p class="text-xs mb-1" style="color: var(--text-body-subtle);">
@@ -29,7 +29,7 @@
         {% endif %}
     </div>
 
-    {{/* ── Mensajes ── */}}
+    {# ── Mensajes ── #}
     {% if messages %}
     <div class="mb-5 flex flex-col gap-2">
         {% for message in messages %}
@@ -47,7 +47,7 @@
     </div>
     {% endif %}
 
-    {{/* ── FilterBar ── */}}
+    {# ── FilterBar ── #}
     <form method="get" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:16px;">
         <div style="display:flex;flex-direction:column;gap:6px;">
             <label for="id-q" style="font-size:13px;font-weight:600;color:var(--text-heading);">Buscar</label>
@@ -104,7 +104,7 @@
         </button>
     </form>
 
-    {{/* ── TableCard ── */}}
+    {# ── TableCard ── #}
     <div style="background:var(--bg-white);border:1px solid var(--border-base);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden;">
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;">

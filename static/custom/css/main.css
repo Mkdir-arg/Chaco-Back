@@ -46,7 +46,7 @@ footer.app-footer {
 }
 
 .main-header .nav-link.nav-link-rounded {
-    background-color: #EDEDED;
+    background-color: var(--bg-quaternary);
     border-radius: 20px;
     width: 40px;
     height: 40px;

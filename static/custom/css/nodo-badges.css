@@ -25,14 +25,18 @@
     flex-shrink: 0;
 }
 
-/* Variants */
-.badge-gray    { background: #F9FAFB; border: 1px solid #E5E7EB; color: #374151; }
-.badge-white   { background: #FFFFFF; border: 1px solid #E5E7EB; color: #374151; }
-.badge-brand   { background: #FFEAF6; border: 1px solid #FFB9DC; color: #A11F60; }
-.badge-success { background: #ECFDF5; border: 1px solid #A4F4CF; color: #006045; }
-.badge-danger  { background: #FEF0F2; border: 1px solid #FFCCD3; color: #8B0836; }
-.badge-warning { background: #FFF8F1; border: 1px solid #FCD9BD; color: #771D1D; }
-.badge-info    { background: #F5F3FF; border: 1px solid #DDD6FE; color: #3730A3; }
+/* Variants
+   Nota: colores como var(--token, #hexOriginal) — el hex de fallback es el valor
+   canónico del mapa BADGE (canon §7). .badge-brand no tiene token exacto en
+   chaco-tokens.css (su fondo/borde/texto son propios del mapa de badges, distintos
+   de las primitivas --color-pink-*/--color-brand-*) → se deja el hex tal cual. */
+.badge-gray    { background: var(--color-gray-050, #F9FAFB); border: 1px solid var(--color-gray-200, #E5E7EB); color: var(--color-gray-700, #374151); }
+.badge-white   { background: var(--bg-white, #FFFFFF); border: 1px solid var(--color-gray-200, #E5E7EB); color: var(--color-gray-700, #374151); }
+.badge-brand   { background: #FFEAF6; border: 1px solid #FFB9DC; color: #A11F60; } /* design-audit: allow — mapa canónico §7, sin token exacto */
+.badge-success { background: var(--color-emerald-050, #ECFDF5); border: 1px solid var(--color-emerald-200, #A4F4CF); color: var(--color-emerald-800, #006045); }
+.badge-danger  { background: var(--color-rose-050, #FEF0F2); border: 1px solid var(--color-rose-200, #FFCCD3); color: var(--color-rose-900, #8B0836); }
+.badge-warning { background: var(--color-orange-050, #FFF8F1); border: 1px solid var(--color-orange-200, #FCD9BD); color: var(--color-orange-900, #771D1D); }
+.badge-info    { background: var(--color-brand-050, #F5F3FF); border: 1px solid var(--color-brand-200, #DDD6FE); color: var(--color-brand-900, #3730A3); }
 
 /* Size modifier (movido desde nodo-brand.css). Lo usan plantillas legacy como
    programa_detail.html: `badge-nodo badge-sm badge-<variante>`. Aporta la geometría

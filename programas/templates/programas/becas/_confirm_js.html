@@ -1,5 +1,9 @@
 <!-- Confirmación destructiva con SweetAlert2. Uso: elemento con data-confirm-url. -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+  /* Botones por clases del DS (buttonsStyling:false quita los márgenes de swal2) */
+  .swal2-actions { gap: 12px; }
+</style>
 <script>
 document.addEventListener('click', function (e) {
   const btn = e.target.closest('[data-confirm-url]');
@@ -10,8 +14,11 @@ document.addEventListener('click', function (e) {
     text: btn.dataset.confirmText || '',
     icon: btn.dataset.confirmIcon || 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#5059bc',
-    cancelButtonColor: '#6b7280',
+    buttonsStyling: false,
+    customClass: {
+      confirmButton: 'btn-nodo btn-danger',
+      cancelButton: 'btn-nodo btn-tertiary',
+    },
     confirmButtonText: btn.dataset.confirmOk || 'Sí, confirmar',
     cancelButtonText: 'Cancelar',
   }).then(function (r) {

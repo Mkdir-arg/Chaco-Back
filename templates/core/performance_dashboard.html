@@ -37,10 +37,10 @@
 .small-box p {
     font-size: 1rem;
 }
-.bg-info { background-color: #17a2b8 !important; color: white; }
-.bg-success { background-color: #28a745 !important; color: white; }
-.bg-warning { background-color: #ffc107 !important; color: white; }
-.bg-danger { background-color: #dc3545 !important; color: white; }
+.bg-info { background-color: var(--bg-brand) !important; color: var(--text-white); }
+.bg-success { background-color: var(--bg-success) !important; color: var(--text-white); }
+.bg-warning { background-color: var(--bg-warning) !important; color: var(--text-white); }
+.bg-danger { background-color: var(--bg-danger) !important; color: var(--text-white); }
 
 .info-box {
     display: block;
@@ -119,19 +119,24 @@
     border-radius: 0.375rem;
 }
 .alert-success {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
+    color: var(--text-fg-success);
+    background-color: var(--bg-success-soft);
+    border-color: var(--border-success-subtle);
 }
 .alert-warning {
-    color: #856404;
-    background-color: #fff3cd;
-    border-color: #ffeaa7;
+    color: var(--text-fg-warning);
+    background-color: var(--bg-warning-soft);
+    border-color: var(--border-warning-subtle);
 }
 .alert-danger {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
+    color: var(--text-fg-danger);
+    background-color: var(--bg-danger-soft);
+    border-color: var(--border-danger-subtle);
+}
+.alert-info {
+    color: var(--text-fg-info);
+    background-color: var(--bg-info-soft);
+    border-color: var(--border-brand-subtle);
 }
 
 .content-header {
@@ -149,11 +154,11 @@
 .breadcrumb-item + .breadcrumb-item::before {
     display: inline-block;
     padding-right: 0.5rem;
-    color: #6c757d;
+    color: var(--text-body-subtle);
     content: "/";
 }
 .breadcrumb-item.active {
-    color: #6c757d;
+    color: var(--text-body-subtle);
 }
 
 .badge {
@@ -168,15 +173,15 @@
     border-radius: 0.375rem;
 }
 .badge-secondary {
-    color: #fff;
-    background-color: #6c757d;
+    color: var(--text-white);
+    background-color: var(--text-body-subtle);
 }
 
 code {
     font-size: 87.5%;
-    color: #e83e8c;
+    color: var(--text-fg-brand-strong);
     word-wrap: break-word;
-    background-color: #f8f9fa;
+    background-color: var(--bg-secondary);
     padding: 0.2rem 0.4rem;
     border-radius: 0.375rem;
 }

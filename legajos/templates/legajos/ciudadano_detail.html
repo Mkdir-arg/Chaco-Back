@@ -1327,20 +1327,20 @@ function renderizarGrafoRed(vinculos) {
     const _cs = getComputedStyle(document.documentElement);
     const _clr = (v) => _cs.getPropertyValue(v).trim();
     const visColors = {
-        centralBg:     _clr('--color-navy-700') || '#252f40',
-        centralBorder: _clr('--border-brand') || '#5059bc',
-        centralFont:   '#ffffff',
-        dangerBg:      _clr('--bg-danger-soft') || '#fef0f2',
-        dangerBorder:  _clr('--border-danger') || '#c70036',
-        successBg:     _clr('--bg-success-soft') || '#ecfdf5',
-        successBorder: _clr('--border-success') || '#007a55',
-        hlBg:          _clr('--bg-brand-softer') || '#fef3ff',
-        hlBorder:      _clr('--border-brand') || '#5059bc',
-        nodeFont:      _clr('--text-heading') || '#252f40',
-        edgeColor:     _clr('--border-base-strong') || '#d1d5db',
-        edgeFont:      _clr('--text-body-subtle') || '#6b7280',
-        edgeFontStroke:_clr('--bg-primary') || '#ffffff',
-        edgeHighlight: _clr('--border-brand') || '#5059bc',
+        centralBg:     _clr('--color-navy-700'),
+        centralBorder: _clr('--border-brand'),
+        centralFont:   _clr('--text-white'),
+        dangerBg:      _clr('--bg-danger-soft'),
+        dangerBorder:  _clr('--border-danger'),
+        successBg:     _clr('--bg-success-soft'),
+        successBorder: _clr('--border-success'),
+        hlBg:          _clr('--bg-brand-softer'),
+        hlBorder:      _clr('--border-brand'),
+        nodeFont:      _clr('--text-heading'),
+        edgeColor:     _clr('--border-base-strong'),
+        edgeFont:      _clr('--text-body-subtle'),
+        edgeFontStroke:_clr('--bg-primary'),
+        edgeHighlight: _clr('--border-brand'),
     };
 
     const nodes = [{

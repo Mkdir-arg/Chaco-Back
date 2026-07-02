@@ -1,16 +1,25 @@
 {% extends 'portal/base.html' %}
 
 {% block content %}
+<style>
+    /* Blindaje: nav del portal ciudadano por token + estado (ver CLAUDE.md gotcha nodo-brand.css !important) */
+    .ds-portal-nav a { color: var(--text-body-subtle) !important; background: transparent; }
+    .ds-portal-nav a:hover { background: var(--bg-secondary); color: var(--text-heading) !important; }
+    .ds-portal-nav a[aria-current="page"] { background: var(--gradient-brand); color: #fff !important; }
+    .ds-portal-nav a[aria-current="page"]:hover { background: var(--gradient-brand); filter: brightness(0.93); }
+    .ds-portal-logout { color: var(--text-fg-brand); border-color: var(--border-brand); background: var(--bg-white); }
+    .ds-portal-logout:hover { background: var(--bg-brand-tint); }
+</style>
 <div class="max-w-6xl mx-auto">
 
     <!-- Barra de navegación del área ciudadano -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] mb-8">
+    <div class="bg-white rounded-2xl shadow-sm mb-8" style="border: 1px solid var(--border-base);">
         <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
             <!-- Identidad del ciudadano -->
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                     style="background: var(--gradient-brand);">
                     {% if request.user.ciudadano_perfil.nombre %}
                         {{ request.user.ciudadano_perfil.nombre|slice:":1"|upper }}{{ request.user.ciudadano_perfil.apellido|slice:":1"|upper }}
                     {% else %}
@@ -18,64 +27,36 @@
                     {% endif %}
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-[#252F40]">
+                    <p class="text-sm font-semibold" style="color: var(--text-heading);">
                         {{ request.user.ciudadano_perfil.nombre }} {{ request.user.ciudadano_perfil.apellido }}
                     </p>
-                    <p class="text-xs text-[#8C8C8C]">DNI {{ request.user.ciudadano_perfil.dni }}</p>
+                    <p class="text-xs" style="color: var(--text-body-subtle);">DNI {{ request.user.ciudadano_perfil.dni }}</p>
                 </div>
             </div>
 
             <!-- Links de navegación -->
-            <nav class="flex flex-wrap items-center gap-1">
+            <nav class="ds-portal-nav flex flex-wrap items-center gap-1">
                 <a href="{% url 'portal:ciudadano_mi_perfil' %}"
-                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                          {% if request.resolver_match.url_name == 'ciudadano_mi_perfil' %}
-                          text-white
-                          {% else %}
-                          text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
-                          {% endif %}"
-                   {% if request.resolver_match.url_name == 'ciudadano_mi_perfil' %}
-                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                   {% endif %}>
+                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                   {% if request.resolver_match.url_name == 'ciudadano_mi_perfil' %}aria-current="page"{% endif %}>
                     <i class="fas fa-home mr-1.5"></i>Mi Perfil
                 </a>
 
                 <a href="{% url 'portal:ciudadano_mis_datos' %}"
-                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                          {% if request.resolver_match.url_name == 'ciudadano_mis_datos' or request.resolver_match.url_name == 'ciudadano_cambio_email' or request.resolver_match.url_name == 'ciudadano_cambio_password' %}
-                          text-white
-                          {% else %}
-                          text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
-                          {% endif %}"
-                   {% if request.resolver_match.url_name == 'ciudadano_mis_datos' or request.resolver_match.url_name == 'ciudadano_cambio_email' or request.resolver_match.url_name == 'ciudadano_cambio_password' %}
-                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                   {% endif %}>
+                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                   {% if request.resolver_match.url_name == 'ciudadano_mis_datos' or request.resolver_match.url_name == 'ciudadano_cambio_email' or request.resolver_match.url_name == 'ciudadano_cambio_password' %}aria-current="page"{% endif %}>
                     <i class="fas fa-id-card mr-1.5"></i>Mis Datos
                 </a>
 
                 <a href="{% url 'portal:ciudadano_mis_programas' %}"
-                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                          {% if request.resolver_match.url_name == 'ciudadano_mis_programas' or request.resolver_match.url_name == 'ciudadano_programa_detalle' %}
-                          text-white
-                          {% else %}
-                          text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
-                          {% endif %}"
-                   {% if request.resolver_match.url_name == 'ciudadano_mis_programas' or request.resolver_match.url_name == 'ciudadano_programa_detalle' %}
-                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                   {% endif %}>
+                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                   {% if request.resolver_match.url_name == 'ciudadano_mis_programas' or request.resolver_match.url_name == 'ciudadano_programa_detalle' %}aria-current="page"{% endif %}>
                     <i class="fas fa-clipboard-list mr-1.5"></i>Mis Programas
                 </a>
 
                 <a href="{% url 'portal:ciudadano_mis_consultas' %}"
-                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                          {% if request.resolver_match.url_name == 'ciudadano_mis_consultas' or request.resolver_match.url_name == 'ciudadano_consulta_detalle' or request.resolver_match.url_name == 'ciudadano_nueva_consulta' %}
-                          text-white
-                          {% else %}
-                          text-[#8C8C8C] hover:text-[#252F40] hover:bg-[#F9FAFB]
-                          {% endif %}"
-                   {% if request.resolver_match.url_name == 'ciudadano_mis_consultas' or request.resolver_match.url_name == 'ciudadano_consulta_detalle' or request.resolver_match.url_name == 'ciudadano_nueva_consulta' %}
-                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                   {% endif %}>
+                   class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                   {% if request.resolver_match.url_name == 'ciudadano_mis_consultas' or request.resolver_match.url_name == 'ciudadano_consulta_detalle' or request.resolver_match.url_name == 'ciudadano_nueva_consulta' %}aria-current="page"{% endif %}>
                     <i class="fas fa-comments mr-1.5"></i>Mis Consultas
                 </a>
             </nav>
@@ -84,10 +65,7 @@
             <form method="post" action="{% url 'portal:ciudadano_logout' %}">
                 {% csrf_token %}
                 <button type="submit"
-                        class="inline-flex items-center px-4 py-2 rounded-xl border text-sm font-medium transition-colors flex-shrink-0"
-                        style="color: #5059BC; border-color: #5059BC; background: #FFFFFF;"
-                        onmouseover="this.style.background='#DEE1FF'"
-                        onmouseout="this.style.background='#FFFFFF'">
+                        class="ds-portal-logout inline-flex items-center px-4 py-2 rounded-xl border text-sm font-medium transition-colors flex-shrink-0">
                     <i class="fas fa-sign-out-alt mr-2"></i>Cerrar sesión
                 </button>
             </form>

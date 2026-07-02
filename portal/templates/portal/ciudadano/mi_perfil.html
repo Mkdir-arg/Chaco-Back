@@ -6,13 +6,13 @@
 
 <!-- Saludo -->
 <div class="mb-8 animate-fadeInUp">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-5"
-         style="background: linear-gradient(135deg, #5059BC18 0%, #F26DF910 100%);">
-        <h2 class="text-2xl font-bold text-[#252F40]">
+    <div class="rounded-2xl shadow-sm px-6 py-5"
+         style="background-image: linear-gradient(135deg, var(--bg-brand-softer) 0%, var(--bg-brand-soft) 100%); border: 1px solid var(--border-base);">
+        <h2 class="text-2xl font-bold" style="color: var(--text-heading);">
             ¡Bienvenido/a, {{ ciudadano.nombre }}!
         </h2>
-        <p class="text-[#8C8C8C] mt-1 text-sm">
-            DNI: <span class="font-medium text-[#252F40]">{{ ciudadano.dni }}</span>
+        <p class="mt-1 text-sm" style="color: var(--text-body-subtle);">
+            DNI: <span class="font-medium" style="color: var(--text-heading);">{{ ciudadano.dni }}</span>
             &nbsp;·&nbsp; Este es tu espacio personal en el Portal Ciudadano.
         </p>
     </div>
@@ -22,99 +22,99 @@
 <div class="grid md:grid-cols-2 gap-6">
 
     <!-- ── Card 1: Mis datos personales ─────────────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 animate-fadeInUp">
+    <div class="rounded-2xl shadow-sm p-6 animate-fadeInUp" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
         <div class="flex items-center space-x-3 mb-5">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                <i class="fas fa-user text-white"></i>
+                 style="background: var(--gradient-brand);">
+                <i class="fas fa-user" style="color: var(--text-white);"></i>
             </div>
-            <h3 class="text-lg font-semibold text-[#252F40]">Mis datos personales</h3>
+            <h3 class="text-lg font-semibold" style="color: var(--text-heading);">Mis datos personales</h3>
         </div>
 
         <dl class="space-y-3 text-sm">
             <div class="flex justify-between items-baseline">
-                <dt class="text-[#8C8C8C]">Nombre completo</dt>
-                <dd class="font-medium text-[#252F40] text-right">{{ ciudadano.nombre }} {{ ciudadano.apellido }}</dd>
+                <dt style="color: var(--text-body-subtle);">Nombre completo</dt>
+                <dd class="font-medium text-right" style="color: var(--text-heading);">{{ ciudadano.nombre }} {{ ciudadano.apellido }}</dd>
             </div>
             <div class="flex justify-between items-baseline">
-                <dt class="text-[#8C8C8C]">DNI</dt>
-                <dd class="font-medium text-[#252F40]">{{ ciudadano.dni }}</dd>
+                <dt style="color: var(--text-body-subtle);">DNI</dt>
+                <dd class="font-medium" style="color: var(--text-heading);">{{ ciudadano.dni }}</dd>
             </div>
             <div class="flex justify-between items-baseline">
-                <dt class="text-[#8C8C8C]">Email</dt>
+                <dt style="color: var(--text-body-subtle);">Email</dt>
                 {% if ciudadano.email %}
-                    <dd class="font-medium text-[#252F40] text-right break-all">{{ ciudadano.email }}</dd>
+                    <dd class="font-medium text-right break-all" style="color: var(--text-heading);">{{ ciudadano.email }}</dd>
                 {% else %}
-                    <dd class="text-[#C0C0C0] italic">Sin datos</dd>
+                    <dd class="italic" style="color: var(--text-disabled);">Sin datos</dd>
                 {% endif %}
             </div>
             <div class="flex justify-between items-baseline">
-                <dt class="text-[#8C8C8C]">Teléfono</dt>
+                <dt style="color: var(--text-body-subtle);">Teléfono</dt>
                 {% if ciudadano.telefono %}
-                    <dd class="font-medium text-[#252F40]">{{ ciudadano.telefono }}</dd>
+                    <dd class="font-medium" style="color: var(--text-heading);">{{ ciudadano.telefono }}</dd>
                 {% else %}
-                    <dd class="text-[#C0C0C0] italic">Sin datos</dd>
+                    <dd class="italic" style="color: var(--text-disabled);">Sin datos</dd>
                 {% endif %}
             </div>
             <div class="flex justify-between items-baseline">
-                <dt class="text-[#8C8C8C]">Domicilio</dt>
+                <dt style="color: var(--text-body-subtle);">Domicilio</dt>
                 {% if ciudadano.domicilio %}
-                    <dd class="font-medium text-[#252F40] text-right max-w-xs">{{ ciudadano.domicilio }}</dd>
+                    <dd class="font-medium text-right max-w-xs" style="color: var(--text-heading);">{{ ciudadano.domicilio }}</dd>
                 {% else %}
-                    <dd class="text-[#C0C0C0] italic">Sin datos</dd>
+                    <dd class="italic" style="color: var(--text-disabled);">Sin datos</dd>
                 {% endif %}
             </div>
         </dl>
 
-        <div class="mt-5 pt-4 border-t border-[#F3F4F6]">
+        <div class="mt-5 pt-4" style="border-top: 1px solid var(--border-light);">
             <a href="{% url 'portal:ciudadano_mis_datos' %}"
                class="inline-flex items-center text-xs font-medium transition-colors"
-               style="color: #5059BC;">
+               style="color: var(--text-fg-brand);">
                 <i class="fas fa-pencil-alt mr-1.5"></i>Editar mis datos
             </a>
         </div>
     </div>
 
     <!-- ── Card 2: Mis programas activos ────────────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 animate-fadeInUp">
+    <div class="rounded-2xl shadow-sm p-6 animate-fadeInUp" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
         <div class="flex items-center space-x-3 mb-5">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                <i class="fas fa-clipboard-list text-white"></i>
+                 style="background: var(--gradient-brand);">
+                <i class="fas fa-clipboard-list" style="color: var(--text-white);"></i>
             </div>
-            <h3 class="text-lg font-semibold text-[#252F40]">Mis programas activos</h3>
+            <h3 class="text-lg font-semibold" style="color: var(--text-heading);">Mis programas activos</h3>
         </div>
 
         {% if inscripciones_activas %}
             <ul class="space-y-3">
                 {% for insc in inscripciones_activas %}
-                <li class="flex items-start space-x-3 p-3 rounded-xl bg-[#F9FAFB]">
+                <li class="flex items-start space-x-3 p-3 rounded-xl" style="background: var(--bg-secondary);">
                     <div class="flex-shrink-0 mt-0.5">
                         {% if insc.estado == 'ACTIVO' %}
-                            <span class="inline-block w-2 h-2 rounded-full bg-green-500 mt-1"></span>
+                            <span class="inline-block w-2 h-2 rounded-full mt-1" style="background: var(--text-fg-success);"></span>
                         {% elif insc.estado == 'EN_SEGUIMIENTO' %}
-                            <span class="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1"></span>
+                            <span class="inline-block w-2 h-2 rounded-full mt-1" style="background: var(--text-fg-brand);"></span>
                         {% elif insc.estado == 'PENDIENTE' %}
-                            <span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mt-1"></span>
+                            <span class="inline-block w-2 h-2 rounded-full mt-1" style="background: var(--text-fg-warning-subtle);"></span>
                         {% elif insc.estado == 'SUSPENDIDO' %}
-                            <span class="inline-block w-2 h-2 rounded-full bg-red-400 mt-1"></span>
+                            <span class="inline-block w-2 h-2 rounded-full mt-1" style="background: var(--text-fg-danger);"></span>
                         {% else %}
-                            <span class="inline-block w-2 h-2 rounded-full bg-gray-400 mt-1"></span>
+                            <span class="inline-block w-2 h-2 rounded-full mt-1" style="background: var(--text-disabled);"></span>
                         {% endif %}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-[#252F40] truncate">{{ insc.programa.nombre }}</p>
+                        <p class="text-sm font-medium truncate" style="color: var(--text-heading);">{{ insc.programa.nombre }}</p>
                         <div class="mt-1">
                             {% if insc.estado == 'ACTIVO' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Activo</span>
+                                <span class="badge badge-success">Activo</span>
                             {% elif insc.estado == 'EN_SEGUIMIENTO' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">En seguimiento</span>
+                                <span class="badge badge-info">En seguimiento</span>
                             {% elif insc.estado == 'PENDIENTE' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">En espera de asignación</span>
+                                <span class="badge badge-warning">En espera de asignación</span>
                             {% elif insc.estado == 'SUSPENDIDO' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Suspendido temporalmente</span>
+                                <span class="badge badge-danger">Suspendido temporalmente</span>
                             {% elif insc.estado == 'CERRADO' %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Finalizado</span>
+                                <span class="badge badge-gray">Finalizado</span>
                             {% endif %}
                         </div>
                     </div>
@@ -122,34 +122,34 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <div class="text-center py-8 text-[#8C8C8C]">
+            <div class="text-center py-8" style="color: var(--text-body-subtle);">
                 <i class="fas fa-folder-open text-3xl mb-3 opacity-40"></i>
                 <p class="text-sm">No tenés programas activos actualmente.</p>
             </div>
         {% endif %}
 
-        <div class="mt-5 pt-4 border-t border-[#F3F4F6]">
-            <span class="inline-flex items-center text-xs text-[#C0C0C0]">
+        <div class="mt-5 pt-4" style="border-top: 1px solid var(--border-light);">
+            <span class="inline-flex items-center text-xs" style="color: var(--text-disabled);">
                 <i class="fas fa-list mr-1.5"></i>Ver todos mis programas — próximamente
             </span>
         </div>
     </div>
 
     <!-- ── Card 3: Mis consultas recientes ──────────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 animate-fadeInUp">
+    <div class="rounded-2xl shadow-sm p-6 animate-fadeInUp" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
         <div class="flex items-center justify-between mb-5">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                    <i class="fas fa-comments text-white"></i>
+                     style="background: var(--gradient-brand);">
+                    <i class="fas fa-comments" style="color: var(--text-white);"></i>
                 </div>
-                <h3 class="text-lg font-semibold text-[#252F40]">Mis consultas recientes</h3>
+                <h3 class="text-lg font-semibold" style="color: var(--text-heading);">Mis consultas recientes</h3>
             </div>
             <a href="{% url 'conversaciones:chat_ciudadano' %}"
-               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors"
-               style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-               onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-               onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+               style="background: var(--gradient-brand); color: var(--text-white);"
+               onmouseover="this.style.filter='brightness(0.93)'"
+               onmouseout="this.style.filter='none'">
                 <i class="fas fa-plus mr-1.5"></i>Nueva consulta
             </a>
         </div>
@@ -157,39 +157,39 @@
         {% if conversaciones_recientes %}
             <ul class="space-y-3">
                 {% for conv in conversaciones_recientes %}
-                <li class="flex items-center justify-between p-3 rounded-xl bg-[#F9FAFB]">
+                <li class="flex items-center justify-between p-3 rounded-xl" style="background: var(--bg-secondary);">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-[#E5E7EB]">
-                            <i class="fas fa-comment-dots text-sm" style="color: #5059BC;"></i>
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
+                            <i class="fas fa-comment-dots text-sm" style="color: var(--text-fg-brand);"></i>
                         </div>
                         <div>
-                            <p class="text-sm font-medium text-[#252F40]">Consulta #{{ conv.id }}</p>
-                            <p class="text-xs text-[#8C8C8C]">{{ conv.fecha_inicio|date:"d/m/Y" }}</p>
+                            <p class="text-sm font-medium" style="color: var(--text-heading);">Consulta #{{ conv.id }}</p>
+                            <p class="text-xs" style="color: var(--text-body-subtle);">{{ conv.fecha_inicio|date:"d/m/Y" }}</p>
                         </div>
                     </div>
                     <div>
                         {% if conv.estado == 'activa' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Activa</span>
+                            <span class="badge badge-success">Activa</span>
                         {% elif conv.estado == 'cerrada' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Cerrada</span>
+                            <span class="badge badge-gray">Cerrada</span>
                         {% elif conv.estado == 'pendiente' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pendiente</span>
+                            <span class="badge badge-warning">Pendiente</span>
                         {% else %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ conv.estado|capfirst }}</span>
+                            <span class="badge badge-gray">{{ conv.estado|capfirst }}</span>
                         {% endif %}
                     </div>
                 </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <div class="text-center py-8 text-[#8C8C8C]">
+            <div class="text-center py-8" style="color: var(--text-body-subtle);">
                 <i class="fas fa-headset text-3xl mb-3 opacity-40"></i>
                 <p class="text-sm mb-4">Aún no realizaste consultas.</p>
                 <a href="{% url 'conversaciones:chat_ciudadano' %}"
-                   class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-                   style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                   onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                   onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                   class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                   style="background: var(--gradient-brand); color: var(--text-white);"
+                   onmouseover="this.style.filter='brightness(0.93)'"
+                   onmouseout="this.style.filter='none'">
                     <i class="fas fa-comments mr-2"></i>Iniciar consulta
                 </a>
             </div>
@@ -197,49 +197,48 @@
     </div>
 
     <!-- ── Card 4: Actividad reciente (timeline) ─────────────────────── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 animate-fadeInUp">
+    <div class="rounded-2xl shadow-sm p-6 animate-fadeInUp" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
         <div class="flex items-center space-x-3 mb-5">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                 style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                <i class="fas fa-history text-white"></i>
+                 style="background: var(--gradient-brand);">
+                <i class="fas fa-history" style="color: var(--text-white);"></i>
             </div>
-            <h3 class="text-lg font-semibold text-[#252F40]">Actividad reciente</h3>
+            <h3 class="text-lg font-semibold" style="color: var(--text-heading);">Actividad reciente</h3>
         </div>
 
         {% if eventos %}
-            <ol class="relative border-l border-[#E5E7EB] space-y-5 ml-3">
+            <ol class="relative space-y-5 ml-3" style="border-left: 1px solid var(--border-base);">
                 {% for evento in eventos %}
                 <li class="ml-4">
                     <!-- Dot en la línea -->
-                    <span class="absolute -left-2 flex items-center justify-center w-4 h-4 rounded-full
-                        {% if evento.color == 'blue' %}bg-blue-100{% elif evento.color == 'green' %}bg-green-100{% else %}bg-gray-100{% endif %}
-                        ring-2 ring-white">
-                        <i class="fas {{ evento.icono }} text-xs
-                            {% if evento.color == 'blue' %}text-blue-600{% elif evento.color == 'green' %}text-green-600{% else %}text-gray-500{% endif %}"></i>
+                    <span class="absolute -left-2 flex items-center justify-center w-4 h-4 rounded-full ring-2"
+                        style="background: {% if evento.color == 'blue' %}var(--bg-info-soft){% elif evento.color == 'green' %}var(--bg-success-soft){% else %}var(--bg-tertiary){% endif %}; --tw-ring-color: var(--bg-white);">
+                        <i class="fas {{ evento.icono }} text-xs"
+                            style="color: {% if evento.color == 'blue' %}var(--text-fg-info){% elif evento.color == 'green' %}var(--text-fg-success){% else %}var(--text-body-subtle){% endif %};"></i>
                     </span>
-                    <div class="p-3 bg-[#F9FAFB] rounded-xl">
-                        <p class="text-sm font-medium text-[#252F40]">{{ evento.descripcion }}</p>
+                    <div class="p-3 rounded-xl" style="background: var(--bg-secondary);">
+                        <p class="text-sm font-medium" style="color: var(--text-heading);">{{ evento.descripcion }}</p>
                         <div class="flex items-center justify-between mt-1 gap-2 flex-wrap">
-                            <time class="text-xs text-[#8C8C8C]">{{ evento.fecha_display|date:"d/m/Y" }}</time>
+                            <time class="text-xs" style="color: var(--text-body-subtle);">{{ evento.fecha_display|date:"d/m/Y" }}</time>
                             {% if evento.tipo == 'programa' %}
                                 {% if evento.estado == 'ACTIVO' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Activo</span>
+                                    <span class="badge badge-success">Activo</span>
                                 {% elif evento.estado == 'EN_SEGUIMIENTO' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">En seguimiento</span>
+                                    <span class="badge badge-info">En seguimiento</span>
                                 {% elif evento.estado == 'PENDIENTE' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Pendiente</span>
+                                    <span class="badge badge-warning">Pendiente</span>
                                 {% elif evento.estado == 'SUSPENDIDO' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Suspendido</span>
+                                    <span class="badge badge-danger">Suspendido</span>
                                 {% elif evento.estado == 'CERRADO' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">Finalizado</span>
+                                    <span class="badge badge-gray">Finalizado</span>
                                 {% endif %}
                             {% elif evento.tipo == 'consulta' %}
                                 {% if evento.estado == 'activa' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Activa</span>
+                                    <span class="badge badge-success">Activa</span>
                                 {% elif evento.estado == 'cerrada' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">Cerrada</span>
+                                    <span class="badge badge-gray">Cerrada</span>
                                 {% elif evento.estado == 'pendiente' %}
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Pendiente</span>
+                                    <span class="badge badge-warning">Pendiente</span>
                                 {% endif %}
                             {% endif %}
                         </div>
@@ -248,7 +247,7 @@
                 {% endfor %}
             </ol>
         {% else %}
-            <div class="text-center py-8 text-[#8C8C8C]">
+            <div class="text-center py-8" style="color: var(--text-body-subtle);">
                 <i class="fas fa-clock text-3xl mb-3 opacity-40"></i>
                 <p class="text-sm">No hay actividad reciente.</p>
             </div>

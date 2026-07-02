@@ -6,16 +6,19 @@
 
 <!-- Encabezado -->
 <div class="mb-6 animate-fadeInUp">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-5">
+    <div class="rounded-2xl shadow-sm px-6 py-5" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div class="flex items-center space-x-3">
                 <a href="{% url 'portal:ciudadano_mis_consultas' %}"
-                   class="w-9 h-9 rounded-lg flex items-center justify-center bg-[#F3F4F6] hover:bg-[#E5E7EB] transition-colors text-[#8C8C8C]">
+                   class="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+                   style="background: var(--bg-tertiary); color: var(--text-body-subtle);"
+                   onmouseover="this.style.background='var(--bg-quaternary)'"
+                   onmouseout="this.style.background='var(--bg-tertiary)'">
                     <i class="fas fa-arrow-left text-sm"></i>
                 </a>
                 <div>
-                    <h2 class="text-xl font-bold text-[#252F40]">Consulta #{{ conversacion.id }}</h2>
-                    <p class="text-xs text-[#8C8C8C] mt-0.5">
+                    <h2 class="text-xl font-bold" style="color: var(--text-heading);">Consulta #{{ conversacion.id }}</h2>
+                    <p class="text-xs mt-0.5" style="color: var(--text-body-subtle);">
                         Iniciada el {{ conversacion.fecha_inicio|date:"d/m/Y" }} a las {{ conversacion.fecha_inicio|date:"H:i" }}
                         {% if conversacion.fecha_cierre %}
                             &nbsp;·&nbsp; Cerrada el {{ conversacion.fecha_cierre|date:"d/m/Y" }}
@@ -26,17 +29,11 @@
             <!-- Badge de estado -->
             <div class="flex-shrink-0">
                 {% if conversacion.estado == 'activa' %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Activa
-                    </span>
+                    <span class="badge badge-dot badge-success">Activa</span>
                 {% elif conversacion.estado == 'pendiente' %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                        <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1.5"></span>Pendiente — en espera de atención
-                    </span>
+                    <span class="badge badge-dot badge-warning">Pendiente — en espera de atención</span>
                 {% elif conversacion.estado == 'cerrada' %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></span>Cerrada
-                    </span>
+                    <span class="badge badge-dot badge-gray">Cerrada</span>
                 {% endif %}
             </div>
         </div>
@@ -46,8 +43,8 @@
 <!-- Área del chat -->
 <div
     id="portal-consulta-detalle-app"
-    class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] flex flex-col animate-fadeInUp"
-    style="min-height: 420px;"
+    class="rounded-2xl shadow-sm flex flex-col animate-fadeInUp"
+    style="min-height: 420px; background: var(--bg-primary); border: 1px solid var(--border-base);"
     data-messages-url-template="{% url 'conversaciones:obtener_mensajes_ciudadano' 0 %}"
 >
 
@@ -59,7 +56,7 @@
             <div class="flex {% if mensaje.remitente == 'ciudadano' %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ mensaje.id }}" data-remitente="{{ mensaje.remitente }}">
                 <div class="max-w-xs lg:max-w-md">
                     <!-- Etiqueta del remitente -->
-                    <p class="text-xs text-[#8C8C8C] mb-1 {% if mensaje.remitente == 'ciudadano' %}text-right{% else %}text-left{% endif %}">
+                    <p class="text-xs mb-1 {% if mensaje.remitente == 'ciudadano' %}text-right{% else %}text-left{% endif %}" style="color: var(--text-body-subtle);">
                         {% if mensaje.remitente == 'ciudadano' %}
                             Vos
                         {% else %}
@@ -71,10 +68,12 @@
                         {% if mensaje.remitente == 'ciudadano' %}
                             text-white rounded-br-sm
                         {% else %}
-                            bg-[#F3F4F6] text-[#252F40] rounded-bl-sm
+                            rounded-bl-sm
                         {% endif %}"
                         {% if mensaje.remitente == 'ciudadano' %}
-                        style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);"
+                        style="background: var(--gradient-brand);"
+                        {% else %}
+                        style="background: var(--bg-tertiary); color: var(--text-heading);"
                         {% endif %}>
                         <p class="text-sm leading-relaxed">{{ mensaje.contenido }}</p>
                         <p class="text-xs opacity-60 mt-1.5 {% if mensaje.remitente == 'ciudadano' %}text-right{% else %}text-left{% endif %}">
@@ -85,7 +84,7 @@
             </div>
             {% endfor %}
         {% else %}
-            <div class="flex flex-col items-center justify-center h-40 text-[#8C8C8C]">
+            <div class="flex flex-col items-center justify-center h-40" style="color: var(--text-body-subtle);">
                 <i class="fas fa-comment-slash text-3xl mb-3 opacity-30"></i>
                 <p class="text-sm">Aún no hay mensajes en esta consulta.</p>
             </div>
@@ -94,9 +93,9 @@
     </div>
 
     <!-- Divider + zona de respuesta -->
-    <div class="border-t border-[#E5E7EB]">
+    <div style="border-top: 1px solid var(--border-base);">
         {% if puede_enviar %}
-        <div class="p-4 bg-[#F9FAFB] rounded-b-2xl" id="zonaEnvio">
+        <div class="p-4 rounded-b-2xl" id="zonaEnvio" style="background: var(--bg-secondary);">
             <form method="post" action="{% url 'portal:ciudadano_enviar_mensaje' pk=conversacion.pk %}" id="formMensaje">
                 {% csrf_token %}
                 <div class="flex gap-3 items-end">
@@ -104,27 +103,23 @@
                               id="inputMensaje"
                               rows="2"
                               placeholder="Escribí tu mensaje..."
-                              class="flex-1 px-4 py-3 border border-[#E5E7EB] rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:border-transparent"
-                              style="--tw-ring-color: #5059BC;"
+                              class="flex-1 px-4 py-3 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent"
+                              style="border: 1px solid var(--border-base); background: var(--bg-white); color: var(--text-heading); --tw-ring-color: var(--border-brand);"
                               required></textarea>
-                    <button type="submit"
-                            class="px-5 py-3 rounded-xl text-sm font-semibold text-white flex-shrink-0 shadow-sm transition-all"
-                            style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                            onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                            onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
-                        <i class="fas fa-paper-plane mr-1.5"></i>Enviar
+                    <button type="submit" class="btn-nodo btn-brand btn-base flex-shrink-0">
+                        <i class="fas fa-paper-plane"></i>Enviar
                     </button>
                 </div>
-                <p class="text-xs text-[#8C8C8C] mt-2">
+                <p class="text-xs mt-2" style="color: var(--text-body-subtle);">
                     <i class="fas fa-shield-alt mr-1"></i>Tu mensaje es confidencial y será respondido por nuestro equipo.
                 </p>
             </form>
         </div>
         {% else %}
-        <div class="p-4 bg-[#F9FAFB] rounded-b-2xl text-center">
-            <p class="text-sm text-[#8C8C8C]">
+        <div class="p-4 rounded-b-2xl text-center" style="background: var(--bg-secondary);">
+            <p class="text-sm" style="color: var(--text-body-subtle);">
                 <i class="fas fa-lock mr-1.5"></i>Esta consulta está cerrada. Si necesitás asistencia,
-                <a href="{% url 'portal:ciudadano_nueva_consulta' %}" class="font-medium underline">iniciá una nueva consulta</a>.
+                <a href="{% url 'portal:ciudadano_nueva_consulta' %}" class="font-medium underline" style="color: var(--text-fg-brand);">iniciá una nueva consulta</a>.
             </p>
         </div>
         {% endif %}
@@ -170,13 +165,17 @@
         inner.className = 'max-w-xs lg:max-w-md';
 
         var etiqueta = document.createElement('p');
-        etiqueta.className = 'text-xs text-[#8C8C8C] mb-1 ' + (esCiudadano ? 'text-right' : 'text-left');
+        etiqueta.className = 'text-xs mb-1 ' + (esCiudadano ? 'text-right' : 'text-left');
+        etiqueta.style.color = 'var(--text-body-subtle)';
         etiqueta.textContent = esCiudadano ? 'Vos' : 'Atención ciudadana';
 
         var burbuja = document.createElement('div');
-        burbuja.className = 'px-4 py-3 rounded-2xl ' + (esCiudadano ? 'text-white rounded-br-sm' : 'bg-[#F3F4F6] text-[#252F40] rounded-bl-sm');
+        burbuja.className = 'px-4 py-3 rounded-2xl ' + (esCiudadano ? 'text-white rounded-br-sm' : 'rounded-bl-sm');
         if (esCiudadano) {
-            burbuja.style.background = 'linear-gradient(135deg, #5059BC 0%, #F26DF9 100%)';
+            burbuja.style.background = 'var(--gradient-brand)';
+        } else {
+            burbuja.style.background = 'var(--bg-tertiary)';
+            burbuja.style.color = 'var(--text-heading)';
         }
 
         var texto = document.createElement('p');

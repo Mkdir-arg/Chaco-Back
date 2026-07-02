@@ -59,7 +59,7 @@
     .modal-header {
         flex-shrink: 0;
         padding: 1rem !important;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid var(--border-base);
         position: sticky;
         top: 0;
         background: white;
@@ -76,7 +76,7 @@
     .modal-footer {
         flex-shrink: 0;
         padding: 1rem !important;
-        border-top: 1px solid #e5e7eb;
+        border-top: 1px solid var(--border-base);
         position: sticky;
         bottom: 0;
         background: white;

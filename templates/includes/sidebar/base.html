@@ -16,7 +16,7 @@
         box-sizing: border-box;
         font-family: var(--font-sans);
         font-weight: 500;                              /* inactivo: medium */
-        color: var(--text-body) !important;            /* #4B5563 */
+        color: var(--text-body) !important;
         background: transparent;
         transition: background 150ms var(--ease-standard, ease), color 150ms;
         align-items: center;
@@ -26,7 +26,7 @@
     }
     /* Colapsado (Alpine agrega .justify-center): ícono centrado */
     .ds-snav a.justify-center, .ds-snav button.justify-center { justify-content: center !important; }
-    .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; } /* #6B7280 */
+    .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; }
 
     /* Vence la regla legacy de nodo-brand.css:
        a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: magenta !important }
@@ -37,11 +37,11 @@
 
     /* Hover — solo si NO está activo (gris muy suave) */
     .ds-snav a:not([aria-current="page"]):hover,
-    .ds-snav button:hover { background: var(--bg-tertiary) !important; } /* #F3F4F6 */
+    .ds-snav button:hover { background: var(--bg-tertiary) !important; }
 
     /* Activo — único con fondo de marca; texto e ícono blancos; bold */
     .ds-snav [aria-current="page"] {
-        background: var(--bg-brand) !important;        /* #5059BC jacarandá */
+        background: var(--bg-brand) !important;
         color: #fff !important;
         font-weight: 700 !important;
     }
