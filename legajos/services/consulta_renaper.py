@@ -28,6 +28,12 @@ def _clean_api_base(raw_url):
     return str(raw_url).strip().strip('"').strip("'")
 
 
+def _join_url(base_url, path):
+    if not base_url:
+        return ""
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
 def _parse_positive_int(raw_value, default):
     try:
         value = int(raw_value)
@@ -113,7 +119,7 @@ class APIClient:
         self.http_method = (getattr(settings, "RENAPER_HTTP_METHOD", "auto") or "auto").strip().lower()
 
         self.api_base = _clean_api_base(settings.RENAPER_API_URL)
-        self.login_url = f"{self.api_base}/auth/login"
+        self.login_url = self._build_login_url(self.api_base)
         self.consulta_url = self._build_consulta_url(self.api_base)
 
         connect_timeout = _parse_positive_int(getattr(settings, "RENAPER_CONNECT_TIMEOUT", 10), 10)
@@ -137,10 +143,24 @@ class APIClient:
         self.session.mount("http://", adapter)
 
     def _build_consulta_url(self, api_base):
+        explicit_url = _clean_api_base(getattr(settings, "RENAPER_CONSULTA_URL", ""))
+        if explicit_url:
+            return explicit_url
         if not api_base:
             return ""
-        # Si la URL ya incluye el endpoint completo, usarla tal cual
-        return api_base
+        base = api_base.rstrip("/")
+        lower_base = base.lower()
+        if lower_base.endswith("/api") and not self._use_api_key_mode():
+            return _join_url(base, "consultarenaper")
+        return base
+
+    def _build_login_url(self, api_base):
+        explicit_url = _clean_api_base(getattr(settings, "RENAPER_LOGIN_URL", ""))
+        if explicit_url:
+            return explicit_url
+        if not api_base:
+            return ""
+        return _join_url(api_base, "auth/login")
 
     def _use_api_key_mode(self):
         if self.auth_mode == "api_key":
@@ -197,7 +217,7 @@ class APIClient:
             except Exception:
                 logger.exception("Error al obtener token RENAPER")
                 return {"success": False, "error": "Error interno al obtener token"}
-            headers["Authorization"] = f"Bearer {token}"
+            headers["Authorization"] = f"bearer {token}"
 
         payload = {"dni": dni, "sexo": _normalizar_sexo(sexo)}
         method = self._resolve_http_method()
@@ -252,6 +272,19 @@ class APIClient:
             }
 
         data = reparar_mojibake(data)
+
+        if data.get("success", False):
+            return {"success": True, "data": data["data"]}
+
+        if data.get("isSuccess", False):
+            return {"success": True, "data": data.get("result") or {}}
+
+        if "isSuccess" in data:
+            return {
+                "success": False,
+                "error": data.get("message") or "Respuesta de Renaper no indica exito.",
+                "raw_response": data,
+            }
 
         if not data.get("success", False):
             return {

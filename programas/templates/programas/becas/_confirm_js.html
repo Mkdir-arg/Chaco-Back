@@ -1,41 +1,32 @@
-<!-- Confirmación destructiva con SweetAlert2. Uso: elemento con data-confirm-url. -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<style>
-  /* Botones por clases del DS (buttonsStyling:false quita los márgenes de swal2) */
-  .swal2-actions { gap: 12px; }
-</style>
+<!-- Confirmación con ModernModal (sistema de modales del backoffice). Uso: elemento con data-confirm-url. -->
 <script>
 document.addEventListener('click', function (e) {
   const btn = e.target.closest('[data-confirm-url]');
   if (!btn) return;
   e.preventDefault();
-  Swal.fire({
+  const icon = btn.dataset.confirmIcon || 'warning';
+  ModernModal.show({
+    type: 'confirm',
+    danger: icon === 'warning',
     title: btn.dataset.confirmTitle || '¿Confirmás la acción?',
-    text: btn.dataset.confirmText || '',
-    icon: btn.dataset.confirmIcon || 'warning',
-    showCancelButton: true,
-    buttonsStyling: false,
-    customClass: {
-      confirmButton: 'btn-nodo btn-danger',
-      cancelButton: 'btn-nodo btn-tertiary',
-    },
-    confirmButtonText: btn.dataset.confirmOk || 'Sí, confirmar',
-    cancelButtonText: 'Cancelar',
-  }).then(function (r) {
-    if (!r.isConfirmed) return;
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = btn.dataset.confirmUrl;
-    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (csrf) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'csrfmiddlewaretoken';
-      input.value = csrf.value;
-      form.appendChild(input);
+    message: btn.dataset.confirmText || '',
+    confirmText: btn.dataset.confirmOk || 'Sí, confirmar',
+    cancelText: 'Cancelar',
+    onConfirm: function () {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = btn.dataset.confirmUrl;
+      const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (csrf) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrfmiddlewaretoken';
+        input.value = csrf.value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
     }
-    document.body.appendChild(form);
-    form.submit();
   });
 });
 </script>
