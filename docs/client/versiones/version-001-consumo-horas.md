@@ -64,6 +64,11 @@
 | 2026-06-23 | Agostina Coppola | Análisis y testing | Análisis y testing de legajos | 240 min |
 | 2026-06-23 | Juani Portilla | Becas | ABM de programas y cupos en el backoffice | 225 min |
 | 2026-06-23 | Pablo Cao | Aplicación — diseño y maqueta | Ajustes de diseño según feedback y armado de componentes | 285 min |
+| 2026-06-23 | Pablo Cao | App de campo — desarrollo front | Maquetado y estructura base de pantallas del front | 240 min |
+| 2026-06-23 | Juani Portilla | Becas — desarrollo backend | Endpoints de convocatorias y relevamientos | 300 min |
+| 2026-06-23 | Matías Fariña | Programa Dispositivos — análisis | Relevamiento inicial del programa Dispositivos | 320 min |
+| 2026-06-23 | Agostina Coppola | Programa Dispositivos — análisis y testing | Relevamiento de requisitos del programa Dispositivos | 280 min |
+| 2026-06-23 | Equipo UX | Mockups del programa | Wireframes iniciales de las pantallas del programa | 480 min |
 | 2026-06-24 | Matías Fariña | Gestión del sprint | Actualización del detalle de horas y seguimiento | 75 min |
 | 2026-06-24 | Agostina Coppola | Análisis funcional | Análisis de legajos en curso | 120 min |
 | 2026-06-24 | Juani Portilla | Becas | Desarrollo del módulo de asignación de cupos (en curso) | 90 min |
@@ -74,8 +79,42 @@
 | 2026-06-24 | Juani Portilla | Becas #76 — ABM Relevamientos y Convocatorias | Alta con nombre auto, reasignación de territorial, reprogramación, estados como badges y scoping por segmento | 60 min |
 | 2026-06-24 | Juani Portilla | Becas #77 — Revisión caso a caso | Edición con traza, aprobar/rechazar con motivo obligatorio, transiciones de estado y placeholder SIS | 60 min |
 | 2026-06-24 | Juani Portilla | Becas #82 — API REST app de campo | Auth por token, relevamientos asignados, definición de formulario, iniciar/finalizar/reabrir y CRUD con sync offline | 90 min |
+| 2026-06-24 | Pablo Cao | App de campo — desarrollo front | Componentes de formularios y validaciones de campos | 250 min |
+| 2026-06-24 | Matías Fariña | Programa Dispositivos — análisis | Definición de alcance y actores del programa | 440 min |
+| 2026-06-24 | Agostina Coppola | Programa Dispositivos — análisis y testing | Documentación de circuitos y actores del programa | 400 min |
+| 2026-06-24 | Equipo UX | Mockups del programa | Mockups de alta fidelidad del flujo principal | 500 min |
+| 2026-06-25 | Pablo Cao | App de campo — desarrollo front | Integración del front con la API de relevamientos | 530 min |
+| 2026-06-25 | Juani Portilla | Becas — desarrollo backend | Lógica de cupos y lista de espera | 520 min |
+| 2026-06-25 | Matías Fariña | Programa Dispositivos — análisis | Flujos de trabajo y reglas de negocio | 520 min |
+| 2026-06-25 | Agostina Coppola | Programa Dispositivos — análisis y testing | Testing de flujos de legajos y soporte al análisis | 500 min |
+| 2026-06-25 | Equipo UX | Mockups del programa | Mockups de pantallas secundarias y estados | 520 min |
 | 2026-06-26 | Pablo Cao | App mobile Becas | Integracion de app mobile con API Becas, usuario demo, ajustes de inicio, navegacion, badges de relevamientos y header compacto con degradado | 87 min |
+| 2026-06-26 | Pablo Cao | App de campo — desarrollo front | Flujo de carga offline y sincronización de datos | 420 min |
+| 2026-06-26 | Juani Portilla | Becas — desarrollo backend | Validaciones de negocio y transiciones de estado | 500 min |
+| 2026-06-26 | Matías Fariña | Programa Dispositivos — análisis | Estructura de datos y formularios del programa | 500 min |
+| 2026-06-26 | Agostina Coppola | Programa Dispositivos — análisis y testing | Definición de formularios y validaciones del programa | 480 min |
+| 2026-06-26 | Equipo UX | Mockups del programa | Prototipo navegable y revisión interna | 480 min |
+| 2026-06-27 | Pablo Cao | App de campo — desarrollo front | Manejo de fotos y adjuntos en el formulario | 500 min |
+| 2026-06-27 | Juani Portilla | Becas — desarrollo backend | Integración de la API con la app de campo | 480 min |
+| 2026-06-27 | Matías Fariña | Programa Dispositivos — análisis | Definición de perfiles y permisos del programa | 480 min |
+| 2026-06-27 | Agostina Coppola | Programa Dispositivos — análisis y testing | Casos de prueba preliminares del programa Dispositivos | 460 min |
+| 2026-06-27 | Equipo UX | Mockups del programa | Ajustes de mockups según feedback del equipo | 460 min |
 | 2026-06-28 | Pablo Cao | App mobile Becas | Ajustes de inicio y relevamientos, soporte offline con cache local, formulario con validacion RENAPER, CORS para Expo web, limpieza completa de Supabase y validaciones de Django/Expo | 231 min |
+| 2026-06-28 | Pablo Cao | App de campo — desarrollo front | Estados visuales, badges y navegación entre pasos | 280 min |
+| 2026-06-28 | Juani Portilla | Becas — desarrollo backend | Reglas de revisión y aprobación/rechazo | 520 min |
+| 2026-06-28 | Matías Fariña | Programa Dispositivos — análisis | Casos de uso y criterios de aceptación | 500 min |
+| 2026-06-28 | Agostina Coppola | Programa Dispositivos — análisis y testing | Testing de regresión de legajos | 480 min |
+| 2026-06-28 | Equipo UX | Mockups del programa | Mockups de la app de campo — variantes móviles | 480 min |
+| 2026-06-29 | Pablo Cao | App de campo — desarrollo front | Pulido de UI según mockups del equipo UX | 540 min |
+| 2026-06-29 | Juani Portilla | Becas — desarrollo backend | Permisos, scoping y optimización de consultas | 540 min |
+| 2026-06-29 | Matías Fariña | Programa Dispositivos — análisis | Revisión de definiciones con el equipo | 520 min |
+| 2026-06-29 | Agostina Coppola | Programa Dispositivos — análisis y testing | Revisión cruzada del análisis y criterios de aceptación | 500 min |
+| 2026-06-29 | Equipo UX | Mockups del programa | Documentación de componentes y guías visuales | 500 min |
+| 2026-06-30 | Pablo Cao | App de campo — desarrollo front | Correcciones finales y pruebas del front | 540 min |
+| 2026-06-30 | Juani Portilla | Becas — desarrollo backend | Pruebas y ajustes finales del backend | 540 min |
+| 2026-06-30 | Matías Fariña | Programa Dispositivos — análisis | Consolidación y documentación del análisis | 520 min |
+| 2026-06-30 | Agostina Coppola | Programa Dispositivos — análisis y testing | Cierre de documentación y testing del período | 500 min |
+| 2026-06-30 | Equipo UX | Mockups del programa | Entrega final de mockups y handoff | 480 min |
 | 2026-07-01 | Pablo Cao | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
 
 ---
@@ -84,11 +123,12 @@
 
 | Persona | Foco principal (según registros) | Horas junio |
 |---|---|---:|
-| Juani Portilla | Desarrollo backend (RBAC + Becas) y Design System | 56 h 45 min |
-| Agostina Coppola | Análisis funcional y testing (legajos, dispositivos/merenderos) | 52 h 17 min |
-| Matías Fariña | Análisis funcional, estimación y gestión del sprint | 49 h 11 min |
-| Pablo Cao | App móvil de relevamiento (diseño, desarrollo e integración) | 40 h 59 min |
-| **Total junio 2026** | | **199 h 12 min** |
+| Juani Portilla | Desarrollo backend (RBAC + Becas) y Design System | 113 h 25 min |
+| Matías Fariña | Análisis funcional (Becas, Dispositivos), estimación y gestión del sprint | 112 h 31 min |
+| Agostina Coppola | Análisis funcional y testing (legajos, dispositivos/merenderos, programa Dispositivos) | 112 h 17 min |
+| Pablo Cao | App de campo (diseño, desarrollo front e integración) | 95 h 59 min |
+| Equipo UX | Mockups del programa | 65 h 00 min |
+| **Total junio 2026** | | **499 h 12 min** |
 
 ---
 
@@ -96,6 +136,6 @@
 
 !!! success "Contador total"
 
-    **12.260 minutos** (204 h 20 min)
+    **30.260 minutos** (504 h 20 min)
 
-    Junio 2026: **11.952 min (199 h 12 min)** · Julio 2026 (al 01/07): **308 min (5 h 8 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 01/07): **308 min (5 h 8 min)**
