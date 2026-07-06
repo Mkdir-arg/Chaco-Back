@@ -1,6 +1,7 @@
 services:
   mysql:
-    image: mysql:8
+    # 8.0.32: ultima build que corre en CPUs sin x86-64-v2 (la VM de icore-srv enmascara esos flags)
+    image: mysql:8.0.32
     command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     env_file:
       - .env.production
