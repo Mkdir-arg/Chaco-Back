@@ -116,6 +116,7 @@
 | 2026-06-30 | Agostina Coppola | Programa Dispositivos — análisis y testing | Cierre de documentación y testing del período | 500 min |
 | 2026-06-30 | Equipo UX | Mockups del programa | Entrega final de mockups y handoff | 480 min |
 | 2026-07-01 | Pablo Cao | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
+| 2026-07-03 | Juani Portilla | Becas | Refinamiento backend y frontend de Becas | 120 min |
 
 ---
 
@@ -136,6 +137,6 @@
 
 !!! success "Contador total"
 
-    **30.260 minutos** (504 h 20 min)
+    **30.380 minutos** (506 h 20 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 01/07): **308 min (5 h 8 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 03/07): **428 min (7 h 8 min)**
