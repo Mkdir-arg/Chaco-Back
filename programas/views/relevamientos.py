@@ -1,8 +1,8 @@
 """Backoffice — ABM de Relevamientos y Convocatorias de Becas (#76).
 
-Acceso: Coordinador y Admin (capacidad ``becas.relevamientos``). El alcance por
-segmento se aplica en la query (un coordinador solo ve/gestiona relevamientos de
-sus segmentos asignados); el Admin ve todos.
+Acceso granular por entidad (ver/crear/editar de Convocatoria y Relevamiento).
+El alcance por segmento se aplica en la query (un coordinador solo ve/gestiona
+relevamientos de sus segmentos asignados); el Admin ve todos.
 """
 
 import csv
@@ -23,7 +23,12 @@ from programas.models import Convocatoria, Formulario, Relevamiento
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
 from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
 
-CAP = "becas.relevamientos"
+CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
+CAP_CONVOCATORIA_CREAR = "becas.convocatoria.crear"
+CAP_CONVOCATORIA_EDITAR = "becas.convocatoria.editar"
+CAP_RELEVAMIENTO_VER = "becas.relevamiento.ver"
+CAP_RELEVAMIENTO_CREAR = "becas.relevamiento.crear"
+CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
 
 
 def _convocatorias_qs(request):
@@ -45,10 +50,6 @@ def _convocatorias_ajax(request, message="Convocatoria guardada."):
     )
 
 
-class _RelevMixin(CapacidadRequeridaMixin, LoginRequiredMixin):
-    capacidades_requeridas = CAP
-
-
 def _assert_scope(request, relevamiento):
     """403 si el usuario no puede gestionar el segmento del relevamiento."""
     if not puede_gestionar_segmento(request.user, relevamiento.segmento):
@@ -58,7 +59,8 @@ def _assert_scope(request, relevamiento):
 # ---------------------------------------------------------------------------
 # Convocatorias (prerequisito para crear relevamientos)
 # ---------------------------------------------------------------------------
-class ConvocatoriaListView(_RelevMixin, ListView):
+class ConvocatoriaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    capacidades_requeridas = CAP_CONVOCATORIA_VER
     template_name = "programas/becas/relevamientos/convocatoria_list.html"
     context_object_name = "convocatorias"
 
@@ -73,8 +75,9 @@ class ConvocatoriaListView(_RelevMixin, ListView):
         return ctx
 
 
-class ConvocatoriaDetailView(_RelevMixin, DetailView):
+class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = Convocatoria
+    capacidades_requeridas = CAP_CONVOCATORIA_VER
     template_name = "programas/becas/relevamientos/convocatoria_detail.html"
     context_object_name = "convocatoria"
 
@@ -105,7 +108,8 @@ class ConvocatoriaDetailView(_RelevMixin, DetailView):
         return ctx
 
 
-class ConvocatoriaCreateView(_RelevMixin, CreateView):
+class ConvocatoriaCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView):
+    capacidades_requeridas = CAP_CONVOCATORIA_CREAR
     form_class = ConvocatoriaForm
     template_name = "programas/becas/relevamientos/convocatoria_form.html"
     success_url = reverse_lazy("becas:convocatorias")
@@ -128,7 +132,8 @@ class ConvocatoriaCreateView(_RelevMixin, CreateView):
         return super().form_invalid(form)
 
 
-class ConvocatoriaUpdateView(_RelevMixin, UpdateView):
+class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, UpdateView):
+    capacidades_requeridas = CAP_CONVOCATORIA_EDITAR
     form_class = ConvocatoriaForm
     template_name = "programas/becas/relevamientos/convocatoria_form.html"
     context_object_name = "convocatoria"
@@ -150,7 +155,7 @@ class ConvocatoriaUpdateView(_RelevMixin, UpdateView):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_CONVOCATORIA_EDITAR)
 def convocatoria_toggle_activo(request, pk):
     conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
     if request.method == "POST":
@@ -161,7 +166,7 @@ def convocatoria_toggle_activo(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_CONVOCATORIA_VER)
 def convocatoria_export_beneficiarios(request, pk):
     conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
@@ -187,7 +192,7 @@ def convocatoria_export_beneficiarios(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_CONVOCATORIA_VER)
 def convocatoria_export_relevamientos(request, pk):
     conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
@@ -214,7 +219,8 @@ def convocatoria_export_relevamientos(request, pk):
 # ---------------------------------------------------------------------------
 # Relevamientos
 # ---------------------------------------------------------------------------
-class RelevamientoListView(_RelevMixin, ListView):
+class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    capacidades_requeridas = CAP_RELEVAMIENTO_VER
     template_name = "programas/becas/relevamientos/relevamiento_list.html"
     context_object_name = "relevamientos"
     paginate_by = 25
@@ -240,7 +246,8 @@ class RelevamientoListView(_RelevMixin, ListView):
         return ctx
 
 
-class RelevamientoCreateView(_RelevMixin, CreateView):
+class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView):
+    capacidades_requeridas = CAP_RELEVAMIENTO_CREAR
     form_class = RelevamientoForm
     template_name = "programas/becas/relevamientos/relevamiento_form.html"
     success_url = reverse_lazy("becas:relevamientos")
@@ -255,8 +262,9 @@ class RelevamientoCreateView(_RelevMixin, CreateView):
         return super().form_valid(form)
 
 
-class RelevamientoDetailView(_RelevMixin, DetailView):
+class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = Relevamiento
+    capacidades_requeridas = CAP_RELEVAMIENTO_VER
     template_name = "programas/becas/relevamientos/relevamiento_detail.html"
     context_object_name = "relevamiento"
 
@@ -271,7 +279,7 @@ class RelevamientoDetailView(_RelevMixin, DetailView):
         ctx["form_reasignar"] = ReasignarTerritorialForm(initial={"territorial": rel.territorial})
         ctx["form_reprogramar"] = ReprogramarForm(initial={"fecha_asignada": rel.fecha_asignada})
         ctx["n_formularios"] = rel.formularios.count()
-        ctx["puede_revisar"] = puede(self.request.user, "becas.revisar")
+        ctx["puede_revisar"] = puede(self.request.user, "becas.revision.ver")
         ctx["estados_revisables"] = [
             Relevamiento.Estado.FINALIZADO,
             Relevamiento.Estado.EN_REVISION,
@@ -280,7 +288,7 @@ class RelevamientoDetailView(_RelevMixin, DetailView):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_RELEVAMIENTO_EDITAR)
 def relevamiento_reasignar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
@@ -296,7 +304,7 @@ def relevamiento_reasignar(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_RELEVAMIENTO_EDITAR)
 def relevamiento_reprogramar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)

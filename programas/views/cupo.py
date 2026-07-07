@@ -1,7 +1,9 @@
 """Backoffice — Gestión de cupo y lista de espera por segmento (issue #78, RN-04/05).
 
-Acceso de lectura: Admin del programa o Coordinador con asignación activa en el segmento.
-Acciones de mutación (baja, promoción, agregar a lista de espera): solo Admin.
+Acceso de lectura: ``becas.cupo.ver`` o ``becas.beneficiario.ver`` (Admin del
+programa, o Coordinador con asignación activa en el segmento). Acciones de
+mutación (baja, promoción, agregar a lista de espera): ``becas.beneficiario.editar``,
+también scoped al segmento.
 """
 
 from django.contrib import messages
@@ -12,8 +14,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic.detail import DetailView
 
+from core.rbac import CapacidadRequeridaMixin, puede_alguna
 from programas.models import Formulario, ListaEspera, Segmento
-from programas.services.autorizacion import SegmentoScopedMixin, es_admin_becas
+from programas.services.autorizacion import SegmentoScopedMixin, puede_gestionar_segmento
 from programas.services.cupo import (
     agregar_a_lista_espera,
     dar_baja_beneficiario,
@@ -21,11 +24,16 @@ from programas.services.cupo import (
     promover_lista_espera,
 )
 
+CAP_CUPO_VER = "becas.cupo.ver"
+CAP_BENEFICIARIO_VER = "becas.beneficiario.ver"
+CAP_BENEFICIARIO_EDITAR = "becas.beneficiario.editar"
 
-class CupoSegmentoDetailView(SegmentoScopedMixin, LoginRequiredMixin, DetailView):
+
+class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     """Vista principal de cupo: stat cards + Beneficiarios / Lista de espera / Pendientes."""
 
     model = Segmento
+    capacidades_requeridas = [CAP_CUPO_VER, CAP_BENEFICIARIO_VER]
     template_name = "programas/becas/cupo/segmento_detail.html"
 
     def get_object(self, queryset=None):
@@ -76,7 +84,7 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, LoginRequiredMixin, DetailView
                 "beneficiarios": beneficiarios,
                 "lista_espera": lista_espera,
                 "pendientes": pendientes,
-                "es_admin": es_admin_becas(self.request.user),
+                "puede_editar_beneficiarios": puede_alguna(self.request.user, [CAP_BENEFICIARIO_EDITAR]),
             }
         )
         return ctx
@@ -88,9 +96,11 @@ def dar_baja_beneficiario_view(request, pk):
         Formulario.objects.select_related("relevamiento__convocatoria__segmento"),
         pk=pk,
     )
-    if not es_admin_becas(request.user):
-        raise PermissionDenied
     segmento = formulario.relevamiento.convocatoria.segmento
+    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
+        request.user, segmento
+    ):
+        raise PermissionDenied
     if request.method == "POST":
         try:
             dar_baja_beneficiario(formulario, request.user)
@@ -109,7 +119,9 @@ def promover_lista_espera_view(request, pk):
         ListaEspera.objects.select_related("formulario__ciudadano", "segmento"),
         pk=pk,
     )
-    if not es_admin_becas(request.user):
+    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
+        request.user, lista.segmento
+    ):
         raise PermissionDenied
     if request.method == "POST":
         try:
@@ -127,9 +139,11 @@ def agregar_lista_espera_view(request, pk):
         Formulario.objects.select_related("relevamiento__convocatoria__segmento"),
         pk=pk,
     )
-    if not es_admin_becas(request.user):
-        raise PermissionDenied
     segmento = formulario.relevamiento.convocatoria.segmento
+    if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
+        request.user, segmento
+    ):
+        raise PermissionDenied
     if request.method == "POST":
         try:
             agregar_a_lista_espera(formulario, segmento, request.user)

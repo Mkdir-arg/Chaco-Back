@@ -54,12 +54,12 @@ class RbacBecasTests(TestCase):
             self.assertTrue(meta.activo)
 
     def test_capacidades_de_cada_rol(self):
-        self.assertTrue(rbac.puede(self.admin, "becas.configurar", programa=self.becas))
-        self.assertTrue(rbac.puede(self.admin, "becas.revisar", programa=self.becas))
-        self.assertFalse(rbac.puede(self.coord, "becas.configurar", programa=self.becas))
-        self.assertTrue(rbac.puede(self.coord, "becas.revisar", programa=self.becas))
+        self.assertTrue(rbac.puede(self.admin, "becas.programa.administrar", programa=self.becas))
+        self.assertTrue(rbac.puede(self.admin, "becas.revision.editar", programa=self.becas))
+        self.assertFalse(rbac.puede(self.coord, "becas.programa.administrar", programa=self.becas))
+        self.assertTrue(rbac.puede(self.coord, "becas.revision.editar", programa=self.becas))
         self.assertTrue(rbac.puede(self.territorial, "becas.campo", programa=self.becas))
-        self.assertFalse(rbac.puede(self.territorial, "becas.revisar", programa=self.becas))
+        self.assertFalse(rbac.puede(self.territorial, "becas.revision.editar", programa=self.becas))
 
     # --- admin: acceso total ---
     def test_admin_gestiona_cualquier_segmento(self):
