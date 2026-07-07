@@ -406,7 +406,7 @@
         {% endif %}
 
         {# ── Becas (grupo colapsable) ─────────────────────────── #}
-        {% if request.user|puede:"becas.configurar" or request.user|puede:"becas.relevamientos" or request.user|puede:"becas.revisar" %}
+        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" %}
         <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -434,7 +434,7 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
-                        {% if request.user|puede:"becas.configurar" %}
+                        {% if request.user|puede:"becas.segmento.ver" %}
                         <a href="{% url 'becas:segmentos' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -449,6 +449,8 @@
                             </svg>
                             Segmentos
                         </a>
+                        {% endif %}
+                        {% if request.user|puede:"becas.pregunta.ver" %}
                         <a href="{% url 'becas:preguntas' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -464,7 +466,7 @@
                             Cuestionario social
                         </a>
                         {% endif %}
-                        {% if request.user|puede:"becas.relevamientos" %}
+                        {% if request.user|puede:"becas.convocatoria.ver" %}
                         <a href="{% url 'becas:convocatorias' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -479,6 +481,8 @@
                             </svg>
                             Convocatorias
                         </a>
+                        {% endif %}
+                        {% if request.user|puede:"becas.relevamiento.ver" %}
                         <a href="{% url 'becas:relevamientos' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -494,7 +498,7 @@
                             Relevamientos
                         </a>
                         {% endif %}
-                        {% if request.user|puede:"becas.revisar" %}
+                        {% if request.user|puede:"becas.revision.ver" %}
                         <a href="{% url 'becas:revision' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -515,7 +519,7 @@
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% if request.user|puede:'becas.configurar' %}{% url 'becas:segmentos' %}{% else %}{% url 'becas:relevamientos' %}{% endif %}"
+                <a href="{% if request.user|puede:'becas.segmento.ver' %}{% url 'becas:segmentos' %}{% elif request.user|puede:'becas.convocatoria.ver' %}{% url 'becas:convocatorias' %}{% elif request.user|puede:'becas.relevamiento.ver' %}{% url 'becas:relevamientos' %}{% else %}{% url 'becas:revision' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"

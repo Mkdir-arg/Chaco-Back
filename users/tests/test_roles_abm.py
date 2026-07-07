@@ -241,7 +241,25 @@ class RolAlcanceTests(TestCase):
         self.assertFalse(form.es_admin_global)
         self.assertEqual(form.programa_fijo, self.becas)
         modulos = {m["modulo"] for m in form.arbol_capacidades()}
-        self.assertEqual(modulos, {"programas", "relevamientos", "becas"})
+        self.assertEqual(
+            modulos,
+            {
+                "programas",
+                "relevamientos",
+                "becas_admin",
+                "becas_segmentos",
+                "becas_subsegmentos",
+                "becas_requisitos",
+                "becas_preguntas",
+                "becas_coordinadores",
+                "becas_convocatorias",
+                "becas_relevamientos",
+                "becas_revision",
+                "becas_cupo",
+                "becas_beneficiarios",
+                "becas_campo",
+            },
+        )
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(

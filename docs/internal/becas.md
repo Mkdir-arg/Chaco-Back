@@ -48,17 +48,21 @@ offline), `TracaFormulario` (auditoría inmutable de ediciones) y `ListaEspera`.
 
 ## RBAC y roles (#79)
 
-Capacidades (módulo `becas`, **alcance de programa**):
-`becas.configurar`, `becas.relevamientos`, `becas.revisar`, `becas.campo`.
+Capacidades granulares por entidad (10 grupos, todos **alcance de programa**):
+Segmento/Subsegmento/Requisito/Pregunta global/Coordinador (ver/crear/editar
+cada uno), Convocatoria/Relevamiento (ver/crear/editar), Revisión (ver/editar),
+Cupo (ver), Beneficiario (ver/editar), más `becas.programa.administrar`
+(capacidad paraguas: bypass de scoping por segmento) y `becas.campo` (app de
+campo del territorial, sin cambios). Catálogo completo en `core/rbac.py`.
 
 Roles sembrados por `seed_becas` (Group + `RolMeta` categoría "Programa",
 acotados al Programa Becas):
 
 | Rol | Capacidades |
 |---|---|
-| Becas — Administrador | configurar + relevamientos + revisar |
-| Becas — Coordinador | relevamientos + revisar (acotado a sus segmentos) |
-| Becas — Territorial | campo (solo app móvil) |
+| Becas — Administrador | `becas.programa.administrar` + todas las capacidades finas (menos `becas.campo`) |
+| Becas — Coordinador | ver estructural (segmento/subsegmento/requisito) + ver/crear/editar de convocatoria/relevamiento/revisión/beneficiario + cupo.ver (acotado a sus segmentos) |
+| Becas — Territorial | `becas.campo` (solo app móvil) |
 
 El RBAC tiene alcance de *programa*; el alcance fino por **segmento** del
 coordinador lo aporta `AsignacionCoordinador` combinado con la capacidad en
@@ -68,17 +72,23 @@ asignados; el resto, nada.
 
 ## Backoffice
 
-- **Configuración (#74)** — solo Admin (`becas.configurar`): ABM de segmentos,
-  subsegmentos (con cupo RN-40), asignación de coordinadores (solo usuarios con
-  rol Coordinador), requisitos nativos (de segmento o subsegmento) y preguntas
-  globales del cuestionario social.
-- **Relevamientos (#76)** — Coordinador/Admin (`becas.relevamientos`): ABM con
-  alta (nombre auto), reasignación de territorial y reprogramación; convocatorias;
-  filtros por estado; scoping por segmento (detalle ajeno → 403).
-- **Revisión (#77)** — Coordinador/Admin (`becas.revisar`): listado por
-  relevamiento, edición de contacto/apoderado con **traza por cambio**, aprobar /
-  rechazar (motivo obligatorio, SweetAlert2), transiciones FINALIZADO →
-  EN_REVISION → TERMINADO. Placeholder de Resultado SIS.
+- **Configuración (#74)** — capacidades finas por entidad (`becas.segmento.*`,
+  `becas.subsegmento.*`, `becas.requisito.*`, `becas.pregunta.*`,
+  `becas.coordinador.*`; ver es de solo lectura, scoped a los segmentos
+  asignados del Coordinador): ABM de segmentos, subsegmentos (con cupo RN-40),
+  asignación de coordinadores (solo usuarios con rol Coordinador), requisitos
+  nativos (de segmento o subsegmento) y preguntas globales del cuestionario
+  social (sin scoping, config global del programa).
+- **Relevamientos (#76)** — `becas.convocatoria.*` / `becas.relevamiento.*`: ABM
+  con alta (nombre auto), reasignación de territorial y reprogramación;
+  convocatorias; filtros por estado; scoping por segmento (detalle ajeno → 403).
+- **Revisión (#77)** — `becas.revision.ver` / `becas.revision.editar`: listado
+  por relevamiento, edición de contacto/apoderado con **traza por cambio**,
+  aprobar / rechazar (motivo obligatorio, SweetAlert2), transiciones FINALIZADO
+  → EN_REVISION → TERMINADO. Placeholder de Resultado SIS.
+- **Cupo y beneficiarios (#78)** — `becas.cupo.ver` (stats de ocupación) y
+  `becas.beneficiario.ver`/`becas.beneficiario.editar` (listado, dar de baja,
+  promover y agregar a lista de espera; scoped por segmento, ya no admin-only).
 
 ## API de campo (#82)
 

@@ -33,10 +33,41 @@ class AccesoConfigTests(_BaseConfigTest):
         resp = self.client.get(reverse("becas:segmentos"))
         self.assertEqual(resp.status_code, 200)
 
-    def test_coordinador_no_accede(self):
+    def test_coordinador_ve_lista_pero_no_puede_crear(self):
+        # El Coordinador tiene becas.segmento.ver (solo lectura): accede a la
+        # lista, pero sin becas.segmento.crear no puede dar de alta.
         self.client.force_login(self.coord)
         resp = self.client.get(reverse("becas:segmentos"))
-        self.assertEqual(resp.status_code, 302)  # redirigido (sin becas.configurar)
+        self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(
+            reverse("becas:segmento_crear"),
+            {"nombre": "Nuevo", "descripcion": "", "cupo_maximo": 10, "coordinador": self.coord.pk},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Segmento.objects.filter(nombre="Nuevo").exists())
+
+    def test_coordinador_sin_asignacion_no_ve_segmentos_de_otros(self):
+        # segmentos_visibles() acota la lista a los segmentos asignados: sin
+        # ninguna asignación, la lista queda vacía aunque pueda verla.
+        Segmento.objects.create(nombre="S1", cupo_maximo=100)
+        self.client.force_login(self.coord)
+        resp = self.client.get(reverse("becas:segmentos"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context["segmentos"]), [])
+
+    def test_coordinador_asignado_ve_solo_su_segmento(self):
+        seg_propio = Segmento.objects.create(nombre="Propio", cupo_maximo=100)
+        seg_ajeno = Segmento.objects.create(nombre="Ajeno", cupo_maximo=100)
+        AsignacionCoordinador.objects.create(segmento=seg_propio, coordinador=self.coord)
+        self.client.force_login(self.coord)
+
+        resp = self.client.get(reverse("becas:segmentos"))
+        self.assertEqual(list(resp.context["segmentos"]), [seg_propio])
+
+        resp = self.client.get(reverse("becas:segmento_detalle", args=[seg_propio.pk]))
+        self.assertEqual(resp.status_code, 200)
+        resp = self.client.get(reverse("becas:segmento_detalle", args=[seg_ajeno.pk]))
+        self.assertEqual(resp.status_code, 403)
 
     def test_anonimo_redirige_login(self):
         resp = self.client.get(reverse("becas:segmentos"))
