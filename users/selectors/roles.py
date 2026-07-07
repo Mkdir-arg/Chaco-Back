@@ -110,6 +110,63 @@ def roles_visibles_para(user):
     return {"categorias": categorias, "programas": programas}
 
 
+def roles_lista_para(user):
+    """Roles visibles para el operador en una lista PLANA (sin agrupar).
+
+    Mismo alcance que :func:`roles_visibles_para` (que sigue siendo la fuente:
+    esta función solo aplana su resultado), ordenados por nombre de rol.
+    """
+    data = roles_visibles_para(user)
+    items = [item for _categoria, roles_cat in data["categorias"] for item in roles_cat]
+    items += [item for _programa, roles_prog in data["programas"] for item in roles_prog]
+    return sorted(items, key=lambda it: it["group"].name.lower())
+
+
+def roles_filtrados_para(user, get_params):
+    """Lista plana de roles visibles para el operador, filtrada por querystring.
+
+    ``get_params`` es un dict-like (``request.GET``). Los filtros se aplican
+    **sobre** :func:`roles_lista_para` (que ya respeta el alcance del
+    operador) — nunca lo amplían. Valores inválidos o fuera de alcance (p.ej.
+    un ``programa`` que el operador no administra) se ignoran en silencio,
+    sin romper ni filtrar de más.
+    """
+    items = roles_lista_para(user)
+
+    q = (get_params.get("q") or "").strip().lower()
+    if q:
+        items = [
+            it
+            for it in items
+            if q in it["group"].name.lower()
+            or (it["meta"] and q in (it["meta"].descripcion or "").lower())
+        ]
+
+    categorias_validas = set(rbac.CATEGORIAS_ROL) | {rbac.CATEGORIA_PROGRAMA}
+    categoria = get_params.get("categoria") or ""
+    if categoria in categorias_validas:
+        items = [it for it in items if (it["meta"].categoria if it["meta"] else None) == categoria]
+
+    programa_raw = get_params.get("programa") or ""
+    if programa_raw:
+        try:
+            programa_pk = int(programa_raw)
+        except (TypeError, ValueError):
+            programa_pk = None
+        if programa_pk is not None:
+            programas_ok = set(programas_administrables(user).values_list("pk", flat=True))
+            if programa_pk in programas_ok:
+                items = [it for it in items if it["meta"] and it["meta"].programa_id == programa_pk]
+
+    estado = get_params.get("estado") or ""
+    if estado == "activo":
+        items = [it for it in items if not it["meta"] or it["meta"].activo]
+    elif estado == "inactivo":
+        items = [it for it in items if it["meta"] and not it["meta"].activo]
+
+    return items
+
+
 def roles_por_categoria():
     """Roles agrupados por categoría, con meta, conteo de usuarios y capacidades.
 
