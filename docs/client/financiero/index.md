@@ -13,9 +13,9 @@
 
     ---
 
-    :material-wallet-outline: Presupuesto: **714 horas**  
-    :material-clock-check-outline: Consumido: **499 horas** (70%)  
-    :material-check-circle-outline: Saldo: **215 horas** sin consumir
+    :material-wallet-outline: Presupuesto: **500 horas**  
+    :material-clock-check-outline: Consumido: **499 horas** (100%)  
+    :material-check-circle-outline: Saldo: **1 hora** sin consumir
 
     **Estado:** :material-circle:{ style="color: #10b981" } Cerrado dentro del presupuesto
 
