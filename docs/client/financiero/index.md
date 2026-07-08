@@ -5,6 +5,26 @@
 
 ---
 
+## :material-progress-clock: Mes en curso
+
+<div class="grid cards" markdown>
+
+-   :material-calendar-clock: **Julio 2026**
+
+    ---
+
+    :material-wallet-outline: Presupuesto: **500 horas**  
+    :material-clock-check-outline: Consumido: **7 horas** (1%) — al 03/07  
+    :material-check-circle-outline: Saldo: **493 horas** disponibles
+
+    **Estado:** :material-circle:{ style="color: #3b82f6" } En curso
+
+    [:octicons-arrow-right-16: Ver detalle del mes](mes-2026-07.md)
+
+</div>
+
+---
+
 ## :material-archive-check-outline: Meses cerrados
 
 <div class="grid cards" markdown>

@@ -98,6 +98,7 @@ nav:
     - Version 001 - Detalle de consumo de horas: versiones/version-001-consumo-horas.md
   - Financiero:
     - financiero/index.md
+    - Julio 2026: financiero/mes-2026-07.md
     - Junio 2026: financiero/mes-2026-06.md
   - Funcionalidades:
     - funcionalidades/index.md
