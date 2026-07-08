@@ -365,13 +365,22 @@ class RolesFiltrosTests(TestCase):
         self.admin_becas = User.objects.create_user("adm-becas-filtros", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
+        self.rol_becas = Group.objects.create(name="Territorial Becas")
+        RolMeta.objects.create(
+            grupo=self.rol_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
+            descripcion="Rol territorial de campo",
+        )
+
         self.rol_becas_inactivo = Group.objects.create(name="Territorial Becas Inactivo")
         RolMeta.objects.create(
             grupo=self.rol_becas_inactivo,
             categoria=rbac.CATEGORIA_PROGRAMA,
             programa=self.becas,
             activo=False,
-            descripcion="Rol territorial de campo",
+            descripcion="Rol territorial inactivo",
         )
 
         self.rol_nachec = Group.objects.create(name="Territorial Ñachec")
@@ -395,10 +404,15 @@ class RolesFiltrosTests(TestCase):
     def test_filtros_combinados(self):  # (1) filtros combinados funcionan
         items = roles_filtrados_para(
             self.su,
-            {"q": "territorial", "categoria": rbac.CATEGORIA_PROGRAMA, "estado": "activo"},
+            {
+                "q": "territorial",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": str(self.becas.pk),
+                "estado": "activo",
+            },
         )
         nombres = {it["group"].name for it in items}
-        self.assertEqual(nombres, {"Territorial Ñachec"})
+        self.assertEqual(nombres, {"Territorial Becas"})
 
     def test_filtro_estado_inactivo(self):
         items = roles_filtrados_para(self.su, {"estado": "inactivo"})
@@ -409,14 +423,14 @@ class RolesFiltrosTests(TestCase):
     def test_filtro_programa_valido(self):
         items = roles_filtrados_para(self.su, {"programa": str(self.becas.pk)})
         nombres = {it["group"].name for it in items}
-        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas Inactivo"})
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
 
     def test_admin_programa_no_ve_roles_ajenos_forzando_programa(self):  # (2)
         items = roles_filtrados_para(self.admin_becas, {"programa": str(self.nachec.pk)})
         nombres = {it["group"].name for it in items}
         # El filtro de un programa que el operador no administra se ignora
         # (no amplía su alcance ni lo vacía): sigue viendo solo sus propios roles.
-        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas Inactivo"})
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
         self.assertNotIn("Territorial Ñachec", nombres)
 
     def test_valores_invalidos_se_ignoran(self):  # (3)
@@ -429,14 +443,22 @@ class RolesFiltrosTests(TestCase):
 
     def test_vista_aplica_filtros_de_la_querystring(self):
         self.client.force_login(self.su)
-        resp = self.client.get(reverse("users:roles"), {"q": "territorial", "estado": "activo"})
+        resp = self.client.get(
+            reverse("users:roles"),
+            {"q": "territorial", "categoria": rbac.CATEGORIA_PROGRAMA, "estado": "activo"},
+        )
         self.assertEqual(resp.status_code, 200)
         nombres = {it["group"].name for it in resp.context["items"]}
-        self.assertEqual(nombres, {"Territorial Ñachec"})
+        self.assertEqual(nombres, {"Territorial Becas", "Territorial Ñachec"})
+        self.assertIn("roles", resp.context)
+        self.assertEqual(resp.context["filtro_q"], "territorial")
+        self.assertEqual(resp.context["filtro_categoria"], rbac.CATEGORIA_PROGRAMA)
+        self.assertEqual(resp.context["filtro_estado"], "activo")
+        self.assertTrue(resp.context["hay_filtros_activos"])
 
     def test_vista_ignora_programa_ajeno_del_admin_de_programa(self):
         self.client.force_login(self.admin_becas)
         resp = self.client.get(reverse("users:roles"), {"programa": str(self.nachec.pk)})
         self.assertEqual(resp.status_code, 200)
         nombres = {it["group"].name for it in resp.context["items"]}
-        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas Inactivo"})
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})

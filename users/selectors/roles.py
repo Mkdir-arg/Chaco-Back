@@ -138,8 +138,7 @@ def roles_filtrados_para(user, get_params):
         items = [
             it
             for it in items
-            if q in it["group"].name.lower()
-            or (it["meta"] and q in (it["meta"].descripcion or "").lower())
+            if q in it["group"].name.lower() or (it["meta"] and q in (it["meta"].descripcion or "").lower())
         ]
 
     categorias_validas = set(rbac.CATEGORIAS_ROL) | {rbac.CATEGORIA_PROGRAMA}

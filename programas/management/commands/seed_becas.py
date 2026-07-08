@@ -32,6 +32,7 @@ ROL_ADMIN = "Becas — Administrador"
 ROL_COORDINADOR = "Becas — Coordinador"
 ROL_TERRITORIAL = "Becas — Territorial"
 
+
 def _capacidades_admin_becas():
     """Todas las capacidades finas de Becas salvo ``becas.campo`` (el Admin no
     opera la app de territorial, es un rol de backoffice)."""
