@@ -189,3 +189,9 @@ El módulo ofrece indicadores con semáforo para la gestión:
 - Encuadre de los **albergues y operativos de contención nocturna** (¿tipo de dispositivo propio o variante de Abordaje Psicosocial?).
 - Alcance del padrón nominal de niños y tutores, y de la asistencia alimentaria diaria de los merenderos.
 - Criterio de carga de la prestación de los merenderos (cantidad de raciones o marca por servicio).
+
+---
+
+## Documentos relacionados
+
+- [Estimación de horas — Programa Dispositivos y Merenderos](estimacion-programa-dispositivos.md)

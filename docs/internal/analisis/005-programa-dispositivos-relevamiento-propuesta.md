@@ -733,7 +733,11 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
    Ninguno bloquea la generación de issues.
 4. **Cargar como configuración** los F-00 de AM y Abordaje (detallados) y dejar ECA/UPI/
    Residencias/Fortalecimiento como tipos "a configurar" cuando el Ministerio los releve.
-5. **Generación en GitHub** — épica(s) → análisis → sub-issues (receta de `AGENTS.md`). Definir si
+5. ✅ **Estimación de esfuerzo armada** (2026-07-02): **436 h**, backoffice-only — ver
+   `docs/client/funcionalidades/estimacion-programa-dispositivos.md`. Reusa RBAC/RENAPER/DS;
+   formularios de tipos pendientes = configuración sin desarrollo. **Pendiente de aprobación del
+   Ministerio** antes de comprometerla en el financiero.
+6. **Generación en GitHub** — épica(s) → análisis → sub-issues (receta de `AGENTS.md`). Definir si
    va **una épica por programa** (Dispositivos y Merenderos) o una épica con dos análisis, dado
    que son `Programa` distintos. → **ESTE ES EL PRÓXIMO PASO.**
 
