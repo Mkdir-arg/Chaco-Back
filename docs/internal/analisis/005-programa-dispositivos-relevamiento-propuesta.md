@@ -184,7 +184,7 @@ Necesidades básicas · Grado de dependencia.
 
 **Convención:** `FORMULARIO` = campo que carga el operador. `FUNCIONALIDAD` = lo provee el sistema (cálculo, Legajo Ciudadano, usuario logueado). `CONFIRMAR` = requiere verificación antes de implementar.
 
-**Resumen:** 31 al formulario · 17 funcionalidades · 2 a confirmar (C-6, C-7)
+**Resumen:** 33 al formulario · 18 funcionalidades · 0 a confirmar *(actualizado 2026-07-03: C-6 resuelta → obra social pasa a FUNCIONALIDAD pre-completada; C-7 resuelta → grupo sanguíneo queda FORMULARIO; +1 campo detectado en re-auditoría: cantidad de años en la institución)*
 
 | Sección | Campo | Tipo | Clasificación | Nota |
 |---|---|---|---|---|
@@ -197,7 +197,7 @@ Necesidades básicas · Grado de dependencia.
 | A. Datos personales | Edad | — | `FUNCIONALIDAD` | Calculada de fecha de nacimiento del legajo |
 | A. Datos personales | Fecha de nacimiento | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
 | A. Datos personales | Género | — | `FUNCIONALIDAD` | Legajo Ciudadano / RENAPER (RN-DI-12) |
-| A. Datos personales | Obra social / N° | texto | `CONFIRMAR` | Ver C-6: verificar si ya en solapa Salud del Legajo Ciudadano |
+| A. Datos personales | Obra social / N° | — | `FUNCIONALIDAD` | C-6 resuelta: existe `Ciudadano.obra_social` → se pre-completa desde el legajo (editable). |
 | A. Datos personales | Nivel instrucción | selector | `FORMULARIO` | Pre-completar desde legajo educativo si existe |
 | A. Datos personales | Oficio | texto | `FORMULARIO` | Pre-completar desde legajo laboral si existe |
 | A. Datos personales | Capacitaciones (Sí/No + cuáles) | bool + texto | `FORMULARIO` | |
@@ -209,6 +209,7 @@ Necesidades básicas · Grado de dependencia.
 | B. Sit. laboral y econ. | Plan social / beca (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
 | B. Sit. laboral y econ. | Jubilación / pensión (Sí/No + cuál) | bool + texto | `FORMULARIO` | |
 | C. Permanencia, nutrición y vivienda | Perfil permanencia | selector | `FORMULARIO` | Larga estadía / Mediana estadía / Tránsito-crítico |
+| C. Permanencia, nutrición y vivienda | Cantidad de años en la institución | número | `FORMULARIO` | En el papel acompaña al perfil de permanencia ("cant años en Inst"). Detectado en re-auditoría 2026-07-03. |
 | C. Permanencia, nutrición y vivienda | Requerimiento nutricional | selector | `FORMULARIO` | General / Adulto mayor / Especial |
 | C. Permanencia, nutrición y vivienda | Relación familiar (Sí/No) | bool | `FORMULARIO` | |
 | C. Permanencia, nutrición y vivienda | Último domicilio | texto | `FORMULARIO` | Domicilio previo al ingreso; ≠ domicilio del Legajo Ciudadano |
@@ -219,7 +220,7 @@ Necesidades básicas · Grado de dependencia.
 | D. Red de sostén | Tipos de red | multi-selector | `FORMULARIO` | Parientes / Institucional / Vecinos / ONG / Iglesia / CC / Gubernamental / Otros |
 | D. Red de sostén | Detalle red de sostén | texto libre | `FORMULARIO` | |
 | E. Datos familia | Tabla familiar | tabla N filas | `FORMULARIO` | Nombre / Parentesco / Edad / Nivel / Ingreso / Teléfono |
-| F. Salud | Grupo sanguíneo | texto | `CONFIRMAR` | Ver C-7: verificar si ya en solapa Salud del Legajo Ciudadano |
+| F. Salud | Grupo sanguíneo | texto | `FORMULARIO` | C-7 resuelta: no existe en el Legajo Ciudadano → lo carga el operador (evaluar en la task subirlo a `Ciudadano`). |
 | F. Salud | Tratamiento médico (Sí/No + dónde) | bool + texto | `FORMULARIO` | |
 | F. Salud | Antecedentes / condiciones de salud | multi-selector | `FORMULARIO` | Tuberculosis / Diabetes / Cardíacos / Respiratorios / Salud mental / Discapacidad / ETS / Otros |
 | F. Salud | Observaciones de salud | texto libre | `FORMULARIO` | |
@@ -733,7 +734,11 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
    Ninguno bloquea la generación de issues.
 4. **Cargar como configuración** los F-00 de AM y Abordaje (detallados) y dejar ECA/UPI/
    Residencias/Fortalecimiento como tipos "a configurar" cuando el Ministerio los releve.
-5. **Generación en GitHub** — épica(s) → análisis → sub-issues (receta de `AGENTS.md`). Definir si
+5. ✅ **Estimación de esfuerzo armada** (2026-07-02): **436 h**, backoffice-only — ver
+   `docs/client/funcionalidades/estimacion-programa-dispositivos.md`. Reusa RBAC/RENAPER/DS;
+   formularios de tipos pendientes = configuración sin desarrollo. **Pendiente de aprobación del
+   Ministerio** antes de comprometerla en el financiero.
+6. **Generación en GitHub** — épica(s) → análisis → sub-issues (receta de `AGENTS.md`). Definir si
    va **una épica por programa** (Dispositivos y Merenderos) o una épica con dos análisis, dado
    que son `Programa` distintos. → **ESTE ES EL PRÓXIMO PASO.**
 
@@ -745,5 +750,6 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 |---|---|---|
 | 2026-06-25 | Versión inicial | Primer borrador a partir del Miro del Programa Dispositivos + Especificación NODO + mapeo del código real. |
 | 2026-06-26 | Integración de formularios F-00/F-01/F-02 campo a campo | Se incorporaron los 4 formularios del cliente y se clasificó cada campo como FORMULARIO, FUNCIONALIDAD o CONFIRMAR. Se cerró Q-9 y se agregaron C-6, C-7, C-8. |
+| 2026-07-03 | **Re-auditoría contra los 7 PDFs del cliente** | Cotejo campo a campo: F-00 Abordaje, F-01, F-02, Línea 102, Calcuta y Relevamiento de PC completos/encuadrados; en F-00 AM se detectó y agregó el campo faltante **"Cantidad de años en la institución"** (sección C). Resumen AM actualizado a 33·18·0 (C-6→funcionalidad, C-7→formulario). Página pública sincronizada. |
 | 2026-07-02 | **Pendientes técnicos C-1…C-7 resueltos code-first** | `dispositivo` = property inofensiva → `DispositivoInstitucional` en submódulo de `programas`; `InscripcionPrograma` inviable como Admisión (`unique_together`) → modelo `Admision` + membresía sincronizada; `RequisitoNativo` no se re-clava → `CampoTipoDispositivo` con `seccion`; solapa vía membresía + url_map; `legajos_registroasistencia` = fantasma del particionado; `obra_social` existe (pre-completar); `grupo_sanguineo` no existe (F-00). Solo queda C-8 con el cliente. Próximo paso: generación de épica/issues. |
 | 2026-07-02 | **Conformidad del cliente + observaciones (mail de Guido, 2026-07-01)** | Se cerró **Q-2** (Merenderos = **programa propio** → `codigo="MERENDEROS"`) y **Q-5** (UPI/ECA/Residencias manejan camas); se reencuadró **Q-1** (formularios crecen por configuración, no bloquean). Se amplió el **F-00 Abordaje Psicosocial** (§11 Comidas + Cierre/egreso → 45·20). Se redefinió **Merenderos** como entrega de mercaderías con documentación respaldatoria (§3, §6.2, §8, §11, RN-DI-21). Se registró detalle nuevo del **F-02** (Servicio en cabecera mensual + criterio raciones/SN → C-8). Se archivaron formularios recibidos: **F-00 Línea 102** (P08), **Relevamiento de PC** (P11) y **ficha "Calcuta"** (referencia albergues → nueva Q-11). Estado del doc: **aprobado, listo para issues** salvo pendientes técnicos ICORE (C-1…C-8). |
