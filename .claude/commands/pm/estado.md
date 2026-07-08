@@ -14,8 +14,8 @@ Contexto del usuario: `$ARGUMENTS`
 1. **Levantá el Project #1** de `Mkdir-arg` (GitHub MCP preferido; fallback
    `gh project item-list 1 --owner Mkdir-arg --format json`): items con Status,
    Tipo, Prioridad, Modulo y EstimacionHoras.
-2. **Levantá las horas reales** del sprint actual:
-   `docs/client/sprints/sprint-NNN-consumo-horas.md` (el de número más alto).
+2. **Levantá las horas reales** de la versión actual:
+   `docs/client/versiones/version-NNN-consumo-horas.md` (el de número más alto).
 3. **Armá el informe canónico** de `PM.md` → "1. Estado":
    resumen ejecutivo · tablero (Status × Tipo) · esfuerzo (EstimacionHoras por
    Status) · horas reales (total y por persona) · alertas rápidas (sin

@@ -22,7 +22,8 @@ tareas entre estados (**solo el PM humano mueve las tareas**) y no define alcanc
 |--------|--------|----------------|
 | **Project #1** (`Mkdir-arg`, "Proyect Chaco") | Items, Status, Prioridad, Modulo, EstimacionHoras | GitHub MCP (lectura) o `gh project item-list 1 --owner Mkdir-arg --format json` |
 | **Issues del repo** (`Mkdir-arg/Chaco`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view` |
-| **Consumo de horas** | Horas reales por persona/día del sprint | `docs/client/sprints/sprint-NNN-consumo-horas.md` (lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) |
+| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/versiones/version-NNN-consumo-horas.md` (lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) |
+| **Estimaciones por programa** | Horas estimadas por programa (resumen ejecutivo, desglose por concepto, estado de aprobación) | `docs/client/funcionalidades/estimacion-programa-*.md` |
 
 ### GitHub MCP y fallback `gh`
 
@@ -35,7 +36,7 @@ EstimacionHoras) la receta canónica sigue siendo `gh project item-edit` de
 `AGENTS.md` — pero el PM Assistant no escribe al Project, así que esto le aplica
 al Analista y a QA.
 
-## Los cuatro informes (estructuras canónicas)
+## Los cinco informes (estructuras canónicas)
 
 ### 1. Estado (`/pm:estado`) — la foto del sprint
 
@@ -107,6 +108,32 @@ Para enviar o publicar. **Sin jerga técnica ni interna** (regla de
 4. **Próximos pasos** — qué sigue, en lenguaje cliente.
 5. **Temas que necesitamos de ustedes** — definiciones pendientes del cliente
    (de las "Asunciones a confirmar" de los análisis, reformuladas en claro).
+
+### 5. Programas (`/pm:programas`) — panorama estimado vs consumido por programa
+
+Cruza las **horas estimadas** de cada programa contra las **horas registradas**
+para ver el panorama de avance. Fuentes: los documentos de estimación
+(`docs/client/funcionalidades/estimacion-programa-*.md` — total del resumen
+ejecutivo, desglose por concepto, fecha/versión/estado de aprobación) y el
+registro de consumo (`docs/client/versiones/version-NNN-consumo-horas.md`,
+tablas mensuales con columna `Programa`, disponibles desde julio 2026).
+Secciones, en este orden:
+1. **Resumen ejecutivo** — 2-3 líneas por programa: cuánto se estimó, cuánto se
+   consumió, qué % de avance implica y qué preocupa.
+2. **Panorama** — tabla por programa: Estimado (doc) | Consumido | % avance |
+   Restante | Estado de la estimación (aprobada / pendiente de aprobación).
+3. **Detalle del estimado** — por programa, el desglose por concepto del resumen
+   ejecutivo (Backend, Frontend, App, UX, QA, despliegue, capacitación).
+4. **Horas fuera de programas** — Transversal del período (gestión, reuniones,
+   soporte) y meses previos sin imputación (junio 2026: 499 h), para que el
+   total cierre contra el registro. Las estimaciones son esfuerzo técnico neto:
+   lo Transversal **no** descuenta avance de ningún programa.
+5. **Cruce con el Project** — suma de `EstimacionHoras` de las tasks de la épica
+   de cada programa vs. el total del documento de estimación; discrepancias se
+   marcan (no se corrigen).
+6. **Alertas** — programa consumiendo sin estimación aprobada; consumo del mes
+   sin columna `Programa`; % de avance de consumo muy por encima del % de
+   alcance entregado; estimaciones desactualizadas respecto del alcance.
 
 ## Forma de trabajar (siempre igual)
 
