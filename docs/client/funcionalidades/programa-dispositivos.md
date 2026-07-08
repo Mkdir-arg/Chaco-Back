@@ -8,7 +8,7 @@
 | **Módulo** | Programas |
 | **Estado** | Definición aprobada por el Ministerio — lista para desarrollo |
 | **Programas** | Dispositivos y Merenderos (sobre la base de Programas, después de Becas) |
-| **Última actualización** | 2026-07-02 |
+| **Última actualización** | 2026-07-03 |
 
 !!! success "Novedad — Conformidad del Ministerio (01/07/2026)"
     El Ministerio revisó la propuesta y **confirmó su conformidad para avanzar con el desarrollo**, con estas definiciones:
@@ -103,26 +103,83 @@ Solicitud del vecino/a (con documentación) → Validación del área
 
 El programa trabaja con tres formularios. Una idea ordena a los tres: **el operador carga solo lo que el sistema no puede saber por sí mismo**. Los datos de identidad (nombre, DNI, fecha de nacimiento, edad), el responsable, las fechas y los cálculos los **completa el sistema** automáticamente; el operador se concentra en la información propia de cada caso.
 
-=== "F-00 · Admisión de la persona"
+=== "F-00 · Adultos Mayores"
 
-    Es el formulario que se completa **al admitir a una persona**, y cambia según el **tipo de dispositivo**. Recupera la identidad de la persona desde su legajo ciudadano (y RENAPER) para no volver a pedirla, y agrupa la información en bloques.
+    Formulario de admisión del tipo **Adulto Mayor** (Sistema Integral Gerontológico), construido a partir del formulario en papel relevado con el área. **De los ~50 datos del papel, el operador carga 32 y el sistema completa 17 automáticamente.**
 
-    | Tipo | Bloques de información |
+    | Sección | Campos | ¿Quién lo completa? |
+    |---|---|---|
+    | Encabezado | Institución/sede · Fecha y hora · Reingreso · Responsable | **El sistema** (contexto, reloj, detección de estadía anterior, usuario) |
+    | A. Datos personales | Nombre y apellido · DNI/CUIL · Edad · Fecha de nacimiento · Género | **El sistema** (legajo ciudadano / RENAPER) |
+    | A. Datos personales | Obra social | **El sistema** (desde el legajo ciudadano; editable) |
+    | A. Datos personales | Nivel de instrucción · Oficio · Capacitaciones · Interés en formación | El operador (con pre-completado desde el legajo cuando existe) |
+    | B. Situación laboral y económica | Empleo (formal/informal/sin empleo) · Lugar de trabajo · Ocupación · Ingreso mensual · Plan social/beca · Jubilación/pensión | El operador |
+    | C. Permanencia, nutrición y vivienda | Perfil de permanencia (larga/mediana estadía/tránsito) · Requerimiento nutricional · Relación familiar · Último domicilio · Motivo de egreso del hogar · Posee vivienda · Dónde duerme actualmente · Observaciones | El operador |
+    | D. Red de sostén | Tipos de red (parientes/institucional/vecinos/ONG/iglesia/CC/gubernamental) · Detalle | El operador |
+    | E. Datos de la familia | Tabla familiar (nombre, parentesco, edad, nivel, ingreso, teléfono) | El operador |
+    | F. Salud | Grupo sanguíneo · Tratamiento médico · Antecedentes de salud · Observaciones | El operador |
+    | G. Egresos mensuales | Alquiler · Créditos · Cuotas · Medicamentos · Transporte/otros | El operador |
+    | G. Egresos mensuales | **Total de egresos** | **El sistema** (calculado) |
+    | H. Egreso del dispositivo | Fecha · Motivo · Destino · Derivación | **El sistema** — en papel está en el mismo formulario; en el sistema es la **acción de egreso**, al momento del retiro |
+    | I. Intereses y actividades | Intereses | El operador |
+    | J. Dependencia y cierre | Grado de dependencia (autoválido/semi-válido/postrado) | El operador |
+    | J. Dependencia y cierre | Fecha de revisión · Firma y aclaración · DNI/cargo | **El sistema** (reloj + usuario que carga) |
+
+=== "F-00 · Abordaje Psicosocial"
+
+    Formulario de admisión del tipo **Abordaje Psicosocial** (Dirección de Inclusión y Abordaje Integral), en su **versión ampliada por el Ministerio** (bloques Comidas y Cierre del relevamiento). **El operador carga 45 datos y el sistema completa 20.**
+
+    | Sección | Campos | ¿Quién lo completa? |
+    |---|---|---|
+    | Encabezado | Institución/sede · Fecha · Tipo de ingreso (1ª vez / reingreso) · Responsable | **El sistema** (el reingreso se detecta solo, no es un casillero manual) |
+    | 1. Datos personales | Fecha de ingreso · DNI/CUIL · Nombre y apellido · Edad · Lugar y fecha de nacimiento · Teléfono | **El sistema** (legajo ciudadano / RENAPER) |
+    | 2. Reingreso | Fecha de reingreso | **El sistema** |
+    | 2. Reingreso | Observaciones del reingreso | El operador |
+    | 3. Situación personal, educativa y laboral | Nivel educativo · Capacitaciones · Interés en formación · Ocupación · Lugar de trabajo · Ingreso mensual · Empleo · Oficio/saber laboral · Ayuda económica externa · Plan social/beca · Jubilación/pensión | El operador (nivel educativo y ocupación con pre-completado del legajo) |
+    | 4. Grupo familiar | Tabla del grupo (nombre, parentesco, edad, educación, ocupación, ingreso) | El operador |
+    | 5. Dinámica familiar | Relación con la familia · Último domicilio · Motivo de egreso del hogar anterior · Derivación/referencia · Historia familiar | El operador |
+    | 6. Vivienda | Posee vivienda · Condición (propia/alquilada/prestada) · Localidad/barrio · Observaciones | El operador |
+    | 7. Ingresos y egresos | Ingreso total mensual · Ayuda alimentaria · Alquiler/medicamentos/transporte/créditos/otros | El operador |
+    | 7. Ingresos y egresos | **Total de egresos** · **Saldo estimado** | **El sistema** (calculados) |
+    | 8. Red de sostén | Tipos de red · Detalle/referentes | El operador |
+    | 9. Salud | Cobertura de salud · N° de afiliado · Tabla problema/enfermedad/tratamiento/medicación · Problemas de salud declarados | El operador |
+    | 10. Grado de dependencia | Condición funcional (autoválido/semi-válido/postrado) | El operador |
+    | 11. **Comidas** *(nuevo)* | Régimen alimentario: normal · dieta blanda · baja en sodio · baja en azúcar · vegetariana/vegana · sin gluten | El operador |
+    | 12. Consumos | Consume sustancias · Cuáles · Tratamiento (ambulatorio/internación) · Derivación | El operador |
+    | 13. Situaciones de crisis | Situaciones registradas (violencia/adicciones/abandono/migración/enfermedad grave/muerte familiar) · Descripción | El operador |
+    | 14. Necesidades básicas | Necesidades observadas (hacinamiento/vivienda precaria/falta de agua/niños sin escuela/salud) | El operador |
+    | Cierre del relevamiento *(nuevo)* | Fecha de egreso · Motivo · Lugar de egreso | **El sistema** — es la **acción de egreso** del dispositivo, no parte de la admisión |
+    | Cierre | Responsable del relevamiento · Firma · Fecha de carga · Estado (completo/pendiente) | **El sistema** |
+
+=== "F-01 · Registro diario por turno"
+
+    El **parte diario** de cada dispositivo. En papel el responsable de turno anota a mano las cantidades; en el sistema **todas se calculan solas** a partir de los movimientos registrados — el operador solo aporta dos datos.
+
+    | Campo | ¿Quién lo completa? |
     |---|---|
-    | **Adulto Mayor** | Datos personales · Situación laboral y económica · Permanencia, nutrición y vivienda · Red de sostén · Datos de la familia · Salud · Egresos mensuales · Intereses y actividades · Grado de dependencia. |
-    | **Abordaje Psicosocial** | Datos personales · Reingreso · Situación personal, educativa y laboral · Grupo familiar · Dinámica familiar · Vivienda · Ingresos y egresos · Red de sostén · Salud · Grado de dependencia · **Comidas** · Consumos · Situaciones de crisis · Necesidades básicas · Cierre del relevamiento. |
+    | Institución/sede · Fecha · Responsable del turno | **El sistema** |
+    | **Turno** (mañana / tarde / noche) | El operador |
+    | A. Camas totales | **El sistema** (de la configuración del dispositivo) |
+    | B. Ingresos del día | **El sistema** (admisiones registradas hoy) |
+    | C. Egresos del día | **El sistema** (egresos registrados hoy) |
+    | D. Ocupación nocturna | **El sistema** (estadías activas al cierre del día) |
+    | E. Camas disponibles | **El sistema** (totales − ocupadas − fuera de servicio) |
+    | **Observaciones generales del turno** | El operador |
+    | Firma y aclaración | **El sistema** (usuario que carga) |
 
-    Cuando una persona ya tuvo una estadía anterior, el sistema **detecta el reingreso** solo, sin marcarlo a mano. Los totales económicos (egresos mensuales, saldo) se **calculan** a partir de los conceptos cargados.
+=== "F-02 · Prestación mensual (merenderos)"
 
-    El bloque **Comidas** (incorporado a pedido del Ministerio) registra el régimen alimentario de la persona: normal, dieta blanda, baja en sodio, baja en azúcar, vegetariana/vegana o sin gluten.
+    La **planilla mensual** del merendero: una fila por cada día del mes y una columna por servicio alimentario.
 
-=== "F-01 · Registro diario de novedades por turno"
-
-    Es el **parte diario** de cada dispositivo, por **turno** (mañana, tarde, noche). El operador elige el turno y escribe las **observaciones del turno**; el resto lo arma el sistema: camas totales, ingresos y egresos del día, ocupación nocturna y camas disponibles, todo **calculado** a partir de los movimientos registrados.
-
-=== "F-02 · Prestación alimentaria mensual (merenderos)"
-
-    Es la **planilla mensual** del merendero: una fila por día del mes y una columna por servicio (desayuno/colación, almuerzo, merienda/colación, cena). El operador carga la **cantidad de raciones** servidas por día; el sistema calcula el **total diario** y completa mes, año y firma.
+    | Campo | ¿Quién lo completa? |
+    |---|---|
+    | Institución/sede · Mes · Año | **El sistema** |
+    | Servicios del merendero (desayuno / almuerzo / merienda / cena) | A confirmar con el Ministerio (¿configuración del legajo o selección por mes?) |
+    | Filas por día (1 al 31) | **El sistema** (genera la grilla del mes) |
+    | Raciones por día y servicio | El operador |
+    | **Total por día** | **El sistema** (calculado) |
+    | Observaciones por día | El operador (opcional) |
+    | Firma por fila | **El sistema** (usuario que carga) |
 
 !!! tip "Menos carga manual, menos errores"
     Al reutilizar el legajo ciudadano y calcular solo los totales y la ocupación, los formularios piden únicamente lo imprescindible. Eso acelera la carga y evita inconsistencias entre lo declarado y lo que muestra el sistema.

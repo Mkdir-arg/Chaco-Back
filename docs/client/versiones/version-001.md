@@ -16,7 +16,7 @@
 
 -   :material-clock-outline: **Horas consumidas**
 
-    504h 20min (al 01/07/2026)
+    506h 20min (al 03/07/2026)
 
 </div>
 
@@ -29,9 +29,16 @@
 
 | # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
 |:-:|---|:-:|:-:|:-:|:-:|
-| 1 | [Programa Becas (análisis)](../funcionalidades/programa-becas.md) | Alta | En análisis | — | 85h |
-| 2 | Motor RBAC base | Alta | Completado | — | 68h |
-| 3 | [Programa Dispositivos (análisis)](../funcionalidades/programa-dispositivos.md) | Alta | En análisis | — | — |
+| 1 | [Programa Becas — análisis funcional y estimación](../funcionalidades/programa-becas.md) | Alta | Completado | — | 46h |
+| 2 | Motor RBAC base | Alta | Completado | — | 22h |
+| 3 | [Programa Dispositivos y Merenderos — análisis](../funcionalidades/programa-dispositivos.md) | Alta | Definición aprobada | — | 138h |
+| 4 | Programa Becas — backend del backoffice | Alta | En desarrollo | — | 83h |
+| 5 | App de campo (React Native) | Alta | En desarrollo | — | 99h |
+| 6 | Mockups y diseño UX (Becas) | Alta | En progreso | — | 65h |
+| 7 | Análisis Legajo Ciudadano | Media | Completado | — | 30h |
+| 8 | Design System del proyecto | Media | Completado | — | 8h |
+| 9 | Reuniones y coordinación | — | — | — | 15h |
+| | **Total** | | | | **506h** |
 
-!!! note "Horas por funcionalidad"
-    Las horas por funcionalidad corresponden al corte del 24/06 y están en consolidación. El total actualizado de la versión (504h 20min al 01/07) incluye además el desarrollo del backend de Becas, la app de campo, el Design System, los mockups del equipo UX y los análisis de dispositivos/merenderos y del programa Dispositivos (funcionalidad 3, horas en consolidación) — ver [detalle de consumo](version-001-consumo-horas.md).
+!!! note "Criterio de las horas reales"
+    Las horas por funcionalidad suman el consumo registrado por frente de trabajo según el campo *Motivo* del [detalle de consumo](version-001-consumo-horas.md) (506 h 20 min al 03/07/2026). La estimación comprometida del desarrollo de Becas (654 h) se ejecuta en los meses siguientes — ver [estimación](../funcionalidades/estimacion-programa-becas.md).
