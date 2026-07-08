@@ -105,7 +105,7 @@ El programa trabaja con tres formularios. Una idea ordena a los tres: **el opera
 
 === "F-00 · Adultos Mayores"
 
-    Formulario de admisión del tipo **Adulto Mayor** (Sistema Integral Gerontológico), construido a partir del formulario en papel relevado con el área. **De los ~50 datos del papel, el operador carga 32 y el sistema completa 17 automáticamente.**
+    Formulario de admisión del tipo **Adulto Mayor** (Sistema Integral Gerontológico), construido a partir del formulario en papel relevado con el área. **De los ~50 datos del papel, el operador carga 33 y el sistema completa 18 automáticamente.**
 
     | Sección | Campos | ¿Quién lo completa? |
     |---|---|---|
@@ -114,7 +114,7 @@ El programa trabaja con tres formularios. Una idea ordena a los tres: **el opera
     | A. Datos personales | Obra social | **El sistema** (desde el legajo ciudadano; editable) |
     | A. Datos personales | Nivel de instrucción · Oficio · Capacitaciones · Interés en formación | El operador (con pre-completado desde el legajo cuando existe) |
     | B. Situación laboral y económica | Empleo (formal/informal/sin empleo) · Lugar de trabajo · Ocupación · Ingreso mensual · Plan social/beca · Jubilación/pensión | El operador |
-    | C. Permanencia, nutrición y vivienda | Perfil de permanencia (larga/mediana estadía/tránsito) · Requerimiento nutricional · Relación familiar · Último domicilio · Motivo de egreso del hogar · Posee vivienda · Dónde duerme actualmente · Observaciones | El operador |
+    | C. Permanencia, nutrición y vivienda | Perfil de permanencia (larga/mediana estadía/tránsito) · Cantidad de años en la institución · Requerimiento nutricional · Relación familiar · Último domicilio · Motivo de egreso del hogar · Posee vivienda · Dónde duerme actualmente · Observaciones | El operador |
     | D. Red de sostén | Tipos de red (parientes/institucional/vecinos/ONG/iglesia/CC/gubernamental) · Detalle | El operador |
     | E. Datos de la familia | Tabla familiar (nombre, parentesco, edad, nivel, ingreso, teléfono) | El operador |
     | F. Salud | Grupo sanguíneo · Tratamiento médico · Antecedentes de salud · Observaciones | El operador |
@@ -164,6 +164,7 @@ El programa trabaja con tres formularios. Una idea ordena a los tres: **el opera
     | C. Egresos del día | **El sistema** (egresos registrados hoy) |
     | D. Ocupación nocturna | **El sistema** (estadías activas al cierre del día) |
     | E. Camas disponibles | **El sistema** (totales − ocupadas − fuera de servicio) |
+    | Observaciones por concepto (ej. cambio de mobiliario en camas totales) | El operador, cuando corresponde (circuito a confirmar con el área) |
     | **Observaciones generales del turno** | El operador |
     | Firma y aclaración | **El sistema** (usuario que carga) |
 
