@@ -1,7 +1,7 @@
 # Propuesta funcional — Programa Dispositivos (NODO): legajo institucional, admisiones, camas y merenderos
 
 **Tipo:** Propuesta de épica (documento de trabajo interno)
-**Estado:** Aprobada por el cliente — lista para bajar a issues (pendientes técnicos ICORE C-1…C-8)
+**Estado:** Aprobada por el cliente — técnicos C-1…C-7 resueltos code-first; lista para generar épica/issues (solo C-8 abierto, con cliente, no bloqueante)
 **Fecha:** 2026-06-25 · **Última actualización:** 2026-07-02
 **Responsable (ICORE):** functional-analyst
 **Programas:** **Dispositivos** y **Merenderos** — dos `Programa` propios sobre el módulo genérico de Programas (después de Becas)
@@ -703,18 +703,18 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 | Q-10 | **Reingreso (Abordaje Ps).** El F-00 psicosocial tiene "Reingreso". ¿Cómo se modela una persona que vuelve a ingresar (nueva estadía vinculada al mismo legajo)? | Cliente | No bloq. |
 | Q-11 | **Albergues / contención nocturna.** La ficha "Calcuta" y los operativos de contención nocturna de Abordaje Psicosocial: ¿"Albergue" es otro tipo de dispositivo, una variante del tipo Abordaje Psicosocial, o un proceso (P05) aparte? ¿Entra en V1? | Cliente | No bloq. |
 
-### 17.3 Técnicas (ICORE)
+### 17.3 Técnicas (ICORE) — resueltas code-first (2026-07-02)
 
 | # | Tarea | Estado |
 |---|---|:--:|
-| C-1 | **Nombre del modelo.** Resolver colisión `dispositivo` (alias de `LegajoAtencion`) vs `DispositivoInstitucional`. Definir app/submódulo. | Pendiente |
-| C-2 | **Admisión: reuso vs nuevo.** Evaluar si extender `InscripcionPrograma` (ya tiene estados/vía de ingreso) cubre la admisión con cama, o conviene modelo dedicado. | Pendiente |
-| C-3 | **Formularios por tipo.** Confirmar que el patrón `PreguntaGlobal`/`RequisitoNativo` se puede re-clavar de "Segmento" a "Tipo de dispositivo" sin refactor mayor. | Pendiente |
-| C-4 | **Solapa.** Verificar cómo enganchar Dispositivos en `SolapasService` (hoy mira `InscripcionPrograma` activa). | Pendiente |
-| C-5 | **`legajos_registroasistencia`.** Confirmar si existe modelo de asistencia (aparece en particionado pero sin modelo) o es un fantasma. | Pendiente |
-| C-6 | **Obra social en Legajo Ciudadano (F-00 AM).** Verificar si el campo "Obra social / N°" ya existe en la solapa Salud del Legajo Ciudadano. Si sí: pre-completar y no volver a preguntar. Si no: es campo del formulario de admisión. | Pendiente |
-| C-7 | **Grupo sanguíneo en Legajo Ciudadano (F-00 AM).** Verificar si ya existe en la solapa Salud del legajo. | Pendiente |
-| C-8 | **F-02 Merenderos: "Servicio" + criterio de carga.** (a) ¿Los servicios (Desayuno/Almuerzo/Merienda/Cena) son configuración del legajo del merendero o un selector por cada registro mensual? El PDF los pone en la **cabecera del registro mensual**. (b) La nota del PDF permite cargar **raciones (número) o marcar S/N** "según el criterio de carga acordado" → definir cuál rige (impacta el tipo de campo y si el "Total por día" aplica). | Pendiente (con cliente) |
+| C-1 | **Nombre del modelo.** | **✅ Resuelta** — `dispositivo` es solo una `@property` de solo lectura del modelo Acompañamiento (`legajos/models/base.py:291`, alias de `programa`): **no colisiona a nivel ORM**, es ambigüedad semántica. Decisión: modelo **`DispositivoInstitucional`** como **submódulo de `programas`** siguiendo el precedente de Becas (`programas/models/dispositivos.py` re-exportado en `__init__`; templates en `programas/templates/programas/dispositivos/`). No crear app nueva. |
+| C-2 | **Admisión: reuso vs nuevo.** | **✅ Resuelta: modelo dedicado `Admision`** + membresía sincronizada. Razones duras: (1) `InscripcionPrograma` tiene `unique_together [ciudadano, programa]` (`programas/models/__init__.py:153`) → **imposible** modelar reingresos/estadías múltiples (Q-10); (2) sin FK a dispositivo, sin cama, `DateField` sin hora, estados incompatibles. **Patrón:** `Admision` (N estadías por ciudadano, FK a dispositivo+cama) y **una** `InscripcionPrograma(ciudadano, programa=DISPOSITIVOS)` como membresía cuyo estado se deriva de las admisiones activas → la solapa funciona gratis (ver C-4). |
+| C-3 | **Formularios por tipo.** | **✅ Resuelta: replicar el patrón, no re-clavarlo.** `RequisitoNativo` tiene FK **dura** a `Segmento`/`Subsegmento` (`:612-626`); re-anclarlo arriesga el RN-32 de Becas. Decisión: modelo hermano **`CampoTipoDispositivo`** (mismo shape: texto/tipo/opciones/orden/obligatorio, reusando el enum `TipoCampo` `:330`) + FK a `TipoDispositivo` + campo **`seccion`** (los bloques A–J del F-00, que RequisitoNativo no tiene). Se reusa el mecanismo de render/validación, no la tabla. |
+| C-4 | **Solapa.** | **✅ Resuelta** — `SolapasService.obtener_solapas_ciudadano` (`programas/services/solapas.py:29-61`) genera la solapa desde `InscripcionPrograma` activa. Con la membresía de C-2 la solapa "Dispositivos" **aparece sola**; solo falta (a) sumar `"DISPOSITIVOS"` al `url_map` de `_obtener_url_programa` (`:187`) o aceptar el fallback `legajos:programa_detalle`, y (b) si se quiere tab embebida con contenido propio, replicar el patrón `_obtener_solapa_becas` (`:206`). |
+| C-5 | **`legajos_registroasistencia`.** | **✅ Resuelta: es un fantasma.** Solo aparece como config de particionado en `core/performance/advanced_partitioning.py:15` y `database_partitioning.py:17,29` — **no existe modelo ni tabla**. Si la asistencia diaria entra en alcance, es modelo nuevo. Sub-tarea técnica: limpiar esas referencias muertas del particionado. |
+| C-6 | **Obra social (F-00 AM).** | **✅ Resuelta: ya existe.** `Ciudadano.obra_social` (`legajos/models/base.py:123`, CharField 200 "Obra social / prepaga", editable en `legajos/forms/ciudadanos.py:179`). El F-00 AM lo **pre-completa** (FUNCIONALIDAD), no lo re-pregunta. El papel pide "Obra social / N°": el texto libre de 200 chars admite nombre + número; si se quiere N° como campo aparte es decisión de producto en la task. |
+| C-7 | **Grupo sanguíneo (F-00 AM).** | **✅ Resuelta: no existe** en ningún módulo del repo. Queda como campo del **F-00 AM** (FORMULARIO configurable). Recomendación para la task: evaluarlo como campo de `Ciudadano` (solapa Salud) porque es dato de la persona —no de la estadía— y así queda como dato único reutilizable. |
+| C-8 | **F-02 Merenderos: "Servicio" + criterio de carga.** (a) ¿Los servicios (Desayuno/Almuerzo/Merienda/Cena) son configuración del legajo del merendero o un selector por cada registro mensual? El PDF los pone en la **cabecera del registro mensual**. (b) La nota del PDF permite cargar **raciones (número) o marcar S/N** "según el criterio de carga acordado" → definir cuál rige (impacta el tipo de campo y si el "Total por día" aplica). | **Pendiente (con cliente)** — único técnico abierto; no bloquea el modelado (el campo admite arrancar numérico). |
 
 ---
 
@@ -722,16 +722,20 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 
 1. ✅ **Bloqueantes de alcance cerrados** (Q-1 reencuadrada, Q-2 y Q-5 cerradas) con la
    conformidad del cliente del 2026-07-01.
-2. **Resolver pendientes técnicos** (C-1…C-8) por ICORE — se pueden cerrar **code-first** sobre el
-   repo (sobre todo C-6/C-7: qué campos del F-00 AM ya viven en el Legajo Ciudadano; C-1/C-2:
-   nombre y reuso del modelo; C-4: enganche de la solapa). Es el único paso previo real a issues.
+2. ✅ **Pendientes técnicos resueltos code-first** (2026-07-02): C-1…C-7 cerrados con anclajes
+   en §17.3. Decisiones de modelado firmes: `DispositivoInstitucional` como submódulo de
+   `programas` (precedente Becas) · `Admision` dedicada + membresía `InscripcionPrograma`
+   sincronizada (la solapa sale gratis) · `CampoTipoDispositivo` replicando el patrón
+   `RequisitoNativo` con `seccion` · `obra_social` se pre-completa · `grupo_sanguineo` va al
+   F-00 (evaluar subirlo a Ciudadano en la task).
 3. **Cerrar con el cliente los no-bloqueantes que tocan modelado:** C-8 (criterio de carga F-02),
    Q-11 (albergues / contención nocturna), Q-7/Q-8 (alcance V1 de merenderos y asistencia).
+   Ninguno bloquea la generación de issues.
 4. **Cargar como configuración** los F-00 de AM y Abordaje (detallados) y dejar ECA/UPI/
    Residencias/Fortalecimiento como tipos "a configurar" cuando el Ministerio los releve.
-5. **Generación en GitHub** — épica(s) → análisis → sub-issues. Definir si va **una épica por
-   programa** (Dispositivos y Merenderos) o una épica con dos análisis, dado que son `Programa`
-   distintos.
+5. **Generación en GitHub** — épica(s) → análisis → sub-issues (receta de `AGENTS.md`). Definir si
+   va **una épica por programa** (Dispositivos y Merenderos) o una épica con dos análisis, dado
+   que son `Programa` distintos. → **ESTE ES EL PRÓXIMO PASO.**
 
 ---
 
@@ -741,4 +745,5 @@ Combina las **reglas transversales de NODO (RN-01…RN-10)** con reglas propias 
 |---|---|---|
 | 2026-06-25 | Versión inicial | Primer borrador a partir del Miro del Programa Dispositivos + Especificación NODO + mapeo del código real. |
 | 2026-06-26 | Integración de formularios F-00/F-01/F-02 campo a campo | Se incorporaron los 4 formularios del cliente y se clasificó cada campo como FORMULARIO, FUNCIONALIDAD o CONFIRMAR. Se cerró Q-9 y se agregaron C-6, C-7, C-8. |
+| 2026-07-02 | **Pendientes técnicos C-1…C-7 resueltos code-first** | `dispositivo` = property inofensiva → `DispositivoInstitucional` en submódulo de `programas`; `InscripcionPrograma` inviable como Admisión (`unique_together`) → modelo `Admision` + membresía sincronizada; `RequisitoNativo` no se re-clava → `CampoTipoDispositivo` con `seccion`; solapa vía membresía + url_map; `legajos_registroasistencia` = fantasma del particionado; `obra_social` existe (pre-completar); `grupo_sanguineo` no existe (F-00). Solo queda C-8 con el cliente. Próximo paso: generación de épica/issues. |
 | 2026-07-02 | **Conformidad del cliente + observaciones (mail de Guido, 2026-07-01)** | Se cerró **Q-2** (Merenderos = **programa propio** → `codigo="MERENDEROS"`) y **Q-5** (UPI/ECA/Residencias manejan camas); se reencuadró **Q-1** (formularios crecen por configuración, no bloquean). Se amplió el **F-00 Abordaje Psicosocial** (§11 Comidas + Cierre/egreso → 45·20). Se redefinió **Merenderos** como entrega de mercaderías con documentación respaldatoria (§3, §6.2, §8, §11, RN-DI-21). Se registró detalle nuevo del **F-02** (Servicio en cabecera mensual + criterio raciones/SN → C-8). Se archivaron formularios recibidos: **F-00 Línea 102** (P08), **Relevamiento de PC** (P11) y **ficha "Calcuta"** (referencia albergues → nueva Q-11). Estado del doc: **aprobado, listo para issues** salvo pendientes técnicos ICORE (C-1…C-8). |

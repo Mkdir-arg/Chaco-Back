@@ -105,7 +105,10 @@
             {% for tab in form.arbol_por_tabs %}
             <div id="panel-{{ tab.id }}" class="cap-tab-panel hidden">
                 {% if tab.modulos %}
-                <div class="space-y-3">
+                <div class="flex justify-end mb-3">
+                    <button type="button" class="tab-select-all-btn text-sm font-medium text-blue-600 hover:text-blue-700" data-tab="{{ tab.id }}">Seleccionar todo</button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
                     {% for modulo in tab.modulos %}
                     <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
                         <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-lg">
@@ -212,6 +215,37 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ---- Seleccionar todo por tab ----
+    function checksDeTab(tabId) {
+        return Array.from(document.querySelectorAll('.cap-check[data-tab="' + tabId + '"]'));
+    }
+
+    function refrescarBotonTab(tabId) {
+        if (!tabId) return;
+        var btn = document.querySelector('.tab-select-all-btn[data-tab="' + tabId + '"]');
+        if (!btn) return;
+        var checks = checksDeTab(tabId);
+        var marcados = checks.filter(function (c) { return c.checked; });
+        btn.textContent = checks.length > 0 && marcados.length === checks.length ? 'Deseleccionar todo' : 'Seleccionar todo';
+    }
+
+    document.querySelectorAll('.tab-select-all-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var tabId = btn.getAttribute('data-tab');
+            var checks = checksDeTab(tabId);
+            var marcarTodo = btn.textContent.trim() !== 'Deseleccionar todo';
+            var modulos = {};
+            checks.forEach(function (c) {
+                c.checked = marcarTodo;
+                modulos[c.getAttribute('data-modulo')] = true;
+            });
+            Object.keys(modulos).forEach(refrescarModulo);
+            refrescarBotonTab(tabId);
+            refrescarTotal();
+            refrescarBadgesTab();
+        });
+    });
+
     document.querySelectorAll('.select-all').forEach(function (sa) {
         sa.addEventListener('change', function () {
             var modulo = sa.getAttribute('data-modulo');
@@ -219,6 +253,8 @@ document.addEventListener('DOMContentLoaded', function () {
             refrescarModulo(modulo);
             refrescarTotal();
             refrescarBadgesTab();
+            var primerCheck = checksDeModulo(modulo)[0];
+            if (primerCheck) refrescarBotonTab(primerCheck.getAttribute('data-tab'));
         });
     });
 
@@ -227,12 +263,16 @@ document.addEventListener('DOMContentLoaded', function () {
             refrescarModulo(chk.getAttribute('data-modulo'));
             refrescarTotal();
             refrescarBadgesTab();
+            refrescarBotonTab(chk.getAttribute('data-tab'));
         });
     });
 
     // Estado inicial
     document.querySelectorAll('[data-modulo].border').forEach(function (panel) {
         refrescarModulo(panel.getAttribute('data-modulo'));
+    });
+    document.querySelectorAll('.tab-select-all-btn').forEach(function (btn) {
+        refrescarBotonTab(btn.getAttribute('data-tab'));
     });
     refrescarTotal();
     refrescarBadgesTab();

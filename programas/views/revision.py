@@ -1,9 +1,8 @@
 """Backoffice — Revisión de formularios de Becas (#77).
 
-Acceso: Coordinador y Admin (capacidad ``becas.revisar``), con alcance por
-segmento. Permite listar los formularios de un relevamiento finalizado, editar
-campos de contacto/apoderado (cada cambio queda en ``TracaFormulario``) y
-aprobar/rechazar (con motivo) caso a caso. La validación SIS es un placeholder.
+Acceso granular: ``becas.revision.ver`` para listar/consultar, ``becas.revision.editar``
+para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcance
+por segmento. La validación SIS es un placeholder.
 """
 
 from django.contrib import messages
@@ -13,7 +12,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView
 
-from core.rbac import CapacidadRequeridaMixin, requiere
+from core.rbac import CapacidadRequeridaMixin, puede_alguna, requiere
 from programas.forms import FormularioRevisionForm
 from programas.models import (
     Formulario,
@@ -26,11 +25,8 @@ from programas.services.autorizacion import puede_gestionar_segmento, segmentos_
 from programas.services.becas import registrar_traza
 from programas.services.cupo import aprobar_o_poner_en_espera
 
-CAP = "becas.revisar"
-
-
-class _RevisionMixin(CapacidadRequeridaMixin, LoginRequiredMixin):
-    capacidades_requeridas = CAP
+CAP_REVISION_VER = "becas.revision.ver"
+CAP_REVISION_EDITAR = "becas.revision.editar"
 
 
 def _assert_scope_relevamiento(request, relevamiento):
@@ -43,9 +39,10 @@ def _assert_scope_formulario(request, formulario):
         raise PermissionDenied("No tiene acceso a este formulario.")
 
 
-class RevisionRelevamientoListView(_RevisionMixin, ListView):
+class RevisionRelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     """Relevamientos listos para revisar (finalizados / en revisión)."""
 
+    capacidades_requeridas = CAP_REVISION_VER
     template_name = "programas/becas/revision/relevamiento_list.html"
     context_object_name = "relevamientos"
     paginate_by = 25
@@ -66,7 +63,7 @@ class RevisionRelevamientoListView(_RevisionMixin, ListView):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_REVISION_VER)
 def revision_formularios(request, relevamiento_pk):
     relevamiento = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=relevamiento_pk)
     _assert_scope_relevamiento(request, relevamiento)
@@ -120,7 +117,7 @@ def _respuestas_resueltas(formulario):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_REVISION_VER, CAP_REVISION_EDITAR)
 def formulario_detalle(request, pk):
     formulario = get_object_or_404(
         Formulario.objects.select_related("relevamiento__convocatoria__segmento", "ciudadano"), pk=pk
@@ -128,6 +125,8 @@ def formulario_detalle(request, pk):
     _assert_scope_formulario(request, formulario)
 
     if request.method == "POST":
+        if not puede_alguna(request.user, [CAP_REVISION_EDITAR]):
+            raise PermissionDenied("No tiene permisos para editar este formulario.")
         # Edición de campos de contacto/apoderado con traza por cambio.
         anteriores = {f: getattr(formulario, f) for f in FormularioRevisionForm.Meta.fields}
         form = FormularioRevisionForm(request.POST, instance=formulario)
@@ -163,7 +162,7 @@ def formulario_detalle(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_REVISION_EDITAR)
 def formulario_aprobar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
@@ -185,7 +184,7 @@ def formulario_aprobar(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_REVISION_EDITAR)
 def formulario_rechazar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
@@ -204,7 +203,7 @@ def formulario_rechazar(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_REVISION_EDITAR)
 def relevamiento_iniciar_revision(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope_relevamiento(request, rel)
@@ -216,7 +215,7 @@ def relevamiento_iniciar_revision(request, pk):
 
 
 @login_required
-@requiere(CAP)
+@requiere(CAP_REVISION_EDITAR)
 def relevamiento_terminar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope_relevamiento(request, rel)
