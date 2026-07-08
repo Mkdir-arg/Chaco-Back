@@ -4,7 +4,8 @@
       "Bash(python -c ' *)",
       "Bash(DJANGO_SECRET_KEY=\"test-key\" \"C:\\\\Users\\\\mkdir\\\\Proyectos\\\\Chaco\\\\.venv\\\\Scripts\\\\python.exe\" \"C:\\\\Users\\\\mkdir\\\\Proyectos\\\\Chaco\\\\manage.py\" check)",
       "Bash(./.venv/Scripts/python.exe scripts/design_audit.py templates/includes/base.html static/custom/css/paleta-unificada.css static/custom/css/override.css)",
-      "Bash(\"./.venv/Scripts/python.exe\" scripts/design_audit.py \"legajos/templates/legajos/nachec/modal_evaluar_caso.html\")"
+      "Bash(\"./.venv/Scripts/python.exe\" scripts/design_audit.py \"legajos/templates/legajos/nachec/modal_evaluar_caso.html\")",
+      "Bash(gh issue *)"
     ]
   },
   "hooks": {

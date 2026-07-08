@@ -17,6 +17,7 @@ from users.selectors.roles import (
     puede_gestionar_rol,
     roles_filtrados_para,
     roles_lista_para,
+    roles_visibles_para,
 )
 from users.services.roles import RolesAdminService, RolProtegidoError
 
@@ -40,6 +41,7 @@ class RolListView(_RolesPermMixin, TemplateView):
         user = self.request.user
         get = self.request.GET
 
+        context["roles"] = roles_visibles_para(user)
         context["items"] = roles_filtrados_para(user, get)
         context["total_roles"] = len(roles_lista_para(user))
         context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
@@ -50,10 +52,7 @@ class RolListView(_RolesPermMixin, TemplateView):
         context["filtro_programa"] = get.get("programa", "")
         context["filtro_estado"] = get.get("estado", "")
         context["hay_filtros_activos"] = bool(
-            context["filtro_q"]
-            or context["filtro_categoria"]
-            or context["filtro_programa"]
-            or context["filtro_estado"]
+            context["filtro_q"] or context["filtro_categoria"] or context["filtro_programa"] or context["filtro_estado"]
         )
         return context
 

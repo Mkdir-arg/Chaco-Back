@@ -66,22 +66,57 @@ VAR_FALLBACK_RE = re.compile(r"var\((?:[^()]|\([^()]*\))*\)")
 
 RULES: list[tuple[str, str, re.Pattern[str], str]] = [
     # (regla, severidad, patrón, mensaje)
-    ("FONT", "ERROR", re.compile(r"fredoka|gellat|geliat|satoshi|font-family[^;]{0,60}\b(Inter|Roboto|Montserrat)\b|['\"]Montserrat['\"]", re.I),
-     "Tipografía legacy — Manrope es la única (via --font-sans/--font-display)"),
-    ("CONFIRM", "ERROR", re.compile(r"window\.(confirm|alert)\s*\(|(?<![\w.])confirm\s*\("),
-     "confirm()/alert() nativo prohibido — SweetAlert2 (backoffice) / DS Modal"),
-    ("SWALHEX", "ERROR", re.compile(r"confirmButtonColor|cancelButtonColor"),
-     "Color hex en SweetAlert — usar buttonsStyling:false + customClass btn-nodo"),
-    ("GRADLEG", "ERROR", re.compile(r"FF0080|7928CA|3B82F6|8B5CF6", re.I),
-     "Gradiente/color legacy NODO — usar --gradient-brand / tokens"),
-    ("ICONHEX", "ERROR", re.compile(r"(fill|stroke)=[\"']#[0-9a-fA-F]{3,8}[\"']"),
-     "Color hardcodeado en SVG — usar currentColor + token en el contenedor"),
-    ("ZINDEX", "ERROR", re.compile(r"z-index:\s*9999|z-\[9999\]"),
-     "z-index 9999 — escala del kit: topbar 20 · modal 50 · toast 80"),
-    ("OUTLINE", "WARN", re.compile(r"outline:\s*none|outline-none"),
-     "outline:none — verificar que haya ring de focus de reemplazo (--ring-brand)"),
-    ("OPACITY", "WARN", re.compile(r"disabled[^\n]{0,40}opacity|opacity[^\n]{0,40}disabled", re.I),
-     "opacity como disabled — usar --bg-disabled + --text-disabled"),
+    (
+        "FONT",
+        "ERROR",
+        re.compile(
+            r"fredoka|gellat|geliat|satoshi|font-family[^;]{0,60}\b(Inter|Roboto|Montserrat)\b|['\"]Montserrat['\"]",
+            re.I,
+        ),
+        "Tipografía legacy — Manrope es la única (via --font-sans/--font-display)",
+    ),
+    (
+        "CONFIRM",
+        "ERROR",
+        re.compile(r"window\.(confirm|alert)\s*\(|(?<![\w.])confirm\s*\("),
+        "confirm()/alert() nativo prohibido — SweetAlert2 (backoffice) / DS Modal",
+    ),
+    (
+        "SWALHEX",
+        "ERROR",
+        re.compile(r"confirmButtonColor|cancelButtonColor"),
+        "Color hex en SweetAlert — usar buttonsStyling:false + customClass btn-nodo",
+    ),
+    (
+        "GRADLEG",
+        "ERROR",
+        re.compile(r"FF0080|7928CA|3B82F6|8B5CF6", re.I),
+        "Gradiente/color legacy NODO — usar --gradient-brand / tokens",
+    ),
+    (
+        "ICONHEX",
+        "ERROR",
+        re.compile(r"(fill|stroke)=[\"']#[0-9a-fA-F]{3,8}[\"']"),
+        "Color hardcodeado en SVG — usar currentColor + token en el contenedor",
+    ),
+    (
+        "ZINDEX",
+        "ERROR",
+        re.compile(r"z-index:\s*9999|z-\[9999\]"),
+        "z-index 9999 — escala del kit: topbar 20 · modal 50 · toast 80",
+    ),
+    (
+        "OUTLINE",
+        "WARN",
+        re.compile(r"outline:\s*none|outline-none"),
+        "outline:none — verificar que haya ring de focus de reemplazo (--ring-brand)",
+    ),
+    (
+        "OPACITY",
+        "WARN",
+        re.compile(r"disabled[^\n]{0,40}opacity|opacity[^\n]{0,40}disabled", re.I),
+        "opacity como disabled — usar --bg-disabled + --text-disabled",
+    ),
 ]
 
 DJCOMMENT_RE = re.compile(r"\{#[^#]*?\n")  # apertura {# sin cierre en la misma línea
@@ -104,9 +139,7 @@ def iter_files(paths: list[Path]):
 
 
 def changed_files() -> list[Path]:
-    out = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD"], cwd=REPO, capture_output=True, text=True
-    ).stdout
+    out = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout
     out += subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard"], cwd=REPO, capture_output=True, text=True
     ).stdout
@@ -136,7 +169,9 @@ def audit_file(path: Path) -> list[tuple[str, int, str, str, str]]:
         scan = VAR_FALLBACK_RE.sub("var()", scan)
         for m in HEX_RE.finditer(scan):
             if m.group(0).lower() not in ALLOWED_HEX:
-                findings.append(("ERROR", i, "HEX", "Hex hardcodeado — usar token semántico var(--...)", line.strip()[:100]))
+                findings.append(
+                    ("ERROR", i, "HEX", "Hex hardcodeado — usar token semántico var(--...)", line.strip()[:100])
+                )
                 break  # un reporte por línea alcanza
         for rule, sev, pat, msg in RULES:
             if pat.search(line):
@@ -146,7 +181,9 @@ def audit_file(path: Path) -> list[tuple[str, int, str, str, str]]:
     if is_template:
         for m in DJCOMMENT_RE.finditer(text):
             ln = text[: m.start()].count("\n") + 1
-            findings.append(("ERROR", ln, "DJCOMMENT", "{# #} multilínea se renderiza como texto — usar {% comment %}", ""))
+            findings.append(
+                ("ERROR", ln, "DJCOMMENT", "{# #} multilínea se renderiza como texto — usar {% comment %}", "")
+            )
 
     return findings
 
@@ -163,9 +200,7 @@ def hook_mode() -> int:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
-    fp = (payload.get("tool_input") or {}).get("file_path") or (
-        payload.get("tool_response") or {}
-    ).get("filePath")
+    fp = (payload.get("tool_input") or {}).get("file_path") or (payload.get("tool_response") or {}).get("filePath")
     if not fp:
         return 0
     path = Path(fp)
@@ -191,7 +226,7 @@ def hook_mode() -> int:
         if extract:
             sys.stderr.write(f"      {extract}\n")
     if len(errors) > 15:
-        sys.stderr.write(f"  ... y {len(errors) - 15} más (corré scripts/design_audit.py \"{fp}\")\n")
+        sys.stderr.write(f'  ... y {len(errors) - 15} más (corré scripts/design_audit.py "{fp}")\n')
     sys.stderr.write(
         "Si las introdujo TU edición, corregilas con tokens/clases del sistema (canon: chaco-design-reviewer). "
         "Si son preexistentes de una pantalla legacy que no estás migrando, no bloquean: mencionáselo al usuario y seguí.\n"

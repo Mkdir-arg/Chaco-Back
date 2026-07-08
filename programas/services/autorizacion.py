@@ -29,9 +29,7 @@ def _caps_gestion():
     capacidad paraguas (``CAP_ADMINISTRAR``, que da bypass total) y la de
     campo (``CAP_CAMPO``, que no opera segmentos desde el backoffice).
     """
-    return [
-        c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c not in (CAP_ADMINISTRAR, CAP_CAMPO)
-    ]
+    return [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c not in (CAP_ADMINISTRAR, CAP_CAMPO)]
 
 
 CAPS_GESTION = _caps_gestion()
