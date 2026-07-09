@@ -54,6 +54,11 @@ class CiudadanoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, FormView)
     template_name = "legajos/ciudadano_renaper_form.html"
     form_class = ConsultaRenaperForm
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("renaper_error", False)
+        return context
+
     def form_valid(self, form):
         dni = form.cleaned_data["dni"]
         sexo = form.cleaned_data["sexo"]

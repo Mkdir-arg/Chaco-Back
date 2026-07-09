@@ -7,6 +7,9 @@ from users.selectors import get_usuarios_queryset
 from users.selectors.usuarios import usuarios_visibles_para
 
 from .filter_config import (
+    BOOL_OPS as BENEFICIARIO_BOOL_OPS,
+)
+from .filter_config import (
     FIELD_MAP as BENEFICIARIO_FILTER_MAP,
 )
 from .filter_config import (
@@ -30,6 +33,7 @@ BENEFICIARIO_ADVANCED_FILTER = AdvancedFilterEngine(
     allowed_ops={
         "text": BENEFICIARIO_TEXT_OPS,
         "number": BENEFICIARIO_NUM_OPS,
+        "boolean": BENEFICIARIO_BOOL_OPS,
     },
 )
 
@@ -43,7 +47,7 @@ class UsuariosService:
         programa ve solo usuarios con algún rol de sus programas).
         """
         base_qs = usuarios_visibles_para(operador) if operador is not None else get_usuarios_queryset()
-        return BENEFICIARIO_ADVANCED_FILTER.filter_queryset(base_qs, request_or_get)
+        return BENEFICIARIO_ADVANCED_FILTER.filter_queryset(base_qs, request_or_get).distinct()
 
     @staticmethod
     def get_usuarios_queryset():

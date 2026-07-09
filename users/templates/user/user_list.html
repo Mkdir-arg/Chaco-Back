@@ -7,7 +7,7 @@
 
 {# Page Header #}
 <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-    <div>
+    <div style="min-width:220px; flex:1 1 280px;">
         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
             <a href="/" style="font-size:12.5px; color:var(--text-body-subtle); text-decoration:none;">Inicio</a>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-body-subtle); flex-shrink:0;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
@@ -16,7 +16,7 @@
         <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; margin:0 0 4px;">Usuarios</h1>
         <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Gestión de usuarios del sistema</p>
     </div>
-    <a href="{% url 'users:usuario_crear' %}" class="btn-nodo btn-brand" aria-label="Nuevo usuario">
+    <a href="{% url 'users:usuario_crear' %}" class="btn-nodo btn-brand btn-base" aria-label="Nuevo usuario" style="flex:0 0 auto; white-space:nowrap;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
         Nuevo usuario
     </a>
@@ -38,6 +38,38 @@
     </div>
     {% endfor %}
 </div>
+{% endif %}
+
+{% if filters_mode %}
+{{ filters_config|json_script:"usuarios-filters-config" }}
+<form id="filters-form" method="get" action="{{ filters_action }}" data-config-id="usuarios-filters-config"
+      style="margin-bottom:16px; padding:14px; background:var(--bg-white); border:1px solid var(--border-base); border-radius:12px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; gap:12px;">
+    <input type="hidden" id="filters-input" name="filters">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px; color:var(--text-heading);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>
+            <span style="font-size:13px; font-weight:700;">Filtros</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <select id="filters-logic" class="nodo-field" style="width:120px;">
+                <option value="AND">Todos</option>
+                <option value="OR">Alguno</option>
+            </select>
+            <button type="button" id="add-filter" class="btn-nodo btn-tertiary btn-base">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                Agregar filtro
+            </button>
+            <button type="submit" class="btn-nodo btn-brand btn-base">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                Aplicar
+            </button>
+            {% if hay_filtros_activos %}
+            <a href="{{ reset_url }}" class="btn-nodo btn-tertiary btn-base">Limpiar filtros</a>
+            {% endif %}
+        </div>
+    </div>
+    <div id="filters-rows" style="display:flex; flex-direction:column; gap:8px;"></div>
+</form>
 {% endif %}
 
 {# TableCard #}
@@ -130,13 +162,20 @@
 
     {% else %}
     <div style="padding:56px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+        {% if hay_filtros_activos %}
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">Sin resultados</h3>
+        <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Ningún usuario coincide con los filtros aplicados. Probá con otra búsqueda o limpiá los filtros.</p>
+        <a href="{{ reset_url }}" class="btn-nodo btn-tertiary" style="margin-top:6px;">Limpiar filtros</a>
+        {% else %}
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
         <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay usuarios registrados</h3>
         <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Comenzá agregando el primer usuario al sistema.</p>
-        <a href="{% url 'users:usuario_crear' %}" class="btn-nodo btn-brand" style="margin-top:6px;">
+        <a href="{% url 'users:usuario_crear' %}" class="btn-nodo btn-brand btn-base" style="margin-top:6px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
             Nuevo usuario
         </a>
+        {% endif %}
     </div>
     {% endif %}
 </div>
@@ -145,6 +184,9 @@
 
 {% block customJS %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% if filters_mode %}
+<script src="{% static 'custom/js/advanced_filters.js' %}"></script>
+{% endif %}
 <script>
 function confirmarToggleUsuario(pk, username, activo) {
     Swal.fire({

@@ -129,6 +129,10 @@ class RolCategoriaFormTests(TestCase):
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
 
+    def test_categoria_programa_en_selector_global(self):
+        choices = {value for value, _label in RolForm().fields["categoria"].choices}
+        self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
+
     def test_alta_rol_becas_con_programa(self):  # TC-64-01
         form = RolForm(
             data={
@@ -173,6 +177,11 @@ class RolCategoriaFormTests(TestCase):
         g = Group.objects.create(name="Rol Z")
         meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_NACHEC, programa=None)
         meta.full_clean()  # no debe levantar excepción
+
+    def test_modelo_acepta_categoria_programa(self):
+        g = Group.objects.create(name="Rol Programa")
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas)
+        meta.full_clean()
 
 
 class RolAlcanceTests(TestCase):
@@ -230,6 +239,19 @@ class RolAlcanceTests(TestCase):
         nombres = {it["group"].name for _, items in data["programas"] for it in items}
         self.assertEqual(nombres, {"Admin Becas", "Territorial Becas"})
 
+    def test_listado_admin_programa_incluye_categorias_programaticas(self):
+        rol_becas_categoria = Group.objects.create(name="Coordinador Becas")
+        RolMeta.objects.create(
+            grupo=rol_becas_categoria,
+            categoria=rbac.CATEGORIA_BECAS,
+            programa=self.becas,
+            activo=True,
+        )
+
+        data = roles_visibles_para(self.admin_becas)
+        nombres = {it["group"].name for _, items in data["programas"] for it in items}
+        self.assertIn("Coordinador Becas", nombres)
+
     def test_programa_sin_roles_no_subseccion(self):  # TC-66-11
         Programa.objects.create(codigo="VACIO", nombre="VacÃ­o")
         progs = {p.nombre for p, _ in roles_visibles_para(self.su)["programas"]}
@@ -260,6 +282,11 @@ class RolAlcanceTests(TestCase):
                 "becas_campo",
             },
         )
+
+    def test_form_admin_programa_incluye_categoria_programa(self):
+        form = RolForm(operador=self.admin_becas)
+        choices = {value for value, _label in form.fields["categoria"].choices}
+        self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(
@@ -398,6 +425,7 @@ class RolesFiltrosTests(TestCase):
             activo=True,
             descripcion="Rol de backoffice global",
         )
+        self.rol_global.permissions.add(_perm("dashboard.ver"))
 
         self.su = User.objects.create_superuser("root-filtros", "root-filtros@example.com", "x")
 
@@ -413,6 +441,19 @@ class RolesFiltrosTests(TestCase):
         )
         nombres = {it["group"].name for it in items}
         self.assertEqual(nombres, {"Territorial Becas"})
+
+    def test_filtro_categoria_becas(self):
+        rol_becas_categoria = Group.objects.create(name="Coordinador Becas")
+        RolMeta.objects.create(
+            grupo=rol_becas_categoria,
+            categoria=rbac.CATEGORIA_BECAS,
+            programa=self.becas,
+            activo=True,
+        )
+
+        items = roles_filtrados_para(self.su, {"categoria": rbac.CATEGORIA_BECAS})
+        nombres = {it["group"].name for it in items}
+        self.assertEqual(nombres, {"Coordinador Becas"})
 
     def test_filtro_estado_inactivo(self):
         items = roles_filtrados_para(self.su, {"estado": "inactivo"})
@@ -455,6 +496,7 @@ class RolesFiltrosTests(TestCase):
         self.assertEqual(resp.context["filtro_categoria"], rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(resp.context["filtro_estado"], "activo")
         self.assertTrue(resp.context["hay_filtros_activos"])
+        self.assertIn(rbac.CATEGORIA_PROGRAMA, resp.context["categorias_rol"])
 
     def test_vista_ignora_programa_ajeno_del_admin_de_programa(self):
         self.client.force_login(self.admin_becas)
@@ -462,3 +504,14 @@ class RolesFiltrosTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         nombres = {it["group"].name for it in resp.context["items"]}
         self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
+
+    def test_items_exponen_labels_humanos_de_capacidades(self):
+        self.client.force_login(self.su)
+        resp = self.client.get(reverse("users:roles"))
+        self.assertEqual(resp.status_code, 200)
+
+        item = next(it for it in resp.context["items"] if it["group"] == self.rol_global)
+        self.assertEqual(
+            item["capacidades_tabla"],
+            [{"codigo": "dashboard.ver", "label": "Ver dashboard"}],
+        )

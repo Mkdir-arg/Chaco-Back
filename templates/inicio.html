@@ -363,7 +363,6 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-base);
     border-radius: 9999px;
-    outline: none;
     transition: border-color 150ms var(--ease-standard), box-shadow 150ms var(--ease-standard);
 }
 .search-input:focus {
@@ -800,7 +799,6 @@ function dashboardInicio() {
         resultadosBusqueda: [],
         periodo: '30d',
         saludo: '',
-        chartTendencias: null,
         dashboardApiUrls: {
             buscarCiudadanos: "{% url 'dashboard:api_buscar_ciudadanos' %}",
             tendencias: "{% url 'dashboard:api_tendencias' %}",
@@ -841,10 +839,11 @@ function dashboardInicio() {
             fetch(`${this.dashboardApiUrls.tendencias}?periodo=${this.periodo}`)
                 .then(r => r.json())
                 .then(data => {
-                    if (!this.chartTendencias) return;
-                    this.chartTendencias.data.labels = data.labels || [];
-                    this.chartTendencias.data.datasets[0].data = data.datos || [];
-                    this.chartTendencias.update();
+                    const chart = document.getElementById('chartTendencias')?._chartTendencias;
+                    if (!chart) return;
+                    chart.data.labels = data.labels || [];
+                    chart.data.datasets[0].data = data.datos || [];
+                    chart.update();
                 })
                 .catch(err => console.error('Error cargando tendencias:', err));
         },
@@ -853,14 +852,24 @@ function dashboardInicio() {
             const canvas = document.getElementById('chartTendencias');
             if (!canvas) return;
 
-            // Chart.js no puede leer vars CSS directamente → se extraen del :root con getComputedStyle
-            // (chaco-tokens.css siempre está cargado vía includes/base.html, por eso no hace falta fallback hex)
-            const root = getComputedStyle(document.documentElement);
-            const brandColor = root.getPropertyValue('--bg-brand').trim();
-            const subtleColor = root.getPropertyValue('--text-body-subtle').trim();
-            const borderLight = root.getPropertyValue('--border-light').trim();
+            const cssColor = (variable, fallback) => {
+                const probe = document.createElement('span');
+                probe.style.color = `var(${variable}, ${fallback})`;
+                document.body.appendChild(probe);
+                const value = getComputedStyle(probe).color;
+                probe.remove();
+                return value || fallback;
+            };
 
-            this.chartTendencias = new Chart(canvas.getContext('2d'), {
+            const brandColor = cssColor('--bg-brand', 'rgb(80, 89, 188)');
+            const subtleColor = cssColor('--text-body-subtle', 'rgb(102, 112, 133)');
+            const borderLight = cssColor('--border-light', 'rgb(234, 236, 240)');
+
+            if (canvas._chartTendencias) {
+                canvas._chartTendencias.destroy();
+            }
+
+            canvas._chartTendencias = new Chart(canvas.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: [],

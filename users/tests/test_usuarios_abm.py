@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
@@ -11,6 +13,7 @@ from users.selectors.usuarios import (
     alcance_roles_ids,
     usuarios_visibles_para,
 )
+from users.services import UsuariosService
 from users.services.admin import UsuariosAdminService
 from users.tests.test_rbac import render_sidebar
 
@@ -81,6 +84,53 @@ class UsuarioToggleTests(TestCase):
         target = User.objects.create_user("t2", password="secret")
         self.client.post(reverse("users:usuario_toggle", args=[target.pk]))
         self.assertFalse(Client().login(username="t2", password="secret"))
+
+
+class UsuarioFiltrosTests(TestCase):
+    """#122 — filtros avanzados visibles en el listado de Usuarios."""
+
+    def setUp(self):
+        self.admin = _admin("admin-filtros")
+        self.client.force_login(self.admin)
+
+    def _filters(self, *items, logic="AND"):
+        return json.dumps({"logic": logic, "items": list(items)})
+
+    def test_vista_expone_toolbar_de_filtros(self):
+        resp = self.client.get(reverse("users:usuarios"))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="filters-form"')
+        self.assertContains(resp, "usuarios-filters-config")
+        self.assertContains(resp, "advanced_filters.js")
+
+    def test_filtro_estado_inactivo(self):
+        User.objects.create_user("activo", password="x", is_active=True)
+        User.objects.create_user("inactivo", password="x", is_active=False)
+
+        resp = self.client.get(
+            reverse("users:usuarios"),
+            {"filters": self._filters({"field": "estado", "op": "eq", "value": "false"})},
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        nombres = {user.username for user in resp.context["users"]}
+        self.assertEqual(nombres, {"inactivo"})
+        self.assertTrue(resp.context["hay_filtros_activos"])
+
+    def test_filtro_por_rol_no_duplica_usuarios(self):
+        rol_uno = Group.objects.create(name="Operador Becas")
+        RolMeta.objects.create(grupo=rol_uno, categoria=rbac.CATEGORIA_PROGRAMA, activo=True)
+        rol_dos = Group.objects.create(name="Supervisor Becas")
+        RolMeta.objects.create(grupo=rol_dos, categoria=rbac.CATEGORIA_PROGRAMA, activo=True)
+        user = User.objects.create_user("multi-becas", password="x")
+        user.groups.add(rol_uno, rol_dos)
+
+        qs = UsuariosService.get_filtered_usuarios(
+            {"filters": self._filters({"field": "rol", "op": "contains", "value": "Becas"})}
+        )
+
+        self.assertEqual(list(qs), [user])
 
 
 class UsuarioAlcanceProgramaTests(TestCase):
@@ -208,6 +258,27 @@ class UsuarioAlcanceProgramaTests(TestCase):
         from users.selectors.usuarios import puede_gestionar_usuario
 
         self.assertFalse(puede_gestionar_usuario(self.admin_becas, u))
+
+    def test_filtro_por_rol_no_amplia_alcance_de_admin_programa(self):
+        u_becas = User.objects.create_user("visible-becas", password="x")
+        u_becas.groups.add(self.rol_becas)
+        u_nachec = User.objects.create_user("oculto-nachec", password="x")
+        u_nachec.groups.add(self.rol_nachec)
+
+        filtrados = UsuariosService.get_filtered_usuarios(
+            {
+                "filters": json.dumps(
+                    {
+                        "logic": "AND",
+                        "items": [{"field": "rol", "op": "contains", "value": "Ñachec"}],
+                    }
+                )
+            },
+            operador=self.admin_becas,
+        )
+
+        self.assertNotIn(u_nachec, set(filtrados))
+        self.assertEqual(list(filtrados), [])
 
 
 class ProgramaSinAdminTests(TestCase):

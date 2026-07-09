@@ -281,7 +281,7 @@ def subsegmento_crear(request, segmento_pk):
     return render(
         request,
         "programas/becas/config/subsegmento_form.html",
-        {"form": form, "segmento": segmento},
+        {"form": form, "segmento": segmento, "subsegmento": None},
     )
 
 
