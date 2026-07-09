@@ -93,12 +93,12 @@ Presentá, en este orden y de forma legible:
    | QA | `/qa:casos` | Casos de prueba de una task |
    | QA | `/qa:plan` | `[PLAN DE PRUEBAS]` consolidado de una épica |
    | QA | `/qa:revision` | Detectar y cubrir tasks sin casos |
-   | PM | `/pm` | Flujo guiado (estado / salud / minuta / reporte / programas) |
+   | PM | `/pm` | Flujo guiado (estado / salud / minuta / reporte / horas) |
    | PM | `/pm:estado` | Foto del sprint: tablero, esfuerzo, horas reales |
    | PM | `/pm:salud` | Auditoría de trazabilidad y cobertura (7 chequeos + score + plan de remediación con el comando para arreglar cada error) |
    | PM | `/pm:minuta` | Minuta de reunión → docs/client |
    | PM | `/pm:reporte` | Avance del período en lenguaje cliente |
-   | PM | `/pm:programas` | Panorama por programa: estimado vs consumido |
+   | PM | `/pm:horas` | Horas por programa: estimado, consumido y disponible |
    | — | `/infoagente` | Este manual |
    | — | `/inicio-de-trabajo` · `/fin-de-trabajo` | Registrar sesión de trabajo y horas del sprint |
 
@@ -120,7 +120,7 @@ Presentá, en este orden y de forma legible:
    | "¿Estamos respetando el método? ¿Algo colgado?" | `/pm:salud` |
    | "Tuvimos reunión con el Ministerio, registrala" | `/pm:minuta` |
    | "Armá el avance para mandarle al cliente" | `/pm:reporte` |
-   | "¿Cuántas horas estimamos y consumimos por programa?" | `/pm:programas` |
+   | "¿Cuántas horas estimamos y consumimos por programa? ¿Cuánto queda?" | `/pm:horas` |
    | "Empiezo/termino de trabajar" | `/inicio-de-trabajo` / `/fin-de-trabajo` |
    | "No sé con qué comando arrancar esto" | `/infoagente <describí el tema>` |
 

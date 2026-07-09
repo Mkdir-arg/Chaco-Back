@@ -12,8 +12,8 @@ Reglas:
 - Guardá el estado de sesión en `.github/worklog/sesion-activa.json`.
 
 Pasos:
-1. Detectá la versión actual en `docs/client/versiones/` tomando el archivo `version-XXX.md` de mayor número, excluyendo `index.md` y cualquier `*-consumo-horas.md`.
-2. Calculá el archivo de detalle asociado: `docs/client/versiones/version-XXX-consumo-horas.md`.
+1. Detectá la versión actual en `docs/client/versiones/` tomando el archivo `version-XXX.md` de mayor número, excluyendo `index.md`.
+2. El archivo de detalle de consumo es siempre `docs/client/financiero/detalle-tareas.md` (registro día por día, con columna `Programa` desde julio 2026).
 3. Pedí y confirmá estos datos mínimos:
    - Persona
    - Programa: **Becas**, **Dispositivos** o **Transversal** (gestión, reuniones, soporte — todo lo que no se imputa a un programa puntual)
@@ -32,7 +32,7 @@ Pasos:
   "pausada_desde_iso": null,
   "pausas": [],
   "version_file": "docs/client/versiones/version-XXX.md",
-  "consumo_file": "docs/client/versiones/version-XXX-consumo-horas.md"
+  "consumo_file": "docs/client/financiero/detalle-tareas.md"
 }
 ```
 
