@@ -6,38 +6,38 @@
 {% block main-content %}
 <div class="">
     <!-- Header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 mb-6">
+    <div class="bg-white rounded-2xl shadow-sm border p-8 mb-6" style="border-color: var(--border-base)">
         <div class="flex items-center gap-4 mb-3">
             <div class="flex items-center justify-center" >
-                
-                <i class="fas fa-user-plus text-transparent" style="font-size: 1.5rem; background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                
+
+                <i class="fas fa-user-plus text-transparent" style="font-size: 1.5rem; background-image: var(--gradient-brand); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+
             </div>
             <div>
-                <h1 class="text-3xl font-bold text-[#252F40]">Nuevo Ciudadano</h1>
-                <p class="text-[#8C8C8C] text-sm">Consulta automática con RENAPER</p>
+                <h1 class="text-3xl font-bold" style="color: var(--text-heading)">Nuevo Ciudadano</h1>
+                <p class="text-sm" style="color: var(--text-body-subtle)">Consulta automática con RENAPER</p>
             </div>
         </div>
     </div>
 
     <!-- Formulario -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden" style="border-color: var(--border-base)">
         <form method="post" class="p-8 space-y-6">
             {% csrf_token %}
-            
+
             {% if renaper_error %}
-                <div class="bg-[#FEF2F2] border-l-4 border-[#EF4444] rounded-lg p-4">
+                <div class="rounded-lg p-4" style="background: var(--bg-danger-soft); border-left: 4px solid var(--border-danger)">
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-exclamation-circle text-[#EF4444] text-lg mt-0.5"></i>
+                        <i class="fas fa-exclamation-circle text-lg mt-0.5" style="color: var(--text-fg-danger)"></i>
                         <div class="flex-1">
-                            <p class="text-sm text-[#7F1D1D] font-medium mb-3">{{ error_message }}</p>
+                            <p class="text-sm font-medium mb-3" style="color: var(--text-fg-danger)">{{ error_message }}</p>
                             <div class="flex gap-3">
-                                <a href="{% url 'legajos:ciudadano_manual' %}?dni={{ dni_consultado }}&sexo={{ sexo_consultado }}" 
-                                   class="text-sm font-medium text-[#EF4444] hover:text-[#DC2626] underline">
+                                <a href="{% url 'legajos:ciudadano_manual' %}?dni={{ dni_consultado }}&sexo={{ sexo_consultado }}"
+                                   class="text-sm font-medium underline" style="color: var(--text-fg-danger)">
                                     Cargar manualmente
                                 </a>
-                                <button type="button" onclick="location.reload()" 
-                                        class="text-sm font-medium text-[#8C8C8C] hover:text-[#4A5565]">
+                                <button type="button" onclick="location.reload()"
+                                        class="text-sm font-medium" style="color: var(--text-body-subtle)">
                                     Reintentar
                                 </button>
                             </div>
@@ -45,12 +45,12 @@
                     </div>
                 </div>
             {% endif %}
-            
+
             {% if form.errors %}
-                <div class="bg-[#FEF2F2] border-l-4 border-[#EF4444] rounded-lg p-4">
+                <div class="rounded-lg p-4" style="background: var(--bg-danger-soft); border-left: 4px solid var(--border-danger)">
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-exclamation-circle text-[#EF4444] text-lg"></i>
-                        <div class="text-sm text-[#7F1D1D]">
+                        <i class="fas fa-exclamation-circle text-lg" style="color: var(--text-fg-danger)"></i>
+                        <div class="text-sm" style="color: var(--text-fg-danger)">
                             {% for field, errors in form.errors.items %}
                                 {% for error in errors %}
                                     <p>{{ error }}</p>
@@ -63,20 +63,20 @@
 
             <div class="grid grid-cols-2 gap-6">
                 <div>
-                    <label for="{{ form.dni.id_for_label }}" class="block text-sm font-semibold text-[#252F40] mb-2">
-                        DNI <span class="text-[#EF4444]">*</span>
+                    <label for="{{ form.dni.id_for_label }}" class="block text-sm font-semibold mb-2" style="color: var(--text-heading)">
+                        DNI <span style="color: var(--text-fg-danger)">*</span>
                     </label>
-                    <input type="text" name="dni" id="{{ form.dni.id_for_label }}" 
-                           class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all" 
+                    <input type="text" name="dni" id="{{ form.dni.id_for_label }}"
+                           class="nodo-field w-full"
                            placeholder="12345678" value="{{ form.dni.value|default:'' }}" required>
                 </div>
 
                 <div>
-                    <label for="{{ form.sexo.id_for_label }}" class="block text-sm font-semibold text-[#252F40] mb-2">
-                        Sexo <span class="text-[#EF4444]">*</span>
+                    <label for="{{ form.sexo.id_for_label }}" class="block text-sm font-semibold mb-2" style="color: var(--text-heading)">
+                        Sexo <span style="color: var(--text-fg-danger)">*</span>
                     </label>
-                    <select name="sexo" id="{{ form.sexo.id_for_label }}" 
-                            class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all" required>
+                    <select name="sexo" id="{{ form.sexo.id_for_label }}"
+                            class="nodo-field w-full" required>
                         <option value="">Seleccionar...</option>
                         <option value="M" {% if form.sexo.value == 'M' %}selected{% endif %}>Masculino</option>
                         <option value="F" {% if form.sexo.value == 'F' %}selected{% endif %}>Femenino</option>
@@ -86,13 +86,13 @@
             </div>
 
             <div class="flex items-center justify-between pt-6">
-                <a href="{% url 'legajos:ciudadanos' %}" 
+                <a href="{% url 'legajos:ciudadanos' %}"
                    class="btn-nodo btn-secondary btn-base">
                     ← Volver
                 </a>
-                
-                <button type="submit" 
-                        class="px-8 py-3 bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold rounded-xl hover:shadow-lg transition-all">
+
+                <button type="submit"
+                        class="btn-nodo btn-brand btn-base">
                     Consultar RENAPER
                 </button>
             </div>

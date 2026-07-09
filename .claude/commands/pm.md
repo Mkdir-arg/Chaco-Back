@@ -1,5 +1,5 @@
 ---
-description: Sesión guiada de gestión del proyecto (estado, salud, minuta, reporte) sobre el Project #1
+description: Sesión guiada de gestión del proyecto (estado, salud, minuta, reporte, programas) sobre el Project #1
 argument-hint: "[qué necesitás, opcional]"
 ---
 
@@ -23,12 +23,13 @@ Saludá corto y presentá las opciones (preguntas numeradas en texto):
 > 2. **Salud** — auditoría de trazabilidad (cadena, campos, cobertura QA, estancados).
 > 3. **Minuta** — registrar una reunión y publicarla en docs/client.
 > 4. **Reporte** — avance del período en lenguaje cliente.
+> 5. **Programas** — panorama estimado vs consumido por programa (Becas / Dispositivos).
 
 ## Paso 1 — Ejecutar el informe elegido
 
-Cada opción tiene su estructura canónica en `PM.md` (sección "Los cuatro
+Cada opción tiene su estructura canónica en `PM.md` (sección "Los cinco
 informes"). Aplicá el flujo del comando dedicado correspondiente
-(`/pm:estado`, `/pm:salud`, `/pm:minuta`, `/pm:reporte`).
+(`/pm:estado`, `/pm:salud`, `/pm:minuta`, `/pm:reporte`, `/pm:programas`).
 
 Acceso a datos: **GitHub MCP** (server `github`) como vía preferida para leer
 issues y el Project #1 de `Mkdir-arg`; fallback `gh` si el MCP no está
@@ -46,4 +47,4 @@ autenticado en la sesión (avisá al usuario que puede autenticarlo con `/mcp`).
 
 ## Cierre
 
-Después de cada informe, preguntá si necesita otro de los cuatro o si cerramos.
+Después de cada informe, preguntá si necesita otro de los cinco o si cerramos.

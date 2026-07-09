@@ -34,15 +34,17 @@ hide:
 
     ---
 
-    **Junio 2026:** 167h consumidas | 654h estimadas | -107h saldo (excedido)
+    **Julio 2026 (en curso):** 7h consumidas de 500h al 03/07
 
-    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-06.md)
+    **Junio 2026 (cerrado):** 499h de 500h (100%) — dentro del presupuesto
+
+    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-07.md)
 
 -   :material-calendar-clock: **Última actualización**
 
     ---
 
-    **24 de junio 2026**
+    **8 de julio 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 

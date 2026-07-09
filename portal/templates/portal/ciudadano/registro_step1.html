@@ -4,24 +4,26 @@
 
 {% block content %}
 <div class="max-w-md mx-auto">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 animate-fadeInUp">
+    <div class="bg-white p-8 animate-fadeInUp" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
         <!-- Encabezado -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
-                <i class="fas fa-user-plus text-white text-2xl"></i>
+            <div class="inline-flex items-center justify-center w-16 h-16 mb-4" style="border-radius: var(--radius-xl); background: var(--gradient-brand);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #fff;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"></path>
+                </svg>
             </div>
-            <h2 class="text-2xl font-bold text-[#252F40]">Crear cuenta</h2>
-            <p class="text-[#8C8C8C] mt-2 text-sm">Paso 1 de 2 — Verificación de identidad</p>
+            <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Crear cuenta</h2>
+            <p class="mt-2 text-sm" style="color: var(--text-body-subtle);">Paso 1 de 2 — Verificación de identidad</p>
         </div>
 
         <!-- Indicador de pasos -->
         <div class="flex items-center justify-center space-x-2 mb-8">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: #5059BC;">1</div>
-            <div class="flex-1 h-1 rounded bg-[#E5E7EB]"></div>
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-[#E5E7EB] text-[#8C8C8C]">2</div>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style="background: var(--bg-brand); color: #fff;">1</div>
+            <div class="flex-1 h-1 rounded" style="background: var(--border-base);"></div>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style="background: var(--border-base); color: var(--text-body-subtle);">2</div>
         </div>
 
-        <p class="text-sm text-[#8C8C8C] mb-6 text-center">
+        <p class="text-sm mb-6 text-center" style="color: var(--text-body-subtle);">
             Ingresá tu DNI y género para verificar tu identidad en el registro civil.
         </p>
 
@@ -30,22 +32,29 @@
             {% csrf_token %}
 
             {% if form.non_field_errors %}
-                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                    {% for error in form.non_field_errors %}
-                        <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
-                    {% endfor %}
+                <div class="mb-4 p-3 flex items-start gap-2 text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); border-radius: var(--radius-lg); color: var(--text-fg-danger);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; margin-top:2px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                    </svg>
+                    <div>
+                        {% for error in form.non_field_errors %}
+                            <p class="m-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
                 </div>
             {% endif %}
 
             <div class="space-y-4">
                 <!-- DNI -->
                 <div>
-                    <label for="{{ form.dni.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.dni.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
                         {{ form.dni.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
-                            <i class="fas fa-id-card"></i>
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"></path>
+                            </svg>
                         </span>
                         <input
                             type="text"
@@ -53,28 +62,37 @@
                             id="{{ form.dni.id_for_label }}"
                             placeholder="Sin puntos ni guiones"
                             autofocus
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 {% if form.dni.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field w-full"
+                            style="padding-left: 40px; {% if form.dni.errors %}border-color: var(--border-danger); box-shadow: var(--ring-danger);{% endif %}"
                             value="{{ form.dni.value|default:'' }}"
                         >
                     </div>
                     {% for error in form.dni.errors %}
-                        <p class="text-red-600 text-xs mt-1"><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                        <p class="text-xs mt-1 flex items-center gap-1" style="color: var(--text-fg-danger);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                            </svg>
+                            {{ error }}
+                        </p>
                     {% endfor %}
                 </div>
 
                 <!-- Género -->
                 <div>
-                    <label for="{{ form.genero.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.genero.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
                         {{ form.genero.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
-                            <i class="fas fa-user-circle"></i>
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"></path>
+                            </svg>
                         </span>
                         <select
                             name="{{ form.genero.html_name }}"
                             id="{{ form.genero.id_for_label }}"
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 appearance-none {% if form.genero.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field w-full"
+                            style="padding-left: 40px; appearance: none; {% if form.genero.errors %}border-color: var(--border-danger); box-shadow: var(--ring-danger);{% endif %}"
                         >
                             {% for value, label in form.genero.field.choices %}
                                 <option value="{{ value }}" {% if form.genero.value == value %}selected{% endif %}>{{ label }}</option>
@@ -82,27 +100,30 @@
                         </select>
                     </div>
                     {% for error in form.genero.errors %}
-                        <p class="text-red-600 text-xs mt-1"><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                        <p class="text-xs mt-1 flex items-center gap-1" style="color: var(--text-fg-danger);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                            </svg>
+                            {{ error }}
+                        </p>
                     {% endfor %}
                 </div>
             </div>
 
             <!-- Botón -->
-            <button
-                type="submit"
-                class="w-full mt-6 py-3 text-white font-semibold rounded-xl transition-all duration-300 shadow-md hover:shadow-xl"
-                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
-                <i class="fas fa-arrow-right mr-2"></i>Verificar y continuar
+            <button type="submit" class="btn-nodo btn-brand btn-lg w-full mt-6">
+                Verificar y continuar
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3"></path>
+                </svg>
             </button>
         </form>
 
         <!-- Link a login -->
-        <div class="mt-6 pt-6 border-t border-[#E5E7EB] text-center">
-            <p class="text-sm text-[#8C8C8C]">
+        <div class="mt-6 pt-6 text-center" style="border-top: 1px solid var(--border-base);">
+            <p class="text-sm" style="color: var(--text-body-subtle);">
                 ¿Ya tenés cuenta?
-                <a href="{% url 'portal:ciudadano_login' %}" class="font-medium hover:underline" style="color: #5059BC;">
+                <a href="{% url 'portal:ciudadano_login' %}" class="font-semibold hover:underline" style="color: var(--text-fg-brand);">
                     Iniciá sesión
                 </a>
             </p>

@@ -34,6 +34,18 @@ El diseño a construir es **exactamente** el del kit de referencia. En orden de 
 4. Este archivo (resumen operativo) y el resto de `docs/design-kb/` (constitution, anti-patterns,
    `components/*.yaml`, `patterns/*.md`). Los `.yaml` son **secundarios**: si contradicen al HTML/JSX, gana el HTML/JSX.
 
+**⚠ Desempate único (no lo re-decidas):** para **valores de tokens** manda `tokens/*.css`; para
+**valores renderizados de componentes** manda el HTML del kit; JSX tercero; `.yaml`/docs de
+`reference/` **nunca** ganan. Si leés `reference/design-kb/design-constitution.md` Art. X
+("gana el token file más reciente"), NO lo apliques tal cual: es compatible con esta regla para
+tokens, pero no habilita a un `.yaml` a pisar al HTML.
+
+**Lista negra de valores legacy conocidos en `reference/design-kb/` (NUNCA tomes estos):**
+- `toast.yaml`: posición *center*, duración *10s*, z-index *200* → el kit es **abajo-derecha / 2600ms / z 80** (§12).
+- `button.yaml`: font *"Inter"*, `.btn-sm` padding_h *12px*, hover *overlay 20%* → el kit es **Manrope / 8px 14px / brightness(.93)** (§5).
+- `badge.yaml`: brand fill *#FFB9DC* → confunde fondo con borde; el brand es **#FFEAF6 fondo / #FFB9DC borde / #A11F60 texto** (§7).
+- `elevation.yaml`/`modal.yaml`: escala z *dropdown 10 / modal 100 / toast 200* → el kit renderiza **topbar 20 / modal 50 / toast 80** (§3).
+
 **Espejo en el proyecto:** `static/custom/css/chaco-tokens.css` (alineado a `docs/design-kb/tokens`),
 `nodo-buttons.css` (`.btn-*`), `nodo-badges.css` (`.badge-*`).
 
@@ -100,6 +112,8 @@ Bordes       --border-light #F3F4F6 · --border-base #E5E7EB · --border-base-st
 
 ### Z-index (valores del kit)
 `topbar/sticky 20 · modal 50 · toast 80` (el toast va por encima del modal). Nunca `9999`.
+**No existen tokens `--z-*`** en el sistema: usá estos literales. Ignorá la escala 10/100/200 de
+`elevation.yaml`/`modal.yaml`/`toast.yaml` (legacy del proyecto padre).
 
 ### Motion
 `--ease-standard cubic-bezier(0.4,0,0.2,1)` · `--duration-fast 150ms` (hover/focus, color, chevrons) ·
@@ -154,7 +168,7 @@ En el repo usar `.btn-nodo .btn-brand/.btn-secondary/.btn-tertiary/.btn-danger` 
 - **Textarea:** `font 14; padding 12; border 1px var(--border-base); border-radius 8; resize vertical; color var(--text-heading)`.
 - **Inputs nunca `rounded-full`.** Helper text `12px var(--text-body-subtle)`.
 - **Clase implementada en el repo:** usá `.nodo-field` (`static/custom/css/nodo-forms.css`) en `<input>`/`<select>`/`<textarea>` — ya da alto 42 / radius-lg / borde base / foco con `--ring-brand`. Es el `INPUT_CLASS` de los ModelForm de Becas (`programas/forms.py`). **No re-inlinees** estilos de input ni el focus por JS.
-- **Layout de form:** una columna `max-width 768px` (`max-w-3xl`) centrada, FIJO. 20px entre campos, 32px entre secciones. Campos relacionados en grid (ej. `1fr 1.2fr`). Action row al pie a la derecha: `← Volver` (tertiary) + CTA (brand).
+- **Layout de form:** una columna `max-width 768px` (`max-w-3xl`) centrada, FIJO (el "~700px" de `implicit-rules.md` es una aproximación: manda **768**). 20px entre campos, 32px entre secciones. Campos relacionados en grid (ej. `1fr 1.2fr`). Action row al pie a la derecha: `← Volver` (tertiary) + CTA (brand).
 
 ---
 
@@ -241,8 +255,10 @@ El `tone` define el color del **ícono del header** (brand/info/success/warning/
 ```js
 Swal.fire({ title:'¿Estás seguro?', text:'Este ciudadano será eliminado permanentemente.', icon:'warning',
   showCancelButton:true, confirmButtonText:'Eliminar', cancelButtonText:'Cancelar',
+  buttonsStyling:false,  // ← OBLIGATORIO: sin esto swal pisa las clases con su estilo default
   customClass:{ confirmButton:'btn-nodo btn-danger', cancelButton:'btn-nodo btn-tertiary' } })
   .then(r => { if (r.isConfirmed) {/* eliminar */} });
+// buttonsStyling:false quita los márgenes de swal2 entre botones → agregá `.swal2-actions { gap: 12px }`.
 ```
 
 ---
@@ -255,6 +271,7 @@ Swal.fire({ title:'¿Estás seguro?', text:'Este ciudadano será eliminado perma
   danger (`bg-danger-soft`/`border-danger-subtle`/`text-fg-danger`, `xCircle`) · info (`bg-info-soft`/`color-brand-200`/`text-fg-info`, `exclamationCircle`). Ícono 18px.
 - **Ícono obligatorio** (color nunca es el único diferenciador). Duración: **~2.6s (2600ms, valor del kit)**. **Errores que requieren acción no van en toast** → inline o modal; nunca auto-dismiss silencioso de un error. Validación de form → debajo del campo.
 - `role="alert"`/`status`, `aria-live` polite/assertive. Nunca `window.alert()`.
+- ⚠ Ignorá `reference/.../toast.yaml` (centrado / 10s / z 200): es legacy del proyecto padre; mandan los valores de arriba.
 
 ---
 
@@ -271,7 +288,7 @@ inactivo `500 / var(--text-body-subtle)`. Chip de conteo `11 / 700; padding 1px 
 - **Header marca:** `padding 16; border-bottom 1px var(--border-base)`; logo box `44×44; border-radius 12; bg var(--bg-white); border 1px var(--border-base)` con marca `32×32`;
   título `15 / 800 / var(--text-heading)` + subtítulo `11.5 / var(--text-body-subtle)`.
 - **User card:** `padding 14px 16px; border-bottom 1px var(--border-base)`; Avatar 36 + nombre `13 / 700` + rol `11 / var(--text-body-subtle)`.
-- **Nav:** `padding 12; gap 2`. Ítem: `padding 10px 14px; border-radius 9999 (pill)`; **activo** `bg var(--bg-brand); color #fff; font 13.5 / 700`;
+- **Nav:** `padding 12; gap 2`. Ítem: `padding 10px 14px` (colapsado `11px 0`); `border-radius 9999 (pill)`; **activo** `bg var(--bg-brand); color #fff; font 13.5 / 700`;
   inactivo `transparent; color var(--text-body); 500`; **hover `bg var(--bg-tertiary)`**. Ícono 20 (activo `#fff`, inactivo `var(--text-body-subtle)`).
   Chip de conteo `11 / 700; radius 9999` — activo `rgba(255,255,255,.25)/#fff`, inactivo `bg-tertiary/text-body-subtle`. **Un solo ítem activo.** En modo **colapsado** el conteo es un dot `7×7` (absolute `top 4 right 14`; activo `#fff`, inactivo `var(--bg-danger)`), no chip.
 - **Footer:** botón "Minimizar" `bg var(--bg-secondary); radius 9999`.
@@ -294,6 +311,8 @@ inactivo `500 / var(--text-body-subtle)`. Chip de conteo `11 / 700; padding 1px 
 
 - **Shell:** `display flex; height 100vh` → Sidebar + columna (`flex 1; flex column; min-width 0`): Topbar + `main` (`flex 1; overflow-y auto; padding 28`).
   Contenido envuelto en `max-width 1180px; margin 0 auto` (el token `--container-xl 1280` no se usa; manda 1180 del HTML).
+  **⚠ En el repo:** `includes/base.html` NO provee ese wrapper (su `main` es responsive `py-4/6/10 · px-4/6/8`): **cada template agrega su propio contenedor** `max-width 1180 / margin 0 auto` dentro de `{% block main-content %}` y **no fuerza** el padding 28 del kit sobre el shell real.
+- **Desktop-first** (constitution Art. IX): el backoffice se diseña para escritorio; mobile es adaptación, nunca al revés.
 - **PageHeader:** `flex; align items-end; justify-between; gap 16; margin-bottom 24; flex-wrap`.
   Breadcrumb `12.5 / var(--text-body-subtle)`: "Programa Becas" + `chevronRight 14` + crumb (`var(--text-body) / 600`).
   **H1 `28 / 800 / var(--text-heading)`** (letter-spacing -0.5px) + subtítulo `14 / var(--text-body-subtle)` (max-width 620). **CTA a la derecha** (brand).
@@ -407,12 +426,19 @@ PageHeader **sin CTA** + grilla de 4 StatCard (una `gradientIcon`) + **lista de 
 
 1. **Detectar alcance** y **leer** cada template de UI completo. **Clasificar** Tailwind nuevo vs Bootstrap legacy (no cruzar en un componente).
 2. Ante un componente, **mirá su par en el kit** (`Programa Becas - Chaco NODO.html` / `components/*.jsx`) y calcá sus valores exactos.
-3. **Escanear violaciones** con grep:
+3. **Escanear violaciones** — primero corré el **script canónico** (fuente única de los chequeos,
+   compartida con `chaco-frontend` y todo el equipo):
+   ```powershell
+   & .\.venv\Scripts\python.exe scripts\design_audit.py <template-o-carpeta>   # o --changed
+   ```
+   (ERROR corta, WARN requiere criterio: p.ej. `outline:none` es válido si hay ring de reemplazo.)
+   Greps de referencia si necesitás afinar a mano:
    - Hex crudo: `grep -nE '#[0-9a-fA-F]{3,6}'` (ignorá `#fff`, chaco-tokens.css y valores dinámicos `{{ ... }}` del backend).
    - Tipografía: `grep -niE 'fredoka|gellat|geliat|satoshi|font-(brand|display)|Inter|Roboto|Montserrat'`.
    - `opacity:` como disabled · `outline:\s*none` · `z-index:\s*9999` · `confirm(` · `window.alert(`.
    - Color hardcodeado en ícono: `grep -nE 'fill=|stroke=|color:\s*#'` en SVG/íconos.
    - Gradiente/magenta legacy: `grep -niE 'FF0080|7928CA'` (gradient-nodo-legacy). `#F26DF9` es `pink-700` (primitiva legítima) — solo es violación si está hardcodeado en una pantalla; excluí `chaco-tokens.css` y el `:root` de `base.html`.
+   - **Gradiente azul→púrpura legacy NODO:** `grep -niE '3B82F6|8B5CF6'` — en **templates/CSS es violación** (reemplazar por `--gradient-brand`/tokens); en **Python** (`solapas.py`, selectors, `branding.py`) suele ser un color default de datos → marcalo como *requiere decisión*, no lo cambies solo.
 4. **Corregir con `Edit`** usando el token/valor exacto. Cambios **mínimos y quirúrgicos**; reusá `.btn-*`/`.badge-*`.
 5. **Reportar** (abajo): corregido vs. requiere decisión.
 

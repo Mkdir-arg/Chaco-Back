@@ -4,32 +4,32 @@
 
 {% block content %}
 <div class="max-w-md mx-auto">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 animate-fadeInUp">
+    <div class="bg-white rounded-2xl shadow-sm p-8 animate-fadeInUp" style="border: 1px solid var(--border-base);">
         <!-- Encabezado -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style="background: var(--gradient-brand);">
                 <i class="fas fa-user-check text-white text-2xl"></i>
             </div>
-            <h2 class="text-2xl font-bold text-[#252F40]">Completar registro</h2>
-            <p class="text-[#8C8C8C] mt-2 text-sm">Paso 2 de 2 — Datos de acceso</p>
+            <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Completar registro</h2>
+            <p class="mt-2 text-sm" style="color: var(--text-body-subtle);">Paso 2 de 2 — Datos de acceso</p>
         </div>
 
         <!-- Indicador de pasos -->
         <div class="flex items-center justify-center space-x-2 mb-8">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold bg-green-500">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: var(--bg-success);">
                 <i class="fas fa-check text-xs"></i>
             </div>
-            <div class="flex-1 h-1 rounded" style="background: #5059BC;"></div>
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: #5059BC;">2</div>
+            <div class="flex-1 h-1 rounded" style="background: var(--bg-brand);"></div>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background: var(--bg-brand);">2</div>
         </div>
 
         <!-- Datos verificados -->
-        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-            <div class="flex items-center space-x-2 text-green-700">
+        <div class="mb-6 p-4 rounded-xl" style="background: var(--bg-success-soft); border: 1px solid var(--border-success-subtle);">
+            <div class="flex items-center space-x-2" style="color: var(--text-fg-success);">
                 <i class="fas fa-check-circle"></i>
                 <p class="text-sm font-medium">Identidad verificada</p>
             </div>
-            <p class="text-sm text-green-600 mt-1">
+            <p class="text-sm mt-1" style="color: var(--text-fg-success);">
                 {% if datos.flujo == 'nuevo' and datos.nombre %}
                     {{ datos.nombre }}{% if datos.apellido %} {{ datos.apellido }}{% endif %} —
                 {% endif %}
@@ -42,7 +42,7 @@
             {% csrf_token %}
 
             {% if form.non_field_errors %}
-                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <div class="mb-4 p-3 rounded-xl text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); color: var(--text-fg-danger);">
                     {% for error in form.non_field_errors %}
                         <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
                     {% endfor %}
@@ -52,11 +52,11 @@
             <div class="space-y-4">
                 <!-- Email -->
                 <div>
-                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium mb-1" style="color: var(--text-heading);">
                         {{ form.email.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
                             <i class="fas fa-envelope"></i>
                         </span>
                         <input
@@ -64,7 +64,8 @@
                             name="{{ form.email.html_name }}"
                             id="{{ form.email.id_for_label }}"
                             placeholder="tu@email.com"
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 {% if form.email.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field-portal{% if form.email.errors %} field-error{% endif %} w-full pl-10 pr-4 py-3 border rounded-xl text-sm focus:outline-none transition"
+                            style="color: var(--text-heading); {% if form.email.errors %}border-color: var(--border-danger);{% else %}border-color: var(--border-base);{% endif %}"
                             value="{{ form.email.value|default:'' }}"
                         >
                     </div>
@@ -75,12 +76,12 @@
 
                 <!-- Teléfono -->
                 <div>
-                    <label for="{{ form.telefono.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.telefono.id_for_label }}" class="block text-sm font-medium mb-1" style="color: var(--text-heading);">
                         {{ form.telefono.label }}
-                        <span class="text-[#8C8C8C] font-normal">(opcional)</span>
+                        <span class="font-normal" style="color: var(--text-body-subtle);">(opcional)</span>
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
                             <i class="fas fa-phone"></i>
                         </span>
                         <input
@@ -88,7 +89,8 @@
                             name="{{ form.telefono.html_name }}"
                             id="{{ form.telefono.id_for_label }}"
                             placeholder="Opcional"
-                            class="w-full pl-10 pr-4 py-3 border border-[#E5E7EB] rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            class="nodo-field-portal w-full pl-10 pr-4 py-3 border rounded-xl text-sm focus:outline-none transition"
+                            style="color: var(--text-heading); border-color: var(--border-base);"
                             value="{{ form.telefono.value|default:'' }}"
                         >
                     </div>
@@ -96,11 +98,11 @@
 
                 <!-- Contraseña -->
                 <div>
-                    <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium mb-1" style="color: var(--text-heading);">
                         {{ form.password1.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
                             <i class="fas fa-lock"></i>
                         </span>
                         <input
@@ -108,7 +110,8 @@
                             name="{{ form.password1.html_name }}"
                             id="{{ form.password1.id_for_label }}"
                             placeholder="Mínimo 8 caracteres"
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 {% if form.password1.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field-portal{% if form.password1.errors %} field-error{% endif %} w-full pl-10 pr-4 py-3 border rounded-xl text-sm focus:outline-none transition"
+                            style="color: var(--text-heading); {% if form.password1.errors %}border-color: var(--border-danger);{% else %}border-color: var(--border-base);{% endif %}"
                         >
                     </div>
                     {% for error in form.password1.errors %}
@@ -118,11 +121,11 @@
 
                 <!-- Confirmar contraseña -->
                 <div>
-                    <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-[#252F40] mb-1">
+                    <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium mb-1" style="color: var(--text-heading);">
                         {{ form.password2.label }}
                     </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-[#8C8C8C]">
+                        <span class="absolute inset-y-0 left-3 flex items-center" style="color: var(--text-body-subtle);">
                             <i class="fas fa-lock"></i>
                         </span>
                         <input
@@ -130,7 +133,8 @@
                             name="{{ form.password2.html_name }}"
                             id="{{ form.password2.id_for_label }}"
                             placeholder="Repetí tu contraseña"
-                            class="w-full pl-10 pr-4 py-3 border rounded-xl text-[#252F40] text-sm focus:outline-none focus:ring-2 {% if form.password2.errors %}border-red-400 focus:ring-red-300{% else %}border-[#E5E7EB] focus:ring-blue-300{% endif %}"
+                            class="nodo-field-portal{% if form.password2.errors %} field-error{% endif %} w-full pl-10 pr-4 py-3 border rounded-xl text-sm focus:outline-none transition"
+                            style="color: var(--text-heading); {% if form.password2.errors %}border-color: var(--border-danger);{% else %}border-color: var(--border-base);{% endif %}"
                         >
                     </div>
                     {% for error in form.password2.errors %}
@@ -142,20 +146,26 @@
             <!-- Botón -->
             <button
                 type="submit"
-                class="w-full mt-6 py-3 text-white font-semibold rounded-xl transition-all duration-300 shadow-md hover:shadow-xl"
-                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                class="btn-nodo-brand-portal w-full mt-6 py-3 text-white font-semibold rounded-xl transition-all duration-300 shadow-md hover:shadow-xl"
+                style="background: var(--gradient-brand);">
                 <i class="fas fa-user-check mr-2"></i>Crear mi cuenta
             </button>
         </form>
 
         <!-- Volver -->
-        <div class="mt-6 pt-6 border-t border-[#E5E7EB] text-center">
-            <a href="{% url 'portal:ciudadano_registro_step1' %}" class="text-sm text-[#8C8C8C] hover:underline">
+        <div class="mt-6 pt-6 text-center" style="border-top: 1px solid var(--border-base);">
+            <a href="{% url 'portal:ciudadano_registro_step1' %}" class="text-sm hover:underline" style="color: var(--text-body-subtle);">
                 <i class="fas fa-arrow-left mr-1"></i>Volver al paso anterior
             </a>
         </div>
     </div>
 </div>
+
+<style>
+    /* Hover por token — reemplaza los onmouseover/onmouseout inline con gradiente hardcodeado */
+    .btn-nodo-brand-portal:hover { filter: brightness(0.93); }
+    /* Focus por token — reemplaza focus:ring-2 (color default no-tokenizado) */
+    .nodo-field-portal:focus { border-color: var(--border-brand) !important; box-shadow: var(--ring-brand); }
+    .nodo-field-portal.field-error:focus { border-color: var(--border-danger) !important; box-shadow: var(--ring-danger); }
+</style>
 {% endblock %}

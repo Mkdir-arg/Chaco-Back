@@ -15,7 +15,7 @@
   </h1>
   <form method="post"
         x-data="convocatoriaForm('{{ form.segmento.value|default:'' }}', '{{ form.subsegmento.value|default:'' }}')"
-        class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-6">
+        class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
@@ -66,7 +66,7 @@
     {% with field=form.descripcion %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% with field=form.activo %}{% include "programas/becas/_field.html" %}{% endwith %}
 
-    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[#F3F4F6]">
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar convocatoria</button>
     </div>

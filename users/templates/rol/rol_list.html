@@ -4,72 +4,282 @@
 {% block title %}Roles{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-        <div>
-            <h1 class="text-2xl sm:text-3xl font-lora font-bold text-gray-900">Roles</h1>
-            <p class="text-gray-600 mt-2">Definí qué puede ver y hacer cada rol del sistema</p>
+
+{# Page Header #}
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    <div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+            <a href="/" style="font-size:12.5px; color:var(--text-body-subtle); text-decoration:none;">Inicio</a>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-body-subtle); flex-shrink:0;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+            <span style="font-size:12.5px; color:var(--text-body); font-weight:600;">Roles</span>
         </div>
-        <a href="{% url 'users:rol_crear' %}" class="bg-arg-azul text-white px-6 py-3 rounded-xl hover:bg-arg-secundario transition-colors font-medium text-center">
-            <i class="fas fa-plus mr-2"></i>Nuevo rol
-        </a>
+        <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; margin:0 0 4px;">Roles</h1>
+        <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Definí qué puede ver y hacer cada rol del sistema</p>
+    </div>
+    <a href="{% url 'users:rol_crear' %}" class="btn-nodo btn-brand" aria-label="Nuevo rol">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Nuevo rol
+    </a>
+</div>
+
+{# Messages #}
+{% if messages %}
+<div style="margin-bottom:16px; display:flex; flex-direction:column; gap:8px;">
+    {% for message in messages %}
+    <div role="alert" style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; font-size:14px; font-weight:600;
+        {% if message.tags == 'error' %}background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle); color:var(--text-fg-danger);
+        {% else %}background:var(--bg-success-soft); border:1px solid var(--border-success-subtle); color:var(--text-fg-success);{% endif %}">
+        {% if message.tags == 'error' %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% else %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% endif %}
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{# Toolbar (filtros por querystring) #}
+<form method="get" style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <div style="position:relative; max-width:320px; width:100%; flex:1 1 220px;">
+        <button type="submit" aria-label="Buscar"
+                style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; padding:0; margin:0; display:flex; cursor:pointer; color:var(--text-body-subtle);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        </button>
+        <input type="text" name="q" value="{{ filtro_q }}" placeholder="Buscar rol..." class="nodo-field" style="padding-left:36px;">
     </div>
 
-    {% if roles.categorias or roles.programas %}
-        {% for categoria, roles_cat in roles.categorias %}
-            <div class="mb-8">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">{{ categoria }}</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {% for item in roles_cat %}{% include "rol/_rol_card.html" %}{% endfor %}
-                </div>
-            </div>
+    <select name="categoria" class="nodo-field" style="width:190px;" @change="$el.form.submit()">
+        <option value="">Todas las categorías</option>
+        {% for cat in categorias_rol %}
+        <option value="{{ cat }}" {% if filtro_categoria == cat %}selected{% endif %}>{{ cat }}</option>
         {% endfor %}
-        {% for programa, roles_prog in roles.programas %}
-            <div class="mb-8">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
-                    <i class="fas fa-folder mr-1"></i>Programa: {{ programa.nombre }}
-                </h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {% for item in roles_prog %}{% include "rol/_rol_card.html" %}{% endfor %}
-                </div>
-            </div>
+    </select>
+
+    <select name="programa" class="nodo-field" style="width:200px;" @change="$el.form.submit()">
+        <option value="">— Todos los programas</option>
+        {% for programa in programas_admin %}
+        <option value="{{ programa.pk }}" {% if filtro_programa == programa.pk|stringformat:"s" %}selected{% endif %}>{{ programa.nombre }}</option>
         {% endfor %}
-    {% else %}
-        <div class="bg-white rounded-xl shadow-lg p-12 text-center">
-            <i class="fas fa-user-tag text-6xl text-gray-300 mb-4"></i>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">No hay roles definidos</h3>
-            <p class="text-gray-600 mb-6">Creá el primer rol y asignale capacidades</p>
-            <a href="{% url 'users:rol_crear' %}" class="bg-arg-azul text-white px-6 py-3 rounded-xl hover:bg-arg-secundario transition-colors"><i class="fas fa-plus mr-2"></i>Nuevo rol</a>
+    </select>
+
+    <select name="estado" class="nodo-field" style="width:160px;" @change="$el.form.submit()">
+        <option value="">Todos los estados</option>
+        <option value="activo" {% if filtro_estado == "activo" %}selected{% endif %}>Activos</option>
+        <option value="inactivo" {% if filtro_estado == "inactivo" %}selected{% endif %}>Inactivos</option>
+    </select>
+
+    {% if hay_filtros_activos %}
+    <a href="{% url 'users:roles' %}" class="btn-nodo btn-tertiary btn-base">Limpiar filtros</a>
+    {% endif %}
+</form>
+
+{# TableCard #}
+<div style="background:var(--bg-white); border:1px solid var(--border-base); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden;">
+    {% if items %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Rol</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Descripción</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Categoría</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Programa</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Capacidades</th>
+                    <th scope="col" style="padding:11px 16px; text-align:right; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Usuarios</th>
+                    <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Estado</th>
+                    <th scope="col" style="padding:11px 16px; text-align:right; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em; width:150px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr style="transition:background 150ms;" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''">
+                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span style="font-size:13.5px; font-weight:700; color:var(--text-heading);">{{ item.group.name }}</span>
+                            {% if item.meta.protegido %}
+                            <span class="badge badge-warning">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                                Protegido
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body-subtle); border-top:1px solid var(--border-light); max-width:220px;">
+                        {{ item.meta.descripcion|default:"—"|truncatechars:60 }}
+                    </td>
+                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
+                        {% if item.meta %}
+                        <span class="badge badge-gray">{{ item.meta.categoria }}</span>
+                        {% else %}
+                        <span style="font-size:13.5px; color:var(--text-body-subtle);">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body); border-top:1px solid var(--border-light);">
+                        {{ item.meta.programa.nombre|default:"—" }}
+                    </td>
+                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
+                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                            {% for codigo in item.capacidades|slice:":3" %}
+                            <span class="badge badge-brand">{{ codigo }}</span>
+                            {% empty %}
+                            <span style="font-size:12px; color:var(--text-body-subtle);">Sin capacidades</span>
+                            {% endfor %}
+                            {% if item.capacidades|length > 3 %}
+                            <span style="font-size:12px; color:var(--text-body-subtle);">+{{ item.capacidades|length|add:"-3" }} más</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="padding:13px 16px; font-size:13.5px; font-weight:600; color:var(--text-heading); text-align:right; border-top:1px solid var(--border-light);">
+                        {{ item.num_usuarios }}
+                    </td>
+                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
+                        {% if not item.meta or item.meta.activo %}
+                        <span class="badge badge-success">Activo</span>
+                        {% else %}
+                        <span class="badge badge-gray">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
+                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
+                            <a href="{% url 'users:rol_detalle' item.group.pk %}"
+                               aria-label="Ver {{ item.group.name }}"
+                               style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; text-decoration:none; transition:background 150ms;"
+                               onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </a>
+                            {% if not item.meta.protegido %}
+                            <a href="{% url 'users:rol_editar' item.group.pk %}"
+                               aria-label="Editar {{ item.group.name }}"
+                               style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-heading); background:transparent; text-decoration:none; transition:background 150ms;"
+                               onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                            </a>
+                            {% if not item.meta or item.meta.activo %}
+                            <button type="button"
+                                    aria-label="Desactivar {{ item.group.name }}"
+                                    onclick="confirmarToggleRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', true)"
+                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
+                                    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </button>
+                            {% else %}
+                            <button type="button"
+                                    aria-label="Activar {{ item.group.name }}"
+                                    onclick="confirmarToggleRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', false)"
+                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
+                                    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </button>
+                            {% endif %}
+                            <button type="button"
+                                    aria-label="Eliminar {{ item.group.name }}"
+                                    onclick="confirmarEliminarRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', {{ item.num_usuarios }})"
+                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-danger); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
+                                    onmouseenter="this.style.background='var(--bg-danger-soft)'" onmouseleave="this.style.background='transparent'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                            </button>
+                            <form id="form-toggle-{{ item.group.pk }}" method="post" action="{% url 'users:rol_toggle' item.group.pk %}" style="display:none;">{% csrf_token %}</form>
+                            <form id="form-eliminar-{{ item.group.pk }}" method="post" action="{% url 'users:rol_eliminar' item.group.pk %}" style="display:none;">{% csrf_token %}</form>
+                            {% else %}
+                            <span style="font-size:12px; color:var(--text-body-subtle); display:inline-flex; align-items:center; gap:4px; margin-left:4px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                                Rol del sistema
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# Footer / paginación estática #}
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid var(--border-light); background:var(--bg-secondary);">
+        <span style="font-size:12.5px; color:var(--text-body-subtle);">Mostrando {{ items|length }} de {{ total_roles }} rol{{ total_roles|pluralize:",es" }}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+                Anterior
+            </button>
+            <span style="font-size:13px; font-weight:600; color:var(--text-body);">1 de 1</span>
+            <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;" disabled>Siguiente</button>
         </div>
+    </div>
+
+    {% else %}
+    <div style="padding:56px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+        {% if hay_filtros_activos %}
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">Sin resultados</h3>
+        <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Ningún rol coincide con los filtros aplicados. Probá con otra búsqueda o limpiá los filtros.</p>
+        <a href="{% url 'users:roles' %}" class="btn-nodo btn-tertiary" style="margin-top:6px;">Limpiar filtros</a>
+        {% else %}
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+        <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay roles definidos</h3>
+        <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Creá el primer rol y asignale las capacidades que necesita.</p>
+        <a href="{% url 'users:rol_crear' %}" class="btn-nodo btn-brand" style="margin-top:6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Nuevo rol
+        </a>
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 
-<script>
-    function confirmarEliminarRol(pk, nombre, nUsuarios) {
-        var afecta = nUsuarios > 0
-            ? 'El rol está asignado a ' + nUsuarios + ' usuario(s); se les quitará. '
-            : '';
-        ModernModal.show({
-            type: 'confirm',
-            title: 'Eliminar rol',
-            message: '¿Eliminar el rol "' + nombre + '"? ' + afecta + 'Esta acción no se puede deshacer.',
-            confirmText: 'Sí, eliminar',
-            cancelText: 'Cancelar',
-            onConfirm: function () { document.getElementById('form-eliminar-' + pk).submit(); }
-        });
-    }
+{% endblock %}
 
-    function confirmarToggleRol(pk, nombre, activo) {
-        ModernModal.show({
-            type: 'confirm',
-            title: activo ? 'Desactivar rol' : 'Activar rol',
-            message: activo
-                ? 'El rol "' + nombre + '" dejará de poder asignarse a nuevos usuarios (no se quita a quienes ya lo tienen).'
-                : 'El rol "' + nombre + '" volverá a estar disponible para asignar.',
-            confirmText: activo ? 'Desactivar' : 'Activar',
-            cancelText: 'Cancelar',
-            onConfirm: function () { document.getElementById('form-toggle-' + pk).submit(); }
-        });
-    }
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function confirmarEliminarRol(pk, nombre, nUsuarios) {
+    var afecta = nUsuarios > 0
+        ? 'El rol está asignado a ' + nUsuarios + ' usuario(s); se les quitará. '
+        : '';
+    Swal.fire({
+        title: 'Eliminar rol',
+        text: '¿Eliminar el rol "' + nombre + '"? ' + afecta + 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        buttonsStyling: false,
+        customClass: {
+            confirmButton: 'btn-nodo btn-danger',
+            cancelButton: 'btn-nodo btn-tertiary',
+        },
+    }).then(function (result) {
+        if (result.isConfirmed) {
+            document.getElementById('form-eliminar-' + pk).submit();
+        }
+    });
+}
+
+function confirmarToggleRol(pk, nombre, activo) {
+    Swal.fire({
+        title: activo ? 'Desactivar rol' : 'Activar rol',
+        text: activo
+            ? 'El rol "' + nombre + '" dejará de poder asignarse a nuevos usuarios (no se quita a quienes ya lo tienen).'
+            : 'El rol "' + nombre + '" volverá a estar disponible para asignar.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: activo ? 'Desactivar' : 'Activar',
+        cancelButtonText: 'Cancelar',
+        buttonsStyling: false,
+        customClass: {
+            confirmButton: 'btn-nodo btn-danger',
+            cancelButton: 'btn-nodo btn-tertiary',
+        },
+    }).then(function (result) {
+        if (result.isConfirmed) {
+            document.getElementById('form-toggle-' + pk).submit();
+        }
+    });
+}
 </script>
 {% endblock %}

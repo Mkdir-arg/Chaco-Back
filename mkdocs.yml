@@ -4,9 +4,10 @@ docs_dir: docs/client
 site_dir: site
 
 # Páginas que se construyen y son accesibles por enlace, pero no aparecen en el menú.
-# La estimación de Becas se llega desde "Programa Becas → Documentos relacionados".
+# Las estimaciones se llegan desde "Documentos relacionados" de cada funcionalidad.
 not_in_nav: |
   /funcionalidades/estimacion-programa-becas.md
+  /funcionalidades/estimacion-programa-dispositivos.md
 
 theme:
   name: material
@@ -97,6 +98,7 @@ nav:
     - Version 001 - Detalle de consumo de horas: versiones/version-001-consumo-horas.md
   - Financiero:
     - financiero/index.md
+    - Julio 2026: financiero/mes-2026-07.md
     - Junio 2026: financiero/mes-2026-06.md
   - Funcionalidades:
     - funcionalidades/index.md

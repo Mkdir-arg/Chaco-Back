@@ -6,7 +6,7 @@
 .dark-mode input:-internal-autofill-selected,
 .dark-mode input:-internal-autofill-previewed {
   background-color: None !important;
-  -webkit-box-shadow: 0 0 0 30px #343a40 inset !important;
+  -webkit-box-shadow: 0 0 0 30px var(--color-gray-700) inset !important;
 }
 
 input:-internal-autofill-selected {
@@ -14,7 +14,7 @@ input:-internal-autofill-selected {
 }
 
 .dark-mode .form-control:focus {
-  background-color: #343a40 !important;
+  background-color: var(--color-gray-700) !important;
 }
 
 .dark-mode .dropdown-item {
@@ -26,7 +26,7 @@ input:-internal-autofill-selected {
 .popover-arrow,
 .popover-content,
 .popover-title {
-  background: #454d55;
+  background: var(--color-gray-700);
 }
 
 .carousel-image {
@@ -63,37 +63,37 @@ border-left-color: var(--color-error) !important;
 }
 
 .callout.callout-Importante {
-  color: #eca20f;
-  border-left-color: #eca20f;
+  color: var(--text-fg-warning-subtle);
+  border-left-color: var(--text-fg-warning-subtle);
 }
 .callout.callout-Precaución {
-  border-left-color: #eee246;
-  color: #eee246;
+  border-left-color: var(--text-fg-yellow);
+  color: var(--text-fg-yellow);
 }
 
 .badge-Critica {
   color: #fff;
-  background-color: #fb4733;
+  background-color: var(--bg-danger);
 }
 .badge-Importante {
-  color: #000000;
-  background-color: #eca20f;
+  color: var(--text-black);
+  background-color: var(--text-fg-warning-subtle);
 }
 .badge-Precaución {
-  color: #000000;
-  background-color: #eee246;
+  color: var(--text-black);
+  background-color: var(--text-fg-yellow);
 }
 .callout.callout-Critica {
-  color: #fb4733;
-  border-left-color: #fb4733;
+  color: var(--bg-danger);
+  border-left-color: var(--bg-danger);
 }
 .callout.callout-Importante {
-  color: #eca20f;
-  border-left-color: #eca20f;
+  color: var(--text-fg-warning-subtle);
+  border-left-color: var(--text-fg-warning-subtle);
 }
 .callout.callout-Precaución {
-  border-left-color: #eee246;
-  color: #eee246;
+  border-left-color: var(--text-fg-yellow);
+  color: var(--text-fg-yellow);
 }
 
 
@@ -195,7 +195,7 @@ border-left-color: var(--color-error) !important;
 }
 
 [data-bs-theme="dark"] .comment-text {
-  color: #e9ecef !important;
+  color: var(--color-gray-200) !important;
 }
 
 

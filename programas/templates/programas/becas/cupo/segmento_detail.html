@@ -1,0 +1,436 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Cupo · {{ segmento.nombre }}{% endblock %}
+
+{% block main-content %}
+<style>
+[x-cloak]{display:none!important}
+/* Los estados activo/inactivo van por clase (no por :style de Alpine): un :style con
+   string reemplaza todo el atributo style inline al reevaluarse, perdiendo el
+   display:flex/gap/padding estáticos y desalineando el ícono del label al cambiar de tab. */
+.becas-tab-btn{display:flex;align-items:center;gap:6px;padding:12px 16px;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;transition:color var(--duration-fast,150ms),border-color var(--duration-fast,150ms);}
+.becas-tab-btn.is-inactive{color:var(--text-body-subtle,#6B7280);font-weight:500;}
+.becas-tab-btn.is-inactive:hover{color:var(--text-body);}
+.becas-tab-btn.is-active{color:var(--text-fg-brand,#5059BC);border-bottom-color:var(--bg-brand,#5059BC);font-weight:700;}
+</style>
+
+<div class="max-w-6xl mx-auto space-y-5"
+     x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'beneficiarios' }">
+
+  {# Volver #}
+  <div>
+    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+      Volver al segmento
+    </a>
+  </div>
+
+  {# ===== PageHeader ===== #}
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <nav class="flex items-center gap-1.5 mb-2" style="font-size:12.5px; color:var(--text-body-subtle);">
+        <span>Programa Becas</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="opacity:.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+        <a href="{% url 'becas:segmentos' %}" style="color:var(--text-body); font-weight:600;">Segmentos</a>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="opacity:.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+        <span style="color:var(--text-body); font-weight:600;">Cupo</span>
+      </nav>
+      <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
+        {{ segmento.nombre }}
+      </h1>
+      <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
+        Gestión de cupo, lista de espera y pendientes del segmento.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="button" disabled class="btn-nodo btn-tertiary btn-sm" style="background:var(--bg-disabled);color:var(--text-disabled);cursor:not-allowed;border-color:var(--border-base);" aria-disabled="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        Exportar
+      </button>
+    </div>
+  </div>
+
+  {# ===== Mensajes Django ===== #}
+  {% if messages %}
+  <div class="space-y-2">
+    {% for message in messages %}
+    {% if message.tags == 'warning' or message.level == 30 %}
+    <div role="alert" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:12px;background:var(--bg-warning-soft,#FFF8F1);border:1px solid var(--border-warning-subtle,#FCD9BD);font-size:14px;font-weight:600;color:var(--text-fg-warning,#771D1D);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+        <span>{{ message }}</span>
+      </div>
+      <button type="button" @click="tab='lista_espera'" class="btn-nodo btn-tertiary btn-sm" style="white-space:nowrap;">
+        Ir a lista de espera
+      </button>
+    </div>
+    {% elif message.tags == 'error' or message.level == 40 %}
+    <div role="alert" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:var(--bg-danger-soft,#FEF0F2);border:1px solid var(--border-danger-subtle,#FFCCD3);font-size:14px;font-weight:600;color:var(--text-fg-danger,#C70036);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>{{ message }}</span>
+    </div>
+    {% else %}
+    <div role="alert" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:var(--bg-success-soft,#ECFDF5);border:1px solid var(--border-success-subtle,#A4F4CF);font-size:14px;font-weight:600;color:var(--text-fg-success,#007A55);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>{{ message }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ===== Stat Cards ===== #}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+    {# Cupo máximo #}
+    <div style="background:var(--bg-primary,#fff);border:1px solid var(--border-base,#E5E7EB);border-radius:var(--radius-xl,12px);box-shadow:var(--shadow-sm);padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-body-subtle);">Cupo máximo</p>
+        <div style="width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--bg-brand-soft,#FEE9FF);color:var(--text-fg-brand,#5059BC);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+        </div>
+      </div>
+      <p style="font-size:32px;font-weight:800;color:var(--text-heading,#252F40);line-height:1;">{{ stats.cupo_maximo }}</p>
+    </div>
+
+    {# Cupo ocupado #}
+    <div style="background:var(--bg-primary,#fff);border:1px solid var(--border-base,#E5E7EB);border-radius:var(--radius-xl,12px);box-shadow:var(--shadow-sm);padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-body-subtle);">Cupo ocupado</p>
+        <div style="width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--bg-success-soft,#ECFDF5);color:var(--text-fg-success,#007A55);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+      </div>
+      <p style="font-size:32px;font-weight:800;color:var(--text-heading,#252F40);line-height:1;">{{ stats.cupo_ocupado }}</p>
+    </div>
+
+    {# Cupo disponible #}
+    <div style="background:var(--bg-primary,#fff);border:1px solid var(--border-base,#E5E7EB);border-radius:var(--radius-xl,12px);box-shadow:var(--shadow-sm);padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <p style="font-size:13px;font-weight:600;color:var(--text-body-subtle);">Cupo disponible</p>
+        <div style="width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;{% if stats.cupo_disponible > 0 %}background:var(--bg-success-soft,#ECFDF5);color:var(--text-fg-success,#007A55);{% else %}background:var(--bg-danger-soft,#FEF0F2);color:var(--text-fg-danger,#C70036);{% endif %}">
+          {% if stats.cupo_disponible > 0 %}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          {% else %}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          {% endif %}
+        </div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <p style="font-size:32px;font-weight:800;color:var(--text-heading,#252F40);line-height:1;">{{ stats.cupo_disponible }}</p>
+        {% if stats.cupo_disponible > 0 %}
+        <span class="badge badge-success">Disponible</span>
+        {% else %}
+        <span class="badge badge-danger">Sin cupo</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {# ===== TableCard con Tabs ===== #}
+  <div style="background:var(--bg-white,#fff);border:1px solid var(--border-base,#E5E7EB);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden;">
+
+    {# Tabs header #}
+    <div style="border-bottom:1px solid var(--border-base,#E5E7EB);display:flex;gap:12px;padding:0 8px;">
+      <button @click="tab='beneficiarios'" type="button"
+              class="becas-tab-btn"
+              :class="tab==='beneficiarios' ? 'is-active' : 'is-inactive'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+        Beneficiarios
+        <span x-cloak
+              :class="tab==='beneficiarios' ? 'badge badge-info' : 'badge badge-gray'"
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ beneficiarios|length }}</span>
+      </button>
+      <button @click="tab='lista_espera'" type="button"
+              class="becas-tab-btn"
+              :class="tab==='lista_espera' ? 'is-active' : 'is-inactive'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+        Lista de espera
+        <span x-cloak
+              :class="tab==='lista_espera' ? 'badge badge-info' : 'badge badge-gray'"
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ lista_espera|length }}</span>
+      </button>
+      <button @click="tab='pendientes'" type="button"
+              class="becas-tab-btn"
+              :class="tab==='pendientes' ? 'is-active' : 'is-inactive'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Pendientes de cupo
+        <span x-cloak
+              :class="tab==='pendientes' ? 'badge badge-info' : 'badge badge-gray'"
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ pendientes|length }}</span>
+      </button>
+    </div>
+
+    {# ===== TAB: Beneficiarios ===== #}
+    <div x-show="tab==='beneficiarios'" x-cloak>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Ciudadano</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">DNI</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Formulario</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;" title="Fecha de aprobación">Fecha ingreso</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;width:100px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for formulario in beneficiarios %}
+            <tr style="border-top:1px solid var(--border-light,#F3F4F6);transition:background var(--duration-fast,150ms);"
+                onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background=''">
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:var(--text-white,#fff);font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
+                    {{ formulario.ciudadano.nombre|slice:":1"|upper }}{{ formulario.ciudadano.apellido|slice:":1"|upper }}
+                  </div>
+                  <span style="font-weight:500;color:var(--text-heading);">{{ formulario.ciudadano.apellido }}, {{ formulario.ciudadano.nombre }}</span>
+                </div>
+              </td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.ciudadano.dni }}</td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
+                <a href="{% url 'becas:formulario_detalle' formulario.pk %}" style="color:var(--text-fg-brand);font-weight:600;">
+                  #{{ formulario.pk }}
+                </a>
+                <span style="font-size:12px;color:var(--text-body-subtle);display:block;margin-top:1px;">{{ formulario.relevamiento.convocatoria.nombre }}</span>
+              </td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;" title="Fecha de aprobación">
+                {{ formulario.modificado|date:"d/m/Y" }}
+              </td>
+              <td style="padding:13px 16px;text-align:right;white-space:nowrap;">
+                <div style="display:inline-flex;align-items:center;gap:4px;">
+                  <a href="{% url 'legajos:ciudadano_detalle' formulario.ciudadano.pk %}"
+                     aria-label="Ver legajo de {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
+                     style="display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:8px;color:var(--text-fg-brand);transition:background var(--duration-fast,150ms);"
+                     onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  </a>
+                  {% if puede_editar_beneficiarios %}
+                  <button type="button"
+                          aria-label="Dar de baja a {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
+                          onclick="confirmarBaja({{ formulario.pk }}, '{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}')"
+                          style="display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:8px;color:var(--text-fg-danger,#C70036);background:none;border:none;cursor:pointer;transition:background var(--duration-fast,150ms);"
+                          onmouseover="this.style.background='var(--bg-danger-soft,#FEF0F2)'" onmouseout="this.style.background=''">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
+                  </button>
+                  {# Form oculto para la baja #}
+                  <form id="form-baja-{{ formulario.pk }}" method="post" action="{% url 'becas:beneficiario_dar_baja' formulario.pk %}" style="display:none;">
+                    {% csrf_token %}
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="padding:56px 24px;text-align:center;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--text-fg-brand);"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                  <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay beneficiarios activos</p>
+                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">Los formularios aprobados dentro del cupo aparecen aquí.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ===== TAB: Lista de espera ===== #}
+    <div x-show="tab==='lista_espera'" x-cloak>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;width:80px;">Posición</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Ciudadano</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">DNI</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Fecha de ingreso</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;width:120px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for le in lista_espera %}
+            <tr style="border-top:1px solid var(--border-light,#F3F4F6);transition:background var(--duration-fast,150ms);"
+                onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background=''">
+              <td style="font-size:13.5px;padding:13px 16px;">
+                <span style="font-size:15px;font-weight:700;color:var(--text-heading);">{{ le.posicion }}</span>
+              </td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:var(--text-white,#fff);font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
+                    {{ le.formulario.ciudadano.nombre|slice:":1"|upper }}{{ le.formulario.ciudadano.apellido|slice:":1"|upper }}
+                  </div>
+                  <span style="font-weight:500;color:var(--text-heading);">{{ le.formulario.ciudadano.apellido }}, {{ le.formulario.ciudadano.nombre }}</span>
+                </div>
+              </td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ le.formulario.ciudadano.dni }}</td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ le.fecha_ingreso|date:"d/m/Y" }}</td>
+              <td style="padding:13px 16px;text-align:right;white-space:nowrap;">
+                <div style="display:inline-flex;align-items:center;gap:4px;">
+                  <a href="{% url 'becas:formulario_detalle' le.formulario.pk %}"
+                     aria-label="Ver formulario de {{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}"
+                     style="display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:8px;color:var(--text-fg-brand);transition:background var(--duration-fast,150ms);"
+                     onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  </a>
+                  {% if puede_editar_beneficiarios %}
+                  <button type="button"
+                          aria-label="Promover a {{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}"
+                          onclick="confirmarPromover({{ le.pk }}, '{{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}')"
+                          style="display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:9999px;color:var(--text-fg-brand,#5059BC);background:var(--bg-white,#fff);border:1px solid var(--border-brand,#5059BC);font-size:12px;font-weight:600;cursor:pointer;gap:4px;transition:background var(--duration-fast,150ms);"
+                          onmouseover="this.style.background='var(--bg-brand-tint,#DEE1FF)'" onmouseout="this.style.background='var(--bg-white,#fff)'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/></svg>
+                    Promover
+                  </button>
+                  {# Form oculto para la promoción #}
+                  <form id="form-promover-{{ le.pk }}" method="post" action="{% url 'becas:lista_espera_promover' le.pk %}" style="display:none;">
+                    {% csrf_token %}
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="padding:56px 24px;text-align:center;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--text-fg-brand);"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+                  <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay personas en lista de espera</p>
+                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">Los formularios aprobados cuando no hay cupo quedan aquí automáticamente, o podés agregarlos desde "Pendientes de cupo".</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ===== TAB: Pendientes de cupo ===== #}
+    <div x-show="tab==='pendientes'" x-cloak>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Ciudadano</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">DNI</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Relevamiento</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Fecha ingreso</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;width:160px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for formulario in pendientes %}
+            <tr style="border-top:1px solid var(--border-light,#F3F4F6);transition:background var(--duration-fast,150ms);"
+                onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background=''">
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:9999px;background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;color:var(--text-white,#fff);font-size:12px;font-weight:700;flex-shrink:0;line-height:1;" aria-hidden="true">
+                    {{ formulario.ciudadano.nombre|slice:":1"|upper }}{{ formulario.ciudadano.apellido|slice:":1"|upper }}
+                  </div>
+                  <span style="font-weight:500;color:var(--text-heading);">{{ formulario.ciudadano.apellido }}, {{ formulario.ciudadano.nombre }}</span>
+                </div>
+              </td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.ciudadano.dni }}</td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.relevamiento.convocatoria.nombre }}</td>
+              <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.creado|date:"d/m/Y" }}</td>
+              <td style="padding:13px 16px;text-align:right;white-space:nowrap;">
+                <div style="display:inline-flex;align-items:center;gap:4px;">
+                  <a href="{% url 'becas:formulario_detalle' formulario.pk %}"
+                     aria-label="Ver formulario de {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
+                     style="display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:8px;color:var(--text-fg-brand);transition:background var(--duration-fast,150ms);"
+                     onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  </a>
+                  {% if puede_editar_beneficiarios %}
+                  <button type="button"
+                          aria-label="Agregar a lista de espera a {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}"
+                          onclick="confirmarAgregarEspera({{ formulario.pk }}, '{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}')"
+                          style="display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:9999px;color:var(--text-body,#4B5563);background:var(--bg-secondary,#F9FAFB);border:1px solid var(--border-base,#E5E7EB);font-size:12px;font-weight:600;cursor:pointer;gap:4px;transition:background var(--duration-fast,150ms);"
+                          onmouseover="this.style.background='var(--bg-tertiary,#F3F4F6)'" onmouseout="this.style.background='var(--bg-secondary,#F9FAFB)'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Agregar a lista de espera
+                  </button>
+                  {# Form oculto para agregar a lista de espera #}
+                  <form id="form-espera-{{ formulario.pk }}" method="post" action="{% url 'becas:formulario_agregar_espera' formulario.pk %}" style="display:none;">
+                    {% csrf_token %}
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="padding:56px 24px;text-align:center;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--text-fg-brand);"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay formularios pendientes</p>
+                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">No hay formularios en estado ENVIADO pendientes de asignación de cupo para este segmento.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script>
+(function () {
+  'use strict';
+
+  function confirmarBaja(formularioPk, nombreCiudadano) {
+    ModernModal.show({
+      type: 'confirm',
+      danger: true,
+      title: '¿Dar de baja al beneficiario?',
+      message: 'Se liberará 1 cupo en "{{ segmento.nombre|escapejs }}". ¿Confirmar?',
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
+        var form = document.getElementById('form-baja-' + formularioPk);
+        if (form) form.submit();
+      }
+    });
+  }
+
+  function confirmarPromover(lePk, nombreCiudadano) {
+    ModernModal.show({
+      type: 'confirm',
+      title: '¿Promover a ' + nombreCiudadano + ' como beneficiario?',
+      message: 'Ocupará 1 cupo en "{{ segmento.nombre|escapejs }}".',
+      confirmText: 'Promover',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
+        var form = document.getElementById('form-promover-' + lePk);
+        if (form) form.submit();
+      }
+    });
+  }
+
+  function confirmarAgregarEspera(formularioPk, nombreCiudadano) {
+    ModernModal.show({
+      type: 'confirm',
+      title: '¿Agregar a lista de espera?',
+      message: 'El formulario de "' + nombreCiudadano + '" se agregará al final de la lista de espera de "{{ segmento.nombre|escapejs }}".',
+      confirmText: 'Agregar',
+      cancelText: 'Cancelar',
+      onConfirm: function () {
+        var form = document.getElementById('form-espera-' + formularioPk);
+        if (form) form.submit();
+      }
+    });
+  }
+
+  window.confirmarBaja = confirmarBaja;
+  window.confirmarPromover = confirmarPromover;
+  window.confirmarAgregarEspera = confirmarAgregarEspera;
+})();
+</script>
+{% endblock %}

@@ -175,3 +175,36 @@ class TransicionesRelevamientoTests(_BaseRevisionTest):
         self.client.post(reverse("becas:revision_terminar", args=[self.rel_a.pk]))
         self.rel_a.refresh_from_db()
         self.assertEqual(self.rel_a.estado, Relevamiento.Estado.TERMINADO)
+
+
+class BeneficiarioScopingTests(_BaseRevisionTest):
+    """El Coordinador tiene becas.beneficiario.editar, pero solo puede
+    gestionar beneficiarios de los segmentos que tiene asignados (#78)."""
+
+    def setUp(self):
+        super().setUp()
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save()
+        self.form_b.estado = Formulario.Estado.APROBADO
+        self.form_b.save()
+
+    def test_coordinador_da_de_baja_beneficiario_de_su_segmento(self):
+        self.client.force_login(self.coord_a)
+        resp = self.client.post(reverse("becas:beneficiario_dar_baja", args=[self.form_a.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.BAJA)
+
+    def test_coordinador_no_da_de_baja_beneficiario_de_otro_segmento(self):
+        self.client.force_login(self.coord_a)
+        resp = self.client.post(reverse("becas:beneficiario_dar_baja", args=[self.form_b.pk]))
+        self.assertEqual(resp.status_code, 403)
+        self.form_b.refresh_from_db()
+        self.assertEqual(self.form_b.estado, Formulario.Estado.APROBADO)
+
+    def test_admin_da_de_baja_beneficiario_de_cualquier_segmento(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("becas:beneficiario_dar_baja", args=[self.form_b.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.form_b.refresh_from_db()
+        self.assertEqual(self.form_b.estado, Formulario.Estado.BAJA)

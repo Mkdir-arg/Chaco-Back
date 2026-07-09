@@ -5,9 +5,9 @@
 
 {% block main-content %}
 <div class="mt-8 mb-8">
-    <div class="bg-white rounded-2xl shadow-lg border border-[#E5E7EB] overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden" style="border: 1px solid var(--border-base);">
         <!-- Header -->
-        <div class="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4">
+        <div class="px-6 py-4" style="background: var(--bg-success);">
             <h2 class="text-xl font-bold text-white flex items-center">
                 <i class="fas fa-check-circle mr-3"></i>
                 Finalizar Relevamiento
@@ -19,41 +19,41 @@
 
             <!-- A) Resumen del caso -->
             <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                <h3 class="font-semibold mb-3 flex items-center" style="color: var(--text-heading);">
                     <i class="fas fa-info-circle mr-2 text-blue-600"></i>
                     Resumen del Caso
                 </h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                        <span class="text-[#8C8C8C]">Ciudadano:</span>
-                        <span class="font-medium text-[#252F40] ml-2">{{ caso.ciudadano_titular.nombre_completo }}</span>
+                        <span style="color: var(--text-body-subtle);">Ciudadano:</span>
+                        <span class="font-medium ml-2" style="color: var(--text-heading);">{{ caso.ciudadano_titular.nombre_completo }}</span>
                     </div>
                     <div>
-                        <span class="text-[#8C8C8C]">DNI:</span>
-                        <span class="font-medium text-[#252F40] ml-2">{{ caso.ciudadano_titular.dni }}</span>
+                        <span style="color: var(--text-body-subtle);">DNI:</span>
+                        <span class="font-medium ml-2" style="color: var(--text-heading);">{{ caso.ciudadano_titular.dni }}</span>
                     </div>
                     <div>
-                        <span class="text-[#8C8C8C]">Municipio:</span>
-                        <span class="font-medium text-[#252F40] ml-2">{{ caso.municipio }}</span>
+                        <span style="color: var(--text-body-subtle);">Municipio:</span>
+                        <span class="font-medium ml-2" style="color: var(--text-heading);">{{ caso.municipio }}</span>
                     </div>
                     <div>
-                        <span class="text-[#8C8C8C]">Prioridad:</span>
-                        <span class="font-medium text-[#252F40] ml-2">{{ caso.get_prioridad_display }}</span>
+                        <span style="color: var(--text-body-subtle);">Prioridad:</span>
+                        <span class="font-medium ml-2" style="color: var(--text-heading);">{{ caso.get_prioridad_display }}</span>
                     </div>
                     <div>
-                        <span class="text-[#8C8C8C]">SLA Relevamiento:</span>
-                        <span class="font-medium {% if sla_vencido %}text-red-600{% else %}text-[#252F40]{% endif %} ml-2">{{ sla_texto }}</span>
+                        <span style="color: var(--text-body-subtle);">SLA Relevamiento:</span>
+                        <span class="font-medium ml-2" style="color: {% if sla_vencido %}var(--text-fg-danger){% else %}var(--text-heading){% endif %};">{{ sla_texto }}</span>
                     </div>
                     <div>
-                        <span class="text-[#8C8C8C]">Inicio:</span>
-                        <span class="font-medium text-[#252F40] ml-2">{{ caso.fecha_inicio_relevamiento|date:"d/m/Y H:i" }}</span>
+                        <span style="color: var(--text-body-subtle);">Inicio:</span>
+                        <span class="font-medium ml-2" style="color: var(--text-heading);">{{ caso.fecha_inicio_relevamiento|date:"d/m/Y H:i" }}</span>
                     </div>
                 </div>
             </div>
 
             <!-- B) Estado de completitud -->
             <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                <h3 class="font-semibold mb-3 flex items-center" style="color: var(--text-heading);">
                     <i class="fas fa-tasks mr-2 text-purple-600"></i>
                     Estado de Completitud por Sección
                 </h3>
@@ -75,7 +75,7 @@
 
             <!-- C) Evidencias -->
             <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                <h3 class="font-semibold mb-3 flex items-center" style="color: var(--text-heading);">
                     <i class="fas fa-paperclip mr-2 text-orange-600"></i>
                     Evidencias Adjuntas
                 </h3>
@@ -84,11 +84,11 @@
                         {% for adj in adjuntos %}
                         <div class="flex items-center justify-between p-2 bg-white rounded-lg text-sm">
                             <span><i class="fas fa-file mr-2 text-gray-500"></i>{{ adj.etiqueta|default:adj.archivo.name }}</span>
-                            <span class="text-[#8C8C8C]">{{ adj.creado|date:"d/m/Y" }}</span>
+                            <span style="color: var(--text-body-subtle);">{{ adj.creado|date:"d/m/Y" }}</span>
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="p-2 bg-white rounded-lg text-sm text-[#8C8C8C]">
+                        <div class="p-2 bg-white rounded-lg text-sm" style="color: var(--text-body-subtle);">
                             <i class="fas fa-info-circle mr-2"></i>Sin evidencias adjuntas
                         </div>
                     {% endif %}
@@ -119,23 +119,23 @@
 
             <!-- D) Scoring calculado -->
             <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-4 border-2 border-purple-200">
-                <h3 class="font-semibold text-[#252F40] mb-3 flex items-center">
+                <h3 class="font-semibold mb-3 flex items-center" style="color: var(--text-heading);">
                     <i class="fas fa-chart-bar mr-2 text-purple-600"></i>
                     Scoring de Vulnerabilidad
                 </h3>
                 
                 <div class="bg-white rounded-lg p-4 mb-4">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-lg font-bold text-[#252F40]">Puntaje Total</span>
+                        <span class="text-lg font-bold" style="color: var(--text-heading);">Puntaje Total</span>
                         <div class="flex items-center">
                             <span class="text-3xl font-bold {% if score_categoria == 'ALTO' %}text-red-600{% elif score_categoria == 'MEDIO' %}text-orange-600{% else %}text-green-600{% endif %} mr-3">
                                 {{ score_total }}
                             </span>
-                            <span class="text-sm text-[#8C8C8C]">/ 100</span>
+                            <span class="text-sm" style="color: var(--text-body-subtle);">/ 100</span>
                         </div>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-[#8C8C8C]">Categoría</span>
+                        <span class="text-sm" style="color: var(--text-body-subtle);">Categoría</span>
                         <span class="px-4 py-1 rounded-full text-sm font-semibold {% if score_categoria == 'ALTO' %}bg-red-100 text-red-800{% elif score_categoria == 'MEDIO' %}bg-orange-100 text-orange-800{% else %}bg-green-100 text-green-800{% endif %}">
                             {{ score_categoria }}
                         </span>
@@ -145,23 +145,23 @@
                 <div class="space-y-2">
                     <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                         <span class="text-sm font-medium">Familia</span>
-                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.familia }}/15</span>
+                        <span class="text-sm font-bold" style="color: var(--text-heading);">{{ score_detalle.familia }}/15</span>
                     </div>
                     <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                         <span class="text-sm font-medium">Ingresos</span>
-                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.ingresos }}/25</span>
+                        <span class="text-sm font-bold" style="color: var(--text-heading);">{{ score_detalle.ingresos }}/25</span>
                     </div>
                     <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                         <span class="text-sm font-medium">Vivienda</span>
-                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.vivienda }}/20</span>
+                        <span class="text-sm font-bold" style="color: var(--text-heading);">{{ score_detalle.vivienda }}/20</span>
                     </div>
                     <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                         <span class="text-sm font-medium">Salud/Alimentación</span>
-                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.salud }}/25</span>
+                        <span class="text-sm font-bold" style="color: var(--text-heading);">{{ score_detalle.salud }}/25</span>
                     </div>
                     <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                         <span class="text-sm font-medium">Riesgos</span>
-                        <span class="text-sm font-bold text-[#252F40]">{{ score_detalle.riesgos }}/15</span>
+                        <span class="text-sm font-bold" style="color: var(--text-heading);">{{ score_detalle.riesgos }}/15</span>
                     </div>
                 </div>
 
@@ -173,31 +173,32 @@
 
             <!-- Observaciones de cierre -->
             <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <label class="block text-sm font-semibold text-[#252F40] mb-2">
+                <label class="block text-sm font-semibold mb-2" style="color: var(--text-heading);">
                     Observaciones de Cierre *
                 </label>
-                <textarea 
-                    name="observaciones_cierre" 
-                    rows="4" 
+                <textarea
+                    name="observaciones_cierre"
+                    rows="4"
                     required
                     minlength="10"
                     placeholder="Describa las conclusiones del relevamiento, situaciones destacadas, recomendaciones para la evaluación... (mínimo 10 caracteres)"
-                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    class="w-full px-4 py-3 rounded-lg focus:ring-2"
+                    style="border: 1px solid var(--border-base); --tw-ring-color: var(--ring-brand);"
                 ></textarea>
             </div>
 
             <!-- Botones -->
             <div class="flex items-center justify-between pt-4 border-t border-gray-200">
-                <a href="{% url 'legajos:programa_detalle' 2 %}" class="px-6 py-3 bg-gray-200 text-[#252F40] rounded-lg hover:bg-gray-300 transition-all font-medium">
+                <a href="{% url 'legajos:programa_detalle' 2 %}" class="btn-nodo btn-tertiary btn-base">
                     <i class="fas fa-times mr-2"></i>Cancelar
                 </a>
-                
+
                 {% if puede_finalizar %}
-                    <button type="submit" class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-lg">
+                    <button type="submit" class="btn-nodo btn-brand btn-lg">
                         <i class="fas fa-check-circle mr-2"></i>Confirmar y Finalizar
                     </button>
                 {% else %}
-                    <button type="button" disabled class="px-8 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed font-medium">
+                    <button type="button" disabled class="btn-nodo btn-brand btn-lg">
                         <i class="fas fa-lock mr-2"></i>No se puede finalizar
                     </button>
                 {% endif %}

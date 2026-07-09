@@ -130,6 +130,16 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     }
     context["solapas_programas"] = [s for s in context["solapas"] if not s["estatica"]]
 
+    # --- Becas (issue #80): tab embebida, contenido con prefijo para evitar colisiones ---
+    if any(solapa["id"] == "becas" for solapa in context["solapas_programas"]):
+        resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano)
+        context["becas_formularios"] = resumen_becas["formularios"]
+        context["becas_estado_texto"] = resumen_becas["estado_texto"]
+        context["becas_estado_color"] = resumen_becas["estado_color"]
+        context["becas_segmento_nombre"] = resumen_becas["segmento_nombre"]
+        context["becas_fecha_envio"] = resumen_becas["fecha_envio"]
+        context["becas_Formulario"] = resumen_becas["Formulario"]
+
     # Historial de programas: inscripciones que ya no están vigentes
     context["historial_programas"] = SolapasService.obtener_historial_programas(ciudadano).filter(
         estado__in=[

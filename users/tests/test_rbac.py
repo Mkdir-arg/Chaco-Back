@@ -341,7 +341,25 @@ class CatalogoProgramaTests(TestCase):
 
     def test_modulos_de_programa_cerrados(self):  # TC-64-05
         de_programa = {m["modulo"] for m in rbac.CATALOGO if m.get("alcance") == "programa"}
-        self.assertEqual(de_programa, {"programas", "relevamientos", "becas"})
+        self.assertEqual(
+            de_programa,
+            {
+                "programas",
+                "relevamientos",
+                "becas_admin",
+                "becas_segmentos",
+                "becas_subsegmentos",
+                "becas_requisitos",
+                "becas_preguntas",
+                "becas_coordinadores",
+                "becas_convocatorias",
+                "becas_relevamientos",
+                "becas_revision",
+                "becas_cupo",
+                "becas_beneficiarios",
+                "becas_campo",
+            },
+        )
 
     def test_codigos_y_helper_de_programa(self):
         cods = rbac.codigos_de_programa()

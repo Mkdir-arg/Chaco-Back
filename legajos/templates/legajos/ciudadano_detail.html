@@ -247,13 +247,13 @@
                 <p class="mb-3 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">Programas activos</p>
                 <div class="flex flex-wrap gap-3">
                     {% for solapa in solapas_programas %}
-                    <button onclick="cambiarTab('{{ solapa.id }}')" type="button" class="group flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
+                    <button onclick="{% if solapa.url %}window.location.href='{{ solapa.url }}'{% else %}cambiarTab('{{ solapa.id }}'){% endif %}" type="button" class="group flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
                         <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-white" style="background-color: {{ solapa.color|default:'var(--bg-brand)' }};">
                             <i class="fas fa-{{ solapa.icono }}" aria-hidden="true"></i>
                         </span>
                         <span class="min-w-0">
                             <span class="block truncate text-sm font-semibold" style="color: var(--text-heading);">{{ solapa.nombre }}</span>
-                            <span class="block text-xs" style="color: var(--text-body-subtle);">{{ solapa.inscripcion.get_estado_display }} · desde {{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}</span>
+                            <span class="block text-xs" style="color: var(--text-body-subtle);">{% if solapa.inscripcion %}{{ solapa.inscripcion.get_estado_display }} · desde {{ solapa.inscripcion.fecha_inscripcion|date:"d/m/Y" }}{% elif solapa.badge.title %}{{ solapa.badge.title }}{% endif %}</span>
                         </span>
                         <i class="fas fa-chevron-right ml-2 text-xs transition" aria-hidden="true" style="color: var(--border-base-strong);"></i>
                     </button>
@@ -396,7 +396,7 @@
         <nav class="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Secciones del legajo">
             {% for solapa in solapas %}
             <button
-                onclick="cambiarTab('{{ solapa.id }}')"
+                onclick="{% if solapa.url %}window.location.href='{{ solapa.url }}'{% else %}cambiarTab('{{ solapa.id }}'){% endif %}"
                 type="button"
                 role="tab"
                 id="tab-btn-{{ solapa.id }}"
@@ -636,7 +636,7 @@
 
     <!-- Tabs dinámicos de programas (genérico, server-side) -->
     {% for solapa in solapas_programas %}
-    {% if 'NACHEC' not in solapa.id %}
+    {% if not solapa.contenido_embebido %}
     <div id="tab-{{ solapa.id }}" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-{{ solapa.id }}">
         <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm); border-top: 4px solid {{ solapa.color|default:'var(--bg-brand)' }};">
             <div class="border-b px-6 py-5" style="border-color: var(--border-base);">
@@ -742,6 +742,15 @@
     {% if 'NACHEC' in solapa.id %}
     <div id="tab-programa_NACHEC" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-programa_NACHEC">
         {% include 'legajos/ciudadano_nachec_detail.html' %}
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    {# Tab: Becas (contenido dedicado) #}
+    {% for solapa in solapas_programas %}
+    {% if solapa.id == 'becas' %}
+    <div id="tab-becas" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-becas">
+        {% include "programas/becas/_resumen_ciudadano.html" with formularios=becas_formularios estado_texto=becas_estado_texto estado_color=becas_estado_color segmento_nombre=becas_segmento_nombre fecha_envio=becas_fecha_envio Formulario=becas_Formulario %}
     </div>
     {% endif %}
     {% endfor %}
@@ -1327,20 +1336,20 @@ function renderizarGrafoRed(vinculos) {
     const _cs = getComputedStyle(document.documentElement);
     const _clr = (v) => _cs.getPropertyValue(v).trim();
     const visColors = {
-        centralBg:     _clr('--color-navy-700') || '#252f40',
-        centralBorder: _clr('--border-brand') || '#5059bc',
-        centralFont:   '#ffffff',
-        dangerBg:      _clr('--bg-danger-soft') || '#fef0f2',
-        dangerBorder:  _clr('--border-danger') || '#c70036',
-        successBg:     _clr('--bg-success-soft') || '#ecfdf5',
-        successBorder: _clr('--border-success') || '#007a55',
-        hlBg:          _clr('--bg-brand-softer') || '#fef3ff',
-        hlBorder:      _clr('--border-brand') || '#5059bc',
-        nodeFont:      _clr('--text-heading') || '#252f40',
-        edgeColor:     _clr('--border-base-strong') || '#d1d5db',
-        edgeFont:      _clr('--text-body-subtle') || '#6b7280',
-        edgeFontStroke:_clr('--bg-primary') || '#ffffff',
-        edgeHighlight: _clr('--border-brand') || '#5059bc',
+        centralBg:     _clr('--color-navy-700'),
+        centralBorder: _clr('--border-brand'),
+        centralFont:   _clr('--text-white'),
+        dangerBg:      _clr('--bg-danger-soft'),
+        dangerBorder:  _clr('--border-danger'),
+        successBg:     _clr('--bg-success-soft'),
+        successBorder: _clr('--border-success'),
+        hlBg:          _clr('--bg-brand-softer'),
+        hlBorder:      _clr('--border-brand'),
+        nodeFont:      _clr('--text-heading'),
+        edgeColor:     _clr('--border-base-strong'),
+        edgeFont:      _clr('--text-body-subtle'),
+        edgeFontStroke:_clr('--bg-primary'),
+        edgeHighlight: _clr('--border-brand'),
     };
 
     const nodes = [{

@@ -9,25 +9,27 @@
     <!-- Volver -->
     <div class="mb-4">
         <a href="{% url 'portal:ciudadano_mis_consultas' %}"
-           class="inline-flex items-center text-sm text-[#8C8C8C] hover:text-[#252F40] transition-colors">
+           class="inline-flex items-center text-sm transition-colors"
+           style="color: var(--text-body-subtle);"
+           onmouseover="this.style.color='var(--text-heading)'"
+           onmouseout="this.style.color='var(--text-body-subtle)'">
             <i class="fas fa-arrow-left mr-2"></i>Volver a Mis Consultas
         </a>
     </div>
 
     <!-- Card principal -->
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden" style="border-color: var(--border-base);">
 
         <!-- Header de la card -->
-        <div class="px-6 py-5 border-b border-[#E5E7EB]"
-             style="background: linear-gradient(135deg, #5059BC12 0%, #F26DF908 100%);">
+        <div class="px-6 py-5 border-b" style="border-color: var(--border-base); background: linear-gradient(135deg, color-mix(in srgb, var(--bg-brand) 7%, transparent) 0%, color-mix(in srgb, var(--bg-pink) 3%, transparent) 100%);">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                     style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                     style="background: var(--gradient-brand);">
                     <i class="fas fa-comments text-white"></i>
                 </div>
                 <div>
-                    <h2 class="text-xl font-bold text-[#252F40]">Nueva consulta</h2>
-                    <p class="text-xs text-[#8C8C8C] mt-0.5">Completá el formulario y nuestro equipo te responderá a la brevedad.</p>
+                    <h2 class="text-xl font-bold" style="color: var(--text-heading);">Nueva consulta</h2>
+                    <p class="text-xs mt-0.5" style="color: var(--text-body-subtle);">Completá el formulario y nuestro equipo te responderá a la brevedad.</p>
                 </div>
             </div>
         </div>
@@ -36,16 +38,16 @@
         <div class="p-6">
 
             <!-- Info explicativa -->
-            <div class="bg-[#F0F9FF] border border-[#BAE6FD] rounded-xl px-4 py-3 mb-6">
+            <div class="rounded-xl px-4 py-3 mb-6" style="background: var(--bg-info-soft); border: 1px solid var(--color-brand-200);">
                 <div class="flex items-start space-x-3">
-                    <i class="fas fa-info-circle text-[#0284C7] mt-0.5 flex-shrink-0"></i>
-                    <div class="text-sm text-[#0C4A6E]">
+                    <i class="fas fa-info-circle mt-0.5 flex-shrink-0" style="color: var(--text-fg-info);"></i>
+                    <div class="text-sm" style="color: var(--text-fg-info);">
                         <p class="font-medium mb-1">¿Cómo funciona?</p>
                         <ul class="space-y-1 text-xs">
-                            <li><i class="fas fa-check mr-1.5 text-[#0284C7]"></i>Tu consulta será recibida por nuestro equipo de atención ciudadana.</li>
-                            <li><i class="fas fa-check mr-1.5 text-[#0284C7]"></i>Podés hacer seguimiento desde esta misma sección.</li>
-                            <li><i class="fas fa-check mr-1.5 text-[#0284C7]"></i>Te respondemos durante el horario de atención.</li>
-                            <li><i class="fas fa-check mr-1.5 text-[#0284C7]"></i>Toda la comunicación es confidencial.</li>
+                            <li><i class="fas fa-check mr-1.5" style="color: var(--text-fg-info);"></i>Tu consulta será recibida por nuestro equipo de atención ciudadana.</li>
+                            <li><i class="fas fa-check mr-1.5" style="color: var(--text-fg-info);"></i>Podés hacer seguimiento desde esta misma sección.</li>
+                            <li><i class="fas fa-check mr-1.5" style="color: var(--text-fg-info);"></i>Te respondemos durante el horario de atención.</li>
+                            <li><i class="fas fa-check mr-1.5" style="color: var(--text-fg-info);"></i>Toda la comunicación es confidencial.</li>
                         </ul>
                     </div>
                 </div>
@@ -56,21 +58,21 @@
                 {% csrf_token %}
 
                 <!-- Datos del ciudadano (solo lectura, pre-identificado) -->
-                <div class="mb-4 p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
-                    <p class="text-xs font-medium text-[#8C8C8C] uppercase tracking-wide mb-2">Tus datos (pre-identificados)</p>
-                    <p class="text-sm text-[#252F40] font-medium">
+                <div class="mb-4 p-4 rounded-xl border" style="background: var(--bg-secondary); border-color: var(--border-base);">
+                    <p class="text-xs font-medium uppercase tracking-wide mb-2" style="color: var(--text-body-subtle);">Tus datos (pre-identificados)</p>
+                    <p class="text-sm font-medium" style="color: var(--text-heading);">
                         {{ ciudadano.nombre }} {{ ciudadano.apellido }}
-                        <span class="text-[#8C8C8C] font-normal ml-2">· DNI {{ ciudadano.dni }}</span>
+                        <span class="font-normal ml-2" style="color: var(--text-body-subtle);">· DNI {{ ciudadano.dni }}</span>
                     </p>
                 </div>
 
                 <!-- Campo motivo -->
                 <div class="mb-6">
-                    <label for="motivo" class="block text-sm font-medium text-[#252F40] mb-2">
-                        Motivo de la consulta <span class="text-red-500">*</span>
+                    <label for="motivo" class="block text-sm font-medium mb-2" style="color: var(--text-heading);">
+                        Motivo de la consulta <span style="color: var(--text-fg-danger);">*</span>
                     </label>
                     {% if form.motivo.errors %}
-                    <div class="mb-2 text-sm text-red-600">
+                    <div class="mb-2 text-sm" style="color: var(--text-fg-danger);">
                         {{ form.motivo.errors|join:', ' }}
                     </div>
                     {% endif %}
@@ -79,25 +81,25 @@
                               rows="5"
                               required
                               placeholder="Describí brevemente tu consulta o reclamo. Cuanta más información brindes, mejor podremos ayudarte."
-                              class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent bg-white"
-                              style="--tw-ring-color: #5059BC;">{{ form.motivo.value|default:'' }}</textarea>
-                    <p class="text-xs text-[#8C8C8C] mt-1.5">Mínimo 10 caracteres. Sé específico/a para agilizar la atención.</p>
+                              class="w-full px-4 py-3 border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent bg-white"
+                              style="border-color: var(--border-base); --tw-ring-color: var(--border-brand);">{{ form.motivo.value|default:'' }}</textarea>
+                    <p class="text-xs mt-1.5" style="color: var(--text-body-subtle);">Mínimo 10 caracteres. Sé específico/a para agilizar la atención.</p>
                 </div>
 
                 <!-- Botones -->
                 <div class="flex flex-col sm:flex-row gap-3">
                     <button type="submit"
                             class="flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold text-white shadow-md transition-all"
-                            style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                            onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                            onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                            style="background: var(--gradient-brand);"
+                            onmouseover="this.style.filter='brightness(0.93)'"
+                            onmouseout="this.style.filter='none'">
                         <i class="fas fa-paper-plane mr-2"></i>Iniciar consulta
                     </button>
                     <a href="{% url 'portal:ciudadano_mis_consultas' %}"
                        class="flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-medium border transition-colors"
-                       style="color: #5059BC; border-color: #5059BC; background: #FFFFFF;"
-                       onmouseover="this.style.background='#DEE1FF'"
-                       onmouseout="this.style.background='#FFFFFF'">
+                       style="color: var(--text-fg-brand); border-color: var(--border-brand); background: var(--bg-white);"
+                       onmouseover="this.style.background='var(--bg-brand-tint)'"
+                       onmouseout="this.style.background='var(--bg-white)'">
                         Cancelar
                     </a>
                 </div>

@@ -2,7 +2,7 @@
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+      <tr class="bg-secondary border-b border-base">
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmento</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmento</th>
@@ -14,26 +14,26 @@
     </thead>
     <tbody>
       {% for c in convocatorias %}
-      <tr class="hover:bg-[#F9FAFB]">
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] font-semibold text-heading">
+      <tr class="hover:bg-secondary">
+        <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
           <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.nombre }}</a>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.segmento.nombre }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ c.segmento.nombre }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">
           {{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body text-right">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body text-right">
           <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.n_relevamientos }} relevamiento{{ c.n_relevamientos|pluralize }}</a>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-center">
           {% if c.activo %}
             <span class="badge badge-success badge-dot">Activa</span>
           {% else %}
             <span class="badge badge-gray">Inactiva</span>
           {% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
             <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-fg-brand p-1" title="Ver detalle"><i class="fas fa-eye"></i></a>
             <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>

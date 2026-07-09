@@ -50,6 +50,13 @@ Para cualquier trabajo de UI usá los **dos agentes** (en `.claude/agents/`):
 Regla de oro: **cero hex hardcodeado** (todo por token), **Manrope** única, accesibilidad
 primero. Al tocar UI, dejá que el agente lea su canon (no repitas las reglas a mano).
 
+**Auditoría mecánica compartida:** `scripts/design_audit.py` es la fuente única de los
+chequeos de adherencia (hex, fuentes legacy, `confirm()`, gradientes legacy, etc.).
+Tras tocar UI: `& .\.venv\Scripts\python.exe scripts\design_audit.py --changed`
+→ **0 errores es condición de cierre** (los WARN se evalúan con criterio).
+Complemento de sintaxis: `scripts\compile_templates.py` compila TODOS los templates
+con el motor de Django (caza tags rotos que `manage.py check` no ve) → también 0.
+
 Para correr `manage.py check`, tests rápidos o cualquier `python` del repo sin
 Docker, usar **siempre el venv del proyecto**, nunca el Python global de la
 máquina (suele tener `django-silk` viejo incompatible con Django 4.2):

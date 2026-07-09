@@ -14,6 +14,7 @@ Reglas:
 Pasos:
 1. Leé `.github/worklog/sesion-activa.json` y tomá:
    - persona
+   - programa (si falta, preguntá: **Becas**, **Dispositivos** o **Transversal**)
    - motivo
    - que_hare
    - inicio_iso
@@ -26,18 +27,21 @@ Pasos:
    - `minutos_pausa = suma de pausas cerradas`.
    - Si `pausada_desde_iso` está informado al cerrar, sumá además la pausa abierta `fin - pausada_desde_iso`.
    - `minutos_consumidos = max(0, minutos_brutos - minutos_pausa)`.
-4. Asegurá que exista `consumo_file`.
-   - Si no existe, crealo con estas secciones:
-     - Título del sprint de consumo
-     - Tabla `Persona | Motivo | Qué hice | Consumo`
-     - Sección "Total consumido"
-5. Insertá una fila nueva en la tabla con:
+4. Asegurá que en `consumo_file` exista la sección del mes en curso
+   (`## ... Consumo de <mes> <año> — detalle día por día`).
+   - Si no existe, creala con una tabla `Día | Persona | Programa | Motivo | Qué hice | Consumo`
+     y una subsección `### Consumo de <mes> por programa` con filas Becas / Dispositivos / Transversal.
+   - Desde julio 2026 todo registro lleva programa; no toques las tablas de meses anteriores.
+5. Insertá una fila nueva en la tabla del mes en curso con:
+   - Día (`YYYY-MM-DD`)
    - Persona
+   - Programa (Becas / Dispositivos / Transversal)
    - Motivo
    - Qué hice
    - Consumo en formato `NN min`
-6. Recalculá el total sumando todos los valores `NN min` de la tabla y actualizá la caja de "Contador total" mostrando:
-   - Minutos totales
-   - Equivalente en horas y minutos
+6. Recalculá y actualizá:
+   - La tabla `Consumo de <mes> por programa` (suma de `NN min` por programa, en formato `N h MM min`).
+   - La caja de "Contador total": minutos totales, equivalente en horas y minutos, y el desglose por mes.
 7. Eliminá `.github/worklog/sesion-activa.json` para dejar la sesión cerrada.
-8. Respondé un resumen con inicio, fin, minutos y archivo actualizado.
+8. Avisá que la página financiera del mes (`docs/client/financiero/mes-<año>-<mes>.md`) queda desactualizada y ofrecé actualizar sus números (consumo, saldo, por programa y por persona).
+9. Respondé un resumen con inicio, fin, minutos, programa y archivo actualizado.

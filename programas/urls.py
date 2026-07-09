@@ -3,8 +3,10 @@
 from django.urls import path
 
 from programas.views import configuracion as cfg
+from programas.views import cupo as cpo
 from programas.views import relevamientos as rel
 from programas.views import revision as rev
+from programas.views import solapas_becas as sb
 
 app_name = "becas"
 
@@ -71,4 +73,11 @@ urlpatterns = [
     path("revision/formulario/<int:pk>/", rev.formulario_detalle, name="formulario_detalle"),
     path("revision/formulario/<int:pk>/aprobar/", rev.formulario_aprobar, name="formulario_aprobar"),
     path("revision/formulario/<int:pk>/rechazar/", rev.formulario_rechazar, name="formulario_rechazar"),
+    # --- Cupo y lista de espera (#78) ---
+    path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),
+    path("cupo/beneficiario/<int:pk>/baja/", cpo.dar_baja_beneficiario_view, name="beneficiario_dar_baja"),
+    path("cupo/lista-espera/<int:pk>/promover/", cpo.promover_lista_espera_view, name="lista_espera_promover"),
+    path("cupo/formulario/<int:pk>/agregar-espera/", cpo.agregar_lista_espera_view, name="formulario_agregar_espera"),
+    # --- Solapa Becas en legajo (#80) ---
+    path("becas/ciudadano/<int:pk>/", sb.becas_ciudadano_detalle, name="becas_ciudadano_detalle"),
 ]

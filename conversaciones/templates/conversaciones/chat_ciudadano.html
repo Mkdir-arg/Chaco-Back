@@ -8,11 +8,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'custom/css/nodo-buttons.css' %}">
     <style>
-        body { font-family: 'Manrope', sans-serif; }
+        body { font-family: var(--font-sans); }
         .chat-container { height: 60vh; overflow-y: auto; scroll-behavior: smooth; }
-        .mensaje-ciudadano { background: linear-gradient(135deg, #5059BC, #F26DF9); }
-        .mensaje-operador { background: linear-gradient(135deg, #5059BC, #F26DF9); }
+        .mensaje-ciudadano { background: var(--gradient-brand); }
+        .mensaje-operador { background: var(--gradient-brand); }
         .typing-indicator { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
     </style>
@@ -28,26 +30,26 @@
         data-evaluate-url-template="{% url 'conversaciones:evaluar' 0 %}"
     >
         <!-- Header -->
-        <header class="bg-white border-b border-[#E5E7EB] sticky top-0 z-40 shadow-sm">
+        <header class="sticky top-0 z-40 shadow-sm" style="background: var(--bg-white); border-bottom: 1px solid var(--border-base);">
             <div class="max-w-6xl mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: var(--gradient-brand);">
                             <i class="fas fa-comments text-white text-xl"></i>
                         </div>
                         <div>
-                            <h1 class="text-2xl font-bold text-[#252F40]">Chat Ñandé</h1>
-                            <p class="text-sm text-[#8C8C8C]">Consultas y Orientación Ciudadana</p>
+                            <h1 class="text-2xl font-bold" style="color: var(--text-heading);">Chat Ñandé</h1>
+                            <p class="text-sm" style="color: var(--text-body-subtle);">Consultas y Orientación Ciudadana</p>
                         </div>
                     </div>
                     <div class="hidden md:flex items-center space-x-4">
-                        <div id="estadoConexion" class="flex items-center px-4 py-2 rounded-xl text-sm font-medium" style="background: #F5F3FF; border: 1px solid #C7D2FE; color: #5059BC;">
-                            <div class="w-2 h-2 rounded-full mr-2 animate-pulse" style="background: #8A9A46;"></div>
+                        <div id="estadoConexion" class="flex items-center px-4 py-2 rounded-xl text-sm font-medium" style="background: var(--bg-info-soft); border: 1px solid var(--border-brand-subtle); color: var(--text-fg-brand);">
+                            <div class="w-2 h-2 rounded-full mr-2 animate-pulse" style="background: var(--bg-success);"></div>
                             <span>Sistema Activo</span>
                         </div>
-                        <div class="flex items-center space-x-2 text-[#252F40]">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: #F0F2FF; border-color: #C7D2FE;">
-                                <i class="fas fa-shield-alt text-sm" style="color: #5059BC;"></i>
+                        <div class="flex items-center space-x-2" style="color: var(--text-heading);">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: var(--bg-brand-softer); border-color: var(--border-brand-subtle);">
+                                <i class="fas fa-shield-alt text-sm" style="color: var(--text-fg-brand);"></i>
                             </div>
                             <span class="text-sm font-medium">Confidencial</span>
                         </div>
@@ -59,55 +61,57 @@
         <!-- Contenido Principal -->
         <main class="flex-1 max-w-6xl mx-auto w-full p-6">
             <!-- Paso 1: Selección de tipo de consulta -->
-            <div id="paso1" class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 mb-6">
+            <div id="paso1" class="bg-white rounded-2xl shadow-sm p-8 mb-6" style="border: 1px solid var(--border-base);">
                 <div class="text-center mb-8">
-                    <h2 class="text-2xl font-bold text-[#252F40] mb-3">¿Cómo podemos ayudarte?</h2>
-                    <p class="text-[#8C8C8C]">Selecciona el tipo de consulta que deseas realizar</p>
+                    <h2 class="text-2xl font-bold mb-3" style="color: var(--text-heading);">¿Cómo podemos ayudarte?</h2>
+                    <p style="color: var(--text-body-subtle);">Selecciona el tipo de consulta que deseas realizar</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <button onclick="seleccionarTipo('anonima')" 
-                            class="group bg-white p-8 border border-[#E5E7EB] rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center"
-                            onmouseover="this.style.borderColor='#5059BC'"
-                            onmouseout="this.style.borderColor='#E5E7EB'">
+                    <button onclick="seleccionarTipo('anonima')"
+                            class="group bg-white p-8 rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center"
+                            style="border: 1px solid var(--border-base);"
+                            onmouseover="this.style.borderColor='var(--border-brand)'"
+                            onmouseout="this.style.borderColor='var(--border-base)'">
                         <div class="inline-flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" >
-                            
-                            <i class="fas fa-user-secret text-4xl text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                            
+
+                            <i class="fas fa-user-secret text-4xl text-transparent" style="background-image: var(--gradient-cool); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+
                         </div>
-                        <h3 class="font-bold text-[#252F40] mb-3 text-lg">Consulta Anónima</h3>
-                        <p class="text-[#8C8C8C] leading-relaxed">Realiza tu consulta sin proporcionar datos personales. Completamente confidencial.</p>
+                        <h3 class="font-bold mb-3 text-lg" style="color: var(--text-heading);">Consulta Anónima</h3>
+                        <p class="leading-relaxed" style="color: var(--text-body-subtle);">Realiza tu consulta sin proporcionar datos personales. Completamente confidencial.</p>
                     </button>
-                    
-                    <button onclick="seleccionarTipo('personal')" 
-                            class="group bg-white p-8 border border-[#E5E7EB] rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center"
-                            onmouseover="this.style.borderColor='#5059BC'"
-                            onmouseout="this.style.borderColor='#E5E7EB'">
+
+                    <button onclick="seleccionarTipo('personal')"
+                            class="group bg-white p-8 rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center"
+                            style="border: 1px solid var(--border-base);"
+                            onmouseover="this.style.borderColor='var(--border-brand)'"
+                            onmouseout="this.style.borderColor='var(--border-base)'">
                         <div class="inline-flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" >
-                            
-                            <i class="fas fa-user-check text-4xl text-transparent" style="background-image: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
-                            
+
+                            <i class="fas fa-user-check text-4xl text-transparent" style="background-image: var(--gradient-cool); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+
                         </div>
-                        <h3 class="font-bold text-[#252F40] mb-3 text-lg">Consulta Personal</h3>
-                        <p class="text-[#8C8C8C] leading-relaxed">Proporciona tu DNI para un seguimiento personalizado y verificación de datos.</p>
+                        <h3 class="font-bold mb-3 text-lg" style="color: var(--text-heading);">Consulta Personal</h3>
+                        <p class="leading-relaxed" style="color: var(--text-body-subtle);">Proporciona tu DNI para un seguimiento personalizado y verificación de datos.</p>
                     </button>
                 </div>
             </div>
 
             <!-- Paso 2: Datos personales (solo para consulta personal) -->
-            <div id="paso2" class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 mb-6 hidden">
-                <h2 class="text-xl font-bold text-[#252F40] mb-6">Datos Personales</h2>
+            <div id="paso2" class="bg-white rounded-2xl shadow-sm p-8 mb-6 hidden" style="border: 1px solid var(--border-base);">
+                <h2 class="text-xl font-bold mb-6" style="color: var(--text-heading);">Datos Personales</h2>
                 <form id="formDatos" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-[#252F40] mb-2">DNI</label>
-                            <input type="text" id="dni" maxlength="8" placeholder="12345678" 
-                                   class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent"
-                                   style="--tw-ring-color: #5059BC;">
+                            <label class="block text-sm font-medium mb-2" style="color: var(--text-heading);">DNI</label>
+                            <input type="text" id="dni" maxlength="8" placeholder="12345678"
+                                   class="w-full px-4 py-3 rounded-xl focus:ring-2 focus:border-transparent"
+                                   style="border: 1px solid var(--border-base); --tw-ring-color: var(--border-brand);">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-[#252F40] mb-2">Sexo</label>
-                            <select id="sexo" class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent"
-                                    style="--tw-ring-color: #5059BC;">
+                            <label class="block text-sm font-medium mb-2" style="color: var(--text-heading);">Sexo</label>
+                            <select id="sexo" class="w-full px-4 py-3 rounded-xl focus:ring-2 focus:border-transparent"
+                                    style="border: 1px solid var(--border-base); --tw-ring-color: var(--border-brand);">
                                 <option value="">Seleccionar...</option>
                                 <option value="M">Masculino</option>
                                 <option value="F">Femenino</option>
@@ -115,49 +119,43 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="flex justify-between mt-6">
-                        <button type="button" onclick="volverPaso1()" 
-                                class="px-6 py-3 text-[#8C8C8C] border border-[#E5E7EB] rounded-xl hover:bg-[#F9FAFB] transition-colors">
+                        <button type="button" onclick="volverPaso1()"
+                                class="btn-nodo btn-tertiary px-6 py-3 rounded-xl transition-colors">
                             <i class="fas fa-arrow-left mr-2"></i>Volver
                         </button>
-                        <button type="button" onclick="consultarRenaper()" 
-                                class="px-6 py-3 text-white rounded-xl transition-all shadow-md"
-                                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                        <button type="button" onclick="consultarRenaper()"
+                                class="btn-nodo btn-brand px-6 py-3 rounded-xl transition-all shadow-md">
                             <i class="fas fa-search mr-2"></i>Verificar Datos
                         </button>
                     </div>
                 </form>
-                
+
                 <!-- Resultado RENAPER -->
                 <div id="resultadoRenaper" class="mt-6 hidden">
-                    <div class="rounded-xl p-6" style="background: #F5F3FF; border: 1px solid #C7D2FE;">
-                        <h3 class="font-semibold mb-3" style="color: #5059BC;">Datos verificados:</h3>
-                        <div id="datosVerificados" class="text-sm mb-4" style="color: #5059BC;"></div>
-                        <button onclick="iniciarChat()" 
-                                class="px-6 py-3 text-white rounded-xl transition-all shadow-md"
-                                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                    <div class="rounded-xl p-6" style="background: var(--bg-info-soft); border: 1px solid var(--border-brand-subtle);">
+                        <h3 class="font-semibold mb-3" style="color: var(--text-fg-brand);">Datos verificados:</h3>
+                        <div id="datosVerificados" class="text-sm mb-4" style="color: var(--text-fg-brand);"></div>
+                        <button onclick="iniciarChat()"
+                                class="btn-nodo btn-brand px-6 py-3 rounded-xl transition-all shadow-md">
                             <i class="fas fa-comments mr-2"></i>Iniciar Chat
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Error RENAPER -->
                 <div id="errorRenaper" class="mt-6 hidden">
-                    <div class="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-6">
-                        <h3 class="font-semibold text-[#92400E] mb-2">No se pudieron verificar los datos</h3>
-                        <p class="text-sm text-[#A16207] mb-4">Puedes continuar sin verificación o intentar nuevamente.</p>
+                    <div class="rounded-xl p-6" style="background: var(--bg-warning-soft); border: 1px solid var(--border-warning-subtle);">
+                        <h3 class="font-semibold mb-2" style="color: var(--text-fg-warning);">No se pudieron verificar los datos</h3>
+                        <p class="text-sm mb-4" style="color: var(--text-fg-warning-subtle);">Puedes continuar sin verificación o intentar nuevamente.</p>
                         <div class="flex gap-3">
-                            <button onclick="iniciarChat()" 
-                                    class="px-6 py-3 bg-[#F59E0B] text-white rounded-xl hover:bg-[#D97706] transition-colors">
+                            <button onclick="iniciarChat()"
+                                    class="px-6 py-3 rounded-xl transition-colors" style="background: var(--bg-warning); color: #fff;" onmouseover="this.style.filter='brightness(0.93)'" onmouseout="this.style.filter='none'">
                                 <i class="fas fa-comments mr-2"></i>Continuar sin verificar
                             </button>
-                            <button onclick="consultarRenaper()" 
-                                    class="px-6 py-3 border border-[#F59E0B] text-[#D97706] rounded-xl hover:bg-[#FEF3C7] transition-colors">
+                            <button onclick="consultarRenaper()"
+                                    class="px-6 py-3 rounded-xl transition-colors" style="border: 1px solid var(--border-warning); color: var(--text-fg-warning-subtle); background: transparent;" onmouseover="this.style.background='var(--bg-warning-soft)'" onmouseout="this.style.background='transparent'">
                                 <i class="fas fa-redo mr-2"></i>Intentar nuevamente
                             </button>
                         </div>
@@ -166,25 +164,25 @@
             </div>
 
             <!-- Paso 3: Chat -->
-            <div id="paso3" class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] hidden">
+            <div id="paso3" class="bg-white rounded-2xl shadow-sm hidden" style="border: 1px solid var(--border-base);">
                 <!-- Header del chat -->
-                <div class="p-6 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+                <div class="p-6" style="border-bottom: 1px solid var(--border-base); background: var(--bg-secondary);">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: var(--gradient-brand);">
                                 <i class="fas fa-comments text-white text-lg"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-[#252F40] text-lg">Conversación Iniciada</h3>
-                                <p class="text-[#8C8C8C] text-sm" id="infoConversacion">Conectando con un operador especializado...</p>
+                                <h3 class="font-bold text-lg" style="color: var(--text-heading);">Conversación Iniciada</h3>
+                                <p class="text-sm" id="infoConversacion" style="color: var(--text-body-subtle);">Conectando con un operador especializado...</p>
                             </div>
                         </div>
                         <div class="flex items-center space-x-3">
-                            <div id="estadoOperador" class="flex items-center bg-[#FEF3C7] border border-[#FDE047] text-[#92400E] px-3 py-2 rounded-xl text-sm font-medium">
-                                <div class="w-2 h-2 bg-[#F59E0B] rounded-full mr-2 animate-pulse"></div>
+                            <div id="estadoOperador" class="flex items-center px-3 py-2 rounded-xl text-sm font-medium" style="background: var(--bg-warning-soft); border: 1px solid var(--border-warning-subtle); color: var(--text-fg-warning);">
+                                <div class="w-2 h-2 rounded-full mr-2 animate-pulse" style="background: var(--bg-warning);"></div>
                                 <span>Esperando operador</span>
                             </div>
-                            <button onclick="cerrarConversacion()" class="flex items-center bg-[#FEE2E2] border border-[#FCA5A5] text-[#991B1B] px-3 py-2 rounded-xl text-sm hover:bg-[#FECACA] transition-colors font-medium">
+                            <button onclick="cerrarConversacion()" class="btn-nodo btn-danger flex items-center px-3 py-2 rounded-xl text-sm transition-colors font-medium">
                                 <i class="fas fa-times mr-2"></i>
                                 <span>Cerrar</span>
                             </button>
@@ -195,7 +193,7 @@
                 <!-- Área de mensajes -->
                 <div id="mensajes" class="chat-container p-6 space-y-4">
                     <div class="flex justify-center">
-                        <div class="bg-[#F9FAFB] text-[#8C8C8C] px-4 py-2 rounded-full text-sm border border-[#E5E7EB]">
+                        <div class="px-4 py-2 rounded-full text-sm" style="background: var(--bg-secondary); color: var(--text-body-subtle); border: 1px solid var(--border-base);">
                             <i class="fas fa-info-circle mr-2"></i>
                             Conversación iniciada. Un operador te atenderá pronto.
                         </div>
@@ -204,31 +202,28 @@
 
                 <!-- Indicador de escritura -->
                 <div id="indicadorEscritura" class="px-6 pb-2 hidden">
-                    <div class="flex items-center text-sm text-[#8C8C8C]">
-                        <div class="typing-indicator w-2 h-2 bg-[#8C8C8C] rounded-full mr-1"></div>
-                        <div class="typing-indicator w-2 h-2 bg-[#8C8C8C] rounded-full mr-1" style="animation-delay: 0.2s"></div>
-                        <div class="typing-indicator w-2 h-2 bg-[#8C8C8C] rounded-full mr-2" style="animation-delay: 0.4s"></div>
+                    <div class="flex items-center text-sm" style="color: var(--text-body-subtle);">
+                        <div class="typing-indicator w-2 h-2 rounded-full mr-1" style="background: var(--text-body-subtle);"></div>
+                        <div class="typing-indicator w-2 h-2 rounded-full mr-1" style="background: var(--text-body-subtle); animation-delay: 0.2s"></div>
+                        <div class="typing-indicator w-2 h-2 rounded-full mr-2" style="background: var(--text-body-subtle); animation-delay: 0.4s"></div>
                         <span>El operador está escribiendo...</span>
                     </div>
                 </div>
 
                 <!-- Input de mensaje -->
-                <div class="p-6 border-t border-[#E5E7EB] bg-[#F9FAFB]">
+                <div class="p-6" style="border-top: 1px solid var(--border-base); background: var(--bg-secondary);">
                     <div class="flex gap-3">
-                        <input type="text" id="inputMensaje" placeholder="Escribe tu mensaje aquí..." 
-                               class="flex-1 px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent bg-white"
-                               style="--tw-ring-color: #5059BC;"
+                        <input type="text" id="inputMensaje" placeholder="Escribe tu mensaje aquí..."
+                               class="flex-1 px-4 py-3 rounded-xl focus:ring-2 focus:border-transparent bg-white"
+                               style="border: 1px solid var(--border-base); --tw-ring-color: var(--border-brand);"
                                onkeypress="if(event.key==='Enter') enviarMensaje()">
-                        <button onclick="enviarMensaje()" 
-                                class="px-6 py-3 text-white rounded-xl transition-all shadow-md hover:shadow-lg"
-                                style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                                onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                                onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                        <button onclick="enviarMensaje()"
+                                class="btn-nodo btn-brand px-6 py-3 rounded-xl transition-all shadow-md hover:shadow-lg">
                             <i class="fas fa-paper-plane"></i>
                         </button>
                     </div>
                     <div class="mt-3 flex items-center justify-between">
-                        <div class="flex items-center space-x-4 text-xs text-[#8C8C8C]">
+                        <div class="flex items-center space-x-4 text-xs" style="color: var(--text-body-subtle);">
                             <span class="flex items-center">
                                 <i class="fas fa-keyboard mr-1"></i>
                                 Presiona Enter
@@ -238,7 +233,7 @@
                                 Confidencial
                             </span>
                         </div>
-                        <button onclick="finalizarConversacion()" class="flex items-center bg-[#FEE2E2] border border-[#FCA5A5] text-[#991B1B] px-3 py-2 rounded-xl text-xs hover:bg-[#FECACA] transition-colors font-medium">
+                        <button onclick="finalizarConversacion()" class="btn-nodo btn-danger flex items-center px-3 py-2 rounded-xl text-xs transition-colors font-medium">
                             <i class="fas fa-sign-out-alt mr-2"></i>
                             <span>Finalizar</span>
                         </button>
@@ -247,46 +242,43 @@
             </div>
 
             <!-- Evaluación final -->
-            <div id="evaluacion" class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-8 hidden">
+            <div id="evaluacion" class="bg-white rounded-2xl shadow-sm p-8 hidden" style="border: 1px solid var(--border-base);">
                 <div class="text-center mb-8">
-                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: linear-gradient(135deg, #5059BC 0%, #F26DF9 100%);">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--gradient-brand);">
                         <i class="fas fa-check text-2xl text-white"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-[#252F40] mb-3">Conversación Finalizada</h2>
-                    <p class="text-[#8C8C8C]">¿Cómo calificarías tu experiencia con nuestro servicio?</p>
+                    <h2 class="text-2xl font-bold mb-3" style="color: var(--text-heading);">Conversación Finalizada</h2>
+                    <p style="color: var(--text-body-subtle);">¿Cómo calificarías tu experiencia con nuestro servicio?</p>
                 </div>
-                
-                <div class="bg-[#F9FAFB] rounded-xl p-6 mb-6 border border-[#E5E7EB]">
+
+                <div class="rounded-xl p-6 mb-6" style="background: var(--bg-secondary); border: 1px solid var(--border-base);">
                     <div class="text-center mb-4">
-                        <p class="text-sm font-medium text-[#252F40] mb-3">Califica tu experiencia:</p>
+                        <p class="text-sm font-medium mb-3" style="color: var(--text-heading);">Califica tu experiencia:</p>
                         <div class="flex justify-center gap-2 mb-4">
-                            <button onclick="evaluar(1)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="1" style="color: #d1d5db;">⭐</button>
-                            <button onclick="evaluar(2)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="2" style="color: #d1d5db;">⭐</button>
-                            <button onclick="evaluar(3)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="3" style="color: #d1d5db;">⭐</button>
-                            <button onclick="evaluar(4)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="4" style="color: #d1d5db;">⭐</button>
-                            <button onclick="evaluar(5)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="5" style="color: #d1d5db;">⭐</button>
+                            <button onclick="evaluar(1)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="1" style="color: var(--border-base-strong);">⭐</button>
+                            <button onclick="evaluar(2)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="2" style="color: var(--border-base-strong);">⭐</button>
+                            <button onclick="evaluar(3)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="3" style="color: var(--border-base-strong);">⭐</button>
+                            <button onclick="evaluar(4)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="4" style="color: var(--border-base-strong);">⭐</button>
+                            <button onclick="evaluar(5)" class="evaluacion-btn p-3 text-2xl transition-all duration-300 transform scale-75" data-rating="5" style="color: var(--border-base-strong);">⭐</button>
                         </div>
-                        <div id="rating-text" class="text-sm text-[#8C8C8C] min-h-[20px]"></div>
+                        <div id="rating-text" class="text-sm min-h-[20px]" style="color: var(--text-body-subtle);"></div>
                     </div>
-                    
+
                     <div id="comentario-section" class="hidden">
-                        <label class="block text-sm font-medium text-[#252F40] mb-2">Comentarios adicionales (opcional):</label>
-                        <textarea id="comentario" rows="3" placeholder="Comparte tu experiencia..." 
-                                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl focus:ring-2 focus:border-transparent resize-none"
-                                  style="--tw-ring-color: #5059BC;"></textarea>
+                        <label class="block text-sm font-medium mb-2" style="color: var(--text-heading);">Comentarios adicionales (opcional):</label>
+                        <textarea id="comentario" rows="3" placeholder="Comparte tu experiencia..."
+                                  class="w-full px-4 py-3 rounded-xl focus:ring-2 focus:border-transparent resize-none"
+                                  style="border: 1px solid var(--border-base); --tw-ring-color: var(--border-brand);"></textarea>
                     </div>
                 </div>
-                
+
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
                     <button id="enviar-evaluacion" onclick="enviarEvaluacion()" disabled
-                            class="px-6 py-3 bg-[#E5E7EB] text-[#8C8C8C] rounded-xl cursor-not-allowed">
+                            class="px-6 py-3 rounded-xl cursor-not-allowed" style="background: var(--bg-disabled); color: var(--text-disabled);">
                         <i class="fas fa-paper-plane mr-2"></i>Enviar Evaluación
                     </button>
-                    <button onclick="nuevaConsulta()" 
-                            class="px-6 py-3 text-white rounded-xl transition-all shadow-md"
-                            style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-                            onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-                            onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                    <button onclick="nuevaConsulta()"
+                            class="btn-nodo btn-brand px-6 py-3 rounded-xl transition-all shadow-md">
                         <i class="fas fa-plus mr-2"></i>Nueva Consulta
                     </button>
                 </div>
@@ -294,12 +286,12 @@
         </main>
 
         <!-- Footer -->
-        <footer class="bg-[#252F40] text-white py-8 mt-12">
+        <footer class="text-white py-8 mt-12" style="background: var(--text-heading);">
             <div class="max-w-6xl mx-auto px-4 text-center">
                 <div class="flex items-center justify-center space-x-3 mb-4">
                     <img
                         src="{% static 'custom/chaco/mini-logo.png' %}"
-                        alt="NODO Chaco"
+                        alt="DATAÑAC"
                         class="w-10 h-10 object-contain"
                     >
                     <p class="font-bold text-lg">Ñandé</p>
@@ -686,8 +678,9 @@
             // Habilitar botón de enviar
             const btnEnviar = document.getElementById('enviar-evaluacion');
             btnEnviar.disabled = false;
-            btnEnviar.className = 'px-6 py-3 text-white rounded-xl transition-all shadow-md';
-            btnEnviar.style.background = 'linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)';
+            btnEnviar.className = 'btn-nodo btn-brand px-6 py-3 rounded-xl transition-all shadow-md';
+            btnEnviar.style.background = '';
+            btnEnviar.style.color = '';
             btnEnviar.style.cursor = 'pointer';
         }
         

@@ -8,7 +8,7 @@
 
 -   :material-calendar-range: **Período**
 
-    3 jun → 24 jun 2026
+    3 jun 2026 → en curso
 
 -   :material-counter: **Avance**
 
@@ -16,12 +16,12 @@
 
 -   :material-clock-outline: **Horas consumidas**
 
-    167h 3min
+    506h 20min (al 03/07/2026)
 
 </div>
 
 !!! abstract "Objetivo"
-    Definir el funcionamiento del **Programa Becas** y desarrollar el **motor RBAC base** para dejar el sistema de permisos operativo.
+    Definir el funcionamiento de los programas **Becas** y **Dispositivos**, y desarrollar el **motor RBAC base** para dejar el sistema de permisos operativo.
 
 ---
 
@@ -29,77 +29,16 @@
 
 | # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
 |:-:|---|:-:|:-:|:-:|:-:|
-| 1 | Programa Becas (análisis) | Alta | En análisis | — | 85h |
-| 2 | Motor RBAC base | Alta | Completado | — | 68h |
+| 1 | [Programa Becas — análisis funcional y estimación](../funcionalidades/programa-becas.md) | Alta | Completado | — | 46h |
+| 2 | Motor RBAC base | Alta | Completado | — | 22h |
+| 3 | [Programa Dispositivos y Merenderos — análisis](../funcionalidades/programa-dispositivos.md) | Alta | Definición aprobada | — | 138h |
+| 4 | Programa Becas — backend del backoffice | Alta | En desarrollo | — | 83h |
+| 5 | App de campo (React Native) | Alta | En desarrollo | — | 99h |
+| 6 | Mockups y diseño UX (Becas) | Alta | En progreso | — | 65h |
+| 7 | Análisis Legajo Ciudadano | Media | Completado | — | 30h |
+| 8 | Design System del proyecto | Media | Completado | — | 8h |
+| 9 | Reuniones y coordinación | — | — | — | 15h |
+| | **Total** | | | | **506h** |
 
----
-
-## :material-account-plus-outline: Funcionalidad 1 — Programa Becas { #funcionalidad-1 }
-
-!!! info "Funcionalidad"
-    Programa de **relevamiento territorial** para el otorgamiento de becas: los
-    equipos de campo registran a las personas, el programa valida la información y
-    administra el **cupo** disponible y la **lista de espera**.
-
-### :material-format-list-checks: Tareas
-
-| Tarea | Estado | Hs est. | Hs reales |
-|---|:-:|:-:|:-:|
-| 1. [Análisis funcional del Programa Becas](../funcionalidades/programa-becas.md) | En progreso | — | — |
-
-### :material-clipboard-text-outline: Requerimientos
-
-| ID | Descripción | Prioridad | Estado |
-|---|---|:-:|:-:|
-| RQ-01 | Relevar y dejar definido el funcionamiento del Programa Becas. | Alta | En análisis |
-
-### :material-check-decagram-outline: Criterios de aceptación
-
-- [ ] El funcionamiento del programa queda documentado y validado con el cliente.
-
----
-
-## :material-account-arrow-right-outline: Funcionalidad 2 — ABM de roles y permisos { #funcionalidad-2 }
-
-!!! info "Funcionalidad"
-    Gestión de **roles y permisos**: permite dar de alta, modificar y dar de baja
-    roles, y definir a qué puede acceder cada uno dentro del sistema.
-
-### :material-format-list-checks: Tareas
-
-| Tarea | Estado | Hs est. | Hs reales |
-|---|:-:|:-:|:-:|
-| 1. Análisis funcional del ABM de roles y permisos | Por iniciar | — | — |
-
-### :material-clipboard-text-outline: Requerimientos
-
-| ID | Descripción | Prioridad | Estado |
-|---|---|:-:|:-:|
-| RQ-01 | Administrar roles (alta, baja y modificación) y sus permisos de acceso. | Alta | Por iniciar |
-
-### :material-check-decagram-outline: Criterios de aceptación
-
-- [ ] Se pueden crear, editar y eliminar roles, y asignarles permisos.
-
----
-
-## :material-package-variant-closed-remove: Qué quedó fuera de esta versión
-
-| Funcionalidad | Motivo | ¿Próxima versión? |
-|---|---|:-:|
-
----
-
-## :material-calendar-star: Eventos y reuniones
-
-| # | Evento | Fecha | Integrantes | Minuta |
-|:-:|---|:-:|---|:-:|
-| 1 | Reunión 1 — Inicio de proyecto | 2026-06-03 | **ICORE:** Agostina Coppola, Matías Fariña · **Ministerio:** Guido Cortiglia, Claudia Miserachs, Walter Giordano | [Ver minuta](../minutas/reunion-inicio-proyecto-2026-06-03.md) |
-
----
-
-## :material-timer-sand-complete: Detalle de consumo de horas
-
-Consulta el detalle de consumo por persona y motivo de la Versión 001.
-
-[:material-table-arrow-right: Ver detalle de consumo](version-001-consumo-horas.md){ .md-button .md-button--primary }
+!!! note "Criterio de las horas reales"
+    Las horas por funcionalidad suman el consumo registrado por frente de trabajo según el campo *Motivo* del [detalle de consumo](version-001-consumo-horas.md) (506 h 20 min al 03/07/2026). La estimación comprometida del desarrollo de Becas (654 h) se ejecuta en los meses siguientes — ver [estimación](../funcionalidades/estimacion-programa-becas.md).

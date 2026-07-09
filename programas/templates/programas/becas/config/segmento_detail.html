@@ -59,28 +59,33 @@
         <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ segmento.nombre }}</h1>
         {% if segmento.descripcion %}<p class="text-sm text-body-subtle mt-1">{{ segmento.descripcion }}</p>{% endif %}
       </div>
-      {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
-      {% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+      <div class="flex items-center gap-2 flex-wrap">
+        {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>
+        {% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+        <a href="{% url 'becas:cupo_segmento' segmento.pk %}" class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5">
+          <i class="fas fa-users"></i> Cupo y beneficiarios
+        </a>
+      </div>
     </div>
   </div>
 
   {# Pestañas #}
-  <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
-    <div class="border-b border-[#E5E7EB] flex gap-1 px-2">
+  <div class="bg-white rounded-xl border border-base shadow-sm">
+    <div class="border-b border-base flex gap-1 px-2">
       <button @click="tab='info'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='info' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-id-card"></i> Información general
       </button>
       <button @click="tab='subs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='subs' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='subs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-list"></i> Subsegmentos
         <span class="badge badge-gray ml-0.5">{{ subsegmentos|length }}</span>
       </button>
       <button @click="tab='reqs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='reqs' ? 'text-fg-brand border-[#5059bc]' : 'text-body-subtle border-transparent hover:text-body'">
+              :class="tab==='reqs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-clipboard-list"></i> Requisitos del segmento
         <span class="badge badge-gray ml-0.5">{{ requisitos|length }}</span>
       </button>
@@ -91,7 +96,7 @@
 
       {# Stat cards de cupo #}
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+        <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm text-body-subtle font-medium">Cupo total</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)">
@@ -100,16 +105,16 @@
           </div>
           <p class="text-3xl font-bold text-heading">{{ segmento.cupo_maximo }}</p>
         </div>
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+        <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <p class="text-sm text-body-subtle font-medium">Cupo ocupado</p>
+            <p class="text-sm text-body-subtle font-medium">Cupo distribuido</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-success-soft text-fg-success">
               <i class="fas fa-check-circle text-sm"></i>
             </div>
           </div>
           <p class="text-3xl font-bold text-heading">{{ segmento.cupo_distribuido }}</p>
         </div>
-        <div class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+        <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm text-body-subtle font-medium">Cupo disponible</p>
             <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand">
@@ -134,23 +139,15 @@
               <label class="block text-sm font-medium text-heading mb-1">Descripción</label>
               {{ form_segmento.descripcion }}
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-heading mb-1">Cupo total <span class="text-fg-danger">*</span></label>
-                {{ form_segmento.cupo_maximo }}
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-heading mb-1">Coordinador asignado</label>
-                {# Rendered in DOM; JS reassigns it to form-coord via 'form' attribute #}
-                {{ form_coordinador.coordinador }}
-              </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Cupo total <span class="text-fg-danger">*</span></label>
+              {{ form_segmento.cupo_maximo }}
             </div>
             <label class="flex items-center gap-2 text-sm text-body cursor-pointer">
               {{ form_segmento.requiere_gps }} Requiere captura de GPS en el formulario
             </label>
             <div class="flex flex-wrap gap-3 pt-2">
               <button type="submit" form="form-segmento" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
-              <button type="submit" form="form-coord" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-user-plus"></i> Asignar coordinador</button>
               <button type="button" class="btn-nodo btn-danger btn-base"
                       data-confirm-url="{% url 'becas:segmento_toggle' segmento.pk %}"
                       data-confirm-title="{% if segmento.activo %}¿Desactivar segmento?{% else %}¿Activar segmento?{% endif %}"
@@ -160,11 +157,13 @@
             </div>
           </form>
 
-          {# Coordinadores asignados — lista con botones de quitar #}
-          {% if coordinadores %}
-          <div class="border-t border-[#F3F4F6] pt-5">
-            <h3 class="text-sm font-bold text-heading mb-3">Coordinadores asignados</h3>
-            <div class="space-y-2">
+          {# Coordinadores asignados — lista con botones de quitar + alta (issue #74) #}
+          <div class="border-t border-light pt-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-heading">Coordinadores asignados</h3>
+            </div>
+            {% if coordinadores %}
+            <div class="space-y-2 mb-4">
               {% for asig in coordinadores %}
               <div class="flex items-center justify-between bg-secondary-soft rounded-lg px-3 py-2">
                 <span class="text-sm text-body flex items-center gap-2">
@@ -183,26 +182,34 @@
               </div>
               {% endfor %}
             </div>
+            {% endif %}
+            <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3">
+              {% csrf_token %}
+              <div class="flex-1 min-w-[220px]">
+                <label class="block text-sm font-medium text-heading mb-1">Asignar coordinador</label>
+                {{ form_coordinador.coordinador }}
+              </div>
+              <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
+            </form>
           </div>
-          {% endif %}
         </div>
 
         {# Columna derecha: ocupación + resumen #}
         <div class="space-y-5">
-          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
-            <h3 class="text-sm font-bold text-heading mb-3">Ocupación del cupo</h3>
+          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
+            <h3 class="text-sm font-bold text-heading mb-3">Distribución del cupo</h3>
             {% widthratio segmento.cupo_distribuido segmento.cupo_maximo 100 as pct %}
             <div class="flex justify-between text-sm mb-1">
               <span class="text-body-subtle">{{ segmento.cupo_distribuido }} de {{ segmento.cupo_maximo }}</span>
               <span class="font-bold text-heading">{{ pct }}%</span>
             </div>
-            <div class="h-2 w-full rounded-full bg-[#F3F4F6] overflow-hidden">
+            <div class="h-2 w-full rounded-full bg-tertiary overflow-hidden">
               <div class="h-2 rounded-full" style="width: {{ pct }}%; background: var(--gradient-brand)"></div>
             </div>
             <p class="text-xs text-body-subtle mt-2">{{ segmento.cupo_disponible }} lugares disponibles</p>
           </div>
 
-          <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
+          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Resumen</h3>
             <dl class="space-y-2.5 text-sm">
               <div class="flex justify-between items-center">
@@ -520,10 +527,6 @@
     </div>
   </div>
 
-  {# Form oculto para asignar coordinador — el select en la grilla apunta a este form #}
-  <form id="form-coord" method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}">
-    {% csrf_token %}
-  </form>
 </div>
 {% endblock %}
 
@@ -531,10 +534,6 @@
 {% include "programas/becas/_ajax_js.html" %}
 <script>
 (function () {
-  // Reassign coordinator select to the coord form (avoids nested form issue)
-  var coordSel = document.getElementById('id_coordinador');
-  if (coordSel) coordSel.setAttribute('form', 'form-coord');
-
   // Toggle opciones wrapper based on tipo select
   var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
   function toggleOpciones(tipoSelect, opcionesWrapper) {

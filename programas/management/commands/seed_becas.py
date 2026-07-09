@@ -32,14 +32,36 @@ ROL_ADMIN = "Becas — Administrador"
 ROL_COORDINADOR = "Becas — Coordinador"
 ROL_TERRITORIAL = "Becas — Territorial"
 
+
+def _capacidades_admin_becas():
+    """Todas las capacidades finas de Becas salvo ``becas.campo`` (el Admin no
+    opera la app de territorial, es un rol de backoffice)."""
+    return [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c != "becas.campo"]
+
+
 ROLES_BECAS = {
     ROL_ADMIN: {
         "descripcion": "Acceso total al programa Becas: configuración, relevamientos y revisión.",
-        "capacidades": ["becas.configurar", "becas.relevamientos", "becas.revisar"],
+        "capacidades": _capacidades_admin_becas(),
     },
     ROL_COORDINADOR: {
         "descripcion": "Gestiona relevamientos y revisa formularios solo de sus segmentos asignados.",
-        "capacidades": ["becas.relevamientos", "becas.revisar"],
+        "capacidades": [
+            "becas.segmento.ver",
+            "becas.subsegmento.ver",
+            "becas.requisito.ver",
+            "becas.convocatoria.ver",
+            "becas.convocatoria.crear",
+            "becas.convocatoria.editar",
+            "becas.relevamiento.ver",
+            "becas.relevamiento.crear",
+            "becas.relevamiento.editar",
+            "becas.revision.ver",
+            "becas.revision.editar",
+            "becas.cupo.ver",
+            "becas.beneficiario.ver",
+            "becas.beneficiario.editar",
+        ],
     },
     ROL_TERRITORIAL: {
         "descripcion": "Opera la app de campo (sus relevamientos). Sin acceso al backoffice.",

@@ -1,15 +1,17 @@
 <!-- template de personalizacion del sitio admin -->
 {% extends "admin/base.html" %}
+{% load static %}
 {% block extrastyle %}
     {{ block.super }}
+    <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}" />
     <style>
 :root {
-  --primary: #5a5b5b;
-  --secondary: #4b5053;
-  --link-fg: #f4f6f8;
-  --link-selected-fg: #8b8b8e;
+  --primary: var(--color-gray-600);
+  --secondary: var(--color-gray-700);
+  --link-fg: var(--bg-secondary);
+  --link-selected-fg: var(--color-gray-400);
   --header-color: #ffffff;
-  --accent: #fafafd;
+  --accent: var(--bg-white);
 }
     </style>
 {% endblock %}

@@ -52,6 +52,16 @@
   --color-navy-900: #001224;
   --color-navy-700: #252f40;
 
+  /* Verde Campo (olive / sage — espejo del kit, docs/design-kb/tokens/colors.css) */
+  --color-olive-100: #eef1e0;
+  --color-olive-200: #dde3c4;
+  --color-olive-300: #c8d29c;
+  --color-olive-400: #a8b573;
+  --color-olive-500: #8a9a5b;
+  --color-olive-600: #6f7d3f;
+  --color-olive-700: #586633;
+  --bg-olive: var(--color-olive-500);
+
   /* Emerald (Success) */
   --color-emerald-050: #ecfdf5;
   --color-emerald-100: #d0fae5;
@@ -158,6 +168,7 @@
   --bg-warning-strong: var(--color-orange-700);
   --bg-dark: var(--color-gray-800);
   --bg-dark-strong: var(--color-gray-900);
+  --bg-navy: var(--color-navy-700); /* portal footer */
   --bg-disabled: var(--color-gray-100);
   --bg-purple: var(--color-purple-500);
   --bg-sky: var(--color-sky-500);
@@ -395,6 +406,7 @@
   --text-fg-warning-subtle: var(--color-orange-500);
   --text-fg-warning: var(--color-orange-300);
   --text-fg-disabled: var(--color-gray-600);
+  --text-disabled: var(--color-gray-600); /* alias KB: mismo override que el kit (colors.css dark) */
   --text-fg-purple: var(--color-purple-500);
   --text-fg-cyan: var(--color-cyan-500);
   --text-fg-lime: var(--color-lime-500);

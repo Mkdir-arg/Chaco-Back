@@ -2,7 +2,7 @@
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+      <tr class="bg-secondary border-b border-base">
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Texto</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
@@ -13,27 +13,27 @@
     </thead>
     <tbody>
       {% for p in preguntas %}
-      <tr class="hover:bg-[#F9FAFB]">
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-body-subtle text-right font-semibold">{{ p.orden }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-heading font-medium">{{ p.texto }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F3F4F6] text-[#4B5563]">{{ p.get_tipo_display }}</span>
+      <tr class="hover:bg-secondary">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle text-right font-semibold">{{ p.orden }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">{{ p.texto }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light">
+          <span class="badge badge-white">{{ p.get_tipo_display }}</span>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-center">
           {% if p.obligatorio %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FEF0F2] text-[#9B1C1C]">Obligatorio</span>
+            <span class="badge badge-brand">Obligatorio</span>
           {% else %}
             <span class="badge badge-gray">Opcional</span>
           {% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-center">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-center">
           {% if p.activo %}
             <span class="badge badge-success badge-dot">Activa</span>
           {% else %}
             <span class="badge badge-gray">Inactiva</span>
           {% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
             <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
               @click="openEdit(

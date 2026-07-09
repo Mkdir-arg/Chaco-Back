@@ -10,15 +10,18 @@
     {% load static %}
     <!-- CHACO Design Tokens — CSS variables para componentes del portal -->
     <link href="{% static 'custom/css/chaco-tokens.css' %}" rel="stylesheet">
+    <link href="{% static 'custom/css/nodo-buttons.css' %}" rel="stylesheet">
+    <link href="{% static 'custom/css/nodo-badges.css' %}" rel="stylesheet">
+    <link href="{% static 'custom/css/nodo-forms.css' %}" rel="stylesheet">
     <style>
         body { font-family: 'Manrope', sans-serif; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeInUp { animation: fadeInUp 0.6s ease-out; }
     </style>
 </head>
-<body class="min-h-screen" style="background-color: #FFFFFF;">
+<body class="min-h-screen" style="background-color: var(--bg-white);">
     <!-- Header -->
-    <header class="bg-white border-b border-[#E5E7EB] sticky top-0 z-40 shadow-sm">
+    <header class="bg-white sticky top-0 z-40 shadow-sm" style="border-bottom: 1px solid var(--border-base);">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
@@ -26,20 +29,20 @@
                         <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Portal Nande" class="max-w-full max-h-full object-contain">
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold text-[#252F40]">Portal Nande</h1>
-                        <p class="text-sm text-[#8C8C8C]">Portal Ciudadano</p>
+                        <h1 class="text-2xl font-bold" style="color: var(--text-heading);">Portal Nande</h1>
+                        <p class="text-sm" style="color: var(--text-body-subtle);">Portal Ciudadano</p>
                     </div>
                 </div>
                 <div class="hidden md:flex items-center space-x-6">
-                    <div class="flex items-center space-x-2 text-[#252F40]">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: #F0F2FF; border-color: #C7D2FE;">
-                            <i class="fas fa-phone text-sm" style="color: #5059BC;"></i>
+                    <div class="flex items-center space-x-2" style="color: var(--text-heading);">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: var(--bg-brand-tint); border-color: var(--border-brand-subtle);">
+                            <i class="fas fa-phone text-sm" style="color: var(--text-fg-brand);"></i>
                         </div>
                         <span class="text-sm font-medium">0800-222-1133</span>
                     </div>
-                    <div class="flex items-center space-x-2 text-[#252F40]">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: #F0F2FF; border-color: #C7D2FE;">
-                            <i class="fas fa-envelope text-sm" style="color: #5059BC;"></i>
+                    <div class="flex items-center space-x-2" style="color: var(--text-heading);">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: var(--bg-brand-tint); border-color: var(--border-brand-subtle);">
+                            <i class="fas fa-envelope text-sm" style="color: var(--text-fg-brand);"></i>
                         </div>
                         <span class="text-sm font-medium">info@chaco.gob.ar</span>
                     </div>
@@ -63,7 +66,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-[#252F40] text-white py-12 mt-20">
+    <footer class="text-white py-12 mt-20" style="background: var(--bg-navy);">
         <div class="container mx-auto px-4">
             <div class="grid md:grid-cols-3 gap-8">
                 <div>
@@ -100,7 +103,7 @@
             </div>
             <div class="border-t border-gray-700 mt-8 pt-6 text-center">
                 <p class="text-gray-400 text-sm">
-                    &copy; 2024 NODO - Todos los derechos reservados
+                    &copy; 2024 DATAÑAC - Todos los derechos reservados
                 </p>
             </div>
         </div>
@@ -108,23 +111,23 @@
 
     <!-- Chat Widget -->
     <div id="chat-widget" class="fixed bottom-6 right-6 z-50">
-        <button id="chat-button" class="text-white w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center" style="background: linear-gradient(180deg, #5059BC 0%, #F26DF9 100%);" onmouseover="this.style.background='linear-gradient(180deg, #454DA8 0%, #DB5FE2 100%)'" onmouseout="this.style.background='linear-gradient(180deg, #5059BC 0%, #F26DF9 100%)'">
-            <i class="fas fa-comments text-xl" style="color: #FFFFFF;"></i>
+        <button id="chat-button" class="text-white w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center" style="background: var(--gradient-brand);" onmouseover="this.style.filter='brightness(0.93)'" onmouseout="this.style.filter='none'">
+            <i class="fas fa-comments text-xl" style="color: #fff;"></i>
         </button>
-        
-        <div id="chat-window" class="hidden absolute bottom-20 right-0 w-80 bg-white rounded-xl shadow-2xl border border-[#E5E7EB] overflow-hidden">
-            <div class="text-white p-4 flex justify-between items-center" style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);">
+
+        <div id="chat-window" class="hidden absolute bottom-20 right-0 w-80 bg-white rounded-xl shadow-2xl overflow-hidden" style="border: 1px solid var(--border-base);">
+            <div class="text-white p-4 flex justify-between items-center" style="background: var(--gradient-brand);">
                 <div class="flex items-center space-x-2">
-                    <div class="w-2 h-2 rounded-full animate-pulse" style="background: #8A9A46;"></div>
+                    <div class="w-2 h-2 rounded-full animate-pulse" style="background: var(--bg-olive);"></div>
                     <h3 class="font-semibold">Mesa de Ayuda</h3>
                 </div>
                 <button id="close-chat" class="text-white hover:text-gray-200 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-6 h-64 flex flex-col items-center justify-center text-[#8C8C8C]">
-                <i class="fas fa-headset text-4xl mb-3" style="color: #5059BC;"></i>
-                <p class="font-medium text-[#252F40] mb-1">Asistencia Técnica</p>
+            <div class="p-6 h-64 flex flex-col items-center justify-center" style="color: var(--text-body-subtle);">
+                <i class="fas fa-headset text-4xl mb-3" style="color: var(--text-fg-brand);"></i>
+                <p class="font-medium mb-1" style="color: var(--text-heading);">Asistencia Técnica</p>
                 <p class="text-sm">Disponible próximamente</p>
             </div>
         </div>
@@ -154,10 +157,10 @@
                 </div>
                 <!-- Modal Footer -->
                 <div id="modal-footer" class="p-6 border-t border-gray-200 flex justify-end space-x-3">
-                    <button id="modal-cancel" class="px-4 py-2 rounded-lg transition-colors hidden" style="color: #5059BC; border: 1px solid #5059BC; background: #FFFFFF;" onmouseover="this.style.background='#DEE1FF'" onmouseout="this.style.background='#FFFFFF'">
+                    <button id="modal-cancel" class="px-4 py-2 rounded-lg transition-colors hidden" style="color: var(--text-fg-brand); border: 1px solid var(--border-brand); background: var(--bg-white);" onmouseover="this.style.background='var(--bg-brand-tint)'" onmouseout="this.style.background='var(--bg-white)'">
                         Cancelar
                     </button>
-                    <button id="modal-confirm" class="px-6 py-2 text-white rounded-lg transition-colors" style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);" onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'" onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
+                    <button id="modal-confirm" class="px-6 py-2 text-white rounded-lg transition-colors" style="background: var(--gradient-brand);" onmouseover="this.style.filter='brightness(0.93)'" onmouseout="this.style.filter='none'">
                         Aceptar
                     </button>
                 </div>

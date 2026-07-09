@@ -7,7 +7,7 @@ from core import rbac
 from programas.models import Programa
 from users.forms.roles import RolForm
 from users.models import Capacidad, RolMeta
-from users.selectors.roles import roles_visibles_para
+from users.selectors.roles import roles_filtrados_para, roles_lista_para, roles_visibles_para
 from users.services.roles import RolesAdminService, RolProtegidoError
 
 
@@ -241,7 +241,25 @@ class RolAlcanceTests(TestCase):
         self.assertFalse(form.es_admin_global)
         self.assertEqual(form.programa_fijo, self.becas)
         modulos = {m["modulo"] for m in form.arbol_capacidades()}
-        self.assertEqual(modulos, {"programas", "relevamientos", "becas"})
+        self.assertEqual(
+            modulos,
+            {
+                "programas",
+                "relevamientos",
+                "becas_admin",
+                "becas_segmentos",
+                "becas_subsegmentos",
+                "becas_requisitos",
+                "becas_preguntas",
+                "becas_coordinadores",
+                "becas_convocatorias",
+                "becas_relevamientos",
+                "becas_revision",
+                "becas_cupo",
+                "becas_beneficiarios",
+                "becas_campo",
+            },
+        )
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(
@@ -327,3 +345,120 @@ class RolesAccesoTests(TestCase):
         self.client.force_login(su)
         resp = self.client.get(reverse("users:roles"))
         self.assertEqual(resp.status_code, 200)
+
+
+class RolesFiltrosTests(TestCase):
+    """#120 — filtros por querystring del listado de Roles (selector)."""
+
+    def setUp(self):
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ñachec")
+
+        self.rol_admin_becas = Group.objects.create(name="Admin Becas")
+        RolMeta.objects.create(
+            grupo=self.rol_admin_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
+        )
+        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.admin_becas = User.objects.create_user("adm-becas-filtros", password="x")
+        self.admin_becas.groups.add(self.rol_admin_becas)
+
+        self.rol_becas = Group.objects.create(name="Territorial Becas")
+        RolMeta.objects.create(
+            grupo=self.rol_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
+            descripcion="Rol territorial de campo",
+        )
+
+        self.rol_becas_inactivo = Group.objects.create(name="Territorial Becas Inactivo")
+        RolMeta.objects.create(
+            grupo=self.rol_becas_inactivo,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=False,
+            descripcion="Rol territorial inactivo",
+        )
+
+        self.rol_nachec = Group.objects.create(name="Territorial Ñachec")
+        RolMeta.objects.create(
+            grupo=self.rol_nachec,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.nachec,
+            activo=True,
+        )
+
+        self.rol_global = Group.objects.create(name="Backoffice X")
+        RolMeta.objects.create(
+            grupo=self.rol_global,
+            categoria="Backoffice",
+            activo=True,
+            descripcion="Rol de backoffice global",
+        )
+
+        self.su = User.objects.create_superuser("root-filtros", "root-filtros@example.com", "x")
+
+    def test_filtros_combinados(self):  # (1) filtros combinados funcionan
+        items = roles_filtrados_para(
+            self.su,
+            {
+                "q": "territorial",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": str(self.becas.pk),
+                "estado": "activo",
+            },
+        )
+        nombres = {it["group"].name for it in items}
+        self.assertEqual(nombres, {"Territorial Becas"})
+
+    def test_filtro_estado_inactivo(self):
+        items = roles_filtrados_para(self.su, {"estado": "inactivo"})
+        nombres = {it["group"].name for it in items}
+        self.assertIn("Territorial Becas Inactivo", nombres)
+        self.assertNotIn("Admin Becas", nombres)
+
+    def test_filtro_programa_valido(self):
+        items = roles_filtrados_para(self.su, {"programa": str(self.becas.pk)})
+        nombres = {it["group"].name for it in items}
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
+
+    def test_admin_programa_no_ve_roles_ajenos_forzando_programa(self):  # (2)
+        items = roles_filtrados_para(self.admin_becas, {"programa": str(self.nachec.pk)})
+        nombres = {it["group"].name for it in items}
+        # El filtro de un programa que el operador no administra se ignora
+        # (no amplía su alcance ni lo vacía): sigue viendo solo sus propios roles.
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
+        self.assertNotIn("Territorial Ñachec", nombres)
+
+    def test_valores_invalidos_se_ignoran(self):  # (3)
+        items = roles_filtrados_para(
+            self.su,
+            {"categoria": "NoExiste", "programa": "no-es-un-numero", "estado": "quien-sabe"},
+        )
+        # Ningún filtro tuvo efecto: se devuelve la lista completa, sin error 500.
+        self.assertEqual(len(items), len(roles_lista_para(self.su)))
+
+    def test_vista_aplica_filtros_de_la_querystring(self):
+        self.client.force_login(self.su)
+        resp = self.client.get(
+            reverse("users:roles"),
+            {"q": "territorial", "categoria": rbac.CATEGORIA_PROGRAMA, "estado": "activo"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        nombres = {it["group"].name for it in resp.context["items"]}
+        self.assertEqual(nombres, {"Territorial Becas", "Territorial Ñachec"})
+        self.assertIn("roles", resp.context)
+        self.assertEqual(resp.context["filtro_q"], "territorial")
+        self.assertEqual(resp.context["filtro_categoria"], rbac.CATEGORIA_PROGRAMA)
+        self.assertEqual(resp.context["filtro_estado"], "activo")
+        self.assertTrue(resp.context["hay_filtros_activos"])
+
+    def test_vista_ignora_programa_ajeno_del_admin_de_programa(self):
+        self.client.force_login(self.admin_becas)
+        resp = self.client.get(reverse("users:roles"), {"programa": str(self.nachec.pk)})
+        self.assertEqual(resp.status_code, 200)
+        nombres = {it["group"].name for it in resp.context["items"]}
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})

@@ -38,20 +38,21 @@
                         // generan .bg-primary (navy)/.text-primary; los tokens del DS van en las
                         // scales backgroundColor/textColor/borderColor de abajo (que pisan donde aplica).
                         colors: {
-                            'magenta':          '#F26DF9',
-                            'nodo-purple':      '#5059BC',
-                            'nodo-cyan':        '#C8D29C',
-                            'primario':         '#00203A',
-                            'primario-claro':   '#5059BC',
-                            'primario-oscuro':  '#00203A',
-                            'secundario':       '#5059BC',
-                            'secundario-claro': '#C8D29C',
-                            'secundario-oscuro':'#00203A',
-                            'acento':           '#F26DF9',
-                            'acento-claro':     '#C8D29C',
-                            'acento-oscuro':    '#8A9A46',
-                            primary:            '#00203A',
-                            secondary:          '#5059BC',
+                            /* Valores tokenizados: resuelven a chaco-tokens.css (sin opacidad /N, no usada) */
+                            'magenta':          'var(--bg-pink)',
+                            'nodo-purple':      'var(--bg-brand)',
+                            'nodo-cyan':        'var(--bg-teal)',
+                            'primario':         'var(--color-navy-900)',
+                            'primario-claro':   'var(--bg-brand)',
+                            'primario-oscuro':  'var(--color-navy-900)',
+                            'secundario':       'var(--bg-brand)',
+                            'secundario-claro': 'var(--bg-teal)',
+                            'secundario-oscuro':'var(--color-navy-900)',
+                            'acento':           'var(--bg-pink)',
+                            'acento-claro':     'var(--bg-teal)',
+                            'acento-oscuro':    'var(--bg-olive)',
+                            primary:            'var(--color-navy-900)',
+                            secondary:          'var(--bg-brand)',
                         },
                         // ── Design system: tokens semánticos por utilidad (resuelven a chaco-tokens.css) ──
                         // NOTA: `primary` se omite a propósito (lo usa Bootstrap legacy como navy/azul).
@@ -137,31 +138,19 @@
         <link rel="stylesheet" href="{% static 'custom/css/nodo-brand.css' %}" />
         <style>
             :root {
-                /* === puente legacy: consumido por custom.css, paleta-unificada.css, main.css, dashboard.css === */
-                --color-primario: #00203A;
-                --color-primario-claro: #5059BC;
-                --color-primario-oscuro: #00203A;
-                --color-secundario: #5059BC;
-                --color-secundario-claro: #C8D29C;
-                --color-secundario-oscuro: #00203A;
-                --color-acento: #F26DF9;
-                --color-acento-claro: #C8D29C;
-                --color-acento-oscuro: #8A9A46;
+                /* === puente legacy: único consumo vivo = borde inferior .card-header (custom.css:183) === */
+                --color-primario: var(--border-base);
+                /* === === */
                 /* === canvas — repuntados a tokens semánticos para que dark mode funcione === */
                 --fondo-principal: var(--bg-secondary);
-                --fondo-secundario: var(--bg-white);
-                /* === puente legacy: consumido por main.css (.sidebar-container) y custom.css === */
-                --fondo-sidebar: linear-gradient(135deg, #00203A 0%, #00203A 100%);
                 /* === puente legacy: consumido por custom.css (.texto-primario) === */
                 --texto-primario: var(--text-heading);
-                --texto-secundario: var(--text-body);
-                /* override que neutraliza valores legacy de nodo-brand.css hasta su migración (Fase 4/5) */
-                /* nodo-brand.css define sus propios :root con valores off-brand (#FF0080, #7928CA, #08B8CC).
-                   Este bloque viene DESPUÉS en el orden de carga y pisa esas definiciones con tokens
-                   semánticos de marca. Sin estos overrides gana el legacy → colores off-brand en runtime. */
+                /* override que neutraliza valores legacy de nodo-brand.css hasta su migración (Fase 4/5).
+                   nodo-brand.css define sus propios :root con valores off-brand. Este bloque viene
+                   DESPUÉS en el orden de carga y pisa esas definiciones con tokens semánticos de marca.
+                   Sin estos overrides gana el legacy → colores off-brand en runtime. */
                 /* consumidos como background/gradient */
                 --nodo-gradient: var(--gradient-brand);
-                --nodo-bg-white: var(--bg-white);
                 --nodo-bg-gray: var(--bg-secondary);
                 --nodo-shadow-md: var(--shadow-sm);
                 /* consumidos como color sólido de marca (hover links, focus shadow) */
@@ -176,15 +165,6 @@
                 --nodo-text-tertiary: var(--text-body);
                 --nodo-text-muted: var(--text-body-subtle);
                 --nodo-border: var(--border-base);
-                /* === navbar accent — repuntados de magenta off-brand a tokens de marca === */
-                --nav-active-color: var(--bg-brand);
-                --nav-active-hover-color: var(--bg-brand-strong);
-                --ui-highlight-color: var(--bg-brand);
-                --ui-highlight-gradient: var(--gradient-brand);
-                /* === disabled del botón login — repuntados a tokens semánticos === */
-                --login-button-disabled-bg: var(--bg-disabled);
-                --login-button-disabled-border: var(--border-base);
-                --login-button-disabled-text: var(--text-disabled);
             }
         </style>
         
@@ -214,7 +194,7 @@
         <!-- Custom styles -->
         {% block head %}{% endblock %}
         
-        <title>NODO Chaco - {% block title %}{% endblock %}</title>
+        <title>DATAÑAC - {% block title %}{% endblock %}</title>
     </head>
     <body class="min-h-[100dvh] overflow-x-hidden bg-white font-sans" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: var(--fondo-principal);">
         <div class="min-h-[100dvh] overflow-x-hidden">

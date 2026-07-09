@@ -6,18 +6,15 @@
 
 <!-- Encabezado -->
 <div class="mb-6 animate-fadeInUp">
-    <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-         style="background: linear-gradient(135deg, #5059BC18 0%, #F26DF910 100%);">
+    <div class="rounded-2xl shadow-sm px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+         style="background-image: linear-gradient(135deg, var(--bg-brand-softer) 0%, var(--bg-brand-soft) 100%); border: 1px solid var(--border-base);">
         <div>
-            <h2 class="text-2xl font-bold text-[#252F40]">Mis Consultas</h2>
-            <p class="text-[#8C8C8C] mt-1 text-sm">Historial de todas tus consultas y reclamos.</p>
+            <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Mis Consultas</h2>
+            <p class="mt-1 text-sm" style="color: var(--text-body-subtle);">Historial de todas tus consultas y reclamos.</p>
         </div>
         <a href="{% url 'portal:ciudadano_nueva_consulta' %}"
-           class="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-md transition-all flex-shrink-0"
-           style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-           onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-           onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
-            <i class="fas fa-plus mr-2"></i>Nueva consulta
+           class="btn-nodo btn-brand btn-base flex-shrink-0">
+            <i class="fas fa-plus"></i>Nueva consulta
         </a>
     </div>
 </div>
@@ -27,20 +24,23 @@
     {% if conversaciones %}
         <div class="space-y-3">
             {% for conv in conversaciones %}
-            <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#D1D5DB] transition-colors">
+            <div class="rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-colors"
+                 style="background: var(--bg-primary); border: 1px solid var(--border-base);"
+                 onmouseover="this.style.borderColor='var(--border-base-strong)'"
+                 onmouseout="this.style.borderColor='var(--border-base)'">
 
                 <!-- Ícono + Info -->
                 <div class="flex items-start space-x-4">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#F3F4F6]">
-                        <i class="fas fa-comment-dots text-[#8C8C8C]"></i>
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background: var(--bg-tertiary);">
+                        <i class="fas fa-comment-dots" style="color: var(--text-body-subtle);"></i>
                     </div>
                     <div>
-                        <p class="text-sm font-semibold text-[#252F40]">Consulta #{{ conv.id }}</p>
-                        <p class="text-xs text-[#8C8C8C] mt-0.5">
+                        <p class="text-sm font-semibold" style="color: var(--text-heading);">Consulta #{{ conv.id }}</p>
+                        <p class="text-xs mt-0.5" style="color: var(--text-body-subtle);">
                             Iniciada el {{ conv.fecha_inicio|date:"d/m/Y" }} a las {{ conv.fecha_inicio|date:"H:i" }}
                         </p>
                         {% if conv.fecha_cierre %}
-                        <p class="text-xs text-[#8C8C8C]">
+                        <p class="text-xs" style="color: var(--text-body-subtle);">
                             Cerrada el {{ conv.fecha_cierre|date:"d/m/Y" }}
                         </p>
                         {% endif %}
@@ -50,29 +50,20 @@
                 <!-- Badge + Botón -->
                 <div class="flex items-center gap-3 flex-shrink-0">
                     {% if conv.estado == 'activa' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>Activa
-                        </span>
+                        <span class="badge badge-dot badge-success">Activa</span>
                     {% elif conv.estado == 'pendiente' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1.5"></span>Pendiente
-                        </span>
+                        <span class="badge badge-dot badge-warning">Pendiente</span>
                     {% elif conv.estado == 'cerrada' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></span>Cerrada
-                        </span>
+                        <span class="badge badge-dot badge-gray">Cerrada</span>
                     {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span class="badge badge-gray">
                             {{ conv.estado|capfirst }}
                         </span>
                     {% endif %}
 
                     <a href="{% url 'portal:ciudadano_consulta_detalle' pk=conv.pk %}"
-                       class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium border transition-colors"
-                       style="color: #5059BC; border-color: #5059BC; background: #FFFFFF;"
-                       onmouseover="this.style.background='#DEE1FF'"
-                       onmouseout="this.style.background='#FFFFFF'">
-                        <i class="fas fa-eye mr-1.5"></i>Ver conversación
+                       class="btn-nodo btn-tertiary btn-sm">
+                        <i class="fas fa-eye"></i>Ver conversación
                     </a>
                 </div>
 
@@ -82,20 +73,17 @@
 
     {% else %}
         <!-- Estado vacío -->
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-12 text-center animate-fadeInUp">
-            <div class="w-16 h-16 rounded-full bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-headset text-2xl text-[#C0C0C0]"></i>
+        <div class="rounded-2xl shadow-sm p-12 text-center animate-fadeInUp" style="background: var(--bg-primary); border: 1px solid var(--border-base);">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--bg-tertiary);">
+                <i class="fas fa-headset text-2xl" style="color: var(--text-fg-brand);"></i>
             </div>
-            <h3 class="text-lg font-semibold text-[#252F40] mb-2">Sin consultas aún</h3>
-            <p class="text-sm text-[#8C8C8C] mb-6 max-w-sm mx-auto">
+            <h3 class="text-lg font-semibold mb-2" style="color: var(--text-heading);">Sin consultas aún</h3>
+            <p class="text-sm mb-6 max-w-sm mx-auto" style="color: var(--text-body-subtle);">
                 Todavía no realizaste ninguna consulta. Podés iniciar una ahora y nuestro equipo te atenderá a la brevedad.
             </p>
             <a href="{% url 'portal:ciudadano_nueva_consulta' %}"
-               class="inline-flex items-center px-6 py-3 rounded-xl text-sm font-semibold text-white shadow-md transition-all"
-               style="background: linear-gradient(90deg, #5059BC 0%, #F26DF9 100%);"
-               onmouseover="this.style.background='linear-gradient(90deg, #454DA8 0%, #DB5FE2 100%)'"
-               onmouseout="this.style.background='linear-gradient(90deg, #5059BC 0%, #F26DF9 100%)'">
-                <i class="fas fa-comments mr-2"></i>Iniciar tu primera consulta
+               class="btn-nodo btn-brand btn-lg">
+                <i class="fas fa-comments"></i>Iniciar tu primera consulta
             </a>
         </div>
     {% endif %}

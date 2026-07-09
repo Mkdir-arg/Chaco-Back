@@ -2,7 +2,7 @@
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
-      <tr class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+      <tr class="bg-secondary border-b border-base">
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Requisito</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo de campo</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
@@ -11,24 +11,24 @@
     </thead>
     <tbody>
       {% for req in requisitos %}
-      <tr class="hover:bg-[#F9FAFB]">
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+      <tr class="hover:bg-secondary">
+        <td class="px-4 py-[13px] text-sm border-t border-light">
           <p class="text-heading font-medium">{{ req.texto }}</p>
           <p class="text-xs text-body-subtle mt-0.5">
             {{ req.segmento.nombre }}{% if req.subsegmento %} / {{ req.subsegmento.nombre }}{% endif %}
           </p>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F3F4F6] text-[#4B5563]">{{ req.get_tipo_display }}</span>
+        <td class="px-4 py-[13px] text-sm border-t border-light">
+          <span class="badge badge-white">{{ req.get_tipo_display }}</span>
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6]">
+        <td class="px-4 py-[13px] text-sm border-t border-light">
           {% if req.obligatorio %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FEF0F2] text-[#9B1C1C]">Obligatorio</span>
+            <span class="badge badge-brand">Obligatorio</span>
           {% else %}
             <span class="badge badge-gray">Opcional</span>
           {% endif %}
         </td>
-        <td class="px-4 py-[13px] text-sm border-t border-[#F3F4F6] text-right">
+        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
             <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
               @click="openEdit(

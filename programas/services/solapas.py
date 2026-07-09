@@ -54,6 +54,9 @@ class SolapasService:
                     "programa": programa,
                     "inscripcion": inscripcion,
                     "badge": cls._obtener_badge_programa(inscripcion),
+                    # NACHEC tiene contenido dedicado (ciudadano_nachec_detail.html) en vez
+                    # del bloque genérico de programa: el template la excluye de ese loop.
+                    "contenido_embebido": tipo_normalizado == "NACHEC",
                 }
             )
 
@@ -63,6 +66,10 @@ class SolapasService:
             if s["id"] in badges and "badge" not in s:
                 s = {**s, "badge": badges[s["id"]]}
             solapas_final.append(s)
+
+        solapa_becas = cls._obtener_solapa_becas(ciudadano)
+        if solapa_becas:
+            solapas_final.append(solapa_becas)
 
         solapas_final.sort(key=lambda x: x["orden"])
         return solapas_final
@@ -194,6 +201,89 @@ class SolapasService:
         ascii_valor = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
         ascii_valor = re.sub(r"[^A-Z0-9]+", "_", ascii_valor).strip("_")
         return ascii_valor or "PROGRAMA"
+
+    @classmethod
+    def _obtener_solapa_becas(cls, ciudadano):
+        """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
+
+        Sin 'url': se renderiza embebida en el legajo (tab-becas), igual que Resumen
+        o Conversaciones, en vez de redirigir a la página standalone.
+        """
+        from programas.models import Formulario, ListaEspera
+        from programas.services.cupo import estado_relevante_becas
+
+        formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
+        estados = set(formularios_qs.values_list("estado", flat=True))
+        if not estados:
+            return None
+
+        en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
+
+        texto, color = estado_relevante_becas(estados, en_espera)
+        color_hex = {
+            "success": "var(--text-fg-success)",
+            "warning": "var(--text-fg-warning)",
+            "danger": "var(--text-fg-danger)",
+            "gray": "var(--text-body-subtle)",
+        }[color]
+        badge = {"tipo": "punto", "color_hex": color_hex, "title": texto}
+
+        return {
+            "id": "becas",
+            "nombre": "Becas",
+            "icono": "graduation-cap",
+            "orden": 200,
+            "estatica": False,
+            "badge": badge,
+            # Contenido dedicado (_resumen_ciudadano.html): el template la excluye
+            # del loop genérico de solapas de programa.
+            "contenido_embebido": True,
+        }
+
+    @classmethod
+    def obtener_resumen_becas_ciudadano(cls, ciudadano):
+        """Datos del resumen de Becas de un ciudadano (issue #80).
+
+        Reusado por la vista standalone (programas.views.solapas_becas) y por la tab
+        embebida "Becas" del legajo (legajos.selectors.ciudadanos.build_ciudadano_detail_context).
+        """
+        from programas.models import Formulario
+        from programas.services.cupo import estado_relevante_becas
+
+        formularios = list(
+            Formulario.objects.filter(ciudadano=ciudadano)
+            .select_related(
+                "relevamiento__convocatoria__segmento",
+                "relevamiento__convocatoria__subsegmento",
+            )
+            .prefetch_related("lista_espera")
+            .order_by("-creado")
+        )
+
+        # Anotar cada formulario con en_espera_activa usando el prefetch (sin queries extra)
+        for f in formularios:
+            f.en_espera_activa = any(not le.promovido for le in f.lista_espera.all())
+
+        if formularios:
+            estados = {f.estado for f in formularios}
+            en_espera = any(f.en_espera_activa for f in formularios)
+            estado_texto, estado_color = estado_relevante_becas(estados, en_espera)
+        else:
+            estado_texto, estado_color = "—", "gray"
+
+        # Stat cards basadas en formulario más reciente
+        formulario_reciente = formularios[0] if formularios else None
+        segmento_nombre = formulario_reciente.relevamiento.convocatoria.segmento.nombre if formulario_reciente else "—"
+        fecha_envio = formulario_reciente.creado if formulario_reciente else None
+
+        return {
+            "formularios": formularios,
+            "estado_texto": estado_texto,
+            "estado_color": estado_color,
+            "segmento_nombre": segmento_nombre,
+            "fecha_envio": fecha_envio,
+            "Formulario": Formulario,  # para acceder a Estado choices en template
+        }
 
     @classmethod
     def _obtener_badge_programa(cls, inscripcion):

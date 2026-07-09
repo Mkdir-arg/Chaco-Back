@@ -26,7 +26,7 @@
 
 #alertas-eventos .alerta-critica {
     opacity: 1 !important;
-    background: #dc2626 !important;
+    background: var(--bg-danger) !important;
     animation: slideInRight 0.5s ease-out, alertPulse 2s infinite !important;
     box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3) !important;
 }
@@ -42,7 +42,7 @@
     {% for evento in eventos_criticos_pendientes %}
         <div id="alerta-{{ evento.id }}" 
              class="alerta-critica text-white p-4 rounded-lg shadow-lg max-w-sm border-l-4 border-red-800 transition-all duration-300 transform"
-             style="background: #dc2626 !important; opacity: 1 !important;">
+             style="background: var(--bg-danger) !important; opacity: 1 !important;">
             <div class="flex items-start justify-between">
                 <div class="flex-1">
                     <div class="flex items-center mb-2">
@@ -60,8 +60,10 @@
                         {{ evento.creado|date:"d/m/Y H:i" }}
                     </p>
                 </div>
-                <button onclick="cerrarAlerta({{ evento.id }})" 
-                        class="ml-2 text-red-200 hover:text-white focus:outline-none">
+                <button onclick="cerrarAlerta({{ evento.id }})"
+                        class="ml-2 text-red-200 hover:text-white focus:outline-none focus:ring-2"
+                        style="--tw-ring-color: rgba(255,255,255,.6);"
+                        aria-label="Cerrar alerta">
                     <i class="fas fa-times"></i>
                 </button>
             </div>

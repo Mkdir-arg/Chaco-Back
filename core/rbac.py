@@ -56,7 +56,7 @@ CATALOGO = [
     {
         "modulo": "relevamientos",
         "label": "Relevamientos",
-        "tab": "becas",
+        "tab": "backoffice",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("relevamiento.ver", "Ver relevamientos"),
@@ -64,14 +64,126 @@ CATALOGO = [
         ],
     },
     {
-        "modulo": "becas",
-        "label": "Programa Becas",
+        "modulo": "becas_admin",
+        "label": "Becas — Administración",
         "tab": "becas",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
-            ("becas.configurar", "Configurar Becas (segmentos, cupos, requisitos, preguntas, coordinadores)"),
-            ("becas.relevamientos", "Gestionar relevamientos de Becas"),
-            ("becas.revisar", "Revisar formularios de Becas (aprobar/rechazar)"),
+            ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
+        ],
+    },
+    {
+        "modulo": "becas_segmentos",
+        "label": "Becas — Segmentos",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.segmento.ver", "Ver segmentos"),
+            ("becas.segmento.crear", "Crear segmentos"),
+            ("becas.segmento.editar", "Editar segmentos (incluye activar/desactivar)"),
+        ],
+    },
+    {
+        "modulo": "becas_subsegmentos",
+        "label": "Becas — Subsegmentos",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.subsegmento.ver", "Ver subsegmentos"),
+            ("becas.subsegmento.crear", "Crear subsegmentos"),
+            ("becas.subsegmento.editar", "Editar subsegmentos (incluye eliminar)"),
+        ],
+    },
+    {
+        "modulo": "becas_requisitos",
+        "label": "Becas — Requisitos",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.requisito.ver", "Ver requisitos nativos"),
+            ("becas.requisito.crear", "Crear requisitos nativos"),
+            ("becas.requisito.editar", "Editar requisitos nativos (incluye eliminar)"),
+        ],
+    },
+    {
+        "modulo": "becas_preguntas",
+        "label": "Becas — Preguntas globales",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.pregunta.ver", "Ver preguntas globales (cuestionario social)"),
+            ("becas.pregunta.crear", "Crear preguntas globales"),
+            ("becas.pregunta.editar", "Editar preguntas globales (incluye activar/desactivar/eliminar)"),
+        ],
+    },
+    {
+        "modulo": "becas_coordinadores",
+        "label": "Becas — Coordinadores",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.coordinador.ver", "Ver coordinadores asignados a segmentos"),
+            ("becas.coordinador.crear", "Asignar coordinador a un segmento"),
+            ("becas.coordinador.editar", "Desasignar coordinador de un segmento"),
+        ],
+    },
+    {
+        "modulo": "becas_convocatorias",
+        "label": "Becas — Convocatorias",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.convocatoria.ver", "Ver convocatorias (incluye exportar CSV)"),
+            ("becas.convocatoria.crear", "Crear convocatorias"),
+            ("becas.convocatoria.editar", "Editar convocatorias (incluye activar/desactivar)"),
+        ],
+    },
+    {
+        "modulo": "becas_relevamientos",
+        "label": "Becas — Relevamientos",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.relevamiento.ver", "Ver relevamientos de Becas"),
+            ("becas.relevamiento.crear", "Crear relevamientos de Becas"),
+            ("becas.relevamiento.editar", "Editar relevamientos (reasignar territorial, reprogramar)"),
+        ],
+    },
+    {
+        "modulo": "becas_revision",
+        "label": "Becas — Revisión",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.revision.ver", "Ver relevamientos en revisión y sus formularios"),
+            ("becas.revision.editar", "Revisar formularios de Becas (iniciar, aprobar, rechazar, terminar)"),
+        ],
+    },
+    {
+        "modulo": "becas_cupo",
+        "label": "Becas — Cupo",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.cupo.ver", "Ver ocupación y capacidad de cupo por segmento"),
+        ],
+    },
+    {
+        "modulo": "becas_beneficiarios",
+        "label": "Becas — Beneficiarios",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.beneficiario.ver", "Ver beneficiarios, lista de espera y pendientes"),
+            ("becas.beneficiario.editar", "Dar de baja, promover y agregar a lista de espera beneficiarios"),
+        ],
+    },
+    {
+        "modulo": "becas_campo",
+        "label": "Becas — Campo",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
             ("becas.campo", "Operar la app de campo de Becas (territorial)"),
         ],
     },

@@ -10,12 +10,14 @@ from rest_framework.authentication import SessionAuthentication, TokenAuthentica
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from core.rbac import puede
 from legajos.services.consulta_renaper import consultar_datos_renaper
 from programas.api.serializers import (
+    AdjuntoFormularioSerializer,
     FormularioSerializer,
     RelevamientoDetailSerializer,
     RelevamientoListSerializer,
@@ -183,6 +185,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
 class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated, CampoBecasPermission]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
     serializer_class = FormularioSerializer
 
     def get_queryset(self):
@@ -197,3 +200,20 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
             serializer.validated_data.get("datos_identificacion"),
         )
         resolver_ciudadano_offline(formulario)
+
+    @action(detail=True, methods=["get", "post"])
+    def adjuntos(self, request, pk=None):
+        """Sube (multipart) o lista los archivos de los campos tipo ARCHIVO del
+        formulario (fotos DNI, certificado de domicilio, etc. — #82).
+
+        Reemplaza el placeholder ``{"pendiente_upload": true}`` que la app de
+        campo guardaba en ``data`` sin subir nunca el archivo real.
+        """
+        formulario = self.get_object()
+        if request.method == "GET":
+            return Response(AdjuntoFormularioSerializer(formulario.adjuntos.all(), many=True).data)
+
+        serializer = AdjuntoFormularioSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        adjunto = serializer.save(formulario=formulario)
+        return Response(AdjuntoFormularioSerializer(adjunto).data, status=status.HTTP_201_CREATED)

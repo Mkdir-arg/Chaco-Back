@@ -765,6 +765,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         gps_lat: gpsCoords.gps_lat || null,
         gps_lng: gpsCoords.gps_lng || null,
         data,
+        campos_definicion: detail?.campos_definicion || [],
         finalizar: false,
       });
       if (result?.syncResult?.offline || result?.syncResult?.failed > 0) {

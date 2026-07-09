@@ -1,4 +1,24 @@
 services:
+  mysql:
+    # 8.0.32: ultima build que corre en CPUs sin x86-64-v2 (la VM de icore-srv enmascara esos flags)
+    image: mysql:8.0.32
+    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    env_file:
+      - .env.production
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - nodo-network
+    mem_limit: 1500m
+    memswap_limit: 2000m
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "350mb", "--maxmemory-policy", "allkeys-lru"]
@@ -46,6 +66,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      mysql:
+        condition: service_healthy
     mem_limit: 350m
     memswap_limit: 500m
     healthcheck:
@@ -78,6 +100,8 @@ services:
       - nodo-network
     depends_on:
       redis:
+        condition: service_healthy
+      mysql:
         condition: service_healthy
     mem_limit: 300m
     memswap_limit: 500m
@@ -113,3 +137,4 @@ networks:
 
 volumes:
   redis_data:
+  mysql_data:
