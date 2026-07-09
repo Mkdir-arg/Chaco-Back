@@ -13,6 +13,26 @@ def _capacidades_desde_prefetch(group):
     return [c for c in rbac.codigos_de_capacidad() if rbac.codename_de(c) in codenames]
 
 
+_CAPACIDAD_LABELS = {codigo: etiqueta for modulo in rbac.CATALOGO for codigo, etiqueta in modulo["capacidades"]}
+_CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_BECAS}
+
+
+def _capacidades_para_tabla(codigos):
+    """Capacidades renderizables sin perder el código estable del catálogo."""
+    return [{"codigo": codigo, "label": _CAPACIDAD_LABELS.get(codigo, codigo)} for codigo in codigos]
+
+
+def _item_para_group(group):
+    capacidades = _capacidades_desde_prefetch(group)
+    return {
+        "group": group,
+        "meta": getattr(group, "meta", None),
+        "num_usuarios": group.num_usuarios,
+        "capacidades": capacidades,
+        "capacidades_tabla": _capacidades_para_tabla(capacidades),
+    }
+
+
 def es_admin_global(user):
     """¿El operador gestiona todo el RBAC, sin restricción de programa?
 
@@ -48,14 +68,13 @@ def programas_administrables(user):
 def puede_gestionar_rol(user, group):
     """¿El operador puede ver/editar este rol según su alcance?
 
-    Admin global: siempre. Admin de programa: solo roles de categoría 'Programa'
+    Admin global: siempre. Admin de programa: solo roles de alcance programa
     cuyo ``programa`` esté entre los que administra.
     """
     if es_admin_global(user):
         return True
     meta = getattr(group, "meta", None)
-    _CATS_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_BECAS}
-    if not meta or meta.categoria not in _CATS_PROGRAMA or not meta.programa_id:
+    if not meta or meta.categoria not in _CATEGORIAS_CON_PROGRAMA or not meta.programa_id:
         return False
     return programas_administrables(user).filter(pk=meta.programa_id).exists()
 
@@ -63,11 +82,11 @@ def puede_gestionar_rol(user, group):
 def roles_visibles_para(user):
     """Roles agrupados para el ABM, **filtrados por el alcance del operador**.
 
-    Devuelve ``{"categorias": [(categoria, [item, ...]), ...sin 'Programa'],
+    Devuelve ``{"categorias": [(categoria, [item, ...]), ...sin roles programáticos],
     "programas": [(Programa, [item, ...]), ...]}``. El admin global ve todo; el
     admin de programa ve solo la sub-sección de los programas que administra.
 
-    Cada ``item``: ``{"group", "meta", "num_usuarios", "capacidades"}``.
+    Cada ``item``: ``{"group", "meta", "num_usuarios", "capacidades", "capacidades_tabla"}``.
     """
     global_ = es_admin_global(user)
     programas_ok = None if global_ else set(programas_administrables(user).values_list("pk", flat=True))
@@ -85,15 +104,10 @@ def roles_visibles_para(user):
     por_programa = {}  # programa_pk -> (Programa, [items])
 
     for group in groups:
-        meta = getattr(group, "meta", None)
-        item = {
-            "group": group,
-            "meta": meta,
-            "num_usuarios": group.num_usuarios,
-            "capacidades": _capacidades_desde_prefetch(group),
-        }
+        item = _item_para_group(group)
+        meta = item["meta"]
         categoria = meta.categoria if meta else None
-        if categoria == rbac.CATEGORIA_PROGRAMA and meta and meta.programa_id:
+        if categoria in _CATEGORIAS_CON_PROGRAMA and meta and meta.programa_id:
             if not global_ and meta.programa_id not in programas_ok:
                 continue  # rol de un programa que el operador no administra
             _prog, items = por_programa.setdefault(meta.programa_id, (meta.programa, []))
@@ -182,13 +196,8 @@ def roles_por_categoria():
     por_categoria = {cat: [] for cat in rbac.CATEGORIAS_ROL}
     sin_categoria = []
     for group in groups:
-        meta = getattr(group, "meta", None)
-        item = {
-            "group": group,
-            "meta": meta,
-            "num_usuarios": group.num_usuarios,
-            "capacidades": _capacidades_desde_prefetch(group),
-        }
+        item = _item_para_group(group)
+        meta = item["meta"]
         categoria = meta.categoria if meta else None
         (por_categoria.get(categoria, sin_categoria)).append(item)
 

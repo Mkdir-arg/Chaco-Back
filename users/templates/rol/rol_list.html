@@ -7,7 +7,7 @@
 
 {# Page Header #}
 <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-    <div>
+    <div style="min-width:220px; flex:1 1 280px;">
         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
             <a href="/" style="font-size:12.5px; color:var(--text-body-subtle); text-decoration:none;">Inicio</a>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-body-subtle); flex-shrink:0;" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
@@ -16,7 +16,7 @@
         <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; margin:0 0 4px;">Roles</h1>
         <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Definí qué puede ver y hacer cada rol del sistema</p>
     </div>
-    <a href="{% url 'users:rol_crear' %}" class="btn-nodo btn-brand" aria-label="Nuevo rol">
+    <a href="{% url 'users:rol_crear' %}" class="btn-nodo btn-brand btn-base" aria-label="Nuevo rol" style="flex:0 0 auto; white-space:nowrap;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
         Nuevo rol
     </a>
@@ -41,7 +41,7 @@
 {% endif %}
 
 {# Toolbar (filtros por querystring) #}
-<form method="get" style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+<form method="get" x-data style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <div style="position:relative; max-width:320px; width:100%; flex:1 1 220px;">
         <button type="submit" aria-label="Buscar"
                 style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; padding:0; margin:0; display:flex; cursor:pointer; color:var(--text-body-subtle);">
@@ -117,17 +117,17 @@
                         {% endif %}
                     </td>
                     <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body); border-top:1px solid var(--border-light);">
-                        {{ item.meta.programa.nombre|default:"—" }}
+                        {% if item.meta and item.meta.programa %}{{ item.meta.programa.nombre }}{% else %}—{% endif %}
                     </td>
                     <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                            {% for codigo in item.capacidades|slice:":3" %}
-                            <span class="badge badge-brand">{{ codigo }}</span>
+                            {% for capacidad in item.capacidades_tabla|slice:":3" %}
+                            <span class="badge badge-brand" title="{{ capacidad.codigo }}">{{ capacidad.label }}</span>
                             {% empty %}
                             <span style="font-size:12px; color:var(--text-body-subtle);">Sin capacidades</span>
                             {% endfor %}
-                            {% if item.capacidades|length > 3 %}
-                            <span style="font-size:12px; color:var(--text-body-subtle);">+{{ item.capacidades|length|add:"-3" }} más</span>
+                            {% if item.capacidades_tabla|length > 3 %}
+                            <span style="font-size:12px; color:var(--text-body-subtle);">+{{ item.capacidades_tabla|length|add:"-3" }} más</span>
                             {% endif %}
                         </div>
                     </td>
@@ -223,7 +223,7 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
         <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay roles definidos</h3>
         <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Creá el primer rol y asignale las capacidades que necesita.</p>
-        <a href="{% url 'users:rol_crear' %}" class="btn-nodo btn-brand" style="margin-top:6px;">
+        <a href="{% url 'users:rol_crear' %}" class="btn-nodo btn-brand btn-base" style="margin-top:6px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
             Nuevo rol
         </a>

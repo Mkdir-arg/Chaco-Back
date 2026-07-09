@@ -1,9 +1,10 @@
 {% extends "includes/base.html" %}
-{% load static rbac %}
+{% load static custom_filters rbac %}
 
 {% block title %}Ciudadanos{% endblock %}
 
 {% block main-content %}
+{% with search_value=request.GET|query_get:"search" %}
 <div class="cl-ciudadanos">
 
   {# ── PageHeader ─────────────────────────────────────────────────────────── #}
@@ -101,7 +102,7 @@
       <input
         type="text"
         name="search"
-        value="{{ request.GET.search }}"
+        value="{{ search_value }}"
         placeholder="Buscá por nombre, apellido o DNI (mín. 3 caracteres)..."
         class="cl-search-input"
         aria-label="Buscar ciudadanos"
@@ -161,14 +162,14 @@
       </p>
       <div style="display:flex;align-items:center;gap:8px;">
         {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="btn-nodo btn-tertiary btn-sm">
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_value %}&search={{ search_value }}{% endif %}" class="btn-nodo btn-tertiary btn-sm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
           Anterior
         </a>
         {% endif %}
         <span class="cl-pagination-pages">{{ page_obj.number }} de {{ paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="btn-nodo btn-tertiary btn-sm">
+        <a href="?page={{ page_obj.next_page_number }}{% if search_value %}&search={{ search_value }}{% endif %}" class="btn-nodo btn-tertiary btn-sm">
           Siguiente
         </a>
         {% endif %}
@@ -182,8 +183,8 @@
       <span class="cl-empty-icon" aria-hidden="true">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
       </span>
-      {% if request.GET.search %}
-      <h3 class="cl-empty-title">Sin resultados para "{{ request.GET.search }}"</h3>
+      {% if search_value %}
+      <h3 class="cl-empty-title">Sin resultados para "{{ search_value }}"</h3>
       <p class="cl-empty-msg">Revisá el término de búsqueda o intentá con otro nombre o DNI.</p>
       {% else %}
       <h3 class="cl-empty-title">No hay ciudadanos registrados</h3>
@@ -341,7 +342,6 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-base);
   border-radius: var(--rounded-full);
-  outline: none;
   box-sizing: border-box;
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
@@ -485,4 +485,5 @@
   /* tokens ya invierten via data-theme=dark en base.html; este bloque es fallback */
 }
 </style>
+{% endwith %}
 {% endblock %}

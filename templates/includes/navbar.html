@@ -1,4 +1,4 @@
-{% load static %}
+{% load static custom_filters %}
 <style>
     /* navbar-accent: color de texto para links de acento (ahora usa token de marca, no magenta) */
     .navbar-accent {
@@ -64,11 +64,11 @@
                     <input
                         type="search"
                         name="search"
-                        value="{{ request.GET.search }}"
+                        value="{{ request.GET|query_get:'search' }}"
                         placeholder="Buscar ciudadanos..."
                         aria-label="Buscar ciudadanos"
                         autocomplete="off"
-                        style="height: 40px; border-radius: var(--rounded-full); background: var(--bg-secondary); border: 1px solid var(--border-base); padding: 0 14px 0 40px; font-size: 13.5px; font-family: var(--font-sans); color: var(--text-heading); outline: none; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;"
+                        style="height: 40px; border-radius: var(--rounded-full); background: var(--bg-secondary); border: 1px solid var(--border-base); padding: 0 14px 0 40px; font-size: 13.5px; font-family: var(--font-sans); color: var(--text-heading); width: 100%; transition: border-color 0.15s, box-shadow 0.15s;"
                         onfocus="this.style.borderColor='var(--border-brand)'; this.style.boxShadow='var(--ring-brand)';"
                         onblur="this.style.borderColor='var(--border-base)'; this.style.boxShadow='none';"
                     >

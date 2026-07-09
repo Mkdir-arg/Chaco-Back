@@ -1,4 +1,4 @@
-# :material-table-clock: Versión 001 - Detalle de consumo de horas
+# :material-table-clock: Detalle de tareas — consumo de horas
 
 ## :material-account-clock: Consumo de junio 2026 — detalle día por día
 

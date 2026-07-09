@@ -95,11 +95,11 @@ nav:
   - Versiones:
     - versiones/index.md
     - Version 001 - Programa Becas y roles/permisos: versiones/version-001.md
-    - Version 001 - Detalle de consumo de horas: versiones/version-001-consumo-horas.md
   - Financiero:
     - financiero/index.md
     - Julio 2026: financiero/mes-2026-07.md
     - Junio 2026: financiero/mes-2026-06.md
+    - Detalle de tareas: financiero/detalle-tareas.md
   - Funcionalidades:
     - funcionalidades/index.md
     - Programa Becas: funcionalidades/programa-becas.md

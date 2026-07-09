@@ -48,3 +48,11 @@ def getattr(obj, attr_name):
         return str(value)
     except (AttributeError, TypeError):
         return ""
+
+
+@register.filter
+def query_get(querydict, key):
+    try:
+        return querydict.get(key, "")
+    except AttributeError:
+        return ""
