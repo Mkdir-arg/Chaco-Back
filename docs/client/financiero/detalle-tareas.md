@@ -129,17 +129,23 @@
 | Día | Persona | Programa | Motivo | Qué hice | Consumo |
 |---|---|---|---|---|---:|
 | 2026-07-01 | Pablo Cao | Becas | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
+| 2026-07-01 | Matías Fariña | Dispositivos | Programa Dispositivos — análisis funcional | Análisis funcional del programa Dispositivos y Merenderos sobre la definición aprobada por el Ministerio el 01/07 | 480 min |
+| 2026-07-02 | Matías Fariña | Dispositivos | Programa Dispositivos — estimación | Elaboración de la estimación de esfuerzo del programa (documento v1.0 del 02/07, 436 h) | 480 min |
 | 2026-07-03 | Juani Portilla | Becas | Becas | Refinamiento backend y frontend de Becas | 120 min |
+| 2026-07-03 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-06 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-07 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-08 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
 | 2026-07-09 | Pablo Cao | Becas | App mobile Becas | Configuracion de la app contra servidor HTTP de prueba por VPN, habilitacion Android cleartext, pruebas en tablet con ADB/logcat, eliminacion del paso de fotos DNI y preparacion de PR a development. | 120 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 9 h 8 min |
-| Dispositivos | 0 h 0 min |
+| Becas | 41 h 8 min |
+| Dispositivos | 16 h 0 min |
 | Transversal | 0 h 0 min |
-| **Total julio 2026 (al 09/07)** | **9 h 8 min** |
+| **Total julio 2026 (al 10/07)** | **57 h 8 min** |
 
 ---
 
@@ -167,6 +173,6 @@
 
 !!! success "Contador total"
 
-    **30.500 minutos** (508 h 20 min)
+    **33.380 minutos** (556 h 20 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 09/07): **548 min (9 h 8 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 10/07): **3.428 min (57 h 8 min)**

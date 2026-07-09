@@ -14,7 +14,8 @@ Contexto del usuario: `$ARGUMENTS`
 1. **Definí el período** (si no vino: el sprint actual) y levantá los datos:
    - Project #1 de `Mkdir-arg` e issues (GitHub MCP preferido; fallback `gh`):
      qué épicas/análisis/tasks se crearon, definieron o cerraron en el período.
-   - Horas reales: `docs/client/sprints/sprint-NNN-consumo-horas.md`.
+   - Horas reales: `docs/client/financiero/` (`mes-AAAA-MM.md` del período +
+     `detalle-tareas.md`).
    - Asunciones a confirmar pendientes en los análisis activos.
 2. **Armá el reporte canónico** de `PM.md` → "4. Reporte", en **lenguaje
    cliente** (sin jerga técnica, sin estado del código, sin riesgos internos):

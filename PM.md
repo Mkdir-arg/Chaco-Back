@@ -22,7 +22,7 @@ tareas entre estados (**solo el PM humano mueve las tareas**) y no define alcanc
 |--------|--------|----------------|
 | **Project #1** (`Mkdir-arg`, "Proyect Chaco") | Items, Status, Prioridad, Modulo, EstimacionHoras | GitHub MCP (lectura) o `gh project item-list 1 --owner Mkdir-arg --format json` |
 | **Issues del repo** (`Mkdir-arg/Chaco`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view` |
-| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/versiones/version-NNN-consumo-horas.md` (lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) |
+| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
 | **Estimaciones por programa** | Horas estimadas por programa (resumen ejecutivo, desglose por concepto, estado de aprobación) | `docs/client/funcionalidades/estimacion-programa-*.md` |
 
 ### GitHub MCP y fallback `gh`
@@ -109,36 +109,24 @@ Para enviar o publicar. **Sin jerga técnica ni interna** (regla de
 5. **Temas que necesitamos de ustedes** — definiciones pendientes del cliente
    (de las "Asunciones a confirmar" de los análisis, reformuladas en claro).
 
-### 5. Programas (`/pm:programas`) — panorama estimado vs consumido por programa
+### 5. Horas (`/pm:horas`) — horas por programa: estimado, consumido y disponible
 
-Cruza las **horas estimadas** de cada programa contra las **horas registradas**
-para ver el panorama de avance. Fuentes: los documentos de estimación
-(`docs/client/funcionalidades/estimacion-programa-*.md` — total del resumen
-ejecutivo, desglose por concepto, fecha/versión/estado de aprobación) y el
-registro de consumo (`docs/client/versiones/version-NNN-consumo-horas.md`).
-Imputación del consumo: **junio 2026 se imputa íntegramente a Becas**
-(decisión del PM, 08/07/2026, anotada en el registro); **desde julio 2026**
-cada fila lleva columna `Programa` en las tablas mensuales.
-Secciones, en este orden:
-1. **Resumen ejecutivo** — 2-3 líneas por programa: cuánto se estimó, cuánto se
-   consumió, qué % de avance implica y qué preocupa.
-2. **Panorama** — tabla por programa: Estimado (doc) | Consumido | % avance |
-   Restante | Estado de la estimación (aprobada / pendiente de aprobación).
-   Si parte del consumo es previo a la fecha de la estimación (p. ej. junio
-   para Becas), el informe lo separa en una línea aparte: consumo total vs
-   consumo desde la estimación — el PM decide contra cuál medir el avance.
-3. **Detalle del estimado** — por programa, el desglose por concepto del resumen
-   ejecutivo (Backend, Frontend, App, UX, QA, despliegue, capacitación).
-4. **Horas fuera de programas** — Transversal del período (gestión, reuniones,
-   soporte), para que el total cierre contra el registro. Las estimaciones son
-   esfuerzo técnico neto: lo Transversal **no** descuenta avance de ningún
-   programa.
-5. **Cruce con el Project** — suma de `EstimacionHoras` de las tasks de la épica
-   de cada programa vs. el total del documento de estimación; discrepancias se
-   marcan (no se corrigen).
-6. **Alertas** — programa consumiendo sin estimación aprobada; consumo del mes
-   sin columna `Programa`; % de avance de consumo muy por encima del % de
-   alcance entregado; estimaciones desactualizadas respecto del alcance.
+Informe **conciso**: una tabla y una línea de contexto, nada más. Fuentes: los
+documentos de estimación (`docs/client/funcionalidades/estimacion-programa-*.md`
+— total del resumen ejecutivo y estado de aprobación) y el registro de consumo
+(`docs/client/financiero/` — `mes-AAAA-MM.md` + `detalle-tareas.md`).
+Imputación del consumo: **junio 2026 se imputa íntegramente a Becas y cuenta
+como consumo real contra su estimación** (decisión del PM, 08/07/2026, anotada
+en el registro); **desde julio 2026** cada fila lleva columna `Programa`. Lo
+`Transversal` va aparte y no descuenta disponible de ningún programa.
+Estructura:
+1. **Tabla de horas** — por programa: Estimado | Consumido | **Disponible**
+   (Estimado − Consumido). Fila `Transversal` (solo consumido) y fila `Total`.
+   Estimaciones pendientes de aprobación se marcan en la misma tabla.
+2. **Mes en curso** — una línea: presupuesto mensual, consumido al día de la
+   fecha y saldo del mes.
+3. **Notas** — solo si hace falta: datos faltantes (se marcan, no se rellenan)
+   o algo grave en una línea (p. ej. consumo sin estimación aprobada).
 
 ## Forma de trabajar (siempre igual)
 
