@@ -1,5 +1,5 @@
 {% load static custom_filters rbac %}
-{% with pagina_actual=request.resolver_match.route %}
+{% with pagina_actual=request.resolver_match|getattr:"route" %}
 <div class="flex flex-1 flex-col" style="gap: 0;">
 
     {# ── User card ──────────────────────────────────────────── #}

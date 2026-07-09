@@ -41,4 +41,4 @@
 | | **Total** | | | | **506h** |
 
 !!! note "Criterio de las horas reales"
-    Las horas por funcionalidad suman el consumo registrado por frente de trabajo según el campo *Motivo* del [detalle de consumo](version-001-consumo-horas.md) (506 h 20 min al 03/07/2026). La estimación comprometida del desarrollo de Becas (654 h) se ejecuta en los meses siguientes — ver [estimación](../funcionalidades/estimacion-programa-becas.md).
+    Las horas por funcionalidad suman el consumo registrado por frente de trabajo según el campo *Motivo* del [detalle de consumo](../financiero/detalle-tareas.md) (506 h 20 min al 03/07/2026). La estimación comprometida del desarrollo de Becas (654 h) se ejecuta en los meses siguientes — ver [estimación](../funcionalidades/estimacion-programa-becas.md).

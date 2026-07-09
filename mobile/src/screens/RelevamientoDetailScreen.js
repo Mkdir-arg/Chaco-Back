@@ -71,7 +71,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   const [renaperError, setRenaperError] = useState('');
   const [identificationOrigin, setIdentificationOrigin] = useState('manual');
   const [dniForm, setDniForm] = useState(emptyDniForm);
-  const [dniPhotos, setDniPhotos] = useState({ frente: null, dorso: null });
   const [dynamicValues, setDynamicValues] = useState({});
   const [contactForm, setContactForm] = useState({ celular: '', email_contacto: '' });
   const [submittingFormulario, setSubmittingFormulario] = useState(false);
@@ -134,8 +133,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     { id: 3, title: 'Globales', icon: 'list-outline' },
     { id: 4, title: 'Segmento', icon: 'layers-outline' },
     { id: 5, title: 'Subsegmento', icon: 'git-branch-outline' },
-    { id: 6, title: 'Fotos', icon: 'camera-outline' },
-    { id: 7, title: 'Confirmar', icon: 'checkmark-circle-outline' },
+    { id: 6, title: 'Confirmar', icon: 'checkmark-circle-outline' },
   ];
 
   const isAssignedFlow = detail?.source === 'asignado';
@@ -615,47 +613,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     setPreviewVisible(true);
   };
 
-  const openDniPhotoCamera = async (target) => {
-    try {
-      const permission = await ImagePicker.getCameraPermissionsAsync();
-      const granted = permission?.granted || (await ImagePicker.requestCameraPermissionsAsync())?.granted;
-      if (!granted) {
-        Alert.alert('Camara', 'Necesitamos permiso de camara para tomar fotos del DNI.');
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: 'images',
-        allowsEditing: false,
-        quality: 0.86,
-      });
-      if (result?.canceled) return;
-      const asset = result?.assets?.[0];
-      if (!asset?.uri) throw new Error('No se pudo guardar la foto.');
-      setDniPhotos((prev) => ({
-        ...prev,
-        [target]: {
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
-          capturedAt: new Date().toISOString(),
-        },
-      }));
-    } catch (e) {
-      Alert.alert('Foto DNI', e?.message || 'No se pudo tomar la foto.');
-    }
-  };
-
-  const openDniPhotoPreview = (target, label) => {
-    const photo = dniPhotos[target];
-    if (!photo?.uri) {
-      openDniPhotoCamera(target);
-      return;
-    }
-    setPreviewUri(photo.uri);
-    setPreviewName(label);
-    setPreviewVisible(true);
-  };
-
   const getMissingDniFields = () => {
     const required = [
       ['dni_numero', 'Numero de DNI'],
@@ -681,7 +638,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     setCurrentStep(1);
     setMaxVisitedStep(1);
     setDniForm(emptyDniForm);
-    setDniPhotos({ frente: null, dorso: null });
     setDynamicValues({});
     setContactForm({ celular: '', email_contacto: '' });
     gpsCoordsRef.current = null;
@@ -785,10 +741,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         : (dynamicValues[field.id] || '');
     });
     data.meta = {
-      dni_fotos: {
-        frente: dniPhotos.frente?.uri || null,
-        dorso: dniPhotos.dorso?.uri || null,
-      },
       renaper_estado: renaperStatus,
       identidad_origen: identificationOrigin,
       renaper_resultado: renaperResult,
@@ -848,10 +800,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         Alert.alert('Datos de la persona', `Completa antes de continuar: ${missing.join(', ')}.`);
         return;
       }
-    }
-    if (currentStep === 6 && (!dniPhotos.frente?.uri || !dniPhotos.dorso?.uri)) {
-      Alert.alert('Fotos DNI', 'Carga la foto del frente y del dorso del DNI para continuar.');
-      return;
     }
     if (currentStep === assignedSteps.length) {
       submitAssignedFormulario();
@@ -1429,49 +1377,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       });
     }
 
-    if (currentStep === 6) {
-      const renderPhotoCard = (target, label) => {
-        const photo = dniPhotos[target];
-        return (
-          <View style={[styles.dniCaptureCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
-            <TouchableOpacity
-              activeOpacity={0.84}
-              onPress={() => openDniPhotoPreview(target, label)}
-              style={styles.dniCapturePreview}
-            >
-              {photo?.uri ? (
-                <Image source={{ uri: photo.uri }} style={styles.dniCaptureImage} resizeMode="cover" />
-              ) : (
-                <View style={styles.dniCaptureEmpty}>
-                  <Ionicons name="camera-outline" size={28} color={theme.colors.icon} />
-                  <Text style={[styles.dniPhotoText, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{label}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => openDniPhotoCamera(target)} style={[styles.dniCaptureButton, { backgroundColor: theme.colors.primary }]}>
-              <Ionicons name={photo?.uri ? 'refresh-outline' : 'camera-outline'} size={17} color="#FFFFFF" />
-              <Text style={[styles.dniCaptureButtonText, { fontFamily: typography.bold }]}>
-                {photo?.uri ? 'REPETIR FOTO' : 'SACAR FOTO'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        );
-      };
-
-      return (
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Fotos del DNI</Text>
-          <Text style={[styles.stepHelp, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>
-            Carga una foto del frente y una del dorso. Quedan guardadas localmente para sincronizarlas al finalizar.
-          </Text>
-          <View style={styles.dniPhotoRow}>
-            {renderPhotoCard('frente', 'DNI frente')}
-            {renderPhotoCard('dorso', 'DNI dorso')}
-          </View>
-        </View>
-      );
-    }
-
     return (
       <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.cardTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Confirmacion</Text>
@@ -1480,7 +1385,6 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Nacimiento</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{dniForm.fecha_nacimiento || '-'}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Celular</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{contactForm.celular || '-'}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Email</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{contactForm.email_contacto || '-'}</Text></View>
-        <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Fotos DNI</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{dniPhotos.frente?.uri && dniPhotos.dorso?.uri ? 'Frente y dorso cargados' : 'Pendientes'}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>RENAPER</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{renaperStatus}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Origen identidad</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{identificationOrigin}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Direccion</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{readValue('direccion_objetivo')}</Text></View>

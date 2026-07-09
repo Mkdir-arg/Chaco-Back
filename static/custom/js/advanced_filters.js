@@ -184,24 +184,36 @@
     function addRow(prefill) {
         const row = document.createElement('div');
         row.className = 'filters-row';
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+        row.style.flexWrap = 'wrap';
 
-        const fieldSel = createSelect('form-select', fieldOptions);
-        const opSel = createSelect('form-select');
+        const fieldSel = createSelect('nodo-field', fieldOptions);
+        fieldSel.style.width = '180px';
+        const opSel = createSelect('nodo-field');
+        opSel.style.width = '150px';
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
-        valueInput.className = 'form-control form-control-sm';
+        valueInput.className = 'nodo-field';
         valueInput.placeholder = 'Valor';
+        valueInput.style.width = '220px';
 
-        const selectValue = createSelect('form-select form-select-sm');
+        const selectValue = createSelect('nodo-field');
         selectValue.style.display = 'none';
+        selectValue.style.width = '180px';
 
-        const emptyModeSel = createSelect('form-select form-select-sm', emptyModeOptions);
+        const emptyModeSel = createSelect('nodo-field', emptyModeOptions);
         emptyModeSel.style.display = 'none';
+        emptyModeSel.style.width = '180px';
 
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
-        removeBtn.className = 'btn btn-sm btn-outline-danger';
-        removeBtn.textContent = '-';
+        removeBtn.className = 'btn-nodo btn-danger btn-sm';
+        removeBtn.setAttribute('aria-label', 'Quitar filtro');
+        removeBtn.style.minWidth = '0';
+        removeBtn.style.padding = '8px';
+        removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
 
         const refs = {
             fieldSel,
@@ -367,7 +379,7 @@
         }
 
         const logic = logicSelect.value || 'AND';
-        hiddenInput.value = JSON.stringify({ logic, items });
+        hiddenInput.value = items.length ? JSON.stringify({ logic, items }) : '';
     });
 
     function loadFromQuerystring() {
@@ -395,4 +407,3 @@
         addRow();
     }
 })();
-

@@ -10,21 +10,21 @@ FIELD_MAP: Dict[str, str] = {
     "first_name": "first_name",
     "last_name": "last_name",
     "rol": "groups__name",
+    "estado": "is_active",
 }
 
 FIELD_TYPES: Dict[str, str] = {
-    key: "text"
-    for key in [
-        "username",
-        "email",
-        "first_name",
-        "last_name",
-        "rol",
-    ]
+    "username": "text",
+    "email": "text",
+    "first_name": "text",
+    "last_name": "text",
+    "rol": "text",
+    "estado": "boolean",
 }
 
 TEXT_OPS = ["contains", "ncontains", "eq", "ne", "empty"]
 NUM_OPS = ["eq", "ne", "gt", "lt", "empty"]
+BOOL_OPS = ["eq", "ne"]
 
 # --- Frontend ----------------------------------------------------------------
 
@@ -34,6 +34,7 @@ FILTER_FIELDS = [
     {"name": "username", "label": "Usuario", "type": "text"},
     {"name": "email", "label": "Email", "type": "text"},
     {"name": "rol", "label": "Rol", "type": "text"},
+    {"name": "estado", "label": "Estado", "type": "boolean"},
 ]
 
 
@@ -45,11 +46,17 @@ def get_filters_ui_config() -> Dict[str, Any]:
         "operators": {
             "text": list(TEXT_OPS),
             "number": list(NUM_OPS),
+            "boolean": list(BOOL_OPS),
         },
         "defaultOperators": {
             "text": "contains",
             "number": "eq",
+            "boolean": "eq",
         },
+        "booleanOptions": [
+            {"value": "true", "label": "Activo"},
+            {"value": "false", "label": "Inactivo"},
+        ],
     }
 
 
@@ -58,6 +65,7 @@ __all__ = [
     "FIELD_TYPES",
     "TEXT_OPS",
     "NUM_OPS",
+    "BOOL_OPS",
     "FILTER_FIELDS",
     "get_filters_ui_config",
 ]

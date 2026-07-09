@@ -1,7 +1,7 @@
 # Reconstrucción de horas — Junio 2026 (trabajo hecho y no registrado)
 
 **Documento interno.** No se publica. Sirve para completar el detalle de consumo de
-`docs/client/versiones/version-001-consumo-horas.md` con sesiones de junio que se
+`docs/client/financiero/detalle-tareas.md` con sesiones de junio que se
 trabajaron pero no se cargaron en su momento.
 
 ## Reglas (para que el registro sea defendible)

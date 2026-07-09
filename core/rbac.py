@@ -249,7 +249,7 @@ CATEGORIA_PORTAL = "Portal"
 CATEGORIA_SISTEMA = "Sistema"
 CATEGORIA_NACHEC = "ÑACHEC"
 CATEGORIA_BECAS = "Becas"
-# Valor legacy: usado en datos históricos y tests. No aparece en el selector de UI.
+# Categoría programática: agrupa roles acotados por ``RolMeta.programa``.
 CATEGORIA_PROGRAMA = "Programa"
 CATEGORIAS_ROL = [
     CATEGORIA_BACKOFFICE,
@@ -258,6 +258,7 @@ CATEGORIAS_ROL = [
     CATEGORIA_SISTEMA,
     CATEGORIA_NACHEC,
     CATEGORIA_BECAS,
+    CATEGORIA_PROGRAMA,
 ]
 CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
 
