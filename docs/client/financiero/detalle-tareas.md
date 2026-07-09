@@ -130,15 +130,16 @@
 |---|---|---|---|---|---:|
 | 2026-07-01 | Pablo Cao | Becas | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
 | 2026-07-03 | Juani Portilla | Becas | Becas | Refinamiento backend y frontend de Becas | 120 min |
+| 2026-07-09 | Pablo Cao | Becas | App mobile Becas | Configuracion de la app contra servidor HTTP de prueba por VPN, habilitacion Android cleartext, pruebas en tablet con ADB/logcat, eliminacion del paso de fotos DNI y preparacion de PR a development. | 120 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 7 h 8 min |
+| Becas | 9 h 8 min |
 | Dispositivos | 0 h 0 min |
 | Transversal | 0 h 0 min |
-| **Total julio 2026 (al 03/07)** | **7 h 8 min** |
+| **Total julio 2026 (al 09/07)** | **9 h 8 min** |
 
 ---
 
@@ -166,6 +167,6 @@
 
 !!! success "Contador total"
 
-    **30.380 minutos** (506 h 20 min)
+    **30.500 minutos** (508 h 20 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 03/07): **428 min (7 h 8 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 09/07): **548 min (9 h 8 min)**

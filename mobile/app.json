@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Relevamiento Chaco",
-    "slug": "relevamiento-chaco",
+    "slug": "nodo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/brand/app-icon-chaco.png",
@@ -23,6 +23,7 @@
         "foregroundImage": "./assets/brand/app-icon-chaco.png",
         "backgroundColor": "#ffffff"
       },
+      "usesCleartextTraffic": true,
       "package": "com.pablocao.relevamientochaco",
       "permissions": [
         "CAMERA",
@@ -36,11 +37,13 @@
       "favicon": "./assets/brand/app-icon-chaco.png"
     },
     "extra": {
+      "djangoApiUrl": "http://10.5.6.209",
       "eas": {
         "projectId": "9bd4ef7a-6e9a-4110-91c1-3c07565eef33"
       }
     },
     "plugins": [
+      "./plugins/withAndroidNetworkSecurityConfig",
       "expo-web-browser",
       [
         "expo-camera",
