@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% block title %}Becas · Cuestionario social{% endblock %}
+{% block title %}Becas · Requisitos generales{% endblock %}
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
@@ -22,12 +22,12 @@
     <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
     <a href="{% url 'becas:segmentos' %}" class="hover:underline">Segmentos</a>
     <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <span class="font-semibold text-body">Cuestionario social</span>
+    <span class="font-semibold text-body">Requisitos generales</span>
   </nav>
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Cuestionario social</h1>
-      <p class="text-sm text-body-subtle mt-1">Preguntas globales (requisitos generales) que aparecen en todos los formularios</p>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos generales</h1>
+      <p class="text-sm text-body-subtle mt-1">Preguntas globales que aparecen en todos los formularios</p>
     </div>
     <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nueva pregunta

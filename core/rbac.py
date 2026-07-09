@@ -111,7 +111,7 @@ CATALOGO = [
         "tab": "becas",
         "alcance": "programa",
         "capacidades": [
-            ("becas.pregunta.ver", "Ver preguntas globales (cuestionario social)"),
+            ("becas.pregunta.ver", "Ver preguntas globales (requisitos generales)"),
             ("becas.pregunta.crear", "Crear preguntas globales"),
             ("becas.pregunta.editar", "Editar preguntas globales (incluye activar/desactivar/eliminar)"),
         ],
