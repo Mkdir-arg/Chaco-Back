@@ -65,8 +65,10 @@
         });
         if (data.errors.__all__) toast(data.errors.__all__.join(' '), true);
         else toast('Revisá los datos del formulario.', true);
+      } else if (r.status === 403) {
+        toast((data && data.message) || 'No tiene permisos para realizar esta acción.', true);
       } else {
-        toast((data && data.message) || 'Ocurrió un error.', true);
+        toast((data && data.message) || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.', true);
       }
     }).catch(function () {
       toast('Error de red.', true);

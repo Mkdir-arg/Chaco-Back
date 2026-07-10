@@ -73,6 +73,33 @@ class AccesoConfigTests(_BaseConfigTest):
         resp = self.client.get(reverse("becas:segmentos"))
         self.assertEqual(resp.status_code, 302)
 
+    def test_sin_permiso_via_ajax_devuelve_403_json(self):
+        # Los modales postean por fetch: sin capacidad, la respuesta debe ser
+        # JSON 403 con el motivo real (no el redirect que el toast muestra como
+        # "Ocurrió un error").
+        seg = Segmento.objects.create(nombre="S-ajax", cupo_maximo=100)
+        AsignacionCoordinador.objects.create(segmento=seg, coordinador=self.coord)
+        self.client.force_login(self.coord)
+        resp = self.client.post(
+            reverse("becas:subsegmento_crear", args=[seg.pk]),
+            {"nombre": "Sub", "cupo_maximo": 10},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 403)
+        data = resp.json()
+        self.assertFalse(data["ok"])
+        self.assertIn("permisos", data["message"])
+
+    def test_sin_permiso_sin_ajax_sigue_redirigiendo(self):
+        seg = Segmento.objects.create(nombre="S-redir", cupo_maximo=100)
+        AsignacionCoordinador.objects.create(segmento=seg, coordinador=self.coord)
+        self.client.force_login(self.coord)
+        resp = self.client.post(
+            reverse("becas:subsegmento_crear", args=[seg.pk]),
+            {"nombre": "Sub", "cupo_maximo": 10},
+        )
+        self.assertEqual(resp.status_code, 302)  # comportamiento histórico con mensaje
+
 
 class SegmentoCrudTests(_BaseConfigTest):
     def setUp(self):
