@@ -3,7 +3,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5" x-data="{ tab: 'info' }">
+<div class="space-y-5" x-data="{ tab: 'info', modalRel: false }">
 
   <div>
     <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
@@ -152,7 +152,7 @@
     <div x-show="tab==='rel'" x-cloak class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Relevamientos asignados a esta convocatoria.</p>
-        <a href="{% url 'becas:relevamiento_crear' %}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-plus"></i> Nuevo relevamiento</a>
+        <button type="button" @click="modalRel=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-plus"></i> Nuevo relevamiento</button>
       </div>
       {% if relevamientos %}
       <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
@@ -257,5 +257,53 @@
       </div>
     </div>
   </div>
+
+  {# ============ Modal: Nuevo relevamiento (convocatoria preseleccionada) ============ #}
+  <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" @click="modalRel=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
+        <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
+      </div>
+
+      <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand mb-5 flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
+        <i class="fas fa-circle-info mt-0.5"></i>
+        <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
+      </div>
+
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'becas:convocatoria_detalle' convocatoria.pk %}">
+        {% if form_crear.non_field_errors %}
+          <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+        {% endif %}
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
+          {{ form_crear.convocatoria }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
+          {{ form_crear.territorial }}
+          <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
+            {{ form_crear.zona }}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+            {{ form_crear.fecha_asignada }}
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" @click="modalRel=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+{% include "programas/becas/relevamientos/_filtro_territorial.html" %}
 {% endblock %}

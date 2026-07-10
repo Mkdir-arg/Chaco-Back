@@ -195,6 +195,39 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.rel_a.refresh_from_db()
         self.assertEqual(self.rel_a.territorial, self.territorial)  # sin cambios
 
+    def test_crear_con_next_vuelve_a_la_pantalla_de_origen(self):
+        """El modal del detalle de convocatoria manda next para volver ahí tras crear."""
+        self.client.force_login(self.admin)
+        next_url = reverse("becas:convocatoria_detalle", args=[self.conv_a.pk])
+        resp = self.client.post(
+            reverse("becas:relevamiento_crear"),
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-07-20",
+                "zona": "Zona next",
+                "next": next_url,
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, next_url)
+        self.assertTrue(Relevamiento.objects.filter(zona="Zona next").exists())
+
+    def test_next_externo_se_ignora(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("becas:relevamiento_crear"),
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-07-20",
+                "zona": "Zona externa",
+                "next": "https://evil.example/phishing",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("becas:relevamientos"))
+
     def test_reprogramar(self):
         self.client.force_login(self.coord_a)
         resp = self.client.post(

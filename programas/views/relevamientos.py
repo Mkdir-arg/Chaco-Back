@@ -15,6 +15,7 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
@@ -105,6 +106,12 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         form = ConvocatoriaForm(instance=conv)
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         ctx["form_convocatoria"] = form
+        # Modal "Nuevo relevamiento" con esta convocatoria preseleccionada.
+        ctx["form_crear"] = RelevamientoForm(
+            initial={"convocatoria": conv},
+            segmentos_permitidos=segmentos_visibles(self.request.user),
+        )
+        ctx["siguiente_nombre"] = f"Relevamiento {Relevamiento.objects.count() + 1:03d}"
         return ctx
 
 
@@ -260,6 +267,14 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     def form_valid(self, form):
         messages.success(self.request, "Relevamiento creado y asignado.")
         return super().form_valid(form)
+
+    def get_success_url(self):
+        # "next" permite volver a la pantalla de origen (p. ej. el detalle de la
+        # convocatoria cuando se crea desde su modal).
+        next_url = self.request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={self.request.get_host()}):
+            return next_url
+        return str(self.success_url)
 
 
 class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
