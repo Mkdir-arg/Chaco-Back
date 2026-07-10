@@ -227,6 +227,10 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         ctx["coordinadores"] = seg.asignaciones_coordinador.select_related("coordinador").order_by(
             "coordinador__username"
         )
+        # Solo lectura: la asignación del territorial se gestiona desde el ABM de Usuarios.
+        ctx["territoriales"] = seg.asignaciones_territorial.select_related("territorial").order_by(
+            "territorial__first_name", "territorial__last_name", "territorial__username"
+        )
         ctx["requisitos"] = seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
         ctx["form_segmento"] = SegmentoForm(instance=seg)
         ctx["form_subsegmento"] = SubsegmentoForm(segmento=seg)

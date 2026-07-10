@@ -276,7 +276,9 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         rel = self.object
-        ctx["form_reasignar"] = ReasignarTerritorialForm(initial={"territorial": rel.territorial})
+        ctx["form_reasignar"] = ReasignarTerritorialForm(
+            initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
+        )
         ctx["form_reprogramar"] = ReprogramarForm(initial={"fecha_asignada": rel.fecha_asignada})
         ctx["n_formularios"] = rel.formularios.count()
         ctx["puede_revisar"] = puede(self.request.user, "becas.revision.ver")
@@ -293,7 +295,7 @@ def relevamiento_reasignar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
     if request.method == "POST":
-        form = ReasignarTerritorialForm(request.POST)
+        form = ReasignarTerritorialForm(request.POST, segmento=rel.convocatoria.segmento)
         if form.is_valid():
             rel.territorial = form.cleaned_data["territorial"]
             rel.save(update_fields=["territorial", "modificado"])

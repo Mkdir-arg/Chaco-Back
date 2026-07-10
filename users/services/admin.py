@@ -65,9 +65,31 @@ class UsuariosAdminService:
         if alcance_group_ids is None:
             # Admin global: reemplaza todos los grupos (comportamiento histórico).
             user.groups.set(seleccionados)
-            return
-        # Admin de programa: solo toca los roles dentro de su alcance; los roles
-        # fuera de alcance (otros programas, globales) del usuario quedan intactos.
-        fuera_de_alcance = list(user.groups.exclude(id__in=alcance_group_ids))
-        en_alcance_seleccionados = [g for g in seleccionados if g.id in alcance_group_ids]
-        user.groups.set(fuera_de_alcance + en_alcance_seleccionados)
+        else:
+            # Admin de programa: solo toca los roles dentro de su alcance; los roles
+            # fuera de alcance (otros programas, globales) del usuario quedan intactos.
+            fuera_de_alcance = list(user.groups.exclude(id__in=alcance_group_ids))
+            en_alcance_seleccionados = [g for g in seleccionados if g.id in alcance_group_ids]
+            user.groups.set(fuera_de_alcance + en_alcance_seleccionados)
+        UsuariosAdminService._sync_asignacion_territorial(user, cleaned_data)
+
+    @staticmethod
+    def _sync_asignacion_territorial(user, cleaned_data):
+        """Mantiene la asignación de segmento del territorial de Becas.
+
+        Regla: un territorial → un segmento, obligatorio mientras tenga un rol
+        con ``becas.campo``. Se decide sobre los grupos FINALES del usuario
+        (post-sync): si perdió el rol se borra la asignación; si lo tiene y el
+        form trajo segmento se crea/actualiza; si lo tiene pero el form no
+        trajo segmento (p. ej. un admin de otro programa que no ve el campo),
+        se conserva la existente.
+        """
+        from programas.models import AsignacionTerritorial
+        from programas.services.autorizacion import grupos_territoriales_becas
+
+        es_territorial = user.groups.filter(id__in=grupos_territoriales_becas()).exists()
+        segmento = cleaned_data.get("segmento_territorial")
+        if not es_territorial:
+            AsignacionTerritorial.objects.filter(territorial=user).delete()
+        elif segmento is not None:
+            AsignacionTerritorial.objects.update_or_create(territorial=user, defaults={"segmento": segmento})

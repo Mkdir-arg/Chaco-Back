@@ -303,7 +303,7 @@ def asegurar_convocatorias(segmentos, subsegmentos):
     return convocatorias
 
 
-def asegurar_territorial(username):
+def asegurar_territorial(username, segmento=None):
     User = get_user_model()
     territorial, created = User.objects.get_or_create(username=username, defaults={"is_active": True})
     if created:
@@ -313,6 +313,11 @@ def asegurar_territorial(username):
     group = Group.objects.filter(name__icontains="Becas").filter(name__icontains="Territorial").first()
     if group:
         territorial.groups.add(group)
+    if segmento is not None:
+        # Un territorial → un segmento (obligatorio con el rol); el demo usa el principal.
+        from programas.models import AsignacionTerritorial
+
+        AsignacionTerritorial.objects.update_or_create(territorial=territorial, defaults={"segmento": segmento})
     return territorial
 
 
@@ -386,7 +391,7 @@ class Command(BaseCommand):
         asegurar_preguntas_comunes()
         segmentos, subsegmentos = asegurar_segmentos()
         convocatorias = asegurar_convocatorias(segmentos, subsegmentos)
-        territorial = asegurar_territorial("terri")
+        territorial = asegurar_territorial("terri", segmento=segmentos.get("Produccion Territorial / Fuego y Barro"))
         relevamientos = asegurar_relevamientos(convocatorias, territorial)
         asegurar_formularios(relevamientos, territorial)
 

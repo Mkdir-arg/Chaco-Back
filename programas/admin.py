@@ -4,6 +4,7 @@ from django.utils.html import format_html
 
 from .models import (
     AsignacionCoordinador,
+    AsignacionTerritorial,
     Convocatoria,
     CupoSegmento,
     DerivacionPrograma,
@@ -233,6 +234,13 @@ class AsignacionCoordinadorAdmin(admin.ModelAdmin):
     list_display = ("coordinador", "segmento", "activo", "fecha_asignacion")
     list_filter = ("activo", "segmento")
     search_fields = ("coordinador__username", "segmento__nombre")
+
+
+@admin.register(AsignacionTerritorial)
+class AsignacionTerritorialAdmin(admin.ModelAdmin):
+    list_display = ("territorial", "segmento", "fecha_asignacion")
+    list_filter = ("segmento",)
+    search_fields = ("territorial__username", "segmento__nombre")
 
 
 class TracaFormularioInline(admin.TabularInline):

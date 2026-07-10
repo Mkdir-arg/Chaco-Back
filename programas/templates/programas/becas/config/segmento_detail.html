@@ -192,6 +192,32 @@
               <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
             </form>
           </div>
+
+          {# Territoriales del segmento — solo lectura (se asignan desde el ABM de Usuarios) #}
+          <div class="border-t border-light pt-5 mt-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-heading">Territoriales del segmento</h3>
+              <span class="text-xs text-body-subtle">{{ territoriales|length }} asignado{{ territoriales|length|pluralize }}</span>
+            </div>
+            {% if territoriales %}
+            <div class="space-y-2 mb-2">
+              {% for asig in territoriales %}
+              <div class="flex items-center justify-between bg-secondary-soft rounded-lg px-3 py-2">
+                <span class="text-sm text-body flex items-center gap-2">
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background: var(--gradient-brand)">
+                    {{ asig.territorial.get_full_name|default:asig.territorial.username|slice:":2"|upper }}
+                  </span>
+                  {{ asig.territorial.get_full_name|default:asig.territorial.username }}
+                </span>
+                <span class="text-xs text-body-subtle">desde {{ asig.fecha_asignacion|date:"d/m/Y" }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-body-subtle mb-2">Este segmento todavía no tiene territoriales asignados.</p>
+            {% endif %}
+            <p class="text-xs text-body-subtle">La asignación se gestiona desde Administración → Usuarios (rol territorial + segmento).</p>
+          </div>
         </div>
 
         {# Columna derecha: ocupación + resumen #}

@@ -259,8 +259,29 @@ class ConvocatoriaForm(forms.ModelForm):
         self.fields["subsegmento"].queryset = Subsegmento.objects.select_related("segmento")
 
 
+class _SelectConSegmento(forms.Select):
+    """Select cuyas opciones llevan ``data-segmento``.
+
+    Lo usa el filtro dependiente convocatoria → territorial del alta de
+    relevamiento (el JS del template oculta los territoriales que no
+    pertenecen al segmento de la convocatoria elegida).
+    """
+
+    def __init__(self, *args, segmento_por_valor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.segmento_por_valor = segmento_por_valor or {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        segmento_id = self.segmento_por_valor.get(str(value))
+        if segmento_id:
+            option["attrs"]["data-segmento"] = segmento_id
+        return option
+
+
 class RelevamientoForm(forms.ModelForm):
-    """ABM de relevamiento. El territorial se elige entre usuarios con rol Territorial."""
+    """ABM de relevamiento. El territorial se elige entre los usuarios con rol
+    Territorial **del segmento de la convocatoria** (``AsignacionTerritorial``)."""
 
     class Meta:
         model = Relevamiento
@@ -277,13 +298,40 @@ class RelevamientoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from programas.services.autorizacion import usuarios_territoriales_becas
 
-        self.fields["territorial"].queryset = usuarios_territoriales_becas()
-        self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
+        terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial")
         conv_qs = Convocatoria.objects.select_related("segmento").filter(activo=True)
         if segmentos_permitidos is not None:
             conv_qs = conv_qs.filter(segmento__in=segmentos_permitidos)
+        # data-segmento por opción para el filtro dependiente del template.
+        # Los widgets se reemplazan ANTES de asignar los querysets: el setter de
+        # queryset es el que propaga las choices al widget vigente.
+        conv_map = {str(c.pk): str(c.segmento_id) for c in conv_qs}
+        terr_map = {}
+        for usuario in terr_qs:
+            asignacion = getattr(usuario, "asignacion_territorial", None)
+            if asignacion is not None:
+                terr_map[str(usuario.pk)] = str(asignacion.segmento_id)
+        self.fields["convocatoria"].widget = _SelectConSegmento(
+            attrs={"class": INPUT_CLASS}, segmento_por_valor=conv_map
+        )
+        self.fields["territorial"].widget = _SelectConSegmento(
+            attrs={"class": INPUT_CLASS}, segmento_por_valor=terr_map
+        )
+        self.fields["territorial"].queryset = terr_qs
+        self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
+        self.fields["territorial"].help_text = "Solo se listan los territoriales del segmento de la convocatoria elegida."
         self.fields["convocatoria"].queryset = conv_qs
         self.fields["observaciones"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        convocatoria = cleaned.get("convocatoria")
+        territorial = cleaned.get("territorial")
+        if convocatoria and territorial:
+            asignacion = getattr(territorial, "asignacion_territorial", None)
+            if asignacion is None or asignacion.segmento_id != convocatoria.segmento_id:
+                self.add_error("territorial", "El territorial no pertenece al segmento de la convocatoria.")
+        return cleaned
 
 
 class ReasignarTerritorialForm(forms.Form):
@@ -298,11 +346,12 @@ class ReasignarTerritorialForm(forms.Form):
         label="Motivo",
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, segmento=None, **kwargs):
         super().__init__(*args, **kwargs)
         from programas.services.autorizacion import usuarios_territoriales_becas
 
-        self.fields["territorial"].queryset = usuarios_territoriales_becas()
+        # Con segmento (el del relevamiento) solo ofrece territoriales asignados a él.
+        self.fields["territorial"].queryset = usuarios_territoriales_becas(segmento=segmento)
         self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
 
 

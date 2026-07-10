@@ -672,6 +672,38 @@ class AsignacionCoordinador(TimeStamped):
         return f"{self.coordinador} → {self.segmento.nombre}"
 
 
+class AsignacionTerritorial(TimeStamped):
+    """Asignación de un territorial a un segmento (un territorial → un segmento).
+
+    Se crea/edita únicamente desde el ABM de Usuarios (obligatoria al asignar
+    un rol con capacidad ``becas.campo``); el detalle del segmento solo la
+    muestra. Acota qué territoriales pueden recibir relevamientos de cada
+    convocatoria (el relevamiento hereda el segmento de su convocatoria).
+    """
+
+    segmento = models.ForeignKey(
+        Segmento,
+        on_delete=models.CASCADE,
+        related_name="asignaciones_territorial",
+        verbose_name="Segmento",
+    )
+    territorial = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="asignacion_territorial",
+        verbose_name="Territorial",
+    )
+    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+
+    class Meta:
+        verbose_name = "Asignación de territorial"
+        verbose_name_plural = "Asignaciones de territoriales"
+        ordering = ["segmento", "territorial"]
+
+    def __str__(self):
+        return f"{self.territorial} → {self.segmento.nombre}"
+
+
 class Formulario(TimeStamped):
     """Una persona relevada (1 por relevamiento). Llega del territorial y el
     backoffice lo revisa (aprobado/rechazado). La validación SIS y la ocupación

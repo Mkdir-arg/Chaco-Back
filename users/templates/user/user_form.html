@@ -76,7 +76,16 @@
                         <div class="text-red-600 text-sm mt-1">{{ form.groups.errors }}</div>
                     {% endif %}
                 </div>
-                
+
+                <div id="segmento-territorial-field" class="hidden">
+                    <label for="id_segmento_territorial" class="block text-sm font-medium text-gray-700 mb-2">{{ form.segmento_territorial.label }} <span class="text-red-600">*</span></label>
+                    {{ form.segmento_territorial }}
+                    <p class="text-xs text-gray-500 mt-1">{{ form.segmento_territorial.help_text }}</p>
+                    {% if form.segmento_territorial.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.segmento_territorial.errors }}</div>
+                    {% endif %}
+                </div>
+
             </div>
             
             <div class="flex justify-end space-x-3 mt-6">
@@ -86,6 +95,7 @@
         </form>
     </div>
 </div>
+{{ form.grupos_territoriales_ids|json_script:"grupos-territoriales-ids" }}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const select = document.getElementById('id_groups') || document.getElementById('id_groups_edit');
@@ -95,6 +105,18 @@
         if (!select || !tagsContainer || !optionsContainer) {
             return;
         }
+
+        // Segmento (Becas): visible solo con un rol territorial tildado.
+        const segmentoField = document.getElementById('segmento-territorial-field');
+        const gruposTerritorialesEl = document.getElementById('grupos-territoriales-ids');
+        const gruposTerritoriales = gruposTerritorialesEl ? JSON.parse(gruposTerritorialesEl.textContent) : [];
+        const toggleSegmento = () => {
+            if (!segmentoField) return;
+            const esTerritorial = Array.from(select.selectedOptions).some((o) => gruposTerritoriales.includes(o.value));
+            segmentoField.classList.toggle('hidden', !esTerritorial);
+        };
+        select.addEventListener('change', toggleSegmento);
+        toggleSegmento();
 
         const optionButtons = new Map();
 

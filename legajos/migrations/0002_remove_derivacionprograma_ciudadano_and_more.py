@@ -10,6 +10,27 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Los índices sobre columnas que se eliminan deben quitarse ANTES del
+        # RemoveField: MySQL los ajusta solo al dropear la columna, pero SQLite
+        # (tests locales) reconstruye la tabla y falla si el estado conserva un
+        # índice sobre un campo inexistente. Estos modelos se eliminan en 0003,
+        # así que el estado posterior no cambia.
+        migrations.RemoveIndex(
+            model_name='derivacionprograma',
+            name='legajos_der_ciudada_3ad38b_idx',
+        ),
+        migrations.RemoveIndex(
+            model_name='derivacionprograma',
+            name='legajos_der_program_ac3470_idx',
+        ),
+        migrations.RemoveIndex(
+            model_name='inscripcionprograma',
+            name='legajos_ins_ciudada_c9810b_idx',
+        ),
+        migrations.RemoveIndex(
+            model_name='inscripcionprograma',
+            name='legajos_ins_program_73dc01_idx',
+        ),
         migrations.RemoveField(
             model_name='derivacionprograma',
             name='ciudadano',

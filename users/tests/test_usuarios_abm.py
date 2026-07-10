@@ -401,3 +401,98 @@ class UsuarioAutoProteccionTests(TestCase):
         UsuariosAdminService.update_user_from_form(form)  # no debe lanzar
         admin.refresh_from_db()
         self.assertEqual(admin.email, "nuevo@example.com")
+
+
+class SegmentoTerritorialABMTests(TestCase):
+    """El rol territorial de Becas exige segmento asignado (un territorial → un segmento)."""
+
+    def setUp(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        call_command("seed_becas", stdout=StringIO())
+        from programas.management.commands.seed_becas import ROL_TERRITORIAL
+        from programas.models import Segmento
+
+        self.rol_territorial = Group.objects.get(name=ROL_TERRITORIAL)
+        self.segmento = Segmento.objects.create(nombre="Seg ABM", cupo_maximo=10)
+        self.admin = _admin("admin1")
+        self.client.force_login(self.admin)
+
+    def _data_alta(self, **extra):
+        data = {
+            "username": "terri_abm",
+            "email": "terri@example.com",
+            "password": "x12345",
+            "first_name": "Terri",
+            "last_name": "ABM",
+            "groups": [str(self.rol_territorial.pk)],
+        }
+        data.update(extra)
+        return data
+
+    def test_rol_territorial_sin_segmento_es_invalido(self):
+        form = UserCreationForm(self._data_alta())
+        self.assertFalse(form.is_valid())
+        self.assertIn("segmento_territorial", form.errors)
+
+    def test_alta_con_segmento_persiste_asignacion(self):
+        from programas.models import AsignacionTerritorial
+
+        resp = self.client.post(
+            reverse("users:usuario_crear"), self._data_alta(segmento_territorial=str(self.segmento.pk))
+        )
+        self.assertEqual(resp.status_code, 302)
+        user = User.objects.get(username="terri_abm")
+        self.assertEqual(user.asignacion_territorial.segmento, self.segmento)
+        self.assertEqual(AsignacionTerritorial.objects.filter(territorial=user).count(), 1)
+
+    def test_rol_sin_capacidad_campo_ignora_segmento(self):
+        """Sin rol territorial, el segmento enviado se descarta y no se crea asignación."""
+        from programas.models import AsignacionTerritorial
+
+        otro_rol = Group.objects.create(name="Rol comun")
+        RolMeta.objects.create(grupo=otro_rol, categoria="Backoffice", activo=True)
+        resp = self.client.post(
+            reverse("users:usuario_crear"),
+            self._data_alta(groups=[str(otro_rol.pk)], segmento_territorial=str(self.segmento.pk)),
+        )
+        self.assertEqual(resp.status_code, 302)
+        user = User.objects.get(username="terri_abm")
+        self.assertFalse(AsignacionTerritorial.objects.filter(territorial=user).exists())
+
+    def test_quitar_rol_territorial_borra_asignacion(self):
+        from programas.models import AsignacionTerritorial
+
+        self.client.post(reverse("users:usuario_crear"), self._data_alta(segmento_territorial=str(self.segmento.pk)))
+        user = User.objects.get(username="terri_abm")
+        otro_rol = Group.objects.create(name="Rol comun")
+        RolMeta.objects.create(grupo=otro_rol, categoria="Backoffice", activo=True)
+        resp = self.client.post(
+            reverse("users:usuario_editar", args=[user.pk]),
+            {
+                "username": "terri_abm",
+                "email": "terri@example.com",
+                "password": "",
+                "first_name": "Terri",
+                "last_name": "ABM",
+                "groups": [str(otro_rol.pk)],
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(AsignacionTerritorial.objects.filter(territorial=user).exists())
+
+    def test_editar_cambia_segmento(self):
+        from programas.models import AsignacionTerritorial, Segmento
+
+        self.client.post(reverse("users:usuario_crear"), self._data_alta(segmento_territorial=str(self.segmento.pk)))
+        user = User.objects.get(username="terri_abm")
+        otro_seg = Segmento.objects.create(nombre="Seg ABM 2", cupo_maximo=5)
+        resp = self.client.post(
+            reverse("users:usuario_editar", args=[user.pk]),
+            self._data_alta(password="", segmento_territorial=str(otro_seg.pk)),
+        )
+        self.assertEqual(resp.status_code, 302)
+        asignacion = AsignacionTerritorial.objects.get(territorial=user)
+        self.assertEqual(asignacion.segmento, otro_seg)

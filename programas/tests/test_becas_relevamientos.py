@@ -14,7 +14,7 @@ from programas.management.commands.seed_becas import (
     ROL_COORDINADOR,
     ROL_TERRITORIAL,
 )
-from programas.models import AsignacionCoordinador, Convocatoria, Relevamiento, Segmento
+from programas.models import AsignacionCoordinador, AsignacionTerritorial, Convocatoria, Relevamiento, Segmento
 
 
 class _BaseRelevTest(TestCase):
@@ -38,6 +38,7 @@ class _BaseRelevTest(TestCase):
 
         self.territorial = User.objects.create_user("terri", password="x")
         self.territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        AsignacionTerritorial.objects.create(segmento=self.seg_a, territorial=self.territorial)
 
         self.rel_a = Relevamiento.objects.create(
             convocatoria=self.conv_a,
@@ -123,9 +124,54 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(Relevamiento.objects.filter(zona="X").exists())
 
+    def test_crear_con_territorial_de_otro_segmento_falla(self):
+        """RN nueva: el territorial debe pertenecer al segmento de la convocatoria."""
+        from programas.forms import RelevamientoForm
+
+        terri_b = User.objects.create_user("terri_b", password="x")
+        terri_b.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        AsignacionTerritorial.objects.create(segmento=self.seg_b, territorial=terri_b)
+        form = RelevamientoForm(
+            {
+                "convocatoria": self.conv_a.pk,  # segmento A
+                "territorial": terri_b.pk,  # asignado al segmento B
+                "fecha_asignada": "2026-07-01",
+                "zona": "Cruzada",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("territorial", form.errors)
+
+    def test_crear_con_territorial_sin_segmento_falla(self):
+        from programas.forms import RelevamientoForm
+
+        suelto = User.objects.create_user("terri_suelto", password="x")
+        suelto.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        form = RelevamientoForm(
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": suelto.pk,
+                "fecha_asignada": "2026-07-01",
+                "zona": "Sin segmento",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("territorial", form.errors)
+
+    def test_widgets_llevan_data_segmento(self):
+        """El filtro dependiente del template depende de data-segmento por opción."""
+        from programas.forms import RelevamientoForm
+
+        html = str(RelevamientoForm()["territorial"])
+        self.assertIn(f'data-segmento="{self.seg_a.pk}"', html)
+        html_conv = str(RelevamientoForm()["convocatoria"])
+        self.assertIn(f'data-segmento="{self.seg_a.pk}"', html_conv)
+        self.assertIn(f'data-segmento="{self.seg_b.pk}"', html_conv)
+
     def test_reasignar_territorial(self):
         otro = User.objects.create_user("terri2", password="x")
         otro.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        AsignacionTerritorial.objects.create(segmento=self.seg_a, territorial=otro)
         self.client.force_login(self.coord_a)
         resp = self.client.post(
             reverse("becas:relevamiento_reasignar", args=[self.rel_a.pk]),
@@ -134,6 +180,20 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertEqual(resp.status_code, 302)
         self.rel_a.refresh_from_db()
         self.assertEqual(self.rel_a.territorial, otro)
+
+    def test_reasignar_a_territorial_de_otro_segmento_falla(self):
+        """El combo de reasignación solo acepta territoriales del segmento del relevamiento."""
+        terri_b = User.objects.create_user("terri_b2", password="x")
+        terri_b.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        AsignacionTerritorial.objects.create(segmento=self.seg_b, territorial=terri_b)
+        self.client.force_login(self.coord_a)
+        resp = self.client.post(
+            reverse("becas:relevamiento_reasignar", args=[self.rel_a.pk]),
+            {"territorial": terri_b.pk},
+        )
+        self.assertEqual(resp.status_code, 302)  # redirige con mensaje de error
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.territorial, self.territorial)  # sin cambios
 
     def test_reprogramar(self):
         self.client.force_login(self.coord_a)

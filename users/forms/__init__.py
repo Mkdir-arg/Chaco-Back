@@ -49,6 +49,50 @@ def _normalize_groups_args(args, kwargs):
     return args, kwargs
 
 
+_INPUT_ABM = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+
+
+def _agregar_campo_segmento_territorial(form):
+    """Suma el campo ``segmento_territorial`` (Becas) al form del ABM.
+
+    Es obligatorio cuando el usuario tiene tildado un rol que otorga
+    ``becas.campo`` (un territorial → un segmento). Se agrega en runtime para
+    no importar ``programas`` al cargar el módulo.
+    """
+    from programas.models import Segmento
+    from programas.services.autorizacion import grupos_territoriales_becas
+
+    form.fields["segmento_territorial"] = forms.ModelChoiceField(
+        queryset=Segmento.objects.filter(activo=True).order_by("nombre"),
+        required=False,
+        label="Segmento asignado (Becas)",
+        empty_label="Seleccioná…",
+        widget=forms.Select(attrs={"class": _INPUT_ABM, "id": "id_segmento_territorial"}),
+        help_text="Define de qué segmento recibe relevamientos el territorial.",
+    )
+    form.grupos_territoriales_ids = [str(pk) for pk in grupos_territoriales_becas().values_list("id", flat=True)]
+
+
+def _validar_segmento_territorial(form):
+    """Regla del ABM: rol territorial tildado → segmento obligatorio.
+
+    Sin rol territorial el campo se descarta (el servicio conserva la
+    asignación existente solo si el usuario mantiene el rol por fuera del
+    alcance del operador; si lo pierde, la borra).
+    """
+    cleaned = form.cleaned_data
+    ids = set(getattr(form, "grupos_territoriales_ids", []))
+    es_territorial = any(str(g.id) in ids for g in (cleaned.get("groups") or []))
+    if es_territorial and not cleaned.get("segmento_territorial"):
+        form.add_error(
+            "segmento_territorial",
+            "Seleccioná el segmento asignado: es obligatorio para el rol territorial.",
+        )
+    if not es_territorial:
+        cleaned["segmento_territorial"] = None
+    return cleaned
+
+
 def _roles_asignables_queryset(operador=None):
     """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
 
@@ -130,6 +174,11 @@ class UserCreationForm(forms.ModelForm):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
         self.fields["groups"].queryset = _roles_asignables_queryset(operador)
+        _agregar_campo_segmento_territorial(self)
+
+    def clean(self):
+        super().clean()
+        return _validar_segmento_territorial(self)
 
 
 class CustomUserChangeForm(forms.ModelForm):
@@ -207,3 +256,12 @@ class CustomUserChangeForm(forms.ModelForm):
         self.fields["groups"].queryset = asignables
         self._original_password_hash = self.instance.password
         self.fields["password"].initial = ""
+        _agregar_campo_segmento_territorial(self)
+        if self.instance and self.instance.pk:
+            asignacion = getattr(self.instance, "asignacion_territorial", None)
+            if asignacion is not None:
+                self.fields["segmento_territorial"].initial = asignacion.segmento_id
+
+    def clean(self):
+        super().clean()
+        return _validar_segmento_territorial(self)

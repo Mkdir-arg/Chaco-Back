@@ -145,11 +145,34 @@ def usuarios_coordinadores_becas(programa=None):
     return _usuarios_con_capacidad_en_programa(CAPS_GESTION, programa=programa)
 
 
-def usuarios_territoriales_becas(programa=None):
+def usuarios_territoriales_becas(programa=None, segmento=None):
     """Usuarios activos con capacidad de campo (``CAP_CAMPO``), candidatos a
     ser asignados como territorial de un relevamiento.
+
+    Con ``segmento`` se acota a los territoriales asignados a ese segmento
+    (``AsignacionTerritorial``: un territorial → un segmento).
     """
-    return _usuarios_con_capacidad_en_programa([CAP_CAMPO], programa=programa)
+    qs = _usuarios_con_capacidad_en_programa([CAP_CAMPO], programa=programa)
+    if segmento is not None:
+        qs = qs.filter(asignacion_territorial__segmento=segmento)
+    return qs
+
+
+def grupos_territoriales_becas(programa=None):
+    """Roles (grupos) activos del Programa Becas que otorgan ``becas.campo``.
+
+    Los usa el ABM de Usuarios para exigir el segmento asignado cuando se
+    tilda un rol territorial (por capacidad, no por nombre del grupo).
+    """
+    from django.contrib.auth.models import Group
+
+    programa = programa or programa_becas()
+    programa_pk = getattr(programa, "pk", programa)
+    return Group.objects.filter(
+        meta__activo=True,
+        meta__programa=programa_pk,
+        permissions__codename=rbac.codename_de(CAP_CAMPO),
+    ).distinct()
 
 
 class SegmentoScopedMixin:

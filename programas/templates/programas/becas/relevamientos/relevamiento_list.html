@@ -106,6 +106,7 @@
         <div>
           <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
           {{ form_crear.territorial }}
+          <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -125,4 +126,5 @@
     </div>
   </div>
 </div>
+{% include "programas/becas/relevamientos/_filtro_territorial.html" %}
 {% endblock %}
