@@ -1,6 +1,7 @@
 # Create your views here.
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET
@@ -64,8 +65,16 @@ def inicio_view(request):
 
     context = {
         "total_ciudadanos": contar_ciudadanos(),
-        "usuarios_activos": User.objects.filter(last_login__gte=hace_24h).count(),
-        "registros_mes": InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
+        "usuarios_activos": cache.get_or_set(
+            "home:usuarios_activos_24h",
+            lambda: User.objects.filter(last_login__gte=hace_24h).count(),
+            300,
+        ),
+        "registros_mes": cache.get_or_set(
+            "home:inscripciones_mes",
+            lambda: InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
+            300,
+        ),
         "actividad_hoy": contar_seguimientos_hoy(),
         "total_usuarios": contar_usuarios(),
         "total_legajos": legajo_stats["total"],

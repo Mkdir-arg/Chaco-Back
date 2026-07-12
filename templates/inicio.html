@@ -523,7 +523,7 @@
                     class="search-input"
                     placeholder="Buscá por nombre, apellido o DNI (mín. 3 caracteres)…"
                     x-model="busqueda"
-                    @input="buscarCiudadano()"
+                    @input.debounce.300ms="buscarCiudadano()"
                     aria-label="Buscar ciudadano"
                 >
                 <div class="search-results" x-show="resultadosBusqueda.length > 0" x-cloak>

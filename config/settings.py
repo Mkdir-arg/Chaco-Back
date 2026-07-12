@@ -142,7 +142,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "legajos.context_processors.alertas_eventos_criticos",
                 "conversaciones.context_processors.user_groups",
                 "core.context_processors.sidebar_badges",
             ],
@@ -285,6 +284,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_RATES": {
+        # Endpoints que llaman a RENAPER (servicio externo lento): límite por
+        # cliente para no agotar el pool de workers ni abusar del upstream.
+        "renaper": "30/min",
+    },
 }
 
 DOMINIO = os.environ.get("DOMINIO", "localhost:8000")

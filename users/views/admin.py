@@ -41,6 +41,7 @@ class UserListView(AdminRequiredMixin, ListView):
     model = User
     template_name = "user/user_list.html"
     context_object_name = "users"
+    paginate_by = 25
 
     def get_queryset(self):
         return UsuariosService.get_filtered_usuarios(self.request, operador=self.request.user)
@@ -49,6 +50,9 @@ class UserListView(AdminRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context.update(UsuariosService.get_usuarios_list_context())
         context["hay_filtros_activos"] = bool(self.request.GET.get("filters"))
+        querystring = self.request.GET.copy()
+        querystring.pop("page", None)
+        context["filtros_qs"] = querystring.urlencode()
         return context
 
 

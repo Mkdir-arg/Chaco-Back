@@ -5,11 +5,9 @@ from users.selectors.roles import programas_administrables
 
 
 def get_usuarios_queryset():
-    return (
-        User.objects.select_related("profile")
-        .prefetch_related("groups", "groups__meta", "user_permissions")
-        .order_by("-id")
-    )
+    # Solo se prefetchea lo que el listado consume (nombres de grupos); el
+    # filtrado por groups__meta se hace en SQL y no necesita prefetch.
+    return User.objects.select_related("profile").prefetch_related("groups").order_by("-id")
 
 
 def es_admin_global_usuarios(user):

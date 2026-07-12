@@ -70,8 +70,11 @@ class RolForm(forms.Form):
             self.fields["categoria"].initial = rbac.CATEGORIA_BECAS
             self.fields["capacidades"].choices = [(c, c) for c in sorted(rbac.codigos_de_programa())]
             self.fields["programa"].required = False
-            if progs.count() == 1:
-                self.programa_fijo = progs.first()
+            # Materializado una vez para decidir (evita COUNT + SELECT extra);
+            # el field conserva el queryset.
+            progs_list = list(progs)
+            if len(progs_list) == 1:
+                self.programa_fijo = progs_list[0]
                 self.fields["programa"].initial = self.programa_fijo.pk
 
         if instance is not None and not self.is_bound:

@@ -6,6 +6,8 @@ gateado por permiso y es tolerante a fallos (si algo no está disponible,
 no rompe el render: simplemente no muestra el badge).
 """
 
+from django.core.cache import cache
+
 from core import rbac
 
 
@@ -21,9 +23,14 @@ def sidebar_badges(request):
         try:
             from conversaciones.models import Conversacion
 
-            badges["badge_conversaciones"] = Conversacion.objects.filter(
-                estado="pendiente", operador_asignado__isnull=True
-            ).count()
+            # Corre en todos los requests del backoffice: cache corto compartido.
+            badges["badge_conversaciones"] = cache.get_or_set(
+                "sidebar:conversaciones_pendientes",
+                lambda: Conversacion.objects.filter(
+                    estado="pendiente", operador_asignado__isnull=True
+                ).count(),
+                30,
+            )
         except Exception:
             badges["badge_conversaciones"] = 0
 

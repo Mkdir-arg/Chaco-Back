@@ -35,21 +35,3 @@ def cache_queryset(timeout=300, key_prefix="qs"):
     return decorator
 
 
-def invalidate_cache_pattern(pattern):
-    """Invalida cache por patrón"""
-    try:
-        from django_redis import get_redis_connection
-
-        conn = get_redis_connection("default")
-        keys = conn.keys(f"*{pattern}*")
-        if keys:
-            conn.delete(*keys)
-    except ImportError:
-        if hasattr(cache, "_cache"):
-            keys_to_delete = [k for k in cache._cache.keys() if pattern in k]
-            for key in keys_to_delete:
-                cache.delete(key)
-        else:
-            cache.clear()
-    except Exception:
-        cache.clear()

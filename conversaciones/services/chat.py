@@ -5,8 +5,6 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.html import escape
 
-from core.services.cache import invalidate_cache_pattern
-
 from ..models import Conversacion, Mensaje
 from ..selectors import get_conversaciones_sin_asignar
 from .core import AsignadorAutomatico, MetricasService, NotificacionService
@@ -108,7 +106,6 @@ def crear_mensaje_ciudadano(conversacion_id, contenido):
 def asignar_conversacion_operador(conversacion, operador, usuario_asignador):
     conversacion.asignar_operador(operador, usuario_asignador)
     AsignadorAutomatico.actualizar_todas_las_colas()
-    invalidate_cache_pattern("conversaciones:lista_conversaciones")
     _notificar_grupo(
         "conversaciones_list",
         {
@@ -149,7 +146,6 @@ def cerrar_conversacion(conversacion):
     conversacion.estado = "cerrada"
     conversacion.fecha_cierre = timezone.now()
     conversacion.save(update_fields=["estado", "fecha_cierre"])
-    invalidate_cache_pattern("conversaciones:lista_conversaciones")
     return conversacion
 
 

@@ -97,7 +97,6 @@ def eliminar_archivo(request, archivo_id):
 def alertas_ciudadano_api(request, ciudadano_id):
     """API para obtener alertas de un ciudadano"""
     try:
-        AlertasService.generar_alertas_ciudadano(ciudadano_id)
         alertas = AlertasService.obtener_alertas_ciudadano(ciudadano_id)
         return JsonResponse(
             {

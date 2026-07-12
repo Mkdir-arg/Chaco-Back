@@ -112,7 +112,7 @@
               <i class="fas fa-check-circle text-sm"></i>
             </div>
           </div>
-          <p class="text-3xl font-bold text-heading">{{ segmento.cupo_distribuido }}</p>
+          <p class="text-3xl font-bold text-heading">{{ cupo_distribuido }}</p>
         </div>
         <div class="bg-white rounded-xl p-5 border border-base shadow-sm">
           <div class="flex items-center justify-between mb-3">
@@ -121,7 +121,7 @@
               <i class="fas fa-clock text-sm"></i>
             </div>
           </div>
-          <p class="text-3xl font-bold text-heading">{{ segmento.cupo_disponible }}</p>
+          <p class="text-3xl font-bold text-heading">{{ cupo_disponible }}</p>
         </div>
       </div>
 
@@ -224,15 +224,15 @@
         <div class="space-y-5">
           <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Distribución del cupo</h3>
-            {% widthratio segmento.cupo_distribuido segmento.cupo_maximo 100 as pct %}
+            {% widthratio cupo_distribuido segmento.cupo_maximo 100 as pct %}
             <div class="flex justify-between text-sm mb-1">
-              <span class="text-body-subtle">{{ segmento.cupo_distribuido }} de {{ segmento.cupo_maximo }}</span>
+              <span class="text-body-subtle">{{ cupo_distribuido }} de {{ segmento.cupo_maximo }}</span>
               <span class="font-bold text-heading">{{ pct }}%</span>
             </div>
             <div class="h-2 w-full rounded-full bg-tertiary overflow-hidden">
               <div class="h-2 rounded-full" style="width: {{ pct }}%; background: var(--gradient-brand)"></div>
             </div>
-            <p class="text-xs text-body-subtle mt-2">{{ segmento.cupo_disponible }} lugares disponibles</p>
+            <p class="text-xs text-body-subtle mt-2">{{ cupo_disponible }} lugares disponibles</p>
           </div>
 
           <div class="bg-white rounded-xl border border-base shadow-sm p-5">
@@ -344,29 +344,29 @@
             <input type="number" name="cupo_maximo" min="0" required
                    class="nodo-field"
                    x-model="subCupo"
-                   placeholder="Disponible: {{ segmento.cupo_disponible }}"
-                   :class="Number(subCupo) > {{ segmento.cupo_disponible }} ? 'border-[color:var(--border-danger)] focus:ring-[color:var(--border-danger)]' : ''">
+                   placeholder="Disponible: {{ cupo_disponible }}"
+                   :class="Number(subCupo) > {{ cupo_disponible }} ? 'border-[color:var(--border-danger)] focus:ring-[color:var(--border-danger)]' : ''">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
             <p class="mt-1 text-xs text-fg-danger" x-cloak
-               x-show="Number(subCupo) > {{ segmento.cupo_disponible }}">
-              No podés asignar más de {{ segmento.cupo_disponible }} (disponible: {{ segmento.cupo_disponible }}).
+               x-show="Number(subCupo) > {{ cupo_disponible }}">
+              No podés asignar más de {{ cupo_disponible }} (disponible: {{ cupo_disponible }}).
             </p>
 
             {% comment %}Cuadro cupo disponible{% endcomment %}
             <div class="flex items-center gap-2 rounded-[10px] px-3 py-2.5 border mt-3"
-                 :class="Number(subCupo) > {{ segmento.cupo_disponible }}
+                 :class="Number(subCupo) > {{ cupo_disponible }}
                    ? 'bg-danger-soft border-[color:var(--border-danger-subtle)]'
                    : 'bg-secondary-soft border-base'">
               <i class="fas"
-                 :class="Number(subCupo) > {{ segmento.cupo_disponible }}
+                 :class="Number(subCupo) > {{ cupo_disponible }}
                    ? 'fa-triangle-exclamation text-fg-danger'
                    : 'fa-circle-check text-fg-success'"></i>
               <span class="text-[12.5px]"
-                    :class="Number(subCupo) > {{ segmento.cupo_disponible }}
+                    :class="Number(subCupo) > {{ cupo_disponible }}
                       ? 'text-fg-danger'
                       : 'text-body-subtle'">
                 Cupo disponible en el segmento:
-                <strong>{{ segmento.cupo_disponible }}</strong> de {{ segmento.cupo_maximo }}
+                <strong>{{ cupo_disponible }}</strong> de {{ segmento.cupo_maximo }}
               </span>
             </div>
           </div>

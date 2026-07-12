@@ -18,7 +18,14 @@ logger = logging.getLogger(__name__)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def metricas_dashboard(request):
-    """Obtiene metricas principales del dashboard."""
+    """Obtiene metricas principales del dashboard (datos globales, cacheados 60 s)."""
+    from django.core.cache import cache
+
+    data = cache.get_or_set("dashboard:metricas_api", _calcular_metricas_dashboard, 60)
+    return Response(data)
+
+
+def _calcular_metricas_dashboard():
     total_ciudadanos = Ciudadano.objects.count()
     legajos_activos = InscripcionPrograma.objects.filter(estado__in=["ACTIVO", "EN_SEGUIMIENTO"]).count()
     alertas_activas = AlertaCiudadano.objects.filter(activa=True).count()
@@ -32,23 +39,21 @@ def metricas_dashboard(request):
     hace_24h = timezone.now() - timedelta(hours=24)
     usuarios_activos = User.objects.filter(last_login__gte=hace_24h).count()
 
-    return Response(
-        {
-            "metricas": {
-                "ciudadanos": total_ciudadanos,
-                "legajos": legajos_activos,
-                "seguimientos": seguimientos_hoy,
-                "alertas": alertas_activas,
-            },
-            "estados_legajos": {
-                "abiertos": estados_dict.get("ACTIVO", 0),
-                "seguimiento": estados_dict.get("EN_SEGUIMIENTO", 0),
-                "derivados": DerivacionPrograma.objects.filter(estado="PENDIENTE").count(),
-                "cerrados": estados_dict.get("CERRADO", 0),
-            },
-            "usuarios_conectados": usuarios_activos,
-        }
-    )
+    return {
+        "metricas": {
+            "ciudadanos": total_ciudadanos,
+            "legajos": legajos_activos,
+            "seguimientos": seguimientos_hoy,
+            "alertas": alertas_activas,
+        },
+        "estados_legajos": {
+            "abiertos": estados_dict.get("ACTIVO", 0),
+            "seguimiento": estados_dict.get("EN_SEGUIMIENTO", 0),
+            "derivados": DerivacionPrograma.objects.filter(estado="PENDIENTE").count(),
+            "cerrados": estados_dict.get("CERRADO", 0),
+        },
+        "usuarios_conectados": usuarios_activos,
+    }
 
 
 @api_view(["GET"])
@@ -61,9 +66,13 @@ def buscar_ciudadanos(request):
         return Response({"results": []})
 
     try:
-        ciudadanos = Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(
-            Q(nombre__icontains=query) | Q(apellido__icontains=query) | Q(dni__icontains=query)
-        )[:8]
+        # Filtros sargables: LIKE 'q%' usa índice; LIKE '%q%' fuerza full scan
+        # del padrón por cada tecla del typeahead.
+        if query.isdigit():
+            filtro = Q(dni__startswith=query)
+        else:
+            filtro = Q(nombre__istartswith=query) | Q(apellido__istartswith=query)
+        ciudadanos = Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(filtro)[:8]
 
         resultados = [{"id": c.id, "nombre": f"{c.apellido}, {c.nombre}", "dni": c.dni} for c in ciudadanos]
         return Response({"results": resultados})

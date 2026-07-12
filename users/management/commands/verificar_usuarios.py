@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Count
 
 from users.models import Profile
 
@@ -40,8 +41,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'Usuario "{username}" no encontrado'))
 
     def verificar_todos_usuarios(self, reparar):
-        usuarios = User.objects.all()
-        self.stdout.write(f"Total de usuarios: {usuarios.count()}")
+        # select_related + annotate: evita el N+1 de perfil y de groups.count().
+        usuarios = list(User.objects.select_related("profile").annotate(n_groups=Count("groups")))
+        self.stdout.write(f"Total de usuarios: {len(usuarios)}")
 
         problemas = 0
 
@@ -58,8 +60,8 @@ class Command(BaseCommand):
                     Profile.objects.create(user=usuario)
                     self.stdout.write(self.style.SUCCESS(f"  → Perfil creado para {usuario.username}"))
 
-            # Verificar grupos
-            if usuario.groups.count() == 0 and not usuario.is_superuser:
+            # Verificar grupos (n_groups anotado en la query)
+            if usuario.n_groups == 0 and not usuario.is_superuser:
                 self.stdout.write(self.style.WARNING(f"Usuario {usuario.username}: Sin grupos asignados"))
                 tiene_problemas = True
 

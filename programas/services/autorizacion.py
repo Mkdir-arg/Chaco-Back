@@ -36,13 +36,26 @@ CAPS_GESTION = _caps_gestion()
 
 # Programa genérico que ancla el alcance del RBAC de Becas (sembrado por seed_becas).
 PROGRAMA_BECAS_CODIGO = "BECAS"
+_PROGRAMA_BECAS_CACHE_KEY = "programas:becas"
 
 
 def programa_becas():
-    """Instancia genérica del Programa Becas, o None si no está sembrada."""
+    """Instancia genérica del Programa Becas, o None si no está sembrada.
+
+    Se consulta en casi todos los checks de autorización de Becas, así que se
+    cachea 5 minutos. Solo se cachea cuando existe (cachear el None rompería
+    los tests que siembran el programa después de la primera consulta).
+    """
+    from django.core.cache import cache
+
     from programas.models import Programa
 
-    return Programa.objects.filter(codigo=PROGRAMA_BECAS_CODIGO).first()
+    programa = cache.get(_PROGRAMA_BECAS_CACHE_KEY)
+    if programa is None:
+        programa = Programa.objects.filter(codigo=PROGRAMA_BECAS_CODIGO).first()
+        if programa is not None:
+            cache.set(_PROGRAMA_BECAS_CACHE_KEY, programa, 300)
+    return programa
 
 
 def es_admin_becas(user, programa=None):

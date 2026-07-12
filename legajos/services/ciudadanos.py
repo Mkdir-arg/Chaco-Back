@@ -1,7 +1,5 @@
 import re
 
-from core.services.cache import invalidate_cache_pattern
-
 from .consulta_renaper import consultar_datos_renaper
 
 
@@ -47,5 +45,4 @@ class CiudadanosService:
     def invalidate_ciudadanos_cache():
         from dashboard.utils import invalidate_dashboard_cache
 
-        invalidate_cache_pattern("ciudadanos_list")
         invalidate_dashboard_cache()

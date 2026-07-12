@@ -215,6 +215,14 @@ def build_ciudadano_timeline_payload(ciudadano_id):
     )
     eventos = []
 
+    # Últimos 3 seguimientos por legajo resueltos en UNA query (antes era una
+    # query por legajo): vienen ordenados desc y cortamos el bucket en 3.
+    seguimientos_por_legajo = {}
+    for seguimiento in HistorialContacto.objects.filter(legajo__in=legajos).order_by("-fecha_contacto"):
+        bucket = seguimientos_por_legajo.setdefault(seguimiento.legajo_id, [])
+        if len(bucket) < 3:
+            bucket.append(seguimiento)
+
     for legajo in legajos:
         eventos.append(
             {
@@ -238,7 +246,7 @@ def build_ciudadano_timeline_payload(ciudadano_id):
                 }
             )
 
-        for seguimiento in HistorialContacto.objects.filter(legajo=legajo).order_by("-fecha_contacto")[:3]:
+        for seguimiento in seguimientos_por_legajo.get(legajo.id, []):
             eventos.append(
                 {
                     "fecha": seguimiento.fecha_contacto.isoformat(),

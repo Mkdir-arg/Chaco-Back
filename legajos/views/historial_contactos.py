@@ -37,7 +37,11 @@ def contactos_api(request, legajo_id):
     if estado:
         contactos = contactos.filter(estado=estado)
 
-    contactos = contactos.select_related("profesional").order_by("-fecha_contacto")
+    # El JS de historial_contactos.html espera la lista completa: limitamos a
+    # los últimos 100 (pedimos 101 para saber si quedó historial afuera).
+    contactos = list(contactos.select_related("profesional").order_by("-fecha_contacto")[:101])
+    truncado = len(contactos) > 100
+    contactos = contactos[:100]
 
     data = []
     for contacto in contactos:
@@ -61,7 +65,7 @@ def contactos_api(request, legajo_id):
             }
         )
 
-    return JsonResponse({"contactos": data})
+    return JsonResponse({"contactos": data, "truncado": truncado})
 
 
 @login_required

@@ -1,15 +1,19 @@
+from django.core.cache import cache
+
 from legajos.models import Ciudadano
 from programas.models import InscripcionPrograma, Programa
 
 
-def get_portal_home_context():
+def _build_portal_home_context():
+    # list(): el contexto va al cache y debe ser picklable (sin querysets lazy).
+    programas = list(Programa.objects.filter(estado="ACTIVO").order_by("orden"))
     return {
-        "programas": Programa.objects.filter(estado="ACTIVO").order_by("orden"),
+        "programas": programas,
         "instituciones": [],
         "stats": {
             "ciudadanos": Ciudadano.objects.count(),
             "instituciones": 0,
-            "programas": Programa.objects.filter(estado="ACTIVO").count(),
+            "programas": len(programas),
             "inscripciones_activas": InscripcionPrograma.objects.filter(
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"]
             ).count(),
@@ -26,3 +30,7 @@ def get_portal_home_context():
             "Mesa de ayuda especializada",
         ],
     }
+
+
+def get_portal_home_context():
+    return cache.get_or_set("portal:home_ctx", _build_portal_home_context, 300)

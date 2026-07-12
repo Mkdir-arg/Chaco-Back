@@ -1,5 +1,37 @@
 # Auditoría de performance — repo completo (2026-07-12)
 
+> ## Estado de remediación (2026-07-12)
+>
+> **Resueltos**: todos los hallazgos de severidad ALTA (los 8 de Ñachec quedaron obsoletos al
+> eliminarse el programa; los 13 restantes se corrigieron), todos los MEDIOS salvo los listados
+> abajo, y la gran mayoría de los BAJOS. Suite de tests sin fallos nuevos (los 47 errores
+> preexistentes son la incompatibilidad Python 3.14 + Django 4.2 del test client:
+> `'super' object has no attribute 'dicts'`).
+>
+> **Fix extra descubierto durante la remediación**: la asignación automática de conversaciones
+> escaneaba `django_session` (tabla DB), pero en prd las sesiones viven en cache → nunca
+> encontraba operadores logueados. Ahora hay registro de presencia por señales de
+> login/logout (`conversaciones/presencia.py`) con fallback al escaneo DB cacheado 60 s.
+>
+> **Pendientes (decisión consciente, con motivo)**:
+> - **M2 (parcial)**: se reordenaron las condiciones del middleware (paths antes que la query);
+>   la memoización de grupos/flags en sesión queda pendiente (invalidación al cambiar roles).
+> - **M7**: properties con query de `LegajoAtencion` (N+1 estructural) — requiere refactor de
+>   linking en serializers/listados; existe `annotate_legajo_link_data()` para cuando se encare.
+> - **M29**: los forms de Becas evalúan catálogos 2 veces — `ModelChoiceIterator` re-ejecuta el
+>   queryset vía `.iterator()` aunque esté materializado; evitarlo requiere hacks frágiles.
+> - **B5**: logging multi-handler por request — cambio de configuración operativa, coordinar.
+> - **B7**: QA con LocMemCache y sesiones en DB — depende de que QA tenga Redis (infra).
+> - **B17/B19** (configuracion): refactor de UI (modal único por catálogo / re-render paginado).
+> - **B25**: cache de grupos territoriales en el form del ABM — riesgo de cache viejo en una
+>   validación de permisos por ganancia mínima (ABM de bajo tráfico).
+> - **A9 (parcial)**: la lista de conversaciones quedó paginada (25); el reemplazo del
+>   `location.reload()` por inserción incremental vía WS queda como mejora futura.
+>
+> **Acciones de ops pendientes**: agendar en cron `manage.py generar_alertas` (pasada horaria
+> de alertas de legajos) y `manage.py limpiar_alertas_conversaciones` (purga diaria). Al
+> deployar, correr las migraciones nuevas (índice `ListaEspera(segmento, promovido)`).
+
 Barrido de todo el código Python y templates del repo (sin `migrations/` ni tests), en 4 particiones
 auditadas en paralelo. Cada hallazgo fue verificado contra su queryset/código de origen antes de
 reportarse. Contexto verificado: prod corre `ENVIRONMENT=prd` + `config.settings_production`, con

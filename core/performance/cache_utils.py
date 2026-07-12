@@ -50,4 +50,8 @@ def invalidate_ciudadano_cache_on_change(sender, instance, **kwargs):
 @receiver([post_save, post_delete], sender="auth.User")
 def invalidate_user_cache_on_change(sender, instance, **kwargs):
     """Invalida cache cuando se modifica un usuario."""
+    # update_last_login guarda solo last_login en cada login: no cambia los
+    # contadores del dashboard, no hace falta invalidarlos.
+    if kwargs.get("update_fields") and set(kwargs["update_fields"]) == {"last_login"}:
+        return
     invalidate_dashboard_cache()

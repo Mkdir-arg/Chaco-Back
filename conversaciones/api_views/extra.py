@@ -28,7 +28,7 @@ def conversacion_detalle(request, conversacion_id):
         "dni": conv.dni_ciudadano or "",
         "sexo": conv.sexo_ciudadano or "",
         "fecha": conv.fecha_inicio.strftime("%d/%m/%Y %H:%M"),
-        "mensajes": conv.mensajes.count(),
+        "mensajes": conv.total_mensajes,
         "no_leidos": conv.mensajes_no_leidos,
     }
     return Response({"conversacion": data})

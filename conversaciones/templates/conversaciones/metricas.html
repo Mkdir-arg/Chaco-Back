@@ -141,17 +141,10 @@
 
 <script>
 function actualizarMetricas() {
-    fetch('{% url "conversaciones:api_metricas" %}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            }
-        })
-        .catch(error => console.error('Error:', error));
+    location.reload();
 }
 
-// Auto-actualizar cada 30 segundos
-setInterval(actualizarMetricas, 30000);
+// Auto-actualizar cada 60 segundos (las métricas se cachean 60 s en servidor)
+setInterval(actualizarMetricas, 60000);
 </script>
 {% endblock %}

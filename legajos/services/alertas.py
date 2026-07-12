@@ -21,14 +21,16 @@ class AlertasService:
 
     @staticmethod
     def generar_alertas_ciudadano(ciudadano_id):
-        """Genera todas las alertas para un ciudadano específico."""
+        """Genera todas las alertas para un ciudadano específico.
+
+        Pensado para la señal de guardado y el comando periódico ``generar_alertas``,
+        NO para el request path de vistas de lectura.
+        """
         try:
             ciudadano = Ciudadano.objects.get(id=ciudadano_id)
             legajos = get_legajos_queryset_for_ciudadano(
                 ciudadano,
-                LegajoAtencion.objects.select_related("responsable").prefetch_related(
-                    "historial_contactos",
-                ),
+                LegajoAtencion.objects.select_related("responsable"),
             )
 
             AlertaCiudadano.objects.filter(
@@ -48,6 +50,15 @@ class AlertasService:
 
         except Exception as exc:
             logger.exception("Error generando alertas: %s", exc)
+            return []
+
+    @staticmethod
+    def generar_alertas_legajo(legajo):
+        """Regenera solo las alertas del legajo dado (para la señal post_save)."""
+        try:
+            return AlertasService._generar_alertas_legajo(legajo)
+        except Exception as exc:
+            logger.exception("Error generando alertas del legajo: %s", exc)
             return []
 
     @staticmethod

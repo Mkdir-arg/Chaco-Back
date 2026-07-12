@@ -24,7 +24,7 @@ def performance_dashboard(request):
 
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 
 @extend_schema(
@@ -152,7 +152,7 @@ def optimization_suggestions_api(request):
     responses={200: "Métricas completas del sistema"},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def system_metrics_api(request):
     """Comprehensive system metrics API"""
     metrics = system_monitor.get_comprehensive_metrics()
@@ -170,7 +170,7 @@ def alerts_api(request):
 
 @extend_schema(description="API para métricas en tiempo real", responses={200: "Métricas en tiempo real"})
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def realtime_metrics_api(request):
     """Real-time metrics API"""
     # Recolectar métricas frescas
@@ -269,7 +269,7 @@ def phase2_metrics_api(request):
     responses={200: "Resultados de pruebas automáticas"},
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def run_phase2_tests_api(request):
     """Ejecuta todas las pruebas de Fase 2 automáticamente"""
     try:

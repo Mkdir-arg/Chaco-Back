@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.core.cache import cache
 from django.db.models import Q
 
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
@@ -62,7 +63,7 @@ def get_ciudadanos_queryset(search=""):
     return queryset.order_by("apellido", "nombre")
 
 
-def get_ciudadanos_dashboard_metrics():
+def _build_ciudadanos_dashboard_metrics():
     total_inscripciones_activas = InscripcionPrograma.objects.filter(
         estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO]
     ).count()
@@ -82,19 +83,19 @@ def get_ciudadanos_dashboard_metrics():
     }
 
 
+def get_ciudadanos_dashboard_metrics():
+    # ~6 COUNTs globales por cada página del listado: cache corto compartido.
+    return cache.get_or_set("legajos:ciudadanos_dashboard_metrics", _build_ciudadanos_dashboard_metrics, 60)
+
+
 def build_ciudadano_detail_context(ciudadano, user=None):
 
     from core.rbac import puede
 
     puede_ver_sensible = puede(user, "ciudadano.sensible")
 
-    # Generar alertas on-the-fly antes de consultar (best-effort)
-    try:
-        from ..services.alertas import AlertasService
-
-        AlertasService.generar_alertas_ciudadano(ciudadano.pk)
-    except Exception:
-        pass
+    # Las alertas se generan por señal (al guardar legajos/contactos) y por el
+    # comando periódico `generar_alertas`; la vista de detalle solo las lee.
 
     acompanamientos = (
         InscripcionPrograma.objects.filter(

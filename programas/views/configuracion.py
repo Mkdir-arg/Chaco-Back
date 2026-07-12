@@ -224,6 +224,10 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         subsegmentos = list(seg.subsegmentos.all().order_by("nombre"))
         ctx["subsegmentos"] = subsegmentos
         ctx["subsegmentos_cupo_total"] = sum(s.cupo_maximo for s in subsegmentos)
+        # Cupo calculado UNA vez acá: las properties del modelo disparan un SUM
+        # por cada acceso y el template las consulta muchas veces.
+        ctx["cupo_distribuido"] = ctx["subsegmentos_cupo_total"]
+        ctx["cupo_disponible"] = seg.cupo_maximo - ctx["subsegmentos_cupo_total"]
         ctx["coordinadores"] = seg.asignaciones_coordinador.select_related("coordinador").order_by(
             "coordinador__username"
         )

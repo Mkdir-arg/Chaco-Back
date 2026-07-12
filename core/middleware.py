@@ -79,11 +79,12 @@ class PortalCiudadanoMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Los checks de path van primero: cortan sin pagar la query de grupos.
         if (
-            rbac.es_ciudadano_portal(request.user)
-            and not request.path.startswith("/portal/")
+            not request.path.startswith("/portal/")
             and not request.path.startswith("/static/")
             and not request.path.startswith("/media/")
+            and rbac.es_ciudadano_portal(request.user)
         ):
             return redirect("portal:ciudadano_mi_perfil")
         return self.get_response(request)

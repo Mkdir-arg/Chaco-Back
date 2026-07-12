@@ -12,7 +12,6 @@ from ..forms import (
     RenaperConsultaForm,
 )
 from ..models import Conversacion
-from ..selectors import get_conversacion_detalle_queryset
 from ..services.chat import (
     consultar_renaper_para_chat,
     crear_mensaje_ciudadano,
@@ -46,6 +45,16 @@ def chat_ciudadano(request):
 def consultar_renaper(request):
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "Método no permitido"})
+
+    # Endpoint público que bloquea un worker contra un servicio externo lento:
+    # sin límite por IP es un vector de agotamiento del pool.
+    from core.services.throttle import rate_limit_excedido
+
+    if rate_limit_excedido(request, "renaper_chat", limite=10, ventana_segundos=60):
+        return JsonResponse(
+            {"success": False, "error": "Demasiadas consultas. Esperá un momento e intentá de nuevo."},
+            status=429,
+        )
 
     payload, error_response = _json_payload(request)
     if error_response:
@@ -169,8 +178,16 @@ def enviar_mensaje_ciudadano(request, conversacion_id):
 
 
 def obtener_mensajes_ciudadano(request, conversacion_id):
-    conversacion = get_object_or_404(get_conversacion_detalle_queryset(), id=conversacion_id)
+    conversacion = get_object_or_404(Conversacion, id=conversacion_id)
+    try:
+        since = int(request.GET.get("since", 0))
+    except (TypeError, ValueError):
+        since = 0
+    # El poller pasa ?since=<último id visto>: devolver solo el delta en vez de
+    # serializar el historial completo en cada poll.
     mensajes = conversacion.mensajes.all()
+    if since > 0:
+        mensajes = mensajes.filter(id__gt=since)
     return JsonResponse(
         {
             "mensajes": [

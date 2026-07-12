@@ -4,6 +4,7 @@ Auth por token (DRF authtoken). El territorial solo ve/gestiona SUS relevamiento
 y formularios. Capacidad requerida: ``becas.campo``.
 """
 
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -123,6 +124,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         return (
             Relevamiento.objects.filter(territorial=self.request.user)
             .select_related("convocatoria__segmento", "convocatoria__subsegmento")
+            .annotate(formularios_count=Count("formularios"))
             .order_by("-fecha_asignada")
         )
 

@@ -41,9 +41,13 @@ class RolListView(_RolesPermMixin, TemplateView):
         user = self.request.user
         get = self.request.GET
 
-        context["roles"] = roles_visibles_para(user)
-        context["items"] = roles_filtrados_para(user, get)
-        context["total_roles"] = len(roles_lista_para(user))
+        # El pipeline (JOINs + COUNT DISTINCT) se ejecuta UNA vez y las tres
+        # formas (agrupados / filtrados / total) se derivan de ese resultado.
+        roles = roles_visibles_para(user)
+        lista = roles_lista_para(user, visibles=roles)
+        context["roles"] = roles
+        context["items"] = roles_filtrados_para(user, get, lista=lista)
+        context["total_roles"] = len(lista)
         context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
         context["programas_admin"] = programas_administrables(user)
 

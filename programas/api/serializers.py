@@ -9,7 +9,8 @@ from programas.services.becas import definicion_formulario
 class RelevamientoListSerializer(serializers.ModelSerializer):
     segmento = serializers.CharField(source="convocatoria.segmento.nombre", read_only=True)
     convocatoria_nombre = serializers.CharField(source="convocatoria.nombre", read_only=True)
-    formularios_count = serializers.SerializerMethodField()
+    # Anotado en el queryset del viewset (evita un COUNT por ítem).
+    formularios_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Relevamiento
@@ -24,9 +25,6 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
             "fecha_finalizado",
             "formularios_count",
         ]
-
-    def get_formularios_count(self, obj):
-        return obj.formularios.count()
 
 
 class RelevamientoDetailSerializer(RelevamientoListSerializer):

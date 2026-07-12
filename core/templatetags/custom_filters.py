@@ -26,7 +26,7 @@ def is_url(value):
 @register.filter
 def getattr(obj, attr_name):
     """
-    Obtiene un atributo de un objeto de forma segura, manejando relaciones
+    Obtiene un atributo de un objeto de forma segura
     Usage: {{ obj|getattr:"field_name" }}
     """
     import builtins
@@ -35,17 +35,7 @@ def getattr(obj, attr_name):
         value = builtins.getattr(obj, attr_name, None)
         if value is None:
             return ""
-
-        # Manejar relaciones M2M haciendo join de sus elementos
-        try:
-            if hasattr(value, "all") and not isinstance(value, (str, bytes)):
-                iterable = value.all()
-                return ", ".join(str(v) for v in iterable)
-        except Exception:
-            # Si falla, caer al string por defecto
-            pass
-
-        return str(value)
+        return value
     except (AttributeError, TypeError):
         return ""
 

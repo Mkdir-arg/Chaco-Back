@@ -1,6 +1,5 @@
-from datetime import datetime
-
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import models
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
@@ -14,24 +13,15 @@ def usuario_tiene_permiso_conversaciones(user):
 
 
 def get_conversaciones_queryset_para_lista(user, filtros):
+    queryset = Conversacion.objects.select_related("operador_asignado").annotate(
+        mensajes_no_leidos=Count(
+            "mensajes",
+            filter=Q(mensajes__remitente="ciudadano", mensajes__leido=False),
+        ),
+        total_mensajes=Count("mensajes"),
+    )
     if es_operador_restringido(user):
-        queryset = (
-            Conversacion.objects.select_related("operador_asignado")
-            .annotate(
-                mensajes_no_leidos=Count(
-                    "mensajes",
-                    filter=Q(mensajes__remitente="ciudadano", mensajes__leido=False),
-                )
-            )
-            .filter(models.Q(operador_asignado=None) | models.Q(operador_asignado=user))
-        )
-    else:
-        queryset = Conversacion.objects.select_related("operador_asignado").annotate(
-            mensajes_no_leidos=Count(
-                "mensajes",
-                filter=Q(mensajes__remitente="ciudadano", mensajes__leido=False),
-            )
-        )
+        queryset = queryset.filter(models.Q(operador_asignado=None) | models.Q(operador_asignado=user))
 
     if filtros.get("estado"):
         queryset = queryset.filter(estado=filtros["estado"])
@@ -51,9 +41,13 @@ def get_conversaciones_queryset_para_lista(user, filtros):
         queryset = queryset.filter(fecha_inicio__date__lte=filtros["fecha_hasta"])
 
     if filtros.get("busqueda"):
-        queryset = queryset.filter(
-            Q(id__icontains=filtros["busqueda"]) | Q(dni_ciudadano__icontains=filtros["busqueda"])
-        )
+        termino = filtros["busqueda"].strip()
+        # id__icontains fuerza CAST(id AS CHAR) LIKE '%…%' (full scan); para
+        # términos numéricos alcanza con id exacto + prefijo de DNI.
+        if termino.isdigit():
+            queryset = queryset.filter(Q(id=int(termino)) | Q(dni_ciudadano__startswith=termino))
+        else:
+            queryset = queryset.filter(dni_ciudadano__icontains=termino)
 
     if filtros.get("tipo"):
         queryset = queryset.filter(tipo=filtros["tipo"])
@@ -62,27 +56,7 @@ def get_conversaciones_queryset_para_lista(user, filtros):
 
 
 def get_estadisticas_lista():
-    ahora = datetime.now()
-    tiempo_promedio = (
-        Conversacion.objects.filter(
-            operador_asignado__isnull=False,
-            tiempo_respuesta_segundos__isnull=False,
-        ).aggregate(promedio=Avg("tiempo_respuesta_segundos"))["promedio"]
-        or 0
-    )
-
-    return {
-        "chats_no_atendidos": Conversacion.objects.filter(
-            operador_asignado=None,
-            estado="activa",
-        ).count(),
-        "atendidos_mes": Conversacion.objects.filter(
-            operador_asignado__isnull=False,
-            fecha_inicio__month=ahora.month,
-            fecha_inicio__year=ahora.year,
-        ).count(),
-        "tiempo_promedio": round(tiempo_promedio / 60, 1),
-    }
+    return get_estadisticas_tiempo_real()
 
 
 def get_operadores_con_carga():
@@ -107,7 +81,8 @@ def get_conversacion_api_detalle(conversacion_id):
     return (
         Conversacion.objects.select_related("operador_asignado")
         .annotate(
-            mensajes_no_leidos=Count("mensajes", filter=Q(mensajes__remitente="ciudadano", mensajes__leido=False))
+            mensajes_no_leidos=Count("mensajes", filter=Q(mensajes__remitente="ciudadano", mensajes__leido=False)),
+            total_mensajes=Count("mensajes"),
         )
         .get(id=conversacion_id)
     )
@@ -137,8 +112,10 @@ def get_conversaciones_sin_asignar():
     ).only("id", "estado")
 
 
-def get_estadisticas_tiempo_real():
-    ahora = timezone.now()
+def _calcular_estadisticas_tiempo_real():
+    # Rango sargable (usa el índice de fecha_inicio, a diferencia de
+    # fecha_inicio__month/__year que fuerzan EXTRACT y full scan).
+    inicio_mes = timezone.localtime().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     tiempo_promedio = (
         Conversacion.objects.filter(
             operador_asignado__isnull=False,
@@ -154,11 +131,16 @@ def get_estadisticas_tiempo_real():
         ).count(),
         "atendidos_mes": Conversacion.objects.filter(
             operador_asignado__isnull=False,
-            fecha_inicio__month=ahora.month,
-            fecha_inicio__year=ahora.year,
+            fecha_inicio__gte=inicio_mes,
         ).count(),
         "tiempo_promedio": round(tiempo_promedio / 60, 1),
     }
+
+
+def get_estadisticas_tiempo_real():
+    # Compartido entre todas las pestañas que pollean cada 5 s: una sola
+    # ejecución cada 30 s para todo el backoffice.
+    return cache.get_or_set("conversaciones:estadisticas_tiempo_real", _calcular_estadisticas_tiempo_real, 30)
 
 
 def get_alertas_conversaciones_count(user):

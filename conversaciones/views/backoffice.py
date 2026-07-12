@@ -2,8 +2,10 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from core.rbac import requiere
 
@@ -63,8 +65,14 @@ def lista_conversaciones(request):
         "busqueda": request.GET.get("busqueda", ""),
         "tipo": request.GET.get("tipo", ""),
     }
+    paginator = Paginator(get_conversaciones_queryset_para_lista(request.user, filtros), 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    querystring = request.GET.copy()
+    querystring.pop("page", None)
     context = {
-        "conversaciones": get_conversaciones_queryset_para_lista(request.user, filtros),
+        "conversaciones": page_obj,
+        "page_obj": page_obj,
+        "filtros_qs": querystring.urlencode(),
         "es_operador_charla": es_operador_restringido(request.user),
         "operadores_con_carga": get_operadores_con_carga(),
         "todos_operadores": get_todos_los_operadores(),
@@ -77,9 +85,19 @@ def lista_conversaciones(request):
 @login_required
 @user_passes_test(tiene_permiso_conversaciones)
 def detalle_conversacion(request, conversacion_id):
+    from ..models import HistorialAlertaConversacion, NuevaConversacionAlerta
+
     conversacion = get_object_or_404(get_conversacion_detalle_queryset(), id=conversacion_id)
     mensajes_qs = conversacion.mensajes.all()
     mensajes_qs.filter(remitente="ciudadano", leido=False).update(leido=True)
+    # Al abrir la conversación se dan por vistas sus alertas: sin esto los
+    # contadores del navbar (polled) crecían monótonamente para siempre.
+    NuevaConversacionAlerta.objects.filter(
+        conversacion=conversacion, operador=request.user, vista=False
+    ).update(vista=True)
+    HistorialAlertaConversacion.objects.filter(
+        conversacion=conversacion, operador=request.user, vista=False
+    ).update(vista=True, fecha_vista=timezone.now())
     return render(
         request,
         "conversaciones/detalle.html",
@@ -241,7 +259,7 @@ def api_conversacion_detalle(request, conversacion_id):
                     if conversacion.operador_asignado
                     else None,
                     "fecha": conversacion.fecha_inicio.strftime("%d/%m/%Y %H:%M"),
-                    "mensajes": conversacion.mensajes.count(),
+                    "mensajes": conversacion.total_mensajes,
                     "no_leidos": conversacion.mensajes_no_leidos,
                 },
             }

@@ -71,9 +71,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         groups = validated_data.pop("groups", [])
         password = validated_data.pop("password")
 
-        user = User.objects.create_user(**validated_data)
-        user.set_password(password)
-        user.save()
+        # create_user ya hashea el password: un solo INSERT, sin UPDATE posterior.
+        user = User.objects.create_user(password=password, **validated_data)
 
         if groups:
             user.groups.set(groups)

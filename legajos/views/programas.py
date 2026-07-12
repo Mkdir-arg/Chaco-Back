@@ -50,7 +50,7 @@ class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        programa = self.get_object()
+        programa = self.object
 
         # DEPRECATED: operativa institucional legacy retirada con models_institucional.
         context.update(

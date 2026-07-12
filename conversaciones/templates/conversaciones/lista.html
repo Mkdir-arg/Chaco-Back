@@ -216,7 +216,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {{ conversacion.mensajes.count }}
+                                {{ conversacion.total_mensajes }}
                             </span>
                             {% if conversacion.mensajes_no_leidos %}
                                 <span class="contador-mensajes ml-1 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -307,7 +307,7 @@
                     <div class="flex flex-col items-end gap-2">
                         <div class="flex items-center gap-1">
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {{ conversacion.mensajes.count }}
+                                {{ conversacion.total_mensajes }}
                             </span>
                             {% if conversacion.mensajes_no_leidos %}
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -355,6 +355,26 @@
             </div>
             {% endfor %}
         </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="flex items-center justify-between border-t px-6 py-3" style="border-color: var(--border-base);">
+            <span class="text-sm" style="color: var(--text-body-subtle);">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} conversaciones
+            </span>
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?{% if filtros_qs %}{{ filtros_qs }}&{% endif %}page={{ page_obj.previous_page_number }}" class="btn-nodo btn-secondary btn-sm">
+                    <i class="fas fa-chevron-left"></i>Anterior
+                </a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?{% if filtros_qs %}{{ filtros_qs }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn-nodo btn-secondary btn-sm">
+                    Siguiente<i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 

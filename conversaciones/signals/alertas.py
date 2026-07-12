@@ -1,9 +1,8 @@
 import logging
 from datetime import timedelta
 
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.utils import timezone
 
 from legajos.services import AlertasService
 
@@ -65,32 +64,6 @@ def alerta_nueva_conversacion(sender, instance, created, **kwargs):
 
         except Exception:
             logger.exception("Error generando alerta de nueva conversación")
-
-
-@receiver(pre_save, sender=Conversacion)
-def alerta_conversacion_cerrada(sender, instance, **kwargs):
-    """Genera alerta cuando se cierra conversación"""
-    if instance.pk:
-        try:
-            conversacion_anterior = Conversacion.objects.get(pk=instance.pk)
-            if conversacion_anterior.estado != "CERRADA" and instance.estado == "CERRADA":
-                if hasattr(instance, "ciudadano_relacionado") and instance.ciudadano_relacionado:
-                    from legajos.models import AlertaCiudadano
-
-                    # Calcular duración de la conversación
-                    duracion = timezone.now() - instance.creado
-
-                    alerta = AlertaCiudadano.objects.create(
-                        ciudadano=instance.ciudadano_relacionado,
-                        tipo="CONVERSACION_CERRADA",
-                        prioridad="BAJA",
-                        mensaje=f"Conversación cerrada. Duración: {duracion.seconds // 60} minutos",
-                    )
-                    AlertasService._enviar_notificacion_alerta(alerta)
-        except Conversacion.DoesNotExist:
-            pass
-        except Exception:
-            logger.exception("Error generando alerta de conversación cerrada")
 
 
 @receiver(post_save, sender=Mensaje)

@@ -355,6 +355,7 @@
         let datosRenaper = null;
         let intervaloPoll = null;
         let mensajesCargados = new Set();
+        let ultimoMensajeId = 0;
         
         // Sistema de Modales Modernos
         window.ModernModal = {
@@ -591,6 +592,7 @@
                         agregarMensaje(data.mensaje.contenido, 'ciudadano', data.mensaje.fecha);
                         mensajesCargados.add(mensajeId);
                     }
+                    if (data.mensaje.id > ultimoMensajeId) ultimoMensajeId = data.mensaje.id;
                     input.value = '';
                 } else {
                     console.error('Error al enviar mensaje:', data.error);
@@ -623,7 +625,8 @@
             if (!conversacionId) return;
 
             try {
-                const response = await fetch(buildConversationUrl(chatUrls.messagesTemplate, conversacionId));
+                const url = buildConversationUrl(chatUrls.messagesTemplate, conversacionId) + '?since=' + ultimoMensajeId;
+                const response = await fetch(url);
                 const data = await response.json();
 
                 // Solo agregar mensajes nuevos
@@ -633,6 +636,7 @@
                         agregarMensaje(msg.contenido, msg.remitente, msg.fecha);
                         mensajesCargados.add(mensajeId);
                     }
+                    if (msg.id > ultimoMensajeId) ultimoMensajeId = msg.id;
                 });
 
             } catch (error) {

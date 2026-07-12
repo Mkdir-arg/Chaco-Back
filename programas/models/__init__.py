@@ -544,10 +544,19 @@ class Relevamiento(TimeStamped):
     def __str__(self):
         return self.nombre
 
+    @classmethod
+    def proximo_nombre(cls):
+        """Nombre autogenerado del próximo relevamiento.
+
+        Usa ``Max(id)`` en vez de ``count()`` (evita el full scan y la carrera
+        de dos altas simultáneas con el mismo número).
+        """
+        siguiente = (cls.objects.aggregate(m=models.Max("id"))["m"] or 0) + 1
+        return f"Relevamiento {siguiente:03d}"
+
     def save(self, *args, **kwargs):
         if not self.nombre:
-            siguiente = Relevamiento.objects.count() + 1
-            self.nombre = f"Relevamiento {siguiente:03d}"
+            self.nombre = self.proximo_nombre()
         super().save(*args, **kwargs)
 
     @property
@@ -890,6 +899,9 @@ class ListaEspera(TimeStamped):
         verbose_name = "Lista de espera"
         verbose_name_plural = "Listas de espera"
         ordering = ["segmento", "posicion"]
+        indexes = [
+            models.Index(fields=["segmento", "promovido"]),
+        ]
 
     def __str__(self):
         return f"{self.segmento.nombre} #{self.posicion}"

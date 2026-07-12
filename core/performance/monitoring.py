@@ -25,7 +25,8 @@ class SystemMonitor:
     def collect_system_metrics(self):
         """Recolecta métricas del sistema"""
         try:
-            cpu_percent = psutil.cpu_percent(interval=1)
+            # interval=None: lectura no bloqueante (interval=1 dormía 1 s el worker)
+            cpu_percent = psutil.cpu_percent(interval=None)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage("/")
 
@@ -158,13 +159,17 @@ class SystemMonitor:
             return {"error": "collection_failed", "timestamp": timezone.now().isoformat()}
 
     def get_comprehensive_metrics(self):
-        """Obtiene todas las métricas en un solo objeto"""
-        return {
-            "system": self.collect_system_metrics(),
-            "django": self.collect_django_metrics(),
-            "application": self.collect_application_metrics(),
-            "alerts": self.get_active_alerts(),
-        }
+        """Obtiene todas las métricas en un solo objeto (cacheado 30 s)"""
+        return cache.get_or_set(
+            "performance:comprehensive_metrics",
+            lambda: {
+                "system": self.collect_system_metrics(),
+                "django": self.collect_django_metrics(),
+                "application": self.collect_application_metrics(),
+                "alerts": self.get_active_alerts(),
+            },
+            30,
+        )
 
     def get_active_alerts(self):
         """Obtiene alertas activas"""

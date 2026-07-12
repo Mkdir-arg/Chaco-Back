@@ -124,28 +124,31 @@ def roles_visibles_para(user):
     return {"categorias": categorias, "programas": programas}
 
 
-def roles_lista_para(user):
+def roles_lista_para(user, visibles=None):
     """Roles visibles para el operador en una lista PLANA (sin agrupar).
 
     Mismo alcance que :func:`roles_visibles_para` (que sigue siendo la fuente:
     esta función solo aplana su resultado), ordenados por nombre de rol.
+    ``visibles`` permite pasar el resultado ya computado de
+    :func:`roles_visibles_para` para no repetir el pipeline (JOINs + COUNT).
     """
-    data = roles_visibles_para(user)
+    data = visibles if visibles is not None else roles_visibles_para(user)
     items = [item for _categoria, roles_cat in data["categorias"] for item in roles_cat]
     items += [item for _programa, roles_prog in data["programas"] for item in roles_prog]
     return sorted(items, key=lambda it: it["group"].name.lower())
 
 
-def roles_filtrados_para(user, get_params):
+def roles_filtrados_para(user, get_params, lista=None):
     """Lista plana de roles visibles para el operador, filtrada por querystring.
 
     ``get_params`` es un dict-like (``request.GET``). Los filtros se aplican
     **sobre** :func:`roles_lista_para` (que ya respeta el alcance del
     operador) — nunca lo amplían. Valores inválidos o fuera de alcance (p.ej.
     un ``programa`` que el operador no administra) se ignoran en silencio,
-    sin romper ni filtrar de más.
+    sin romper ni filtrar de más. ``lista`` permite pasar el resultado ya
+    computado de :func:`roles_lista_para` para no repetir el pipeline.
     """
-    items = roles_lista_para(user)
+    items = lista if lista is not None else roles_lista_para(user)
 
     q = (get_params.get("q") or "").strip().lower()
     if q:
