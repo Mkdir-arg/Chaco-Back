@@ -11,7 +11,6 @@ class Programa(TimeStamped):
 
     class TipoPrograma(models.TextChoices):
         ACOMPANAMIENTO_SOCIAL = "ACOMPANAMIENTO_SOCIAL", "Acompañamiento Social"
-        NACHEC = "NACHEC", "ÑACHEC"
         ECONOMICO = "ECONOMICO", "Acompañamiento Económico"
         FAMILIAR = "FAMILIAR", "Acompañamiento Familiar"
         REDUCCION_DANOS = "REDUCCION_DANOS", "Reducción de Daños"

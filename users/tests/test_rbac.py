@@ -201,7 +201,7 @@ class MotorPuedeProgramaTests(TestCase):
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
+        self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
         self.rol = Group.objects.create(name="Territorial Becas")
         RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
         self.rol.permissions.add(_perm("relevamiento.gestionar"))
@@ -215,7 +215,7 @@ class MotorPuedeProgramaTests(TestCase):
         self.assertTrue(rbac.puede(self._u(), "relevamiento.gestionar", programa=self.becas))
 
     def test_otro_programa_false(self):  # TC-65-02
-        self.assertFalse(rbac.puede(self._u(), "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(self._u(), "relevamiento.gestionar", programa=self.vivienda))
 
     def test_sin_alcance_retrocompat(self):  # TC-65-03
         self.assertTrue(rbac.puede(self._u(), "relevamiento.gestionar"))
@@ -228,7 +228,7 @@ class MotorPuedeProgramaTests(TestCase):
         u.groups.add(rol_g)
         u = User.objects.get(pk=u.pk)
         self.assertTrue(rbac.puede(u, "ciudadano.ver", programa=self.becas))
-        self.assertTrue(rbac.puede(u, "ciudadano.ver", programa=self.nachec))
+        self.assertTrue(rbac.puede(u, "ciudadano.ver", programa=self.vivienda))
 
     def test_rol_programa_inactivo(self):  # TC-65-05
         self.rol.meta.activo = False
@@ -247,7 +247,7 @@ class MotorPuedeProgramaTests(TestCase):
         u = self._u()
         self.assertTrue(rbac.puede(u, "ciudadano.ver"))
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_usuario_inactivo(self):  # TC-65-08
         self.user.is_active = False
@@ -259,7 +259,7 @@ class MotorPuedeProgramaTests(TestCase):
 
         u = self._u()
         self.assertTrue(puede_en(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertFalse(puede_en(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(puede_en(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_rol_global_con_capacidad_de_programa_cuenta(self):  # RN-3
         rol_g = Group.objects.create(name="Admin total")
@@ -269,7 +269,7 @@ class MotorPuedeProgramaTests(TestCase):
         u.groups.add(rol_g)
         u = User.objects.get(pk=u.pk)
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_no_falso_positivo_por_rol_global_ajeno(self):
         # RegresiÃ³n: un rol global (programa=null) con la cap, al que el usuario NO
@@ -279,16 +279,16 @@ class MotorPuedeProgramaTests(TestCase):
         glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en glob
         u = self._u()
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_no_falso_positivo_por_cap_en_otro_programa(self):
-        # RegresiÃ³n: la cap del user estÃ¡ en Becas; que un rol AJENO de Ã‘achec tenga
-        # la misma cap no debe hacer que puede(..., programa=Ã±achec) dÃ© True.
-        otro = Group.objects.create(name="Territorial Ã‘achec ajeno")
-        RolMeta.objects.create(grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True)
+        # RegresiÃ³n: la cap del user estÃ¡ en Becas; que un rol AJENO de Vivienda tenga
+        # la misma cap no debe hacer que puede(..., programa=vivienda) dÃ© True.
+        otro = Group.objects.create(name="Territorial Vivienda ajeno")
+        RolMeta.objects.create(grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.vivienda, activo=True)
         otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en otro
         u = self._u()
-        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
 
 class AutoProteccionProgramaTests(TestCase):

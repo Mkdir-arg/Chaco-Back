@@ -64,7 +64,6 @@ class RolForm(forms.Form):
             self.fields["programa"].empty_label = None
             self.fields["categoria"].choices = [
                 (rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_PROGRAMA),
-                (rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_NACHEC),
                 (rbac.CATEGORIA_BECAS, rbac.CATEGORIA_BECAS),
             ]
             self.fields["categoria"].required = True

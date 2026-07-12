@@ -5,14 +5,6 @@ from django.db.models import Q
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
 from ..models import AlertaCiudadano, Ciudadano, LegajoAtencion
-from ..models.nachec import (
-    CasoNachec,
-    EvaluacionVulnerabilidad,
-    HistorialEstadoCaso,
-    PlanIntervencionNachec,
-    PrestacionNachec,
-    RelevamientoNachec,
-)
 from ..services import SolapasService
 
 
@@ -201,28 +193,4 @@ def build_ciudadano_detail_context(ciudadano, user=None):
 
     linea.sort(key=lambda x: x["fecha"], reverse=True)
     context["linea_tiempo"] = linea[:50]
-
-    caso_nachec = (
-        CasoNachec.objects.filter(ciudadano_titular=ciudadano)
-        .exclude(estado__in=["CERRADO", "RECHAZADO", "SUSPENDIDO"])
-        .select_related("territorial", "coordinador", "operador_admision")
-        .order_by("-creado")
-        .first()
-    )
-    if not caso_nachec:
-        return context
-
-    context["caso_nachec"] = caso_nachec
-    context["relevamiento"] = RelevamientoNachec.objects.filter(caso=caso_nachec).order_by("-creado").first()
-    context["evaluacion"] = EvaluacionVulnerabilidad.objects.filter(caso=caso_nachec).first()
-    context["plan_vigente"] = PlanIntervencionNachec.objects.filter(
-        caso=caso_nachec,
-        vigente=True,
-    ).first()
-    context["prestaciones"] = (
-        PrestacionNachec.objects.filter(caso=caso_nachec).select_related("responsable").order_by("-creado")[:10]
-    )
-    context["historial_estados"] = (
-        HistorialEstadoCaso.objects.filter(caso=caso_nachec).select_related("usuario").order_by("-timestamp")[:10]
-    )
     return context

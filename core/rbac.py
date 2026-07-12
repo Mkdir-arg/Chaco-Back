@@ -247,7 +247,6 @@ CATEGORIA_BACKOFFICE = "Backoffice"
 CATEGORIA_INSTITUCION = "Institución"
 CATEGORIA_PORTAL = "Portal"
 CATEGORIA_SISTEMA = "Sistema"
-CATEGORIA_NACHEC = "ÑACHEC"
 CATEGORIA_BECAS = "Becas"
 # Categoría programática: agrupa roles acotados por ``RolMeta.programa``.
 CATEGORIA_PROGRAMA = "Programa"
@@ -256,7 +255,6 @@ CATEGORIAS_ROL = [
     CATEGORIA_INSTITUCION,
     CATEGORIA_PORTAL,
     CATEGORIA_SISTEMA,
-    CATEGORIA_NACHEC,
     CATEGORIA_BECAS,
     CATEGORIA_PROGRAMA,
 ]
@@ -268,7 +266,6 @@ TABS_CAPACIDADES = [
     {"id": "institucion", "label": "Institución", "icon": "fa-building-columns"},
     {"id": "portal", "label": "Portal", "icon": "fa-globe"},
     {"id": "sistema", "label": "Sistema", "icon": "fa-gear"},
-    {"id": "nachec", "label": "ÑACHEC", "icon": "fa-seedling"},
     {"id": "becas", "label": "Becas", "icon": "fa-graduation-cap"},
 ]
 

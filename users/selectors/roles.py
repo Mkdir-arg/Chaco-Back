@@ -14,7 +14,7 @@ def _capacidades_desde_prefetch(group):
 
 
 _CAPACIDAD_LABELS = {codigo: etiqueta for modulo in rbac.CATALOGO for codigo, etiqueta in modulo["capacidades"]}
-_CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_BECAS}
+_CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_BECAS}
 
 
 def _capacidades_para_tabla(codigos):

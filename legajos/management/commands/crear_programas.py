@@ -6,19 +6,10 @@ from programas.models import Programa
 
 
 class Command(BaseCommand):
-    help = "Garantiza los programas base (ÑACHEC, Becas) para el entorno local"
+    help = "Garantiza los programas base (Becas) para el entorno local"
 
     def handle(self, *args, **options):
         programas_data = [
-            {
-                "codigo": "ÑACHEC",
-                "nombre": "ÑACHEC",
-                "tipo": "ÑACHEC",
-                "descripcion": "Programa de ÑACHEC",
-                "icono": "shield-alt",
-                "color": "#10B981",
-                "orden": 1,
-            },
             {
                 "codigo": "BECAS",
                 "nombre": "Becas",

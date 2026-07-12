@@ -737,15 +737,6 @@
     {% endif %}
     {% endfor %}
 
-    <!-- Tab: NACHEC (contenido dedicado) -->
-    {% for solapa in solapas_programas %}
-    {% if 'NACHEC' in solapa.id %}
-    <div id="tab-programa_NACHEC" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-programa_NACHEC">
-        {% include 'legajos/ciudadano_nachec_detail.html' %}
-    </div>
-    {% endif %}
-    {% endfor %}
-
     {# Tab: Becas (contenido dedicado) #}
     {% for solapa in solapas_programas %}
     {% if solapa.id == 'becas' %}

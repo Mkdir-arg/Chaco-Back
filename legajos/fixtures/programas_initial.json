@@ -18,25 +18,5 @@
             "creado": "2026-02-16T00:00:00Z",
             "modificado": "2026-02-16T00:00:00Z"
         }
-    },
-    {
-        "model": "legajos.programa",
-        "pk": 2,
-        "fields": {
-            "codigo": "NACHEC",
-            "nombre": "ÑACHEC",
-            "tipo": "NACHEC",
-            "descripcion": "Programa ÑACHEC",
-            "color": "#10b981",
-            "icono": "groups",
-            "activo": true,
-            "orden": 2,
-            "requiere_evaluacion": true,
-            "requiere_plan": false,
-            "requiere_seguimientos": true,
-            "modelo_legajo": "LegajoNachec",
-            "creado": "2026-02-16T00:00:00Z",
-            "modificado": "2026-02-16T00:00:00Z"
-        }
     }
 ]

@@ -1,4 +1,4 @@
-from django.urls import include, path
+from django.urls import path
 
 from ..views import alertas as views_alertas
 from ..views import ciudadanos as views_ciudadanos
@@ -24,7 +24,6 @@ urlpatterns = [
     path("ciudadanos/<int:pk>/editar/", views_ciudadanos.CiudadanoUpdateView.as_view(), name="ciudadano_editar"),
     path("programas/", views_programas.ProgramaListView.as_view(), name="programas"),
     path("programas/<int:pk>/", views_programas.ProgramaDetailView.as_view(), name="programa_detalle"),
-    path("nachec/", include("legajos.urls.nachec")),
     path(
         "ciudadanos/<int:ciudadano_id>/derivar-programa/",
         views_derivacion.derivar_programa_view,

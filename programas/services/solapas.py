@@ -54,9 +54,7 @@ class SolapasService:
                     "programa": programa,
                     "inscripcion": inscripcion,
                     "badge": cls._obtener_badge_programa(inscripcion),
-                    # NACHEC tiene contenido dedicado (ciudadano_nachec_detail.html) en vez
-                    # del bloque genérico de programa: el template la excluye de ese loop.
-                    "contenido_embebido": tipo_normalizado == "NACHEC",
+                    "contenido_embebido": False,
                 }
             )
 
@@ -187,7 +185,6 @@ class SolapasService:
     def _obtener_url_programa(cls, tipo_programa):
         url_map = {
             "ACOMPANAMIENTO_SOCIAL": "legajos:programa_detalle",
-            "NACHEC": "nachec:detalle_caso_ciudadano",
             "ECONOMICO": "programas:economico_detalle",
             "FAMILIAR": "programas:familiar_detalle",
         }
@@ -196,8 +193,6 @@ class SolapasService:
     @classmethod
     def _normalizar_tipo_programa(cls, tipo_programa):
         valor = (tipo_programa or "").upper().strip()
-        if "NACHEC" in valor or "ÑACHEC" in valor or "ACHEC" in valor:
-            return "NACHEC"
         ascii_valor = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
         ascii_valor = re.sub(r"[^A-Z0-9]+", "_", ascii_valor).strip("_")
         return ascii_valor or "PROGRAMA"

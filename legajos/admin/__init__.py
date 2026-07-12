@@ -30,4 +30,3 @@ class AdjuntoAdmin(admin.ModelAdmin):
 
 
 from .contactos import *  # noqa: F401,F403,E402
-from .nachec import *  # noqa: F401,F403,E402
