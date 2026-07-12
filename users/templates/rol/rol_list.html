@@ -3,6 +3,80 @@
 
 {% block title %}Roles{% endblock %}
 
+{% block head %}
+<style>
+    .roles-search {
+        position: relative;
+        max-width: 320px;
+        width: 100%;
+        flex: 1 1 220px;
+    }
+
+    .roles-search-button {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        transform: translateY(-50%);
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0;
+        padding: 0 !important;
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-body-subtle) !important;
+        cursor: pointer;
+        filter: none !important;
+        box-shadow: none !important;
+        min-width: 0 !important;
+    }
+
+    .roles-search input.nodo-field {
+        padding-left: 38px;
+    }
+
+    .roles-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .roles-table th {
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .roles-table td {
+        vertical-align: middle;
+        overflow-wrap: anywhere;
+    }
+
+    .roles-capabilities {
+        min-width: 0;
+    }
+
+    .roles-capabilities .badge {
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+        overflow-wrap: anywhere;
+    }
+
+    .roles-actions {
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 900px) {
+        .roles-table {
+            min-width: 760px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block main-content %}
 
 {# Page Header #}
@@ -42,12 +116,11 @@
 
 {# Toolbar (filtros por querystring) #}
 <form method="get" x-data style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <div style="position:relative; max-width:320px; width:100%; flex:1 1 220px;">
-        <button type="submit" aria-label="Buscar"
-                style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; padding:0; margin:0; display:flex; cursor:pointer; color:var(--text-body-subtle);">
+    <div class="roles-search">
+        <button type="submit" class="roles-search-button btn-secondary" aria-label="Buscar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
         </button>
-        <input type="text" name="q" value="{{ filtro_q }}" placeholder="Buscar rol..." class="nodo-field" style="padding-left:36px;">
+        <input type="text" name="q" value="{{ filtro_q }}" placeholder="Buscar rol..." class="nodo-field">
     </div>
 
     <select name="categoria" class="nodo-field" style="width:190px;" @change="$el.form.submit()">
@@ -79,7 +152,17 @@
 <div style="background:var(--bg-white); border:1px solid var(--border-base); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden;">
     {% if items %}
     <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse;">
+        <table class="roles-table">
+            <colgroup>
+                <col style="width:15%;">
+                <col style="width:13%;">
+                <col style="width:9%;">
+                <col style="width:9%;">
+                <col style="width:29%;">
+                <col style="width:7%;">
+                <col style="width:8%;">
+                <col style="width:10%;">
+            </colgroup>
             <thead>
                 <tr>
                     <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Rol</th>
@@ -120,7 +203,7 @@
                         {% if item.meta and item.meta.programa %}{{ item.meta.programa.nombre }}{% else %}—{% endif %}
                     </td>
                     <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
-                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                        <div class="roles-capabilities" style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             {% for capacidad in item.capacidades_tabla|slice:":3" %}
                             <span class="badge badge-brand" title="{{ capacidad.codigo }}">{{ capacidad.label }}</span>
                             {% empty %}
@@ -142,7 +225,7 @@
                         {% endif %}
                     </td>
                     <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
-                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
+                        <div class="roles-actions" style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
                             <a href="{% url 'users:rol_detalle' item.group.pk %}"
                                aria-label="Ver {{ item.group.name }}"
                                style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; text-decoration:none; transition:background 150ms;"
