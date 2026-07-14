@@ -13,6 +13,7 @@ import { useTheme } from '../context/ThemeContext';
 import StaggeredItem from '../components/StaggeredItem';
 import relevamientoService from '../services/relevamientoService';
 import { designColors, fontSizes, radii } from '../theme';
+import { formatDate as formatAppDate } from '../utils/dates';
 
 const DONE_STATES = ['SINCRONIZADO', 'COMPLETADO_LOCAL', 'REALIZADO', 'FINALIZADO', 'TERMINADO'];
 const IN_PROGRESS_STATES = ['EN_PROGRESO', 'EN_CURSO', 'FINALIZANDO'];
@@ -111,16 +112,7 @@ export default function RelevamientosScreen({ onOpenRelevamiento }) {
     const [error, setError] = useState('');
 
     const formatDate = useCallback((isoDate) => {
-        if (!isoDate) return '-';
-        try {
-            return new Date(isoDate).toLocaleDateString('es-AR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-            });
-        } catch {
-            return isoDate;
-        }
+        return formatAppDate(isoDate);
     }, []);
 
     const loadRelevamientos = useCallback(async (silent = false) => {

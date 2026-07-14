@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import StaggeredItem from '../components/StaggeredItem';
 import { designColors, fontSizes, radii } from '../theme';
+import { dateKey } from '../utils/dates';
 
 const UI = {
     canvas: designColors.bgSecondary,
@@ -83,6 +84,7 @@ export default function HomeScreen({
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daysRow}>
                         {calendarDays.map((key) => {
                             const selected = selectedDateKey === key;
+                            const isToday = key === todayDateKey;
                             const dayRelevamientos = assignedRelevamientos.filter((item) => assignmentDateKey(item) === key);
                             const count = dayRelevamientos.length;
                             const hasOverdue = key < todayDateKey && dayRelevamientos.some((item) => isOverdueRelevamiento(item, todayDateKey));
@@ -94,13 +96,14 @@ export default function HomeScreen({
                                     style={[
                                         styles.dayChip,
                                         selected ? styles.dayChipSelected : styles.dayChipIdle,
+                                        isToday && styles.dayChipToday,
                                         hasOverdue && styles.dayChipOverdue,
                                     ]}
                                 >
-                                    <Text style={[styles.dayName, { fontFamily: typography.bold }, selected && styles.dayTextSelected]}>{label.day}</Text>
-                                    <Text style={[styles.dayNumber, { fontFamily: typography.bold }, selected && styles.dayTextSelected]}>{label.number}</Text>
-                                    <Text style={[styles.dayMonth, { fontFamily: typography.semibold }, selected && styles.dayTextSelected]}>{label.month}</Text>
-                                    {count > 0 ? <View style={[styles.dayDot, hasOverdue && styles.dayDotOverdue]} /> : null}
+                                    <Text style={[styles.dayName, { fontFamily: typography.bold }, selected && styles.dayTextSelected, isToday && styles.dayTextToday]}>{label.day}</Text>
+                                    <Text style={[styles.dayNumber, { fontFamily: typography.bold }, selected && styles.dayTextSelected, isToday && styles.dayTextToday]}>{label.number}</Text>
+                                    <Text style={[styles.dayMonth, { fontFamily: typography.semibold }, selected && styles.dayTextSelected, isToday && styles.dayTextToday]}>{label.month}</Text>
+                                    {count > 0 ? <View style={[styles.dayDot, isToday && styles.dayDotToday, hasOverdue && styles.dayDotOverdue]} /> : null}
                                 </Pressable>
                             );
                         })}
@@ -162,16 +165,6 @@ function RelevamientoCard({ item, typography, overdue, onPress }) {
             <Ionicons name="chevron-forward" size={18} color={UI.subtle} />
         </Pressable>
     );
-}
-
-function dateKey(date) {
-    if (!date) return '';
-    const d = date instanceof Date ? date : new Date(date);
-    if (Number.isNaN(d.getTime())) return '';
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
 }
 
 function assignmentDateKey(item = {}) {
@@ -252,6 +245,10 @@ const styles = StyleSheet.create({
         backgroundColor: UI.brandSoft,
         borderColor: UI.brandBorder,
     },
+    dayChipToday: {
+        backgroundColor: designColors.successSoft,
+        borderColor: designColors.successMedium,
+    },
     dayChipOverdue: {
         backgroundColor: designColors.dangerSoft,
         borderColor: designColors.dangerMedium,
@@ -274,6 +271,9 @@ const styles = StyleSheet.create({
     dayTextSelected: {
         color: UI.brandText,
     },
+    dayTextToday: {
+        color: designColors.success,
+    },
     dayDot: {
         position: 'absolute',
         bottom: 7,
@@ -284,6 +284,9 @@ const styles = StyleSheet.create({
     },
     dayDotOverdue: {
         backgroundColor: designColors.danger,
+    },
+    dayDotToday: {
+        backgroundColor: designColors.success,
     },
     assignmentList: {
         gap: 8,

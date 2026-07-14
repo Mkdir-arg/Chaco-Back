@@ -140,15 +140,16 @@
 | 2026-07-13 | Juani Portilla | Transversal | Usuarios — listado NODO (#122) | [TASK] Usuarios: alinear el listado al patrón NODO (tabla + SweetAlert2) #122. | 180 min |
 | 2026-07-13 | Juani Portilla | Transversal | Roles — filtros por querystring (#120) | [TASK] Roles: filtros del listado por querystring (backend) #120. | 180 min |
 | 2026-07-13 | Juani Portilla | Becas | Capacidades finas de Becas (PR #123) | Reemplazo de las 4 capacidades monolíticas de Becas (becas.configurar, becas.relevamientos, becas.revisar, becas.campo) por 27 capacidades finas organizadas en 10 grupos (Segmentos, Subsegmentos, Requisitos, Preguntas globales, Coordinadores, Convocatorias, Relevamientos, Revisión, Cupo y Beneficiarios), separando ver/crear/editar por entidad; catálogo aprobado por el usuario antes de implementar. | 60 min |
+| 2026-07-14 | Pablo Cao | Becas | App móvil Becas — relevamientos y adjuntos | Corrección de fecha por zona horaria; finalización y reapertura de relevamientos en la app y el backoffice; ajustes de ubicación y etiquetas de acciones/estados; persistencia y sincronización reintentable de fotos y documentos sin duplicar formularios; validaciones Expo y Django. | 150 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 42 h 8 min |
+| Becas | 44 h 38 min |
 | Dispositivos | 16 h 0 min |
 | Transversal | 6 h 0 min |
-| **Total julio 2026 (al 13/07)** | **64 h 8 min** |
+| **Total julio 2026 (al 14/07)** | **66 h 38 min** |
 
 ---
 
@@ -176,6 +177,6 @@
 
 !!! success "Contador total"
 
-    **33.800 minutos** (563 h 20 min)
+    **33.950 minutos** (565 h 50 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 13/07): **3.848 min (64 h 8 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 14/07): **3.998 min (66 h 38 min)**
