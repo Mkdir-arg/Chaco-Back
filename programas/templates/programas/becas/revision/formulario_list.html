@@ -81,9 +81,9 @@
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.celular }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-center">
               {% if f.validado_renaper %}
-                <i class="fas fa-check text-fg-success"></i>
+                <span class="badge badge-success">Validado</span>
               {% else %}
-                <i class="fas fa-clock text-body-subtle"></i>
+                <span class="badge badge-gray">Pendiente</span>
               {% endif %}
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-light">

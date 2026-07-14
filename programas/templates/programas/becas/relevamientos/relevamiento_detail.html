@@ -23,15 +23,15 @@
   <div class="bg-white rounded-xl border border-base shadow-sm">
     <div class="border-b border-base flex gap-1 px-2">
       <button @click="tab='info'" type="button"
-              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='info' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-id-card"></i> Información
       </button>
       <button @click="tab='formularios'" type="button"
-              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='formularios' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='formularios' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-users"></i> Personas relevadas
-        <span class="badge badge-gray ml-0.5">{{ n_formularios }}</span>
+        <span class="badge ml-0.5" :class="tab==='formularios' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_formularios }}</span>
       </button>
     </div>
 
@@ -110,7 +110,7 @@
             <h3 class="text-sm font-bold text-heading mb-3">
               <i class="fas fa-user-pen mr-1 text-fg-brand"></i> Reasignar territorial
             </h3>
-            {{ form_reasignar.territorial.label_tag }}{{ form_reasignar.territorial }}
+            {% with field=form_reasignar.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
           </form>
 
@@ -120,7 +120,7 @@
             <h3 class="text-sm font-bold text-heading mb-3">
               <i class="fas fa-calendar-day mr-1 text-fg-brand"></i> Reprogramar fecha
             </h3>
-            {{ form_reprogramar.fecha_asignada.label_tag }}{{ form_reprogramar.fecha_asignada }}
+            {% with field=form_reprogramar.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reprogramar</button>
           </form>
         </div>
@@ -167,9 +167,9 @@
                 <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.celular }}</td>
                 <td class="px-4 py-[13px] text-sm border-t border-light text-center">
                   {% if f.validado_renaper %}
-                    <i class="fas fa-check text-fg-success"></i>
+                    <span class="badge badge-success">Validado</span>
                   {% else %}
-                    <i class="fas fa-clock text-body-subtle"></i>
+                    <span class="badge badge-gray">Pendiente</span>
                   {% endif %}
                 </td>
                 <td class="px-4 py-[13px] text-sm border-t border-light">

@@ -64,10 +64,10 @@
     {% with field=form.fecha_inicio %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% with field=form.fecha_fin %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% with field=form.descripcion %}{% include "programas/becas/_field.html" %}{% endwith %}
-    {% with field=form.activo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.activo }} Activa</label>
 
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar convocatoria</button>
     </div>
   </form>

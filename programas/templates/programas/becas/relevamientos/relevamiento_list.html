@@ -59,7 +59,7 @@
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-right">
-              <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver">
+              <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver" aria-label="Ver">
                 <i class="fas fa-eye"></i>
               </a>
             </td>
@@ -83,43 +83,55 @@
   {# ============ Modal: Nuevo relevamiento ============ #}
   <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/40" @click="modalRel=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center gap-3 mb-5">
-        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
-        <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-route"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
+        </div>
+        <button type="button" @click="modalRel=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <i class="fas fa-xmark text-base"></i>
+        </button>
       </div>
 
-      <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand mb-5 flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
-        <i class="fas fa-circle-info mt-0.5"></i>
-        <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
-      </div>
-
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}" class="space-y-4">
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}">
         {% csrf_token %}
-        {% if form_crear.non_field_errors %}
-          <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
-        {% endif %}
-        <div>
-          <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
-          {{ form_crear.convocatoria }}
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
-          {{ form_crear.territorial }}
-          <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-6 space-y-4">
+          <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
+            <i class="fas fa-circle-info mt-0.5"></i>
+            <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
+          </div>
+          {% if form_crear.non_field_errors %}
+            <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+          {% endif %}
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
-            {{ form_crear.zona }}
+            <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
+            {{ form_crear.convocatoria }}
           </div>
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
-            {{ form_crear.fecha_asignada }}
+            <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
+            {{ form_crear.territorial }}
+            <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
+              {{ form_crear.zona }}
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+              {{ form_crear.fecha_asignada }}
+            </div>
           </div>
         </div>
-        <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="modalRel=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalRel=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
           <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
         </div>
       </form>

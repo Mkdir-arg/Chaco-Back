@@ -35,16 +35,15 @@
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
-            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-fg-brand p-1" title="Ver detalle"><i class="fas fa-eye"></i></a>
-            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-heading p-1" title="Editar"><i class="fas fa-edit"></i></a>
+            <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-fg-brand p-1" title="Ver detalle" aria-label="Ver detalle"><i class="fas fa-eye"></i></a>
             {% if c.activo %}
-            <button type="button" class="text-fg-danger hover:opacity-70 p-1" title="Desactivar"
+            <button type="button" class="text-fg-danger hover:opacity-70 p-1" title="Desactivar" aria-label="Desactivar"
                     data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
                     data-confirm-title="¿Desactivar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
               <i class="fas fa-times-circle"></i>
             </button>
             {% else %}
-            <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Activar"
+            <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Activar" aria-label="Activar"
                     data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
                     data-confirm-title="¿Activar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
               <i class="fas fa-check-circle"></i>

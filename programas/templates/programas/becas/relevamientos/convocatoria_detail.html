@@ -3,7 +3,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5" x-data="{ tab: 'info', modalRel: false }">
+<div class="space-y-5" x-data="{ tab: 'info', modalRel: false }" @becas-saved.window="modalRel=false">
 
   <div>
     <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
@@ -31,25 +31,25 @@
     {# Tabs #}
     <div class="border-b border-base flex gap-1 px-2 flex-wrap">
       <button @click="tab='info'" type="button"
-              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='info' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-id-card"></i> Información general
       </button>
       <button @click="tab='rel'" type="button"
-              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='rel' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='rel' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-folder-open"></i> Relevamientos
-        <span class="badge badge-gray ml-0.5">{{ n_relevamientos }}</span>
+        <span class="badge ml-0.5" :class="tab==='rel' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_relevamientos }}</span>
       </button>
       <button @click="tab='ben'" type="button"
-              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='ben' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='ben' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-users"></i> Beneficiarios
-        <span class="badge badge-gray ml-0.5">{{ n_beneficiarios }}</span>
+        <span class="badge ml-0.5" :class="tab==='ben' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_beneficiarios }}</span>
       </button>
       <button @click="tab='rep'" type="button"
-              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='rep' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='rep' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-chart-simple"></i> Reportes
       </button>
     </div>
@@ -154,44 +154,9 @@
         <p class="text-sm text-body-subtle">Relevamientos asignados a esta convocatoria.</p>
         <button type="button" @click="modalRel=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-plus"></i> Nuevo relevamiento</button>
       </div>
-      {% if relevamientos %}
-      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="bg-secondary border-b border-base">
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Zona</th>
-              <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Fecha</th>
-              <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
-              <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for rel in relevamientos %}
-            <tr class="hover:bg-secondary">
-              <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
-                <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:underline">{{ rel.nombre }}</a>
-              </td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona|default:"—" }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-center">{% with rel=rel %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}</td>
-              <td class="px-4 py-[13px] text-sm border-t border-light text-right">
-                <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver detalle"><i class="fas fa-chevron-right"></i></a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div id="relevamientos-table">
+        {% include "programas/becas/relevamientos/_relevamientos_tab_table.html" %}
       </div>
-      {% else %}
-      <div class="py-10 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
-        <div class="text-fg-brand"><i class="fas fa-clipboard-list text-4xl"></i></div>
-        <p class="text-base font-bold text-heading">Sin relevamientos</p>
-        <p class="text-sm text-body max-w-xs">Esta convocatoria no tiene relevamientos asignados aún.</p>
-      </div>
-      {% endif %}
     </div>
 
     {# ===== TAB: Beneficiarios ===== #}
@@ -230,9 +195,9 @@
         </table>
       </div>
       {% else %}
-      <div class="py-10 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
-        <div class="text-fg-brand"><i class="fas fa-users text-4xl"></i></div>
-        <p class="text-base font-bold text-heading">Sin beneficiarios</p>
+      <div class="py-14 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
+        <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>
+        <p class="text-[17px] font-bold text-heading">Sin beneficiarios</p>
         <p class="text-sm text-body max-w-xs">Todavía no se cargaron formularios en los relevamientos de esta convocatoria.</p>
       </div>
       {% endif %}
@@ -261,44 +226,61 @@
   {# ============ Modal: Nuevo relevamiento (convocatoria preseleccionada) ============ #}
   <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/40" @click="modalRel=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" @click.stop>
-      <div class="flex items-center gap-3 mb-5">
-        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
-        <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+               style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-route"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Nuevo relevamiento</h3>
+        </div>
+        <button type="button" @click="modalRel=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <i class="fas fa-xmark text-base"></i>
+        </button>
       </div>
 
-      <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand mb-5 flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
-        <i class="fas fa-circle-info mt-0.5"></i>
-        <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
-      </div>
-
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}" class="space-y-4">
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax>
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'becas:convocatoria_detalle' convocatoria.pk %}">
-        {% if form_crear.non_field_errors %}
-          <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
-        {% endif %}
-        <div>
-          <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
-          {{ form_crear.convocatoria }}
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
-          {{ form_crear.territorial }}
-          <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-6 space-y-4">
+          <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
+            <i class="fas fa-circle-info mt-0.5"></i>
+            <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
+          </div>
+          {% if form_crear.non_field_errors %}
+            <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+          {% endif %}
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
-            {{ form_crear.zona }}
+            <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
+            {{ form_crear.convocatoria }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="convocatoria"></p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
-            {{ form_crear.fecha_asignada }}
+            <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
+            {{ form_crear.territorial }}
+            <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="territorial"></p>
           </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
+              {{ form_crear.zona }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+              {{ form_crear.fecha_asignada }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_asignada"></p>
+            </div>
+          </div>
+          <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
-        <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="modalRel=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalRel=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
           <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
         </div>
       </form>
@@ -307,3 +289,5 @@
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
 {% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

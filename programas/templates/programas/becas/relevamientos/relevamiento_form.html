@@ -19,7 +19,7 @@
     {% endif %}
     {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Crear y asignar</button>
     </div>
   </form>

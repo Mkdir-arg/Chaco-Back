@@ -53,6 +53,19 @@ def _convocatorias_ajax(request, message="Convocatoria guardada."):
     )
 
 
+def _relevamientos_ajax(request, convocatoria, message="Relevamiento creado y asignado."):
+    """Re-renderiza la tabla de relevamientos de una convocatoria (pestaña
+    "Relevamientos" de su detalle) tras crear uno desde el modal embebido."""
+    relevamientos = list(convocatoria.relevamientos.select_related("territorial").order_by("-fecha_asignada"))
+    return ajax_ok(
+        request,
+        target="#relevamientos-table",
+        partial="programas/becas/relevamientos/_relevamientos_tab_table.html",
+        context={"relevamientos": relevamientos},
+        message=message,
+    )
+
+
 def _assert_scope(request, relevamiento):
     """403 si el usuario no puede gestionar el segmento del relevamiento."""
     if not puede_gestionar_segmento(request.user, relevamiento.segmento):
@@ -273,8 +286,16 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         return kwargs
 
     def form_valid(self, form):
+        self.object = form.save()
+        if is_ajax(self.request):
+            return _relevamientos_ajax(self.request, self.object.convocatoria)
         messages.success(self.request, "Relevamiento creado y asignado.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
 
     def get_success_url(self):
         # "next" permite volver a la pantalla de origen (p. ej. el detalle de la

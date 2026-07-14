@@ -1,0 +1,38 @@
+{% if relevamientos %}
+<div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr class="bg-secondary border-b border-base">
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Territorial</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Zona</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Fecha</th>
+        <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rel in relevamientos %}
+      <tr class="hover:bg-secondary">
+        <td class="px-4 py-[13px] text-sm border-t border-light font-semibold text-heading">
+          <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:underline">{{ rel.nombre }}</a>
+        </td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona|default:"—" }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-center">{% with rel=rel %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+          <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver detalle" aria-label="Ver detalle"><i class="fas fa-chevron-right"></i></a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="py-14 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
+  <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+  <p class="text-[17px] font-bold text-heading">Sin relevamientos</p>
+  <p class="text-sm text-body max-w-xs">Esta convocatoria no tiene relevamientos asignados aún.</p>
+</div>
+{% endif %}

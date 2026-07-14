@@ -10,10 +10,18 @@
   }
   function toast(msg, isErr) {
     var el = document.createElement('div');
-    el.className = 'fixed bottom-5 right-5 z-[200] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
+    el.className = 'fixed bottom-5 right-5 z-[200] flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
       (isErr ? 'bg-danger-soft text-fg-danger border border-[color:var(--border-danger-subtle)]'
              : 'bg-success-soft text-fg-success border border-[color:var(--border-success-subtle)]');
-    el.textContent = msg;
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'polite');
+    var icon = document.createElement('i');
+    icon.className = 'fas ' + (isErr ? 'fa-circle-xmark' : 'fa-circle-check');
+    icon.setAttribute('aria-hidden', 'true');
+    var text = document.createElement('span');
+    text.textContent = msg;
+    el.appendChild(icon);
+    el.appendChild(text);
     document.body.appendChild(el);
     setTimeout(function () {
       el.style.transition = 'opacity .3s'; el.style.opacity = '0';
