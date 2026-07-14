@@ -2,7 +2,8 @@
 {% block title %}Becas · {{ relevamiento.nombre }}{% endblock %}
 
 {% block main-content %}
-<div class="space-y-6">
+<style>[x-cloak]{display:none!important}</style>
+<div class="space-y-6" x-data="{ tab: 'info' }">
 
   <div>
     <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-3">
@@ -18,101 +19,185 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    {# Info card #}
-    <div class="bg-white rounded-xl border border-base shadow-sm p-5 space-y-2 text-sm">
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Convocatoria</span>
-        <span class="text-heading font-medium">{{ relevamiento.convocatoria.nombre }}</span>
-      </div>
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Segmento</span>
-        <span class="text-heading">{{ relevamiento.convocatoria.segmento.nombre }}</span>
-      </div>
-      {% if relevamiento.convocatoria.subsegmento %}
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Subsegmento</span>
-        <span class="text-heading">{{ relevamiento.convocatoria.subsegmento.nombre }}</span>
-      </div>
-      {% endif %}
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Territorial</span>
-        <span class="text-heading">{{ relevamiento.territorial.get_full_name|default:relevamiento.territorial.username }}</span>
-      </div>
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Zona</span>
-        <span class="text-heading">{{ relevamiento.zona }}</span>
-      </div>
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Fecha asignada</span>
-        <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y" }}</span>
-      </div>
-      <div class="flex justify-between py-1 border-b border-light">
-        <span class="text-body-subtle">Formularios cargados</span>
-        <span class="text-heading font-semibold">{{ n_formularios }}</span>
-      </div>
-      {% if relevamiento.observaciones %}
-      <div class="pt-2">
-        <span class="text-body-subtle block mb-1">Observaciones</span>
-        <p class="text-heading whitespace-pre-line">{{ relevamiento.observaciones }}</p>
-      </div>
-      {% endif %}
+  {# Pestañas #}
+  <div class="bg-white rounded-xl border border-base shadow-sm">
+    <div class="border-b border-base flex gap-1 px-2">
+      <button @click="tab='info'" type="button"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-id-card"></i> Información
+      </button>
+      <button @click="tab='formularios'" type="button"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='formularios' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-users"></i> Personas relevadas
+        <span class="badge badge-gray ml-0.5">{{ n_formularios }}</span>
+      </button>
     </div>
 
-    {# Actions #}
-    <div class="space-y-4">
-      {% if relevamiento.estado == 'EN_CURSO' %}
-      <form method="post" action="{% url 'becas:relevamiento_finalizar' relevamiento.pk %}"
-            onsubmit="return confirm('¿Finalizar el relevamiento? Podrás reabrirlo mientras no haya pasado a revisión.')"
-            class="bg-white rounded-xl border border-base shadow-sm p-5">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold text-heading mb-2">
-          <i class="fas fa-circle-check mr-1 text-success"></i> Finalizar relevamiento
-        </h3>
-        <p class="text-xs text-body-subtle mb-3">Marca la carga de campo como finalizada. Podrás reabrirla mientras no haya comenzado la revisión.</p>
-        <button type="submit" class="btn-nodo btn-brand btn-sm w-full">Finalizar relevamiento</button>
-      </form>
-      {% elif relevamiento.estado == 'FINALIZADO' %}
-      <form method="post" action="{% url 'becas:relevamiento_reabrir' relevamiento.pk %}"
-            onsubmit="return confirm('¿Reabrir el relevamiento? Los formularios enviados no se modificarán.')"
-            class="bg-white rounded-xl border border-base shadow-sm p-5">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold text-heading mb-2">
-          <i class="fas fa-rotate-left mr-1 text-fg-brand"></i> Reabrir relevamiento
-        </h3>
-        <p class="text-xs text-body-subtle mb-3">Vuelve el relevamiento a En curso para permitir nuevas cargas.</p>
-        <button type="submit" class="btn-nodo btn-tertiary btn-sm w-full">Reabrir relevamiento</button>
-      </form>
+    {# ============ TAB: Información ============ #}
+    <div x-show="tab==='info'" class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {# Info card #}
+        <div class="bg-white rounded-xl border border-base shadow-sm p-5 space-y-2 text-sm">
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Convocatoria</span>
+            <span class="text-heading font-medium">{{ relevamiento.convocatoria.nombre }}</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Segmento</span>
+            <span class="text-heading">{{ relevamiento.convocatoria.segmento.nombre }}</span>
+          </div>
+          {% if relevamiento.convocatoria.subsegmento %}
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Subsegmento</span>
+            <span class="text-heading">{{ relevamiento.convocatoria.subsegmento.nombre }}</span>
+          </div>
+          {% endif %}
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Territorial</span>
+            <span class="text-heading">{{ relevamiento.territorial.get_full_name|default:relevamiento.territorial.username }}</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Zona</span>
+            <span class="text-heading">{{ relevamiento.zona }}</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Fecha asignada</span>
+            <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y" }}</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-light">
+            <span class="text-body-subtle">Personas relevadas</span>
+            <span class="text-heading font-semibold">{{ n_formularios }}</span>
+          </div>
+          {% if relevamiento.observaciones %}
+          <div class="pt-2">
+            <span class="text-body-subtle block mb-1">Observaciones</span>
+            <p class="text-heading whitespace-pre-line">{{ relevamiento.observaciones }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        {# Actions #}
+        <div class="space-y-4">
+          {% if relevamiento.estado == 'EN_CURSO' %}
+          <form method="post" action="{% url 'becas:relevamiento_finalizar' relevamiento.pk %}"
+                onsubmit="return confirm('¿Finalizar el relevamiento? Podrás reabrirlo mientras no haya pasado a revisión.')"
+                class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-bold text-heading mb-2">
+              <i class="fas fa-circle-check mr-1 text-success"></i> Finalizar relevamiento
+            </h3>
+            <p class="text-xs text-body-subtle mb-3">Marca la carga de campo como finalizada. Podrás reabrirla mientras no haya comenzado la revisión.</p>
+            <button type="submit" class="btn-nodo btn-brand btn-sm w-full">Finalizar relevamiento</button>
+          </form>
+          {% elif relevamiento.estado == 'FINALIZADO' %}
+          <form method="post" action="{% url 'becas:relevamiento_reabrir' relevamiento.pk %}"
+                onsubmit="return confirm('¿Reabrir el relevamiento? Los formularios enviados no se modificarán.')"
+                class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-bold text-heading mb-2">
+              <i class="fas fa-rotate-left mr-1 text-fg-brand"></i> Reabrir relevamiento
+            </h3>
+            <p class="text-xs text-body-subtle mb-3">Vuelve el relevamiento a En curso para permitir nuevas cargas.</p>
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm w-full">Reabrir relevamiento</button>
+          </form>
+          {% endif %}
+
+          <form method="post" action="{% url 'becas:relevamiento_reasignar' relevamiento.pk %}"
+                class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-bold text-heading mb-3">
+              <i class="fas fa-user-pen mr-1 text-fg-brand"></i> Reasignar territorial
+            </h3>
+            {{ form_reasignar.territorial.label_tag }}{{ form_reasignar.territorial }}
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
+          </form>
+
+          <form method="post" action="{% url 'becas:relevamiento_reprogramar' relevamiento.pk %}"
+                class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-bold text-heading mb-3">
+              <i class="fas fa-calendar-day mr-1 text-fg-brand"></i> Reprogramar fecha
+            </h3>
+            {{ form_reprogramar.fecha_asignada.label_tag }}{{ form_reprogramar.fecha_asignada }}
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reprogramar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ============ TAB: Personas relevadas ============ #}
+    <div x-show="tab==='formularios'" x-cloak class="p-6 space-y-4">
+      {% if puede_revisar and relevamiento.estado in estados_revisables %}
+      <div class="flex justify-end">
+        <a href="{% url 'becas:revision_formularios' relevamiento.pk %}" class="btn-nodo btn-brand btn-base">
+          <i class="fas fa-clipboard-check"></i> Revisar formularios
+        </a>
+      </div>
       {% endif %}
 
-      <form method="post" action="{% url 'becas:relevamiento_reasignar' relevamiento.pk %}"
-            class="bg-white rounded-xl border border-base shadow-sm p-5">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold text-heading mb-3">
-          <i class="fas fa-user-pen mr-1 text-fg-brand"></i> Reasignar territorial
-        </h3>
-        {{ form_reasignar.territorial.label_tag }}{{ form_reasignar.territorial }}
-        <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
-      </form>
-
-      <form method="post" action="{% url 'becas:relevamiento_reprogramar' relevamiento.pk %}"
-            class="bg-white rounded-xl border border-base shadow-sm p-5">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold text-heading mb-3">
-          <i class="fas fa-calendar-day mr-1 text-fg-brand"></i> Reprogramar fecha
-        </h3>
-        {{ form_reprogramar.fecha_asignada.label_tag }}{{ form_reprogramar.fecha_asignada }}
-        <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reprogramar</button>
-      </form>
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        {% if formularios %}
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="bg-secondary border-b border-base">
+                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
+                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Contacto</th>
+                <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">RENAPER</th>
+                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+                <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in formularios %}
+              <tr class="hover:bg-secondary">
+                <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
+                  {% if f.ciudadano %}
+                    {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
+                    <span class="text-body-subtle font-normal">({{ f.ciudadano.dni }})</span>
+                  {% elif f.datos_identificacion %}
+                    {{ f.datos_identificacion.nombre }} {{ f.datos_identificacion.apellido }}
+                    <span class="text-body-subtle font-normal">(offline)</span>
+                  {% else %}
+                    <span class="text-body-subtle">Sin identificar</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.celular }}</td>
+                <td class="px-4 py-[13px] text-sm border-t border-light text-center">
+                  {% if f.validado_renaper %}
+                    <i class="fas fa-check text-fg-success"></i>
+                  {% else %}
+                    <i class="fas fa-clock text-body-subtle"></i>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-[13px] text-sm border-t border-light">
+                  {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado dot=True color_enviado="warning" %}
+                </td>
+                <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+                  {% if puede_revisar %}
+                  <a href="{% url 'becas:formulario_detalle' f.pk %}" class="btn-nodo btn-tertiary btn-sm">
+                    <i class="fas fa-eye"></i> Ver
+                  </a>
+                  {% else %}
+                  <span class="text-xs text-body-subtle">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+          <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>
+          <p class="text-[17px] font-bold text-heading">Sin personas relevadas</p>
+          <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene formularios cargados.</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
   </div>
-
-  {% if puede_revisar and relevamiento.estado in estados_revisables %}
-  <div class="flex justify-end">
-    <a href="{% url 'becas:revision_formularios' relevamiento.pk %}" class="btn-nodo btn-brand btn-base">
-      <i class="fas fa-clipboard-check"></i> Revisar formularios
-    </a>
-  </div>
-  {% endif %}
 </div>
 {% endblock %}
