@@ -15,7 +15,9 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
@@ -336,6 +338,40 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             Relevamiento.Estado.TERMINADO,
         ]
         return ctx
+
+
+@login_required
+@requiere(CAP_RELEVAMIENTO_EDITAR)
+@require_POST
+def relevamiento_finalizar(request, pk):
+    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
+    _assert_scope(request, rel)
+    if rel.estado != Relevamiento.Estado.EN_CURSO:
+        messages.error(request, "Solo se puede finalizar un relevamiento en curso.")
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+    rel.estado = Relevamiento.Estado.FINALIZADO
+    rel.fecha_finalizado = timezone.now()
+    rel.save(update_fields=["estado", "fecha_finalizado", "modificado"])
+    messages.success(request, "Relevamiento finalizado.")
+    return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+
+@login_required
+@requiere(CAP_RELEVAMIENTO_EDITAR)
+@require_POST
+def relevamiento_reabrir(request, pk):
+    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
+    _assert_scope(request, rel)
+    if rel.estado != Relevamiento.Estado.FINALIZADO:
+        messages.error(request, "Solo se puede reabrir un relevamiento finalizado.")
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+    rel.estado = Relevamiento.Estado.EN_CURSO
+    rel.fecha_finalizado = None
+    rel.save(update_fields=["estado", "fecha_finalizado", "modificado"])
+    messages.success(request, "Relevamiento reabierto.")
+    return redirect("becas:relevamiento_detalle", pk=rel.pk)
 
 
 @login_required

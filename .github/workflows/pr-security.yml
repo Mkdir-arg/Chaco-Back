@@ -26,7 +26,9 @@ jobs:
         run: pip install pip-audit
 
       - name: Audit dependencies
-        run: pip-audit -r requirements.txt
+        # django-silk 5.0.4 usa pkg_resources, removido en setuptools 81+.
+        # PYSEC-2026-3447 se acepta temporalmente hasta actualizar django-silk.
+        run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-3447
 
   dependency-review:
     name: Dependency Review

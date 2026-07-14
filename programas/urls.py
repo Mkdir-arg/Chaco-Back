@@ -63,6 +63,8 @@ urlpatterns = [
     path("relevamientos/", rel.RelevamientoListView.as_view(), name="relevamientos"),
     path("relevamientos/nuevo/", rel.RelevamientoCreateView.as_view(), name="relevamiento_crear"),
     path("relevamientos/<int:pk>/", rel.RelevamientoDetailView.as_view(), name="relevamiento_detalle"),
+    path("relevamientos/<int:pk>/finalizar/", rel.relevamiento_finalizar, name="relevamiento_finalizar"),
+    path("relevamientos/<int:pk>/reabrir/", rel.relevamiento_reabrir, name="relevamiento_reabrir"),
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
     # --- Revisión de formularios ---

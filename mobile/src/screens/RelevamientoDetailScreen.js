@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -15,20 +16,24 @@ import Banner from '../components/Banner';
 import relevamientoService from '../services/relevamientoService';
 import { becasRequest } from '../services/becasApi';
 import { designColors, fontSizes, radii } from '../theme';
+import { formatDate as formatAppDate } from '../utils/dates';
 
 const formatDate = (isoDate) => {
-  if (!isoDate) return '-';
-  try {
-    return new Date(isoDate).toLocaleString('es-AR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return isoDate;
-  }
+  return formatAppDate(isoDate, { includeTime: true });
+};
+
+const relevamientoStatusLabel = (status) => {
+  const labels = {
+    ASIGNADO: 'Asignado',
+    EN_CURSO: 'En curso',
+    FINALIZANDO: 'Finalizando',
+    FINALIZADO: 'Finalizado',
+    EN_REVISION: 'En revisión',
+    TERMINADO: 'Terminado',
+  };
+  const value = String(status || '').toUpperCase();
+  const fallback = String(status || '-').replaceAll('_', ' ').toLowerCase();
+  return fallback.charAt(0).toUpperCase() + fallback.slice(1);
 };
 
 const emptyDniForm = {
@@ -74,6 +79,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   const [dynamicValues, setDynamicValues] = useState({});
   const [contactForm, setContactForm] = useState({ celular: '', email_contacto: '' });
   const [submittingFormulario, setSubmittingFormulario] = useState(false);
+  const [changingRelevamientoState, setChangingRelevamientoState] = useState(false);
   const [formularios, setFormularios] = useState([]);
   const [formMode, setFormMode] = useState(false);
   const gpsCoordsRef = useRef(null);
@@ -116,6 +122,15 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     })();
     return () => { mounted = false; };
   }, [relevamientoId]);
+
+  useEffect(() => {
+    if (String(detail?.estado || '').toUpperCase() !== 'FINALIZANDO' || !detail?.id) return undefined;
+    const timer = setInterval(async () => {
+      const result = await relevamientoService.getRelevamientoDetail(detail.id);
+      if (result.success && result.detail) setDetail(result.detail);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [detail?.estado, detail?.id]);
 
   const readValue = (...keys) => {
     for (const key of keys) {
@@ -521,6 +536,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
 
   const buildDynamicImageDataUri = async (asset, persistedAsset) => {
     const mimeType = asset?.mimeType || persistedAsset?.mimeType || 'image/jpeg';
+    if (!String(mimeType).startsWith('image/')) return null;
     if (asset?.base64) {
       return `data:${mimeType};base64,${asset.base64}`;
     }
@@ -538,7 +554,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   };
 
   const saveDynamicImageAsset = async (field, asset, source) => {
-    if (!asset?.uri) throw new Error('No se pudo obtener la imagen.');
+    if (!asset?.uri) throw new Error('No se pudo obtener el archivo.');
     const persisted = await persistDynamicImage(asset, field);
     const dataUri = await buildDynamicImageDataUri(asset, persisted);
     setDynamicValues((prev) => ({
@@ -582,6 +598,21 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     }
   };
 
+  const pickDynamicDocument = async (field) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      if (result?.canceled) return;
+      const asset = result?.assets?.[0];
+      await saveDynamicImageAsset(field, {
+        ...asset,
+        fileName: asset?.name,
+        fileSize: asset?.size,
+      }, 'document');
+    } catch (e) {
+      Alert.alert('Documento', e?.message || 'No se pudo adjuntar el documento.');
+    }
+  };
+
   const openDynamicImageActions = (field) => {
     Alert.alert(
       field?.etiqueta || 'Imagen',
@@ -589,6 +620,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       [
         { text: 'Camara', onPress: () => pickDynamicImage(field, 'camera') },
         { text: 'Galeria', onPress: () => pickDynamicImage(field, 'gallery') },
+        { text: 'Documento', onPress: () => pickDynamicDocument(field) },
         { text: 'Cancelar', style: 'cancel' },
       ],
     );
@@ -710,6 +742,69 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     if (!detail?.id || detail?.backend !== 'django_becas') return;
     const formsResult = await relevamientoService.getBecasFormularios(detail.id);
     setFormularios(formsResult.records || []);
+  };
+
+  const applyRelevamientoState = (nextDetail, estado) => {
+    setDetail((current) => ({ ...current, ...(nextDetail || {}), estado }));
+  };
+
+  const finalizarRelevamiento = async () => {
+    if (changingRelevamientoState || !detail?.id) return;
+    setChangingRelevamientoState(true);
+    try {
+      const result = await relevamientoService.finalizarRelevamiento(detail.id);
+      if (!result.success) throw new Error(result.error || 'No se pudo finalizar el relevamiento.');
+      applyRelevamientoState(result.detail, result.estado || 'FINALIZANDO');
+      if (result.pending) {
+        Alert.alert(
+          'Pendiente de sincronizacion',
+          'El relevamiento quedara pendiente de sincronizacion y se finalizara automaticamente cuando vuelva la conexion.'
+        );
+      } else {
+        Alert.alert('Relevamiento finalizado', 'El relevamiento quedo finalizado correctamente.');
+      }
+    } catch (stateError) {
+      Alert.alert('Finalizar relevamiento', stateError?.message || 'No se pudo finalizar el relevamiento.');
+    } finally {
+      setChangingRelevamientoState(false);
+    }
+  };
+
+  const confirmarFinalizacion = () => {
+    Alert.alert(
+      'Finalizar relevamiento',
+      '¿Finalizar el relevamiento? Podras reabrirlo mientras no haya pasado a revision.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Finalizar', style: 'destructive', onPress: finalizarRelevamiento },
+      ]
+    );
+  };
+
+  const reabrirRelevamiento = async () => {
+    if (changingRelevamientoState || !detail?.id) return;
+    setChangingRelevamientoState(true);
+    try {
+      const result = await relevamientoService.reabrirRelevamiento(detail.id);
+      if (!result.success) throw new Error(result.error || 'No se pudo reabrir el relevamiento.');
+      applyRelevamientoState(result.detail, 'EN_CURSO');
+      Alert.alert('Relevamiento reabierto', 'Ya puedes agregar nuevas personas. Los formularios enviados no se modificaron.');
+    } catch (stateError) {
+      Alert.alert('Reabrir relevamiento', stateError?.message || 'No se pudo reabrir el relevamiento.');
+    } finally {
+      setChangingRelevamientoState(false);
+    }
+  };
+
+  const confirmarReapertura = () => {
+    Alert.alert(
+      'Reabrir relevamiento',
+      '¿Reabrir el relevamiento? Podras agregar nuevas personas; los formularios enviados no se modificaran.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Reabrir', onPress: reabrirRelevamiento },
+      ]
+    );
   };
 
   const submitAssignedFormulario = async () => {
@@ -930,6 +1025,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
 
     if (tipo === 'ARCHIVO') {
       const fileValue = dynamicValues[field.id];
+      const isImageFile = String(fileValue?.mimeType || '').startsWith('image/');
       return (
         <View key={field.id} style={styles.formGroup}>
           <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>
@@ -937,9 +1033,18 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
           </Text>
           {fileValue?.uri || fileValue?.dataUri ? (
             <View style={[styles.dynamicImageBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
-              <TouchableOpacity activeOpacity={0.86} onPress={() => previewDynamicImage(field)} style={styles.dynamicImagePreviewWrap}>
-                <Image source={{ uri: fileValue.uri || fileValue.dataUri }} style={styles.dynamicImagePreview} resizeMode="cover" />
-              </TouchableOpacity>
+              {isImageFile ? (
+                <TouchableOpacity activeOpacity={0.86} onPress={() => previewDynamicImage(field)} style={styles.dynamicImagePreviewWrap}>
+                  <Image source={{ uri: fileValue.uri || fileValue.dataUri }} style={styles.dynamicImagePreview} resizeMode="cover" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.dynamicImagePreviewWrap}>
+                  <Ionicons name="document-text-outline" size={42} color={theme.colors.icon} />
+                  <Text style={[styles.filePlaceholderText, { color: theme.colors.text, fontFamily: typography.medium }]} numberOfLines={2}>
+                    {fileValue.fileName || 'Documento adjunto'}
+                  </Text>
+                </View>
+              )}
               <View style={styles.dynamicImageActions}>
                 <TouchableOpacity onPress={() => openDynamicImageActions(field)} style={[styles.dynamicImageAction, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
                   <Ionicons name="swap-horizontal-outline" size={16} color={theme.colors.text} />
@@ -958,7 +1063,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
             >
               <Ionicons name="image-outline" size={24} color={theme.colors.icon} />
               <Text style={[styles.filePlaceholderText, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>
-                Tocar para sacar foto o elegir de galeria
+                Tocar para sacar una foto o elegir un archivo
               </Text>
             </TouchableOpacity>
           )}
@@ -1543,6 +1648,8 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
 
   if (isAssignedFlow) {
     const formulariosCount = formularios.length || Number(detail?.formularios_count || detail?.personas_count || 0);
+    const relevamientoEstado = String(detail?.estado || '').toUpperCase();
+    const canAddPerson = !['FINALIZANDO', 'FINALIZADO', 'EN_REVISION', 'TERMINADO'].includes(relevamientoEstado);
 
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -1584,9 +1691,10 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
                 <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Segmento</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{readValue('segmento')}</Text></View>
                 <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Zona</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{readValue('zona', 'localidad', 'direccion_objetivo')}</Text></View>
                 <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Fecha</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{formatDate(detail?.fecha_asignada || detail?.created_at)}</Text></View>
+                <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Estado</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{relevamientoStatusLabel(detail?.estado)}</Text></View>
               </View>
 
-              <TouchableOpacity
+              {canAddPerson ? <TouchableOpacity
                 onPress={() => {
                   resetPersonForm();
                   captureGpsSilently();
@@ -1596,7 +1704,22 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
               >
                 <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
                 <Text style={[styles.primaryActionText, { fontFamily: typography.bold }]}>AGREGAR PERSONA</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> : null}
+
+              {relevamientoEstado === 'FINALIZADO' ? (
+                <TouchableOpacity
+                  disabled={changingRelevamientoState}
+                  onPress={confirmarReapertura}
+                  style={[styles.reopenAction, { borderColor: theme.colors.primary }, changingRelevamientoState && styles.stateActionDisabled]}
+                >
+                  {changingRelevamientoState
+                    ? <ActivityIndicator size="small" color={theme.colors.primary} />
+                    : <Ionicons name="refresh-circle-outline" size={20} color={theme.colors.primary} />}
+                  <Text style={[styles.reopenActionText, { color: theme.colors.primary, fontFamily: typography.bold }]}>
+                    {changingRelevamientoState ? 'REABRIENDO…' : 'REABRIR RELEVAMIENTO'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
 
               <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <View style={styles.peopleHeaderRow}>
@@ -1637,6 +1760,32 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
                   })
                 )}
               </View>
+
+              {relevamientoEstado === 'EN_CURSO' ? (
+                <TouchableOpacity
+                  disabled={changingRelevamientoState}
+                  onPress={confirmarFinalizacion}
+                  style={[styles.finishAction, changingRelevamientoState && styles.stateActionDisabled]}
+                >
+                  {changingRelevamientoState
+                    ? <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />}
+                  <Text style={[styles.primaryActionText, { fontFamily: typography.bold }]}>
+                    {changingRelevamientoState ? 'FINALIZANDO…' : 'FINALIZAR RELEVAMIENTO'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {relevamientoEstado === 'FINALIZANDO' ? (
+                <View style={styles.finalizingNotice}>
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <View style={styles.finalizingNoticeCopy}>
+                    <Text style={[styles.finalizingNoticeTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Pendiente de sincronizacion</Text>
+                    <Text style={[styles.finalizingNoticeText, { color: theme.colors.textSoft, fontFamily: typography.regular }]}>Se finalizara automaticamente cuando se sincronicen todos los datos.</Text>
+                  </View>
+                </View>
+              ) : null}
+
             </>
           )}
         </ScrollView>
@@ -2419,6 +2568,55 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSizes.xs,
     marginLeft: 8,
+  },
+  finishAction: {
+    minHeight: 52,
+    borderRadius: radii.lg,
+    backgroundColor: designColors.danger,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  reopenAction: {
+    minHeight: 52,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  reopenActionText: {
+    fontSize: fontSizes.xs,
+    marginLeft: 8,
+  },
+  stateActionDisabled: {
+    opacity: 0.58,
+  },
+  finalizingNotice: {
+    minHeight: 72,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: designColors.bgBrandMedium,
+    backgroundColor: designColors.bgBrandSoft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  finalizingNoticeCopy: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  finalizingNoticeTitle: {
+    fontSize: fontSizes.sm,
+  },
+  finalizingNoticeText: {
+    marginTop: 2,
+    fontSize: fontSizes.xs,
+    lineHeight: 17,
   },
   detailHeaderRow: {
     flexDirection: 'row',

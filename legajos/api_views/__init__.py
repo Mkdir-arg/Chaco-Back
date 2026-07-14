@@ -7,12 +7,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
-
-class RenaperRateThrottle(AnonRateThrottle):
-    """Límite por IP para el endpoint público que consulta RENAPER."""
-
-    scope = "renaper"
-
 from ..models import (
     AlertaCiudadano,
     Ciudadano,
@@ -23,6 +17,12 @@ from ..serializers import (
 )
 from ..services import AlertasService, FiltrosUsuarioService
 from ..services.consulta_renaper import consultar_datos_renaper
+
+
+class RenaperRateThrottle(AnonRateThrottle):
+    """Límite por IP para el endpoint público que consulta RENAPER."""
+
+    scope = "renaper"
 
 
 @extend_schema_view(

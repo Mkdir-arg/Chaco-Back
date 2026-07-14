@@ -239,6 +239,74 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertEqual(self.rel_a.fecha_asignada, date(2026, 9, 15))
 
 
+class FinalizarReabrirTests(_BaseRelevTest):
+    def test_finalizar_relevamiento_en_curso(self):
+        self.rel_a.estado = Relevamiento.Estado.EN_CURSO
+        self.rel_a.save(update_fields=["estado"])
+        self.client.force_login(self.coord_a)
+
+        response = self.client.post(reverse("becas:relevamiento_finalizar", args=[self.rel_a.pk]))
+
+        self.assertRedirects(response, reverse("becas:relevamiento_detalle", args=[self.rel_a.pk]))
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.FINALIZADO)
+        self.assertIsNotNone(self.rel_a.fecha_finalizado)
+
+    def test_finalizar_rechaza_estado_invalido(self):
+        self.client.force_login(self.coord_a)
+
+        self.client.post(reverse("becas:relevamiento_finalizar", args=[self.rel_a.pk]))
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.ASIGNADO)
+        self.assertIsNone(self.rel_a.fecha_finalizado)
+
+    def test_reabrir_relevamiento_finalizado(self):
+        self.rel_a.estado = Relevamiento.Estado.FINALIZADO
+        self.rel_a.fecha_finalizado = timezone.now()
+        self.rel_a.save(update_fields=["estado", "fecha_finalizado"])
+        self.client.force_login(self.coord_a)
+
+        response = self.client.post(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]))
+
+        self.assertRedirects(response, reverse("becas:relevamiento_detalle", args=[self.rel_a.pk]))
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_CURSO)
+        self.assertIsNone(self.rel_a.fecha_finalizado)
+
+    def test_reabrir_rechaza_estado_en_revision(self):
+        self.rel_a.estado = Relevamiento.Estado.EN_REVISION
+        self.rel_a.save(update_fields=["estado"])
+        self.client.force_login(self.coord_a)
+
+        self.client.post(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]))
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_REVISION)
+
+    def test_acciones_solo_aceptan_post(self):
+        self.client.force_login(self.coord_a)
+        self.assertEqual(
+            self.client.get(reverse("becas:relevamiento_finalizar", args=[self.rel_a.pk])).status_code,
+            405,
+        )
+        self.assertEqual(
+            self.client.get(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk])).status_code,
+            405,
+        )
+
+    def test_coordinador_no_modifica_segmento_ajeno(self):
+        self.rel_b.estado = Relevamiento.Estado.EN_CURSO
+        self.rel_b.save(update_fields=["estado"])
+        self.client.force_login(self.coord_a)
+
+        response = self.client.post(reverse("becas:relevamiento_finalizar", args=[self.rel_b.pk]))
+
+        self.assertEqual(response.status_code, 403)
+        self.rel_b.refresh_from_db()
+        self.assertEqual(self.rel_b.estado, Relevamiento.Estado.EN_CURSO)
+
+
 class VencidoTests(_BaseRelevTest):
     def test_esta_vencido(self):
         ayer = timezone.localdate() - timedelta(days=1)
