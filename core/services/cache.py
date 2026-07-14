@@ -33,5 +33,3 @@ def cache_queryset(timeout=300, key_prefix="qs"):
         return wrapper
 
     return decorator
-
-

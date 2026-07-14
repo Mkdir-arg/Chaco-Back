@@ -20,7 +20,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
-TOKEN_CACHE_KEY = "renaper:token"
+# Clave interna de cache; no contiene una credencial.
+TOKEN_CACHE_KEY = "renaper:token"  # nosec B105
 CONSULTA_CACHE_TTL = 600  # 10 min por (dni, sexo)
 
 MOJIBAKE_MARKERS = ("Ã", "Â", "â€", "â€“", "â€”", "â€œ", "â€", "â€™")
