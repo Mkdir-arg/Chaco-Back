@@ -1,0 +1,9 @@
+# Dependencias del harness E2E (navegador real). Se instalan en un venv APARTE
+# (.venv-e2e) para no tocar el venv de Django (.venv), que está pineado.
+#
+#   py -m venv .venv-e2e
+#   .venv-e2e\Scripts\python.exe -m pip install -r tests/e2e/requirements-e2e.txt
+#   .venv-e2e\Scripts\python.exe -m playwright install chromium
+#
+playwright==1.61.0
+pytest-playwright==0.8.0
