@@ -92,12 +92,12 @@ def detalle_conversacion(request, conversacion_id):
     mensajes_qs.filter(remitente="ciudadano", leido=False).update(leido=True)
     # Al abrir la conversación se dan por vistas sus alertas: sin esto los
     # contadores del navbar (polled) crecían monótonamente para siempre.
-    NuevaConversacionAlerta.objects.filter(
-        conversacion=conversacion, operador=request.user, vista=False
-    ).update(vista=True)
-    HistorialAlertaConversacion.objects.filter(
-        conversacion=conversacion, operador=request.user, vista=False
-    ).update(vista=True, fecha_vista=timezone.now())
+    NuevaConversacionAlerta.objects.filter(conversacion=conversacion, operador=request.user, vista=False).update(
+        vista=True
+    )
+    HistorialAlertaConversacion.objects.filter(conversacion=conversacion, operador=request.user, vista=False).update(
+        vista=True, fecha_vista=timezone.now()
+    )
     return render(
         request,
         "conversaciones/detalle.html",

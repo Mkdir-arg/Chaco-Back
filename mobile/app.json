@@ -23,7 +23,6 @@
         "foregroundImage": "./assets/brand/app-icon-chaco.png",
         "backgroundColor": "#ffffff"
       },
-      "usesCleartextTraffic": true,
       "package": "com.pablocao.relevamientochaco",
       "permissions": [
         "CAMERA",

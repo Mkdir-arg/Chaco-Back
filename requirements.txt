@@ -27,7 +27,7 @@ debugpy==1.8.5
 
 # Utilities básicas
 requests==2.33.0
-Pillow==12.2.0
+Pillow==12.3.0
 django-filter==23.5
 python-dateutil==2.8.2
 

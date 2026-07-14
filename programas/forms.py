@@ -319,7 +319,9 @@ class RelevamientoForm(forms.ModelForm):
         )
         self.fields["territorial"].queryset = terr_qs
         self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
-        self.fields["territorial"].help_text = "Solo se listan los territoriales del segmento de la convocatoria elegida."
+        self.fields[
+            "territorial"
+        ].help_text = "Solo se listan los territoriales del segmento de la convocatoria elegida."
         self.fields["convocatoria"].queryset = conv_qs
         self.fields["observaciones"].required = False
 

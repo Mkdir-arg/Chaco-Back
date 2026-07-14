@@ -26,9 +26,7 @@ def sidebar_badges(request):
             # Corre en todos los requests del backoffice: cache corto compartido.
             badges["badge_conversaciones"] = cache.get_or_set(
                 "sidebar:conversaciones_pendientes",
-                lambda: Conversacion.objects.filter(
-                    estado="pendiente", operador_asignado__isnull=True
-                ).count(),
+                lambda: Conversacion.objects.filter(estado="pendiente", operador_asignado__isnull=True).count(),
                 30,
             )
         except Exception:
