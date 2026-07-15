@@ -1,0 +1,50 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Pendientes RENAPER{% endblock %}
+
+{% block main-content %}
+<div class="max-w-[1180px] mx-auto space-y-6">
+  <div>
+    <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+      <span>Programa Becas</span><i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+      <a href="{% url 'becas:revision' %}" class="hover:underline">Revisión</a>
+      <i class="fas fa-chevron-right text-[8px] opacity-50"></i><span>Pendientes RENAPER</span>
+    </nav>
+    <h1 class="text-3xl font-extrabold text-heading tracking-tight">Pendientes RENAPER</h1>
+    <p class="text-sm text-body-subtle mt-1">Formularios cuya identidad todavía requiere validación.</p>
+  </div>
+
+  <form method="get" class="bg-white rounded-xl border border-base shadow-sm p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+    <input type="date" name="fecha" value="{{ filtros.fecha }}" class="nodo-field" aria-label="Fecha">
+    <select name="territorial" class="nodo-field" aria-label="Territorial">
+      <option value="">Todos los territoriales</option>
+      {% for item in territoriales %}<option value="{{ item.relevamiento__territorial_id }}" {% if filtros.territorial == item.relevamiento__territorial_id|stringformat:'s' %}selected{% endif %}>{{ item.relevamiento__territorial__username }}</option>{% endfor %}
+    </select>
+    <select name="segmento" class="nodo-field" aria-label="Segmento">
+      <option value="">Todos los segmentos</option>
+      {% for segmento in segmentos %}<option value="{{ segmento.pk }}" {% if filtros.segmento == segmento.pk|stringformat:'s' %}selected{% endif %}>{{ segmento.nombre }}</option>{% endfor %}
+    </select>
+    <div class="flex gap-2"><button class="btn-nodo btn-brand btn-base" type="submit">Filtrar</button><a href="{% url 'becas:renaper_pendientes' %}" class="btn-nodo btn-tertiary btn-base">Limpiar</a></div>
+  </form>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if formularios %}
+    <div class="overflow-x-auto"><table class="w-full border-collapse">
+      <thead><tr class="bg-secondary border-b border-base">
+        <th class="px-4 py-3 text-left text-xs uppercase text-body-subtle">Persona</th>
+        <th class="px-4 py-3 text-left text-xs uppercase text-body-subtle">Fecha</th>
+        <th class="px-4 py-3 text-left text-xs uppercase text-body-subtle">Territorial</th>
+        <th class="px-4 py-3 text-left text-xs uppercase text-body-subtle">Segmento</th>
+        <th class="px-4 py-3"></th>
+      </tr></thead>
+      <tbody>{% for formulario in formularios %}<tr class="border-t border-light">
+        <td class="px-4 py-3 text-sm text-heading">{% if formulario.ciudadano %}{{ formulario.ciudadano.nombre_completo }} ({{ formulario.ciudadano.dni }}){% else %}Sin ciudadano vinculado{% endif %}</td>
+        <td class="px-4 py-3 text-sm text-body">{{ formulario.creado|date:'d/m/Y' }}</td>
+        <td class="px-4 py-3 text-sm text-body">{{ formulario.relevamiento.territorial.username }}</td>
+        <td class="px-4 py-3 text-sm text-body">{{ formulario.relevamiento.convocatoria.segmento.nombre }}</td>
+        <td class="px-4 py-3 text-right"><a href="{% url 'becas:formulario_detalle' formulario.pk %}" class="btn-nodo btn-tertiary btn-sm">Abrir</a></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="py-14 px-6 text-center"><i class="fas fa-circle-check text-4xl text-fg-brand"></i><p class="mt-3 font-bold text-heading">No hay identidades pendientes</p><p class="text-sm text-body-subtle">Los filtros seleccionados no tienen resultados.</p></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

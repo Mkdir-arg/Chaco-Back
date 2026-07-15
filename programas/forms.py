@@ -3,6 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
+from django.utils.dateparse import parse_date
 
 from programas.models import (
     AsignacionCoordinador,
@@ -15,6 +16,7 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.services.becas import es_menor
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
@@ -396,3 +398,22 @@ class FormularioRevisionForm(forms.ModelForm):
             "apoderado_apellido": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "apoderado_fecha_nacimiento": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha_nacimiento = None
+        if self.instance.ciudadano_id:
+            fecha_nacimiento = self.instance.ciudadano.fecha_nacimiento
+        elif isinstance(self.instance.datos_identificacion, dict):
+            fecha_nacimiento = self.instance.datos_identificacion.get("fecha_nacimiento")
+            if isinstance(fecha_nacimiento, str):
+                try:
+                    fecha_nacimiento = parse_date(fecha_nacimiento)
+                except ValueError:
+                    fecha_nacimiento = None
+
+        if es_menor(fecha_nacimiento):
+            for campo in ("apoderado_nombre", "apoderado_apellido", "apoderado_fecha_nacimiento"):
+                if not cleaned_data.get(campo):
+                    self.add_error(campo, "Este dato es obligatorio cuando la persona relevada es menor de edad.")
+        return cleaned_data

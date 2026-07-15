@@ -14,6 +14,12 @@
     <p class="text-sm text-body-subtle mt-1">Relevamientos finalizados, listos para revisar caso a caso</p>
   </div>
 
+  {% if puede_revalidar_renaper %}
+  <div class="mb-4 flex justify-end">
+    <a href="{% url 'becas:renaper_pendientes' %}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-id-card"></i> Pendientes RENAPER ({{ pendientes_renaper }})</a>
+  </div>
+  {% endif %}
+
   <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% if relevamientos %}
     <div class="overflow-x-auto">

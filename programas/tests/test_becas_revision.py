@@ -1,18 +1,24 @@
 """Tests de la revisión de formularios de Becas (#77)."""
 
+import csv
 from datetime import date
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 
+from legajos.models import Ciudadano
+from programas.forms import FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     AsignacionCoordinador,
     Convocatoria,
     Formulario,
+    ListaEspera,
     Relevamiento,
     Segmento,
     TracaFormulario,
@@ -122,6 +128,155 @@ class EdicionTrazaTests(_BaseRevisionTest):
             },
         )
         self.assertEqual(TracaFormulario.objects.filter(formulario=self.form_a).count(), 0)
+
+    def test_editar_menor_sin_apoderado_muestra_errores(self):
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="60600600",
+            nombre="Persona",
+            apellido="Menor",
+            fecha_nacimiento=date(date.today().year - 10, 1, 1),
+        )
+        self.form_a.save(update_fields=["ciudadano"])
+
+        form = FormularioRevisionForm(
+            data={
+                "celular": "3624100100",
+                "email_contacto": "a@b.com",
+                "apoderado_nombre": "",
+                "apoderado_apellido": "",
+                "apoderado_fecha_nacimiento": "",
+            },
+            instance=self.form_a,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            set(form.errors),
+            {"apoderado_nombre", "apoderado_apellido", "apoderado_fecha_nacimiento"},
+        )
+
+
+class RevalidacionRenaperTests(_BaseRevisionTest):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.ciudadano = Ciudadano.objects.create(
+            dni="60600600",
+            nombre="Nomvre",
+            apellido="Anterior",
+            fecha_nacimiento=date(1990, 1, 1),
+            genero="F",
+        )
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["ciudadano", "validado_renaper"])
+
+    @patch("programas.views.revision.consultar_datos_renaper")
+    def test_admin_revalida_corrige_ciudadano_y_registra_traza(self, consultar):
+        consultar.return_value = {
+            "success": True,
+            "data": {
+                "nombre": "Nombre",
+                "apellido": "Correcto",
+                "fecha_nacimiento": "1990-02-03",
+                "sexo": "F",
+            },
+        }
+        self.client.force_login(self.admin)
+
+        resp = self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.ciudadano.refresh_from_db()
+        self.assertTrue(self.form_a.validado_renaper)
+        self.assertEqual(self.ciudadano.nombre, "Nombre")
+        self.assertEqual(self.ciudadano.apellido, "Correcto")
+        self.assertTrue(TracaFormulario.objects.filter(formulario=self.form_a, campo="RENAPER").exists())
+
+    @patch("programas.views.revision.consultar_datos_renaper")
+    def test_error_renaper_no_modifica_formulario(self, consultar):
+        consultar.return_value = {"success": False, "error": "Servicio no disponible"}
+        self.client.force_login(self.admin)
+
+        self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.ciudadano.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+        self.assertEqual(self.ciudadano.nombre, "Nomvre")
+        self.assertFalse(TracaFormulario.objects.filter(formulario=self.form_a).exists())
+
+    @patch("programas.views.revision.consultar_datos_renaper")
+    def test_coordinador_no_puede_revalidar(self, consultar):
+        self.client.force_login(self.coord_a)
+
+        resp = self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        consultar.assert_not_called()
+        self.form_a.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+
+
+class ReportesBecasTests(_BaseRevisionTest):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.ciudadano = Ciudadano.objects.create(
+            dni="70700700", nombre="Ana", apellido="Pérez", fecha_nacimiento=date(1990, 1, 1), genero="F"
+        )
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["ciudadano", "estado"])
+
+    def _csv(self, response):
+        return list(csv.reader(StringIO(response.content.decode("utf-8-sig"))))
+
+    def test_beneficiarios_exporta_columnas_y_solo_aprobados(self):
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="1",
+            email_contacto="pendiente@example.com",
+            estado=Formulario.Estado.ENVIADO,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
+        rows = self._csv(response)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(rows[0], ["Nombre", "DNI", "Segmento", "Convocatoria", "Fecha de aprobación"])
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][1], "70700700")
+
+    def test_avance_exporta_conteos_por_estado(self):
+        Formulario.objects.create(
+            relevamiento=self.rel_a, celular="1", email_contacto="rechazado@example.com", estado=Formulario.Estado.RECHAZADO
+        )
+        self.client.force_login(self.admin)
+
+        rows = self._csv(self.client.get(reverse("becas:convocatoria_export_relevamientos", args=[self.conv_a.pk])))
+
+        self.assertEqual(rows[0][-3:], ["Enviados", "Aprobados", "Rechazados"])
+        self.assertEqual(rows[1][-3:], ["0", "1", "1"])
+
+    def test_lista_espera_exporta_solo_no_promovidos(self):
+        ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+        self.client.force_login(self.admin)
+
+        rows = self._csv(self.client.get(reverse("becas:convocatoria_export_lista_espera", args=[self.conv_a.pk])))
+
+        self.assertEqual(rows[0], ["Posición", "Nombre", "DNI", "Segmento", "Fecha de ingreso"])
+        self.assertEqual(rows[1][0:3], ["1", "Ana Pérez", "70700700"])
+
+    def test_coordinador_no_puede_exportar(self):
+        self.client.force_login(self.coord_a)
+
+        response = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("attachment", response.headers.get("Content-Disposition", ""))
 
 
 class AprobarRechazarTests(_BaseRevisionTest):

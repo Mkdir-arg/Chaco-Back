@@ -184,6 +184,19 @@ class RenaperBecasApiTests(_BaseApiTest):
 
 
 class FormularioSyncTests(_BaseApiTest):
+    def _payload_persona(self, fecha_nacimiento, **apoderado):
+        return {
+            "celular": "3624111222",
+            "email_contacto": "x@y.com",
+            "datos_identificacion": {
+                "dni": "60600600",
+                "nombre": "Persona",
+                "apellido": "Prueba",
+                "fecha_nacimiento": fecha_nacimiento.isoformat(),
+            },
+            **apoderado,
+        }
+
     def test_crear_formulario_resuelve_ciudadano_nuevo(self):
         self.autenticar(self.terri)
         url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
@@ -244,6 +257,28 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 201)
         self.assertFalse(resp.data["validado_renaper"])
 
+    def test_origen_desconocido_no_puede_autovalidarse(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        resp = self.client.post(
+            url,
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "validado_renaper": True,
+                "datos_identificacion": {
+                    "dni": "43433433",
+                    "nombre": "Luis",
+                    "apellido": "Rios",
+                    "origen": "otro",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertFalse(resp.data["validado_renaper"])
+
     def test_crear_formulario_linkea_ciudadano_existente(self):
         existente = Ciudadano.objects.create(dni="50500500", nombre="Ana", apellido="López")
         self.autenticar(self.terri)
@@ -269,6 +304,42 @@ class FormularioSyncTests(_BaseApiTest):
             url, {"celular": "3624111222", "email_contacto": "x@y.com", "datos_identificacion": {}}, format="json"
         )
         self.assertEqual(resp.status_code, 400)
+
+    def test_menor_sin_apoderado_falla(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        nacimiento = date(date.today().year - 10, 1, 1)
+
+        resp = self.client.post(url, self._payload_persona(nacimiento), format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("apoderado_nombre", resp.data)
+        self.assertIn("apoderado_apellido", resp.data)
+        self.assertIn("apoderado_fecha_nacimiento", resp.data)
+
+    def test_menor_con_apoderado_completo_se_acepta(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        nacimiento = date(date.today().year - 10, 1, 1)
+        payload = self._payload_persona(
+            nacimiento,
+            apoderado_nombre="Ana",
+            apoderado_apellido="Pérez",
+            apoderado_fecha_nacimiento="1985-05-10",
+        )
+
+        resp = self.client.post(url, payload, format="json")
+
+        self.assertEqual(resp.status_code, 201)
+
+    def test_mayor_sin_apoderado_se_acepta(self):
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+        nacimiento = date(date.today().year - 20, 1, 1)
+
+        resp = self.client.post(url, self._payload_persona(nacimiento), format="json")
+
+        self.assertEqual(resp.status_code, 201)
 
     def test_listar_formularios_del_relevamiento(self):
         Formulario.objects.create(relevamiento=self.rel, celular="1", email_contacto="a@b.com")

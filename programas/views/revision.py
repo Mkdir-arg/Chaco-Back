@@ -9,16 +9,20 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
-from core.rbac import CapacidadRequeridaMixin, puede_alguna, requiere
+from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
+from legajos.services.consulta_renaper import consultar_datos_renaper
 from programas.forms import FormularioRevisionForm
 from programas.models import (
     Formulario,
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
+    Segmento,
     TipoCampo,
 )
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
@@ -27,6 +31,7 @@ from programas.services.cupo import aprobar_o_poner_en_espera
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
+CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 
 
 def _assert_scope_relevamiento(request, relevamiento):
@@ -60,6 +65,45 @@ class RevisionRelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, 
             )
             .order_by("-fecha_finalizado", "-fecha_asignada")
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["puede_revalidar_renaper"] = puede(self.request.user, CAP_REVALIDAR_RENAPER)
+        context["pendientes_renaper"] = Formulario.objects.filter(validado_renaper=False).count()
+        return context
+
+
+class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    capacidades_requeridas = CAP_REVALIDAR_RENAPER
+    template_name = "programas/becas/revision/renaper_pendientes.html"
+    context_object_name = "formularios"
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = Formulario.objects.filter(validado_renaper=False).select_related(
+            "ciudadano", "relevamiento__territorial", "relevamiento__convocatoria__segmento"
+        )
+        if self.request.GET.get("fecha"):
+            queryset = queryset.filter(creado__date=self.request.GET["fecha"])
+        if self.request.GET.get("territorial"):
+            queryset = queryset.filter(relevamiento__territorial_id=self.request.GET["territorial"])
+        if self.request.GET.get("segmento"):
+            queryset = queryset.filter(relevamiento__convocatoria__segmento_id=self.request.GET["segmento"])
+        return queryset.order_by("-creado")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        base = Formulario.objects.filter(validado_renaper=False)
+        context["territoriales"] = (
+            base.values("relevamiento__territorial_id", "relevamiento__territorial__username")
+            .distinct()
+            .order_by("relevamiento__territorial__username")
+        )
+        context["segmentos"] = Segmento.objects.filter(
+            convocatorias__relevamientos__formularios__validado_renaper=False
+        ).distinct().order_by("nombre")
+        context["filtros"] = self.request.GET
+        return context
 
 
 @login_required
@@ -157,6 +201,7 @@ def formulario_detalle(request, pk):
             "globales_list": globales_list,
             "requisitos_list": requisitos_list,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
+            "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
         },
     )
 
@@ -199,6 +244,64 @@ def formulario_rechazar(request, pk):
         formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
         registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
         messages.success(request, "Formulario rechazado.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVALIDAR_RENAPER)
+def formulario_revalidar_renaper(request, pk):
+    formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
+    if request.method != "POST":
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    ciudadano = formulario.ciudadano
+    if ciudadano is None:
+        messages.error(request, "El formulario no tiene un ciudadano vinculado para revalidar.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if not ciudadano.genero:
+        messages.error(request, "El ciudadano no tiene sexo registrado; completalo antes de consultar RENAPER.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    resultado = consultar_datos_renaper(ciudadano.dni, ciudadano.genero)
+    if not resultado.get("success"):
+        mensaje = resultado.get("error") or "RENAPER no pudo validar a la persona."
+        if resultado.get("fallecido"):
+            mensaje = "RENAPER informa que la persona está fallecida."
+        messages.error(request, mensaje)
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    datos = resultado.get("data") or {}
+    cambios = []
+    nuevos = {
+        "nombre": datos.get("nombre") or ciudadano.nombre,
+        "apellido": datos.get("apellido") or ciudadano.apellido,
+        "genero": datos.get("sexo") or datos.get("genero") or ciudadano.genero,
+    }
+    fecha = datos.get("fecha_nacimiento")
+    if isinstance(fecha, str):
+        try:
+            fecha = parse_date(fecha)
+        except ValueError:
+            fecha = None
+    if fecha:
+        nuevos["fecha_nacimiento"] = fecha
+
+    with transaction.atomic():
+        campos_actualizados = []
+        for campo, nuevo in nuevos.items():
+            anterior = getattr(ciudadano, campo)
+            if anterior != nuevo:
+                setattr(ciudadano, campo, nuevo)
+                campos_actualizados.append(campo)
+                cambios.append((f"Ciudadano · {campo}", anterior, nuevo))
+        if campos_actualizados:
+            ciudadano.save(update_fields=[*campos_actualizados, "modificado"])
+        if not formulario.validado_renaper:
+            formulario.validado_renaper = True
+            formulario.save(update_fields=["validado_renaper", "modificado"])
+            cambios.append(("RENAPER", "Pendiente", "Validado"))
+        registrar_traza(formulario, request.user, cambios)
+
+    messages.success(request, "Identidad revalidada correctamente con RENAPER.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 

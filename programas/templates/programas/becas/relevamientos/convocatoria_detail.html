@@ -47,11 +47,11 @@
         <i class="fas fa-users"></i> Beneficiarios
         <span class="badge ml-0.5" :class="tab==='ben' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ n_beneficiarios }}</span>
       </button>
-      <button @click="tab='rep'" type="button"
+      {% if puede_reportes %}<button @click="tab='rep'" type="button"
               class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='rep' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-chart-simple"></i> Reportes
-      </button>
+      </button>{% endif %}
     </div>
 
     {# ===== TAB: Información general ===== #}
@@ -204,7 +204,7 @@
     </div>
 
     {# ===== TAB: Reportes ===== #}
-    <div x-show="tab==='rep'" x-cloak class="p-6 space-y-3">
+    {% if puede_reportes %}<div x-show="tab==='rep'" x-cloak class="p-6 space-y-3">
       <p class="text-sm text-body-subtle mb-2">Exportaciones de esta convocatoria.</p>
       <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
@@ -220,7 +220,14 @@
         </div>
         <a href="{% url 'becas:convocatoria_export_relevamientos' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> CSV</a>
       </div>
-    </div>
+      <div class="bg-white rounded-xl border border-base shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-list-ol"></i></div>
+          <span class="text-sm font-semibold text-heading">Lista de espera</span>
+        </div>
+        <a href="{% url 'becas:convocatoria_export_lista_espera' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> CSV</a>
+      </div>
+    </div>{% endif %}
   </div>
 
   {# ============ Modal: Nuevo relevamiento (convocatoria preseleccionada) ============ #}

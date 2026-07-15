@@ -76,7 +76,8 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
     elif origen == "manual":
         validado = False
     else:
-        validado = bool(formulario.validado_renaper)
+        # El cliente nunca puede autovalidarse sin un origen de confianza.
+        validado = False
 
     if formulario.validado_renaper != validado:
         formulario.validado_renaper = validado
