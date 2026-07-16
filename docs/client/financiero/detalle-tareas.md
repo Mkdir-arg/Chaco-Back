@@ -143,6 +143,7 @@
 | 2026-07-13 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
 | 2026-07-14 | Pablo Cao | Becas | App móvil Becas — relevamientos y adjuntos | Corrección de fecha por zona horaria; finalización y reapertura de relevamientos en la app y el backoffice; ajustes de ubicación y etiquetas de acciones/estados; persistencia y sincronización reintentable de fotos y documentos sin duplicar formularios; validaciones Expo y Django. | 150 min |
 | 2026-07-14 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-15 | Matías Fariña | Transversal | Creación de video | Creación de video del sistema | 240 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
@@ -150,8 +151,8 @@
 |---|---:|
 | Becas | 60 h 38 min |
 | Dispositivos | 16 h 0 min |
-| Transversal | 6 h 0 min |
-| **Total julio 2026 (al 14/07)** | **82 h 38 min** |
+| Transversal | 10 h 0 min |
+| **Total julio 2026 (al 15/07)** | **86 h 38 min** |
 
 ---
 
@@ -179,6 +180,6 @@
 
 !!! success "Contador total"
 
-    **34.910 minutos** (581 h 50 min)
+    **35.150 minutos** (585 h 50 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 14/07): **4.958 min (82 h 38 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 15/07): **5.198 min (86 h 38 min)**

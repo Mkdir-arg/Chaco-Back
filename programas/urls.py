@@ -73,7 +73,7 @@ urlpatterns = [
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
     # --- Revisión de formularios ---
-    path("revision/", rev.RevisionRelevamientoListView.as_view(), name="revision"),
+    path("revision/", rev.RevisionPersonasListView.as_view(), name="revision"),
     path("revision/renaper/pendientes/", rev.RenaperPendientesListView.as_view(), name="renaper_pendientes"),
     path("revision/relevamiento/<int:relevamiento_pk>/", rev.revision_formularios, name="revision_formularios"),
     path("revision/relevamiento/<int:pk>/iniciar/", rev.relevamiento_iniciar_revision, name="revision_iniciar"),

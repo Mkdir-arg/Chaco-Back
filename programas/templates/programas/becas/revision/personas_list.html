@@ -1,0 +1,117 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · Revisión{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+
+  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
+    <span>Programa Becas</span>
+    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
+    <span class="font-semibold text-body">Revisión de formularios</span>
+  </nav>
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Revisión de formularios</h1>
+      <p class="text-sm text-body-subtle mt-1">Todas las personas relevadas en campo — entrá a cada formulario para revisarlo</p>
+    </div>
+    {% if puede_revalidar_renaper %}
+      <a href="{% url 'becas:renaper_pendientes' %}" class="btn-nodo btn-tertiary btn-base">
+        <i class="fas fa-id-card"></i> Pendientes RENAPER ({{ pendientes_renaper }})
+      </a>
+    {% endif %}
+  </div>
+
+  {# Filter bar #}
+  <form method="get" class="flex items-center gap-3 mb-4 flex-wrap">
+    <label class="text-sm text-body-subtle font-medium" for="filtro-estado">Estado:</label>
+    <select name="estado" id="filtro-estado" onchange="this.form.submit()"
+            class="rounded-full border border-base bg-white px-4 py-1.5 text-sm text-body focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+      <option value="">Todos</option>
+      {% for value, label in estados %}
+        <option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if formularios %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-secondary border-b border-base">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Convocatoria</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Relevamiento</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Fecha</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">RENAPER</th>
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+            <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in formularios %}
+          <tr class="hover:bg-secondary">
+            <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
+              {% if f.ciudadano %}
+                {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
+                <span class="text-body-subtle font-normal">({{ f.ciudadano.dni }})</span>
+              {% elif f.datos_identificacion %}
+                {{ f.datos_identificacion.nombre }} {{ f.datos_identificacion.apellido }}
+                <span class="text-body-subtle font-normal">(offline)</span>
+              {% else %}
+                <span class="text-body-subtle">Sin identificar</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">
+              {{ f.relevamiento.convocatoria.nombre }}
+              <span class="block text-xs text-body-subtle">{{ f.relevamiento.convocatoria.segmento.nombre }}</span>
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-light">
+              <a href="{% url 'becas:revision_formularios' f.relevamiento.pk %}" class="text-fg-brand hover:underline">{{ f.relevamiento.nombre }}</a>
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ f.creado|date:"d/m/Y" }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-center">
+              {% if f.validado_renaper %}
+                <span class="badge badge-success">Validado</span>
+              {% else %}
+                <span class="badge badge-gray">Pendiente</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-light">
+              {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado dot=True color_enviado="warning" %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+              <a href="{% url 'becas:formulario_detalle' f.pk %}" class="btn-nodo btn-tertiary btn-sm" aria-label="Ver formulario">
+                <i class="fas fa-eye"></i> Ver
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between px-4 py-3 border-t border-light bg-secondary">
+      <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} persona{{ page_obj.paginator.count|pluralize }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
+           class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left"></i> Anterior</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
+           class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right"></i></a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+      <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>
+      <p class="text-[17px] font-bold text-heading">Sin personas relevadas</p>
+      <p class="text-sm text-body max-w-xs">Aparecerán acá a medida que los territoriales carguen y sincronicen formularios.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
