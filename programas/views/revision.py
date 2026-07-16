@@ -39,27 +39,33 @@ def _assert_scope_formulario(request, formulario):
         raise PermissionDenied("No tiene acceso a este formulario.")
 
 
-class RevisionRelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
-    """Relevamientos listos para revisar (finalizados / en revisión)."""
+class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    """Personas relevadas (formularios sincronizados), con su convocatoria y
+    relevamiento. Puerta de entrada a la revisión caso a caso."""
 
     capacidades_requeridas = CAP_REVISION_VER
-    template_name = "programas/becas/revision/relevamiento_list.html"
-    context_object_name = "relevamientos"
+    template_name = "programas/becas/revision/personas_list.html"
+    context_object_name = "formularios"
     paginate_by = 25
 
     def get_queryset(self):
-        return (
-            Relevamiento.objects.select_related("convocatoria__segmento", "territorial")
-            .filter(
-                convocatoria__segmento__in=segmentos_visibles(self.request.user),
-                estado__in=[
-                    Relevamiento.Estado.FINALIZADO,
-                    Relevamiento.Estado.EN_REVISION,
-                    Relevamiento.Estado.TERMINADO,
-                ],
+        qs = (
+            Formulario.objects.select_related(
+                "ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__territorial"
             )
-            .order_by("-fecha_finalizado", "-fecha_asignada")
+            .filter(relevamiento__convocatoria__segmento__in=segmentos_visibles(self.request.user))
+            .order_by("-creado")
         )
+        estado = self.request.GET.get("estado")
+        if estado:
+            qs = qs.filter(estado=estado)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["estados"] = Formulario.Estado.choices
+        ctx["estado_actual"] = self.request.GET.get("estado", "")
+        return ctx
 
 
 @login_required
