@@ -1,0 +1,179 @@
+/* ============================================================================
+   NODO Design System — theming global de SweetAlert2
+   ============================================================================
+   Fuente única de estilos para TODOS los `Swal.fire(...)` del sistema (29 usos
+   en 13 templates). El objetivo es que el "chrome" de SweetAlert2 (popup,
+   título, texto, acciones, ícono) matchee el DS Modal (canon §11) sin tener
+   que tocar cada call site.
+
+   Complementa a `includes/_swal_theme.html` (mixin JS con buttonsStyling:false
+   + customClass por defecto + recolor de ícono vía didRender). Un solo punto
+   de cambio: este CSS se carga siempre desde `includes/base.html`.
+
+   NOTA: `scripts/design_audit.py` no valida el CSS de una librería externa
+   (clases `.swal2-*`); los valores de aquí SÍ deben (y están) tokenizados. */
+
+.swal2-popup.swal2-popup {
+  display: grid !important;
+  grid-template-columns: 40px 1fr auto;
+  grid-template-areas:
+    "icon title close"
+    "content content content"
+    "actions actions actions";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 0;
+  width: auto !important;
+  max-width: 480px !important;
+  padding: 0 !important;
+  border-radius: var(--radius-2xl, 16px) !important;
+  box-shadow: var(--shadow-xl) !important;
+  font-family: 'Manrope', var(--font-sans, sans-serif) !important;
+  overflow: hidden;
+}
+
+/* Backdrop: negro/50 + blur (canon §11), por encima de z-index 50 propio de swal2 */
+.swal2-container.swal2-backdrop-show,
+.swal2-container.swal2-backdrop-hide {
+  background: rgba(0, 0, 0, 0.5) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* ── Header: ícono-tile + título + cerrar (grid en una sola fila) ── */
+.swal2-icon.swal2-icon {
+  grid-area: icon;
+  margin: 20px 0 20px 24px !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px;
+  box-sizing: border-box;
+  border-radius: var(--radius-lg, 8px) !important;
+  border: none !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* El ring/círculo animado default de swal2 no aplica al icon-tile plano del DS */
+.swal2-icon:before,
+.swal2-icon:after,
+.swal2-icon .swal2-success-ring,
+.swal2-icon .swal2-success-fix,
+.swal2-icon .swal2-success-circular-line-left,
+.swal2-icon .swal2-success-circular-line-right {
+  display: none !important;
+  content: none !important;
+}
+
+.swal2-icon .swal2-icon-content {
+  font-size: 20px !important;
+  color: inherit !important;
+}
+
+.swal2-title {
+  grid-area: title;
+  margin: 0 !important;
+  padding: 20px 24px 20px 0 !important;
+  text-align: left !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: var(--text-heading) !important;
+}
+
+.swal2-close {
+  grid-area: close;
+  margin: 16px 16px 0 0 !important;
+  align-self: flex-start;
+  font-size: 20px !important;
+  color: var(--text-body-subtle) !important;
+  border-radius: var(--radius-lg, 8px);
+  transition: color 150ms, background 150ms;
+}
+
+.swal2-close:hover,
+.swal2-close:focus {
+  color: var(--text-heading) !important;
+  background: var(--bg-secondary, #F9FAFB) !important;
+  box-shadow: none !important;
+}
+
+/* ── Body ── */
+.swal2-html-container {
+  grid-area: content;
+  margin: 0 !important;
+  padding: 24px !important;
+  border-top: 1px solid var(--border-light, #F3F4F6);
+  text-align: left !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: var(--text-body) !important;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Inputs embebidos en el body (preConfirm de programa_detail, etc.) alineados a .nodo-field */
+.swal2-textarea,
+.swal2-input,
+.swal2-select,
+.swal2-file {
+  font-family: 'Manrope', var(--font-sans, sans-serif) !important;
+  font-size: 14px !important;
+  color: var(--text-heading) !important;
+  background: var(--bg-white, #fff) !important;
+  border: 1px solid var(--border-base, #E5E7EB) !important;
+  border-radius: var(--radius-lg, 8px) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.swal2-textarea:focus,
+.swal2-input:focus,
+.swal2-select:focus {
+  border-color: var(--border-brand, #5059BC) !important;
+  box-shadow: var(--ring-brand) !important;
+}
+
+.swal2-validation-message {
+  grid-column: 1 / -1 !important;
+  margin: 0 !important;
+  padding: 10px 24px !important;
+  background: var(--bg-danger-soft, #FEF0F2) !important;
+  color: var(--text-fg-danger, #C70036) !important;
+  font-size: 12.5px !important;
+  border-top: 1px solid var(--border-danger-subtle, #FFCCD3) !important;
+}
+
+.swal2-validation-message::before {
+  background-color: var(--text-fg-danger, #C70036) !important;
+}
+
+/* ── Footer / acciones ── */
+.swal2-actions.swal2-actions {
+  grid-area: actions;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  padding: 16px 24px !important;
+  border-top: 1px solid var(--border-light, #F3F4F6) !important;
+  background: var(--bg-secondary, #F9FAFB) !important;
+}
+
+.swal2-actions .swal2-styled:focus {
+  box-shadow: none !important;
+}
+
+.swal2-footer {
+  margin: 0 !important;
+  padding: 12px 24px 16px !important;
+  border-top: none !important;
+  font-size: 12.5px !important;
+  color: var(--text-body-subtle) !important;
+}
+
+/* Timer bar (si algún call site futuro usa `timer`) */
+.swal2-timer-progress-bar {
+  background: var(--bg-brand, #5059BC) !important;
+}

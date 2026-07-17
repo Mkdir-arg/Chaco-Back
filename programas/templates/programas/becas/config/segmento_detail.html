@@ -449,44 +449,65 @@
   </div>
 
   {# ============ Modal: Nuevo requisito ============ #}
-  <div x-show="modalReq" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40" @click="modalReq=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
-      <div class="flex items-center gap-3 mb-5">
-        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
-        <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
+  <div x-show="modalReq" x-cloak @click="modalReq=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Nuevo requisito</h3>
+        </div>
+        <button type="button" @click="modalReq=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
-      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" class="space-y-4" id="form-req-crear" data-ajax>
+
+      {% comment %}FORM envuelve body + footer{% endcomment %}
+      <form method="post" action="{% url 'becas:requisito_crear' segmento.pk %}" id="form-req-crear" data-ajax>
         {% csrf_token %}
         <input type="hidden" name="scope" value="segmento">
-        <div>
-          <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
-          {{ form_requisito.texto }}
-          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        {% comment %}BODY{% endcomment %}
+        <div class="p-6 space-y-5">
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
-            {{ form_requisito.tipo }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
+            <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+            {{ form_requisito.texto }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
-            {{ form_requisito.obligatorio }}
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+              {{ form_requisito.tipo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+              {{ form_requisito.obligatorio }}
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+              {{ form_requisito.orden }}
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-            {{ form_requisito.orden }}
+          <div data-opciones-wrapper>
+            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
+            {{ form_requisito.opciones_texto }}
+            <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
         </div>
-        <div data-opciones-wrapper>
-          <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.opciones_texto.label }}</label>
-          {{ form_requisito.opciones_texto }}
-          <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
-          <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
-        </div>
-        <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="modalReq=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+
+        {% comment %}FOOTER{% endcomment %}
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalReq=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
           <button type="submit" class="btn-nodo btn-brand btn-base">Crear requisito</button>
         </div>
       </form>
@@ -494,54 +515,70 @@
   </div>
 
   {# ============ Modal: Editar requisito ============ #}
-  <div x-show="modalReqEdit" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40" @click="modalReqEdit=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" @click.stop>
-      <div class="flex items-center gap-3 mb-5">
-        <div class="w-9 h-9 rounded-lg" style="background: var(--gradient-brand)"></div>
-        <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
+  <div x-show="modalReqEdit" x-cloak @click="modalReqEdit=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+
+      {% comment %}HEADER{% endcomment %}
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-heading">Editar requisito</h3>
+        </div>
+        <button type="button" @click="modalReqEdit=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
-      <form method="post" :action="editReqUrl" class="space-y-4" id="form-req-editar" data-ajax data-reset="false">
+
+      {% comment %}FORM envuelve body + footer{% endcomment %}
+      <form method="post" :action="editReqUrl" id="form-req-editar" data-ajax data-reset="false">
         {% csrf_token %}
         <input type="hidden" name="scope" value="segmento">
-        <div>
-          <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
-          <input type="text" name="texto" x-model="editReqTexto" required
-            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
-          <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        {% comment %}BODY{% endcomment %}
+        <div class="p-6 space-y-5">
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
-            <select name="tipo" x-model="editReqTipo"
-              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
-              {% for val, label in form_requisito.tipo.field.choices %}
-              <option value="{{ val }}">{{ label }}</option>
-              {% endfor %}
-            </select>
+            <label class="block text-sm font-medium text-heading mb-1">Pregunta <span class="text-fg-danger">*</span></label>
+            <input type="text" name="texto" x-model="editReqTexto" required class="nodo-field">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
-            <select name="obligatorio" x-model="editReqObligatorio"
-              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
-              <option value="True">Obligatorio</option>
-              <option value="False">Opcional</option>
-            </select>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
+              <select name="tipo" x-model="editReqTipo" class="nodo-field">
+                {% for val, label in form_requisito.tipo.field.choices %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
+              <select name="obligatorio" x-model="editReqObligatorio" class="nodo-field">
+                <option value="True">Obligatorio</option>
+                <option value="False">Opcional</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
+              <input type="number" name="orden" x-model="editReqOrden" min="0" class="nodo-field">
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-            <input type="number" name="orden" x-model="editReqOrden" min="0"
-              class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+          <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
+            <textarea name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field"></textarea>
+            <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
           </div>
         </div>
-        <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
-          <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
-          <textarea name="opciones_texto" x-model="editReqOpciones" rows="4"
-            class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"></textarea>
-          <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
-        </div>
-        <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-secondary btn-base">Cancelar</button>
+
+        {% comment %}FOOTER{% endcomment %}
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
           <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
         </div>
       </form>

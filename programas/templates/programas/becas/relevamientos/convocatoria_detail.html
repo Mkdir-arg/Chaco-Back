@@ -227,7 +227,7 @@
 
   {# ============ Modal: Nuevo relevamiento (convocatoria preseleccionada) ============ #}
   <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40" @click="modalRel=false"></div>
+    <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalRel=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" @click.stop>
 
       {% comment %}HEADER{% endcomment %}

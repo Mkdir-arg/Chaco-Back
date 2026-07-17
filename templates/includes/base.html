@@ -176,7 +176,10 @@
 
         <!-- NODO Forms Design System -->
         <link rel="stylesheet" href="{% static 'custom/css/nodo-forms.css' %}" />
-        
+
+        <!-- NODO SweetAlert2 theming (fuente única — cascada a los 29 Swal.fire del sistema) -->
+        <link rel="stylesheet" href="{% static 'custom/css/nodo-swal.css' %}" />
+
         <!-- Custom CSS Files -->
         <link rel="stylesheet" href="{% static 'custom/css/main.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/custom.css' %}" />
@@ -286,29 +289,29 @@
         {% include 'components/alertas_eventos.html' %}
         
         <!-- Sistema de Modales Modernos -->
-        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-[1001] hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+        <div id="modal-overlay" class="modal-responsive fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
             <div class="flex min-h-[100dvh] items-end justify-center p-0 sm:min-h-screen sm:items-center sm:p-4">
                 <div id="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
                     <!-- Modal Header -->
-                    <div id="modal-header" class="modal-header border-b border-gray-200 p-4 sm:p-6">
+                    <div id="modal-header" class="modal-header border-b border-[color:var(--border-light)] p-4 sm:p-6">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
                                 <div id="modal-icon" class="w-10 h-10 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-info-circle text-xl" aria-hidden="true"></i>
+                                    <i class="fas fa-info-circle text-[18px]" aria-hidden="true"></i>
                                 </div>
-                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900">Información</h3>
+                                <h3 id="modal-title" class="text-lg font-bold text-[color:var(--text-heading)]">Información</h3>
                             </div>
-                            <button id="modal-close" aria-label="Cerrar" class="touch-target text-gray-400 transition-colors hover:text-gray-600">
-                                <i class="fas fa-times text-xl" aria-hidden="true"></i>
+                            <button id="modal-close" aria-label="Cerrar" class="touch-target text-[color:var(--text-body-subtle)] transition-colors hover:text-[color:var(--text-heading)]">
+                                <i class="fas fa-times text-[18px]" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
                     <!-- Modal Body -->
                     <div id="modal-body" class="modal-body p-4 sm:p-6">
-                        <p id="modal-message" class="text-gray-600 leading-relaxed"></p>
+                        <p id="modal-message" class="text-[color:var(--text-body)] leading-relaxed"></p>
                     </div>
                     <!-- Modal Footer -->
-                    <div id="modal-footer" class="modal-footer flex flex-col-reverse gap-3 border-t border-gray-200 p-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-3 sm:p-6">
+                    <div id="modal-footer" class="modal-footer flex flex-col-reverse gap-3 border-t border-[color:var(--border-light)] bg-[color:var(--bg-secondary)] p-4 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-3 sm:p-6">
                         <button id="modal-cancel" class="btn-nodo btn-secondary btn-sm hidden w-full sm:w-auto">
                             Cancelar
                         </button>
@@ -355,7 +358,7 @@
 
                         // Configurar contenido
                         icon.className = `w-10 h-10 rounded-lg flex items-center justify-center ${type.iconColor}`;
-                        icon.querySelector('i').className = `fas ${type.icon} text-xl`;
+                        icon.querySelector('i').className = `fas ${type.icon} text-[18px]`;
                         title.textContent = options.title || 'Información';
                         message.textContent = options.message || '';
 
@@ -513,5 +516,10 @@
         {% endif %}
         
         {% block customJS %}{% endblock %}
+
+        <!-- NODO SweetAlert2 theming (fuente única): se ejecuta después de customJS
+             a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()
+             existente lee esa variable global recién al momento del click. -->
+        <script src="{% static 'custom/js/nodo-swal-theme.js' %}"></script>
     </body>
 </html>
