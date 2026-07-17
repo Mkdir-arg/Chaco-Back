@@ -30,7 +30,7 @@
    canónico del mapa BADGE (canon §7). .badge-brand no tiene token exacto en
    chaco-tokens.css (su fondo/borde/texto son propios del mapa de badges, distintos
    de las primitivas --color-pink-*/--color-brand-*) → se deja el hex tal cual. */
-.badge-gray    { background: var(--color-gray-050, #F9FAFB); border: 1px solid var(--color-gray-300, #D1D5DB); color: var(--color-gray-700, #374151); }
+.badge-gray    { background: var(--color-gray-100, #F3F4F6); border: 1px solid var(--color-gray-300, #D1D5DB); color: var(--color-gray-700, #374151); }
 .badge-white   { background: var(--bg-white, #FFFFFF); border: 1px solid var(--color-gray-200, #E5E7EB); color: var(--color-gray-700, #374151); }
 .badge-brand   { background: #FFEAF6; border: 1px solid #FFB9DC; color: #A11F60; } /* design-audit: allow — mapa canónico §7, sin token exacto */
 .badge-success { background: var(--color-emerald-050, #ECFDF5); border: 1px solid var(--color-emerald-200, #A4F4CF); color: var(--color-emerald-800, #006045); }
