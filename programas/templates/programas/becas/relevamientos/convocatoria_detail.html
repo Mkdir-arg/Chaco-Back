@@ -18,7 +18,7 @@
         <p class="text-sm text-body-subtle mt-1">{{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}</p>
       </div>
       {% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
-      {% else %}<span class="badge badge-gray">Inactiva</span>{% endif %}
+      {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
     </div>
   </div>
 
@@ -134,7 +134,7 @@
           <div class="bg-white rounded-xl border border-base shadow-sm p-5">
             <h3 class="text-sm font-bold text-heading mb-3">Datos de la convocatoria</h3>
             <dl class="space-y-2.5 text-sm">
-              <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>{% else %}<span class="badge badge-gray">Inactiva</span>{% endif %}</dd></div>
+              <div class="flex justify-between"><dt class="text-body-subtle">Estado</dt><dd>{% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>{% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}</dd></div>
               <div class="flex justify-between"><dt class="text-body-subtle">Período</dt><dd class="text-heading font-medium">{{ convocatoria.fecha_inicio|date:"d/m/Y" }} → {{ convocatoria.fecha_fin|date:"d/m/Y" }}</dd></div>
               <div class="flex justify-between"><dt class="text-body-subtle">Fecha de creación</dt><dd class="text-heading font-medium">{{ convocatoria.creado|date:"d/m/Y" }}</dd></div>
             </dl>
