@@ -3,17 +3,6 @@
 
 {% block main-content %}
 <div class="">
-  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
-    <span>Programa Becas</span>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    {% if subsegmento %}
-      <a href="{% url 'becas:subsegmento_detalle' subsegmento.pk %}" class="hover:underline">{{ subsegmento.nombre }}</a>
-    {% else %}
-      <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="hover:underline">{{ segmento.nombre }}</a>
-    {% endif %}
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <span class="font-semibold text-body">Nuevo requisito</span>
-  </nav>
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">Nuevo requisito nativo</h1>
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}

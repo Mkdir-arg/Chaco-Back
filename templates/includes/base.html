@@ -467,6 +467,19 @@
             });
         </script>
         
+        <!-- Cierre de sesión por inactividad (idle logout) -->
+        {% if user.is_authenticated and session_idle_timeout_minutes %}
+            <script>
+                window.idleLogoutConfig = {
+                    timeoutMinutes: {{ session_idle_timeout_minutes }},
+                    warningSeconds: {{ session_idle_warning_seconds }},
+                    logoutUrl: "{% url 'users:logout' %}",
+                    csrfToken: "{{ csrf_token }}"
+                };
+            </script>
+            <script src="{% static 'custom/js/idle-logout.js' %}"></script>
+        {% endif %}
+
         <!-- Alertas WebSocket -->
         {% if user.is_authenticated %}
             <script>

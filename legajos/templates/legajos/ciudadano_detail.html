@@ -115,18 +115,6 @@
     <section class="mb-8 overflow-hidden rounded-xl border shadow-sm" style="border-color: var(--border-base); background: var(--bg-primary);">
         <div class="border-b px-5 py-4 lg:px-6" style="border-color: var(--border-base); background: var(--bg-secondary);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <nav aria-label="Breadcrumb">
-                    <ol class="flex flex-wrap items-center gap-2 text-sm" style="color: var(--text-body-subtle);">
-                        <li>
-                            <a href="{% url 'legajos:ciudadanos' %}" class="inline-flex items-center gap-2 font-semibold transition" style="color: var(--text-body); hover:color: var(--text-fg-brand);">
-                                <i class="fas fa-users text-xs" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
-                                <span>Ciudadanos</span>
-                            </a>
-                        </li>
-                        <li><i class="fas fa-chevron-right text-[10px]" aria-hidden="true" style="color: var(--border-base-strong);"></i></li>
-                        <li class="max-w-full truncate font-semibold" style="color: var(--text-heading);">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</li>
-                    </ol>
-                </nav>
 
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="badge badge-info badge-dot">Ficha integral</span>

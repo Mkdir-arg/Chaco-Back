@@ -3,13 +3,6 @@
 
 {% block main-content %}
 <div class="">
-  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
-    <span>Programa Becas</span>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <a href="{% url 'becas:segmentos' %}" class="hover:underline">Segmentos</a>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <span class="font-semibold text-body">{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %}</span>
-  </nav>
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
     {% if form.instance.pk %}Editar segmento{% else %}Nuevo segmento{% endif %}
   </h1>

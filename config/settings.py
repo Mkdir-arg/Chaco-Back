@@ -144,6 +144,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "conversaciones.context_processors.user_groups",
                 "core.context_processors.sidebar_badges",
+                "core.context_processors.session_idle_config",
             ],
         },
     },
@@ -256,6 +257,15 @@ SESSION_ENGINE = (
 )
 SESSION_CACHE_ALIAS = "sessions"
 SESSION_COOKIE_AGE = 86400
+
+# Cierre de sesión automático por inactividad (idle logout, lado cliente).
+# Minutos sin actividad del usuario (mouse/teclado/scroll/touch) tras los cuales
+# se cierra la sesión. Configurable por entorno para ajustar a 10, 15, 20, etc.
+# 0 desactiva la funcionalidad.
+SESSION_IDLE_TIMEOUT_MINUTES = int(os.environ.get("SESSION_IDLE_TIMEOUT_MINUTES", "15"))
+# Segundos de aviso previo (modal con cuenta regresiva) antes de cerrar la
+# sesión. 0 = cerrar sin aviso.
+SESSION_IDLE_WARNING_SECONDS = int(os.environ.get("SESSION_IDLE_WARNING_SECONDS", "60"))
 
 if ENVIRONMENT == "prd":
     CHANNEL_LAYERS = {
