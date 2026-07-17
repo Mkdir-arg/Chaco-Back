@@ -59,6 +59,11 @@ urlpatterns = [
         rel.convocatoria_export_relevamientos,
         name="convocatoria_export_relevamientos",
     ),
+    path(
+        "convocatorias/<int:pk>/export/lista-espera/",
+        rel.convocatoria_export_lista_espera,
+        name="convocatoria_export_lista_espera",
+    ),
     # --- Relevamientos ---
     path("relevamientos/", rel.RelevamientoListView.as_view(), name="relevamientos"),
     path("relevamientos/nuevo/", rel.RelevamientoCreateView.as_view(), name="relevamiento_crear"),
@@ -69,12 +74,18 @@ urlpatterns = [
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
     # --- Revisión de formularios ---
     path("revision/", rev.RevisionPersonasListView.as_view(), name="revision"),
+    path("revision/renaper/pendientes/", rev.RenaperPendientesListView.as_view(), name="renaper_pendientes"),
     path("revision/relevamiento/<int:relevamiento_pk>/", rev.revision_formularios, name="revision_formularios"),
     path("revision/relevamiento/<int:pk>/iniciar/", rev.relevamiento_iniciar_revision, name="revision_iniciar"),
     path("revision/relevamiento/<int:pk>/terminar/", rev.relevamiento_terminar, name="revision_terminar"),
     path("revision/formulario/<int:pk>/", rev.formulario_detalle, name="formulario_detalle"),
     path("revision/formulario/<int:pk>/aprobar/", rev.formulario_aprobar, name="formulario_aprobar"),
     path("revision/formulario/<int:pk>/rechazar/", rev.formulario_rechazar, name="formulario_rechazar"),
+    path(
+        "revision/formulario/<int:pk>/revalidar-renaper/",
+        rev.formulario_revalidar_renaper,
+        name="formulario_revalidar_renaper",
+    ),
     # --- Cupo y lista de espera (#78) ---
     path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),
     path("cupo/beneficiario/<int:pk>/baja/", cpo.dar_baja_beneficiario_view, name="beneficiario_dar_baja"),

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -78,6 +79,8 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   const [dniForm, setDniForm] = useState(emptyDniForm);
   const [dynamicValues, setDynamicValues] = useState({});
   const [contactForm, setContactForm] = useState({ celular: '', email_contacto: '' });
+  const [apoderadoForm, setApoderadoForm] = useState({ nombre: '', apellido: '', fecha_nacimiento: '' });
+  const [datePickerFieldId, setDatePickerFieldId] = useState(null);
   const [submittingFormulario, setSubmittingFormulario] = useState(false);
   const [changingRelevamientoState, setChangingRelevamientoState] = useState(false);
   const [formularios, setFormularios] = useState([]);
@@ -613,6 +616,21 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     }
   };
 
+  const isMinorDate = (value = '') => {
+    const isoDate = toIsoDate(value);
+    if (!isoDate) return false;
+    const [year, month, day] = isoDate.split('-').map(Number);
+    const birthDate = new Date(year, month - 1, day);
+    if (Number.isNaN(birthDate.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    if (
+      today.getMonth() < birthDate.getMonth()
+      || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+    ) age -= 1;
+    return age < 18;
+  };
+
   const openDynamicImageActions = (field) => {
     Alert.alert(
       field?.etiqueta || 'Imagen',
@@ -672,6 +690,7 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     setDniForm(emptyDniForm);
     setDynamicValues({});
     setContactForm({ celular: '', email_contacto: '' });
+    setApoderadoForm({ nombre: '', apellido: '', fecha_nacimiento: '' });
     gpsCoordsRef.current = null;
     setIdentificationOrigin('manual');
     setRenaperStatus('PENDIENTE');
@@ -812,6 +831,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
     const missing = [];
     if (!String(contactForm.celular || '').trim()) missing.push('Celular');
     if (!String(contactForm.email_contacto || '').trim()) missing.push('Email');
+    if (isMinorDate(dniForm.fecha_nacimiento)) {
+      if (!String(apoderadoForm.nombre || '').trim()) missing.push('Nombre del apoderado');
+      if (!String(apoderadoForm.apellido || '').trim()) missing.push('Apellido del apoderado');
+      if (!String(apoderadoForm.fecha_nacimiento || '').trim()) missing.push('Fecha de nacimiento del apoderado');
+    }
     (detail?.campos_definicion || []).forEach((field) => {
       const tipo = String(field.tipo || '').toUpperCase();
       if (!field.requerido) return;
@@ -848,6 +872,9 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         relevamiento_id: detail.id,
         celular: contactForm.celular.trim(),
         email_contacto: contactForm.email_contacto.trim(),
+        apoderado_nombre: isMinorDate(dniForm.fecha_nacimiento) ? apoderadoForm.nombre.trim() : '',
+        apoderado_apellido: isMinorDate(dniForm.fecha_nacimiento) ? apoderadoForm.apellido.trim() : '',
+        apoderado_fecha_nacimiento: isMinorDate(dniForm.fecha_nacimiento) ? toIsoDate(apoderadoForm.fecha_nacimiento) : null,
         datos_identificacion: {
           dni: cleanDigits(dniForm.dni_numero),
           nombre: dniForm.nombres,
@@ -1023,6 +1050,76 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
       );
     }
 
+    if (['SELECTOR_MULTIPLE', 'MULTISELECT', 'MULTIPLE'].includes(tipo)) {
+      const selectedValues = Array.isArray(value) ? value : [];
+      return (
+        <View key={field.id} style={styles.formGroup}>
+          <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>
+            {field.etiqueta}{field.requerido ? ' *' : ''}
+          </Text>
+          <View style={styles.optionWrap}>
+            {options.map((option) => {
+              const selected = selectedValues.includes(option);
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setValue(selected
+                    ? selectedValues.filter((item) => item !== option)
+                    : [...selectedValues, option])}
+                  style={[
+                    styles.optionChip,
+                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                    selected && { borderColor: theme.colors.primary, backgroundColor: `${theme.colors.primary}18` },
+                  ]}
+                >
+                  <Ionicons name={selected ? 'checkbox' : 'square-outline'} size={17} color={selected ? theme.colors.primary : theme.colors.icon} />
+                  <Text style={[styles.optionText, { color: selected ? theme.colors.primary : theme.colors.text, fontFamily: selected ? typography.bold : typography.medium }]}>{option}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      );
+    }
+
+    if (tipo === 'DATE') {
+      const parsed = toIsoDate(value);
+      const pickerValue = parsed && /^\d{4}-\d{2}-\d{2}$/.test(parsed)
+        ? new Date(`${parsed}T12:00:00`)
+        : new Date();
+      if (Platform.OS === 'web') {
+        return (
+          <View key={field.id} style={styles.formGroup}>
+            <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>{field.etiqueta}{field.requerido ? ' *' : ''}</Text>
+            <TextInput value={value} onChangeText={setValue} placeholder="DD/MM/AAAA" style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]} />
+          </View>
+        );
+      }
+      return (
+        <View key={field.id} style={styles.formGroup}>
+          <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>{field.etiqueta}{field.requerido ? ' *' : ''}</Text>
+          <Pressable onPress={() => setDatePickerFieldId(field.id)} style={[styles.textInput, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface, justifyContent: 'center' }]}>
+            <Text style={{ color: value ? theme.colors.text : theme.colors.textSoft, fontFamily: typography.medium }}>{value || 'Seleccionar fecha'}</Text>
+          </Pressable>
+          {datePickerFieldId === field.id ? (
+            <DateTimePicker
+              value={pickerValue}
+              mode="date"
+              onChange={(event, selectedDate) => {
+                setDatePickerFieldId(null);
+                if (event.type !== 'dismissed' && selectedDate) {
+                  const year = selectedDate.getFullYear();
+                  const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                  const day = String(selectedDate.getDate()).padStart(2, '0');
+                  setValue(`${year}-${month}-${day}`);
+                }
+              }}
+            />
+          ) : null}
+        </View>
+      );
+    }
+
     if (tipo === 'ARCHIVO') {
       const fileValue = dynamicValues[field.id];
       const isImageFile = String(fileValue?.mimeType || '').startsWith('image/');
@@ -1133,6 +1230,41 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
               placeholderTextColor={theme.colors.textSoft}
             />
           </View>
+          {isMinorDate(dniForm.fecha_nacimiento) ? (
+            <>
+              <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Apoderado</Text>
+              <View style={styles.formGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Nombre *</Text>
+                <TextInput
+                  value={apoderadoForm.nombre}
+                  onChangeText={(value) => setApoderadoForm((prev) => ({ ...prev, nombre: value }))}
+                  style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+                  placeholder="Nombre del apoderado"
+                  placeholderTextColor={theme.colors.textSoft}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Apellido *</Text>
+                <TextInput
+                  value={apoderadoForm.apellido}
+                  onChangeText={(value) => setApoderadoForm((prev) => ({ ...prev, apellido: value }))}
+                  style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+                  placeholder="Apellido del apoderado"
+                  placeholderTextColor={theme.colors.textSoft}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text, fontFamily: typography.semibold }]}>Fecha de nacimiento *</Text>
+                <TextInput
+                  value={apoderadoForm.fecha_nacimiento}
+                  onChangeText={(value) => setApoderadoForm((prev) => ({ ...prev, fecha_nacimiento: value }))}
+                  style={[styles.textInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor={theme.colors.textSoft}
+                />
+              </View>
+            </>
+          ) : null}
           <Text style={[styles.formSectionTitle, { color: theme.colors.text, fontFamily: typography.bold }]}>Preguntas globales</Text>
         </>
       ) : null}
@@ -1490,6 +1622,9 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Nacimiento</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{dniForm.fecha_nacimiento || '-'}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Celular</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{contactForm.celular || '-'}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Email</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{contactForm.email_contacto || '-'}</Text></View>
+        {isMinorDate(dniForm.fecha_nacimiento) ? (
+          <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Apoderado</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{`${apoderadoForm.apellido} ${apoderadoForm.nombre}`.trim() || '-'}</Text></View>
+        ) : null}
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>RENAPER</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{renaperStatus}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Origen identidad</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{identificationOrigin}</Text></View>
         <View style={styles.kvRow}><Text style={[styles.k, { color: theme.colors.text, fontFamily: typography.semibold }]}>Direccion</Text><Text style={[styles.v, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>{readValue('direccion_objetivo')}</Text></View>
@@ -1649,7 +1784,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
   if (isAssignedFlow) {
     const formulariosCount = formularios.length || Number(detail?.formularios_count || detail?.personas_count || 0);
     const relevamientoEstado = String(detail?.estado || '').toUpperCase();
-    const canAddPerson = !['FINALIZANDO', 'FINALIZADO', 'EN_REVISION', 'TERMINADO'].includes(relevamientoEstado);
+    const assignedDate = String(detail?.fecha_asignada || '').slice(0, 10);
+    const today = new Date();
+    const todayLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const isAssignedToday = !assignedDate || assignedDate === todayLocal;
+    const canAddPerson = isAssignedToday && !['FINALIZANDO', 'FINALIZADO', 'EN_REVISION', 'TERMINADO'].includes(relevamientoEstado);
 
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -1705,6 +1844,11 @@ export default function RelevamientoDetailScreen({ relevamientoId, onClose, sync
                 <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
                 <Text style={[styles.primaryActionText, { fontFamily: typography.bold }]}>AGREGAR PERSONA</Text>
               </TouchableOpacity> : null}
+              {!isAssignedToday ? (
+                <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.row, { color: theme.colors.textSoft, fontFamily: typography.medium }]}>Solo se pueden cargar personas en la fecha asignada del relevamiento.</Text>
+                </View>
+              ) : null}
 
               {relevamientoEstado === 'FINALIZADO' ? (
                 <TouchableOpacity

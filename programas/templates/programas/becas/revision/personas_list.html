@@ -9,9 +9,16 @@
     <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
     <span class="font-semibold text-body">Revisión de formularios</span>
   </nav>
-  <div class="mb-6">
-    <h1 class="text-3xl font-extrabold text-heading tracking-tight">Revisión de formularios</h1>
-    <p class="text-sm text-body-subtle mt-1">Todas las personas relevadas en campo — entrá a cada formulario para revisarlo</p>
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Revisión de formularios</h1>
+      <p class="text-sm text-body-subtle mt-1">Todas las personas relevadas en campo — entrá a cada formulario para revisarlo</p>
+    </div>
+    {% if puede_revalidar_renaper %}
+      <a href="{% url 'becas:renaper_pendientes' %}" class="btn-nodo btn-tertiary btn-base">
+        <i class="fas fa-id-card"></i> Pendientes RENAPER ({{ pendientes_renaper }})
+      </a>
+    {% endif %}
   </div>
 
   {# Filter bar #}

@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -22,7 +22,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
 from programas.forms import ConvocatoriaForm, ReasignarTerritorialForm, RelevamientoForm, ReprogramarForm
-from programas.models import Convocatoria, Formulario, Relevamiento
+from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
 from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
 
@@ -32,6 +32,7 @@ CAP_CONVOCATORIA_EDITAR = "becas.convocatoria.editar"
 CAP_RELEVAMIENTO_VER = "becas.relevamiento.ver"
 CAP_RELEVAMIENTO_CREAR = "becas.relevamiento.crear"
 CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
+CAP_REPORTES = "becas.programa.administrar"
 
 
 def _convocatorias_qs(request):
@@ -119,6 +120,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["n_relevamientos"] = len(relevamientos)
         ctx["n_beneficiarios"] = len(beneficiarios)
         ctx["n_aprobados"] = sum(1 for f in beneficiarios if f.estado == Formulario.Estado.APROBADO)
+        ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
         ctx["cupo_segmento"] = conv.segmento.cupo_maximo
         form = ConvocatoriaForm(instance=conv)
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
@@ -190,16 +192,16 @@ def convocatoria_toggle_activo(request, pk):
 
 
 @login_required
-@requiere(CAP_CONVOCATORIA_VER)
+@requiere(CAP_REPORTES)
 def convocatoria_export_beneficiarios(request, pk):
-    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
+    conv = get_object_or_404(Convocatoria.objects.select_related("segmento"), pk=pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="beneficiarios_convocatoria_{conv.pk}.csv"'
     response.write("﻿")  # BOM para Excel
     writer = csv.writer(response)
-    writer.writerow(["DNI", "Nombre", "Estado", "Relevamiento", "Fecha"])
+    writer.writerow(["Nombre", "DNI", "Segmento", "Convocatoria", "Fecha de aprobación"])
     formularios = (
-        Formulario.objects.filter(relevamiento__convocatoria=conv)
+        Formulario.objects.filter(relevamiento__convocatoria=conv, estado=Formulario.Estado.APROBADO)
         .select_related("ciudadano", "relevamiento")
         .order_by("-creado")
     )
@@ -211,22 +213,28 @@ def convocatoria_export_beneficiarios(request, pk):
             ident = f.datos_identificacion or {}
             dni = ident.get("dni", "")
             nombre = f"{ident.get('nombre', '')} {ident.get('apellido', '')}".strip()
-        writer.writerow([dni, nombre, f.get_estado_display(), f.relevamiento.nombre, f.creado.strftime("%d/%m/%Y")])
+        writer.writerow([nombre, dni, conv.segmento.nombre, conv.nombre, f.modificado.strftime("%d/%m/%Y")])
     return response
 
 
 @login_required
-@requiere(CAP_CONVOCATORIA_VER)
+@requiere(CAP_REPORTES)
 def convocatoria_export_relevamientos(request, pk):
-    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
+    conv = get_object_or_404(Convocatoria, pk=pk)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="relevamientos_convocatoria_{conv.pk}.csv"'
     response.write("﻿")
     writer = csv.writer(response)
-    writer.writerow(["Relevamiento", "Territorial", "Zona", "Fecha asignada", "Estado", "Formularios"])
+    writer.writerow(
+        ["Relevamiento", "Territorial", "Fecha asignada", "Zona", "Estado", "Enviados", "Aprobados", "Rechazados"]
+    )
     relevamientos = (
         conv.relevamientos.select_related("territorial")
-        .annotate(n_formularios=Count("formularios"))
+        .annotate(
+            n_enviados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.ENVIADO)),
+            n_aprobados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.APROBADO)),
+            n_rechazados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.RECHAZADO)),
+        )
         .order_by("-fecha_asignada")
     )
     for r in relevamientos:
@@ -235,11 +243,42 @@ def convocatoria_export_relevamientos(request, pk):
             [
                 r.nombre,
                 terr,
-                r.zona,
                 r.fecha_asignada.strftime("%d/%m/%Y"),
+                r.zona,
                 r.get_estado_display(),
-                r.n_formularios,
+                r.n_enviados,
+                r.n_aprobados,
+                r.n_rechazados,
             ]
+        )
+    return response
+
+
+@login_required
+@requiere(CAP_REPORTES)
+def convocatoria_export_lista_espera(request, pk):
+    conv = get_object_or_404(Convocatoria.objects.select_related("segmento"), pk=pk)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="lista_espera_convocatoria_{conv.pk}.csv"'
+    response.write("\ufeff")
+    writer = csv.writer(response)
+    writer.writerow(["Posición", "Nombre", "DNI", "Segmento", "Fecha de ingreso"])
+    entradas = (
+        ListaEspera.objects.filter(formulario__relevamiento__convocatoria=conv, promovido=False)
+        .select_related("formulario__ciudadano", "segmento")
+        .order_by("posicion")
+    )
+    for entrada in entradas:
+        formulario = entrada.formulario
+        if formulario.ciudadano_id:
+            nombre = formulario.ciudadano.nombre_completo
+            dni = formulario.ciudadano.dni
+        else:
+            datos = formulario.datos_identificacion or {}
+            nombre = f"{datos.get('nombre', '')} {datos.get('apellido', '')}".strip()
+            dni = datos.get("dni", "")
+        writer.writerow(
+            [entrada.posicion, nombre, dni, entrada.segmento.nombre, entrada.fecha_ingreso.strftime("%d/%m/%Y")]
         )
     return response
 
