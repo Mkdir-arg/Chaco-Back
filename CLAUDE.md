@@ -107,3 +107,9 @@ Todos los agentes (Analista, QA, PM Assistant) usan el **MCP de GitHub**
 Project #1 de `Mkdir-arg` (https://github.com/users/Mkdir-arg/projects/1/),
 con fallback a la CLI `gh`. Las escrituras estructuradas al Project usan la
 receta `gh` de `AGENTS.md`.
+
+## Ramas y releases
+
+`development` es la rama de trabajo y la rama por defecto. `main` es una release
+generada automáticamente y no se toca a mano. Las exclusiones están en
+`.gitattributes`; el detalle operativo vive en `docs/internal/branching.md`.
