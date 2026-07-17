@@ -55,6 +55,14 @@ def get_conversaciones_queryset_para_lista(user, filtros):
     return queryset
 
 
+def get_conversaciones_pendientes_count(user):
+    return cache.get_or_set(
+        f"sidebar:conversaciones_pendientes:user:{user.pk}",
+        lambda: Conversacion.objects.filter(estado="pendiente", operador_asignado__isnull=True).count(),
+        30,
+    )
+
+
 def get_estadisticas_lista():
     return get_estadisticas_tiempo_real()
 

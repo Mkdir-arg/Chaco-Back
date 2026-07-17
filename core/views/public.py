@@ -94,11 +94,12 @@ def inicio_view(request):
 
     try:
         from conversaciones.models import Conversacion
+        from conversaciones.selectors import get_conversaciones_pendientes_count
 
         conversaciones_sin_asignar = Conversacion.objects.filter(
             estado="pendiente", operador_asignado__isnull=True
         ).order_by("-fecha_inicio")
-        context["conversaciones_sin_asignar_count"] = conversaciones_sin_asignar.count()
+        context["conversaciones_sin_asignar_count"] = get_conversaciones_pendientes_count(request.user)
         context["conversaciones_sin_asignar"] = conversaciones_sin_asignar[:8]
     except Exception:
         context["conversaciones_sin_asignar_count"] = 0

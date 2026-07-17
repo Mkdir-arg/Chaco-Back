@@ -269,13 +269,13 @@ class _SelectConSegmento(forms.Select):
     pertenecen al segmento de la convocatoria elegida).
     """
 
-    def __init__(self, *args, segmento_por_valor=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.segmento_por_valor = segmento_por_valor or {}
-
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
-        segmento_id = self.segmento_por_valor.get(str(value))
+        instance = getattr(value, "instance", None)
+        segmento_id = getattr(instance, "segmento_id", None)
+        if segmento_id is None:
+            asignacion = getattr(instance, "asignacion_territorial", None)
+            segmento_id = getattr(asignacion, "segmento_id", None)
         if segmento_id:
             option["attrs"]["data-segmento"] = segmento_id
         return option
@@ -304,21 +304,10 @@ class RelevamientoForm(forms.ModelForm):
         conv_qs = Convocatoria.objects.select_related("segmento").filter(activo=True)
         if segmentos_permitidos is not None:
             conv_qs = conv_qs.filter(segmento__in=segmentos_permitidos)
-        # data-segmento por opción para el filtro dependiente del template.
-        # Los widgets se reemplazan ANTES de asignar los querysets: el setter de
-        # queryset es el que propaga las choices al widget vigente.
-        conv_map = {str(c.pk): str(c.segmento_id) for c in conv_qs}
-        terr_map = {}
-        for usuario in terr_qs:
-            asignacion = getattr(usuario, "asignacion_territorial", None)
-            if asignacion is not None:
-                terr_map[str(usuario.pk)] = str(asignacion.segmento_id)
-        self.fields["convocatoria"].widget = _SelectConSegmento(
-            attrs={"class": INPUT_CLASS}, segmento_por_valor=conv_map
-        )
-        self.fields["territorial"].widget = _SelectConSegmento(
-            attrs={"class": INPUT_CLASS}, segmento_por_valor=terr_map
-        )
+        # ModelChoiceIteratorValue expone la instancia de cada opción; así el
+        # widget agrega data-segmento sin evaluar ambos querysets por duplicado.
+        self.fields["convocatoria"].widget = _SelectConSegmento(attrs={"class": INPUT_CLASS})
+        self.fields["territorial"].widget = _SelectConSegmento(attrs={"class": INPUT_CLASS})
         self.fields["territorial"].queryset = terr_qs
         self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
         self.fields[
