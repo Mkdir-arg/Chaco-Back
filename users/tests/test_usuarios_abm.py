@@ -8,6 +8,7 @@ from django.urls import NoReverseMatch, reverse
 from core import rbac
 from programas.models import Programa
 from users.forms import CustomUserChangeForm, UserCreationForm
+from users.forms.auth import UsuariosAuthenticationForm
 from users.models import Capacidad, RolMeta
 from users.selectors.usuarios import (
     alcance_roles_ids,
@@ -45,6 +46,37 @@ class UsuarioAccesoTests(TestCase):
     def test_no_existe_borrado_fisico(self):
         with self.assertRaises(NoReverseMatch):
             reverse("users:usuario_eliminar", args=[1])
+
+
+class LoginUsuarioInactivoTests(TestCase):
+    """El form de login distingue el usuario inactivo del error de credenciales."""
+
+    def _codigo_error(self, form):
+        return form.non_field_errors().as_data()[0].code
+
+    def test_usuario_inactivo_con_password_correcta_marca_inactivo(self):
+        User.objects.create_user("inactivo", password="clave-correcta", is_active=False)
+        form = UsuariosAuthenticationForm(data={"username": "inactivo", "password": "clave-correcta"})
+        self.assertFalse(form.is_valid())
+        self.assertEqual(self._codigo_error(form), "inactive")
+        self.assertIn("inactivo", form.non_field_errors()[0].lower())
+
+    def test_usuario_inactivo_con_password_incorrecta_es_generico(self):
+        # Sin la contraseña correcta no se revela el estado inactivo (anti-enumeración).
+        User.objects.create_user("inactivo2", password="clave-correcta", is_active=False)
+        form = UsuariosAuthenticationForm(data={"username": "inactivo2", "password": "clave-mala"})
+        self.assertFalse(form.is_valid())
+        self.assertEqual(self._codigo_error(form), "invalid_login")
+
+    def test_credenciales_invalidas_es_generico(self):
+        form = UsuariosAuthenticationForm(data={"username": "no-existe", "password": "x"})
+        self.assertFalse(form.is_valid())
+        self.assertEqual(self._codigo_error(form), "invalid_login")
+
+    def test_usuario_activo_valida(self):
+        User.objects.create_user("activo", password="clave-correcta", is_active=True)
+        form = UsuariosAuthenticationForm(data={"username": "activo", "password": "clave-correcta"})
+        self.assertTrue(form.is_valid())
 
 
 class RolPortalNoAsignableTests(TestCase):

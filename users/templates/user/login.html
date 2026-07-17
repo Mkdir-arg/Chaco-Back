@@ -86,7 +86,7 @@
                         </svg>
                         Acceso al sistema
                     </div>
-                    <h1 style="margin:0; font-size:33px; line-height:1.1; font-weight:800; color:var(--text-heading); font-family:var(--font-display); letter-spacing:-0.6px;">Bienvenido Ñandé</h1>
+                    <h1 style="margin:0; font-size:33px; line-height:1.1; font-weight:800; color:var(--text-heading); font-family:var(--font-display); letter-spacing:-0.6px;">Bienvenido DATAÑACH</h1>
                     <h2 style="margin:4px 0 0; font-size:33px; line-height:1.1; font-weight:800; font-family:var(--font-display); letter-spacing:-0.6px; background:var(--gradient-brand); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">Sistema Social de Chaco</h2>
                     <p style="margin:14px 0 0; font-size:14px; color:var(--text-body-subtle); line-height:1.5;">Ingresá con tu cuenta institucional para gestionar legajos, programas y relevamientos.</p>
                 </div>
@@ -94,12 +94,16 @@
                 <!-- Tarjeta del formulario -->
                 <div style="border:1px solid var(--border-base); border-radius:16px; padding:28px; background:#fff; box-shadow:var(--shadow-sm);">
 
-                    {% if form.errors %}
+                    {% if form.non_field_errors %}
                     <div style="display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:12px; margin-bottom:18px; background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle);">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; color:var(--text-fg-danger);">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
                         </svg>
-                        <p style="margin:0; font-size:13px; font-weight:600; color:var(--text-fg-danger);">Credenciales inválidas. Verificá tu correo y contraseña.</p>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            {% for error in form.non_field_errors %}
+                            <p style="margin:0; font-size:13px; font-weight:600; color:var(--text-fg-danger);">{{ error }}</p>
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
 
@@ -143,22 +147,16 @@
                             </div>
                         </div>
 
-                        <!-- Recordarme / Olvidaste -->
-                        <div style="display:flex; align-items:center; justify-content:space-between; font-size:13px;">
+                        <!-- Recordarme -->
+                        <div style="display:flex; align-items:center; font-size:13px;">
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-body);">
                                 <input type="checkbox" name="remember" style="width:15px; height:15px; accent-color:var(--bg-brand);"> Recordarme
                             </label>
-                            <button type="button" class="login-link" style="font-size:13px; font-weight:600;">¿Olvidaste tu contraseña?</button>
                         </div>
 
                         <!-- Submit -->
                         <button type="submit" class="login-submit">Iniciar Sesión</button>
                     </form>
-
-                    <!-- Registro -->
-                    <div style="text-align:center; margin-top:20px; font-size:13px; color:var(--text-body-subtle);">
-                        ¿No estás registrado? <a href="#" class="login-link" style="font-weight:700;">Crear cuenta</a>
-                    </div>
                 </div>
 
                 <!-- Logo -->
