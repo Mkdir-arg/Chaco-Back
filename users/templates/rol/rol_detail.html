@@ -9,8 +9,8 @@
         <div>
             <div class="flex items-center gap-2 flex-wrap">
                 <h1 class="text-2xl font-bold text-gray-900">{{ group.name }}</h1>
-                {% if meta.protegido %}<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-medium"><i class="fas fa-lock mr-1"></i>Protegido</span>{% endif %}
-                {% if meta and not meta.activo %}<span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium">Inactivo</span>{% else %}<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium">Activo</span>{% endif %}
+                {% if meta.protegido %}<span class="badge badge-warning"><i class="fas fa-lock"></i>Protegido</span>{% endif %}
+                {% if meta and not meta.activo %}<span class="badge badge-danger badge-dot">Inactivo</span>{% else %}<span class="badge badge-success badge-dot">Activo</span>{% endif %}
             </div>
             <p class="text-gray-600 mt-1">{{ meta.descripcion|default:"Sin descripción" }}</p>
             <p class="text-sm text-gray-500 mt-1">Categoría: {{ meta.categoria|default:"—" }}{% if meta.programa %} · <i class="fas fa-folder mr-1"></i>Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
