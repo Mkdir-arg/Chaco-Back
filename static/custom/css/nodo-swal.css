@@ -15,7 +15,7 @@
 
 .swal2-popup.swal2-popup {
   display: grid !important;
-  grid-template-columns: 40px 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
     "icon title close"
     "content content content"
