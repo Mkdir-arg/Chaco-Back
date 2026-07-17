@@ -105,7 +105,8 @@ class RequestLoggingMiddleware:
         username = user.username if user and user.is_authenticated else "anon"
         ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR", "-")
 
-        logger.info(
+        log_request = logger.warning if duration_ms > settings.SLOW_REQUEST_MS else logger.info
+        log_request(
             "%s %s user=%s ip=%s status=%s duration=%dms",
             request.method,
             request.path,

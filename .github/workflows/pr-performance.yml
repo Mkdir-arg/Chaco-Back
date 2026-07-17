@@ -1,0 +1,45 @@
+name: Performance Guard
+
+on:
+  pull_request:
+    branches:
+      - development
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  performance-budgets:
+    name: Query Budgets & Smoke Time
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run performance query budgets
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+          DJANGO_DEBUG: "False"
+          PERF_TIMING_OUTPUT: ${{ runner.temp }}/perf-timing.json
+        run: python manage.py test --tag performance --verbosity=2
+
+      - name: Compare smoke duration
+        env:
+          PERF_TIMING_OUTPUT: ${{ runner.temp }}/perf-timing.json
+        run: python scripts/check_perf_timing.py --result "$PERF_TIMING_OUTPUT"
