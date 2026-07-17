@@ -7,24 +7,6 @@
 <div class="space-y-8">
     <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div class="bg-gradient-to-r from-blue-50 via-white to-indigo-50 px-6 py-6 lg:px-8">
-            <nav class="mb-4 flex" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/75 px-3 py-2 text-sm text-gray-600 shadow-sm backdrop-blur">
-                    <li>
-                        <a href="{% url 'legajos:ciudadanos' %}" class="inline-flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white hover:text-gray-700">
-                            <i class="fas fa-users text-xs"></i>
-                            <span>Ciudadanos</span>
-                        </a>
-                    </li>
-                    <li><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></li>
-                    <li>
-                        <a href="{% url 'legajos:ciudadano_detalle' object.pk %}" class="rounded-lg px-2 py-1 hover:bg-white hover:text-gray-700">
-                            {{ object.apellido }}, {{ object.nombre }}
-                        </a>
-                    </li>
-                    <li><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></li>
-                    <li class="rounded-lg bg-white px-2 py-1 text-gray-700 shadow-sm">Editar</li>
-                </ol>
-            </nav>
 
             <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-start gap-4">
