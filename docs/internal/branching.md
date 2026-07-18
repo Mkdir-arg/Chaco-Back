@@ -12,14 +12,21 @@ runtime requeridos.
 
 ## Checklist de cutover (una única vez)
 
-1. Mergear esta rama a `development`.
-2. Cambiar la rama por defecto del repositorio a `development`.
-3. Re-apuntar los PR abiertos a `development`.
-4. Ejecutar **Publish main** con `workflow_dispatch`; su primer commit deja
-   `main` con el árbol de release limpio.
-5. Proteger `main` con un ruleset: restringir actualizaciones y bloquear force
+1. Mergear esta rama a `development`. Ese merge trae el workflow a
+   `development` y, por ser un push a esa rama, **dispara automáticamente la
+   primera publicación** de `main`.
+2. Verificar en la pestaña **Actions** que **Publish main** terminó OK y que el
+   árbol de `main` quedó limpio. Para este primer run `main` todavía **no** debe
+   estar protegida, o el bot no podrá pushear.
+3. Cambiar la rama por defecto del repositorio a `development` y re-apuntar los
+   PR abiertos.
+4. Proteger `main` con un ruleset: restringir actualizaciones y bloquear force
    pushes, con bypass solo para la app GitHub Actions.
-6. Verificar en el servidor que `git status` esté limpio antes del primer pull.
+5. Verificar en el servidor que `git status` esté limpio antes del primer pull.
+
+Nota: el disparo manual por `workflow_dispatch` (botón **Run workflow**) queda
+disponible para republicar a mano; solo aparece una vez que `development` es la
+rama por defecto.
 
 ## Reglas permanentes
 
