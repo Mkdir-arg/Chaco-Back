@@ -1,1 +1,16 @@
 *.sh text eol=lf
+
+# Exclusiones del snapshot de release para main.
+/.claude export-ignore
+/.amazonq export-ignore
+/.github export-ignore
+/.mcp.json export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/ESTADOS.md export-ignore
+/PM.md export-ignore
+/QA.md export-ignore
+/docs export-ignore
+/mkdocs.yml export-ignore
+/scripts/design_audit.py export-ignore
+/scripts/compile_templates.py export-ignore

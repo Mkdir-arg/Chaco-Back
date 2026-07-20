@@ -1,0 +1,62 @@
+name: Publish main
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Construir árbol de release
+        run: mkdir -p "$RUNNER_TEMP/release" && git archive HEAD | tar -x -C "$RUNNER_TEMP/release"
+
+      - name: Guard
+        shell: bash
+        run: |
+          fail=0
+          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py; do
+            if [ -e "$RUNNER_TEMP/release/$path" ]; then
+              echo "::error::El archivo prohibido $path aparece en el release"
+              fail=1
+            fi
+          done
+          for path in manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh; do
+            if [ ! -e "$RUNNER_TEMP/release/$path" ]; then
+              echo "::error::Falta el archivo de runtime requerido $path en el release"
+              fail=1
+            fi
+          done
+          exit "$fail"
+
+      - name: Publicar snapshot en main
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git worktree add -B main "$RUNNER_TEMP/mainwt" origin/main
+          rsync -a --delete --exclude=.git "$RUNNER_TEMP/release/" "$RUNNER_TEMP/mainwt/"
+          cd "$RUNNER_TEMP/mainwt"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "main al día"
+            exit 0
+          fi
+          subj="$(git -C "$GITHUB_WORKSPACE" log -1 --pretty=%s)"
+          short="$(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)"
+          git commit -m "release: $subj (development@$short)"
+          git push origin main
