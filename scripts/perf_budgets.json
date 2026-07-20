@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "schema_version": 1,
+    "scale": 200,
+    "query_margin": "Baseline de Fase 1 + aproximadamente 20%, redondeado hacia arriba.",
+    "maintenance": "Subir un max_queries requiere editar este archivo en el mismo PR que introduce la necesidad, con justificacion visible para review.",
+    "timing": {
+      "reference_total_ms": 220.92,
+      "warning_multiplier": 1.5,
+      "failure_multiplier": 3.0,
+      "note": "El tiempo SQLite es una alarma gruesa; los presupuestos de queries son la guarda dura."
+    }
+  },
+  "budgets": {
+    "login": {"route": "users:login", "max_queries": 0},
+    "inicio": {"route": "core:inicio", "max_queries": 21},
+    "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4},
+    "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10},
+    "legajos_lista": {"route": "legajos:ciudadanos", "max_queries": 16},
+    "legajo_detalle": {"route": "legajos:ciudadano_detalle", "max_queries": 27},
+    "conversaciones_lista": {"route": "conversaciones:lista", "max_queries": 16},
+    "conversacion_detalle": {"route": "conversaciones:detalle", "max_queries": 14},
+    "portal_home": {"route": "portal:home", "max_queries": 4},
+    "portal_perfil": {"route": "portal:ciudadano_mi_perfil", "max_queries": 12},
+    "portal_programas": {"route": "portal:ciudadano_mis_programas", "max_queries": 11},
+    "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10},
+    "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15},
+    "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 14},
+    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16},
+    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 14}
+  }
+}

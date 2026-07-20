@@ -44,6 +44,7 @@ channels-redis==4.1.0
 
 # Performance Profiling
 django-silk==5.0.4
+django-zeal==2.2.1
 
 # System Monitoring
 psutil==5.9.8

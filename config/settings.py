@@ -21,6 +21,7 @@ elif (BASE_DIR / ".env.production").exists() and os.environ.get("ENVIRONMENT") =
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")  # dev|qa|prd
+PYTEST_RUNNING = "pytest" in sys.argv or os.environ.get("PYTEST_RUNNING") == "1"
 
 websockets_enabled_env = os.environ.get("WEBSOCKETS_ENABLED")
 if websockets_enabled_env is None:
@@ -101,6 +102,9 @@ INSTALLED_APPS = [
 if DEBUG:
     INSTALLED_APPS += ["silk"]
 
+if PYTEST_RUNNING:
+    INSTALLED_APPS += ["zeal"]
+
 if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
     MIGRATION_MODULES = {
         "users": None,
@@ -126,6 +130,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.RequestLoggingMiddleware",
 ]
+
+if PYTEST_RUNNING:
+    MIDDLEWARE += ["zeal.middleware.zeal_middleware"]
+    ZEAL_RAISE = True
+    ZEAL_ALLOWLIST = []
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -209,7 +218,7 @@ DATABASES = {
     }
 }
 
-if "pytest" in sys.argv or os.environ.get("PYTEST_RUNNING") == "1":
+if PYTEST_RUNNING:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
@@ -289,6 +298,7 @@ HEALTH_CHECK = {
 DEFAULT_CACHE_TIMEOUT = 600
 DASHBOARD_CACHE_TIMEOUT = 600
 CIUDADANO_CACHE_TIMEOUT = 600
+SLOW_REQUEST_MS = int(os.environ.get("SLOW_REQUEST_MS", "3000"))
 
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
