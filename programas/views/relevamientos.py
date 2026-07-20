@@ -38,6 +38,7 @@ CAP_REPORTES = "becas.programa.administrar"
 def _convocatorias_qs(request):
     return (
         Convocatoria.objects.select_related("segmento", "subsegmento")
+        .defer("descripcion", "segmento__descripcion", "subsegmento__descripcion")
         .annotate(n_relevamientos=Count("relevamientos", distinct=True))
         .filter(segmento__in=segmentos_visibles(request.user))
         .order_by("-fecha_inicio", "nombre")
@@ -295,6 +296,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     def get_queryset(self):
         qs = (
             Relevamiento.objects.select_related("convocatoria__segmento", "territorial")
+            .defer("observaciones", "convocatoria__descripcion", "convocatoria__segmento__descripcion")
             .filter(convocatoria__segmento__in=segmentos_visibles(self.request.user))
             .order_by("-fecha_asignada", "nombre")
         )
