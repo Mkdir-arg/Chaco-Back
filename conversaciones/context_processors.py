@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.auth.models import Group
+from django.db.models import Prefetch, prefetch_related_objects
 from django.utils.asyncio import async_unsafe
 
 from core import rbac
@@ -9,7 +11,11 @@ def user_groups(request):
     """Context processor: datos de grupos (para JS) y flags de capacidad del usuario."""
     if request.user.is_authenticated:
         try:
-            groups = list(request.user.groups.values_list("name", flat=True))
+            prefetch_related_objects(
+                [request.user],
+                Prefetch("groups", queryset=Group.objects.order_by("pk")),
+            )
+            groups = [group.name for group in request.user.groups.all()]
         except Exception:
             groups = []
         return {

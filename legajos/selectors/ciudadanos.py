@@ -60,10 +60,10 @@ def get_ciudadanos_queryset(search=""):
         queryset = queryset.filter(
             Q(dni__icontains=search) | Q(nombre__icontains=search) | Q(apellido__icontains=search)
         )
-    return queryset.order_by("apellido", "nombre")
+    return queryset.only("id", "nombre", "apellido", "dni").order_by("apellido", "nombre")
 
 
-def _build_ciudadanos_dashboard_metrics():
+def _build_ciudadanos_dashboard_metrics(total_ciudadanos=None):
     total_inscripciones_activas = InscripcionPrograma.objects.filter(
         estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO]
     ).count()
@@ -71,7 +71,9 @@ def _build_ciudadanos_dashboard_metrics():
     tasa_adherencia = round((total_inscripciones_activas / total_inscripciones * 100) if total_inscripciones > 0 else 0)
 
     return {
-        "total_ciudadanos": Ciudadano.objects.filter(activo=True).count(),
+        "total_ciudadanos": (
+            total_ciudadanos if total_ciudadanos is not None else Ciudadano.objects.filter(activo=True).count()
+        ),
         "legajos_activos": total_inscripciones_activas,
         "alertas_criticas": AlertaCiudadano.objects.filter(activa=True).count(),
         "seguimientos_hoy": InscripcionPrograma.objects.filter(fecha_inscripcion=date.today()).count(),
@@ -83,9 +85,13 @@ def _build_ciudadanos_dashboard_metrics():
     }
 
 
-def get_ciudadanos_dashboard_metrics():
+def get_ciudadanos_dashboard_metrics(total_ciudadanos=None):
     # ~6 COUNTs globales por cada página del listado: cache corto compartido.
-    return cache.get_or_set("legajos:ciudadanos_dashboard_metrics", _build_ciudadanos_dashboard_metrics, 60)
+    return cache.get_or_set(
+        "legajos:ciudadanos_dashboard_metrics",
+        lambda: _build_ciudadanos_dashboard_metrics(total_ciudadanos),
+        60,
+    )
 
 
 def build_ciudadano_detail_context(ciudadano, user=None):
@@ -109,17 +115,19 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         .order_by("-fecha_inscripcion")
     )
 
+    todas_las_solapas = SolapasService.obtener_solapas_ciudadano(ciudadano)
+    solapas = [
+        solapa for solapa in todas_las_solapas if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
+    ]
+    programas_activos = [solapa["inscripcion"] for solapa in todas_las_solapas if "inscripcion" in solapa]
+
     context = {
         "puede_ver_sensible": puede_ver_sensible,
         "legajos": LegajoAtencion.objects.none(),
         "acompanamientos": acompanamientos,
         "acompanamientos_activos_count": acompanamientos.count(),
-        "solapas": [
-            solapa
-            for solapa in SolapasService.obtener_solapas_ciudadano(ciudadano)
-            if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
-        ],
-        "programas_activos": SolapasService.obtener_programas_activos(ciudadano),
+        "solapas": solapas,
+        "programas_activos": programas_activos,
     }
     context["solapas_programas"] = [s for s in context["solapas"] if not s["estatica"]]
 
@@ -149,9 +157,11 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     try:
         from conversaciones.models import Conversacion
 
-        context["conversaciones_ciudadano"] = Conversacion.objects.filter(dni_ciudadano=ciudadano.dni).order_by(
-            "-fecha_inicio"
-        )[:20]
+        context["conversaciones_ciudadano"] = (
+            Conversacion.objects.filter(dni_ciudadano=ciudadano.dni)
+            .select_related("operador_asignado")
+            .order_by("-fecha_inicio")[:20]
+        )
     except Exception:
         context["conversaciones_ciudadano"] = []
 

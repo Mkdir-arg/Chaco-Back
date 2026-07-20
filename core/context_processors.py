@@ -7,7 +7,6 @@ no rompe el render: simplemente no muestra el badge).
 """
 
 from django.conf import settings
-from django.core.cache import cache
 
 from core import rbac
 
@@ -34,14 +33,11 @@ def sidebar_badges(request):
     # Conversaciones sin asignar (pendientes y sin operador)
     if rbac.puede(user, "conversacion.operar"):
         try:
-            from conversaciones.models import Conversacion
+            from conversaciones.selectors import get_conversaciones_pendientes_count
 
-            # Corre en todos los requests del backoffice: cache corto compartido.
-            badges["badge_conversaciones"] = cache.get_or_set(
-                "sidebar:conversaciones_pendientes",
-                lambda: Conversacion.objects.filter(estado="pendiente", operador_asignado__isnull=True).count(),
-                30,
-            )
+            # Corre en todos los requests del backoffice: cache corto por usuario,
+            # reutilizado también por la vista de inicio.
+            badges["badge_conversaciones"] = get_conversaciones_pendientes_count(user)
         except Exception:
             badges["badge_conversaciones"] = 0
 

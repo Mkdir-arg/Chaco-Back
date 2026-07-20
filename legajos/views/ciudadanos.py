@@ -33,7 +33,10 @@ class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["metricas"] = get_ciudadanos_dashboard_metrics()
+        total_ciudadanos = None
+        if not self.request.GET.get("search"):
+            total_ciudadanos = context["paginator"].count
+        context["metricas"] = get_ciudadanos_dashboard_metrics(total_ciudadanos)
         return context
 
 
