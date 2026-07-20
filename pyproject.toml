@@ -1,6 +1,6 @@
 [tool.ruff]
 line-length = 120
-exclude = ["migrations", "mobile", ".venv", "staticfiles", "docs"]
+exclude = ["migrations", ".venv", "staticfiles", "docs"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
@@ -19,7 +19,7 @@ ignore = ["E501"]
 "scripts/compile_templates.py" = ["E402"]
 
 [tool.bandit]
-exclude_dirs = ["migrations", "tests", "mobile", ".venv", "docs"]
+exclude_dirs = ["migrations", "tests", ".venv", "docs"]
 skips = ["B101", "B104", "B110", "B311", "B404", "B603", "B607"]
 
 [tool.coverage.run]
@@ -29,7 +29,6 @@ omit = [
     "*/tests/*",
     "manage.py",
     "*/settings*",
-    "mobile/*",
     ".venv/*",
     "staticfiles/*",
     "docs/*",
