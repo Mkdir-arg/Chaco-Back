@@ -1,0 +1,482 @@
+{
+  "schema_version": 1,
+  "environment": {
+    "database": "sqlite-memory",
+    "scale": 200,
+    "cache_state": "cold request plus median of 3 warm requests per URL; primary fields are cold",
+    "duplicate_definition": "sum(occurrences - 1) for normalized SQL repeated in one request",
+    "timing_scope": "Django test client + middleware + render; no network/application server"
+  },
+  "coverage_notes": [
+    "dashboard_redirect documents that /dashboard/ redirects to the shadowed users login at /.",
+    "tramites is not measured because the current app has no models, views or URL patterns.",
+    "SQLite timings and query plans are not representative of MySQL production."
+  ],
+  "summary": {
+    "url_count": 16,
+    "successful_2xx": 15,
+    "total_queries": 221,
+    "total_duplicate_queries": 38,
+    "total_duration_ms": 237.83,
+    "total_warm_queries": 182,
+    "total_warm_duplicate_queries": 35,
+    "total_warm_duration_ms": 148.17,
+    "total_response_bytes": 2301900
+  },
+  "results": [
+    {
+      "key": "login",
+      "route": "users:login",
+      "url": "/",
+      "actor": "anonymous",
+      "resolved_view": "users:login",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 0,
+      "duplicate_query_count": 0,
+      "duration_ms": 23.49,
+      "warm_sample_count": 3,
+      "warm_query_count": 0,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 0.78,
+      "response_bytes": 12097,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": []
+    },
+    {
+      "key": "inicio",
+      "route": "core:inicio",
+      "url": "/inicio/",
+      "actor": "backoffice",
+      "resolved_view": "core:inicio",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 22,
+      "duplicate_query_count": 3,
+      "duration_ms": 26.88,
+      "warm_sample_count": 3,
+      "warm_query_count": 14,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 10.98,
+      "response_bytes": 184863,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT COUNT(*) AS \"__count\" FROM \"conversaciones_conversacion\" WHERE (\"conversaciones_conversacion\".\"estado\" = ? AND \"conversaciones_conversacion\".\"operador_asignado_id\" IS NULL)"
+        }
+      ]
+    },
+    {
+      "key": "dashboard_redirect",
+      "route": "core:dashboard",
+      "url": "/dashboard/",
+      "actor": "backoffice",
+      "resolved_view": "core:dashboard",
+      "status_code": 302,
+      "redirect_to": "/",
+      "redirect_resolved_view": "users:login",
+      "query_count": 3,
+      "duplicate_query_count": 0,
+      "duration_ms": 1.23,
+      "warm_sample_count": 3,
+      "warm_query_count": 3,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 1.06,
+      "response_bytes": 0,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": []
+    },
+    {
+      "key": "dashboard_metricas",
+      "route": "dashboard:api_metricas",
+      "url": "/api/metricas/",
+      "actor": "backoffice",
+      "resolved_view": "dashboard:api_metricas",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 10,
+      "duplicate_query_count": 0,
+      "duration_ms": 3.14,
+      "warm_sample_count": 3,
+      "warm_query_count": 3,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 1.15,
+      "response_bytes": 185,
+      "content_type": "application/json",
+      "duplicate_groups": []
+    },
+    {
+      "key": "legajos_lista",
+      "route": "legajos:ciudadanos",
+      "url": "/legajos/ciudadanos/",
+      "actor": "backoffice",
+      "resolved_view": "legajos:ciudadanos",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 18,
+      "duplicate_query_count": 3,
+      "duration_ms": 10.28,
+      "warm_sample_count": 3,
+      "warm_query_count": 11,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 7.46,
+      "response_bytes": 172986,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT COUNT(*) AS \"__count\" FROM \"legajos_ciudadano\" WHERE \"legajos_ciudadano\".\"activo\""
+        }
+      ]
+    },
+    {
+      "key": "legajo_detalle",
+      "route": "legajos:ciudadano_detalle",
+      "url": "/legajos/ciudadanos/1/",
+      "actor": "backoffice",
+      "resolved_view": "legajos:ciudadano_detalle",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 41,
+      "duplicate_query_count": 17,
+      "duration_ms": 30.1,
+      "warm_sample_count": 3,
+      "warm_query_count": 40,
+      "warm_duplicate_query_count": 17,
+      "warm_duration_ms": 20.15,
+      "response_bytes": 263515,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 15,
+          "duplicates": 14,
+          "sql": "SELECT \"auth_user\".\"id\", \"auth_user\".\"password\", \"auth_user\".\"last_login\", \"auth_user\".\"is_superuser\", \"auth_user\".\"username\", \"auth_user\".\"first_name\", \"auth_user\".\"last_name\", \"auth_user\".\"email\", \"auth_user\".\"is_staff\", \"auth_user\".\"is_active\", \"auth_user\".\"date_joined\" FROM \"auth_user\" WHERE \"auth_user\".\"id\" = ? LIMIT ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"programas_inscripcionprograma\".\"id\", \"programas_inscripcionprograma\".\"creado\", \"programas_inscripcionprograma\".\"modificado\", \"programas_inscripcionprograma\".\"ciudadano_id\", \"programas_inscripcionprograma\".\"programa_id\", \"programas_inscripcionprograma\".\"codigo\", \"programas_inscripcionprograma\".\"estado\", \"programas_inscripcionprograma\".\"via_ingreso\", \"programas_inscripcionprograma\".\"fecha_inscripcion\", \"programas_inscripcionprograma\".\"fecha_inicio\", \"programas_inscripcionprograma\".\"fecha_c"
+        }
+      ]
+    },
+    {
+      "key": "conversaciones_lista",
+      "route": "conversaciones:lista",
+      "url": "/conversaciones/",
+      "actor": "backoffice",
+      "resolved_view": "conversaciones:lista",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 17,
+      "duplicate_query_count": 3,
+      "duration_ms": 19.09,
+      "warm_sample_count": 3,
+      "warm_query_count": 13,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 14.48,
+      "response_bytes": 275492,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT COUNT(*) AS \"__count\" FROM \"conversaciones_conversacion\" WHERE (\"conversaciones_conversacion\".\"estado\" = ? AND \"conversaciones_conversacion\".\"operador_asignado_id\" IS NULL)"
+        }
+      ]
+    },
+    {
+      "key": "conversacion_detalle",
+      "route": "conversaciones:detalle",
+      "url": "/conversaciones/1/",
+      "actor": "backoffice",
+      "resolved_view": "conversaciones:detalle",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 15,
+      "duplicate_query_count": 2,
+      "duration_ms": 12.44,
+      "warm_sample_count": 3,
+      "warm_query_count": 14,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 8.38,
+      "response_bytes": 166829,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        }
+      ]
+    },
+    {
+      "key": "portal_home",
+      "route": "portal:home",
+      "url": "/portal/",
+      "actor": "anonymous",
+      "resolved_view": "portal:home",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 3,
+      "duplicate_query_count": 0,
+      "duration_ms": 4.14,
+      "warm_sample_count": 3,
+      "warm_query_count": 0,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 0.9,
+      "response_bytes": 44221,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": []
+    },
+    {
+      "key": "portal_perfil",
+      "route": "portal:ciudadano_mi_perfil",
+      "url": "/portal/mi-perfil/",
+      "actor": "citizen",
+      "resolved_view": "portal:ciudadano_mi_perfil",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 10,
+      "duplicate_query_count": 0,
+      "duration_ms": 8.73,
+      "warm_sample_count": 3,
+      "warm_query_count": 10,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 5.51,
+      "response_bytes": 39240,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": []
+    },
+    {
+      "key": "portal_programas",
+      "route": "portal:ciudadano_mis_programas",
+      "url": "/portal/mi-perfil/programas/",
+      "actor": "citizen",
+      "resolved_view": "portal:ciudadano_mis_programas",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 9,
+      "duplicate_query_count": 0,
+      "duration_ms": 7.01,
+      "warm_sample_count": 3,
+      "warm_query_count": 9,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 4.72,
+      "response_bytes": 27022,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": []
+    },
+    {
+      "key": "portal_consultas",
+      "route": "portal:ciudadano_mis_consultas",
+      "url": "/portal/mi-perfil/consultas/",
+      "actor": "citizen",
+      "resolved_view": "portal:ciudadano_mis_consultas",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 8,
+      "duplicate_query_count": 0,
+      "duration_ms": 19.95,
+      "warm_sample_count": 3,
+      "warm_query_count": 8,
+      "warm_duplicate_query_count": 0,
+      "warm_duration_ms": 19.13,
+      "response_bytes": 353849,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": []
+    },
+    {
+      "key": "becas_segmentos",
+      "route": "becas:segmentos",
+      "url": "/becas/config/segmentos/",
+      "actor": "backoffice",
+      "resolved_view": "becas:segmentos",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 16,
+      "duplicate_query_count": 2,
+      "duration_ms": 20.46,
+      "warm_sample_count": 3,
+      "warm_query_count": 14,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 11.73,
+      "response_bytes": 213453,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        }
+      ]
+    },
+    {
+      "key": "becas_convocatorias",
+      "route": "becas:convocatorias",
+      "url": "/becas/convocatorias/",
+      "actor": "backoffice",
+      "resolved_view": "becas:convocatorias",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 15,
+      "duplicate_query_count": 2,
+      "duration_ms": 15.19,
+      "warm_sample_count": 3,
+      "warm_query_count": 13,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 12.66,
+      "response_bytes": 180102,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        }
+      ]
+    },
+    {
+      "key": "becas_relevamientos",
+      "route": "becas:relevamientos",
+      "url": "/becas/relevamientos/",
+      "actor": "backoffice",
+      "resolved_view": "becas:relevamientos",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 19,
+      "duplicate_query_count": 4,
+      "duration_ms": 20.06,
+      "warm_sample_count": 3,
+      "warm_query_count": 17,
+      "warm_duplicate_query_count": 4,
+      "warm_duration_ms": 16.28,
+      "response_bytes": 169478,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"programas_convocatoria\".\"id\", \"programas_convocatoria\".\"creado\", \"programas_convocatoria\".\"modificado\", \"programas_convocatoria\".\"nombre\", \"programas_convocatoria\".\"segmento_id\", \"programas_convocatoria\".\"subsegmento_id\", \"programas_convocatoria\".\"fecha_inicio\", \"programas_convocatoria\".\"fecha_fin\", \"programas_convocatoria\".\"descripcion\", \"programas_convocatoria\".\"activo\", \"programas_segmento\".\"id\", \"programas_segmento\".\"creado\", \"programas_segmento\".\"modificado\", \"programas_segmento\".\"n"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT DISTINCT \"auth_user\".\"id\", \"auth_user\".\"password\", \"auth_user\".\"last_login\", \"auth_user\".\"is_superuser\", \"auth_user\".\"username\", \"auth_user\".\"first_name\", \"auth_user\".\"last_name\", \"auth_user\".\"email\", \"auth_user\".\"is_staff\", \"auth_user\".\"is_active\", \"auth_user\".\"date_joined\", \"programas_asignacionterritorial\".\"id\", \"programas_asignacionterritorial\".\"creado\", \"programas_asignacionterritorial\".\"modificado\", \"programas_asignacionterritorial\".\"segmento_id\", \"programas_asignacionterritorial\".\""
+        }
+      ]
+    },
+    {
+      "key": "becas_relevamiento_detalle",
+      "route": "becas:relevamiento_detalle",
+      "url": "/becas/relevamientos/1/",
+      "actor": "backoffice",
+      "resolved_view": "becas:relevamiento_detalle",
+      "status_code": 200,
+      "redirect_to": null,
+      "redirect_resolved_view": null,
+      "query_count": 15,
+      "duplicate_query_count": 2,
+      "duration_ms": 15.64,
+      "warm_sample_count": 3,
+      "warm_query_count": 13,
+      "warm_duplicate_query_count": 2,
+      "warm_duration_ms": 12.8,
+      "response_bytes": 198568,
+      "content_type": "text/html; charset=utf-8",
+      "duplicate_groups": [
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ?"
+        },
+        {
+          "occurrences": 2,
+          "duplicates": 1,
+          "sql": "SELECT \"auth_group\".\"id\", \"auth_group\".\"name\" FROM \"auth_group\" INNER JOIN \"auth_user_groups\" ON (\"auth_group\".\"id\" = \"auth_user_groups\".\"group_id\") WHERE \"auth_user_groups\".\"user_id\" = ? ORDER BY \"auth_group\".\"id\" ASC LIMIT ?"
+        }
+      ]
+    }
+  ]
+}
