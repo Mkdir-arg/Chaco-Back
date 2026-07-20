@@ -34,7 +34,7 @@ class SolapasService:
                 ciudadano=ciudadano,
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"],
             )
-            .select_related("programa")
+            .select_related("programa", "responsable")
             .order_by("programa__orden")
         )
 
