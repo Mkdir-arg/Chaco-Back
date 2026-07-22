@@ -17,6 +17,8 @@ class Programa(TimeStamped):
         REINSERCION_SOCIAL = "REINSERCION_SOCIAL", "Reinserción Social"
         CAPACITACION_COMUNITARIA = "CAPACITACION_COMUNITARIA", "Capacitación Comunitaria"
         BECAS = "BECAS", "Becas"
+        DISPOSITIVOS = "DISPOSITIVOS", "Dispositivos"
+        MERENDEROS = "MERENDEROS", "Merenderos"
 
     class Naturaleza(models.TextChoices):
         UN_SOLO_ACTO = "UN_SOLO_ACTO", "Un solo acto"
@@ -314,6 +316,365 @@ class DerivacionPrograma(TimeStamped):
         self.fecha_respuesta = timezone.now()
         self.respondido_por = usuario
         self.save()
+
+
+# ===========================================================================
+# Programa Dispositivos (épica #127 / análisis #128)
+# ===========================================================================
+
+
+class TipoDispositivo(TimeStamped):
+    """Catálogo de tipos de institución del Programa Dispositivos."""
+
+    codigo = models.CharField(max_length=50, unique=True, db_index=True, verbose_name="Código")
+    nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    maneja_camas = models.BooleanField(default=False, verbose_name="Maneja camas")
+    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Tipo de dispositivo"
+        verbose_name_plural = "Tipos de dispositivo"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Dispositivo(TimeStamped):
+    """Legajo institucional de un dispositivo del Ministerio."""
+
+    class Estado(models.TextChoices):
+        BORRADOR = "BORRADOR", "Borrador"
+        PENDIENTE_VALIDACION = "PENDIENTE_VALIDACION", "Pendiente de validación"
+        ACTIVO = "ACTIVO", "Activo"
+        OBSERVADO = "OBSERVADO", "Observado"
+        RECHAZADO = "RECHAZADO", "Rechazado"
+        INACTIVO = "INACTIVO", "Inactivo"
+        CERRADO = "CERRADO", "Cerrado"
+
+    tipo = models.ForeignKey(
+        TipoDispositivo,
+        on_delete=models.PROTECT,
+        related_name="dispositivos",
+        verbose_name="Tipo de dispositivo",
+    )
+    codigo = models.CharField(max_length=100, unique=True, db_index=True, verbose_name="Código institucional")
+    nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre")
+    domicilio = models.CharField(max_length=240, blank=True, verbose_name="Domicilio")
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    responsable_nombre = models.CharField(max_length=200, blank=True, verbose_name="Responsable")
+    responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
+    contacto_telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
+    contacto_email = models.EmailField(blank=True, verbose_name="Email")
+    horarios = models.TextField(blank=True, verbose_name="Días y horarios")
+    camas_totales = models.PositiveIntegerField(default=0, verbose_name="Camas/plazas totales")
+    estado = models.CharField(
+        max_length=30,
+        choices=Estado.choices,
+        default=Estado.BORRADOR,
+        db_index=True,
+        verbose_name="Estado",
+    )
+
+    class Meta:
+        verbose_name = "Dispositivo"
+        verbose_name_plural = "Dispositivos"
+        ordering = ["nombre"]
+        indexes = [
+            models.Index(fields=["tipo", "estado"]),
+            models.Index(fields=["nombre", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"{self.codigo} · {self.nombre}"
+
+
+class Cama(TimeStamped):
+    """Unidad de capacidad identificable dentro de un dispositivo."""
+
+    class Estado(models.TextChoices):
+        DISPONIBLE = "DISPONIBLE", "Disponible"
+        RESERVADA = "RESERVADA", "Reservada"
+        OCUPADA = "OCUPADA", "Ocupada"
+        FUERA_SERVICIO = "FUERA_SERVICIO", "Fuera de servicio"
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="camas",
+        verbose_name="Dispositivo",
+    )
+    codigo = models.CharField(max_length=50, verbose_name="Código")
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.DISPONIBLE,
+        db_index=True,
+        verbose_name="Estado",
+    )
+
+    class Meta:
+        verbose_name = "Cama/plaza"
+        verbose_name_plural = "Camas/plazas"
+        ordering = ["dispositivo", "codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["dispositivo", "codigo"], name="cama_codigo_unico_por_dispositivo")
+        ]
+        indexes = [models.Index(fields=["dispositivo", "estado"])]
+
+    def __str__(self):
+        return f"{self.dispositivo.codigo} · {self.codigo}"
+
+
+class Admision(TimeStamped):
+    """Estadía de un ciudadano en un dispositivo; admite reingresos."""
+
+    class Estado(models.TextChoices):
+        SOLICITADO = "SOLICITADO", "Solicitado"
+        EN_REVISION = "EN_REVISION", "En revisión"
+        LISTA_ESPERA = "LISTA_ESPERA", "Lista de espera"
+        APROBADO = "APROBADO", "Aprobado"
+        RECHAZADO = "RECHAZADO", "Rechazado"
+        ALOJADO = "ALOJADO", "Alojado"
+        EGRESADO = "EGRESADO", "Egresado"
+        TRASLADADO = "TRASLADADO", "Trasladado"
+
+    ciudadano = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        related_name="admisiones_dispositivos",
+        verbose_name="Ciudadano",
+    )
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="admisiones",
+        verbose_name="Dispositivo",
+    )
+    inscripcion_programa = models.ForeignKey(
+        InscripcionPrograma,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="admisiones_dispositivos",
+        verbose_name="Membresía al programa",
+    )
+    cama = models.ForeignKey(
+        Cama,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admisiones",
+        verbose_name="Cama/plaza",
+    )
+    fecha_ingreso = models.DateTimeField(verbose_name="Fecha de ingreso")
+    fecha_egreso = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de egreso")
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.SOLICITADO,
+        db_index=True,
+        verbose_name="Estado",
+    )
+    es_reingreso = models.BooleanField(default=False, verbose_name="Es reingreso")
+    motivo_egreso = models.TextField(blank=True, verbose_name="Motivo de egreso")
+    destino_egreso = models.CharField(max_length=240, blank=True, verbose_name="Destino de egreso/traslado")
+
+    class Meta:
+        verbose_name = "Admisión/estadía"
+        verbose_name_plural = "Admisiones/estadías"
+        ordering = ["-fecha_ingreso"]
+        indexes = [
+            models.Index(fields=["ciudadano", "estado"]),
+            models.Index(fields=["dispositivo", "estado"]),
+            models.Index(fields=["cama", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"{self.ciudadano.nombre_completo} · {self.dispositivo.nombre}"
+
+
+# ===========================================================================
+# Programa Merenderos (épica #127 / análisis #128)
+# ===========================================================================
+
+
+class Merendero(TimeStamped):
+    """Legajo institucional de un merendero."""
+
+    class Estado(models.TextChoices):
+        ACTIVO = "ACTIVO", "Activo"
+        SUSPENDIDO = "SUSPENDIDO", "Suspendido"
+        CERRADO = "CERRADO", "Cerrado"
+
+    codigo = models.CharField(max_length=100, unique=True, db_index=True, verbose_name="Código institucional")
+    nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre")
+    domicilio = models.CharField(max_length=240, verbose_name="Domicilio")
+    zona = models.CharField(max_length=120, blank=True, verbose_name="Zona")
+    barrio = models.CharField(max_length=120, blank=True, verbose_name="Barrio")
+    telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
+    responsable_nombre = models.CharField(max_length=200, verbose_name="Responsable")
+    responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
+    responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.ACTIVO,
+        db_index=True,
+        verbose_name="Estado",
+    )
+
+    class Meta:
+        verbose_name = "Merendero"
+        verbose_name_plural = "Merenderos"
+        ordering = ["nombre"]
+        indexes = [models.Index(fields=["nombre", "estado"])]
+
+    def __str__(self):
+        return f"{self.codigo} · {self.nombre}"
+
+
+class SolicitudMerendero(TimeStamped):
+    """Solicitud documentada para el alta o regularización de un merendero."""
+
+    class Estado(models.TextChoices):
+        BORRADOR = "BORRADOR", "Borrador"
+        EN_REVISION = "EN_REVISION", "En revisión"
+        OBSERVADA = "OBSERVADA", "Observada"
+        APROBADA = "APROBADA", "Aprobada"
+        RECHAZADA = "RECHAZADA", "Rechazada"
+
+    merendero = models.ForeignKey(
+        Merendero,
+        on_delete=models.PROTECT,
+        related_name="solicitudes",
+        verbose_name="Merendero",
+    )
+    documentacion = models.FileField(
+        upload_to="merenderos/solicitudes/%Y/%m/",
+        verbose_name="Documentación respaldatoria",
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.BORRADOR,
+        db_index=True,
+        verbose_name="Estado",
+    )
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+
+    class Meta:
+        verbose_name = "Solicitud de merendero"
+        verbose_name_plural = "Solicitudes de merenderos"
+        ordering = ["-creado"]
+        indexes = [models.Index(fields=["merendero", "estado"])]
+
+    def __str__(self):
+        return f"Solicitud #{self.pk} · {self.merendero.nombre}"
+
+
+class EntregaMercaderia(TimeStamped):
+    """Entrega histórica de kits de mercadería a un merendero."""
+
+    merendero = models.ForeignKey(
+        Merendero,
+        on_delete=models.PROTECT,
+        related_name="entregas_mercaderia",
+        verbose_name="Merendero",
+    )
+    fecha = models.DateField(db_index=True, verbose_name="Fecha de entrega")
+    cantidad_kits = models.PositiveIntegerField(verbose_name="Cantidad de kits")
+    servicio = models.CharField(max_length=120, blank=True, verbose_name="Servicio")
+    responsable_receptor = models.CharField(max_length=200, blank=True, verbose_name="Responsable receptor")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    anulada = models.BooleanField(default=False, db_index=True, verbose_name="Anulada")
+
+    class Meta:
+        verbose_name = "Entrega de mercadería"
+        verbose_name_plural = "Entregas de mercadería"
+        ordering = ["-fecha", "-creado"]
+        indexes = [models.Index(fields=["merendero", "fecha"])]
+
+    def __str__(self):
+        return f"{self.merendero.nombre} · {self.fecha:%Y-%m-%d} · {self.cantidad_kits} kits"
+
+
+class PrestacionMensual(TimeStamped):
+    """Cabecera mensual de la prestación alimentaria F-02."""
+
+    merendero = models.ForeignKey(
+        Merendero,
+        on_delete=models.PROTECT,
+        related_name="prestaciones_mensuales",
+        verbose_name="Merendero",
+    )
+    anio = models.PositiveSmallIntegerField(verbose_name="Año")
+    mes = models.PositiveSmallIntegerField(verbose_name="Mes")
+    servicios = models.JSONField(default=list, blank=True, verbose_name="Servicios habilitados")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    anulada = models.BooleanField(default=False, db_index=True, verbose_name="Anulada")
+
+    class Meta:
+        verbose_name = "Prestación alimentaria mensual"
+        verbose_name_plural = "Prestaciones alimentarias mensuales"
+        ordering = ["-anio", "-mes"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["merendero", "anio", "mes"],
+                name="prestacion_mensual_unica_por_merendero",
+            ),
+            models.CheckConstraint(check=models.Q(mes__gte=1, mes__lte=12), name="prestacion_mensual_mes_valido"),
+        ]
+
+    def __str__(self):
+        return f"{self.merendero.nombre} · {self.mes:02d}/{self.anio}"
+
+
+class PrestacionDiaria(TimeStamped):
+    """Raciones informadas para un servicio en un día del F-02 mensual."""
+
+    class Servicio(models.TextChoices):
+        DESAYUNO = "DESAYUNO", "Desayuno/colación"
+        ALMUERZO = "ALMUERZO", "Almuerzo"
+        MERIENDA = "MERIENDA", "Merienda/colación"
+        CENA = "CENA", "Cena"
+
+    prestacion = models.ForeignKey(
+        PrestacionMensual,
+        on_delete=models.PROTECT,
+        related_name="lineas_diarias",
+        verbose_name="Prestación mensual",
+    )
+    dia = models.PositiveSmallIntegerField(verbose_name="Día")
+    servicio = models.CharField(max_length=20, choices=Servicio.choices, verbose_name="Servicio")
+    raciones = models.PositiveIntegerField(verbose_name="Raciones")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    firmado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prestaciones_diarias_firmadas",
+        verbose_name="Firmado por",
+    )
+    anulada = models.BooleanField(default=False, db_index=True, verbose_name="Anulada")
+
+    class Meta:
+        verbose_name = "Línea diaria de prestación alimentaria"
+        verbose_name_plural = "Líneas diarias de prestación alimentaria"
+        ordering = ["prestacion", "dia", "servicio"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["prestacion", "dia", "servicio"],
+                name="prestacion_diaria_unica_por_servicio",
+            ),
+            models.CheckConstraint(check=models.Q(dia__gte=1, dia__lte=31), name="prestacion_diaria_dia_valido"),
+        ]
+
+    def __str__(self):
+        return f"{self.prestacion} · día {self.dia} · {self.get_servicio_display()}"
 
 
 # ===========================================================================
