@@ -262,7 +262,7 @@ class ConvocatoriaForm(forms.ModelForm):
         self.fields["subsegmento"].queryset = Subsegmento.objects.select_related("segmento")
 
     def clean(self):
-        """"Fecha manda": no se puede dejar activa una convocatoria con la fecha
+        """ "Fecha manda": no se puede dejar activa una convocatoria con la fecha
         de fin ya vencida. Para reactivar una vencida hay que extender la fecha."""
         cleaned = super().clean()
         activo = cleaned.get("activo")
