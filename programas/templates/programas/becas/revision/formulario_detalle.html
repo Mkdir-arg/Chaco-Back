@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · Formulario #{{ formulario.pk }}{% endblock %}
 
 {% block main-content %}
@@ -165,7 +166,7 @@
   </section>
 
   {# 7. Acciones de revisión #}
-  {% if formulario.estado == 'ENVIADO' %}
+  {% if formulario.estado == 'ENVIADO' and request.user|puede:"becas.revision.editar" %}
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     <div class="px-5 py-4 border-b border-light">
       <h2 class="text-heading font-bold" style="font-size:16px;">Acciones de revisión</h2>

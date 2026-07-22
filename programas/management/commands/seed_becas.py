@@ -50,6 +50,7 @@ ROLES_BECAS = {
             "becas.segmento.ver",
             "becas.subsegmento.ver",
             "becas.requisito.ver",
+            "becas.requisito.crear",
             "becas.convocatoria.ver",
             "becas.convocatoria.crear",
             "becas.convocatoria.editar",

@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · Requisitos generales{% endblock %}
 
 {% block main-content %}
@@ -22,9 +23,11 @@
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos generales</h1>
       <p class="text-sm text-body-subtle mt-1">Preguntas globales que aparecen en todos los formularios</p>
     </div>
+    {% if request.user|puede:"becas.pregunta.crear" %}
     <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nueva pregunta
     </button>
+    {% endif %}
   </div>
 
   <div id="preguntas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">

@@ -111,6 +111,28 @@ apellido, ...) y sin ciudadano, se resuelve por DNI con `get_or_create`
 (`programas/services/becas.resolver_ciudadano_offline`): linkea el ciudadano
 existente o lo crea, y limpia `datos_identificacion`.
 
+## Cierre por vencimiento
+
+Cuando la `fecha_fin` de una convocatoria pasa, se cierra sola (`activo=False`,
+`cerrada_automaticamente=True`, `cerrada_el`), y sus relevamientos todavía
+abiertos (`ASIGNADO/EN_CURSO/FINALIZANDO/FINALIZADO`) pasan a `EN_REVISION`. El
+corte usa `timezone.localdate()`: con `fecha_fin = 31/07` sigue vigente el 31 y
+vence el 01/08.
+
+- **Mecanismo reusable**: registro de reglas en `core/services/vencimientos.py`;
+  las reglas de Becas viven en `programas/services/vencimientos.py` (se registran
+  en `ProgramasConfig.ready()`). Para sumar otra entidad, agregá una regla.
+- **Runner**: `python manage.py procesar_vencimientos` (idempotente).
+  Flags: `--dry-run` (no toca, solo informa) y `--solo <slug>`
+  (`becas.convocatoria` / `becas.relevamiento`).
+- **Cuándo corre**: en el arranque del contenedor `web`
+  (`LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS`) y a diario por cron del host — snippet
+  versionado en [`docker/cron/procesar_vencimientos.cron`](../../docker/cron/procesar_vencimientos.cron).
+- **Reactivar una vencida** ("fecha manda"): hay que extender la `fecha_fin`.
+  Desde la tabla, el botón abre un pop-up (SweetAlert2) que pide la nueva fecha
+  (`convocatoria_reactivar`); desde el detalle, el form valida que no se active
+  con fecha pasada.
+
 ## Puesta en marcha
 
 ```powershell

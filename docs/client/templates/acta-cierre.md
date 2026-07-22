@@ -79,5 +79,5 @@
 ---
 
 !!! info "Publicación"
-    - Acta publicada en [mkdir-arg.github.io/Chaco](https://mkdir-arg.github.io/Chaco/)
+    - Acta publicada en [mkdir-arg.github.io/Chaco-Back](https://mkdir-arg.github.io/Chaco-Back/)
     - :material-archive-outline: Issue cerrado: `#<N>` con *N* horas reales consumidas.

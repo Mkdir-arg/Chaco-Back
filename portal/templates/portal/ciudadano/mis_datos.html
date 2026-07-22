@@ -4,20 +4,7 @@
 
 {% block ciudadano_content %}
 
-<!-- Mensajes -->
-{% if messages %}
-<div class="mb-6 space-y-2 animate-fadeInUp">
-    {% for message in messages %}
-    <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
-                {% if message.tags == 'success' %}style="background: var(--bg-success-soft); color: var(--text-fg-success); border: 1px solid var(--border-success-subtle);"
-                {% elif message.tags == 'error' %}style="background: var(--bg-danger-soft); color: var(--text-fg-danger); border: 1px solid var(--border-danger-subtle);"
-                {% else %}style="background: var(--bg-info-soft); color: var(--text-fg-info); border: 1px solid var(--border-brand-subtle);"{% endif %}>
-        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} flex-shrink-0"></i>
-        {{ message }}
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
+{% comment %}Los mensajes de Django se muestran como toast global (ver portal/base.html + nodo-toast.js).{% endcomment %}
 
 <!-- Encabezado -->
 <div class="mb-6 animate-fadeInUp">

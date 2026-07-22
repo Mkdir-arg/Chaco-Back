@@ -1,0 +1,50 @@
+{% comment %}Pop-up de reactivación de convocatoria vencida (SweetAlert2 con selector de
+   fecha, ya themeado por nodo-swal-theme.js). Se dispara desde un botón con
+   data-reactivar-url (+ data-nombre) y hace POST de la nueva fecha_fin.{% endcomment %}
+<script>
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-reactivar-url]');
+  if (!btn) return;
+  e.preventDefault();
+  if (typeof Swal === 'undefined') return;
+
+  var hoy = new Date();
+  var min = hoy.getFullYear() + '-' +
+            String(hoy.getMonth() + 1).padStart(2, '0') + '-' +
+            String(hoy.getDate()).padStart(2, '0');
+  var nombre = btn.dataset.nombre || '';
+
+  Swal.fire({
+    icon: 'question',
+    title: 'Reactivar convocatoria',
+    html: (nombre ? '<p style="font-weight:600">' + nombre + '</p>' : '') +
+          '<p class="text-sm">Está vencida. Elegí la nueva fecha de fin para reactivarla.</p>',
+    input: 'date',
+    inputAttributes: { min: min },
+    inputValue: min,
+    showCancelButton: true,
+    confirmButtonText: 'Reactivar',
+    cancelButtonText: 'Cancelar',
+    inputValidator: function (value) {
+      if (!value) return 'Elegí una fecha.';
+      if (value < min) return 'La fecha debe ser hoy o una fecha posterior.';
+    }
+  }).then(function (result) {
+    if (!result.isConfirmed || !result.value) return;
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = btn.dataset.reactivarUrl;
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrf) {
+      var t = document.createElement('input');
+      t.type = 'hidden'; t.name = 'csrfmiddlewaretoken'; t.value = csrf.value;
+      form.appendChild(t);
+    }
+    var fecha = document.createElement('input');
+    fecha.type = 'hidden'; fecha.name = 'fecha_fin'; fecha.value = result.value;
+    form.appendChild(fecha);
+    document.body.appendChild(form);
+    form.submit();
+  });
+});
+</script>

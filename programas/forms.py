@@ -3,6 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from programas.models import (
@@ -259,6 +260,30 @@ class ConvocatoriaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["subsegmento"].required = False
         self.fields["subsegmento"].queryset = Subsegmento.objects.select_related("segmento")
+
+    def clean(self):
+        """"Fecha manda": no se puede dejar activa una convocatoria con la fecha
+        de fin ya vencida. Para reactivar una vencida hay que extender la fecha."""
+        cleaned = super().clean()
+        activo = cleaned.get("activo")
+        fecha_fin = cleaned.get("fecha_fin")
+        if activo and fecha_fin and fecha_fin < timezone.localdate():
+            self.add_error(
+                "fecha_fin",
+                "Para activar la convocatoria, extendé la fecha de fin a hoy o una posterior.",
+            )
+        return cleaned
+
+    def save(self, commit=True):
+        # Si queda activa, limpiamos la marca de cierre automático (una
+        # reactivación deja de ser un "cierre por vencimiento").
+        convocatoria = super().save(commit=False)
+        if convocatoria.activo:
+            convocatoria.cerrada_automaticamente = False
+            convocatoria.cerrada_el = None
+        if commit:
+            convocatoria.save()
+        return convocatoria
 
 
 class _SelectConSegmento(forms.Select):

@@ -1,3 +1,4 @@
+{% load rbac %}
 {% if convocatorias %}
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
@@ -28,7 +29,11 @@
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-center">
           {% if c.activo %}
-            <span class="badge badge-success badge-dot">Activa</span>
+            {% if c.esta_vencida %}
+              <span class="badge badge-warning badge-dot" title="La fecha de fin ya pasó; se cierra en la próxima corrida.">Vencida</span>
+            {% else %}
+              <span class="badge badge-success badge-dot">Activa</span>
+            {% endif %}
           {% else %}
             <span class="badge badge-danger badge-dot">Inactiva</span>
           {% endif %}
@@ -36,11 +41,18 @@
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
             <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-body-subtle hover:text-fg-brand p-1" title="Ver detalle" aria-label="Ver detalle"><i class="fas fa-eye"></i></a>
+            {% if request.user|puede:"becas.convocatoria.editar" %}
             {% if c.activo %}
             <button type="button" class="text-fg-danger hover:opacity-70 p-1" title="Desactivar" aria-label="Desactivar"
                     data-confirm-url="{% url 'becas:convocatoria_toggle' c.pk %}"
                     data-confirm-title="¿Desactivar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
               <i class="fas fa-times-circle"></i>
+            </button>
+            {% elif c.esta_vencida %}
+            <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Reactivar (extender fecha de fin)" aria-label="Reactivar"
+                    data-reactivar-url="{% url 'becas:convocatoria_reactivar' c.pk %}"
+                    data-nombre="{{ c.nombre }}">
+              <i class="fas fa-calendar-plus"></i>
             </button>
             {% else %}
             <button type="button" class="text-fg-success hover:opacity-70 p-1" title="Activar" aria-label="Activar"
@@ -48,6 +60,7 @@
                     data-confirm-title="¿Activar convocatoria?" data-confirm-text="{{ c.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
               <i class="fas fa-check-circle"></i>
             </button>
+            {% endif %}
             {% endif %}
           </div>
         </td>
@@ -61,8 +74,10 @@
   <div class="text-fg-brand"><i class="fas fa-bullhorn text-5xl"></i></div>
   <p class="text-[17px] font-bold text-heading">No hay convocatorias</p>
   <p class="text-sm text-body max-w-xs">Creá una convocatoria para poder asignar relevamientos.</p>
+  {% if request.user|puede:"becas.convocatoria.crear" %}
   <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
     <i class="fas fa-plus"></i> Nueva convocatoria
   </button>
+  {% endif %}
 </div>
 {% endif %}

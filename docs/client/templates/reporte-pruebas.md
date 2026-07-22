@@ -87,5 +87,5 @@
 ---
 
 !!! info "Publicación"
-    - Reporte publicado en [mkdir-arg.github.io/Chaco](https://mkdir-arg.github.io/Chaco/)
+    - Reporte publicado en [mkdir-arg.github.io/Chaco-Back](https://mkdir-arg.github.io/Chaco-Back/)
     - :material-check-decagram-outline: Aprobado por el cliente: *Nombre y fecha, o "Pendiente de aprobación"*
