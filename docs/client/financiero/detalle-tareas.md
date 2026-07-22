@@ -144,19 +144,23 @@
 | 2026-07-14 | Pablo Cao | Becas | App móvil Becas — relevamientos y adjuntos | Corrección de fecha por zona horaria; finalización y reapertura de relevamientos en la app y el backoffice; ajustes de ubicación y etiquetas de acciones/estados; persistencia y sincronización reintentable de fotos y documentos sin duplicar formularios; validaciones Expo y Django. | 150 min |
 | 2026-07-14 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
 | 2026-07-15 | Matías Fariña | Transversal | Creación de video | Creación de video del sistema | 240 min |
+| 2026-07-16 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
 | 2026-07-17 | Juani Portilla | Transversal | Performance — medición de baseline | Medición inicial de performance y registro de métricas base para futuras comparaciones. | 60 min |
 | 2026-07-17 | Juani Portilla | Transversal | Performance — optimización | Optimización de queries, caché, índices y otros cuellos de botella detectados. | 120 min |
 | 2026-07-17 | Juani Portilla | Transversal | Performance — proceso antirregresión | Implementación de un proceso de control para detectar regresiones de performance. | 60 min |
 | 2026-07-17 | Juani Portilla | Transversal | Main — limpieza automática | Implementación de un proceso automático de limpieza y mantenimiento de la rama `main`. | 90 min |
+| 2026-07-17 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-20 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-21 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 60 h 38 min |
+| Becas | 92 h 38 min |
 | Dispositivos | 16 h 0 min |
 | Transversal | 15 h 30 min |
-| **Total julio 2026 (al 17/07)** | **92 h 08 min** |
+| **Total julio 2026 (al 21/07)** | **124 h 08 min** |
 
 ---
 
@@ -184,7 +188,7 @@
 
 !!! success "Contador total"
 
-    **35.480 minutos** (591 h 20 min)
+    **37.400 minutos** (623 h 20 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 17/07): **5.528 min (92 h 08 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 21/07): **7.448 min (124 h 08 min)**
     
