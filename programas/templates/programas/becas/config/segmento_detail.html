@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · {{ segmento.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -123,6 +124,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {# Columna izquierda: edición + coordinadores #}
         <div class="lg:col-span-2 space-y-6">
+          {% if request.user|puede:"becas.segmento.editar" %}
           <form id="form-segmento" method="post" action="{% url 'becas:segmento_editar' segmento.pk %}" class="space-y-4">
             {% csrf_token %}
             {{ form_segmento.activo.as_hidden }}
@@ -151,6 +153,7 @@
               </button>
             </div>
           </form>
+          {% endif %}
 
           {# Coordinadores asignados — lista con botones de quitar + alta (issue #74) #}
           <div class="border-t border-light pt-5">
@@ -167,6 +170,7 @@
                   </span>
                   {{ asig.coordinador.get_full_name|default:asig.coordinador.username }}
                 </span>
+                {% if request.user|puede:"becas.coordinador.editar" %}
                 <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Quitar"
                         data-confirm-url="{% url 'becas:coordinador_desasignar' asig.pk %}"
                         data-confirm-title="¿Quitar coordinador?"
@@ -174,10 +178,12 @@
                         data-confirm-ok="Sí, quitar">
                   <i class="fas fa-trash"></i>
                 </button>
+                {% endif %}
               </div>
               {% endfor %}
             </div>
             {% endif %}
+            {% if request.user|puede:"becas.coordinador.crear" %}
             <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3">
               {% csrf_token %}
               <div class="flex-1 min-w-[220px]">
@@ -186,6 +192,7 @@
               </div>
               <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
             </form>
+            {% endif %}
           </div>
 
           {# Territoriales del segmento — solo lectura (se asignan desde el ABM de Usuarios) #}
@@ -259,9 +266,11 @@
     <div x-show="tab==='subs'" x-cloak class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Cada subsegmento tiene su propio cupo (debe caber dentro del cupo del segmento).</p>
+        {% if request.user|puede:"becas.subsegmento.crear" %}
         <button type="button" @click="modalSub=true; subCupo=''" class="btn-nodo btn-brand btn-base">
           <i class="fas fa-plus"></i> Nuevo subsegmento
         </button>
+        {% endif %}
       </div>
       <div id="subs-panel">
         {% include "programas/becas/config/_subsegmentos_panel.html" %}
@@ -272,9 +281,11 @@
     <div x-show="tab==='reqs'" x-cloak class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle max-w-xl">Requisitos del segmento padre. Se heredan en los formularios de todos sus subsegmentos.</p>
+        {% if request.user|puede:"becas.requisito.crear" %}
         <button type="button" @click="modalReq=true" class="btn-nodo btn-brand btn-base">
           <i class="fas fa-plus"></i> Nuevo requisito
         </button>
+        {% endif %}
       </div>
 
       <div id="reqs-panel">

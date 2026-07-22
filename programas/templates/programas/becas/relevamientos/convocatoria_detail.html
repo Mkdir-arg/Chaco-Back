@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · {{ convocatoria.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -53,6 +54,7 @@
     <div x-show="tab==='info'" class="p-6">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
+          {% if request.user|puede:"becas.convocatoria.editar" %}
           <form method="post" action="{% url 'becas:convocatoria_editar' convocatoria.pk %}" class="space-y-4">
             {% csrf_token %}
             {% if form_convocatoria.non_field_errors %}
@@ -97,6 +99,7 @@
               <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
             </div>
           </form>
+          {% endif %}
         </div>
 
         {# Cards laterales — datos reales #}
@@ -147,7 +150,9 @@
     <div x-show="tab==='rel'" x-cloak class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Relevamientos asignados a esta convocatoria.</p>
+        {% if request.user|puede:"becas.relevamiento.crear" %}
         <button type="button" @click="modalRel=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-plus"></i> Nuevo relevamiento</button>
+        {% endif %}
       </div>
       <div id="relevamientos-table">
         {% include "programas/becas/relevamientos/_relevamientos_tab_table.html" %}

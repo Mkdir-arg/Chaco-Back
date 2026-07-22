@@ -53,6 +53,8 @@ services:
       - RUN_CREAR_PROGRAMAS=true
       - RUN_COLLECTSTATIC=true
       - RUN_CREAR_SUPERADMIN=true
+      # Cierra lo vencido en cada arranque (idempotente); el cron del host lo corre a diario.
+      - LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS=procesar_vencimientos
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_SSL=False

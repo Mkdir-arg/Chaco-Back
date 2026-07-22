@@ -190,7 +190,10 @@
         <link rel="stylesheet" href="{% static 'custom/css/mobile-forms.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/mobile-tables.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/alertas_notifications.css' %}" />
-        
+
+        <!-- NODO Toast (notificaciones toast — reemplaza los mensajes inline) -->
+        <link rel="stylesheet" href="{% static 'custom/css/nodo-toast.css' %}" />
+
         <!-- Page specific CSS -->
         {% block page_css %}{% endblock %}
         
@@ -207,76 +210,15 @@
             <div class="min-w-0 transition-all duration-300" :class="sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'">
                 <main class="min-w-0 py-4 sm:py-6 lg:py-10">
                     <div class="min-w-0 px-4 sm:px-6 lg:px-8">
+                        {% comment %}Mensajes de Django → notificaciones toast (abajo-derecha, 7s). Se imprimen ocultos; nodo-toast.js los lee y los muestra.{% endcomment %}
                         {% if messages %}
+                        <div id="dj-messages" hidden>
                             {% for message in messages %}
-                                {% if message.tags == 'success' %}
-                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-success-soft);border-color:var(--border-success);color:var(--text-fg-success);" x-data="{ show: true }" x-show="show">
-                                        <div class="flex items-start">
-                                            <div class="flex-shrink-0">
-                                                <i class="fas fa-check-circle" aria-hidden="true" style="color:var(--text-fg-success);"></i>
-                                            </div>
-                                            <div class="ml-3 flex-1">
-                                                <p class="text-sm font-medium">{{ message }}</p>
-                                            </div>
-                                            <div class="ml-auto pl-3">
-                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-success);" onmouseover="this.style.background='var(--bg-success-medium)'" onmouseout="this.style.background='transparent'">
-                                                    <i class="fas fa-times" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% elif message.tags == 'error' %}
-                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-danger-soft);border-color:var(--border-danger);color:var(--text-fg-danger);" x-data="{ show: true }" x-show="show">
-                                        <div class="flex items-start">
-                                            <div class="flex-shrink-0">
-                                                <i class="fas fa-exclamation-circle" aria-hidden="true" style="color:var(--text-fg-danger);"></i>
-                                            </div>
-                                            <div class="ml-3 flex-1">
-                                                <p class="text-sm font-medium">{{ message }}</p>
-                                            </div>
-                                            <div class="ml-auto pl-3">
-                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-danger);" onmouseover="this.style.background='var(--bg-danger-medium)'" onmouseout="this.style.background='transparent'">
-                                                    <i class="fas fa-times" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% elif message.tags == 'warning' %}
-                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-warning-soft);border-color:var(--border-warning);color:var(--text-fg-warning);" x-data="{ show: true }" x-show="show">
-                                        <div class="flex items-start">
-                                            <div class="flex-shrink-0">
-                                                <i class="fas fa-exclamation-triangle" aria-hidden="true" style="color:var(--text-fg-warning);"></i>
-                                            </div>
-                                            <div class="ml-3 flex-1">
-                                                <p class="text-sm font-medium">{{ message }}</p>
-                                            </div>
-                                            <div class="ml-auto pl-3">
-                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-warning);" onmouseover="this.style.background='var(--bg-warning-medium)'" onmouseout="this.style.background='transparent'">
-                                                    <i class="fas fa-times" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    <div role="alert" aria-live="polite" class="mb-4 rounded-xl border p-4" style="background:var(--bg-info-soft);border-color:var(--border-brand);color:var(--text-fg-brand);" x-data="{ show: true }" x-show="show">
-                                        <div class="flex items-start">
-                                            <div class="flex-shrink-0">
-                                                <i class="fas fa-info-circle" aria-hidden="true" style="color:var(--text-fg-brand);"></i>
-                                            </div>
-                                            <div class="ml-3 flex-1">
-                                                <p class="text-sm font-medium">{{ message }}</p>
-                                            </div>
-                                            <div class="ml-auto pl-3">
-                                                <button @click="show = false" aria-label="Cerrar" class="inline-flex rounded-lg p-1.5 transition-colors" style="color:var(--text-fg-brand);" onmouseover="this.style.background='var(--bg-brand-soft)'" onmouseout="this.style.background='transparent'">
-                                                    <i class="fas fa-times" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endif %}
+                            <div class="dj-message" data-tags="{{ message.tags }}">{{ message }}</div>
                             {% endfor %}
+                        </div>
                         {% endif %}
-                        
+
                         {% block main-content %}
                             <!-- Contenido principal -->
                         {% endblock %}
@@ -328,6 +270,9 @@
         
         <!-- Mobile Enhancements Script -->
         <script src="{% static 'custom/js/mobile-enhancements.js' %}"></script>
+
+        <!-- NODO Toast: lee los mensajes de Django y expone window.toast() -->
+        <script src="{% static 'custom/js/nodo-toast.js' %}"></script>
         
         <!-- Sistema de Modales Modernos -->
         <script>

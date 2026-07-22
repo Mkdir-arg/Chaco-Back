@@ -49,6 +49,7 @@ urlpatterns = [
     path("convocatorias/<int:pk>/", rel.ConvocatoriaDetailView.as_view(), name="convocatoria_detalle"),
     path("convocatorias/<int:pk>/editar/", rel.ConvocatoriaUpdateView.as_view(), name="convocatoria_editar"),
     path("convocatorias/<int:pk>/toggle/", rel.convocatoria_toggle_activo, name="convocatoria_toggle"),
+    path("convocatorias/<int:pk>/reactivar/", rel.convocatoria_reactivar, name="convocatoria_reactivar"),
     path(
         "convocatorias/<int:pk>/export/beneficiarios/",
         rel.convocatoria_export_beneficiarios,

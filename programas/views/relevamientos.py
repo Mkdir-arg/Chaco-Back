@@ -16,6 +16,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
@@ -185,11 +186,49 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
 @requiere(CAP_CONVOCATORIA_EDITAR)
 def convocatoria_toggle_activo(request, pk):
     conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
+    destino = request.POST.get("next") or "becas:convocatorias"
     if request.method == "POST":
+        # Reactivar una vencida exige extender la fecha (fecha manda): eso va por
+        # convocatoria_reactivar, no por el toggle simple.
+        if not conv.activo and conv.esta_vencida:
+            messages.error(
+                request,
+                "La convocatoria está vencida: para reactivarla tenés que extender la fecha de fin.",
+            )
+            return redirect(destino)
+        # El toggle es siempre una acción manual: limpia la marca de cierre automático.
         conv.activo = not conv.activo
-        conv.save(update_fields=["activo", "modificado"])
+        conv.cerrada_automaticamente = False
+        conv.cerrada_el = None
+        conv.save(update_fields=["activo", "cerrada_automaticamente", "cerrada_el", "modificado"])
         messages.success(request, f"Convocatoria {'activada' if conv.activo else 'desactivada'}.")
-    return redirect(request.POST.get("next") or "becas:convocatorias")
+    return redirect(destino)
+
+
+@login_required
+@requiere(CAP_CONVOCATORIA_EDITAR)
+@require_POST
+def convocatoria_reactivar(request, pk):
+    """Reactiva una convocatoria vencida extendiendo su fecha de fin (fecha manda).
+    Se dispara desde el pop-up con selector de fecha de la tabla."""
+    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
+    destino = request.POST.get("next") or "becas:convocatorias"
+
+    nueva_fecha = parse_date(request.POST.get("fecha_fin") or "")
+    if nueva_fecha is None:
+        messages.error(request, "Indicá una nueva fecha de fin válida.")
+    elif nueva_fecha < timezone.localdate():
+        messages.error(request, "La nueva fecha de fin debe ser hoy o una fecha posterior.")
+    elif nueva_fecha < conv.fecha_inicio:
+        messages.error(request, "La fecha de fin no puede ser anterior a la fecha de inicio.")
+    else:
+        conv.fecha_fin = nueva_fecha
+        conv.activo = True
+        conv.cerrada_automaticamente = False
+        conv.cerrada_el = None
+        conv.save(update_fields=["fecha_fin", "activo", "cerrada_automaticamente", "cerrada_el", "modificado"])
+        messages.success(request, f"Convocatoria reactivada hasta el {nueva_fecha.strftime('%d/%m/%Y')}.")
+    return redirect(destino)
 
 
 @login_required

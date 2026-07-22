@@ -4,27 +4,7 @@
 
 {% block ciudadano_content %}
 
-<!-- Mensajes -->
-{% if messages %}
-<div class="mb-6 space-y-2 animate-fadeInUp">
-    {% for message in messages %}
-    <div class="flex items-center gap-3 px-4 py-3 text-sm font-medium"
-         style="border-radius: var(--radius-xl);
-                {% if message.tags == 'success' %}background: var(--bg-success-soft); color: var(--text-fg-success); border: 1px solid var(--border-success-subtle);
-                {% elif message.tags == 'error' %}background: var(--bg-danger-soft); color: var(--text-fg-danger); border: 1px solid var(--border-danger-subtle);
-                {% else %}background: var(--bg-info-soft); color: var(--text-fg-info); border: 1px solid var(--color-brand-200);{% endif %}">
-        {% if message.tags == 'success' %}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>
-        {% elif message.tags == 'error' %}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path></svg>
-        {% else %}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path></svg>
-        {% endif %}
-        {{ message }}
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
+{% comment %}Los mensajes de Django se muestran como toast global (ver portal/base.html + nodo-toast.js).{% endcomment %}
 
 <div class="max-w-lg mx-auto animate-fadeInUp">
     <div class="bg-white p-6" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">

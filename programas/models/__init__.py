@@ -480,6 +480,18 @@ class Convocatoria(TimeStamped):
     fecha_fin = models.DateField(verbose_name="Fecha de fin")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+    # Trazabilidad del cierre automático por vencimiento (procesar_vencimientos).
+    # Distingue la baja por fecha de la desactivación manual y guarda el cuándo.
+    cerrada_automaticamente = models.BooleanField(
+        default=False,
+        verbose_name="Cerrada por vencimiento",
+        help_text="La cerró el proceso de vencimientos al pasar la fecha de fin (no una baja manual).",
+    )
+    cerrada_el = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de cierre automático",
+    )
 
     class Meta:
         verbose_name = "Convocatoria"
@@ -495,6 +507,14 @@ class Convocatoria(TimeStamped):
         if self.subsegmento_id and self.segmento_id:
             if self.subsegmento.segmento_id != self.segmento_id:
                 raise ValidationError({"subsegmento": "El subsegmento debe pertenecer al segmento seleccionado."})
+
+    @property
+    def esta_vencida(self):
+        """Vencida = la fecha de fin ya pasó (el corte usa el 'hoy' de la zona
+        horaria del proyecto, igual que ``Relevamiento.esta_vencido``)."""
+        from django.utils import timezone
+
+        return self.fecha_fin is not None and self.fecha_fin < timezone.localdate()
 
 
 class Relevamiento(TimeStamped):

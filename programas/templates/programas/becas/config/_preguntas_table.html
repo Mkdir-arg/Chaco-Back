@@ -1,3 +1,4 @@
+{% load rbac %}
 {% if preguntas %}
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
@@ -35,6 +36,7 @@
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
+            {% if request.user|puede:"becas.pregunta.editar" %}
             <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
               @click="openEdit(
                 '{% url 'becas:pregunta_editar' p.pk %}',
@@ -58,6 +60,7 @@
                     data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar">
               <i class="fas fa-trash"></i>
             </button>
+            {% endif %}
           </div>
         </td>
       </tr>
@@ -70,8 +73,10 @@
   <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
   <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
   <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
+  {% if request.user|puede:"becas.pregunta.crear" %}
   <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
     <i class="fas fa-plus"></i> Nueva pregunta
   </button>
+  {% endif %}
 </div>
 {% endif %}

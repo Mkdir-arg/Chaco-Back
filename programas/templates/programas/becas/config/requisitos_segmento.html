@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · Requisitos por segmento{% endblock %}
 
 {% block main-content %}
@@ -24,9 +25,11 @@
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos por segmento</h1>
       <p class="text-sm text-body-subtle mt-1">Campos nativos que, junto a las preguntas globales, arman el formulario que completa el territorial.</p>
     </div>
+    {% if request.user|puede:"becas.requisito.crear" %}
     <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus"></i> Nuevo requisito
     </button>
+    {% endif %}
   </div>
 
   {# Filtros dinámicos (auto-submit, sin botón) #}

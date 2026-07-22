@@ -65,13 +65,84 @@
         overflow-wrap: anywhere;
     }
 
-    .roles-actions {
-        flex-wrap: wrap;
+    .roles-kebab-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        border-radius: 8px;
+        color: var(--text-body-subtle);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: background 150ms;
+    }
+
+    .roles-kebab-btn:hover {
+        background: var(--bg-secondary);
+    }
+
+    .roles-kebab-btn:focus-visible {
+        outline: none;
+        box-shadow: var(--ring-brand);
+    }
+
+    .roles-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        color: var(--text-heading);
+        text-decoration: none;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+    }
+
+    .roles-menu-item:hover {
+        background: var(--bg-tertiary);
+    }
+
+    .roles-menu-item:focus-visible {
+        outline: none;
+        background: var(--bg-tertiary);
+        box-shadow: inset var(--ring-brand);
+    }
+
+    .roles-menu-item-danger {
+        color: var(--text-fg-danger);
+        border-top: 1px solid var(--border-light);
+        margin-top: 4px;
+    }
+
+    .roles-menu-item-danger:hover {
+        background: var(--bg-danger-soft);
+    }
+
+    .roles-menu-panel {
+        position: fixed;
+        z-index: 1000;
+        width: 208px;
+        border-radius: 12px;
+        padding: 6px;
+        background: var(--bg-white);
+        border: 1px solid var(--border-base);
+        box-shadow: var(--shadow-md);
+    }
+
+    [x-cloak] {
+        display: none !important;
     }
 
     @media (max-width: 900px) {
         .roles-table {
-            min-width: 760px;
+            min-width: 720px;
         }
     }
 </style>
@@ -91,23 +162,7 @@
     </a>
 </div>
 
-{# Messages #}
-{% if messages %}
-<div style="margin-bottom:16px; display:flex; flex-direction:column; gap:8px;">
-    {% for message in messages %}
-    <div role="alert" style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; font-size:14px; font-weight:600;
-        {% if message.tags == 'error' %}background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle); color:var(--text-fg-danger);
-        {% else %}background:var(--bg-success-soft); border:1px solid var(--border-success-subtle); color:var(--text-fg-success);{% endif %}">
-        {% if message.tags == 'error' %}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        {% else %}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        {% endif %}
-        {{ message }}
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
+{% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
 
 {# Toolbar (filtros por querystring) #}
 <form method="get" x-data style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -146,17 +201,16 @@
 {# TableCard #}
 <div style="background:var(--bg-white); border:1px solid var(--border-base); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden;">
     {% if items %}
-    <div style="overflow-x:auto;">
+    <div style="overflow-x:auto;" onscroll="window.dispatchEvent(new Event('scroll'))">
         <table class="roles-table">
             <colgroup>
-                <col style="width:15%;">
-                <col style="width:13%;">
-                <col style="width:9%;">
-                <col style="width:9%;">
+                <col style="width:17%;">
+                <col style="width:16%;">
+                <col style="width:11%;">
+                <col style="width:12%;">
                 <col style="width:29%;">
-                <col style="width:7%;">
                 <col style="width:8%;">
-                <col style="width:10%;">
+                <col style="width:7%;">
             </colgroup>
             <thead>
                 <tr>
@@ -165,9 +219,8 @@
                     <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Categoría</th>
                     <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Programa</th>
                     <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Capacidades</th>
-                    <th scope="col" style="padding:11px 16px; text-align:right; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Usuarios</th>
                     <th scope="col" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Estado</th>
-                    <th scope="col" style="padding:11px 16px; text-align:right; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em; width:150px;">Acciones</th>
+                    <th scope="col" style="padding:11px 16px; text-align:center; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:.05em;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -209,9 +262,6 @@
                             {% endif %}
                         </div>
                     </td>
-                    <td style="padding:13px 16px; font-size:13.5px; font-weight:600; color:var(--text-heading); text-align:right; border-top:1px solid var(--border-light);">
-                        {{ item.num_usuarios }}
-                    </td>
                     <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
                         {% if not item.meta or item.meta.activo %}
                         <span class="badge badge-success badge-dot">Activo</span>
@@ -219,57 +269,106 @@
                         <span class="badge badge-danger badge-dot">Inactivo</span>
                         {% endif %}
                     </td>
-                    <td style="padding:13px 16px; border-top:1px solid var(--border-light);">
-                        <div class="roles-actions" style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
-                            <a href="{% url 'users:rol_detalle' item.group.pk %}"
-                               aria-label="Ver {{ item.group.name }}"
-                               style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; text-decoration:none; transition:background 150ms;"
-                               onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
+                    <td style="padding:13px 12px; text-align:center; border-top:1px solid var(--border-light);">
+                        <div
+                            x-data="{
+                                open: false,
+                                top: -9999,
+                                left: -9999,
+                                openMenu() {
+                                    const trigger = this.$refs.trigger.getBoundingClientRect();
+                                    this.open = true;
+                                    this.$nextTick(() => {
+                                        const panel = document.getElementById('kebab-menu-{{ item.group.pk }}');
+                                        const menuWidth = 208;
+                                        const menuHeight = panel ? panel.offsetHeight : 200;
+                                        let left = trigger.right - menuWidth;
+                                        if (left < 8) { left = 8; }
+                                        if (left + menuWidth > window.innerWidth - 8) { left = window.innerWidth - menuWidth - 8; }
+                                        let top = trigger.bottom + 6;
+                                        if (top + menuHeight > window.innerHeight - 8) {
+                                            top = trigger.top - menuHeight - 6;
+                                            if (top < 8) { top = 8; }
+                                        }
+                                        this.top = top;
+                                        this.left = left;
+                                        if (panel) { panel.querySelector('[role=menuitem]')?.focus({ preventScroll: true }); }
+                                    });
+                                },
+                                toggle() { if (this.open) { this.open = false; } else { this.openMenu(); } },
+                                close() { this.open = false; }
+                            }"
+                            @keydown.escape.window="if (open) { open = false; $refs.trigger.focus({ preventScroll: true }); }"
+                            @scroll.window="close()"
+                            @resize.window="close()"
+                            style="display:inline-block;">
+                            <button type="button" x-ref="trigger" class="roles-kebab-btn" @click.stop="toggle()"
+                                    :aria-expanded="open ? 'true' : 'false'" aria-haspopup="menu"
+                                    aria-label="Acciones de {{ item.group.name }}">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z"/>
                                 </svg>
-                            </a>
-                            {% if not item.meta.protegido %}
-                            <a href="{% url 'users:rol_editar' item.group.pk %}"
-                               aria-label="Editar {{ item.group.name }}"
-                               style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-heading); background:transparent; text-decoration:none; transition:background 150ms;"
-                               onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
-                            </a>
-                            {% if not item.meta or item.meta.activo %}
-                            <button type="button"
-                                    aria-label="Desactivar {{ item.group.name }}"
-                                    onclick="confirmarToggleRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', true)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
-                                    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </button>
-                            {% else %}
-                            <button type="button"
-                                    aria-label="Activar {{ item.group.name }}"
-                                    onclick="confirmarToggleRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', false)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-brand); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
-                                    onmouseenter="this.style.background='var(--bg-secondary)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </button>
-                            {% endif %}
-                            <button type="button"
-                                    aria-label="Eliminar {{ item.group.name }}"
-                                    onclick="confirmarEliminarRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', {{ item.num_usuarios }})"
-                                    style="display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:8px; color:var(--text-fg-danger); background:transparent; border:none; cursor:pointer; transition:background 150ms;"
-                                    onmouseenter="this.style.background='var(--bg-danger-soft)'" onmouseleave="this.style.background='transparent'">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-                            </button>
-                            <form id="form-toggle-{{ item.group.pk }}" method="post" action="{% url 'users:rol_toggle' item.group.pk %}" style="display:none;">{% csrf_token %}</form>
-                            <form id="form-eliminar-{{ item.group.pk }}" method="post" action="{% url 'users:rol_eliminar' item.group.pk %}" style="display:none;">{% csrf_token %}</form>
-                            {% else %}
-                            <span style="font-size:12px; color:var(--text-body-subtle); display:inline-flex; align-items:center; gap:4px; margin-left:4px;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                                Rol del sistema
-                            </span>
-                            {% endif %}
+
+                            <template x-teleport="body">
+                                <div x-show="open" x-ref="panel" id="kebab-menu-{{ item.group.pk }}" x-cloak
+                                     @click.away="close()"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     role="menu"
+                                     aria-label="Acciones de {{ item.group.name }}"
+                                     class="roles-menu-panel"
+                                     :style="`top:${top}px; left:${left}px;`">
+                                    <a role="menuitem" href="{% url 'users:rol_detalle' item.group.pk %}" @click="close()" class="roles-menu-item">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex:0 0 auto;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                        Ver
+                                    </a>
+                                    {% if not item.meta.protegido %}
+                                    <a role="menuitem" href="{% url 'users:rol_editar' item.group.pk %}" @click="close()" class="roles-menu-item">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex:0 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                        Editar
+                                    </a>
+                                    {% if not item.meta or item.meta.activo %}
+                                    <button type="button" role="menuitem" class="roles-menu-item"
+                                            @click="close()"
+                                            onclick="confirmarToggleRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', true)">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex:0 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        Desactivar
+                                    </button>
+                                    {% else %}
+                                    <button type="button" role="menuitem" class="roles-menu-item"
+                                            @click="close()"
+                                            onclick="confirmarToggleRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', false)">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex:0 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        Activar
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" role="menuitem" class="roles-menu-item roles-menu-item-danger"
+                                            @click="close()"
+                                            onclick="confirmarEliminarRol('{{ item.group.pk }}', '{{ item.group.name|escapejs }}', {{ item.num_usuarios }})">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex:0 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                                        Eliminar
+                                    </button>
+                                    {% else %}
+                                    <div role="presentation" style="display:flex; align-items:center; gap:8px; margin-top:4px; padding:8px 10px; border-top:1px solid var(--border-light); font-size:12px; color:var(--text-body-subtle);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="flex:0 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                                        Rol del sistema — no se puede editar ni eliminar
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </template>
                         </div>
+                        {% if not item.meta.protegido %}
+                        <form id="form-toggle-{{ item.group.pk }}" method="post" action="{% url 'users:rol_toggle' item.group.pk %}" style="display:none;">{% csrf_token %}</form>
+                        <form id="form-eliminar-{{ item.group.pk }}" method="post" action="{% url 'users:rol_eliminar' item.group.pk %}" style="display:none;">{% csrf_token %}</form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

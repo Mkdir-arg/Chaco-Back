@@ -1,0 +1,190 @@
+/* =============================================================
+   NODO Toast / Notification — sistema de notificaciones toast
+   -------------------------------------------------------------
+   Reemplaza los mensajes de Django que antes se renderizaban
+   fijos dentro del HTML. Ahora flotan abajo-derecha y se cierran
+   solos a los 7 s (duración definida en nodo-toast.js).
+
+   Dos familias, según la definición del cliente:
+     · confirmación  → variante success  (verde)
+     · alerta        → variantes error   (rojo) / warning (ámbar)
+     · info          → neutro (marca) para mensajes informativos
+
+   Todo por token (chaco-tokens.css) — CERO hex hardcodeado.
+   Dark mode automático (los tokens ya cambian con [data-theme]).
+   ============================================================= */
+
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 400px;
+    max-width: calc(100vw - 48px);
+    /* el contenedor no captura clicks; cada toast sí (abajo) */
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 300px;
+    padding: 14px 16px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    font-family: 'Manrope', sans-serif;
+    /* estado inicial: fuera de pantalla, a la derecha (para animar entrada) */
+    opacity: 0;
+    transform: translateX(120%);
+    transition: opacity .25s ease-out, transform .25s ease-out;
+}
+
+.toast.toast--visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.toast--leaving {
+    opacity: 0;
+    transform: translateX(120%);
+}
+
+/* Icono en chip de color suave */
+.toast__icon {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-lg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.toast__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-top: 3px;
+}
+
+.toast__title {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-heading);
+}
+
+.toast__message {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--text-body);
+    overflow-wrap: anywhere;
+}
+
+.toast__close {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-body-subtle);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.toast__close:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-heading);
+}
+
+.toast__close:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-brand);
+}
+
+/* Barra de progreso: se encoge de 100% a 0 durante la vida del toast.
+   El auto-cierre (nodo-toast.js) escucha el fin de esta animación, así
+   que pausarla al pasar el mouse también pausa el cierre. */
+.toast__progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    transform: scaleX(1);
+    transform-origin: left center;
+    animation-name: toast-progress;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    /* animation-duration la define el JS por toast */
+}
+
+/* Pausa mientras el usuario tiene el mouse encima o el foco dentro */
+.toast:hover .toast__progress,
+.toast:focus-within .toast__progress {
+    animation-play-state: paused;
+}
+
+@keyframes toast-progress {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+
+/* ── Variantes ───────────────────────────────────────────────── */
+
+/* success = confirmación */
+.toast--success .toast__icon     { background: var(--bg-success-soft); color: var(--text-fg-success); }
+.toast--success .toast__progress { background: var(--text-fg-success); }
+
+/* error = alerta */
+.toast--error .toast__icon       { background: var(--bg-danger-soft); color: var(--text-fg-danger); }
+.toast--error .toast__progress   { background: var(--text-fg-danger); }
+
+/* warning = alerta (atención) */
+.toast--warning .toast__icon     { background: var(--bg-warning-soft); color: var(--text-fg-warning); }
+.toast--warning .toast__progress { background: var(--text-fg-warning); }
+
+/* info = neutro (marca) */
+.toast--info .toast__icon        { background: var(--bg-info-soft); color: var(--text-fg-brand); }
+.toast--info .toast__progress    { background: var(--text-fg-brand); }
+
+/* Accesibilidad: respeta reduce-motion. La barra de progreso NO se
+   desactiva (es el temporizador del auto-cierre); sólo se suaviza el
+   deslizamiento de entrada/salida. */
+@media (prefers-reduced-motion: reduce) {
+    .toast {
+        transition: opacity .01s linear;
+        transform: none;
+    }
+    .toast.toast--leaving { transform: none; }
+}
+
+/* Mobile: el toast ocupa el ancho disponible, pegado abajo */
+@media (max-width: 640px) {
+    .toast-container {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+        max-width: none;
+    }
+    .toast { min-width: 0; }
+}
