@@ -73,6 +73,7 @@
     </div>
   {% endif %}
 </div>
+{% if modal_edicion %}{% include "programas/dispositivos/config/_edit_modal.html" %}{% endif %}
 {% endblock %}
 
 {% block customJS %}
@@ -99,6 +100,37 @@ document.addEventListener('click', function (event) {
     document.body.appendChild(form);
     form.submit();
   });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  const modal = document.querySelector('[data-edit-modal]');
+  if (!modal) return;
+
+  document.body.style.overflow = 'hidden';
+  const cancelar = () => window.location.assign(modal.dataset.cancelUrl);
+
+  modal.addEventListener('click', function (event) {
+    if (!event.target.closest('[data-edit-modal-panel]')) cancelar();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') cancelar();
+  });
+
+  const primerControl = modal.querySelector(
+    '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
+  );
+  if (primerControl) primerControl.focus();
+
+  const campoForm = modal.querySelector('[data-campo-form]');
+  if (campoForm) {
+    const tipoCampo = campoForm.querySelector('[name=tipo_campo]');
+    const opciones = campoForm.querySelector('[data-opciones]');
+    const actualizarOpciones = () => {
+      opciones.hidden = !['SELECTOR', 'SELECTOR_MULTIPLE'].includes(tipoCampo.value);
+    };
+    tipoCampo.addEventListener('change', actualizarOpciones);
+    actualizarOpciones();
+  }
 });
 </script>
 {% endblock %}

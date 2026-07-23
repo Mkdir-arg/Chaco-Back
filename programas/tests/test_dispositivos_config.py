@@ -216,6 +216,41 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertContains(respuesta, "todavía no tiene campos")
         self.assertContains(respuesta, "Agregar primer campo")
 
+    def test_ediciones_renderizan_modal_sobre_detalle_y_altas_siguen_como_pagina(self):
+        self.client.force_login(self.admin)
+
+        editar_tipo = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk]))
+        self.assertContains(editar_tipo, "data-edit-modal")
+        self.assertContains(editar_tipo, "Editar tipo de dispositivo")
+        self.assertContains(editar_tipo, "Segundo")
+
+        editar_campo = self.client.get(reverse("dispositivos:campo_editar", args=[self.campo.pk]))
+        self.assertContains(editar_campo, "data-edit-modal")
+        self.assertContains(editar_campo, "Editar campo")
+        self.assertContains(editar_campo, 'value="Segundo"')
+
+        nuevo_tipo = self.client.get(reverse("dispositivos:tipo_crear"))
+        nuevo_campo = self.client.get(reverse("dispositivos:campo_crear", args=[self.tipo.pk]))
+        self.assertNotContains(nuevo_tipo, "data-edit-modal")
+        self.assertNotContains(nuevo_campo, "data-edit-modal")
+
+    def test_error_de_edicion_de_campo_permanece_en_modal(self):
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(
+            reverse("dispositivos:campo_editar", args=[self.campo.pk]),
+            {
+                "seccion": "B",
+                "nombre": "Segundo",
+                "tipo_campo": TipoCampo.SELECTOR,
+                "opciones_texto": "",
+                "orden": 2,
+            },
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "data-edit-modal")
+        self.assertContains(respuesta, "Indicá al menos una opción para este tipo de campo.")
+
     def test_usuario_sin_permiso_y_admin_otro_programa_reciben_403(self):
         rutas = [
             ("get", reverse("dispositivos:tipos"), None),
@@ -261,7 +296,14 @@ class ConfiguracionDispositivosViewsTests(TestCase):
             request.resolver_match = None
             return render_to_string("includes/sidebar/opciones.html", {"request": request, "branding": {}})
 
-        self.assertIn("Dispositivos", render(self.admin))
+        contenido = render(self.admin)
+        grupo_dispositivos = contenido.index('<span class="flex-1">Dispositivos</span>')
+        grupo_administracion = contenido.index('<span class="flex-1">Administración</span>')
+        configuracion_dispositivos = contenido.index("Configuración", grupo_dispositivos)
+
+        self.assertLess(grupo_dispositivos, configuracion_dispositivos)
+        self.assertLess(configuracion_dispositivos, grupo_administracion)
+        self.assertNotIn("Dispositivos", contenido[grupo_administracion:])
         self.assertNotIn('href="/dispositivos/config/"', render(self.ajeno))
 
 

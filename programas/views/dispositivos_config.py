@@ -12,6 +12,13 @@ from programas.models import CampoTipoDispositivo, TipoDispositivo
 from programas.services.dispositivos import puede_configurar_dispositivos
 
 
+def _agrupar_campos_por_seccion(tipo):
+    secciones = {}
+    for campo in tipo.campos_configurados.all():
+        secciones.setdefault(campo.seccion, []).append(campo)
+    return list(secciones.items())
+
+
 class ConfigurarDispositivosMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -43,7 +50,14 @@ class TipoDispositivoCreateView(ConfigurarDispositivosMixin, CreateView):
 class TipoDispositivoUpdateView(ConfigurarDispositivosMixin, UpdateView):
     model = TipoDispositivo
     form_class = TipoDispositivoForm
-    template_name = "programas/dispositivos/config/tipo_form.html"
+    template_name = "programas/dispositivos/config/tipo_detail.html"
+    context_object_name = "tipo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["secciones"] = _agrupar_campos_por_seccion(self.object)
+        context["modal_edicion"] = "tipo"
+        return context
 
     def get_success_url(self):
         messages.success(self.request, "Tipo de dispositivo actualizado.")
@@ -57,10 +71,7 @@ class TipoDispositivoDetailView(ConfigurarDispositivosMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        secciones = {}
-        for campo in self.object.campos_configurados.all():
-            secciones.setdefault(campo.seccion, []).append(campo)
-        context["secciones"] = list(secciones.items())
+        context["secciones"] = _agrupar_campos_por_seccion(self.object)
         return context
 
 
@@ -101,7 +112,7 @@ class CampoTipoDispositivoCreateView(ConfigurarDispositivosMixin, CreateView):
 class CampoTipoDispositivoUpdateView(ConfigurarDispositivosMixin, UpdateView):
     model = CampoTipoDispositivo
     form_class = CampoTipoDispositivoForm
-    template_name = "programas/dispositivos/config/campo_form.html"
+    template_name = "programas/dispositivos/config/tipo_detail.html"
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -110,7 +121,10 @@ class CampoTipoDispositivoUpdateView(ConfigurarDispositivosMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["tipo"] = self.object.tipo_dispositivo
+        tipo = self.object.tipo_dispositivo
+        context["tipo"] = tipo
+        context["secciones"] = _agrupar_campos_por_seccion(tipo)
+        context["modal_edicion"] = "campo"
         return context
 
     def get_success_url(self):

@@ -1,0 +1,11 @@
+{% for error in form.non_field_errors %}<div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ error }}</div>{% endfor %}
+{% for field in form %}
+  {% if field.name == "obligatorio" %}
+    <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ field }} {{ field.label }}</label>
+    {% for error in field.errors %}<p class="text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+  {% elif field.name == "opciones_texto" %}
+    <div data-opciones>{% include "programas/dispositivos/config/_field.html" %}</div>
+  {% else %}
+    {% include "programas/dispositivos/config/_field.html" %}
+  {% endif %}
+{% endfor %}
