@@ -1,0 +1,259 @@
+{% extends "includes/base.html" %}
+{% block title %}Dispositivos · {{ tipo.nombre }}{% endblock %}
+
+{% block main-content %}
+<div id="dispositivos-detail-content">
+  {% include "programas/dispositivos/config/_tipo_detail_content.html" %}
+</div>
+<div id="dispositivos-modal-root">
+  {% if modal_edicion %}{% include "programas/dispositivos/config/_edit_modal.html" %}{% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function () {
+  const modalRoot = document.getElementById('dispositivos-modal-root');
+  let triggerEdicion = null;
+  let triggerUrl = null;
+  let aperturaActiva = 0;
+
+  function getCookie(name) {
+    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+
+  function parseResponse(response) {
+    return response.json().catch(function () { return {}; }).then(function (data) {
+      return { status: response.status, data: data };
+    });
+  }
+
+  function showRequestError(result) {
+    const data = result.data || {};
+    if (result.status === 401 && data.redirect) {
+      window.location.assign(data.redirect);
+      return;
+    }
+    if (result.status === 403) {
+      window.toast.error(data.message || 'No tiene permisos para realizar esta acción.');
+      return;
+    }
+    window.toast.error(data.message || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.');
+  }
+
+  function initCampoOptions(modal) {
+    const campoForm = modal.querySelector('[data-campo-form]');
+    if (!campoForm) return;
+    const tipoCampo = campoForm.querySelector('[name=tipo_campo]');
+    const opciones = campoForm.querySelector('[data-opciones]');
+    if (!tipoCampo || !opciones) return;
+
+    const actualizarOpciones = function () {
+      opciones.hidden = !['SELECTOR', 'SELECTOR_MULTIPLE'].includes(tipoCampo.value);
+    };
+    tipoCampo.addEventListener('change', actualizarOpciones);
+    actualizarOpciones();
+  }
+
+  function initModal() {
+    const modal = modalRoot.querySelector('[data-edit-modal]');
+    if (!modal) return;
+
+    triggerUrl = modal.dataset.editUrl || triggerUrl;
+    document.body.style.overflow = 'hidden';
+    initCampoOptions(modal);
+    const firstControl = modal.querySelector(
+      '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
+    );
+    if (firstControl) firstControl.focus();
+  }
+
+  function closeModal() {
+    const modal = modalRoot.querySelector('[data-edit-modal]');
+    if (!modal) return;
+    const cancelUrl = modal.dataset.cancelUrl;
+    modalRoot.replaceChildren();
+    document.body.style.overflow = '';
+    if (cancelUrl && window.location.pathname !== cancelUrl) {
+      window.history.replaceState({}, '', cancelUrl);
+    }
+    const currentTrigger = Array.from(document.querySelectorAll('[data-edit-url]')).find(function (element) {
+      return element.dataset.editUrl === triggerUrl;
+    });
+    if (currentTrigger) currentTrigger.focus();
+    else if (triggerEdicion && document.contains(triggerEdicion)) triggerEdicion.focus();
+  }
+
+  function openModal(trigger) {
+    const requestId = ++aperturaActiva;
+    triggerEdicion = trigger;
+    triggerUrl = trigger.dataset.editUrl;
+    trigger.setAttribute('aria-busy', 'true');
+    trigger.classList.add('pointer-events-none', 'opacity-60');
+
+    fetch(trigger.dataset.editUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(parseResponse).then(function (result) {
+      if (requestId !== aperturaActiva) return;
+      if (result.status >= 200 && result.status < 300 && result.data.ok && typeof result.data.html === 'string') {
+        modalRoot.innerHTML = result.data.html;
+        initModal();
+        return;
+      }
+      showRequestError(result);
+    }).catch(function () {
+      if (requestId === aperturaActiva) window.location.assign(trigger.href);
+    }).finally(function () {
+      trigger.removeAttribute('aria-busy');
+      trigger.classList.remove('pointer-events-none', 'opacity-60');
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    const editLink = event.target.closest('[data-edit-url]');
+    if (editLink) {
+      event.preventDefault();
+      openModal(editLink);
+      return;
+    }
+
+    const closeButton = event.target.closest('[data-modal-close]');
+    if (closeButton) {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+
+    const modal = event.target.closest('[data-edit-modal]');
+    if (modal && !event.target.closest('[data-edit-modal-panel]')) closeModal();
+  });
+
+  document.addEventListener('keydown', function (event) {
+    const modal = modalRoot.querySelector('[data-edit-modal]');
+    if (!modal) return;
+    if (event.key === 'Escape') {
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = Array.from(modal.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(function (element) {
+      return !element.hidden && element.offsetParent !== null;
+    });
+    if (!focusable.length) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!modal.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  document.addEventListener('submit', function (event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
+    event.preventDefault();
+
+    const submittedModal = form.closest('[data-edit-modal]');
+    const isCurrentForm = function () {
+      return submittedModal && modalRoot.contains(submittedModal) && submittedModal.contains(form);
+    };
+    const submitButton = form.querySelector('[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+    form.querySelectorAll('[aria-invalid="true"]').forEach(function (element) {
+      element.removeAttribute('aria-invalid');
+    });
+    form.querySelectorAll('[data-error]').forEach(function (element) {
+      element.textContent = '';
+      element.classList.add('hidden');
+    });
+
+    fetch(form.action, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      credentials: 'same-origin',
+      body: new FormData(form)
+    }).then(parseResponse).then(function (result) {
+      const data = result.data || {};
+      if (result.status >= 200 && result.status < 300 && data.ok) {
+        if (data.target && typeof data.html === 'string') {
+          const target = document.querySelector(data.target);
+          if (target) target.innerHTML = data.html;
+        }
+        if (isCurrentForm()) closeModal();
+        window.toast.success(data.message || 'Guardado.');
+        return;
+      }
+
+      if (result.status === 400 && data.errors) {
+        if (!isCurrentForm()) return;
+        let firstInvalid = null;
+        Object.keys(data.errors).forEach(function (field) {
+          const box = form.querySelector('[data-error="' + field + '"]');
+          if (!box) return;
+          box.textContent = (data.errors[field] || []).join(' ');
+          box.classList.remove('hidden');
+          const control = form.elements.namedItem(field);
+          if (control && typeof control.focus === 'function') {
+            control.setAttribute('aria-invalid', 'true');
+            if (!firstInvalid) firstInvalid = control;
+          }
+        });
+        if (firstInvalid) firstInvalid.focus();
+        window.toast.error(
+          data.errors.__all__ ? data.errors.__all__.join(' ') : 'Revisá los datos del formulario.'
+        );
+        return;
+      }
+      showRequestError(result);
+    }).catch(function () {
+      window.toast.error('Error de red.');
+    }).finally(function () {
+      if (submitButton && submitButton.isConnected) submitButton.disabled = false;
+    });
+  });
+
+  document.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-confirm-url]');
+    if (!button) return;
+    event.preventDefault();
+    Swal.fire({
+      icon: 'warning',
+      title: button.dataset.confirmTitle,
+      text: button.dataset.confirmText,
+      showCancelButton: true,
+      confirmButtonText: button.dataset.confirmOk,
+      cancelButtonText: 'Cancelar'
+    }).then(function (result) {
+      if (!result.isConfirmed) return;
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = button.dataset.confirmUrl;
+      const csrf = document.querySelector('[name=csrfmiddlewaretoken]').cloneNode();
+      form.appendChild(csrf);
+      document.body.appendChild(form);
+      form.submit();
+    });
+  });
+
+  initModal();
+})();
+</script>
+{% endblock %}

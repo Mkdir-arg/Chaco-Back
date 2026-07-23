@@ -1,4 +1,5 @@
-{% load static custom_filters rbac %}
+{% load static custom_filters rbac dispositivos %}
+{% puede_configurar_dispositivos request.user as puede_configurar_dispositivos %}
 {% with pagina_actual=request.resolver_match|getattr:"route" %}
 <div class="flex flex-1 flex-col" style="gap: 0;">
 
@@ -536,6 +537,69 @@
         </div>
         {% endif %}
 
+        {# ── Dispositivos (grupo colapsable) ─────────────────── #}
+        {% if puede_configurar_dispositivos %}
+        <div x-data="{ open: {% if 'dispositivos/config' in pagina_actual %}true{% else %}false{% endif %} }"
+             class="relative" style="margin-bottom: 2px;">
+
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-3 transition-colors duration-150"
+                            style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: 500;
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
+                        </svg>
+                        <span class="flex-1">Dispositivos</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="14" height="14" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform 150ms;"
+                             :style="open ? 'transform: rotate(180deg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        <a href="{% url 'dispositivos:tipos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'dispositivos/config' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'dispositivos/config' in pagina_actual %}aria-current="page"{% endif %}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'dispositivos/config' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M8.25 6.75h7.5m-7.5 3h7.5m-7.5 3h4.5M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z"/>
+                            </svg>
+                            Configuración
+                        </a>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'dispositivos:tipos' %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'dispositivos/config' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   title="Dispositivos"
+                   aria-label="Dispositivos">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="20" height="20" aria-hidden="true"
+                         style="color: {% if 'dispositivos/config' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
+                    </svg>
+                </a>
+            </template>
+        </div>
+        {% endif %}
+
         {# ── Administración (grupo colapsable) ────────────────── #}
         {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
         <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }"
@@ -566,6 +630,7 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        {% if request.user|puede:"usuario.administrar" or request.user|puede:"programa.configurar" %}
                         <a href="{% url 'users:usuarios' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -580,6 +645,8 @@
                             </svg>
                             Usuarios
                         </a>
+                        {% endif %}
+                        {% if request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
                         <a href="{% url 'users:roles' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -594,12 +661,13 @@
                             </svg>
                             Roles
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% url 'users:usuarios' %}"
+                <a href="{% if request.user|puede:'usuario.administrar' or request.user|puede:'programa.configurar' %}{% url 'users:usuarios' %}{% else %}{% url 'users:roles' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"

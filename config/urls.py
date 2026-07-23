@@ -29,6 +29,7 @@ urlpatterns = [
     path("conversaciones/", include("conversaciones.urls")),
     path("portal/", include("portal.urls")),
     path("becas/", include("programas.urls")),
+    path("dispositivos/", include("programas.dispositivos_urls")),
     # Root paths last
     path("", include("django.contrib.auth.urls")),
     path("", include(("users.urls", "users"), namespace="users")),
