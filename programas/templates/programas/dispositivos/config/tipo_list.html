@@ -1,0 +1,65 @@
+{% extends "includes/base.html" %}
+{% block title %}Dispositivos · Configuración{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>
+      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Tipos de dispositivo</h1>
+      <p class="text-sm text-body-subtle mt-1.5">Configurá cada modalidad y los campos propios de su formulario.</p>
+    </div>
+    <a href="{% url 'dispositivos:tipo_crear' %}" class="btn-nodo btn-brand btn-base">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path stroke-linecap="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      Nuevo tipo
+    </a>
+  </div>
+
+  <div class="rounded-xl border border-base shadow-sm overflow-hidden" style="background:var(--bg-primary)">
+    {% if tipos %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead style="background:var(--bg-secondary)">
+            <tr class="text-left text-body-subtle">
+              <th class="px-5 py-3 font-semibold">Tipo</th>
+              <th class="px-5 py-3 font-semibold">Código</th>
+              <th class="px-5 py-3 font-semibold">Maneja camas</th>
+              <th class="px-5 py-3 font-semibold">Campos</th>
+              <th class="px-5 py-3 font-semibold">Estado</th>
+              <th class="px-5 py-3 text-right"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            {% for tipo in tipos %}
+              <tr>
+                <td class="px-5 py-4">
+                  <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="font-semibold text-heading hover:text-fg-brand">{{ tipo.nombre }}</a>
+                  {% if tipo.descripcion %}<p class="text-xs text-body-subtle mt-1">{{ tipo.descripcion|truncatechars:90 }}</p>{% endif %}
+                </td>
+                <td class="px-5 py-4 font-mono text-xs text-body">{{ tipo.codigo }}</td>
+                <td class="px-5 py-4 text-body">{% if tipo.maneja_camas %}Sí{% else %}No{% endif %}</td>
+                <td class="px-5 py-4 text-body">{{ tipo.cantidad_campos }}</td>
+                <td class="px-5 py-4">
+                  <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {% if tipo.activo %}bg-success-soft text-fg-success{% else %}bg-secondary text-body-subtle{% endif %}">
+                    {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
+                  </span>
+                </td>
+                <td class="px-5 py-4 text-right">
+                  <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="btn-nodo btn-secondary btn-sm">Configurar</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="px-6 py-14 text-center">
+        <h2 class="font-bold text-heading">Todavía no hay tipos configurados</h2>
+        <p class="text-sm text-body-subtle mt-1">Creá el primero o ejecutá la carga inicial documentada.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

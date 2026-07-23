@@ -152,15 +152,17 @@
 | 2026-07-17 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
 | 2026-07-20 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
 | 2026-07-21 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-23 | Juani Portilla | Dispositivos | D-01 — modelos base (#173) | Implementación de los modelos base y migraciones del Programa Dispositivos. | 120 min |
+| 2026-07-23 | Juani Portilla | Dispositivos | D-02 — configuración de tipos y campos F-00 (#174) | Configuración administrable de tipos de dispositivo y campos dinámicos del F-00. | 480 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
 | Becas | 92 h 38 min |
-| Dispositivos | 16 h 0 min |
+| Dispositivos | 26 h 0 min |
 | Transversal | 15 h 30 min |
-| **Total julio 2026 (al 21/07)** | **124 h 08 min** |
+| **Total julio 2026 (al 23/07)** | **134 h 08 min** |
 
 ---
 
@@ -188,7 +190,7 @@
 
 !!! success "Contador total"
 
-    **37.400 minutos** (623 h 20 min)
+    **38.000 minutos** (633 h 20 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 21/07): **7.448 min (124 h 08 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 23/07): **8.048 min (134 h 08 min)**
     

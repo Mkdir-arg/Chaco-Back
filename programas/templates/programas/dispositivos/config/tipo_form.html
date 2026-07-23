@@ -1,0 +1,31 @@
+{% extends "includes/base.html" %}
+{% block title %}Dispositivos · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} tipo{% endblock %}
+
+{% block main-content %}
+<div class="max-w-3xl mx-auto">
+  <a href="{% if form.instance.pk %}{% url 'dispositivos:tipo_detalle' form.instance.pk %}{% else %}{% url 'dispositivos:tipos' %}{% endif %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver</a>
+  <div class="mt-4 mb-6">
+    <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>
+    <h1 class="text-3xl font-extrabold text-heading tracking-tight">
+      {% if form.instance.pk %}Editar tipo de dispositivo{% else %}Nuevo tipo de dispositivo{% endif %}
+    </h1>
+  </div>
+
+  <form method="post" class="rounded-xl border border-base shadow-sm p-6 space-y-5" style="background:var(--bg-primary)">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ error }}</div>{% endfor %}
+    {% for field in form %}
+      {% if field.name == "maneja_camas" or field.name == "activo" %}
+        <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ field }} {{ field.label }}</label>
+        {% for error in field.errors %}<p class="text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+      {% else %}
+        {% include "programas/dispositivos/config/_field.html" %}
+      {% endif %}
+    {% endfor %}
+    <div class="flex justify-end gap-3 pt-4 border-t border-light">
+      <a href="{% if form.instance.pk %}{% url 'dispositivos:tipo_detalle' form.instance.pk %}{% else %}{% url 'dispositivos:tipos' %}{% endif %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar tipo</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

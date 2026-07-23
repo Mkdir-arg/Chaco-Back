@@ -715,6 +715,42 @@ class TipoCampo(models.TextChoices):
     ARCHIVO = "ARCHIVO", "Archivo adjunto"
 
 
+class CampoTipoDispositivo(TimeStamped):
+    """Campo configurable del formulario propio de un tipo de dispositivo."""
+
+    tipo_dispositivo = models.ForeignKey(
+        TipoDispositivo,
+        on_delete=models.CASCADE,
+        related_name="campos_configurados",
+        verbose_name="Tipo de dispositivo",
+    )
+    seccion = models.CharField(max_length=200, verbose_name="Sección")
+    nombre = models.CharField(max_length=240, verbose_name="Nombre")
+    tipo_campo = models.CharField(max_length=20, choices=TipoCampo.choices, verbose_name="Tipo de campo")
+    opciones = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="Opciones",
+        help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
+    )
+    obligatorio = models.BooleanField(default=False, verbose_name="Obligatorio")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Campo de tipo de dispositivo"
+        verbose_name_plural = "Campos de tipos de dispositivo"
+        ordering = ["orden", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tipo_dispositivo", "seccion", "nombre"],
+                name="uniq_campo_tipo_dispositivo_seccion_nombre",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
+
+
 class Segmento(TimeStamped):
     """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2)."""
 

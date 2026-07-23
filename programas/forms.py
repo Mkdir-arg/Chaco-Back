@@ -1,4 +1,4 @@
-"""Formularios del backoffice del Programa Becas (#74 / #76)."""
+"""Formularios del backoffice de Programas."""
 
 from django import forms
 from django.contrib.auth.models import User
@@ -8,6 +8,7 @@ from django.utils.dateparse import parse_date
 
 from programas.models import (
     AsignacionCoordinador,
+    CampoTipoDispositivo,
     Convocatoria,
     Formulario,
     PreguntaGlobal,
@@ -16,6 +17,7 @@ from programas.models import (
     Segmento,
     Subsegmento,
     TipoCampo,
+    TipoDispositivo,
 )
 from programas.services.becas import es_menor
 
@@ -131,6 +133,7 @@ class _OpcionesMixin(forms.ModelForm):
         help_text="Solo para Selector / Selector múltiple.",
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 4}),
     )
+    tipo_field_name = "tipo"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -139,7 +142,7 @@ class _OpcionesMixin(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        tipo = cleaned.get("tipo")
+        tipo = cleaned.get(self.tipo_field_name)
         texto = (cleaned.get("opciones_texto") or "").strip()
         if tipo in (TipoCampo.SELECTOR, TipoCampo.SELECTOR_MULTIPLE):
             opciones = [linea.strip() for linea in texto.splitlines() if linea.strip()]
@@ -153,6 +156,39 @@ class _OpcionesMixin(forms.ModelForm):
     def save(self, commit=True):
         self.instance.opciones = self.cleaned_data.get("_opciones")
         return super().save(commit=commit)
+
+
+class TipoDispositivoForm(forms.ModelForm):
+    class Meta:
+        model = TipoDispositivo
+        fields = ["codigo", "nombre", "descripcion", "maneja_camas", "activo"]
+        widgets = {
+            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "descripcion": _text_widget(rows=3),
+            "maneja_camas": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+        }
+
+
+class CampoTipoDispositivoForm(_OpcionesMixin):
+    tipo_field_name = "tipo_campo"
+
+    class Meta:
+        model = CampoTipoDispositivo
+        fields = ["seccion", "nombre", "tipo_campo", "obligatorio", "orden"]
+        widgets = {
+            "seccion": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "tipo_campo": forms.Select(attrs={"class": INPUT_CLASS}),
+            "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+        }
+
+    def __init__(self, *args, tipo_dispositivo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if tipo_dispositivo is not None:
+            self.instance.tipo_dispositivo = tipo_dispositivo
 
 
 class PreguntaGlobalForm(_OpcionesMixin):
