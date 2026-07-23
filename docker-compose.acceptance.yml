@@ -1,0 +1,30 @@
+x-automation-labels: &automation-labels
+  com.mkdirarg.chaco.automation.plan-id: ${CHACO_PLAN_ID:?CHACO_PLAN_ID is required}
+  com.mkdirarg.chaco.automation.unit-id: ${CHACO_UNIT_ID:?CHACO_UNIT_ID is required}
+  com.mkdirarg.chaco.automation.head-sha: ${CHACO_HEAD_SHA:?CHACO_HEAD_SHA is required}
+
+services:
+  mysql:
+    ports: !reset []
+    labels:
+      <<: *automation-labels
+
+  redis:
+    ports: !reset []
+    labels:
+      <<: *automation-labels
+
+  app:
+    build:
+      context: .
+      labels:
+        org.opencontainers.image.revision: ${CHACO_HEAD_SHA:?CHACO_HEAD_SHA is required}
+    image: chaco-acceptance:${CHACO_HEAD_SHA:?CHACO_HEAD_SHA is required}
+    environment:
+      RENAPER_TEST_MODE: "True"
+      LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS: ""
+    ports: !override
+      - "127.0.0.1:8000:8000"
+    volumes: !reset []
+    labels:
+      <<: *automation-labels

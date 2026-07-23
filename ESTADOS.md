@@ -7,8 +7,10 @@
 > `PM.md` (PM Assistant). Si algo cambia, se cambia acá.
 >
 > **Regla madre, siempre vigente:** los agentes NO mueven items entre estados.
-> **Solo el PM humano mueve las tareas.** Este archivo le da al PM las reglas
-> para mover, y a `/pm:salud` las reglas para auditar.
+> **Solo el PM humano mueve las tareas**, salvo la excepción automática acotada
+> y expresamente autorizada en este archivo para la tarea programada de Codex
+> "Trabajo diario asignado en Chaco". Este archivo define ambos casos y le da a
+> `/pm:salud` las reglas para auditar.
 
 ## Estados disponibles
 
@@ -28,7 +30,7 @@ Backlog → Ready → In progress → In review → In QA → Done
 |---|---|---|
 | Backlog | Creada por el Analista, todavía no es elegible para desarrollar | — (puede no tener) |
 | Ready | Cumple el gate de Ready; un dev puede tomarla | El dev que la va a hacer |
-| In progress | Se está desarrollando | El dev |
+| In progress | Se está desarrollando; excepcionalmente, una Task con Plan de grupo válido puede estar reservada esperando decisión, todavía sin código | El dev |
 | In review | PR abierta, en revisión | El dev (autor del PR) |
 | In QA | PR mergeada; se están ejecutando los casos de prueba | Quien ejecuta las pruebas |
 | Done | Todos los casos pasan y los criterios de aprobación están tildados | — |
@@ -39,7 +41,7 @@ Backlog → Ready → In progress → In review → In QA → Done
 | Transición | Condiciones (todas) |
 |---|---|
 | Backlog → Ready | Análisis de origen en `Definido` · `EstimacionHoras` cargada · **sección `## Casos de prueba (QA)` presente** · exactamente **un** assignee · Prioridad y Modulo cargados |
-| Ready → In progress | El assignee empezó a trabajarla |
+| Ready → In progress | El assignee empezó a trabajarla, o la automatización acotada persistió y reservó un Plan de grupo válido |
 | In progress → In review | PR abierta y vinculada a la task |
 | In review → In QA | PR aprobada y **mergeada** |
 | In QA → Done | Todos los `TC-*` con `- [x] Pasa` · checklist de criterios de aprobación completa |
@@ -91,7 +93,7 @@ Backlog → In progress → In QA → Done
 | Estado | Significa |
 |---|---|
 | Backlog | Requerimiento consolidado; el desarrollo de sus tasks no arrancó |
-| In progress | Al menos una task de la épica está en desarrollo (In progress/In review) |
+| In progress | Al menos una task de la épica salió de Ready, incluida una reserva automática válida |
 | In QA | **La funcionalidad completa está en prueba integral**: las tasks están mergeadas y se está ejecutando el `[PLAN DE PRUEBAS]` |
 | Done | Plan de pruebas ejecutado y pasando; la funcionalidad quedó entregada |
 
@@ -99,12 +101,37 @@ Backlog → In progress → In QA → Done
 
 | Transición | Condiciones |
 |---|---|
-| Backlog → In progress | Alguna task de la épica salió de Ready |
+| Backlog → In progress | Alguna task de la épica salió de Ready, incluida una reserva automática válida |
 | In progress → In QA | Todas las tasks del alcance en Done o In QA · `[PLAN DE PRUEBAS]` creado |
 | In QA → Done | Todos los casos del plan (incl. `TC-E2E-*`) con `- [x] Pasa` |
 
 No pasa por Ready ni In review (no es una unidad de desarrollo). El assignee en
 In QA es **quien ejecuta la prueba integral**.
+
+### Excepción automática acotada — Trabajo diario asignado en Chaco
+
+Por autorización expresa del PM humano, únicamente la tarea programada definida en
+`docs/plans/2026-07-22-chaco-trabajo-diario-codex-design.md` puede mover items de sus
+propios Planes de grupo válidos. No aplica al rol Analista, a otros agentes ni a una
+sesión genérica de Codex.
+
+Transiciones permitidas:
+
+| Tipo | Transición | Gate adicional obligatorio |
+|---|---|---|
+| Task | Ready → In progress | Comentario canónico del Plan de grupo y referencias persistidos; ocurre antes de pedir autorización y no implica código iniciado |
+| Task | In progress → Ready | Rechazo o compensación de una reserva propia, sin código funcional activo y sin otra reserva vencedora |
+| Task | In progress → Blocked | Bloqueo externo verificado, documentado y repetido después de un reintento cuando corresponda |
+| Task | Blocked → In progress | La causa externa desapareció y la unidad sigue autorizada o reservada válidamente |
+| Task | In progress → In review | PR listo, validación proporcional aprobada, dos revisiones independientes limpias y CI aplicable válida sobre el head y la base actuales |
+| Requerimiento | Backlog → In progress | Se reservó su primera Task vinculada; si no existe Requerimiento para la épica no se crea, y si el vínculo es ambiguo, inválido o no incluye el análisis de la Task no se mueve nada hasta reconciliar |
+| Requerimiento | In progress → Backlog | La automatización era propietaria del movimiento, se deshizo su última reserva, no existe unidad o PR activo y ninguna Task vinculada está en In progress, Blocked, In review, In QA o Done |
+
+El comentario y los Eventos del plan distinguen una **reserva esperando decisión**
+de una **implementación activa**. Cada transición es idempotente, conserva ownership
+y se compensa solo si no perjudica otra reserva válida. La automatización nunca mueve
+Requerimientos a In QA o Done ni realiza ninguna transición no listada; todo lo demás
+continúa reservado al PM humano.
 
 ### Plan de pruebas (`[PLAN DE PRUEBAS]`, Tipo `Testing`)
 
@@ -148,8 +175,11 @@ verifica las violaciones de esta máquina:
 - Épicas en estados intermedios (Ready/In progress/In review/In QA): son
   agrupadores, solo Backlog o Done.
 - `[REQUERIMIENTO]` **desincronizado** de sus tasks: en Backlog con tasks ya en
-  desarrollo; en In QA sin `[PLAN DE PRUEBAS]` o con tasks sin terminar; en Done
+  desarrollo o reservadas; en In progress sin tasks que hayan salido de Ready ni una
+  reserva válida; en In QA sin `[PLAN DE PRUEBAS]` o con tasks sin terminar; en Done
   con casos del plan sin pasar. (En Ready o In review: estado inválido.)
+- Tasks en In progress como reserva automática sin comentario canónico y evento de
+  reserva válidos.
 - `[PLAN DE PRUEBAS]` en estados de flujo (solo Backlog o Done).
 - Items Blocked sin comentario de causa o bloqueados hace más de 7 días.
 - Tasks In QA cuyo `- [ ] Pasa` no avanza hace más de 5 días.

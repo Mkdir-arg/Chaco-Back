@@ -180,7 +180,8 @@ TIPO_FIELD=PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE      # Epica=abc63c47 · Analisis=3dab
 
 > La **semántica de los estados** (qué significa cada Status según el Tipo, gates
 > para mover y reglas de assignees) está en **`ESTADOS.md`** (raíz). Los agentes
-> crean en Backlog y no mueven; los gates son para el PM humano y `/pm:salud`.
+> crean en Backlog y no mueven; los gates son para el PM humano y `/pm:salud`, salvo
+> la excepción automática acotada documentada abajo.
 
 ### Por cada issue (épica, análisis y cada sub-issue)
 ```bash
@@ -246,7 +247,29 @@ gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
 
 ### Regla de movimiento
 Solo se **crean** issues y se dejan en **Backlog**. **No se mueven** tareas entre
-estados/columnas. **Solo el PM mueve las tareas.**
+estados/columnas. **Solo el PM mueve las tareas.** Esta regla sigue aplicando al
+Analista y a cualquier agente genérico.
+
+#### Excepción exclusiva: tarea programada "Trabajo diario asignado en Chaco"
+
+Únicamente la automatización definida en
+`docs/plans/2026-07-22-chaco-trabajo-diario-codex-design.md`, sobre items que tengan
+su marcador de Plan de grupo válido, puede ejecutar estas transiciones:
+
+- Task Ready → In progress al reservar antes de pedir autorización.
+- Task In progress → Ready al rechazar o compensar una reserva sin código funcional.
+- Task In progress ↔ Blocked ante un bloqueo externo verificado y documentado.
+- Task In progress → In review después del gate reforzado de validación, revisión y CI.
+- Requerimiento Backlog → In progress al reservar su primera Task vinculada.
+- Requerimiento In progress → Backlog solo al deshacer la última reserva propia, sin
+  Tasks más allá de Ready ni trabajo o PR activo.
+
+No crea Requerimientos faltantes, no adivina vínculos ambiguos o inconsistentes y nunca
+mueve un Requerimiento a In QA o Done. Si existe uno para la épica pero no contiene el
+análisis de la Task, exige reconciliarlo antes de reservar. Todos los gates, ownership,
+compensaciones y reglas de idempotencia están en `ESTADOS.md` y en el diseño. Cualquier
+transición restante sigue reservada al PM humano; esta excepción no habilita al
+Analista a implementar código ni a abrir PRs.
 
 ## Publicar documentación pública (docs/client)
 
