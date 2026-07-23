@@ -2,135 +2,239 @@
 {% block title %}Dispositivos · {{ tipo.nombre }}{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
-  <a href="{% url 'dispositivos:tipos' %}" class="text-sm text-body-subtle hover:text-fg-brand">← Tipos de dispositivo</a>
-  <div class="flex items-start justify-between gap-4 flex-wrap mt-4 mb-6">
-    <div>
-      <div class="flex items-center gap-2">
-        <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">{{ tipo.nombre }}</h1>
-        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {% if tipo.activo %}bg-success-soft text-fg-success{% else %}bg-secondary text-body-subtle{% endif %}">
-          {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
-        </span>
-      </div>
-      <p class="text-sm text-body-subtle mt-1.5">{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}</p>
-    </div>
-    <div class="flex gap-2 flex-wrap">
-      <a href="{% url 'dispositivos:tipo_editar' tipo.pk %}" class="btn-nodo btn-secondary btn-base">Editar tipo</a>
-      <button type="button"
-              class="btn-nodo {% if tipo.activo %}btn-tertiary{% else %}btn-secondary{% endif %} btn-base"
-              data-confirm-url="{% url 'dispositivos:tipo_toggle' tipo.pk %}"
-              data-confirm-title="{% if tipo.activo %}Desactivar tipo{% else %}Activar tipo{% endif %}"
-              data-confirm-text="{% if tipo.activo %}El tipo dejará de estar disponible para nuevas operaciones.{% else %}El tipo volverá a estar disponible.{% endif %}"
-              data-confirm-ok="{% if tipo.activo %}Sí, desactivar{% else %}Sí, activar{% endif %}">
-        {% if tipo.activo %}Desactivar{% else %}Activar{% endif %}
-      </button>
-      <a href="{% url 'dispositivos:campo_crear' tipo.pk %}" class="btn-nodo btn-brand btn-base">Agregar campo</a>
-    </div>
-  </div>
-
-  <form class="hidden">{% csrf_token %}</form>
-  {% if secciones %}
-    <div class="space-y-5">
-      {% for seccion, campos in secciones %}
-        <section class="rounded-xl border border-base shadow-sm overflow-hidden" style="background:var(--bg-primary)">
-          <div class="px-5 py-4 border-b border-light flex items-center justify-between" style="background:var(--bg-secondary)">
-            <h2 class="font-bold text-heading">{{ seccion }}</h2>
-            <span class="text-xs text-body-subtle">{{ campos|length }} campo{{ campos|length|pluralize }}</span>
-          </div>
-          <div class="divide-y divide-border">
-            {% for campo in campos %}
-              <div class="px-5 py-4 flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <p class="font-semibold text-heading">{{ campo.nombre }}</p>
-                    {% if campo.obligatorio %}<span class="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-info-soft text-fg-info">Obligatorio</span>{% endif %}
-                  </div>
-                  <p class="text-xs text-body-subtle mt-1">
-                    {{ campo.get_tipo_campo_display }} · orden {{ campo.orden }}
-                    {% if campo.opciones %} · {{ campo.opciones|join:", " }}{% endif %}
-                  </p>
-                </div>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  <a href="{% url 'dispositivos:campo_editar' campo.pk %}" class="btn-nodo btn-tertiary btn-sm">Editar</a>
-                  <button type="button"
-                          class="btn-nodo btn-tertiary btn-sm text-fg-danger"
-                          data-confirm-url="{% url 'dispositivos:campo_eliminar' campo.pk %}"
-                          data-confirm-title="Eliminar campo"
-                          data-confirm-text="Se eliminará “{{ campo.nombre|escapejs }}”. Esta acción no se puede deshacer."
-                          data-confirm-ok="Sí, eliminar">Eliminar</button>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </section>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="rounded-xl border border-base p-12 text-center" style="background:var(--bg-primary)">
-      <h2 class="font-bold text-heading">Este tipo todavía no tiene campos</h2>
-      <p class="text-sm text-body-subtle mt-1 mb-4">Agregalos manualmente o ejecutá la carga inicial.</p>
-      <a href="{% url 'dispositivos:campo_crear' tipo.pk %}" class="btn-nodo btn-brand btn-base">Agregar primer campo</a>
-    </div>
-  {% endif %}
+<div id="dispositivos-detail-content">
+  {% include "programas/dispositivos/config/_tipo_detail_content.html" %}
 </div>
-{% if modal_edicion %}{% include "programas/dispositivos/config/_edit_modal.html" %}{% endif %}
+<div id="dispositivos-modal-root">
+  {% if modal_edicion %}{% include "programas/dispositivos/config/_edit_modal.html" %}{% endif %}
+</div>
 {% endblock %}
 
 {% block customJS %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-document.addEventListener('click', function (event) {
-  const button = event.target.closest('[data-confirm-url]');
-  if (!button) return;
-  event.preventDefault();
-  Swal.fire({
-    icon: 'warning',
-    title: button.dataset.confirmTitle,
-    text: button.dataset.confirmText,
-    showCancelButton: true,
-    confirmButtonText: button.dataset.confirmOk,
-    cancelButtonText: 'Cancelar'
-  }).then((result) => {
-    if (!result.isConfirmed) return;
-    const form = document.createElement('form');
-    form.method = 'post';
-    form.action = button.dataset.confirmUrl;
-    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').cloneNode();
-    form.appendChild(csrf);
-    document.body.appendChild(form);
-    form.submit();
-  });
-});
+(function () {
+  const modalRoot = document.getElementById('dispositivos-modal-root');
+  let triggerEdicion = null;
+  let triggerUrl = null;
+  let aperturaActiva = 0;
 
-document.addEventListener('DOMContentLoaded', function () {
-  const modal = document.querySelector('[data-edit-modal]');
-  if (!modal) return;
+  function getCookie(name) {
+    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
 
-  document.body.style.overflow = 'hidden';
-  const cancelar = () => window.location.assign(modal.dataset.cancelUrl);
+  function parseResponse(response) {
+    return response.json().catch(function () { return {}; }).then(function (data) {
+      return { status: response.status, data: data };
+    });
+  }
 
-  modal.addEventListener('click', function (event) {
-    if (!event.target.closest('[data-edit-modal-panel]')) cancelar();
-  });
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') cancelar();
-  });
+  function showRequestError(result) {
+    const data = result.data || {};
+    if (result.status === 403) {
+      window.toast.error(data.message || 'No tiene permisos para realizar esta acción.');
+      return;
+    }
+    window.toast.error(data.message || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.');
+  }
 
-  const primerControl = modal.querySelector(
-    '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
-  );
-  if (primerControl) primerControl.focus();
-
-  const campoForm = modal.querySelector('[data-campo-form]');
-  if (campoForm) {
+  function initCampoOptions(modal) {
+    const campoForm = modal.querySelector('[data-campo-form]');
+    if (!campoForm) return;
     const tipoCampo = campoForm.querySelector('[name=tipo_campo]');
     const opciones = campoForm.querySelector('[data-opciones]');
-    const actualizarOpciones = () => {
+    if (!tipoCampo || !opciones) return;
+
+    const actualizarOpciones = function () {
       opciones.hidden = !['SELECTOR', 'SELECTOR_MULTIPLE'].includes(tipoCampo.value);
     };
     tipoCampo.addEventListener('change', actualizarOpciones);
     actualizarOpciones();
   }
-});
+
+  function initModal() {
+    const modal = modalRoot.querySelector('[data-edit-modal]');
+    if (!modal) return;
+
+    triggerUrl = modal.dataset.editUrl || triggerUrl;
+    document.body.style.overflow = 'hidden';
+    initCampoOptions(modal);
+    const firstControl = modal.querySelector(
+      '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
+    );
+    if (firstControl) firstControl.focus();
+  }
+
+  function closeModal() {
+    const modal = modalRoot.querySelector('[data-edit-modal]');
+    if (!modal) return;
+    const cancelUrl = modal.dataset.cancelUrl;
+    modalRoot.replaceChildren();
+    document.body.style.overflow = '';
+    if (cancelUrl && window.location.pathname !== cancelUrl) {
+      window.history.replaceState({}, '', cancelUrl);
+    }
+    const currentTrigger = Array.from(document.querySelectorAll('[data-edit-url]')).find(function (element) {
+      return element.dataset.editUrl === triggerUrl;
+    });
+    if (currentTrigger) currentTrigger.focus();
+    else if (triggerEdicion && document.contains(triggerEdicion)) triggerEdicion.focus();
+  }
+
+  function openModal(trigger) {
+    const requestId = ++aperturaActiva;
+    triggerEdicion = trigger;
+    triggerUrl = trigger.dataset.editUrl;
+    trigger.setAttribute('aria-busy', 'true');
+    trigger.classList.add('pointer-events-none', 'opacity-60');
+
+    fetch(trigger.dataset.editUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(parseResponse).then(function (result) {
+      if (requestId !== aperturaActiva) return;
+      if (result.status >= 200 && result.status < 300 && result.data.ok && typeof result.data.html === 'string') {
+        modalRoot.innerHTML = result.data.html;
+        initModal();
+        return;
+      }
+      showRequestError(result);
+    }).catch(function () {
+      if (requestId === aperturaActiva) window.location.assign(trigger.href);
+    }).finally(function () {
+      trigger.removeAttribute('aria-busy');
+      trigger.classList.remove('pointer-events-none', 'opacity-60');
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    const editLink = event.target.closest('[data-edit-url]');
+    if (editLink) {
+      event.preventDefault();
+      openModal(editLink);
+      return;
+    }
+
+    const closeButton = event.target.closest('[data-modal-close]');
+    if (closeButton) {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+
+    const modal = event.target.closest('[data-edit-modal]');
+    if (modal && !event.target.closest('[data-edit-modal-panel]')) closeModal();
+  });
+
+  document.addEventListener('keydown', function (event) {
+    const modal = modalRoot.querySelector('[data-edit-modal]');
+    if (!modal) return;
+    if (event.key === 'Escape') {
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = Array.from(modal.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(function (element) {
+      return !element.hidden && element.offsetParent !== null;
+    });
+    if (!focusable.length) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!modal.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  document.addEventListener('submit', function (event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
+    event.preventDefault();
+
+    const submitButton = form.querySelector('[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+    form.querySelectorAll('[data-error]').forEach(function (element) {
+      element.textContent = '';
+      element.classList.add('hidden');
+    });
+
+    fetch(form.action, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      credentials: 'same-origin',
+      body: new FormData(form)
+    }).then(parseResponse).then(function (result) {
+      const data = result.data || {};
+      if (result.status >= 200 && result.status < 300 && data.ok) {
+        if (data.target && typeof data.html === 'string') {
+          const target = document.querySelector(data.target);
+          if (target) target.innerHTML = data.html;
+        }
+        closeModal();
+        window.toast.success(data.message || 'Guardado.');
+        return;
+      }
+
+      if (result.status === 400 && data.errors) {
+        Object.keys(data.errors).forEach(function (field) {
+          const box = form.querySelector('[data-error="' + field + '"]');
+          if (!box) return;
+          box.textContent = (data.errors[field] || []).join(' ');
+          box.classList.remove('hidden');
+        });
+        window.toast.error(
+          data.errors.__all__ ? data.errors.__all__.join(' ') : 'Revisá los datos del formulario.'
+        );
+        return;
+      }
+      showRequestError(result);
+    }).catch(function () {
+      window.toast.error('Error de red.');
+    }).finally(function () {
+      if (submitButton) submitButton.disabled = false;
+    });
+  });
+
+  document.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-confirm-url]');
+    if (!button) return;
+    event.preventDefault();
+    Swal.fire({
+      icon: 'warning',
+      title: button.dataset.confirmTitle,
+      text: button.dataset.confirmText,
+      showCancelButton: true,
+      confirmButtonText: button.dataset.confirmOk,
+      cancelButtonText: 'Cancelar'
+    }).then(function (result) {
+      if (!result.isConfirmed) return;
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = button.dataset.confirmUrl;
+      const csrf = document.querySelector('[name=csrfmiddlewaretoken]').cloneNode();
+      form.appendChild(csrf);
+      document.body.appendChild(form);
+      form.submit();
+    });
+  });
+
+  initModal();
+})();
 </script>
 {% endblock %}

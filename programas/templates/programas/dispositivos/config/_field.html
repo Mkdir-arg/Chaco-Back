@@ -4,5 +4,6 @@
   </label>
   {{ field }}
   {% if field.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ field.help_text }}</p>{% endif %}
-  {% for error in field.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+  <p class="mt-1 text-xs text-fg-danger{% if not field.errors %} hidden{% endif %}"
+     data-error="{{ field.name }}">{{ field.errors|join:" " }}</p>
 </div>

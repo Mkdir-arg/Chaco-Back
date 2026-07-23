@@ -1,5 +1,6 @@
 <div class="fixed inset-0 z-50 overflow-y-auto bg-black/55 backdrop-blur-sm"
      data-edit-modal
+     data-edit-url="{{ modal_action }}"
      data-cancel-url="{% url 'dispositivos:tipo_detalle' tipo.pk %}">
   <div class="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-6">
     <section role="dialog"
@@ -17,10 +18,16 @@
         </div>
         <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
            class="btn-nodo btn-tertiary btn-sm"
+           data-modal-close
            aria-label="Cerrar edición">Cerrar</a>
       </header>
 
-      <form method="post" class="flex min-h-0 flex-1 flex-col" {% if modal_edicion == "campo" %}data-campo-form{% endif %}>
+      <form method="post"
+            action="{{ modal_action }}"
+            class="flex min-h-0 flex-1 flex-col"
+            data-ajax
+            data-reset="false"
+            {% if modal_edicion == "campo" %}data-campo-form{% endif %}>
         {% csrf_token %}
         <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
           {% if modal_edicion == "tipo" %}
@@ -31,7 +38,9 @@
         </div>
         <footer class="flex flex-col-reverse gap-3 border-t border-light px-5 py-4 sm:flex-row sm:justify-end sm:px-6"
                 style="background:var(--bg-secondary)">
-          <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+          <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
+             class="btn-nodo btn-tertiary btn-base"
+             data-modal-close>Cancelar</a>
           <button type="submit" class="btn-nodo btn-brand btn-base">
             {% if modal_edicion == "tipo" %}Guardar tipo{% else %}Guardar campo{% endif %}
           </button>

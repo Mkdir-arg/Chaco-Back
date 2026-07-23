@@ -219,10 +219,18 @@ class ConfiguracionDispositivosViewsTests(TestCase):
     def test_ediciones_renderizan_modal_sobre_detalle_y_altas_siguen_como_pagina(self):
         self.client.force_login(self.admin)
 
+        detalle = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]))
+        self.assertContains(detalle, "data-edit-url")
+
         editar_tipo = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk]))
         self.assertContains(editar_tipo, "data-edit-modal")
         self.assertContains(editar_tipo, "Editar tipo de dispositivo")
         self.assertContains(editar_tipo, "Segundo")
+        self.assertContains(
+            editar_tipo,
+            f'href="{reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])}"',
+            count=2,
+        )
 
         editar_campo = self.client.get(reverse("dispositivos:campo_editar", args=[self.campo.pk]))
         self.assertContains(editar_campo, "data-edit-modal")
@@ -233,6 +241,120 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         nuevo_campo = self.client.get(reverse("dispositivos:campo_crear", args=[self.tipo.pk]))
         self.assertNotContains(nuevo_tipo, "data-edit-modal")
         self.assertNotContains(nuevo_campo, "data-edit-modal")
+
+    def test_get_ajax_de_ediciones_devuelve_solo_el_modal(self):
+        self.client.force_login(self.admin)
+
+        casos = [
+            (
+                reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
+                "Editar tipo de dispositivo",
+            ),
+            (
+                reverse("dispositivos:campo_editar", args=[self.campo.pk]),
+                "Editar campo",
+            ),
+        ]
+        for ruta, titulo in casos:
+            with self.subTest(ruta=ruta):
+                respuesta = self.client.get(
+                    ruta,
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                )
+                self.assertEqual(respuesta.status_code, 200)
+                data = respuesta.json()
+                self.assertTrue(data["ok"])
+                self.assertIn("data-edit-modal", data["html"])
+                self.assertIn("data-ajax", data["html"])
+                self.assertIn(f'action="{ruta}"', data["html"])
+                self.assertIn(titulo, data["html"])
+                self.assertNotIn("<!DOCTYPE html>", data["html"])
+
+    def test_post_ajax_actualiza_tipo_y_devuelve_parcial_del_detalle(self):
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(
+            reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
+            {
+                "codigo": "TEST",
+                "nombre": "Tipo actualizado sin recarga",
+                "descripcion": "Actualizado por AJAX",
+                "activo": "on",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        data = respuesta.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["target"], "#dispositivos-detail-content")
+        self.assertIn("Tipo actualizado sin recarga", data["html"])
+        self.assertIn("Actualizado por AJAX", data["html"])
+        self.assertIn("data-edit-url", data["html"])
+        self.tipo.refresh_from_db()
+        self.assertEqual(self.tipo.nombre, "Tipo actualizado sin recarga")
+
+    def test_post_ajax_actualiza_campo_y_devuelve_parcial_del_detalle(self):
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(
+            reverse("dispositivos:campo_editar", args=[self.campo.pk]),
+            {
+                "seccion": "C",
+                "nombre": "Campo actualizado sin recarga",
+                "tipo_campo": TipoCampo.STRING,
+                "opciones_texto": "",
+                "orden": 4,
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        data = respuesta.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["target"], "#dispositivos-detail-content")
+        self.assertIn("Campo actualizado sin recarga", data["html"])
+        self.campo.refresh_from_db()
+        self.assertEqual(self.campo.seccion, "C")
+
+    def test_error_ajax_de_edicion_devuelve_errores_por_campo(self):
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(
+            reverse("dispositivos:campo_editar", args=[self.campo.pk]),
+            {
+                "seccion": "B",
+                "nombre": "Segundo",
+                "tipo_campo": TipoCampo.SELECTOR,
+                "opciones_texto": "",
+                "orden": 2,
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(respuesta.status_code, 400)
+        data = respuesta.json()
+        self.assertFalse(data["ok"])
+        self.assertIn("opciones_texto", data["errors"])
+        self.assertIn(
+            "Indicá al menos una opción para este tipo de campo.",
+            data["errors"]["opciones_texto"],
+        )
+
+    def test_error_ajax_de_edicion_de_tipo_devuelve_errores_por_campo(self):
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(
+            reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
+            {
+                "codigo": "",
+                "nombre": "",
+                "descripcion": "",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(respuesta.status_code, 400)
+        data = respuesta.json()
+        self.assertFalse(data["ok"])
+        self.assertIn("codigo", data["errors"])
+        self.assertIn("nombre", data["errors"])
 
     def test_error_de_edicion_de_campo_permanece_en_modal(self):
         self.client.force_login(self.admin)
@@ -250,6 +372,29 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "data-edit-modal")
         self.assertContains(respuesta, "Indicá al menos una opción para este tipo de campo.")
+
+    def test_usuario_sin_permiso_recibe_403_json_en_ediciones_ajax(self):
+        self.client.force_login(self.ajeno)
+        rutas = [
+            reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
+            reverse("dispositivos:campo_editar", args=[self.campo.pk]),
+        ]
+        for ruta in rutas:
+            for metodo in ("get", "post"):
+                with self.subTest(ruta=ruta, metodo=metodo):
+                    respuesta = getattr(self.client, metodo)(
+                        ruta,
+                        data={},
+                        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                    )
+                    self.assertEqual(respuesta.status_code, 403)
+                    self.assertEqual(
+                        respuesta.json(),
+                        {
+                            "ok": False,
+                            "message": "No tiene permisos para realizar esta acción.",
+                        },
+                    )
 
     def test_usuario_sin_permiso_y_admin_otro_programa_reciben_403(self):
         rutas = [

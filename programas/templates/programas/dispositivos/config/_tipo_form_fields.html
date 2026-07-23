@@ -1,8 +1,10 @@
-{% for error in form.non_field_errors %}<div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ error }}</div>{% endfor %}
+<div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger{% if not form.non_field_errors %} hidden{% endif %}"
+     data-error="__all__">{{ form.non_field_errors|join:" " }}</div>
 {% for field in form %}
   {% if field.name == "maneja_camas" or field.name == "activo" %}
     <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ field }} {{ field.label }}</label>
-    {% for error in field.errors %}<p class="text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+    <p class="text-xs text-fg-danger{% if not field.errors %} hidden{% endif %}"
+       data-error="{{ field.name }}">{{ field.errors|join:" " }}</p>
   {% else %}
     {% include "programas/dispositivos/config/_field.html" %}
   {% endif %}
