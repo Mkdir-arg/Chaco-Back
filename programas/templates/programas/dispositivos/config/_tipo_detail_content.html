@@ -56,7 +56,7 @@
                           class="btn-nodo btn-tertiary btn-sm text-fg-danger"
                           data-confirm-url="{% url 'dispositivos:campo_eliminar' campo.pk %}"
                           data-confirm-title="Eliminar campo"
-                          data-confirm-text="Se eliminará “{{ campo.nombre|escapejs }}”. Esta acción no se puede deshacer."
+                          data-confirm-text="Se eliminará “{{ campo.nombre }}”. Esta acción no se puede deshacer."
                           data-confirm-ok="Sí, eliminar">Eliminar</button>
                 </div>
               </div>

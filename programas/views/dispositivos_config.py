@@ -48,6 +48,16 @@ def _modal_ajax(request, context):
 class ConfigurarDispositivosMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
+            if is_ajax(request):
+                login_response = self.handle_no_permission()
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "message": "Tu sesión venció. Volvé a iniciar sesión.",
+                        "redirect": login_response.url,
+                    },
+                    status=401,
+                )
             return self.handle_no_permission()
         if not puede_configurar_dispositivos(request.user):
             if is_ajax(request):

@@ -32,6 +32,10 @@
 
   function showRequestError(result) {
     const data = result.data || {};
+    if (result.status === 401 && data.redirect) {
+      window.location.assign(data.redirect);
+      return;
+    }
     if (result.status === 403) {
       window.toast.error(data.message || 'No tiene permisos para realizar esta acción.');
       return;
@@ -164,8 +168,15 @@
     if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
     event.preventDefault();
 
+    const submittedModal = form.closest('[data-edit-modal]');
+    const isCurrentForm = function () {
+      return submittedModal && modalRoot.contains(submittedModal) && submittedModal.contains(form);
+    };
     const submitButton = form.querySelector('[type="submit"]');
     if (submitButton) submitButton.disabled = true;
+    form.querySelectorAll('[aria-invalid="true"]').forEach(function (element) {
+      element.removeAttribute('aria-invalid');
+    });
     form.querySelectorAll('[data-error]').forEach(function (element) {
       element.textContent = '';
       element.classList.add('hidden');
@@ -186,18 +197,26 @@
           const target = document.querySelector(data.target);
           if (target) target.innerHTML = data.html;
         }
-        closeModal();
+        if (isCurrentForm()) closeModal();
         window.toast.success(data.message || 'Guardado.');
         return;
       }
 
       if (result.status === 400 && data.errors) {
+        if (!isCurrentForm()) return;
+        let firstInvalid = null;
         Object.keys(data.errors).forEach(function (field) {
           const box = form.querySelector('[data-error="' + field + '"]');
           if (!box) return;
           box.textContent = (data.errors[field] || []).join(' ');
           box.classList.remove('hidden');
+          const control = form.elements.namedItem(field);
+          if (control && typeof control.focus === 'function') {
+            control.setAttribute('aria-invalid', 'true');
+            if (!firstInvalid) firstInvalid = control;
+          }
         });
+        if (firstInvalid) firstInvalid.focus();
         window.toast.error(
           data.errors.__all__ ? data.errors.__all__.join(' ') : 'Revisá los datos del formulario.'
         );
@@ -207,7 +226,7 @@
     }).catch(function () {
       window.toast.error('Error de red.');
     }).finally(function () {
-      if (submitButton) submitButton.disabled = false;
+      if (submitButton && submitButton.isConnected) submitButton.disabled = false;
     });
   });
 

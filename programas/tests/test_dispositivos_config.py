@@ -356,6 +356,25 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertIn("codigo", data["errors"])
         self.assertIn("nombre", data["errors"])
 
+    def test_usuario_anonimo_recibe_401_json_en_ediciones_ajax(self):
+        rutas = [
+            reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
+            reverse("dispositivos:campo_editar", args=[self.campo.pk]),
+        ]
+        for ruta in rutas:
+            for metodo in ("get", "post"):
+                with self.subTest(ruta=ruta, metodo=metodo):
+                    respuesta = getattr(self.client, metodo)(
+                        ruta,
+                        data={},
+                        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                    )
+                    self.assertEqual(respuesta.status_code, 401)
+                    data = respuesta.json()
+                    self.assertFalse(data["ok"])
+                    self.assertEqual(data["message"], "Tu sesión venció. Volvé a iniciar sesión.")
+                    self.assertIn("next=", data["redirect"])
+
     def test_error_de_edicion_de_campo_permanece_en_modal(self):
         self.client.force_login(self.admin)
         respuesta = self.client.post(
@@ -372,6 +391,20 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "data-edit-modal")
         self.assertContains(respuesta, "Indicá al menos una opción para este tipo de campo.")
+
+    def test_confirmacion_de_borrado_escapa_html_sin_mostrar_secuencias_javascript(self):
+        self.campo.nombre = 'Campo "O\'Brien" & más'
+        self.campo.save(update_fields=["nombre"])
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]))
+        contenido = respuesta.content.decode()
+
+        self.assertIn(
+            'data-confirm-text="Se eliminará “Campo &quot;O&#x27;Brien&quot; &amp; más”.',
+            contenido,
+        )
+        self.assertNotIn("\\u0027", contenido)
 
     def test_usuario_sin_permiso_recibe_403_json_en_ediciones_ajax(self):
         self.client.force_login(self.ajeno)
