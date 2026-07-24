@@ -29,11 +29,7 @@ def resumen_ocupacion(dispositivo):
     umbral_amarillo = getattr(dispositivo.tipo, "umbral_ocupacion_amarillo", 50)
     umbral_rojo = getattr(dispositivo.tipo, "umbral_ocupacion_rojo", 80)
     semaforo = (
-        "ROJO"
-        if porcentaje_exacto >= umbral_rojo
-        else "AMARILLO"
-        if porcentaje_exacto >= umbral_amarillo
-        else "VERDE"
+        "ROJO" if porcentaje_exacto >= umbral_rojo else "AMARILLO" if porcentaje_exacto >= umbral_amarillo else "VERDE"
     )
 
     return {

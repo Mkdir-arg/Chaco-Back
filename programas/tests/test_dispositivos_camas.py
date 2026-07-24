@@ -1,12 +1,12 @@
 """Contratos públicos de gestión de camas del Programa Dispositivos (#176)."""
 
-from django.db import IntegrityError, transaction
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from django.contrib.auth.models import User
 from legajos.models import Ciudadano
 from programas.forms import DispositivoForm, TipoDispositivoForm
 from programas.models import Admision, Cama, Dispositivo, Programa, TipoDispositivo

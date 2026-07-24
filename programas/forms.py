@@ -256,6 +256,7 @@ class DispositivoForm(forms.ModelForm):
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
 
+
 class CantidadCamasForm(forms.Form):
     cantidad = forms.IntegerField(
         min_value=1,
@@ -308,6 +309,7 @@ class PreguntaGlobalForm(_OpcionesMixin):
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
+
 
 class RequisitoNativoForm(_OpcionesMixin):
     """El segmento (y subsegmento opcional) se fijan desde la vista."""

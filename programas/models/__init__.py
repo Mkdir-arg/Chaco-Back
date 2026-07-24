@@ -356,9 +356,7 @@ class TipoDispositivo(TimeStamped):
     def clean(self):
         super().clean()
         if self.umbral_ocupacion_amarillo >= self.umbral_ocupacion_rojo:
-            raise ValidationError(
-                {"umbral_ocupacion_rojo": "El umbral rojo debe ser mayor que el amarillo."}
-            )
+            raise ValidationError({"umbral_ocupacion_rojo": "El umbral rojo debe ser mayor que el amarillo."})
 
 
 class Dispositivo(TimeStamped):
