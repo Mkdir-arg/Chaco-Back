@@ -158,9 +158,9 @@
 | 2026-07-24 | Matías Abate | Becas | Pruebas QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas (bloque de 32 h) | 1920 min |
 | 2026-07-24 | Matías Fariña | Dispositivos | Documentación y creación de tareas | Documentación y creación de tareas del Programa Dispositivos (bloque de 32 h) | 1920 min |
 | 2026-07-24 | Juani Portilla | Dispositivos | Desarrollo del Programa Dispositivos | Desarrollo del Programa Dispositivos (bloque de 32 h) | 1920 min |
-| 2026-07-24 | Juan Ignacio Portilla Kitroser | Dispositivos | D-08 — Roles y autorización con alcance (dispositivo.*, merendero.*) (#180) | Catálogo de capacidades de Dispositivos/Merenderos y roles con alcance por programa y dispositivo, cubiertos por pruebas RBAC. | 120 min |
-| 2026-07-24 | Juan Ignacio Portilla Kitroser | Dispositivos | D-03 — Legajo del dispositivo: ABM anti-duplicado + circuito de validación + detalle (#175) | Legajo institucional con validación, prevención de duplicados, transiciones de estado y trazabilidad. | 120 min |
-| 2026-07-24 | Juan Ignacio Portilla Kitroser | Dispositivos | D-04 — Gestión de camas y ocupación calculada (#176) | Gestión de camas con estados, ocupación derivada, semáforo configurable, integridad y permisos; validada con CI y entorno sintético. | 120 min |
+| 2026-07-24 | Juani Portilla | Dispositivos | D-08 — Roles y autorización con alcance (dispositivo.*, merendero.*) (#180) | Catálogo de capacidades de Dispositivos/Merenderos y roles con alcance por programa y dispositivo, cubiertos por pruebas RBAC. | 120 min |
+| 2026-07-24 | Juani Portilla | Dispositivos | D-03 — Legajo del dispositivo: ABM anti-duplicado + circuito de validación + detalle (#175) | Legajo institucional con validación, prevención de duplicados, transiciones de estado y trazabilidad. | 120 min |
+| 2026-07-24 | Juani Portilla | Dispositivos | D-04 — Gestión de camas y ocupación calculada (#176) | Gestión de camas con estados, ocupación derivada, semáforo configurable, integridad y permisos; validada con CI y entorno sintético. | 120 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
