@@ -297,7 +297,13 @@ class RolAlcanceTests(TestCase):
         )
 
     def test_form_admin_dispositivos_incluye_su_catalogo_especializado(self):
-        dispositivos = Programa.objects.get(codigo="DISPOSITIVOS")
+        dispositivos, _ = Programa.objects.get_or_create(
+            codigo="DISPOSITIVOS",
+            defaults={
+                "nombre": "Dispositivos",
+                "tipo": Programa.TipoPrograma.DISPOSITIVOS,
+            },
+        )
         rol = Group.objects.create(name="Admin Dispositivos")
         RolMeta.objects.create(
             grupo=rol,

@@ -15,6 +15,7 @@ from programas.models import AsignacionDispositivo, Dispositivo, Programa, TipoD
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     enviar_a_validacion,
+    programa_dispositivos,
     puede_operar_dispositivo,
     validar_dispositivo,
 )
@@ -25,6 +26,17 @@ from users.models import Capacidad, RolMeta
 def permiso(codigo):
     content_type = ContentType.objects.get_for_model(Capacidad)
     return Permission.objects.get(codename=rbac.codename_de(codigo), content_type=content_type)
+
+
+class ProgramaDispositivosCacheTests(TestCase):
+    def test_cachea_la_ausencia_del_programa(self):
+        cache.clear()
+        usuario = User.objects.create_user("sin-programa", password="x")
+
+        with self.assertNumQueries(1):
+            self.assertIsNone(programa_dispositivos(usuario))
+        with self.assertNumQueries(0):
+            self.assertIsNone(programa_dispositivos(usuario))
 
 
 class AlcanceDispositivosTests(TestCase):

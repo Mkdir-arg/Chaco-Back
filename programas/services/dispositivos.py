@@ -13,6 +13,7 @@ PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
 CAP_VER = "dispositivo.ver"
 _CACHE_KEY = "programas:dispositivos"
+_CACHE_MISS = object()
 _CAMPOS_REQUERIDOS_VALIDACION = (
     "tipo",
     "codigo",
@@ -24,28 +25,37 @@ _CAMPOS_REQUERIDOS_VALIDACION = (
 )
 
 
-def programa_dispositivos():
+def programa_dispositivos(user=None):
+    """Obtiene el programa y cachea su ausencia solo durante la request."""
+
     from programas.models import Programa
+
+    if user is not None:
+        programa = getattr(user, "_programa_dispositivos_cache", _CACHE_MISS)
+        if programa is not _CACHE_MISS:
+            return programa
 
     programa = cache.get(_CACHE_KEY)
     if programa is None:
         programa = Programa.objects.filter(codigo=PROGRAMA_DISPOSITIVOS_CODIGO).first()
         if programa is not None:
             cache.set(_CACHE_KEY, programa, 300)
+    if user is not None:
+        user._programa_dispositivos_cache = programa
     return programa
 
 
 def puede_configurar_dispositivos(user):
     """Exige la capacidad existente con alcance sobre DISPOSITIVOS."""
 
-    programa = programa_dispositivos()
+    programa = programa_dispositivos(user)
     return programa is not None and rbac.puede(user, CAP_CONFIGURAR, programa=programa)
 
 
 def puede_en_programa_dispositivos(user, capacidad):
     """Evalúa una capacidad de Dispositivos con alcance al programa correcto."""
 
-    programa = programa_dispositivos()
+    programa = programa_dispositivos(user)
     return programa is not None and rbac.puede(user, capacidad, programa=programa)
 
 
@@ -59,7 +69,7 @@ def puede_operar_dispositivo(user, dispositivo, capacidad):
     if user is None or not getattr(user, "is_authenticated", False):
         return False
 
-    programa = programa_dispositivos()
+    programa = programa_dispositivos(user)
     if programa is None or not rbac.puede(user, capacidad, programa=programa):
         return False
     if puede_configurar_dispositivos(user):
@@ -82,7 +92,7 @@ def dispositivos_visibles(user):
 
     from programas.models import AsignacionDispositivo, Dispositivo
 
-    programa = programa_dispositivos()
+    programa = programa_dispositivos(user)
     if programa is None or not rbac.puede(user, CAP_VER, programa=programa):
         return Dispositivo.objects.none()
     if puede_configurar_dispositivos(user):
