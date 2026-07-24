@@ -82,26 +82,6 @@ def cambiar_estado_cama(cama, nuevo_estado):
     return actualizar_cama(cama, codigo=cama.codigo, nuevo_estado=nuevo_estado)
 
 
-def asignar_cama_a_admision(admision, cama):
-    """Asigna una cama utilizable a una estadía y la marca ocupada de forma atómica."""
-
-    with transaction.atomic():
-        cama = Cama.objects.select_for_update().get(pk=cama.pk)
-        if cama.estado not in {Cama.Estado.DISPONIBLE, Cama.Estado.RESERVADA}:
-            raise ValidationError({"cama": "La cama no está disponible para una nueva asignación."})
-        if Admision.objects.filter(cama=cama, estado=Admision.Estado.ALOJADO).exists():
-            raise ValidationError({"cama": "La cama ya tiene una persona alojada."})
-
-        admision.cama = cama
-        admision.estado = Admision.Estado.ALOJADO
-        admision.full_clean()
-        admision.save()
-
-        cama.estado = Cama.Estado.OCUPADA
-        cama.save(update_fields=["estado", "modificado"])
-        return admision
-
-
 def crear_camas(dispositivo, cantidad):
     """Agrega camas disponibles con código consecutivo y sincroniza la capacidad."""
 

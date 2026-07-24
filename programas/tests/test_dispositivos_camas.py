@@ -10,12 +10,7 @@ from django.contrib.auth.models import User
 from legajos.models import Ciudadano
 from programas.forms import DispositivoForm, TipoDispositivoForm
 from programas.models import Admision, Cama, Dispositivo, Programa, TipoDispositivo
-from programas.services.camas import (
-    asignar_cama_a_admision,
-    cambiar_estado_cama,
-    crear_camas,
-    resumen_ocupacion,
-)
+from programas.services.camas import cambiar_estado_cama, crear_camas, resumen_ocupacion
 
 
 class ResumenOcupacionTests(TestCase):
@@ -187,7 +182,7 @@ class IntegridadCamasTests(TestCase):
         cama.refresh_from_db()
         self.assertEqual(cama.estado, Cama.Estado.DISPONIBLE)
 
-    def test_asignacion_rechaza_cama_fuera_de_servicio_y_ocupa_cama_disponible(self):
+    def test_admision_rechaza_una_cama_fuera_de_servicio(self):
         tipo = TipoDispositivo.objects.create(codigo="ASIG", nombre="Asignación", maneja_camas=True)
         dispositivo = Dispositivo.objects.create(codigo="HOGAR-006", nombre="Hogar Centro", tipo=tipo)
         fuera_servicio = Cama.objects.create(
@@ -195,19 +190,17 @@ class IntegridadCamasTests(TestCase):
             codigo="C-01",
             estado=Cama.Estado.FUERA_SERVICIO,
         )
-        disponible = Cama.objects.create(dispositivo=dispositivo, codigo="C-02")
         ciudadano = Ciudadano.objects.create(dni="32000004", nombre="Dani", apellido="Cuatro")
-        admision = Admision(ciudadano=ciudadano, dispositivo=dispositivo, fecha_ingreso=timezone.now())
+        admision = Admision(
+            ciudadano=ciudadano,
+            dispositivo=dispositivo,
+            cama=fuera_servicio,
+            fecha_ingreso=timezone.now(),
+            estado=Admision.Estado.ALOJADO,
+        )
 
-        with self.assertRaisesMessage(ValidationError, "no está disponible"):
-            asignar_cama_a_admision(admision, fuera_servicio)
-
-        asignar_cama_a_admision(admision, disponible)
-
-        disponible.refresh_from_db()
-        self.assertEqual(admision.estado, Admision.Estado.ALOJADO)
-        self.assertEqual(admision.cama, disponible)
-        self.assertEqual(disponible.estado, Cama.Estado.OCUPADA)
+        with self.assertRaisesMessage(ValidationError, "fuera de servicio"):
+            admision.full_clean()
 
     def test_rechaza_transiciones_de_estado_fuera_de_la_maquina(self):
         tipo = TipoDispositivo.objects.create(codigo="EST", nombre="Estados", maneja_camas=True)
