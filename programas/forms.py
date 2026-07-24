@@ -9,6 +9,7 @@ from django.utils.dateparse import parse_date
 
 from programas.models import (
     AsignacionCoordinador,
+    Cama,
     CampoTipoDispositivo,
     Convocatoria,
     Dispositivo,
@@ -163,14 +164,44 @@ class _OpcionesMixin(forms.ModelForm):
 class TipoDispositivoForm(forms.ModelForm):
     class Meta:
         model = TipoDispositivo
-        fields = ["codigo", "nombre", "descripcion", "maneja_camas", "activo"]
+        fields = [
+            "codigo",
+            "nombre",
+            "descripcion",
+            "maneja_camas",
+            "umbral_ocupacion_amarillo",
+            "umbral_ocupacion_rojo",
+            "activo",
+        ]
         widgets = {
             "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "descripcion": _text_widget(rows=3),
             "maneja_camas": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "umbral_ocupacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
+            "umbral_ocupacion_rojo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for nombre, default in (("umbral_ocupacion_amarillo", 50), ("umbral_ocupacion_rojo", 80)):
+            self.fields[nombre].required = False
+            self.fields[nombre].initial = getattr(self.instance, nombre, default) or default
+
+    def clean(self):
+        cleaned = super().clean()
+        amarillo = cleaned.get("umbral_ocupacion_amarillo")
+        rojo = cleaned.get("umbral_ocupacion_rojo")
+        cleaned["umbral_ocupacion_amarillo"] = (
+            amarillo if amarillo is not None else getattr(self.instance, "umbral_ocupacion_amarillo", 50) or 50
+        )
+        cleaned["umbral_ocupacion_rojo"] = (
+            rojo if rojo is not None else getattr(self.instance, "umbral_ocupacion_rojo", 80) or 80
+        )
+        if cleaned["umbral_ocupacion_amarillo"] >= cleaned["umbral_ocupacion_rojo"]:
+            self.add_error("umbral_ocupacion_rojo", "El umbral rojo debe ser mayor que el amarillo.")
+        return cleaned
 
 
 class DispositivoForm(forms.ModelForm):
@@ -191,7 +222,6 @@ class DispositivoForm(forms.ModelForm):
             "contacto_telefono",
             "contacto_email",
             "horarios",
-            "camas_totales",
         ]
         widgets = {
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
@@ -206,7 +236,6 @@ class DispositivoForm(forms.ModelForm):
             "contacto_telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "contacto_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
             "horarios": _text_widget(rows=3),
-            "camas_totales": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -217,7 +246,6 @@ class DispositivoForm(forms.ModelForm):
         else:
             tipos = tipos.filter(activo=True)
         self.fields["tipo"].queryset = tipos.order_by("nombre")
-        self.fields["camas_totales"].required = False
 
     def clean_codigo(self):
         codigo = " ".join(self.cleaned_data["codigo"].split()).upper()
@@ -228,8 +256,26 @@ class DispositivoForm(forms.ModelForm):
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
 
-    def clean_camas_totales(self):
-        return self.cleaned_data.get("camas_totales") or 0
+
+class CantidadCamasForm(forms.Form):
+    cantidad = forms.IntegerField(
+        min_value=1,
+        label="Cantidad de camas a agregar",
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
+    )
+
+
+class CamaForm(forms.ModelForm):
+    class Meta:
+        model = Cama
+        fields = ["codigo", "estado"]
+        widgets = {
+            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "estado": forms.Select(attrs={"class": INPUT_CLASS}),
+        }
+
+    def clean_codigo(self):
+        return " ".join(self.cleaned_data["codigo"].split()).upper()
 
 
 class CampoTipoDispositivoForm(_OpcionesMixin):
