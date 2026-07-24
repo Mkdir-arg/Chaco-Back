@@ -54,6 +54,35 @@ CATALOGO = [
         ],
     },
     {
+        "modulo": "dispositivos",
+        "label": "Dispositivos",
+        "tab": "backoffice",
+        "alcance": "programa",
+        "programas": ("DISPOSITIVOS",),
+        "capacidades": [
+            ("dispositivo.ver", "Ver dispositivos"),
+            ("dispositivo.crear", "Crear dispositivos"),
+            ("dispositivo.editar", "Editar dispositivos"),
+            ("dispositivo.validar", "Validar dispositivos"),
+            ("dispositivo.admitir", "Admitir personas en dispositivos"),
+            ("dispositivo.egresar", "Registrar egresos de dispositivos"),
+        ],
+    },
+    {
+        "modulo": "merenderos",
+        "label": "Merenderos",
+        "tab": "backoffice",
+        "alcance": "programa",
+        "programas": ("MERENDEROS",),
+        "capacidades": [
+            ("merendero.ver", "Ver merenderos"),
+            ("merendero.crear", "Crear merenderos"),
+            ("merendero.editar", "Editar merenderos"),
+            ("merendero.validar", "Validar merenderos"),
+            ("merendero.entregar", "Registrar entregas a merenderos"),
+        ],
+    },
+    {
         "modulo": "relevamientos",
         "label": "Relevamientos",
         "tab": "backoffice",
@@ -337,7 +366,19 @@ def capacidades_de_grupo(group):
     return [c for c in codigos_de_capacidad() if codename_de(c) in codenames]
 
 
-def arbol_capacidades(codigos_activos=(), solo_programa=False):
+def _modulo_asignable_en_programa(modulo, programa):
+    """Indica si un módulo de programa puede asignarse en ``programa``.
+
+    Los módulos sin una lista ``programas`` conservan la compatibilidad: están
+    disponibles en todos los programas. Los módulos especializados evitan que
+    un administrador de Becas otorgue capacidades de Dispositivos por error.
+    """
+
+    codigos_programa = modulo.get("programas")
+    return not codigos_programa or programa is None or getattr(programa, "codigo", programa) in codigos_programa
+
+
+def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
@@ -345,8 +386,9 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False):
         [{"modulo", "label", "capacidades": [{"codigo", "label", "checked"}]}]
 
     Con ``solo_programa=True`` se limita a los módulos "de programa"
-    (``alcance == "programa"``). El default es retrocompatible: devuelve el
-    catálogo completo.
+    (``alcance == "programa"``). Si también se informa ``programa``, excluye
+    los módulos especializados para otros programas. El default es
+    retrocompatible: devuelve el catálogo completo.
     """
     activos = set(codigos_activos)
     return [
@@ -360,11 +402,12 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False):
             ],
         }
         for modulo in CATALOGO
-        if not solo_programa or modulo.get("alcance") == "programa"
+        if (not solo_programa or modulo.get("alcance") == "programa")
+        and _modulo_asignable_en_programa(modulo, programa)
     ]
 
 
-def arbol_por_tabs(codigos_activos=(), solo_programa=False):
+def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
     """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
@@ -372,11 +415,15 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False):
     ``codigos_activos``. Los tabs vacíos se incluyen (permiten futura expansión).
 
     Con ``solo_programa=True`` solo incluye módulos con ``alcance == "programa"``.
+    ``programa`` aplica la misma restricción de módulos especializados que
+    :func:`arbol_capacidades`.
     """
     activos = set(codigos_activos)
     tabs = {t["id"]: {"id": t["id"], "label": t["label"], "icon": t["icon"], "modulos": []} for t in TABS_CAPACIDADES}
     for modulo in CATALOGO:
         if solo_programa and modulo.get("alcance") != "programa":
+            continue
+        if not _modulo_asignable_en_programa(modulo, programa):
             continue
         tab_id = modulo.get("tab", "backoffice")
         if tab_id not in tabs:

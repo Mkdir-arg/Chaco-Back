@@ -1,4 +1,6 @@
-from django.contrib.auth.models import User
+import json
+
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -362,6 +364,7 @@ class Dispositivo(TimeStamped):
     codigo = models.CharField(max_length=100, unique=True, db_index=True, verbose_name="Código institucional")
     nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre")
     domicilio = models.CharField(max_length=240, blank=True, verbose_name="Domicilio")
+    localidad = models.CharField(max_length=120, blank=True, db_index=True, verbose_name="Localidad")
     latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     responsable_nombre = models.CharField(max_length=200, blank=True, verbose_name="Responsable")
@@ -385,10 +388,137 @@ class Dispositivo(TimeStamped):
         indexes = [
             models.Index(fields=["tipo", "estado"]),
             models.Index(fields=["nombre", "estado"]),
+            models.Index(fields=["nombre", "localidad"]),
         ]
 
     def __str__(self):
         return f"{self.codigo} · {self.nombre}"
+
+
+class AsignacionDispositivo(TimeStamped):
+    """Alcance fino de un rol sobre un dispositivo concreto."""
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.CASCADE,
+        related_name="asignaciones_roles",
+        verbose_name="Dispositivo",
+    )
+    rol = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="asignaciones_dispositivos",
+        verbose_name="Rol",
+    )
+    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Asignación a dispositivo"
+        verbose_name_plural = "Asignaciones a dispositivos"
+        ordering = ["dispositivo", "rol"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dispositivo", "rol"],
+                name="asignacion_dispositivo_unica_por_rol",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.rol} → {self.dispositivo}"
+
+
+class TrazaDispositivoQuerySet(models.QuerySet):
+    """Evita vías masivas de mutación para una auditoría solo-aditiva."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Las trazas de dispositivos son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Las trazas de dispositivos no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de dispositivos son inmutables.")
+
+
+class TrazaDispositivoManager(models.Manager.from_queryset(TrazaDispositivoQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de dispositivos son inmutables.")
+
+
+class TrazaDispositivo(models.Model):
+    """Historial inmutable de altas, cambios y validaciones del dispositivo."""
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.CASCADE,
+        related_name="trazas",
+        verbose_name="Dispositivo",
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trazas_dispositivos",
+        verbose_name="Usuario",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    accion = models.CharField(max_length=40, verbose_name="Acción")
+    estado_anterior = models.CharField(max_length=30, blank=True, verbose_name="Estado anterior")
+    estado_nuevo = models.CharField(max_length=30, blank=True, verbose_name="Estado nuevo")
+    detalle = models.TextField(blank=True, verbose_name="Detalle")
+    objects = TrazaDispositivoManager()
+
+    class Meta:
+        verbose_name = "Traza de dispositivo"
+        verbose_name_plural = "Trazas de dispositivos"
+        ordering = ["creado_en", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+
+    def __str__(self):
+        return f"{self.dispositivo} · {self.accion}"
+
+    @property
+    def detalle_legible(self):
+        """Presenta cambios de campos sin exponer el JSON de auditoría."""
+
+        try:
+            cambios = json.loads(self.detalle)
+        except (TypeError, json.JSONDecodeError):
+            return self.detalle
+        if not isinstance(cambios, dict):
+            return self.detalle
+        return " · ".join(
+            f"{campo}: {valores.get('anterior', '—')} → {valores.get('nuevo', '—')}"
+            for campo, valores in cambios.items()
+            if isinstance(valores, dict)
+        )
+
+    @staticmethod
+    def _estado_legible(estado):
+        if not estado:
+            return "—"
+        try:
+            return Dispositivo.Estado(estado).label
+        except ValueError:
+            return estado
+
+    @property
+    def estado_anterior_legible(self):
+        return self._estado_legible(self.estado_anterior)
+
+    @property
+    def estado_nuevo_legible(self):
+        return self._estado_legible(self.estado_nuevo)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las trazas de dispositivos son inmutables.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las trazas de dispositivos no se eliminan.")
 
 
 class Cama(TimeStamped):

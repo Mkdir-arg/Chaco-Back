@@ -68,7 +68,6 @@ class RolForm(forms.Form):
             ]
             self.fields["categoria"].required = True
             self.fields["categoria"].initial = rbac.CATEGORIA_BECAS
-            self.fields["capacidades"].choices = [(c, c) for c in sorted(rbac.codigos_de_programa())]
             self.fields["programa"].required = False
             # Materializado una vez para decidir (evita COUNT + SELECT extra);
             # el field conserva el queryset.
@@ -76,6 +75,14 @@ class RolForm(forms.Form):
             if len(progs_list) == 1:
                 self.programa_fijo = progs_list[0]
                 self.fields["programa"].initial = self.programa_fijo.pk
+            self.fields["capacidades"].choices = [
+                (capacidad["codigo"], capacidad["codigo"])
+                for modulo in rbac.arbol_capacidades(
+                    solo_programa=True,
+                    programa=self.programa_fijo,
+                )
+                for capacidad in modulo["capacidades"]
+            ]
 
         if instance is not None and not self.is_bound:
             self.fields["name"].initial = instance.name
@@ -102,7 +109,15 @@ class RolForm(forms.Form):
             if self.programa_fijo is not None:
                 cleaned["programa"] = self.programa_fijo
             caps = cleaned.get("capacidades") or []
-            cleaned["capacidades"] = [c for c in caps if rbac.es_codigo_de_programa(c)]
+            permitidas = {
+                capacidad["codigo"]
+                for modulo in rbac.arbol_capacidades(
+                    solo_programa=True,
+                    programa=cleaned.get("programa"),
+                )
+                for capacidad in modulo["capacidades"]
+            }
+            cleaned["capacidades"] = [c for c in caps if c in permitidas]
         if (
             cleaned.get("categoria") == rbac.CATEGORIA_PROGRAMA
             and cleaned.get("programa") is None
@@ -133,8 +148,16 @@ class RolForm(forms.Form):
 
     def arbol_capacidades(self):
         """Árbol plano por módulo (retrocompatibilidad)."""
-        return rbac.arbol_capacidades(self._activos(), solo_programa=not self.es_admin_global)
+        return rbac.arbol_capacidades(
+            self._activos(),
+            solo_programa=not self.es_admin_global,
+            programa=self.programa_fijo,
+        )
 
     def arbol_por_tabs(self):
         """Árbol agrupado por tab para el panel de capacidades."""
-        return rbac.arbol_por_tabs(self._activos(), solo_programa=not self.es_admin_global)
+        return rbac.arbol_por_tabs(
+            self._activos(),
+            solo_programa=not self.es_admin_global,
+            programa=self.programa_fijo,
+        )

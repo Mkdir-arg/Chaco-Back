@@ -1,0 +1,94 @@
+{% extends "includes/base.html" %}
+{% load dispositivos %}
+{% block title %}Dispositivos · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+{% puede_operar_dispositivo request.user dispositivo "dispositivo.editar" as puede_editar %}
+{% puede_operar_dispositivo request.user dispositivo "dispositivo.validar" as puede_validar %}
+<div class="mb-8">
+  <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <a href="{% url 'dispositivos:lista' %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver a dispositivos</a>
+      <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mt-4 mb-1">{{ dispositivo.get_estado_display }}</p>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ dispositivo.nombre }}</h1>
+      <p class="font-mono text-sm text-body-subtle mt-1">{{ dispositivo.codigo }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if puede_editar and dispositivo.estado != 'CERRADO' %}<a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Editar</a>{% endif %}
+      {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
+        <form method="post" action="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Enviar a validación?" data-confirm-text="Se verificará que estén completos los datos requeridos." data-confirm-ok="Sí, enviar">Enviar a validación</button></form>
+      {% endif %}
+      {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+        <form method="post" action="{% url 'dispositivos:validar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Validar dispositivo?" data-confirm-text="Quedará habilitado para admitir personas." data-confirm-ok="Sí, validar">Validar</button></form>
+        <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-requires-motivo data-confirm-title="Observar dispositivo" data-confirm-text="Indicá qué debe corregirse antes de reenviar." data-confirm-ok="Guardar observación">Observar</button></form>
+        <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base text-fg-danger" data-confirm data-requires-motivo data-confirm-title="Rechazar dispositivo" data-confirm-text="Indicá el motivo del rechazo." data-confirm-ok="Sí, rechazar">Rechazar</button></form>
+      {% endif %}
+      {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
+        <form method="post" action="{% url 'dispositivos:inactivar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-confirm-title="¿Inactivar dispositivo?" data-confirm-text="Dejará de estar operativo, sin borrar su historial." data-confirm-ok="Sí, inactivar">Inactivar</button></form>
+      {% endif %}
+      {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
+        <form method="post" action="{% url 'dispositivos:cerrar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base" data-confirm data-confirm-title="¿Cerrar dispositivo?" data-confirm-text="La acción conserva el legajo e impide nuevas operaciones." data-confirm-ok="Sí, cerrar">Cerrar</button></form>
+      {% endif %}{% endif %}
+    </div>
+  </div>
+
+  <nav class="mb-5 flex gap-2 border-b border-light" aria-label="Secciones del dispositivo">
+    <a class="border-b-2 border-fg-brand px-3 py-2 font-semibold text-fg-brand" href="#datos">Datos</a>
+    <span class="px-3 py-2 text-body-subtle">Camas ({{ dispositivo.camas_totales }})</span>
+    <span class="px-3 py-2 text-body-subtle">Admisiones</span>
+    <a class="px-3 py-2 text-body-subtle" href="#historial">Historial</a>
+  </nav>
+  <section id="datos" class="rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+    <dl class="grid gap-5 sm:grid-cols-2">
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Camas/plazas</dt><dd class="mt-1 text-body">{{ dispositivo.camas_totales }}</dd></div>
+    </dl>
+  </section>
+  <section id="historial" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+    <h2 class="text-lg font-bold text-heading">Historial de validación</h2>
+    {% if trazas %}<ol class="mt-4 space-y-3">{% for traza in trazas %}<li class="border-l-2 border-fg-brand pl-4"><p class="font-semibold text-heading">{{ traza.accion }}</p><p class="text-sm text-body-subtle">{{ traza.creado_en|date:'d/m/Y H:i' }} · {{ traza.usuario|default:'Sistema' }}</p><p class="text-sm text-body-subtle">{{ traza.estado_anterior_legible }} → {{ traza.estado_nuevo_legible }}</p>{% if traza.detalle_legible %}<p class="mt-1 text-sm text-body">{{ traza.detalle_legible }}</p>{% endif %}</li>{% endfor %}</ol>{% else %}<p class="mt-2 text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('click', function (event) {
+  const button = event.target.closest('[data-confirm]');
+  if (!button) return;
+  event.preventDefault();
+  const form = button.closest('form');
+  const options = {
+    title: button.dataset.confirmTitle || '¿Confirmás la acción?',
+    text: button.dataset.confirmText || '',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: button.dataset.confirmOk || 'Confirmar',
+    cancelButtonText: 'Cancelar',
+  };
+  if (button.dataset.requiresMotivo !== undefined) {
+    options.input = 'textarea';
+    options.inputPlaceholder = 'Motivo u observaciones';
+    options.inputValidator = function (value) {
+      return value && value.trim() ? undefined : 'El motivo es obligatorio.';
+    };
+  }
+  Swal.fire(options).then(function (result) {
+    if (!result.isConfirmed) return;
+    if (button.dataset.requiresMotivo !== undefined) {
+      const motivo = document.createElement('input');
+      motivo.type = 'hidden';
+      motivo.name = 'motivo';
+      motivo.value = result.value.trim();
+      form.appendChild(motivo);
+    }
+    form.submit();
+  });
+});
+</script>
+{% endblock %}

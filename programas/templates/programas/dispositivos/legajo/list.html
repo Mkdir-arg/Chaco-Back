@@ -1,0 +1,32 @@
+{% extends "includes/base.html" %}
+{% load dispositivos %}
+{% block title %}Dispositivos{% endblock %}
+
+{% block main-content %}
+<div class="mb-8">
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>
+      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Legajos de dispositivos</h1>
+      <p class="text-sm text-body-subtle mt-1.5">Instituciones, estado de validación e historial operativo.</p>
+    </div>
+    {% puede_en_programa_dispositivos request.user "dispositivo.crear" as puede_crear_dispositivos %}
+    {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
+  </div>
+
+  <form method="get" class="mb-5 grid gap-3 rounded-xl border border-base p-4 md:grid-cols-4" style="background:var(--bg-primary)">
+    <select name="tipo" class="nodo-field"><option value="">Todos los tipos</option>{% for tipo in tipos %}<option value="{{ tipo.pk }}" {% if request.GET.tipo == tipo.pk|stringformat:'s' %}selected{% endif %}>{{ tipo.nombre }}</option>{% endfor %}</select>
+    <select name="estado" class="nodo-field"><option value="">Todos los estados</option>{% for value, label in estados %}<option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <input name="localidad" value="{{ request.GET.localidad }}" class="nodo-field" placeholder="Localidad">
+    <button class="btn-nodo btn-secondary btn-base" type="submit">Filtrar</button>
+  </form>
+
+  <div class="overflow-hidden rounded-xl border border-base shadow-sm" style="background:var(--bg-primary)">
+    {% if dispositivos %}
+      <div class="overflow-x-auto"><table class="w-full text-sm"><thead style="background:var(--bg-secondary)"><tr class="text-left text-body-subtle"><th class="px-5 py-3 font-semibold">Dispositivo</th><th class="px-5 py-3 font-semibold">Tipo</th><th class="px-5 py-3 font-semibold">Localidad</th><th class="px-5 py-3 font-semibold">Estado</th><th class="px-5 py-3 text-right"><span class="sr-only">Ver</span></th></tr></thead><tbody class="divide-y divide-border">{% for dispositivo in dispositivos %}<tr><td class="px-5 py-4"><a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="font-semibold text-heading hover:text-fg-brand">{{ dispositivo.nombre }}</a><p class="font-mono text-xs text-body-subtle mt-1">{{ dispositivo.codigo }}</p></td><td class="px-5 py-4">{{ dispositivo.tipo.nombre }}</td><td class="px-5 py-4">{{ dispositivo.localidad|default:'—' }}</td><td class="px-5 py-4">{{ dispositivo.get_estado_display }}</td><td class="px-5 py-4 text-right"><a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm">Ver detalle</a></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}
+      <div class="px-6 py-14 text-center"><h2 class="font-bold text-heading">No hay dispositivos en tu alcance</h2><p class="text-sm text-body-subtle mt-1">Probá otros filtros o consultá una asignación de alcance.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

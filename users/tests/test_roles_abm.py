@@ -296,6 +296,27 @@ class RolAlcanceTests(TestCase):
             },
         )
 
+    def test_form_admin_dispositivos_incluye_su_catalogo_especializado(self):
+        dispositivos = Programa.objects.get(codigo="DISPOSITIVOS")
+        rol = Group.objects.create(name="Admin Dispositivos")
+        RolMeta.objects.create(
+            grupo=rol,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=dispositivos,
+            activo=True,
+        )
+        rol.permissions.add(_perm("programa.configurar"))
+        admin_dispositivos = User.objects.create_user("adm-dispositivos", password="x")
+        admin_dispositivos.groups.add(rol)
+
+        form = RolForm(operador=admin_dispositivos)
+        modulos = {modulo["modulo"] for modulo in form.arbol_capacidades()}
+        codigos = {codigo for codigo, _ in form.fields["capacidades"].choices}
+
+        self.assertIn("dispositivos", modulos)
+        self.assertNotIn("merenderos", modulos)
+        self.assertIn("dispositivo.validar", codigos)
+
     def test_form_admin_programa_incluye_categoria_programa(self):
         form = RolForm(operador=self.admin_becas)
         choices = {value for value, _label in form.fields["categoria"].choices}

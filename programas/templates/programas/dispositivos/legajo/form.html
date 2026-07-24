@@ -1,0 +1,84 @@
+{% extends "includes/base.html" %}
+{% block title %}Dispositivos · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-3xl mx-auto">
+  <a href="{% if form.instance.pk %}{% url 'dispositivos:detalle' form.instance.pk %}{% else %}{% url 'dispositivos:lista' %}{% endif %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver</a>
+  <div class="mt-4 mb-6"><p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p><h1 class="text-3xl font-extrabold text-heading tracking-tight">{% if form.instance.pk %}Editar dispositivo{% else %}Nuevo dispositivo{% endif %}</h1><p class="text-sm text-body-subtle mt-1">El borrador admite completar los datos operativos más adelante.</p></div>
+  {% if not form.instance.pk %}<div id="duplicate-search" class="mb-4 hidden rounded-xl border border-warning p-4 text-sm" style="background:var(--bg-primary)"></div>{% endif %}
+  <form method="post" class="rounded-xl border border-base shadow-sm p-6 space-y-5" style="background:var(--bg-primary)">{% csrf_token %}{% for field in form %}<div><label class="mb-1.5 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<p class="mt-1 text-sm text-fg-danger">{{ field.errors|join:', ' }}</p>{% endif %}</div>{% endfor %}<div class="flex justify-end gap-3 pt-4 border-t border-light"><a href="{% url 'dispositivos:lista' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a><button type="submit" class="btn-nodo btn-brand btn-base">Guardar borrador</button></div></form>
+</div>
+{% endblock %}
+
+{% block customJS %}
+{% if not form.instance.pk %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function () {
+  const codigo = document.getElementById('id_codigo');
+  const nombre = document.getElementById('id_nombre');
+  const localidad = document.getElementById('id_localidad');
+  const aviso = document.getElementById('duplicate-search');
+  const formulario = codigo.closest('form');
+  let controller;
+  let enviando = false;
+
+  function mostrarCoincidencias(data) {
+    if (!data.coincidencias.length) { aviso.classList.add('hidden'); return; }
+    aviso.replaceChildren();
+    const mensaje = document.createElement('strong');
+    mensaje.textContent = data.codigo_duplicado ? 'El código ya está en uso. No se podrá guardar un duplicado.' : 'Posible coincidencia. Podés continuar si es una institución diferente.';
+    const lista = document.createElement('ul');
+    lista.className = 'mt-2 list-disc pl-5';
+    data.coincidencias.forEach(function (item) {
+      const fila = document.createElement('li');
+      fila.textContent = item.codigo + ' · ' + item.nombre + ' (' + (item.localidad || 'sin localidad') + ')';
+      lista.appendChild(fila);
+    });
+    aviso.append(mensaje, lista);
+    aviso.classList.remove('hidden');
+  }
+
+  async function buscar() {
+    if (!codigo.value.trim() && !(nombre.value.trim() && localidad.value.trim())) {
+      aviso.classList.add('hidden');
+      return {codigo_duplicado: false, coincidencias: []};
+    }
+    if (controller) controller.abort();
+    controller = new AbortController();
+    const params = new URLSearchParams({codigo: codigo.value, nombre: nombre.value, localidad: localidad.value});
+    const response = await fetch('{% url "dispositivos:buscar_duplicados" %}?' + params, {signal: controller.signal, headers: {'X-Requested-With': 'XMLHttpRequest'}});
+    if (!response.ok) throw new Error('No se pudo verificar duplicados.');
+    const data = await response.json();
+    mostrarCoincidencias(data);
+    return data;
+  }
+  [codigo, nombre, localidad].forEach(function (input) {
+    input.addEventListener('blur', function () { buscar().catch(function () { aviso.classList.add('hidden'); }); });
+  });
+  formulario.addEventListener('submit', function (event) {
+    if (enviando) return;
+    event.preventDefault();
+    buscar().then(function (data) {
+      if (data.codigo_duplicado) return;
+      if (!data.coincidencias.length) { enviando = true; formulario.submit(); return; }
+      Swal.fire({
+        title: '¿Confirmás el alta?',
+        text: 'Hay una institución con nombre y localidad coincidentes.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, es diferente',
+        cancelButtonText: 'Revisar datos',
+      }).then(function (result) {
+        if (!result.isConfirmed) return;
+        enviando = true;
+        formulario.submit();
+      });
+    }).catch(function () {
+      Swal.fire('No se pudo verificar duplicados', 'Reintentá antes de guardar.', 'error');
+    });
+  });
+}());
+</script>
+{% endif %}
+{% endblock %}

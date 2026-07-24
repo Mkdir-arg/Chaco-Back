@@ -4,6 +4,7 @@ from django.utils.html import format_html
 
 from .models import (
     AsignacionCoordinador,
+    AsignacionDispositivo,
     AsignacionTerritorial,
     Convocatoria,
     CupoSegmento,
@@ -234,6 +235,13 @@ class AsignacionCoordinadorAdmin(admin.ModelAdmin):
     list_display = ("coordinador", "segmento", "activo", "fecha_asignacion")
     list_filter = ("activo", "segmento")
     search_fields = ("coordinador__username", "segmento__nombre")
+
+
+@admin.register(AsignacionDispositivo)
+class AsignacionDispositivoAdmin(admin.ModelAdmin):
+    list_display = ("rol", "dispositivo", "activo", "creado")
+    list_filter = ("activo", "dispositivo__tipo")
+    search_fields = ("rol__name", "dispositivo__codigo", "dispositivo__nombre")
 
 
 @admin.register(AsignacionTerritorial)
