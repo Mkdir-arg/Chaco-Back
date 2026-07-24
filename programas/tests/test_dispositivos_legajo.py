@@ -6,6 +6,7 @@ from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models.deletion import ProtectedError
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
@@ -213,6 +214,9 @@ class ValidacionDispositivoTests(TestCase):
             TrazaDispositivo.objects.filter(pk=traza.pk).delete()
         with self.assertRaisesMessage(ValidationError, "inmutables"):
             TrazaDispositivo._base_manager.filter(pk=traza.pk).update(accion="EDITADO")
+
+        with self.assertRaises(ProtectedError):
+            self.supervisor.delete()
 
 
 class LegajoDispositivoViewsTests(TestCase):

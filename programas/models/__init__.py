@@ -456,7 +456,7 @@ class TrazaDispositivo(models.Model):
     )
     usuario = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="trazas_dispositivos",
