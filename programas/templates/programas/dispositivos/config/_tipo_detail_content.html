@@ -14,6 +14,7 @@
         </span>
       </div>
       <p class="text-sm text-body-subtle mt-1.5">{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}</p>
+      {% if tipo.maneja_camas %}<p class="text-sm text-body-subtle mt-1">Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.</p>{% endif %}
       </div>
     </div>
     <div class="flex gap-2 flex-wrap">

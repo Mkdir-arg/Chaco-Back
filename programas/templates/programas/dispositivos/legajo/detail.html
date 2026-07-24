@@ -34,7 +34,7 @@
 
   <nav class="mb-5 flex gap-2 border-b border-light" aria-label="Secciones del dispositivo">
     <a class="border-b-2 border-fg-brand px-3 py-2 font-semibold text-fg-brand" href="#datos">Datos</a>
-    <span class="px-3 py-2 text-body-subtle">Camas ({{ dispositivo.camas_totales }})</span>
+    <a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="#camas">Camas ({{ resumen_camas.totales }})</a>
     <span class="px-3 py-2 text-body-subtle">Admisiones</span>
     <a class="px-3 py-2 text-body-subtle" href="#historial">Historial</a>
   </nav>
@@ -45,8 +45,28 @@
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Camas/plazas</dt><dd class="mt-1 text-body">{{ dispositivo.camas_totales }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Camas/plazas</dt><dd class="mt-1 text-body">{{ resumen_camas.totales }}</dd></div>
     </dl>
+  </section>
+  <section id="camas" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-lg font-bold text-heading">Camas</h2>
+        <p class="mt-1 text-sm text-body-subtle">La ocupación se calcula desde las estadías alojadas; no admite carga manual.</p>
+      </div>
+      {% if puede_gestionar_camas %}<a href="{% url 'dispositivos:camas_agregar' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Agregar camas</a>{% endif %}
+    </div>
+    <dl class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupadas</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.ocupadas }}</dd></div>
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Libres</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.libres }}</dd></div>
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Fuera de servicio</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.fuera_servicio }}</dd></div>
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupación</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.porcentaje }}% · {{ resumen_camas.semaforo|title }}</dd></div>
+    </dl>
+    {% if camas %}
+      <div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Código</th><th class="px-3 py-2">Estado</th>{% if puede_gestionar_camas %}<th class="px-3 py-2 text-right">Acción</th>{% endif %}</tr></thead><tbody>{% for cama in camas %}<tr class="border-b border-light"><td class="px-3 py-3 font-medium text-heading">{{ cama.codigo }}</td><td class="px-3 py-3 text-body">{{ cama.get_estado_display }}</td>{% if puede_gestionar_camas %}<td class="px-3 py-3 text-right"><a href="{% url 'dispositivos:cama_editar' cama.pk %}" class="text-fg-brand hover:underline">Editar</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+    {% else %}
+      <p class="mt-5 text-sm text-body-subtle">Todavía no hay camas configuradas.</p>
+    {% endif %}
   </section>
   <section id="historial" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
     <h2 class="text-lg font-bold text-heading">Historial de validación</h2>
