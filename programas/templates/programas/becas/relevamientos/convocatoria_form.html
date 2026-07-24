@@ -41,6 +41,7 @@
       <select name="subsegmento"
               id="{{ form.subsegmento.id_for_label }}"
               class="nodo-field"
+              :aria-busy="loadingSubsegmentos.toString()"
               :disabled="!segmentoId">
         <option value="">---------</option>
         <template x-for="sub in subsegmentos" :key="sub.id">
@@ -50,6 +51,14 @@
       <template x-if="!segmentoId">
         <p class="mt-1 text-xs text-body-subtle">Seleccioná un segmento primero.</p>
       </template>
+      <p x-show="loadingSubsegmentos"
+         class="mt-1 text-xs text-body-subtle"
+         role="status"
+         aria-live="polite">Cargando subsegmentos…</p>
+      <p x-show="subsegmentosError"
+         x-text="subsegmentosError"
+         class="mt-1 text-xs text-fg-danger"
+         role="alert"></p>
       {% for error in form.subsegmento.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
     </div>
 
@@ -72,6 +81,8 @@ function convocatoriaForm(segmentoIdRaw, subsegmentoIdRaw) {
     segmentoId: segmentoIdRaw ? parseInt(segmentoIdRaw) : null,
     subsegmentoId: subsegmentoIdRaw ? parseInt(subsegmentoIdRaw) : null,
     subsegmentos: [],
+    loadingSubsegmentos: false,
+    subsegmentosError: '',
 
     async init() {
       if (this.segmentoId) {
@@ -89,13 +100,17 @@ function convocatoriaForm(segmentoIdRaw, subsegmentoIdRaw) {
     },
 
     async fetchSubsegmentos(segmentoId) {
+      this.loadingSubsegmentos = true;
+      this.subsegmentosError = '';
       try {
         const resp = await fetch(`{% url 'becas:segmento_subsegmentos_json' pk=0 %}`.replace('/0/', `/${segmentoId}/`));
-        if (resp.ok) {
-          this.subsegmentos = await resp.json();
-        }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        this.subsegmentos = await resp.json();
       } catch (_) {
         this.subsegmentos = [];
+        this.subsegmentosError = 'No se pudieron cargar los subsegmentos. Intentá nuevamente.';
+      } finally {
+        this.loadingSubsegmentos = false;
       }
     },
   };

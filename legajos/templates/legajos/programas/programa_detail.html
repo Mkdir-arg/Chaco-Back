@@ -12,6 +12,11 @@
             <div class="relative p-8" style="background: linear-gradient(135deg, {{ programa.color|default:'var(--bg-brand)' }}15 0%, {{ programa.color|default:'var(--bg-brand)' }}05 100%);">
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center space-x-6">
+                        <a href="{% url 'legajos:programas' %}"
+                           class="btn-tertiary btn-back-circle"
+                           aria-label="Volver a programas">
+                            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                        </a>
                         <div class="w-20 h-20 rounded-full flex items-center justify-center" style="background-color: {{ programa.color|default:'var(--bg-brand)' }};">
                             <i class="fas fa-{{ programa.icono }} text-3xl text-white"></i>
                         </div>
@@ -20,10 +25,6 @@
                             <p class="text-[var(--text-body-subtle)] text-lg">{{ programa.descripcion|default:"Gestión Operativa del Programa" }}</p>
                         </div>
                     </div>
-                    <a href="{% url 'legajos:programas' %}" class="btn-nodo btn-tertiary btn-base">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>Volver</span>
-                    </a>
                 </div>
 
                 <!-- Métricas Rápidas -->

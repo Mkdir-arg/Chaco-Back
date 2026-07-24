@@ -605,9 +605,9 @@ def pregunta_eliminar(request, pk):
 # ---------------------------------------------------------------------------
 @login_required
 def segmento_subsegmentos_json(request, pk):
-    """Devuelve los subsegmentos activos de un segmento para el filtrado dinámico."""
+    """Devuelve los subsegmentos de un segmento para el filtrado dinámico."""
     if not puede_alguna(request.user, ["becas.convocatoria.ver", "becas.convocatoria.crear"]):
         raise PermissionDenied
     segmento = get_object_or_404(Segmento, pk=pk)
-    data = list(segmento.subsegmentos.filter(activo=True).order_by("nombre").values("id", "nombre", "cupo_maximo"))
+    data = list(segmento.subsegmentos.order_by("nombre").values("id", "nombre", "cupo_maximo"))
     return JsonResponse(data, safe=False)

@@ -11,13 +11,14 @@
 
     /* navbar-accent-bg: botón sólido de acción (ej. "Dashboard de Alertas") — fondo de marca */
     .navbar-accent-bg {
-        background-color: var(--bg-brand) !important;
+        background-color: var(--bg-brand-strong) !important;
         color: var(--text-white) !important;
+        font-weight: 700;
         border-radius: var(--rounded-lg);
     }
 
     .navbar-accent-bg:hover {
-        background-color: var(--bg-brand-strong) !important;
+        filter: brightness(0.9);
         color: var(--text-white) !important;
     }
 
@@ -79,7 +80,10 @@
         <div class="flex items-center gap-x-3 sm:gap-x-4 lg:gap-x-6">
             <!-- Indicador de alertas -->
             <div class="relative" x-data="{ showDropdown: false }">
-                <button @click="showDropdown = !showDropdown" class="navbar-accent-hover transition-colors relative" style="color: var(--text-body-subtle);">
+                <button @click="showDropdown = !showDropdown"
+                        class="navbar-accent-hover transition-colors relative"
+                        style="color: var(--text-body-subtle);"
+                        aria-label="Ver alertas">
                     <i class="fas fa-bell" aria-hidden="true" style="font-size: 22px;"></i>
                     <span id="alertas-counter" class="absolute -top-2 -right-2 text-white rounded-full px-1 min-w-[16px] h-4 flex items-center justify-center hidden" style="background-color: var(--bg-danger); font-size: 10px; font-weight: 700;">0</span>
                 </button>
@@ -125,7 +129,10 @@
             </div>
             <!-- Profile dropdown -->
             <div class="relative shrink-0" x-data="{ open: false }">
-                <button type="button" class="-m-1.5 flex items-center p-1.5" @click="open = !open">
+                <button type="button"
+                        class="-m-1.5 flex items-center p-1.5"
+                        @click="open = !open"
+                        aria-label="Abrir menú de usuario">
                     <span class="sr-only">Abrir menú de usuario</span>
                     <div class="rounded-full flex items-center justify-center" style="width: 36px; height: 36px; background: var(--gradient-brand);">
                         <span style="font-size: 14px; font-weight: 700; color: #fff;">{{ user.username|first|upper }}</span>

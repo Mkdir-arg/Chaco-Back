@@ -27,16 +27,15 @@
      }"
      @becas-saved.window="modalReqNuevo=false; modalReqEdit=false; modalSubEdit=false">
 
-  {# Volver #}
-  <div>
-    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
-      <i class="fas fa-arrow-left"></i> Volver al segmento
-    </a>
-  </div>
-
   {# Header card #}
   <div class="bg-white rounded-xl border border-base shadow-sm p-5">
     <div class="flex items-center gap-4 flex-wrap">
+
+      <a href="{% url 'becas:segmento_detalle' segmento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver al segmento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
 
       {# Tile ícono #}
       <div class="w-[46px] h-[46px] rounded-xl flex items-center justify-center text-2xl flex-shrink-0"

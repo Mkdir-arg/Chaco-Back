@@ -16,23 +16,22 @@
 <div class="max-w-6xl mx-auto space-y-5"
      x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'beneficiarios' }">
 
-  {# Volver #}
-  <div>
-    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-      Volver al segmento
-    </a>
-  </div>
-
   {# ===== PageHeader ===== #}
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
-        {{ segmento.nombre }}
-      </h1>
-      <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
-        Gestión de cupo, lista de espera y pendientes del segmento.
-      </p>
+    <div class="flex items-start gap-3 min-w-0">
+      <a href="{% url 'becas:segmento_detalle' segmento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver al segmento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <div class="min-w-0">
+        <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
+          {{ segmento.nombre }}
+        </h1>
+        <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
+          Gestión de cupo, lista de espera y pendientes del segmento.
+        </p>
+      </div>
     </div>
     <div class="flex items-center gap-3">
       <button type="button" disabled class="btn-nodo btn-tertiary btn-sm" style="background:var(--bg-disabled);color:var(--text-disabled);cursor:not-allowed;border-color:var(--border-base);" aria-disabled="true">

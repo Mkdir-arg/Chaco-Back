@@ -20,7 +20,7 @@
         <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Gestión de provincias del sistema</p>
     </div>
     <a href="{% url 'configuracion:provincia_crear' %}"
-       class="btn-nodo btn-brand"
+       class="btn-nodo btn-brand btn-base"
        @click.prevent="modalCrear = true"
        aria-label="Nueva provincia">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
@@ -138,7 +138,7 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/></svg>
         <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay provincias registradas</h3>
         <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Agregá la primera provincia para comenzar a configurar la geografía del sistema.</p>
-        <a href="{% url 'configuracion:provincia_crear' %}" class="btn-nodo btn-brand" style="margin-top:6px;" @click.prevent="modalCrear = true">
+        <a href="{% url 'configuracion:provincia_crear' %}" class="btn-nodo btn-brand btn-base" style="margin-top:6px;" @click.prevent="modalCrear = true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
             Nueva provincia
         </a>

@@ -179,6 +179,7 @@
 
         <!-- NODO SweetAlert2 theming (fuente única — cascada a los 29 Swal.fire del sistema) -->
         <link rel="stylesheet" href="{% static 'custom/css/nodo-swal.css' %}" />
+        <link rel="stylesheet" href="{% static 'custom/css/nodo-tooltips.css' %}" />
 
         <!-- Custom CSS Files -->
         <link rel="stylesheet" href="{% static 'custom/css/main.css' %}" />
@@ -461,6 +462,8 @@
         {% endif %}
         
         {% block customJS %}{% endblock %}
+
+        <script src="{% static 'custom/js/nodo-tooltips.js' %}"></script>
 
         <!-- NODO SweetAlert2 theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()

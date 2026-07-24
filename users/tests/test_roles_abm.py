@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -124,7 +125,7 @@ class RolesServiceTests(TestCase):
 
 
 class RolCategoriaFormTests(TestCase):
-    """Categoria del rol: sin restriccion de FK programa (RN-1 eliminada)."""
+    """Validación del alcance entre la categoría del rol y su programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -137,14 +138,14 @@ class RolCategoriaFormTests(TestCase):
         form = RolForm(
             data={
                 "name": "Coordinador Becas",
-                "categoria": rbac.CATEGORIA_BECAS,
+                "categoria": rbac.CATEGORIA_PROGRAMA,
                 "programa": self.becas.pk,
                 "capacidades": ["relevamiento.gestionar"],
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
         group = RolesAdminService.crear(form)
-        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_BECAS)
+        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(group.meta.programa_id, self.becas.pk)
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
@@ -159,11 +160,13 @@ class RolCategoriaFormTests(TestCase):
         group = RolesAdminService.crear(form)
         self.assertIsNone(group.meta.programa_id)
 
-    def test_categoria_becas_sin_programa_valida(self):  # RN-1 eliminada: ya no requiere FK
-        form = RolForm(data={"name": "Rol Becas", "categoria": rbac.CATEGORIA_BECAS})
-        self.assertTrue(form.is_valid(), form.errors)
+    def test_categoria_programa_sin_programa_invalida(self):  # TC-64-03 / #186
+        form = RolForm(data={"name": "Rol Programa", "categoria": rbac.CATEGORIA_PROGRAMA})
 
-    def test_categoria_backoffice_con_programa_valida(self):  # RN-1 eliminada: FK es libre
+        self.assertFalse(form.is_valid())
+        self.assertIn("programa", form.errors)
+
+    def test_categoria_backoffice_con_programa_invalida(self):  # TC-64-04 / #187
         form = RolForm(
             data={
                 "name": "Rol Backoffice",
@@ -171,12 +174,22 @@ class RolCategoriaFormTests(TestCase):
                 "programa": self.becas.pk,
             }
         )
-        self.assertTrue(form.is_valid(), form.errors)
+        self.assertFalse(form.is_valid())
+        self.assertIn("programa", form.errors)
 
-    def test_modelo_sin_constraint_programa(self):
+    def test_modelo_rechaza_categoria_no_programa_con_programa(self):
+        g = Group.objects.create(name="Rol Backoffice")
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_BACKOFFICE, programa=self.becas)
+
+        with self.assertRaisesMessage(ValidationError, "Solo los roles de categoría Programa"):
+            meta.full_clean()
+
+    def test_modelo_rechaza_categoria_programa_sin_programa(self):
         g = Group.objects.create(name="Rol Z")
-        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_BECAS, programa=None)
-        meta.full_clean()  # no debe levantar excepción
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_PROGRAMA, programa=None)
+
+        with self.assertRaisesMessage(ValidationError, "Debés seleccionar un programa"):
+            meta.full_clean()
 
     def test_modelo_acepta_categoria_programa(self):
         g = Group.objects.create(name="Rol Programa")
@@ -290,12 +303,16 @@ class RolAlcanceTests(TestCase):
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(
-            data={"name": "Coord Becas", "categoria": rbac.CATEGORIA_BECAS, "capacidades": ["relevamiento.gestionar"]},
+            data={
+                "name": "Coord Becas",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "capacidades": ["relevamiento.gestionar"],
+            },
             operador=self.admin_becas,
         )
         self.assertTrue(form.is_valid(), form.errors)
         g = RolesAdminService.crear(form)
-        self.assertEqual(g.meta.categoria, rbac.CATEGORIA_BECAS)
+        self.assertEqual(g.meta.categoria, rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(g.meta.programa_id, self.becas.pk)
 
     def test_form_admin_programa_descarta_caps_globales(self):  # seguridad
@@ -309,7 +326,7 @@ class RolAlcanceTests(TestCase):
         form = RolForm(
             data={
                 "name": "Rol Vivienda",
-                "categoria": rbac.CATEGORIA_BECAS,
+                "categoria": rbac.CATEGORIA_PROGRAMA,
                 "programa": self.vivienda.pk,
                 "capacidades": ["relevamiento.gestionar"],
             },

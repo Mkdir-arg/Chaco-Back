@@ -8,7 +8,12 @@
 
   <div>
     <div class="flex items-center gap-3 flex-wrap">
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ relevamiento.nombre }}</h1>
+      <a href="{% url 'becas:relevamientos' %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver a relevamientos">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight min-w-0">{{ relevamiento.nombre }}</h1>
       {% with rel=relevamiento %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}
     </div>
   </div>

@@ -103,6 +103,25 @@ class RolForm(forms.Form):
                 cleaned["programa"] = self.programa_fijo
             caps = cleaned.get("capacidades") or []
             cleaned["capacidades"] = [c for c in caps if rbac.es_codigo_de_programa(c)]
+        if (
+            cleaned.get("categoria") == rbac.CATEGORIA_PROGRAMA
+            and cleaned.get("programa") is None
+            and "programa" not in self.errors
+        ):
+            self.add_error(
+                "programa",
+                "Debés seleccionar un programa para los roles de categoría Programa.",
+            )
+        if (
+            cleaned.get("categoria")
+            and cleaned.get("categoria") != rbac.CATEGORIA_PROGRAMA
+            and cleaned.get("programa") is not None
+            and "programa" not in self.errors
+        ):
+            self.add_error(
+                "programa",
+                "Solo los roles de categoría Programa pueden tener un programa asociado.",
+            )
         return cleaned
 
     def _activos(self):

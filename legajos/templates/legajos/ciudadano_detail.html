@@ -117,6 +117,11 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
                 <div class="flex flex-wrap items-center gap-2">
+                    <a href="{% url 'legajos:ciudadanos' %}"
+                       class="btn-tertiary btn-back-circle"
+                       aria-label="Volver a ciudadanos">
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    </a>
                     <span class="badge badge-info badge-dot">Ficha integral</span>
                     {% if linea_tiempo %}
                     <span class="badge badge-gray">
@@ -149,7 +154,7 @@
 
                     <div class="min-w-0">
                         <p class="mb-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .08em;">Ciudadano</p>
-                        <h1 class="break-words" style="font-size: 32px; font-weight: 800; color: var(--text-heading); letter-spacing: -0.6px;">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</h1>
+                        <h1 class="break-words min-w-0" style="font-size: 32px; font-weight: 800; color: var(--text-heading); letter-spacing: -0.6px;">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</h1>
                         <div class="mt-4 flex flex-wrap gap-2 text-sm">
                             <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-tertiary); color: var(--text-body);">
                                 <i class="fas fa-id-card" aria-hidden="true" style="color: var(--text-body-subtle);"></i>

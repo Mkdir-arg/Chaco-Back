@@ -286,8 +286,14 @@ class ConvocatoriaForm(forms.ModelForm):
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "segmento": forms.Select(attrs={"class": INPUT_CLASS}),
             "subsegmento": forms.Select(attrs={"class": INPUT_CLASS}),
-            "fecha_inicio": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-            "fecha_fin": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+            "fecha_inicio": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={"class": INPUT_CLASS, "type": "date"},
+            ),
+            "fecha_fin": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={"class": INPUT_CLASS, "type": "date"},
+            ),
             "descripcion": _text_widget(),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
@@ -295,12 +301,29 @@ class ConvocatoriaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["subsegmento"].required = False
-        self.fields["subsegmento"].queryset = Subsegmento.objects.select_related("segmento")
+        segmento_id = self.data.get("segmento") if self.is_bound else self.instance.segmento_id
+        try:
+            segmento_id = int(segmento_id) if segmento_id else None
+        except (TypeError, ValueError):
+            segmento_id = None
+        self.fields["subsegmento"].queryset = (
+            Subsegmento.objects.select_related("segmento").filter(segmento_id=segmento_id)
+            if segmento_id
+            else Subsegmento.objects.none()
+        )
+        if self.instance.pk:
+            for field_name in ("fecha_inicio", "fecha_fin"):
+                self.fields[field_name].required = False
+                self.fields[field_name].help_text = "Dejalo sin cambios para mantener la fecha actual."
 
     def clean(self):
         """ "Fecha manda": no se puede dejar activa una convocatoria con la fecha
         de fin ya vencida. Para reactivar una vencida hay que extender la fecha."""
         cleaned = super().clean()
+        if self.instance.pk:
+            for field_name in ("fecha_inicio", "fecha_fin"):
+                if not cleaned.get(field_name):
+                    cleaned[field_name] = getattr(self.instance, field_name)
         activo = cleaned.get("activo")
         fecha_fin = cleaned.get("fecha_fin")
         if activo and fecha_fin and fecha_fin < timezone.localdate():

@@ -18,7 +18,7 @@
         <p style="font-size:14px; color:var(--text-body-subtle); margin:0;">Gestión de localidades del sistema</p>
     </div>
     <a href="{% url 'configuracion:localidad_crear' %}"
-       class="btn-nodo btn-brand"
+       class="btn-nodo btn-brand btn-base"
        @click.prevent="modalCrear = true"
        aria-label="Nueva localidad">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
@@ -140,7 +140,7 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-fg-brand);" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
         <h3 style="font-size:17px; font-weight:700; color:var(--text-heading); margin:0;">No hay localidades registradas</h3>
         <p style="font-size:14px; color:var(--text-body); max-width:360px; margin:0;">Agregá la primera localidad para comenzar a configurar la geografía del sistema.</p>
-        <a href="{% url 'configuracion:localidad_crear' %}" class="btn-nodo btn-brand" style="margin-top:6px;" @click.prevent="modalCrear = true">
+        <a href="{% url 'configuracion:localidad_crear' %}" class="btn-nodo btn-brand btn-base" style="margin-top:6px;" @click.prevent="modalCrear = true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
             Nueva localidad
         </a>

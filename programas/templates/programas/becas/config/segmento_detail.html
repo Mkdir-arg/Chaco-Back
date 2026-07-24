@@ -41,19 +41,19 @@
      }"
      @becas-saved.window="modalSub=false; modalSubEdit=false; modalReq=false; modalReqEdit=false; subCupo=''">
 
-  {# Volver #}
-  <div>
-    <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
-      <i class="fas fa-arrow-left"></i> Volver a segmentos
-    </a>
-  </div>
-
   {# Breadcrumb + título + estado #}
   <div>
     <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ segmento.nombre }}</h1>
-        {% if segmento.descripcion %}<p class="text-sm text-body-subtle mt-1">{{ segmento.descripcion }}</p>{% endif %}
+      <div class="flex items-start gap-3 min-w-0">
+        <a href="{% url 'becas:segmentos' %}"
+           class="btn-tertiary btn-back-circle"
+           aria-label="Volver a segmentos">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <div class="min-w-0">
+          <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ segmento.nombre }}</h1>
+          {% if segmento.descripcion %}<p class="text-sm text-body-subtle mt-1">{{ segmento.descripcion }}</p>{% endif %}
+        </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         {% if segmento.activo %}<span class="badge badge-success badge-dot">Activo</span>

@@ -14,22 +14,26 @@
     <!-- Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Conversación #{{ conversacion.id }}</h1>
-                <div class="flex items-center gap-4 mt-2">
-                    <span class="badge {% if conversacion.tipo == 'personal' %}badge-brand{% else %}badge-gray{% endif %}">
-                        {{ conversacion.get_tipo_display }}
-                    </span>
-                    {% if conversacion.dni_ciudadano %}
-                        <span class="text-sm text-gray-600">DNI: {{ conversacion.dni_ciudadano }}</span>
-                    {% endif %}
-                    <span class="text-sm text-gray-600">{{ conversacion.fecha_inicio|date:"d/m/Y H:i" }}</span>
+            <div class="flex items-start gap-3 min-w-0">
+                <a href="{% url 'conversaciones:lista' %}"
+                   class="btn-tertiary btn-back-circle"
+                   aria-label="Volver a conversaciones">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </a>
+                <div class="min-w-0">
+                    <h1 class="text-2xl font-bold text-gray-900">Conversación #{{ conversacion.id }}</h1>
+                    <div class="flex items-center gap-4 mt-2">
+                        <span class="badge {% if conversacion.tipo == 'personal' %}badge-brand{% else %}badge-gray{% endif %}">
+                            {{ conversacion.get_tipo_display }}
+                        </span>
+                        {% if conversacion.dni_ciudadano %}
+                            <span class="text-sm text-gray-600">DNI: {{ conversacion.dni_ciudadano }}</span>
+                        {% endif %}
+                        <span class="text-sm text-gray-600">{{ conversacion.fecha_inicio|date:"d/m/Y H:i" }}</span>
+                    </div>
                 </div>
             </div>
             <div class="flex gap-2">
-                <a href="{% url 'conversaciones:lista' %}" class="btn-nodo btn-tertiary btn-base">
-                    <i class="fas fa-arrow-left"></i>Volver
-                </a>
                 {% if conversacion.estado == 'activa' %}
                 <a href="{% url 'conversaciones:cerrar' conversacion.id %}"
                    class="js-cerrar-conversacion btn-nodo btn-danger btn-base">

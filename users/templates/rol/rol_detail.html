@@ -8,6 +8,11 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
             <div class="flex items-center gap-2 flex-wrap">
+                <a href="{% url 'users:roles' %}"
+                   class="btn-tertiary btn-back-circle"
+                   aria-label="Volver a roles">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </a>
                 <h1 class="text-2xl font-bold text-gray-900">{{ group.name }}</h1>
                 {% if meta.protegido %}<span class="badge badge-warning"><i class="fas fa-lock"></i>Protegido</span>{% endif %}
                 {% if meta and not meta.activo %}<span class="badge badge-danger badge-dot">Inactivo</span>{% else %}<span class="badge badge-success badge-dot">Activo</span>{% endif %}
@@ -16,7 +21,6 @@
             <p class="text-sm text-gray-500 mt-1">Categoría: {{ meta.categoria|default:"—" }}{% if meta.programa %} · <i class="fas fa-folder mr-1"></i>Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
         </div>
         <div class="flex gap-3">
-            <a href="{% url 'users:roles' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">Volver</a>
             {% if not meta.protegido %}
                 <a href="{% url 'users:rol_editar' group.pk %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"><i class="fas fa-edit mr-1"></i>Editar</a>
             {% endif %}

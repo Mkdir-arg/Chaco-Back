@@ -6,20 +6,21 @@
 
   {# Page header #}
   <div class="flex items-end justify-between gap-4 flex-wrap">
-    <div>
-      <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
-        Becas &mdash; {{ ciudadano.nombre_completo }}
-      </h1>
-      <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
-        DNI {{ ciudadano.dni }}
-      </p>
+    <div class="flex items-start gap-3 min-w-0">
+      <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver al legajo">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <div class="min-w-0">
+        <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
+          Becas &mdash; {{ ciudadano.nombre_completo }}
+        </h1>
+        <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
+          DNI {{ ciudadano.dni }}
+        </p>
+      </div>
     </div>
-    <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="btn-nodo btn-tertiary btn-base" style="flex-shrink:0;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
-      </svg>
-      Volver al legajo
-    </a>
   </div>
 
   {% include "programas/becas/_resumen_ciudadano.html" %}

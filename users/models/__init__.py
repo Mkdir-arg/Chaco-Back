@@ -2,11 +2,13 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 from core.rbac import (
     CATEGORIA_BACKOFFICE,
+    CATEGORIA_PROGRAMA,
     CATEGORIAS_ROL_CHOICES,
     todas_las_capacidades,
 )
@@ -52,6 +54,15 @@ class RolMeta(models.Model):
     class Meta:
         verbose_name = "Metadato de rol"
         verbose_name_plural = "Metadatos de roles"
+
+    def clean(self):
+        super().clean()
+        if self.categoria == CATEGORIA_PROGRAMA and self.programa_id is None:
+            raise ValidationError({"programa": "Debés seleccionar un programa para los roles de categoría Programa."})
+        if self.categoria != CATEGORIA_PROGRAMA and self.programa_id is not None:
+            raise ValidationError(
+                {"programa": "Solo los roles de categoría Programa pueden tener un programa asociado."}
+            )
 
     def __str__(self):
         return self.grupo.name

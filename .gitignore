@@ -50,6 +50,9 @@ htmlcov/
 .github/worklog/
 awslabs-mcp/
 
+# Repositorio independiente de la aplicación móvil
+/mobile/
+
 # Scratch / notas de trabajo temporales
 .tmp_*
 .t.md

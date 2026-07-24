@@ -8,6 +8,11 @@
   {# Header #}
   <div>
     <div class="flex items-center gap-3 flex-wrap">
+      <a href="{% url 'becas:revision_formularios' relevamiento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver a formularios del relevamiento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario #{{ formulario.pk }}</h1>
       {% if formulario.estado == 'APROBADO' %}
         <span class="badge badge-success badge-dot">Aprobado</span>
