@@ -2,6 +2,7 @@ import json
 
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.models import TimeStamped
@@ -332,6 +333,16 @@ class TipoDispositivo(TimeStamped):
     nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     maneja_camas = models.BooleanField(default=False, verbose_name="Maneja camas")
+    umbral_ocupacion_amarillo = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Ocupación desde la que el semáforo es amarillo (%)",
+    )
+    umbral_ocupacion_rojo = models.PositiveSmallIntegerField(
+        default=80,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Ocupación desde la que el semáforo es rojo (%)",
+    )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
 
     class Meta:
@@ -341,6 +352,11 @@ class TipoDispositivo(TimeStamped):
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        if self.umbral_ocupacion_amarillo >= self.umbral_ocupacion_rojo:
+            raise ValidationError({"umbral_ocupacion_rojo": "El umbral rojo debe ser mayor que el amarillo."})
 
 
 class Dispositivo(TimeStamped):
@@ -621,6 +637,13 @@ class Admision(TimeStamped):
             models.Index(fields=["dispositivo", "estado"]),
             models.Index(fields=["cama", "estado"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cama"],
+                condition=models.Q(cama__isnull=False, estado="ALOJADO"),
+                name="admision_una_cama_alojada",
+            )
+        ]
 
     def __str__(self):
         return f"{self.ciudadano.nombre_completo} · {self.dispositivo.nombre}"
@@ -629,6 +652,8 @@ class Admision(TimeStamped):
         super().clean()
         if self.cama_id and self.dispositivo_id and self.cama.dispositivo_id != self.dispositivo_id:
             raise ValidationError({"cama": "La cama debe pertenecer al dispositivo de la admisión."})
+        if self.cama_id and self.estado == self.Estado.ALOJADO and self.cama.estado == Cama.Estado.FUERA_SERVICIO:
+            raise ValidationError({"cama": "No se puede asignar una cama fuera de servicio."})
 
         if not self.inscripcion_programa_id:
             return

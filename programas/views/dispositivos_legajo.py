@@ -9,10 +9,11 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from programas.forms import DispositivoForm
-from programas.models import Dispositivo, TipoDispositivo
+from programas.forms import CamaForm, CantidadCamasForm, DispositivoForm
+from programas.models import Cama, Dispositivo, TipoDispositivo
+from programas.services.camas import actualizar_cama, crear_camas, resumen_ocupacion
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     cerrar_dispositivo,
@@ -152,6 +153,17 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["trazas"] = self.object.trazas.select_related("usuario")
+        context["camas"] = self.object.camas.all()
+        context["resumen_camas"] = resumen_ocupacion(self.object)
+        context["puede_gestionar_camas"] = (
+            self.object.tipo.maneja_camas
+            and self.object.estado != Dispositivo.Estado.CERRADO
+            and puede_operar_dispositivo(
+                self.request.user,
+                self.object,
+                "dispositivo.editar",
+            )
+        )
         return context
 
 
@@ -260,3 +272,78 @@ class DispositivoCerrarView(DispositivoActionView):
 
     def ejecutar(self, dispositivo, request):
         cerrar_dispositivo(dispositivo, request.user)
+
+
+class CamasCreateView(DispositivoProgramaPermissionMixin, FormView):
+    capacidad_requerida = "dispositivo.editar"
+    form_class = CantidadCamasForm
+    template_name = "programas/dispositivos/legajo/camas_form.html"
+
+    def get_dispositivo(self):
+        if not hasattr(self, "_dispositivo"):
+            self._dispositivo = get_object_or_404(Dispositivo.objects.select_related("tipo"), pk=self.kwargs["pk"])
+            if self._dispositivo.estado == Dispositivo.Estado.CERRADO:
+                raise PermissionDenied
+            if not puede_operar_dispositivo(self.request.user, self._dispositivo, self.capacidad_requerida):
+                raise PermissionDenied
+        return self._dispositivo
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["dispositivo"] = self.get_dispositivo()
+        return context
+
+    def form_valid(self, form):
+        dispositivo = self.get_dispositivo()
+        try:
+            crear_camas(dispositivo, form.cleaned_data["cantidad"])
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+        messages.success(self.request, "Camas agregadas como disponibles.")
+        return redirect("dispositivos:detalle", pk=dispositivo.pk)
+
+
+class CamaUpdateView(DispositivoProgramaPermissionMixin, UpdateView):
+    capacidad_requerida = "dispositivo.editar"
+    model = Cama
+    form_class = CamaForm
+    template_name = "programas/dispositivos/legajo/cama_form.html"
+    context_object_name = "cama"
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("dispositivo")
+
+    def get_object(self, queryset=None):
+        cama = super().get_object(queryset)
+        if cama.dispositivo.estado == Dispositivo.Estado.CERRADO:
+            raise PermissionDenied
+        if not puede_operar_dispositivo(self.request.user, cama.dispositivo, self.capacidad_requerida):
+            raise PermissionDenied
+        return cama
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["dispositivo"] = self.object.dispositivo
+        return context
+
+    def form_valid(self, form):
+        cama = self.get_object()
+        try:
+            cama = actualizar_cama(
+                cama,
+                codigo=form.cleaned_data["codigo"],
+                nuevo_estado=form.cleaned_data["estado"],
+            )
+        except ValidationError as error:
+            form.add_error("estado", error)
+            return self.form_invalid(form)
+        except IntegrityError:
+            form.add_error("codigo", "Ya existe una cama con este código en el dispositivo.")
+            return self.form_invalid(form)
+        self.object = cama
+        messages.success(self.request, "Cama actualizada.")
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse("dispositivos:detalle", args=[self.object.dispositivo_id])
