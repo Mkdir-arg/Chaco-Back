@@ -10,7 +10,9 @@ confirmación explícita** antes de pushear.
 ## Contexto fijo (no negociable)
 
 - **Remoto destino:** `ecom` →
-  `https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/relevamiento-becas-admin.git`
+  `https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/datanach.git`
+  (renombrado desde `relevamiento-becas-admin` en jul-2026, por el rename del sistema a
+  DATAÑACH; la URL vieja aún redirige, pero usá la nueva)
 - **Vía HTTPS, NO SSH.** El SSH interno (puerto 22) no es alcanzable desde afuera y la
   VPN de icore no enruta la red de ECOM (`10.2.0.x`); pero el **HTTPS (443) está expuesto
   a internet**, así que se pushea sin VPN.
@@ -25,7 +27,7 @@ confirmación explícita** antes de pushear.
 1. **Verificá el remoto `ecom`:**
    `git remote get-url ecom`
    - Si no existe, agregalo:
-     `git remote add ecom https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/relevamiento-becas-admin.git`
+     `git remote add ecom https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/datanach.git`
 
 2. **Averiguá el estado remoto de `main`:**
    `git ls-remote ecom main`
