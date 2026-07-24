@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import Group
 
 from core import rbac
-from programas.models import Programa
+from programas.models import AsignacionDispositivo, Dispositivo, Programa
 
 _INPUT_CLASS = (
     "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none "
@@ -47,6 +47,12 @@ class RolForm(forms.Form):
         choices=[(c, c) for c in rbac.codigos_de_capacidad()],
         widget=forms.CheckboxSelectMultiple,
     )
+    dispositivos_alcance = forms.ModelMultipleChoiceField(
+        required=False,
+        label="Dispositivos alcanzados",
+        queryset=Dispositivo.objects.none(),
+        widget=forms.SelectMultiple(attrs={"class": _INPUT_CLASS, "size": 8}),
+    )
 
     def __init__(self, *args, instance=None, operador=None, **kwargs):
         self.instance = instance  # Group o None
@@ -58,6 +64,10 @@ class RolForm(forms.Form):
 
         self.es_admin_global = operador is None or es_admin_global(operador)
         self.programa_fijo = None
+        self.programa_dispositivos_id = (
+            Programa.objects.filter(codigo="DISPOSITIVOS").values_list("pk", flat=True).first()
+        )
+        self.fields["dispositivos_alcance"].queryset = Dispositivo.objects.order_by("nombre")
         if not self.es_admin_global:
             progs = programas_administrables(operador)
             self.fields["programa"].queryset = progs
@@ -68,7 +78,6 @@ class RolForm(forms.Form):
             ]
             self.fields["categoria"].required = True
             self.fields["categoria"].initial = rbac.CATEGORIA_BECAS
-            self.fields["capacidades"].choices = [(c, c) for c in sorted(rbac.codigos_de_programa())]
             self.fields["programa"].required = False
             # Materializado una vez para decidir (evita COUNT + SELECT extra);
             # el field conserva el queryset.
@@ -76,6 +85,14 @@ class RolForm(forms.Form):
             if len(progs_list) == 1:
                 self.programa_fijo = progs_list[0]
                 self.fields["programa"].initial = self.programa_fijo.pk
+            self.fields["capacidades"].choices = [
+                (capacidad["codigo"], capacidad["codigo"])
+                for modulo in rbac.arbol_capacidades(
+                    solo_programa=True,
+                    programa=self.programa_fijo,
+                )
+                for capacidad in modulo["capacidades"]
+            ]
 
         if instance is not None and not self.is_bound:
             self.fields["name"].initial = instance.name
@@ -85,6 +102,18 @@ class RolForm(forms.Form):
                 self.fields["categoria"].initial = meta.categoria
                 self.fields["programa"].initial = meta.programa_id
             self.fields["capacidades"].initial = rbac.capacidades_de_grupo(instance)
+            self.fields["dispositivos_alcance"].initial = AsignacionDispositivo.objects.filter(
+                rol=instance,
+                activo=True,
+            ).values_list("dispositivo_id", flat=True)
+
+        programa_inicial = self.programa_fijo
+        if programa_inicial is None and instance is not None:
+            programa_inicial = getattr(getattr(instance, "meta", None), "programa", None)
+        if self.is_bound and self.programa_fijo is None:
+            programa_inicial = self.data.get("programa")
+        programa_inicial_id = getattr(programa_inicial, "pk", programa_inicial)
+        self.muestra_alcance_dispositivos = str(programa_inicial_id or "") == str(self.programa_dispositivos_id or "")
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
@@ -102,7 +131,15 @@ class RolForm(forms.Form):
             if self.programa_fijo is not None:
                 cleaned["programa"] = self.programa_fijo
             caps = cleaned.get("capacidades") or []
-            cleaned["capacidades"] = [c for c in caps if rbac.es_codigo_de_programa(c)]
+            permitidas = {
+                capacidad["codigo"]
+                for modulo in rbac.arbol_capacidades(
+                    solo_programa=True,
+                    programa=cleaned.get("programa"),
+                )
+                for capacidad in modulo["capacidades"]
+            }
+            cleaned["capacidades"] = [c for c in caps if c in permitidas]
         if (
             cleaned.get("categoria") == rbac.CATEGORIA_PROGRAMA
             and cleaned.get("programa") is None
@@ -122,6 +159,13 @@ class RolForm(forms.Form):
                 "programa",
                 "Solo los roles de categoría Programa pueden tener un programa asociado.",
             )
+        programa = cleaned.get("programa")
+        if not (
+            cleaned.get("categoria") == rbac.CATEGORIA_PROGRAMA
+            and programa is not None
+            and programa.codigo == "DISPOSITIVOS"
+        ):
+            cleaned["dispositivos_alcance"] = Dispositivo.objects.none()
         return cleaned
 
     def _activos(self):
@@ -133,8 +177,16 @@ class RolForm(forms.Form):
 
     def arbol_capacidades(self):
         """Árbol plano por módulo (retrocompatibilidad)."""
-        return rbac.arbol_capacidades(self._activos(), solo_programa=not self.es_admin_global)
+        return rbac.arbol_capacidades(
+            self._activos(),
+            solo_programa=not self.es_admin_global,
+            programa=self.programa_fijo,
+        )
 
     def arbol_por_tabs(self):
         """Árbol agrupado por tab para el panel de capacidades."""
-        return rbac.arbol_por_tabs(self._activos(), solo_programa=not self.es_admin_global)
+        return rbac.arbol_por_tabs(
+            self._activos(),
+            solo_programa=not self.es_admin_global,
+            programa=self.programa_fijo,
+        )

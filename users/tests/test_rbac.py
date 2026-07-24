@@ -346,6 +346,8 @@ class CatalogoProgramaTests(TestCase):
             {
                 "programas",
                 "relevamientos",
+                "dispositivos",
+                "merenderos",
                 "becas_admin",
                 "becas_segmentos",
                 "becas_subsegmentos",

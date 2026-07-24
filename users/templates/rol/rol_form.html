@@ -43,9 +43,8 @@
                     {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
                 </div>
 
-                {% if not form.es_admin_global %}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa (opcional)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
                     {% if form.programa_fijo %}
                         <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
                         <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
@@ -54,7 +53,12 @@
                     {% endif %}
                     {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
                 </div>
-                {% endif %}
+                <div id="dispositivos-alcance" class="md:col-span-2{% if not form.muestra_alcance_dispositivos %} hidden{% endif %}" data-programa-dispositivos="{{ form.programa_dispositivos_id }}">
+                    <label for="{{ form.dispositivos_alcance.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Alcance por dispositivo</label>
+                    {{ form.dispositivos_alcance }}
+                    <p class="text-sm text-gray-500 mt-1">Seleccioná los dispositivos sobre los que este rol puede operar.</p>
+                    {% if form.dispositivos_alcance.errors %}<div class="text-red-600 text-sm mt-1">{{ form.dispositivos_alcance.errors }}</div>{% endif %}
+                </div>
             </div>
         </div>
 
@@ -153,6 +157,19 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var alcanceDispositivos = document.getElementById('dispositivos-alcance');
+    var programaInput = document.querySelector('[name="programa"]');
+    var categoriaInput = document.getElementById('{{ form.categoria.id_for_label }}');
+    function actualizarAlcanceDispositivos() {
+        if (!alcanceDispositivos || !programaInput || !categoriaInput) return;
+        var mostrar = programaInput.value === alcanceDispositivos.dataset.programaDispositivos
+            && categoriaInput.value === 'Programa';
+        alcanceDispositivos.classList.toggle('hidden', !mostrar);
+    }
+    if (programaInput) programaInput.addEventListener('change', actualizarAlcanceDispositivos);
+    if (categoriaInput) categoriaInput.addEventListener('change', actualizarAlcanceDispositivos);
+    actualizarAlcanceDispositivos();
+
     var totalEl = document.getElementById('total-seleccionadas');
 
     // ---- Tabs ----

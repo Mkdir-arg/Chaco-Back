@@ -1,5 +1,6 @@
 {% load static custom_filters rbac dispositivos %}
 {% puede_configurar_dispositivos request.user as puede_configurar_dispositivos %}
+{% puede_en_programa_dispositivos request.user "dispositivo.ver" as puede_ver_dispositivos %}
 {% with pagina_actual=request.resolver_match|getattr:"route" %}
 <div class="flex flex-1 flex-col" style="gap: 0;">
 
@@ -538,8 +539,8 @@
         {% endif %}
 
         {# ── Dispositivos (grupo colapsable) ─────────────────── #}
-        {% if puede_configurar_dispositivos %}
-        <div x-data="{ open: {% if 'dispositivos/config' in pagina_actual %}true{% else %}false{% endif %} }"
+        {% if puede_configurar_dispositivos or puede_ver_dispositivos %}
+        <div x-data="{ open: {% if 'dispositivos' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
             <template x-if="!sidebarCollapsed">
@@ -565,6 +566,20 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        {% if puede_ver_dispositivos %}
+                        <a href="{% url 'dispositivos:lista' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}aria-current="page"{% endif %}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
+                            </svg>
+                            Legajos
+                        </a>
+                        {% endif %}
+                        {% if puede_configurar_dispositivos %}
                         <a href="{% url 'dispositivos:tipos' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -578,20 +593,21 @@
                             </svg>
                             Configuración
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% url 'dispositivos:tipos' %}"
+                <a href="{% if puede_ver_dispositivos %}{% url 'dispositivos:lista' %}{% else %}{% url 'dispositivos:tipos' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
-                          {% if 'dispositivos/config' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                          {% if 'dispositivos' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
                    title="Dispositivos"
                    aria-label="Dispositivos">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                          width="20" height="20" aria-hidden="true"
-                         style="color: {% if 'dispositivos/config' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                         style="color: {% if 'dispositivos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
                     </svg>

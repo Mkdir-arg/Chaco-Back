@@ -3,6 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
@@ -10,6 +11,7 @@ from programas.models import (
     AsignacionCoordinador,
     CampoTipoDispositivo,
     Convocatoria,
+    Dispositivo,
     Formulario,
     PreguntaGlobal,
     Relevamiento,
@@ -169,6 +171,65 @@ class TipoDispositivoForm(forms.ModelForm):
             "maneja_camas": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
+
+
+class DispositivoForm(forms.ModelForm):
+    """Alta y edición del legajo institucional de un dispositivo."""
+
+    class Meta:
+        model = Dispositivo
+        fields = [
+            "tipo",
+            "codigo",
+            "nombre",
+            "localidad",
+            "domicilio",
+            "latitud",
+            "longitud",
+            "responsable_nombre",
+            "responsable_documento",
+            "contacto_telefono",
+            "contacto_email",
+            "horarios",
+            "camas_totales",
+        ]
+        widgets = {
+            "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
+            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "localidad": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "latitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
+            "longitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
+            "responsable_nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_documento": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "contacto_telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "contacto_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
+            "horarios": _text_widget(rows=3),
+            "camas_totales": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        tipos = TipoDispositivo.objects.all()
+        if self.instance.pk and self.instance.tipo_id:
+            tipos = tipos.filter(Q(activo=True) | Q(pk=self.instance.tipo_id))
+        else:
+            tipos = tipos.filter(activo=True)
+        self.fields["tipo"].queryset = tipos.order_by("nombre")
+        self.fields["camas_totales"].required = False
+
+    def clean_codigo(self):
+        codigo = " ".join(self.cleaned_data["codigo"].split()).upper()
+        duplicado = Dispositivo.objects.filter(codigo__iexact=codigo)
+        if self.instance.pk:
+            duplicado = duplicado.exclude(pk=self.instance.pk)
+        if duplicado.exists():
+            raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
+        return codigo
+
+    def clean_camas_totales(self):
+        return self.cleaned_data.get("camas_totales") or 0
 
 
 class CampoTipoDispositivoForm(_OpcionesMixin):
