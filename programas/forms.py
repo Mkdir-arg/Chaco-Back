@@ -3,6 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
@@ -210,7 +211,12 @@ class DispositivoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["tipo"].queryset = TipoDispositivo.objects.filter(activo=True).order_by("nombre")
+        tipos = TipoDispositivo.objects.all()
+        if self.instance.pk and self.instance.tipo_id:
+            tipos = tipos.filter(Q(activo=True) | Q(pk=self.instance.tipo_id))
+        else:
+            tipos = tipos.filter(activo=True)
+        self.fields["tipo"].queryset = tipos.order_by("nombre")
         self.fields["camas_totales"].required = False
 
     def clean_codigo(self):

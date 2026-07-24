@@ -120,9 +120,16 @@ class DispositivoDuplicateSearchView(DispositivoProgramaPermissionMixin, View):
             nombre=request.GET.get("nombre", ""),
             localidad=request.GET.get("localidad", ""),
         )
+        coincidencias = resultado["dispositivos"]
+        hay_coincidencias = resultado["codigo_duplicado"] or coincidencias.exists()
+        if puede_en_programa_dispositivos(request.user, "dispositivo.ver"):
+            coincidencias = coincidencias.filter(pk__in=dispositivos_visibles(request.user).values("pk"))
+        else:
+            coincidencias = Dispositivo.objects.none()
         return JsonResponse(
             {
                 "codigo_duplicado": resultado["codigo_duplicado"],
+                "hay_coincidencias": hay_coincidencias,
                 "coincidencias": [
                     {
                         "codigo": dispositivo.codigo,
@@ -130,7 +137,7 @@ class DispositivoDuplicateSearchView(DispositivoProgramaPermissionMixin, View):
                         "localidad": dispositivo.localidad,
                         "estado": dispositivo.get_estado_display(),
                     }
-                    for dispositivo in resultado["dispositivos"]
+                    for dispositivo in coincidencias
                 ],
             }
         )

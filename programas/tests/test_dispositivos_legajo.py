@@ -149,6 +149,22 @@ class DispositivoFormTests(TestCase):
         self.assertFalse(resultado["codigo_duplicado"])
         self.assertEqual(list(resultado["dispositivos"]), [Dispositivo.objects.get(codigo="HOGAR-01")])
 
+    def test_edicion_con_tipo_inactivo_conserva_el_tipo_actual(self):
+        tipo_inactivo = TipoDispositivo.objects.create(codigo="HIST", nombre="Histórico", activo=False)
+        dispositivo = Dispositivo.objects.create(codigo="HIST-01", nombre="Hogar Histórico", tipo=tipo_inactivo)
+
+        form = DispositivoForm(
+            {
+                "tipo": tipo_inactivo.pk,
+                "codigo": dispositivo.codigo,
+                "nombre": "Hogar Histórico actualizado",
+                "localidad": "Resistencia",
+            },
+            instance=dispositivo,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
 
 class ValidacionDispositivoTests(TestCase):
     def setUp(self):
@@ -214,6 +230,9 @@ class ValidacionDispositivoTests(TestCase):
             TrazaDispositivo.objects.filter(pk=traza.pk).delete()
         with self.assertRaisesMessage(ValidationError, "inmutables"):
             TrazaDispositivo._base_manager.filter(pk=traza.pk).update(accion="EDITADO")
+
+        with self.assertRaises(ProtectedError):
+            self.dispositivo.delete()
 
         with self.assertRaises(ProtectedError):
             self.supervisor.delete()
@@ -297,6 +316,30 @@ class LegajoDispositivoViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["codigo_duplicado"])
         self.assertEqual(response.json()["coincidencias"][0]["codigo"], "HOGAR-A")
+
+    def test_busqueda_previa_no_expone_legajos_fuera_del_alcance_de_creacion(self):
+        rol_creacion = Group.objects.create(name="Alta sin lectura")
+        RolMeta.objects.create(
+            grupo=rol_creacion,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.programa,
+            activo=True,
+        )
+        rol_creacion.permissions.add(permiso("dispositivo.crear"))
+        alta_sin_lectura = User.objects.create_user("alta-sin-lectura", password="x")
+        alta_sin_lectura.groups.add(rol_creacion)
+        self.client.force_login(alta_sin_lectura)
+
+        response = self.client.get(
+            reverse("dispositivos:buscar_duplicados"),
+            {"codigo": self.dispositivo_b.codigo},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["codigo_duplicado"])
+        self.assertTrue(response.json()["hay_coincidencias"])
+        self.assertEqual(response.json()["coincidencias"], [])
 
     def test_edicion_conserva_valor_anterior_en_auditoria(self):
         self.client.force_login(self.operador)

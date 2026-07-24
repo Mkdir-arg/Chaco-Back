@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
-from programas.models import Programa
+from programas.models import AsignacionDispositivo, Dispositivo, Programa, TipoDispositivo
 from users.forms.roles import RolForm
 from users.models import Capacidad, RolMeta
 from users.selectors.roles import roles_filtrados_para, roles_lista_para, roles_visibles_para
@@ -147,6 +147,30 @@ class RolCategoriaFormTests(TestCase):
         group = RolesAdminService.crear(form)
         self.assertEqual(group.meta.categoria, rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(group.meta.programa_id, self.becas.pk)
+
+    def test_alta_rol_dispositivos_guarda_su_alcance_fino(self):
+        dispositivos = Programa.objects.create(
+            codigo="DISPOSITIVOS",
+            nombre="Dispositivos",
+            tipo=Programa.TipoPrograma.DISPOSITIVOS,
+        )
+        tipo = TipoDispositivo.objects.create(codigo="ALC", nombre="Alcance")
+        dispositivo = Dispositivo.objects.create(codigo="ALC-01", nombre="Dispositivo alcance", tipo=tipo)
+        form = RolForm(
+            data={
+                "name": "Operador alcance",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": dispositivos.pk,
+                "capacidades": ["dispositivo.ver"],
+                "dispositivos_alcance": [dispositivo.pk],
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        group = RolesAdminService.crear(form)
+        self.assertTrue(
+            AsignacionDispositivo.objects.filter(rol=group, dispositivo=dispositivo, activo=True).exists()
+        )
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
         form = RolForm(
@@ -322,6 +346,31 @@ class RolAlcanceTests(TestCase):
         self.assertIn("dispositivos", modulos)
         self.assertNotIn("merenderos", modulos)
         self.assertIn("dispositivo.validar", codigos)
+
+    def test_edicion_rol_dispositivos_muestra_selector_de_alcance(self):
+        dispositivos = Programa.objects.create(
+            codigo="DISPOSITIVOS",
+            nombre="Dispositivos",
+            tipo=Programa.TipoPrograma.DISPOSITIVOS,
+        )
+        rol = Group.objects.create(name="Operador dispositivos")
+        RolMeta.objects.create(
+            grupo=rol,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=dispositivos,
+            activo=True,
+        )
+        tipo = TipoDispositivo.objects.create(codigo="UI-ALC", nombre="UI alcance")
+        dispositivo = Dispositivo.objects.create(codigo="UI-ALC-01", nombre="Dispositivo UI", tipo=tipo)
+        AsignacionDispositivo.objects.create(rol=rol, dispositivo=dispositivo)
+
+        self.client.force_login(self.su)
+        response = self.client.get(reverse("users:rol_editar", args=[rol.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].muestra_alcance_dispositivos)
+        self.assertContains(response, 'id="dispositivos-alcance" class="md:col-span-2"')
+        self.assertContains(response, "Dispositivo UI")
 
     def test_form_admin_programa_incluye_categoria_programa(self):
         form = RolForm(operador=self.admin_becas)

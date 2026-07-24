@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
 from core import rbac
+from programas.models import AsignacionDispositivo
 from users.models import Capacidad, RolMeta
 
 
@@ -22,6 +23,22 @@ def _set_capacidades(group, codigos):
 def _meta(group):
     meta, _ = RolMeta.objects.get_or_create(grupo=group)
     return meta
+
+
+def _sincronizar_alcance_dispositivos(group, dispositivos):
+    """Mantiene las asignaciones activas del rol sin borrar su historial."""
+
+    ids = [dispositivo.pk for dispositivo in dispositivos]
+    asignaciones = AsignacionDispositivo.objects.filter(rol=group)
+    asignaciones.exclude(dispositivo_id__in=ids).update(activo=False)
+    for dispositivo_id in ids:
+        asignacion, _ = AsignacionDispositivo.objects.get_or_create(
+            rol=group,
+            dispositivo_id=dispositivo_id,
+        )
+        if not asignacion.activo:
+            asignacion.activo = True
+            asignacion.save(update_fields=["activo", "modificado"])
 
 
 def _programa_que_administra(group):
@@ -56,6 +73,7 @@ class RolesAdminService:
             protegido=False,
         )
         _set_capacidades(group, cd.get("capacidades", []))
+        _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         return group
 
     @staticmethod
@@ -75,6 +93,7 @@ class RolesAdminService:
         meta.programa = cd.get("programa")
         meta.save()
         _set_capacidades(group, cd.get("capacidades", []))
+        _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         # Si la edición quitó usuario.administrar/rol.administrar y dejaría al
         # sistema sin admins, revierte la transacción.
         rbac.asegurar_admin_restante()

@@ -450,7 +450,7 @@ class TrazaDispositivo(models.Model):
 
     dispositivo = models.ForeignKey(
         Dispositivo,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="trazas",
         verbose_name="Dispositivo",
     )
