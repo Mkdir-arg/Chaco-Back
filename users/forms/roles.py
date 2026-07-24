@@ -64,7 +64,9 @@ class RolForm(forms.Form):
 
         self.es_admin_global = operador is None or es_admin_global(operador)
         self.programa_fijo = None
-        self.programa_dispositivos_id = Programa.objects.filter(codigo="DISPOSITIVOS").values_list("pk", flat=True).first()
+        self.programa_dispositivos_id = (
+            Programa.objects.filter(codigo="DISPOSITIVOS").values_list("pk", flat=True).first()
+        )
         self.fields["dispositivos_alcance"].queryset = Dispositivo.objects.order_by("nombre")
         if not self.es_admin_global:
             progs = programas_administrables(operador)

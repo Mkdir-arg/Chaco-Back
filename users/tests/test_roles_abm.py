@@ -168,9 +168,7 @@ class RolCategoriaFormTests(TestCase):
 
         self.assertTrue(form.is_valid(), form.errors)
         group = RolesAdminService.crear(form)
-        self.assertTrue(
-            AsignacionDispositivo.objects.filter(rol=group, dispositivo=dispositivo, activo=True).exists()
-        )
+        self.assertTrue(AsignacionDispositivo.objects.filter(rol=group, dispositivo=dispositivo, activo=True).exists())
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
         form = RolForm(
