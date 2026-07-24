@@ -58,9 +58,7 @@ class RolMeta(models.Model):
     def clean(self):
         super().clean()
         if self.categoria == CATEGORIA_PROGRAMA and self.programa_id is None:
-            raise ValidationError(
-                {"programa": "Debés seleccionar un programa para los roles de categoría Programa."}
-            )
+            raise ValidationError({"programa": "Debés seleccionar un programa para los roles de categoría Programa."})
         if self.categoria != CATEGORIA_PROGRAMA and self.programa_id is not None:
             raise ValidationError(
                 {"programa": "Solo los roles de categoría Programa pueden tener un programa asociado."}

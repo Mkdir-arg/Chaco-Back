@@ -314,9 +314,7 @@ class ConvocatoriaForm(forms.ModelForm):
         if self.instance.pk:
             for field_name in ("fecha_inicio", "fecha_fin"):
                 self.fields[field_name].required = False
-                self.fields[field_name].help_text = (
-                    "Dejalo sin cambios para mantener la fecha actual."
-                )
+                self.fields[field_name].help_text = "Dejalo sin cambios para mantener la fecha actual."
 
     def clean(self):
         """ "Fecha manda": no se puede dejar activa una convocatoria con la fecha

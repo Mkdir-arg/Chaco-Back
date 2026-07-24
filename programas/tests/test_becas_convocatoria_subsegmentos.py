@@ -14,15 +14,9 @@ class ConvocatoriaSubsegmentosTests(TestCase):
         self.client.force_login(self.user)
         self.segmento_a = Segmento.objects.create(nombre="Segmento A", cupo_maximo=100)
         self.segmento_b = Segmento.objects.create(nombre="Segmento B", cupo_maximo=100)
-        self.sub_a_2 = Subsegmento.objects.create(
-            segmento=self.segmento_a, nombre="Subsegmento A2", cupo_maximo=20
-        )
-        self.sub_a_1 = Subsegmento.objects.create(
-            segmento=self.segmento_a, nombre="Subsegmento A1", cupo_maximo=20
-        )
-        self.sub_b = Subsegmento.objects.create(
-            segmento=self.segmento_b, nombre="Subsegmento B", cupo_maximo=20
-        )
+        self.sub_a_2 = Subsegmento.objects.create(segmento=self.segmento_a, nombre="Subsegmento A2", cupo_maximo=20)
+        self.sub_a_1 = Subsegmento.objects.create(segmento=self.segmento_a, nombre="Subsegmento A1", cupo_maximo=20)
+        self.sub_b = Subsegmento.objects.create(segmento=self.segmento_b, nombre="Subsegmento B", cupo_maximo=20)
 
     def _form_data(self, *, segmento, subsegmento):
         return {
@@ -36,9 +30,7 @@ class ConvocatoriaSubsegmentosTests(TestCase):
         }
 
     def test_endpoint_devuelve_solo_subsegmentos_del_segmento_ordenados(self):
-        response = self.client.get(
-            reverse("becas:segmento_subsegmentos_json", args=[self.segmento_a.pk])
-        )
+        response = self.client.get(reverse("becas:segmento_subsegmentos_json", args=[self.segmento_a.pk]))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -50,17 +42,13 @@ class ConvocatoriaSubsegmentosTests(TestCase):
         )
 
     def test_form_limita_queryset_al_segmento_elegido(self):
-        form = ConvocatoriaForm(
-            data=self._form_data(segmento=self.segmento_a, subsegmento=self.sub_a_1)
-        )
+        form = ConvocatoriaForm(data=self._form_data(segmento=self.segmento_a, subsegmento=self.sub_a_1))
 
         self.assertEqual(list(form.fields["subsegmento"].queryset), [self.sub_a_1, self.sub_a_2])
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_form_rechaza_subsegmento_de_otro_segmento(self):
-        form = ConvocatoriaForm(
-            data=self._form_data(segmento=self.segmento_a, subsegmento=self.sub_b)
-        )
+        form = ConvocatoriaForm(data=self._form_data(segmento=self.segmento_a, subsegmento=self.sub_b))
 
         self.assertFalse(form.is_valid())
         self.assertIn("subsegmento", form.errors)
