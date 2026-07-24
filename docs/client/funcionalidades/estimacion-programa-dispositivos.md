@@ -4,7 +4,7 @@
 **Fecha:** 2026-07-02
 **Versión:** 1.0
 **Alcance cubierto:** definición aprobada por el Ministerio el 01/07/2026 (legajo del dispositivo, admisiones y camas, registro diario, legajo de merenderos con entrega de mercaderías y prestación mensual)
-**Estado:** Pendiente de aprobación del Ministerio
+**Estado:** Aprobada por el Ministerio (24/07/2026)
 
 > **Base de la estimación:** la definición funcional publicada en [Programa Dispositivos](programa-dispositivos.md), con la conformidad del Ministerio del 01/07/2026. A diferencia del Programa Becas, esta etapa es **100% backoffice** (no incluye app móvil), y reutiliza componentes ya construidos: motor de roles, validación RENAPER, formularios configurables y solapas del legajo ciudadano — eso reduce el esfuerzo respecto de construirlos de cero.
 
