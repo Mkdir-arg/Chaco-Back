@@ -6,7 +6,6 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -70,10 +69,15 @@ class MerenderosServiceTests(TestCase):
 
     def test_aprobar_solicitud_convierte_colision_de_codigo_en_error_de_validacion(self):
         solicitud = self.solicitud()
+        crear_merendero = Merendero.objects.create
+
+        def crear_con_colision(**kwargs):
+            crear_merendero(**kwargs)
+            return crear_merendero(**kwargs)
 
         with patch(
             "programas.services.merenderos.Merendero.objects.create",
-            side_effect=IntegrityError("codigo institucional duplicado"),
+            side_effect=crear_con_colision,
         ):
             with self.assertRaisesMessage(ValidationError, "Ya existe un merendero"):
                 aprobar_solicitud(solicitud, self.usuario)
@@ -82,6 +86,13 @@ class MerenderosServiceTests(TestCase):
         self.assertEqual(solicitud.estado, SolicitudMerendero.Estado.EN_REVISION)
         self.assertIsNone(solicitud.merendero)
         self.assertEqual(Merendero.objects.count(), 0)
+        Merendero.objects.create(
+            codigo="MER-POST-COLISION",
+            nombre="Merendero posterior a la colisión",
+            domicilio="Calle 12",
+            responsable_nombre="Operador",
+        )
+        self.assertTrue(Merendero.objects.filter(codigo="MER-POST-COLISION").exists())
 
     def test_f02_febrero_bisiesto_genera_dias_reales_y_firma(self):
         merendero = Merendero.objects.create(
