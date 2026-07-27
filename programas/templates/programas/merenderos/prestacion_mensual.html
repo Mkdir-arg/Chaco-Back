@@ -1,0 +1,90 @@
+{% extends "includes/base.html" %}
+{% load merenderos %}
+
+{% block title %}Prestación mensual{% endblock %}
+
+{% block main-content %}
+<div class="mx-auto max-w-7xl">
+  <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:detalle' merendero.pk %}">← Volver al merendero</a>
+  <h1 class="mt-4 text-3xl font-extrabold text-heading">Prestación mensual</h1>
+  <p class="mt-1 text-body-subtle">{{ merendero.nombre }}</p>
+
+  <section class="mt-5 rounded-xl border border-base p-4 shadow-sm" style="background: var(--bg-primary);">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-heading">Período de prestación</p>
+        <p class="mt-1 text-sm text-body-subtle">Elegí el mes que querés informar o revisar.</p>
+      </div>
+      <form id="prestacion-periodo-form" class="flex flex-wrap items-end gap-3" method="get">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-body" for="prestacion-periodo">Mes y año</label>
+          <input id="prestacion-periodo" class="nodo-field" type="month" name="periodo" value="{{ periodo }}" min="2000-01" max="2100-12" required>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <form method="post" class="mt-5 overflow-hidden rounded-xl border border-base shadow-sm" style="background: var(--bg-primary);">
+    {% csrf_token %}
+    <input type="hidden" name="anio" value="{{ anio }}">
+    <input type="hidden" name="mes" value="{{ mes }}">
+    <div class="h-[clamp(12rem,calc(100dvh-31rem),28rem)] overflow-x-hidden overflow-y-auto" style="contain: paint;">
+      <table class="w-full table-fixed text-center text-sm">
+        <colgroup>
+          <col class="w-[7%]">
+          {% for servicio, etiqueta in servicios %}<col class="w-[14%]">{% endfor %}
+          <col class="w-[8%]">
+          <col class="w-[29%]">
+        </colgroup>
+        <thead class="sticky top-0 z-10 border-b border-light text-body-subtle" style="background: var(--bg-secondary);">
+          <tr>
+            <th class="break-words px-2 py-3 font-semibold text-center" scope="col">Día</th>
+            {% for servicio, etiqueta in servicios %}<th class="break-words px-2 py-3 font-semibold text-center" scope="col">{{ etiqueta }}</th>{% endfor %}
+            <th class="break-words px-2 py-3 font-semibold text-center" scope="col">Total</th>
+            <th class="break-words px-2 py-3 font-semibold text-center" scope="col">Observaciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dia in dias %}
+            <tr class="border-b border-light" data-dia="{{ dia }}">
+              <td class="px-2 py-3 text-center font-semibold text-heading">{{ dia }}</td>
+              {% for servicio, etiqueta in servicios %}
+                {% racion valores dia servicio as actual %}
+                <td class="px-2 py-3">
+                  <input class="nodo-field min-w-0 w-full text-center" type="number" min="0" name="raciones-{{ dia }}-{{ servicio }}" value="{{ actual }}" data-racion aria-label="Raciones de {{ etiqueta }} para el día {{ dia }}">
+                </td>
+              {% endfor %}
+              <td class="px-2 py-3 text-center font-semibold text-body"><output id="total-{{ dia }}" data-total aria-live="polite">{{ totales|total:dia }}</output></td>
+              <td class="px-2 py-3">
+                <label class="sr-only" for="observacion-{{ dia }}">Observación del día {{ dia }}</label>
+                <input id="observacion-{{ dia }}" class="nodo-field w-full" name="observacion-{{ dia }}" value="{{ observaciones|observacion:dia }}">
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex justify-end border-t border-light px-4 py-3"><button class="btn-nodo btn-brand btn-base">Guardar prestación</button></div>
+  </form>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script>
+  document.querySelectorAll("tr[data-dia]").forEach(function (fila) {
+    const actualizarTotal = function () {
+      const total = Array.from(fila.querySelectorAll("[data-racion]")).reduce(function (acumulado, input) {
+        return acumulado + Math.max(0, Number.parseInt(input.value || "0", 10) || 0);
+      }, 0);
+      fila.querySelector("[data-total]").value = total;
+    };
+    fila.querySelectorAll("[data-racion]").forEach(function (input) { input.addEventListener("input", actualizarTotal); });
+    actualizarTotal();
+  });
+  document.getElementById("prestacion-periodo").addEventListener("change", function () {
+    if (this.value) {
+      this.form.requestSubmit();
+    }
+  });
+</script>
+{% endblock %}

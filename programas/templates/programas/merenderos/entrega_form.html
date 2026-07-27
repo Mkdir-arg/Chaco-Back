@@ -1,0 +1,23 @@
+{% extends "includes/base.html" %}
+
+{% block title %}Registrar entrega{% endblock %}
+
+{% block main-content %}
+<div class="mx-auto max-w-2xl">
+  <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:detalle' merendero.pk %}">← Volver al merendero</a>
+  <h1 class="mt-4 text-3xl font-extrabold text-heading">Registrar entrega</h1>
+  <p class="mt-1 text-body-subtle">{{ merendero.nombre }}</p>
+  <form method="post" class="mt-6 rounded-xl border border-base p-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <div class="mb-4">
+        <label class="mb-1 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<p class="mt-1 text-sm text-fg-danger">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="btn-nodo btn-brand btn-base">Guardar entrega</button>
+  </form>
+</div>
+{% endblock %}
