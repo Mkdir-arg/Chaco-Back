@@ -1,10 +1,12 @@
 from datetime import date
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -65,6 +67,21 @@ class MerenderosServiceTests(TestCase):
         self.assertEqual(Merendero.objects.count(), 0)
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.estado, SolicitudMerendero.Estado.EN_REVISION)
+
+    def test_aprobar_solicitud_convierte_colision_de_codigo_en_error_de_validacion(self):
+        solicitud = self.solicitud()
+
+        with patch(
+            "programas.services.merenderos.Merendero.objects.create",
+            side_effect=IntegrityError("codigo institucional duplicado"),
+        ):
+            with self.assertRaisesMessage(ValidationError, "Ya existe un merendero"):
+                aprobar_solicitud(solicitud, self.usuario)
+
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, SolicitudMerendero.Estado.EN_REVISION)
+        self.assertIsNone(solicitud.merendero)
+        self.assertEqual(Merendero.objects.count(), 0)
 
     def test_f02_febrero_bisiesto_genera_dias_reales_y_firma(self):
         merendero = Merendero.objects.create(

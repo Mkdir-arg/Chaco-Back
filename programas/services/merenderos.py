@@ -3,7 +3,7 @@
 from calendar import monthrange
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from programas.models import EntregaMercaderia, Merendero, PrestacionDiaria, PrestacionMensual, SolicitudMerendero
@@ -37,19 +37,23 @@ def aprobar_solicitud(solicitud, usuario):
         if Merendero.objects.select_for_update().filter(codigo=solicitud.codigo).exists():
             raise ValidationError("Ya existe un merendero con ese código institucional.")
 
-        merendero = Merendero.objects.create(
-            codigo=solicitud.codigo,
-            nombre=solicitud.nombre,
-            domicilio=solicitud.domicilio,
-            zona=solicitud.zona,
-            barrio=solicitud.barrio,
-            dias_horarios=solicitud.dias_horarios,
-            telefono=solicitud.telefono,
-            responsable_nombre=solicitud.responsable_nombre,
-            responsable_documento=solicitud.responsable_documento,
-            responsable_email=solicitud.responsable_email,
-            estado=Merendero.Estado.ACTIVO,
-        )
+        try:
+            with transaction.atomic():
+                merendero = Merendero.objects.create(
+                    codigo=solicitud.codigo,
+                    nombre=solicitud.nombre,
+                    domicilio=solicitud.domicilio,
+                    zona=solicitud.zona,
+                    barrio=solicitud.barrio,
+                    dias_horarios=solicitud.dias_horarios,
+                    telefono=solicitud.telefono,
+                    responsable_nombre=solicitud.responsable_nombre,
+                    responsable_documento=solicitud.responsable_documento,
+                    responsable_email=solicitud.responsable_email,
+                    estado=Merendero.Estado.ACTIVO,
+                )
+        except IntegrityError as error:
+            raise ValidationError("Ya existe un merendero con ese código institucional.") from error
         solicitud.merendero = merendero
         solicitud.estado = SolicitudMerendero.Estado.APROBADA
         solicitud.validada_por = usuario
