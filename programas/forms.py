@@ -1,5 +1,7 @@
 """Formularios del backoffice de Programas."""
 
+from calendar import monthrange
+
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
@@ -13,11 +15,14 @@ from programas.models import (
     CampoTipoDispositivo,
     Convocatoria,
     Dispositivo,
+    EntregaMercaderia,
     Formulario,
     PreguntaGlobal,
+    PrestacionDiaria,
     Relevamiento,
     RequisitoNativo,
     Segmento,
+    SolicitudMerendero,
     Subsegmento,
     TipoCampo,
     TipoDispositivo,
@@ -296,6 +301,119 @@ class CampoTipoDispositivoForm(_OpcionesMixin):
         super().__init__(*args, **kwargs)
         if tipo_dispositivo is not None:
             self.instance.tipo_dispositivo = tipo_dispositivo
+
+
+class SolicitudMerenderoForm(forms.ModelForm):
+    class Meta:
+        model = SolicitudMerendero
+        fields = [
+            "codigo",
+            "nombre",
+            "domicilio",
+            "zona",
+            "barrio",
+            "dias_horarios",
+            "responsable_nombre",
+            "responsable_documento",
+            "responsable_email",
+            "telefono",
+            "documentacion",
+        ]
+        widgets = {
+            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "zona": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "barrio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "dias_horarios": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_documento": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
+            "telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS}),
+        }
+
+    def clean_codigo(self):
+        return " ".join(self.cleaned_data["codigo"].split()).upper()
+
+    def __init__(self, *args, validar_completitud=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not validar_completitud:
+            for campo in self.fields.values():
+                campo.required = False
+            return
+        for campo in SolicitudMerendero.CAMPOS_INSTITUCIONALES_REQUERIDOS:
+            self.fields[campo].required = True
+
+
+class EntregaMercaderiaForm(forms.ModelForm):
+    class Meta:
+        model = EntregaMercaderia
+        fields = ["fecha", "cantidad_kits", "servicio", "responsable_receptor", "observaciones"]
+        widgets = {
+            "fecha": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+            "cantidad_kits": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
+            "servicio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_receptor": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "observaciones": _text_widget(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["servicio"].required = True
+
+
+class PrestacionMensualForm(forms.Form):
+    """Valida la grilla dinámica de raciones de la planilla F-02."""
+
+    anio = forms.IntegerField(min_value=2000, max_value=2100)
+    mes = forms.IntegerField(min_value=1, max_value=12)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dias = self._dias_del_periodo()
+        for dia in self.dias:
+            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
+                self.fields[self._nombre_racion(dia, servicio)] = forms.IntegerField(min_value=0, required=False)
+            self.fields[self._nombre_observacion(dia)] = forms.CharField(required=False)
+
+    def _dias_del_periodo(self):
+        try:
+            anio = int(self.data.get("anio"))
+            mes = int(self.data.get("mes"))
+            if not 2000 <= anio <= 2100 or not 1 <= mes <= 12:
+                return ()
+            return range(1, monthrange(anio, mes)[1] + 1)
+        except (TypeError, ValueError):
+            return ()
+
+    @staticmethod
+    def _nombre_racion(dia, servicio):
+        return f"raciones-{dia}-{servicio}"
+
+    @staticmethod
+    def _nombre_observacion(dia):
+        return f"observacion-{dia}"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.dias or self.errors:
+            return cleaned_data
+
+        raciones, observaciones = {}, {}
+        for dia in self.dias:
+            raciones[dia] = {}
+            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
+                nombre_racion = self._nombre_racion(dia, servicio)
+                if nombre_racion not in self.data:
+                    self.add_error(nombre_racion, "La grilla de prestación debe enviarse completa.")
+                raciones[dia][servicio] = cleaned_data.get(nombre_racion) or 0
+            observaciones[dia] = cleaned_data[self._nombre_observacion(dia)]
+        if self.errors:
+            return cleaned_data
+        cleaned_data["raciones"] = raciones
+        cleaned_data["observaciones"] = observaciones
+        return cleaned_data
 
 
 class PreguntaGlobalForm(_OpcionesMixin):
