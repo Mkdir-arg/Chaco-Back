@@ -3,6 +3,12 @@
 
 {% block title %}Prestación mensual{% endblock %}
 
+{% block page_css %}
+<style>
+  html, body { overflow: hidden; }
+</style>
+{% endblock %}
+
 {% block main-content %}
 <div class="mx-auto h-[calc(100dvh-6.5rem)] max-w-7xl overflow-hidden">
   <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:detalle' merendero.pk %}">← Volver al merendero</a>
