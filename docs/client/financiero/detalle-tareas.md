@@ -161,15 +161,16 @@
 | 2026-07-24 | Juani Portilla | Dispositivos | D-08 — Roles y autorización con alcance (dispositivo.*, merendero.*) (#180) | Catálogo de capacidades de Dispositivos/Merenderos y roles con alcance por programa y dispositivo, cubiertos por pruebas RBAC. | 120 min |
 | 2026-07-24 | Juani Portilla | Dispositivos | D-03 — Legajo del dispositivo: ABM anti-duplicado + circuito de validación + detalle (#175) | Legajo institucional con validación, prevención de duplicados, transiciones de estado y trazabilidad. | 120 min |
 | 2026-07-24 | Juani Portilla | Dispositivos | D-04 — Gestión de camas y ocupación calculada (#176) | Gestión de camas con estados, ocupación derivada, semáforo configurable, integridad y permisos; validada con CI y entorno sintético. | 120 min |
+| 2026-07-27 | Pablo Cao | Becas | Issue #202 — disponibilidad territorial y mejoras del listado | Implementación y pruebas de la alerta confirmable por territorial asignado en la misma fecha; incorporación de búsqueda, filtros por estado, segmento, territorial y rango de fechas, y navegación paginada de relevamientos. | 90 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 124 h 38 min |
+| Becas | 126 h 08 min |
 | Dispositivos | 96 h 0 min |
 | Transversal | 17 h 47 min |
-| **Total julio 2026 (al 24/07)** | **238 h 25 min** |
+| **Total julio 2026 (al 27/07)** | **239 h 55 min** |
 
 ---
 
@@ -197,7 +198,7 @@
 
 !!! success "Contador total"
 
-    **44.257 minutos** (737 h 37 min)
+    **44.347 minutos** (739 h 07 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 24/07): **14.305 min (238 h 25 min)**
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026 (al 27/07): **14.395 min (239 h 55 min)**
     

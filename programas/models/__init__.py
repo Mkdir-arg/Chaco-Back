@@ -1147,6 +1147,18 @@ class Relevamiento(TimeStamped):
             self.nombre = self.proximo_nombre()
         super().save(*args, **kwargs)
 
+    @classmethod
+    def asignaciones_solapadas(cls, *, territorial, fecha, excluir_pk=None):
+        """Relevamientos del territorial en la misma fecha.
+
+        Es una consulta informativa: el negocio permite confirmar y conservar
+        el solapamiento, por lo que no corresponde una restricción de base.
+        """
+        qs = cls.objects.filter(territorial=territorial, fecha_asignada=fecha)
+        if excluir_pk is not None:
+            qs = qs.exclude(pk=excluir_pk)
+        return qs.order_by("zona", "pk")
+
     @property
     def segmento(self):
         return self.convocatoria.segmento

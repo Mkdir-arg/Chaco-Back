@@ -19,15 +19,58 @@
   </div>
 
   {# Filter bar #}
-  <form method="get" class="flex items-center gap-3 mb-4 flex-wrap">
-    <label class="text-sm text-body-subtle font-medium">Estado:</label>
-    <select name="estado" onchange="this.form.submit()"
-            class="rounded-full border border-base bg-white px-4 py-1.5 text-sm text-body focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
-      <option value="">Todos</option>
-      {% for value, label in estados %}
-        <option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
+  <form method="get" class="bg-white rounded-xl border border-base shadow-sm p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+      <div class="xl:col-span-2">
+        <label for="filtro-q" class="block text-xs font-semibold text-body-subtle mb-1">Buscar</label>
+        <input id="filtro-q" type="search" name="q" value="{{ filtros.q }}"
+               placeholder="Nombre, territorial o zona"
+               class="nodo-field w-full">
+      </div>
+      <div>
+        <label for="filtro-estado" class="block text-xs font-semibold text-body-subtle mb-1">Estado</label>
+        <select id="filtro-estado" name="estado" class="nodo-field w-full">
+          <option value="">Todos</option>
+          {% for value, label in estados %}
+            <option value="{{ value }}" {% if value == filtros.estado %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="filtro-segmento" class="block text-xs font-semibold text-body-subtle mb-1">Segmento</label>
+        <select id="filtro-segmento" name="segmento" class="nodo-field w-full">
+          <option value="">Todos</option>
+          {% for segmento in segmentos %}
+            <option value="{{ segmento.pk }}" {% if segmento.pk|stringformat:"s" == filtros.segmento %}selected{% endif %}>{{ segmento.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="filtro-territorial" class="block text-xs font-semibold text-body-subtle mb-1">Territorial</label>
+        <select id="filtro-territorial" name="territorial" class="nodo-field w-full">
+          <option value="">Todos</option>
+          {% for territorial in territoriales %}
+            <option value="{{ territorial.pk }}" {% if territorial.pk|stringformat:"s" == filtros.territorial %}selected{% endif %}>{{ territorial.get_full_name|default:territorial.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label for="filtro-desde" class="block text-xs font-semibold text-body-subtle mb-1">Desde</label>
+          <input id="filtro-desde" type="date" name="fecha_desde" value="{{ filtros.fecha_desde }}" class="nodo-field w-full">
+        </div>
+        <div>
+          <label for="filtro-hasta" class="block text-xs font-semibold text-body-subtle mb-1">Hasta</label>
+          <input id="filtro-hasta" type="date" name="fecha_hasta" value="{{ filtros.fecha_hasta }}" class="nodo-field w-full">
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-3">
+      <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-sm">Limpiar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-sm">
+        <i class="fas fa-filter"></i> Aplicar filtros
+      </button>
+    </div>
   </form>
 
   <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
@@ -79,6 +122,24 @@
     </div>
     {% endif %}
   </div>
+
+  {% if is_paginated %}
+  <nav class="mt-4 flex items-center justify-between gap-3 flex-wrap" aria-label="Paginación de relevamientos">
+    <p class="text-sm text-body-subtle">
+      Página {{ page_obj.number }} de {{ paginator.num_pages }} · {{ paginator.count }} resultados
+    </p>
+    <div class="flex items-center gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page=1" class="btn-nodo btn-tertiary btn-sm">Primera</a>
+        <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm">Anterior</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente</a>
+        <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ paginator.num_pages }}" class="btn-nodo btn-tertiary btn-sm">Última</a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
 
   {# ============ Modal: Nuevo relevamiento ============ #}
   <div x-show="modalRel" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">

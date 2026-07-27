@@ -91,6 +91,39 @@ class ScopingTests(_BaseRelevTest):
         resp = self.client.get(reverse("becas:relevamiento_detalle", args=[self.rel_a.pk]))
         self.assertEqual(resp.status_code, 200)
 
+    def test_filtros_combinados(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(
+            reverse("becas:relevamientos"),
+            {
+                "q": "Zona A",
+                "estado": Relevamiento.Estado.ASIGNADO,
+                "segmento": self.seg_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_desde": "2026-06-01",
+                "fecha_hasta": "2026-06-01",
+            },
+        )
+        self.assertContains(resp, self.rel_a.nombre)
+        self.assertNotContains(resp, self.rel_b.nombre)
+
+    def test_paginacion_muestra_25_y_permite_segunda_pagina(self):
+        for numero in range(24):
+            Relevamiento.objects.create(
+                convocatoria=self.conv_a,
+                territorial=self.territorial,
+                fecha_asignada=date(2026, 7, 1) + timedelta(days=numero),
+                zona=f"Zona paginada {numero}",
+            )
+        self.client.force_login(self.admin)
+
+        primera = self.client.get(reverse("becas:relevamientos"))
+        segunda = self.client.get(reverse("becas:relevamientos"), {"page": 2})
+
+        self.assertEqual(len(primera.context["relevamientos"]), 25)
+        self.assertEqual(len(segunda.context["relevamientos"]), 1)
+        self.assertContains(primera, "Siguiente")
+
 
 class CrearReasignarReprogramarTests(_BaseRelevTest):
     def test_crear_relevamiento_nombre_auto(self):
@@ -108,6 +141,54 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         nuevo = Relevamiento.objects.get(zona="Nueva zona")
         self.assertTrue(nuevo.nombre.startswith("Relevamiento "))
         self.assertEqual(nuevo.estado, Relevamiento.Estado.ASIGNADO)
+
+    def test_crear_solapado_advierte_sin_guardar(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("becas:relevamiento_crear"),
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-06-01",
+                "zona": "Nueva zona",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 409)
+        self.assertTrue(resp.json()["confirm_required"])
+        self.assertIn("terri", resp.json()["message"])
+        self.assertIn("01/06/2026", resp.json()["message"])
+        self.assertIn("Zona A", resp.json()["message"])
+        self.assertFalse(Relevamiento.objects.filter(zona="Nueva zona").exists())
+
+    def test_crear_solapado_confirmado_guarda(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("becas:relevamiento_crear"),
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-06-01",
+                "zona": "Nueva zona confirmada",
+                "confirmar_solapamiento": "1",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Relevamiento.objects.filter(zona="Nueva zona confirmada").exists())
+
+    def test_crear_en_fecha_libre_no_advierte(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("becas:relevamiento_crear"),
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-06-02",
+                "zona": "Fecha libre",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Relevamiento.objects.filter(zona="Fecha libre").exists())
 
     def test_coordinador_no_crea_en_segmento_ajeno(self):
         self.client.force_login(self.coord_a)
