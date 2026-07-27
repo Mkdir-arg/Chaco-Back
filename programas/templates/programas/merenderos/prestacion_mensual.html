@@ -9,47 +9,63 @@
   <h1 class="mt-4 text-3xl font-extrabold text-heading">Prestación mensual</h1>
   <p class="mt-1 text-body-subtle">{{ merendero.nombre }}</p>
 
-  <form class="mt-5 flex flex-wrap gap-3" method="get">
-    <label class="sr-only" for="prestacion-anio">Año</label>
-    <input id="prestacion-anio" class="nodo-field" type="number" name="anio" value="{{ anio }}" min="2000" max="2100">
-    <label class="sr-only" for="prestacion-mes">Mes</label>
-    <input id="prestacion-mes" class="nodo-field" type="number" name="mes" value="{{ mes }}" min="1" max="12">
-    <button class="btn-nodo btn-secondary btn-base">Ver mes</button>
-  </form>
+  <section class="mt-5 rounded-xl border border-base p-4 shadow-sm" style="background: var(--bg-primary);">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-heading">Período de prestación</p>
+        <p class="mt-1 text-sm text-body-subtle">Elegí el mes que querés informar o revisar.</p>
+      </div>
+      <form class="flex flex-wrap items-end gap-3" method="get">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-body" for="prestacion-periodo">Mes y año</label>
+          <input id="prestacion-periodo" class="nodo-field" type="month" name="periodo" value="{{ periodo }}" min="2000-01" max="2100-12">
+        </div>
+        <button class="btn-nodo btn-secondary btn-base">Actualizar grilla</button>
+      </form>
+    </div>
+  </section>
 
-  <form method="post" class="mt-5 overflow-x-auto rounded-xl border border-base">
+  <form method="post" class="mt-5 overflow-hidden rounded-xl border border-base shadow-sm" style="background: var(--bg-primary);">
     {% csrf_token %}
     <input type="hidden" name="anio" value="{{ anio }}">
     <input type="hidden" name="mes" value="{{ mes }}">
-    <table class="w-full text-left text-sm">
-      <thead class="border-b border-light text-body-subtle">
-        <tr>
-          <th class="px-3 py-2">Día</th>
-          {% for servicio, etiqueta in servicios %}<th class="px-3 py-2">{{ etiqueta }}</th>{% endfor %}
-          <th class="px-3 py-2">Total</th>
-          <th class="px-3 py-2">Observaciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for dia in dias %}
-          <tr class="border-b border-light" data-dia="{{ dia }}">
-            <td class="px-3 py-2 font-semibold">{{ dia }}</td>
-            {% for servicio, etiqueta in servicios %}
-              {% racion valores dia servicio as actual %}
-              <td class="px-3 py-2">
-                <input class="nodo-field w-24" type="number" min="0" name="raciones-{{ dia }}-{{ servicio }}" value="{{ actual }}" data-racion aria-label="Raciones de {{ etiqueta }} para el día {{ dia }}">
-              </td>
-            {% endfor %}
-            <td class="px-3 py-2 text-body-subtle"><output id="total-{{ dia }}" data-total aria-live="polite">{{ totales|total:dia }}</output></td>
-            <td class="px-3 py-2">
-              <label class="sr-only" for="observacion-{{ dia }}">Observación del día {{ dia }}</label>
-              <input id="observacion-{{ dia }}" class="nodo-field min-w-48" name="observacion-{{ dia }}" value="{{ observaciones|observacion:dia }}">
-            </td>
+    <div class="max-h-[58vh] overflow-auto">
+      <table class="min-w-[760px] w-full table-fixed text-left text-sm">
+        <colgroup>
+          <col class="w-16">
+          {% for servicio, etiqueta in servicios %}<col class="w-28">{% endfor %}
+          <col class="w-20">
+          <col class="w-80">
+        </colgroup>
+        <thead class="sticky top-0 z-10 border-b border-light text-body-subtle" style="background: var(--bg-secondary);">
+          <tr>
+            <th class="px-4 py-3 font-semibold" scope="col">Día</th>
+            {% for servicio, etiqueta in servicios %}<th class="px-4 py-3 font-semibold" scope="col">{{ etiqueta }}</th>{% endfor %}
+            <th class="px-4 py-3 font-semibold" scope="col">Total</th>
+            <th class="px-4 py-3 font-semibold" scope="col">Observaciones</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <div class="p-4"><button class="btn-nodo btn-brand btn-base">Guardar prestación</button></div>
+        </thead>
+        <tbody>
+          {% for dia in dias %}
+            <tr class="border-b border-light" data-dia="{{ dia }}">
+              <td class="px-4 py-3 font-semibold text-heading">{{ dia }}</td>
+              {% for servicio, etiqueta in servicios %}
+                {% racion valores dia servicio as actual %}
+                <td class="px-4 py-3">
+                  <input class="nodo-field w-full text-center" type="number" min="0" name="raciones-{{ dia }}-{{ servicio }}" value="{{ actual }}" data-racion aria-label="Raciones de {{ etiqueta }} para el día {{ dia }}">
+                </td>
+              {% endfor %}
+              <td class="px-4 py-3 text-center font-semibold text-body"><output id="total-{{ dia }}" data-total aria-live="polite">{{ totales|total:dia }}</output></td>
+              <td class="px-4 py-3">
+                <label class="sr-only" for="observacion-{{ dia }}">Observación del día {{ dia }}</label>
+                <input id="observacion-{{ dia }}" class="nodo-field w-full" name="observacion-{{ dia }}" value="{{ observaciones|observacion:dia }}">
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex justify-end border-t border-light px-4 py-3"><button class="btn-nodo btn-brand btn-base">Guardar prestación</button></div>
   </form>
 </div>
 {% endblock %}

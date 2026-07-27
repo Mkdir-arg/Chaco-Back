@@ -303,6 +303,19 @@ class MerenderosViewsTests(TestCase):
         self.assertEqual(prestacion.lineas_diarias.count(), 28 * 4)
         self.assertEqual(prestacion.total_del_dia(1), 50)
 
+    def test_prestacion_mensual_acepta_periodo_del_selector_nativo(self):
+        merendero = Merendero.objects.create(
+            codigo="MER-F02-SELECTOR", nombre="F02 selector", domicilio="Calle 4", responsable_nombre="Responsable"
+        )
+
+        respuesta = self.client.get(
+            reverse("merenderos:prestacion", args=[merendero.pk]),
+            {"periodo": "2026-07"},
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'value="2026-07"')
+
     def test_prestacion_bloquea_merendero_inactivo_y_post_parcial(self):
         merendero = Merendero.objects.create(
             codigo="MER-F02-02", nombre="F02 cerrado", domicilio="Calle 3", responsable_nombre="Responsable"

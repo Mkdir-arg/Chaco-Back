@@ -237,6 +237,7 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
             "merendero": merendero,
             "anio": anio,
             "mes": mes,
+            "periodo": f"{anio}-{mes:02d}",
             "dias": range(1, ultimo_dia + 1),
             "servicios": PrestacionDiaria.Servicio.choices,
             "valores": valores,
@@ -245,15 +246,21 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
             "prestacion": prestacion,
         }
 
+    @staticmethod
+    def _periodo_seleccionado(request, hoy):
+        periodo = request.GET.get("periodo")
+        if periodo:
+            anio, mes = (int(valor) for valor in periodo.split("-", maxsplit=1))
+            return anio, mes
+        return int(request.GET.get("anio", hoy.year)), int(request.GET.get("mes", hoy.month))
+
     def get(self, request, pk):
         merendero = get_object_or_404(Merendero, pk=pk)
         if merendero.estado != Merendero.Estado.ACTIVO:
             raise PermissionDenied("No se puede generar la grilla de un merendero inactivo.")
         hoy = date.today()
         try:
-            contexto = self._contexto(
-                request, merendero, int(request.GET.get("anio", hoy.year)), int(request.GET.get("mes", hoy.month))
-            )
+            contexto = self._contexto(request, merendero, *self._periodo_seleccionado(request, hoy))
         except (TypeError, ValueError, ValidationError):
             return HttpResponseBadRequest("Mes o año inválido.")
         from django.shortcuts import render
