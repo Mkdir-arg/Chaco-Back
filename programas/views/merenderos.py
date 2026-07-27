@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from programas.forms import EntregaMercaderiaForm, SolicitudMerenderoForm
+from programas.forms import EntregaMercaderiaForm, PrestacionMensualForm, SolicitudMerenderoForm
 from programas.models import Merendero, PrestacionDiaria, PrestacionMensual, SolicitudMerendero
 from programas.services.merenderos import (
     aprobar_solicitud,
@@ -271,27 +271,23 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
         merendero = get_object_or_404(Merendero, pk=pk)
         if merendero.estado != Merendero.Estado.ACTIVO:
             raise PermissionDenied("No se puede guardar prestación en un merendero inactivo.")
-        try:
-            anio, mes = int(request.POST["anio"]), int(request.POST["mes"])
-            ultimo_dia = monthrange(anio, mes)[1]
-            raciones, observaciones = {}, {}
-            for dia in range(1, ultimo_dia + 1):
-                raciones[dia] = {}
-                for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
-                    nombre_campo = f"raciones-{dia}-{servicio}"
-                    if nombre_campo not in request.POST:
-                        raise ValidationError("La grilla de prestación debe enviarse completa.")
-                    valor = request.POST[nombre_campo]
-                    raciones[dia][servicio] = int(valor or 0)
-                observaciones[dia] = request.POST.get(f"observacion-{dia}", "")
-            guardar_prestacion(
-                merendero, anio=anio, mes=mes, raciones=raciones, observaciones=observaciones, usuario=request.user
-            )
-        except (KeyError, TypeError, ValueError, ValidationError) as error:
-            messages.error(
-                request,
-                error.messages[0] if isinstance(error, ValidationError) else "Los datos de prestación son inválidos.",
-            )
+        form = PrestacionMensualForm(request.POST)
+        if form.is_valid():
+            anio, mes = form.cleaned_data["anio"], form.cleaned_data["mes"]
+            try:
+                guardar_prestacion(
+                    merendero,
+                    anio=anio,
+                    mes=mes,
+                    raciones=form.cleaned_data["raciones"],
+                    observaciones=form.cleaned_data["observaciones"],
+                    usuario=request.user,
+                )
+            except ValidationError as error:
+                messages.error(request, error.messages[0])
+                return redirect(f"{reverse('merenderos:prestacion', args=[merendero.pk])}?anio={anio}&mes={mes}")
+        else:
+            messages.error(request, "Los datos de prestación son inválidos.")
             return redirect(
                 f"{reverse('merenderos:prestacion', args=[merendero.pk])}?anio={request.POST.get('anio', '')}&mes={request.POST.get('mes', '')}"
             )

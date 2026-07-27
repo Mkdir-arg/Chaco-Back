@@ -1,5 +1,7 @@
 """Formularios del backoffice de Programas."""
 
+from calendar import monthrange
+
 from django import forms
 from django.contrib.auth.models import User
 from django.db import models
@@ -16,6 +18,7 @@ from programas.models import (
     EntregaMercaderia,
     Formulario,
     PreguntaGlobal,
+    PrestacionDiaria,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -358,6 +361,55 @@ class EntregaMercaderiaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["servicio"].required = True
+
+
+class PrestacionMensualForm(forms.Form):
+    """Valida la grilla dinámica de raciones de la planilla F-02."""
+
+    anio = forms.IntegerField(min_value=2000, max_value=2100)
+    mes = forms.IntegerField(min_value=1, max_value=12)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dias = self._dias_del_periodo()
+        for dia in self.dias:
+            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
+                self.fields[self._nombre_racion(dia, servicio)] = forms.IntegerField(min_value=0, required=True)
+            self.fields[self._nombre_observacion(dia)] = forms.CharField(required=False)
+
+    def _dias_del_periodo(self):
+        try:
+            anio = int(self.data.get("anio"))
+            mes = int(self.data.get("mes"))
+            if not 2000 <= anio <= 2100 or not 1 <= mes <= 12:
+                return ()
+            return range(1, monthrange(anio, mes)[1] + 1)
+        except (TypeError, ValueError):
+            return ()
+
+    @staticmethod
+    def _nombre_racion(dia, servicio):
+        return f"raciones-{dia}-{servicio}"
+
+    @staticmethod
+    def _nombre_observacion(dia):
+        return f"observacion-{dia}"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.dias or self.errors:
+            return cleaned_data
+
+        raciones, observaciones = {}, {}
+        for dia in self.dias:
+            raciones[dia] = {
+                servicio: cleaned_data[self._nombre_racion(dia, servicio)]
+                for servicio, _etiqueta in PrestacionDiaria.Servicio.choices
+            }
+            observaciones[dia] = cleaned_data[self._nombre_observacion(dia)]
+        cleaned_data["raciones"] = raciones
+        cleaned_data["observaciones"] = observaciones
+        return cleaned_data
 
 
 class PreguntaGlobalForm(_OpcionesMixin):
