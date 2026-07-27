@@ -1,10 +1,14 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
+from core import rbac
 from programas.forms import SolicitudMerenderoForm
 from programas.models import Merendero, PrestacionDiaria, Programa, SolicitudMerendero
 from programas.services.merenderos import (
@@ -13,6 +17,12 @@ from programas.services.merenderos import (
     guardar_prestacion,
     registrar_entrega,
 )
+from users.models import Capacidad, RolMeta
+
+
+def permiso(codigo):
+    content_type = ContentType.objects.get_for_model(Capacidad)
+    return Permission.objects.get(codename=rbac.codename_de(codigo), content_type=content_type)
 
 
 class MerenderosServiceTests(TestCase):
@@ -175,6 +185,24 @@ class MerenderosViewsTests(TestCase):
             tipo=Programa.TipoPrograma.MERENDEROS,
         )
         self.client.force_login(self.usuario)
+
+    def test_rbac_exige_y_respeta_capacidad_acotada_a_merenderos(self):
+        usuario = get_user_model().objects.create_user(username="consulta-merenderos", password="test")
+        self.client.force_login(usuario)
+        self.assertEqual(self.client.get(reverse("merenderos:lista")).status_code, 403)
+
+        rol = Group.objects.create(name="Consulta Merenderos")
+        RolMeta.objects.create(
+            grupo=rol,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=Programa.objects.get(codigo="MERENDEROS"),
+            activo=True,
+        )
+        rol.permissions.add(permiso("merendero.ver"))
+        usuario.groups.add(rol)
+        cache.clear()
+
+        self.assertEqual(self.client.get(reverse("merenderos:lista")).status_code, 200)
 
     def solicitud_sin_documentacion(self):
         return SolicitudMerendero.objects.create(

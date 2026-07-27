@@ -1,5 +1,34 @@
 {% extends "includes/base.html" %}
+
 {% block title %}Nueva solicitud de merendero{% endblock %}
+
 {% block main-content %}
-<div class="mx-auto max-w-3xl"><a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:lista' %}">← Volver a merenderos</a><h1 class="mt-4 text-3xl font-extrabold text-heading">Solicitud de merendero</h1><p class="mt-1 text-body-subtle">La documentación respaldatoria es obligatoria para enviar a revisión.</p><form method="post" enctype="multipart/form-data" class="mt-6 rounded-xl border border-base p-6">{% csrf_token %}{% if form.non_field_errors %}<div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>{% endif %}{% for field in form %}<div class="mb-4"><label class="mb-1 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="mt-1 text-sm text-fg-danger">{{ error }}</p>{% endfor %}</div>{% endfor %}<div class="mt-6 flex flex-wrap gap-3"><a class="btn-nodo btn-secondary btn-base" href="{% url 'merenderos:lista' %}">Cancelar</a>{% if object and object.estado == 'OBSERVADA' %}<button class="btn-nodo btn-brand btn-base">Corregir y reenviar</button>{% else %}<button class="btn-nodo btn-secondary btn-base" name="accion" value="borrador">Guardar borrador</button><button class="btn-nodo btn-brand btn-base">Enviar a revisión</button>{% endif %}</div></form></div>
+<div class="mx-auto max-w-3xl">
+  <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:lista' %}">← Volver a merenderos</a>
+  <h1 class="mt-4 text-3xl font-extrabold text-heading">Solicitud de merendero</h1>
+  <p class="mt-1 text-body-subtle">La documentación respaldatoria es obligatoria para enviar a revisión.</p>
+
+  <form method="post" enctype="multipart/form-data" class="mt-6 rounded-xl border border-base p-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      <div class="mb-4">
+        <label class="mb-1 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<p class="mt-1 text-sm text-fg-danger">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a class="btn-nodo btn-secondary btn-base" href="{% url 'merenderos:lista' %}">Cancelar</a>
+      {% if object and object.estado == 'OBSERVADA' %}
+        <button class="btn-nodo btn-brand btn-base">Corregir y reenviar</button>
+      {% else %}
+        <button class="btn-nodo btn-secondary btn-base" name="accion" value="borrador">Guardar borrador</button>
+        <button class="btn-nodo btn-brand btn-base">Enviar a revisión</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
 {% endblock %}
