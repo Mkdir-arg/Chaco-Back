@@ -90,20 +90,22 @@ def reenviar_solicitud(solicitud):
 
 
 def registrar_entrega(merendero, *, fecha, cantidad_kits, servicio, responsable_receptor, observaciones):
-    if merendero.estado != Merendero.Estado.ACTIVO:
-        raise ValidationError("Solo se pueden registrar entregas en merenderos activos.")
     if not isinstance(cantidad_kits, int) or isinstance(cantidad_kits, bool) or cantidad_kits <= 0:
         raise ValidationError("La cantidad de kits debe ser un número entero mayor a cero.")
     if not servicio or not servicio.strip():
         raise ValidationError("El servicio de la entrega es obligatorio.")
-    return EntregaMercaderia.objects.create(
-        merendero=merendero,
-        fecha=fecha,
-        cantidad_kits=cantidad_kits,
-        servicio=servicio.strip(),
-        responsable_receptor=responsable_receptor,
-        observaciones=observaciones,
-    )
+    with transaction.atomic():
+        merendero = Merendero.objects.select_for_update().get(pk=merendero.pk)
+        if merendero.estado != Merendero.Estado.ACTIVO:
+            raise ValidationError("Solo se pueden registrar entregas en merenderos activos.")
+        return EntregaMercaderia.objects.create(
+            merendero=merendero,
+            fecha=fecha,
+            cantidad_kits=cantidad_kits,
+            servicio=servicio.strip(),
+            responsable_receptor=responsable_receptor,
+            observaciones=observaciones,
+        )
 
 
 def cambiar_estado_merendero(merendero, *, nuevo_estado, usuario):
@@ -128,8 +130,6 @@ def cambiar_estado_merendero(merendero, *, nuevo_estado, usuario):
 def guardar_prestacion(merendero, *, anio, mes, raciones, usuario, observaciones=None):
     """Crea o reabre una única grilla mensual, con totales siempre derivados."""
 
-    if merendero.estado != Merendero.Estado.ACTIVO:
-        raise ValidationError("Solo se puede cargar prestación en merenderos activos.")
     if not isinstance(anio, int) or not 2000 <= anio <= 2100:
         raise ValidationError("Año inválido.")
     try:
@@ -140,6 +140,9 @@ def guardar_prestacion(merendero, *, anio, mes, raciones, usuario, observaciones
     servicios = [valor for valor, _etiqueta in PrestacionDiaria.Servicio.choices]
 
     with transaction.atomic():
+        merendero = Merendero.objects.select_for_update().get(pk=merendero.pk)
+        if merendero.estado != Merendero.Estado.ACTIVO:
+            raise ValidationError("Solo se puede cargar prestación en merenderos activos.")
         prestacion, _creada = PrestacionMensual.objects.select_for_update().get_or_create(
             merendero=merendero,
             anio=anio,

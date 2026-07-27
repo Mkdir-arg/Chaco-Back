@@ -131,6 +131,27 @@ class MerenderosServiceTests(TestCase):
                 responsable_receptor="",
                 observaciones="",
             )
+
+    def test_servicios_rechazan_un_merendero_inactivo(self):
+        merendero = Merendero.objects.create(
+            codigo="MER-ACEPT-07",
+            nombre="Puertas Abiertas",
+            domicilio="Sarmiento 40",
+            responsable_nombre="Ana Díaz",
+            estado=Merendero.Estado.SUSPENDIDO,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "entregas"):
+            registrar_entrega(
+                merendero,
+                fecha=date(2026, 7, 27),
+                cantidad_kits=1,
+                servicio="Merienda",
+                responsable_receptor="",
+                observaciones="",
+            )
+        with self.assertRaisesMessage(ValidationError, "prestación"):
+            guardar_prestacion(merendero, anio=2026, mes=7, raciones={}, usuario=self.usuario)
         with self.assertRaisesMessage(ValidationError, "servicio"):
             registrar_entrega(
                 merendero,
