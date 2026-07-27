@@ -29,20 +29,20 @@
     {% csrf_token %}
     <input type="hidden" name="anio" value="{{ anio }}">
     <input type="hidden" name="mes" value="{{ mes }}">
-    <div class="max-h-[58vh] overflow-auto">
-      <table class="min-w-[760px] w-full table-fixed text-left text-sm">
+    <div class="max-h-[calc(100vh-26rem)] overflow-auto">
+      <table class="min-w-[1024px] w-full table-fixed text-left text-sm">
         <colgroup>
           <col class="w-16">
-          {% for servicio, etiqueta in servicios %}<col class="w-28">{% endfor %}
+          {% for servicio, etiqueta in servicios %}<col class="w-36">{% endfor %}
           <col class="w-20">
           <col class="w-80">
         </colgroup>
         <thead class="sticky top-0 z-10 border-b border-light text-body-subtle" style="background: var(--bg-secondary);">
           <tr>
-            <th class="px-4 py-3 font-semibold" scope="col">Día</th>
-            {% for servicio, etiqueta in servicios %}<th class="px-4 py-3 font-semibold" scope="col">{{ etiqueta }}</th>{% endfor %}
-            <th class="px-4 py-3 font-semibold" scope="col">Total</th>
-            <th class="px-4 py-3 font-semibold" scope="col">Observaciones</th>
+            <th class="whitespace-nowrap px-4 py-3 font-semibold" scope="col">Día</th>
+            {% for servicio, etiqueta in servicios %}<th class="whitespace-nowrap px-4 py-3 font-semibold" scope="col">{{ etiqueta }}</th>{% endfor %}
+            <th class="whitespace-nowrap px-4 py-3 font-semibold" scope="col">Total</th>
+            <th class="whitespace-nowrap px-4 py-3 font-semibold" scope="col">Observaciones</th>
           </tr>
         </thead>
         <tbody>
