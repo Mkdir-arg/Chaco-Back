@@ -384,9 +384,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         segmentos = segmentos_visibles(self.request.user).order_by("nombre")
-        territoriales = usuarios_territoriales_becas().filter(
-            asignacion_territorial__segmento__in=segmentos
-        )
+        territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["segmentos"] = segmentos
         ctx["territoriales"] = territoriales
@@ -421,11 +419,7 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     def form_valid(self, form):
         territorial = form.cleaned_data["territorial"]
         fecha = form.cleaned_data["fecha_asignada"]
-        solapamiento = (
-            Relevamiento.asignaciones_solapadas(territorial=territorial, fecha=fecha)
-            .only("zona")
-            .first()
-        )
+        solapamiento = Relevamiento.asignaciones_solapadas(territorial=territorial, fecha=fecha).only("zona").first()
         if solapamiento and self.request.POST.get("confirmar_solapamiento") != "1":
             mensaje = _mensaje_solapamiento(territorial, fecha, solapamiento)
             if is_ajax(self.request):
