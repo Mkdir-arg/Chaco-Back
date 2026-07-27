@@ -333,8 +333,12 @@ class SolicitudMerenderoForm(forms.ModelForm):
     def clean_codigo(self):
         return " ".join(self.cleaned_data["codigo"].split()).upper()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, validar_completitud=True, **kwargs):
         super().__init__(*args, **kwargs)
+        if not validar_completitud:
+            for campo in self.fields.values():
+                campo.required = False
+            return
         for campo in ("codigo", "nombre", "domicilio", "zona", "barrio", "dias_horarios", "responsable_nombre"):
             self.fields[campo].required = True
 

@@ -8,6 +8,7 @@ urlpatterns = [
     path("", merenderos.MerenderoListView.as_view(), name="lista"),
     path("solicitudes/", merenderos.SolicitudMerenderoListView.as_view(), name="solicitudes"),
     path("solicitudes/nueva/", merenderos.SolicitudMerenderoCreateView.as_view(), name="solicitud_crear"),
+    path("solicitudes/<int:pk>/editar/", merenderos.SolicitudMerenderoUpdateView.as_view(), name="solicitud_editar"),
     path(
         "solicitudes/<int:pk>/<str:accion>/",
         merenderos.SolicitudMerenderoResolverView.as_view(),

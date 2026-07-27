@@ -10,7 +10,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
-from django.views.generic import CreateView, DetailView, ListView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from programas.forms import EntregaMercaderiaForm, SolicitudMerenderoForm
 from programas.models import Merendero, PrestacionDiaria, PrestacionMensual, SolicitudMerendero
@@ -18,7 +18,6 @@ from programas.services.merenderos import (
     aprobar_solicitud,
     cambiar_estado_merendero,
     guardar_prestacion,
-    reenviar_solicitud,
     registrar_entrega,
     resolver_solicitud,
 )
@@ -76,11 +75,51 @@ class SolicitudMerenderoCreateView(MerenderosPermissionMixin, CreateView):
     form_class = SolicitudMerenderoForm
     template_name = "programas/merenderos/solicitud_form.html"
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["validar_completitud"] = self.request.POST.get("accion") != "borrador"
+        return kwargs
+
     def form_valid(self, form):
         self.object = form.save(commit=False)
-        self.object.estado = SolicitudMerendero.Estado.EN_REVISION
+        es_borrador = self.request.POST.get("accion") == "borrador"
+        self.object.estado = (
+            SolicitudMerendero.Estado.BORRADOR if es_borrador else SolicitudMerendero.Estado.EN_REVISION
+        )
         self.object.save()
-        messages.success(self.request, "Solicitud enviada a revisión.")
+        messages.success(self.request, "Borrador guardado." if es_borrador else "Solicitud enviada a revisión.")
+        return redirect("merenderos:solicitudes")
+
+
+class SolicitudMerenderoUpdateView(MerenderosPermissionMixin, UpdateView):
+    capacidad_requerida = "merendero.crear"
+    model = SolicitudMerendero
+    form_class = SolicitudMerenderoForm
+    template_name = "programas/merenderos/solicitud_form.html"
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .filter(estado__in=[SolicitudMerendero.Estado.BORRADOR, SolicitudMerendero.Estado.OBSERVADA])
+        )
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["validar_completitud"] = self.request.POST.get("accion") != "borrador"
+        return kwargs
+
+    def form_valid(self, form):
+        self.object = form.save(commit=False)
+        es_borrador = self.request.POST.get("accion") == "borrador"
+        self.object.estado = (
+            SolicitudMerendero.Estado.BORRADOR if es_borrador else SolicitudMerendero.Estado.EN_REVISION
+        )
+        self.object.save()
+        messages.success(
+            self.request,
+            "Borrador actualizado." if es_borrador else "Solicitud corregida y reenviada a revisión.",
+        )
         return redirect("merenderos:solicitudes")
 
 
@@ -97,10 +136,6 @@ class SolicitudMerenderoResolverView(MerenderosPermissionMixin, View):
     def post(self, request, pk, accion):
         solicitud = get_object_or_404(SolicitudMerendero, pk=pk)
         try:
-            if accion == "reenviar":
-                reenviar_solicitud(solicitud)
-                messages.success(request, "Solicitud reenviada a revisión.")
-                return redirect("merenderos:solicitudes")
             if accion == "aprobar":
                 merendero = aprobar_solicitud(solicitud, request.user)
                 messages.success(request, f"Solicitud aprobada. Se creó {merendero.nombre}.")
@@ -212,6 +247,8 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
 
     def get(self, request, pk):
         merendero = get_object_or_404(Merendero, pk=pk)
+        if merendero.estado != Merendero.Estado.ACTIVO:
+            raise PermissionDenied("No se puede generar la grilla de un merendero inactivo.")
         hoy = date.today()
         try:
             contexto = self._contexto(
@@ -225,6 +262,8 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
 
     def post(self, request, pk):
         merendero = get_object_or_404(Merendero, pk=pk)
+        if merendero.estado != Merendero.Estado.ACTIVO:
+            raise PermissionDenied("No se puede guardar prestación en un merendero inactivo.")
         try:
             anio, mes = int(request.POST["anio"]), int(request.POST["mes"])
             ultimo_dia = monthrange(anio, mes)[1]
@@ -232,7 +271,10 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
             for dia in range(1, ultimo_dia + 1):
                 raciones[dia] = {}
                 for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
-                    valor = request.POST.get(f"raciones-{dia}-{servicio}", "0")
+                    nombre_campo = f"raciones-{dia}-{servicio}"
+                    if nombre_campo not in request.POST:
+                        raise ValidationError("La grilla de prestación debe enviarse completa.")
+                    valor = request.POST[nombre_campo]
                     raciones[dia][servicio] = int(valor or 0)
                 observaciones[dia] = request.POST.get(f"observacion-{dia}", "")
             guardar_prestacion(

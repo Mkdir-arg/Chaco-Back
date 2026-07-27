@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from programas.forms import SolicitudMerenderoForm
-from programas.models import Merendero, Programa, SolicitudMerendero
+from programas.models import Merendero, PrestacionDiaria, Programa, SolicitudMerendero
 from programas.services.merenderos import (
     aprobar_solicitud,
     cambiar_estado_merendero,
@@ -198,23 +198,81 @@ class MerenderosViewsTests(TestCase):
         self.assertEqual(solicitud.estado, SolicitudMerendero.Estado.EN_REVISION)
         self.assertFalse(Merendero.objects.filter(codigo="MER-SIN-DOC").exists())
 
+    def test_borrador_puede_guardarse_incompleto_y_una_observada_se_corrige_y_reenvia(self):
+        response = self.client.post(reverse("merenderos:solicitud_crear"), {"accion": "borrador"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(SolicitudMerendero.objects.get().estado, SolicitudMerendero.Estado.BORRADOR)
+
+        solicitud = SolicitudMerendero.objects.create(
+            codigo="MER-OBS-01",
+            nombre="Amanecer",
+            domicilio="Calle 5",
+            zona="Sur",
+            barrio="Barrio Sur",
+            dias_horarios="Martes",
+            responsable_nombre="Responsable",
+            documentacion="respaldo.pdf",
+            estado=SolicitudMerendero.Estado.OBSERVADA,
+            observaciones="Corregir domicilio",
+        )
+        response = self.client.post(
+            reverse("merenderos:solicitud_editar", args=[solicitud.pk]),
+            {
+                "codigo": "MER-OBS-01",
+                "nombre": "Amanecer",
+                "domicilio": "Calle 5 bis",
+                "zona": "Sur",
+                "barrio": "Barrio Sur",
+                "dias_horarios": "Martes",
+                "responsable_nombre": "Responsable",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, SolicitudMerendero.Estado.EN_REVISION)
+        self.assertEqual(solicitud.observaciones, "Corregir domicilio")
+        self.assertEqual(solicitud.domicilio, "Calle 5 bis")
+
     def test_post_prestacion_calcula_lineas_del_mes_y_no_acepta_total_manipulado(self):
         merendero = Merendero.objects.create(
             codigo="MER-F02-01", nombre="F02", domicilio="Calle 2", responsable_nombre="Responsable"
         )
 
-        response = self.client.post(
-            reverse("merenderos:prestacion", args=[merendero.pk]),
-            {
-                "anio": "2025",
-                "mes": "2",
-                "raciones-1-DESAYUNO": "20",
-                "raciones-1-ALMUERZO": "30",
-                "total-1": "9999",
-            },
-        )
+        datos = {"anio": "2025", "mes": "2", "total-1": "9999"}
+        for dia in range(1, 29):
+            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
+                datos[f"raciones-{dia}-{servicio}"] = "0"
+        datos["raciones-1-DESAYUNO"] = "20"
+        datos["raciones-1-ALMUERZO"] = "30"
+
+        response = self.client.post(reverse("merenderos:prestacion", args=[merendero.pk]), datos)
 
         self.assertEqual(response.status_code, 302)
         prestacion = merendero.prestaciones_mensuales.get(anio=2025, mes=2)
         self.assertEqual(prestacion.lineas_diarias.count(), 28 * 4)
         self.assertEqual(prestacion.total_del_dia(1), 50)
+
+    def test_prestacion_bloquea_merendero_inactivo_y_post_parcial(self):
+        merendero = Merendero.objects.create(
+            codigo="MER-F02-02", nombre="F02 cerrado", domicilio="Calle 3", responsable_nombre="Responsable"
+        )
+        guardar_prestacion(merendero, anio=2025, mes=1, raciones={1: {"CENA": 8}}, usuario=self.usuario)
+
+        respuesta_parcial = self.client.post(
+            reverse("merenderos:prestacion", args=[merendero.pk]),
+            {"anio": "2025", "mes": "1", "raciones-1-CENA": "0"},
+        )
+        self.assertEqual(respuesta_parcial.status_code, 302)
+        self.assertEqual(merendero.prestaciones_mensuales.get(anio=2025, mes=1).total_del_dia(1), 8)
+
+        merendero.estado = Merendero.Estado.SUSPENDIDO
+        merendero.save(update_fields=["estado", "modificado"])
+        respuesta_get = self.client.get(reverse("merenderos:prestacion", args=[merendero.pk]))
+        respuesta_post = self.client.post(
+            reverse("merenderos:prestacion", args=[merendero.pk]), {"anio": "2025", "mes": "1"}
+        )
+
+        self.assertEqual(respuesta_get.status_code, 403)
+        self.assertEqual(respuesta_post.status_code, 403)

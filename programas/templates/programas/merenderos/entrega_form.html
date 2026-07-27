@@ -9,6 +9,7 @@
   <p class="mt-1 text-body-subtle">{{ merendero.nombre }}</p>
   <form method="post" class="mt-6 rounded-xl border border-base p-6">
     {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>{% endif %}
     {% for field in form %}
       <div class="mb-4">
         <label class="mb-1 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>
