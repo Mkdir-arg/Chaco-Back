@@ -724,6 +724,16 @@ class SolicitudMerendero(TimeStamped):
         APROBADA = "APROBADA", "Aprobada"
         RECHAZADA = "RECHAZADA", "Rechazada"
 
+    CAMPOS_INSTITUCIONALES_REQUERIDOS = (
+        "codigo",
+        "nombre",
+        "domicilio",
+        "zona",
+        "barrio",
+        "dias_horarios",
+        "responsable_nombre",
+    )
+
     merendero = models.ForeignKey(
         Merendero,
         on_delete=models.PROTECT,

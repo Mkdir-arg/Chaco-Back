@@ -8,16 +8,6 @@ from django.utils import timezone
 
 from programas.models import EntregaMercaderia, Merendero, PrestacionDiaria, PrestacionMensual, SolicitudMerendero
 
-_DATOS_SOLICITUD_REQUERIDOS = (
-    "codigo",
-    "nombre",
-    "domicilio",
-    "zona",
-    "barrio",
-    "dias_horarios",
-    "responsable_nombre",
-)
-
 
 def aprobar_solicitud(solicitud, usuario):
     """Aprueba una solicitud documentada y crea una única vez su legajo activo."""
@@ -31,7 +21,11 @@ def aprobar_solicitud(solicitud, usuario):
         if not solicitud.documentacion:
             raise ValidationError("La documentación respaldatoria es obligatoria para aprobar.")
 
-        faltantes = [campo for campo in _DATOS_SOLICITUD_REQUERIDOS if not getattr(solicitud, campo).strip()]
+        faltantes = [
+            campo
+            for campo in SolicitudMerendero.CAMPOS_INSTITUCIONALES_REQUERIDOS
+            if not getattr(solicitud, campo).strip()
+        ]
         if faltantes:
             raise ValidationError("La solicitud no tiene todos los datos institucionales requeridos.")
         if Merendero.objects.select_for_update().filter(codigo=solicitud.codigo).exists():

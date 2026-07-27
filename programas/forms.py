@@ -342,7 +342,7 @@ class SolicitudMerenderoForm(forms.ModelForm):
             for campo in self.fields.values():
                 campo.required = False
             return
-        for campo in ("codigo", "nombre", "domicilio", "zona", "barrio", "dias_horarios", "responsable_nombre"):
+        for campo in SolicitudMerendero.CAMPOS_INSTITUCIONALES_REQUERIDOS:
             self.fields[campo].required = True
 
 

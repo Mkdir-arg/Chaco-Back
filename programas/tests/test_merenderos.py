@@ -221,7 +221,7 @@ class SolicitudMerenderoFormTests(TestCase):
         )
 
         self.assertFalse(form.is_valid())
-        for campo in ("codigo", "nombre", "domicilio", "zona", "barrio", "dias_horarios", "responsable_nombre"):
+        for campo in SolicitudMerendero.CAMPOS_INSTITUCIONALES_REQUERIDOS:
             self.assertIn(campo, form.errors)
 
 
