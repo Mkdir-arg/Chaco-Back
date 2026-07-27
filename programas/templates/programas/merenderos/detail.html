@@ -1,5 +1,81 @@
 {% extends "includes/base.html" %}
+
 {% block title %}{{ merendero.nombre }} · Merenderos{% endblock %}
+
 {% block main-content %}
-<div class="mx-auto max-w-6xl space-y-6"><div class="flex flex-wrap items-start justify-between gap-4"><div><a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:lista' %}">← Volver a merenderos</a><p class="mt-4 text-xs font-semibold uppercase tracking-wide text-fg-brand">{{ merendero.get_estado_display }}</p><h1 class="text-3xl font-extrabold text-heading">{{ merendero.nombre }}</h1><p class="font-mono text-sm text-body-subtle">{{ merendero.codigo }}</p></div><div class="flex flex-wrap gap-2">{% if puede_entregar and merendero.estado == 'ACTIVO' %}<a class="btn-nodo btn-secondary btn-base" href="{% url 'merenderos:entrega_crear' merendero.pk %}">Registrar entrega</a><a class="btn-nodo btn-brand btn-base" href="{% url 'merenderos:prestacion' merendero.pk %}">Prestación mensual</a>{% endif %}{% if puede_editar and merendero.estado == 'ACTIVO' %}<form method="post" action="{% url 'merenderos:estado' merendero.pk 'suspender' %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base">Suspender</button></form><form method="post" action="{% url 'merenderos:estado' merendero.pk 'cerrar' %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base text-fg-danger">Cerrar</button></form>{% endif %}</div></div><section class="rounded-xl border border-base p-6"><h2 class="text-lg font-bold text-heading">Datos institucionales</h2><dl class="mt-4 grid gap-4 sm:grid-cols-2"><div><dt class="text-xs uppercase text-body-subtle">Domicilio</dt><dd>{{ merendero.domicilio }}</dd></div><div><dt class="text-xs uppercase text-body-subtle">Zona / barrio</dt><dd>{{ merendero.zona }} · {{ merendero.barrio }}</dd></div><div><dt class="text-xs uppercase text-body-subtle">Responsable</dt><dd>{{ merendero.responsable_nombre }}</dd></div><div><dt class="text-xs uppercase text-body-subtle">Teléfono</dt><dd>{{ merendero.telefono|default:'—' }}</dd></div></dl></section><section class="rounded-xl border border-base p-6"><h2 class="text-lg font-bold text-heading">Entregas de mercadería</h2><div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Kits</th><th class="px-3 py-2">Servicio</th><th class="px-3 py-2">Recibe</th></tr></thead><tbody>{% for entrega in entregas %}<tr class="border-b border-light"><td class="px-3 py-2">{{ entrega.fecha|date:'d/m/Y' }}</td><td class="px-3 py-2">{{ entrega.cantidad_kits }}</td><td class="px-3 py-2">{{ entrega.servicio|default:'—' }}</td><td class="px-3 py-2">{{ entrega.responsable_receptor|default:'—' }}</td></tr>{% empty %}<tr><td class="px-3 py-5 text-body-subtle" colspan="4">Todavía no hay entregas.</td></tr>{% endfor %}</tbody></table></div></section></div>
+<div class="mx-auto max-w-6xl space-y-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:lista' %}">← Volver a merenderos</a>
+      <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-fg-brand">{{ merendero.get_estado_display }}</p>
+      <h1 class="text-3xl font-extrabold text-heading">{{ merendero.nombre }}</h1>
+      <p class="font-mono text-sm text-body-subtle">{{ merendero.codigo }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if puede_entregar and merendero.estado == 'ACTIVO' %}
+        <a class="btn-nodo btn-secondary btn-base" href="{% url 'merenderos:entrega_crear' merendero.pk %}">Registrar entrega</a>
+        <a class="btn-nodo btn-brand btn-base" href="{% url 'merenderos:prestacion' merendero.pk %}">Prestación mensual</a>
+      {% endif %}
+      {% if puede_editar and merendero.estado == 'ACTIVO' %}
+        <form method="post" action="{% url 'merenderos:estado' merendero.pk 'suspender' %}">
+          {% csrf_token %}
+          <button class="btn-nodo btn-secondary btn-base" data-confirm data-confirm-title="¿Suspender merendero?" data-confirm-text="No se podrán registrar nuevas prestaciones ni entregas hasta reactivarlo.">Suspender</button>
+        </form>
+        <form method="post" action="{% url 'merenderos:estado' merendero.pk 'cerrar' %}">
+          {% csrf_token %}
+          <button class="btn-nodo btn-tertiary btn-base text-fg-danger" data-confirm data-confirm-title="¿Cerrar merendero?" data-confirm-text="Esta operación no elimina el legajo, pero impide nuevas prestaciones y entregas.">Cerrar</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="rounded-xl border border-base p-6">
+    <h2 class="text-lg font-bold text-heading">Datos institucionales</h2>
+    <dl class="mt-4 grid gap-4 sm:grid-cols-2">
+      <div><dt class="text-xs uppercase text-body-subtle">Domicilio</dt><dd>{{ merendero.domicilio }}</dd></div>
+      <div><dt class="text-xs uppercase text-body-subtle">Zona / barrio</dt><dd>{{ merendero.zona }} · {{ merendero.barrio }}</dd></div>
+      <div><dt class="text-xs uppercase text-body-subtle">Responsable</dt><dd>{{ merendero.responsable_nombre }}</dd></div>
+      <div><dt class="text-xs uppercase text-body-subtle">Teléfono</dt><dd>{{ merendero.telefono|default:'—' }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="rounded-xl border border-base p-6">
+    <h2 class="text-lg font-bold text-heading">Entregas de mercadería</h2>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Kits</th><th class="px-3 py-2">Servicio</th><th class="px-3 py-2">Recibe</th></tr></thead>
+        <tbody>
+          {% for entrega in entregas %}
+            <tr class="border-b border-light"><td class="px-3 py-2">{{ entrega.fecha|date:'d/m/Y' }}</td><td class="px-3 py-2">{{ entrega.cantidad_kits }}</td><td class="px-3 py-2">{{ entrega.servicio|default:'—' }}</td><td class="px-3 py-2">{{ entrega.responsable_receptor|default:'—' }}</td></tr>
+          {% empty %}
+            <tr><td class="px-3 py-5 text-body-subtle" colspan="4">Todavía no hay entregas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  document.addEventListener("click", function (event) {
+    const button = event.target.closest("[data-confirm]");
+    if (!button) return;
+    event.preventDefault();
+    Swal.fire({
+      title: button.dataset.confirmTitle,
+      text: button.dataset.confirmText,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+      buttonsStyling: false,
+      customClass: {confirmButton: "btn-nodo btn-tertiary btn-base text-fg-danger", cancelButton: "btn-nodo btn-secondary btn-base", actions: "flex gap-2"},
+    }).then(function (result) {
+      if (result.isConfirmed) button.closest("form").submit();
+    });
+  });
+</script>
 {% endblock %}

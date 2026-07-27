@@ -16,6 +16,7 @@ from programas.forms import EntregaMercaderiaForm, SolicitudMerenderoForm
 from programas.models import Merendero, PrestacionDiaria, PrestacionMensual, SolicitudMerendero
 from programas.services.merenderos import (
     aprobar_solicitud,
+    cambiar_estado_merendero,
     guardar_prestacion,
     reenviar_solicitud,
     registrar_entrega,
@@ -169,9 +170,11 @@ class MerenderoEstadoView(MerenderosPermissionMixin, View):
         destinos = {"suspender": Merendero.Estado.SUSPENDIDO, "cerrar": Merendero.Estado.CERRADO}
         if estado not in destinos:
             return HttpResponseBadRequest("Acción inválida.")
-        merendero.estado = destinos[estado]
-        merendero.save(update_fields=["estado", "modificado"])
-        messages.success(request, "Estado del merendero actualizado.")
+        try:
+            cambiar_estado_merendero(merendero, nuevo_estado=destinos[estado], usuario=request.user)
+            messages.success(request, "Estado del merendero actualizado.")
+        except ValidationError as error:
+            messages.error(request, error.messages[0])
         return redirect("merenderos:detalle", pk=merendero.pk)
 
 
@@ -180,6 +183,8 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
     template_name = "programas/merenderos/prestacion_mensual.html"
 
     def _contexto(self, request, merendero, anio, mes):
+        if not 2000 <= anio <= 2100:
+            raise ValidationError("Año inválido.")
         if not 1 <= mes <= 12:
             raise ValidationError("Mes inválido.")
         ultimo_dia = monthrange(anio, mes)[1]
@@ -189,6 +194,10 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
         if prestacion:
             valores = {(linea.dia, linea.servicio): linea.raciones for linea in prestacion.lineas_diarias.all()}
             observaciones = prestacion.observaciones_por_dia
+        totales = {
+            dia: sum(valores.get((dia, servicio), 0) for servicio, _ in PrestacionDiaria.Servicio.choices)
+            for dia in range(1, ultimo_dia + 1)
+        }
         return {
             "merendero": merendero,
             "anio": anio,
@@ -197,6 +206,7 @@ class PrestacionMensualView(MerenderosPermissionMixin, View):
             "servicios": PrestacionDiaria.Servicio.choices,
             "valores": valores,
             "observaciones": observaciones,
+            "totales": totales,
             "prestacion": prestacion,
         }
 

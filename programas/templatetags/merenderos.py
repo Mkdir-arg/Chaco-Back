@@ -11,3 +11,8 @@ def racion(valores, dia, servicio):
 @register.filter
 def observacion(observaciones, dia):
     return observaciones.get(str(dia), "")
+
+
+@register.filter
+def total(totales, dia):
+    return totales.get(dia, 0)

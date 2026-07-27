@@ -1,3 +1,70 @@
-{% extends "includes/base.html" %}{% load merenderos %}
+{% extends "includes/base.html" %}
+{% load merenderos %}
+
 {% block title %}Prestación mensual{% endblock %}
-{% block main-content %}<div class="mx-auto max-w-7xl"><a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:detalle' merendero.pk %}">← Volver al merendero</a><h1 class="mt-4 text-3xl font-extrabold text-heading">Prestación mensual</h1><p class="mt-1 text-body-subtle">{{ merendero.nombre }}</p><form class="mt-5 flex gap-3" method="get"><input class="nodo-field" type="number" name="anio" value="{{ anio }}" min="2000"><input class="nodo-field" type="number" name="mes" value="{{ mes }}" min="1" max="12"><button class="btn-nodo btn-secondary btn-base">Ver mes</button></form><form method="post" class="mt-5 overflow-x-auto rounded-xl border border-base">{% csrf_token %}<input type="hidden" name="anio" value="{{ anio }}"><input type="hidden" name="mes" value="{{ mes }}"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Día</th>{% for servicio, etiqueta in servicios %}<th class="px-3 py-2">{{ etiqueta }}</th>{% endfor %}<th class="px-3 py-2">Total</th><th class="px-3 py-2">Observaciones</th></tr></thead><tbody>{% for dia in dias %}<tr class="border-b border-light"><td class="px-3 py-2 font-semibold">{{ dia }}</td>{% for servicio, etiqueta in servicios %}{% racion valores dia servicio as actual %}<td class="px-3 py-2"><input class="nodo-field w-24" type="number" min="0" name="raciones-{{ dia }}-{{ servicio }}" value="{{ actual }}"></td>{% endfor %}<td class="px-3 py-2 text-body-subtle">Se calcula al guardar</td><td class="px-3 py-2"><input class="nodo-field min-w-48" name="observacion-{{ dia }}" value="{{ observaciones|observacion:dia }}"></td></tr>{% endfor %}</tbody></table><div class="p-4"><button class="btn-nodo btn-brand btn-base">Guardar prestación</button></div></form></div>{% endblock %}
+
+{% block main-content %}
+<div class="mx-auto max-w-7xl">
+  <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:detalle' merendero.pk %}">← Volver al merendero</a>
+  <h1 class="mt-4 text-3xl font-extrabold text-heading">Prestación mensual</h1>
+  <p class="mt-1 text-body-subtle">{{ merendero.nombre }}</p>
+
+  <form class="mt-5 flex flex-wrap gap-3" method="get">
+    <label class="sr-only" for="prestacion-anio">Año</label>
+    <input id="prestacion-anio" class="nodo-field" type="number" name="anio" value="{{ anio }}" min="2000" max="2100">
+    <label class="sr-only" for="prestacion-mes">Mes</label>
+    <input id="prestacion-mes" class="nodo-field" type="number" name="mes" value="{{ mes }}" min="1" max="12">
+    <button class="btn-nodo btn-secondary btn-base">Ver mes</button>
+  </form>
+
+  <form method="post" class="mt-5 overflow-x-auto rounded-xl border border-base">
+    {% csrf_token %}
+    <input type="hidden" name="anio" value="{{ anio }}">
+    <input type="hidden" name="mes" value="{{ mes }}">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-light text-body-subtle">
+        <tr>
+          <th class="px-3 py-2">Día</th>
+          {% for servicio, etiqueta in servicios %}<th class="px-3 py-2">{{ etiqueta }}</th>{% endfor %}
+          <th class="px-3 py-2">Total</th>
+          <th class="px-3 py-2">Observaciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dia in dias %}
+          <tr class="border-b border-light" data-dia="{{ dia }}">
+            <td class="px-3 py-2 font-semibold">{{ dia }}</td>
+            {% for servicio, etiqueta in servicios %}
+              {% racion valores dia servicio as actual %}
+              <td class="px-3 py-2">
+                <input class="nodo-field w-24" type="number" min="0" name="raciones-{{ dia }}-{{ servicio }}" value="{{ actual }}" data-racion aria-label="Raciones de {{ etiqueta }} para el día {{ dia }}">
+              </td>
+            {% endfor %}
+            <td class="px-3 py-2 text-body-subtle"><output id="total-{{ dia }}" data-total aria-live="polite">{{ totales|total:dia }}</output></td>
+            <td class="px-3 py-2">
+              <label class="sr-only" for="observacion-{{ dia }}">Observación del día {{ dia }}</label>
+              <input id="observacion-{{ dia }}" class="nodo-field min-w-48" name="observacion-{{ dia }}" value="{{ observaciones|observacion:dia }}">
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="p-4"><button class="btn-nodo btn-brand btn-base">Guardar prestación</button></div>
+  </form>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script>
+  document.querySelectorAll("tr[data-dia]").forEach(function (fila) {
+    const actualizarTotal = function () {
+      const total = Array.from(fila.querySelectorAll("[data-racion]")).reduce(function (acumulado, input) {
+        return acumulado + Math.max(0, Number.parseInt(input.value || "0", 10) || 0);
+      }, 0);
+      fila.querySelector("[data-total]").value = total;
+    };
+    fila.querySelectorAll("[data-racion]").forEach(function (input) { input.addEventListener("input", actualizarTotal); });
+    actualizarTotal();
+  });
+</script>
+{% endblock %}

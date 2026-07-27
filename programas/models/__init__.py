@@ -694,6 +694,15 @@ class Merendero(TimeStamped):
         db_index=True,
         verbose_name="Estado",
     )
+    estado_actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merenderos_estado_actualizado",
+        verbose_name="Estado actualizado por",
+    )
+    estado_actualizado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de actualización de estado")
 
     class Meta:
         verbose_name = "Merendero"

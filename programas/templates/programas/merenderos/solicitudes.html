@@ -1,5 +1,44 @@
 {% extends "includes/base.html" %}
+
 {% block title %}Solicitudes de merenderos{% endblock %}
+
 {% block main-content %}
-<div class="mx-auto max-w-6xl"><div class="flex items-end justify-between gap-4"><div><a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:lista' %}">← Volver a merenderos</a><h1 class="mt-4 text-3xl font-extrabold text-heading">Solicitudes en revisión</h1></div><a class="btn-nodo btn-brand btn-base" href="{% url 'merenderos:solicitud_crear' %}">Nueva solicitud</a></div><div class="mt-6 overflow-x-auto rounded-xl border border-base"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-4 py-3">Solicitud</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3 text-right">Acciones</th></tr></thead><tbody>{% for solicitud in solicitudes %}<tr class="border-b border-light"><td class="px-4 py-3"><strong>{{ solicitud.nombre|default:'Solicitud sin nombre' }}</strong><br><span class="text-body-subtle">{{ solicitud.codigo|default:'—' }}</span></td><td class="px-4 py-3">{{ solicitud.get_estado_display }}</td><td class="px-4 py-3 text-right">{% if solicitud.estado == 'EN_REVISION' %}{% if solicitud.documentacion %}<form class="inline" method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'aprobar' %}">{% csrf_token %}<button class="text-fg-brand hover:underline">Aprobar</button></form>{% else %}<span class="text-body-subtle" title="Requiere documentación respaldatoria">Aprobar bloqueado</span>{% endif %}<form class="ml-3 inline" method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'observar' %}">{% csrf_token %}<input type="hidden" name="motivo" value="Revisar documentación"><button class="text-fg-brand hover:underline">Observar</button></form><form class="ml-3 inline" method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'rechazar' %}">{% csrf_token %}<input type="hidden" name="motivo" value="Solicitud rechazada"><button class="text-fg-danger hover:underline">Rechazar</button></form>{% elif solicitud.estado == 'OBSERVADA' %}<form method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'reenviar' %}">{% csrf_token %}<button class="text-fg-brand hover:underline">Reenviar a revisión</button></form>{% else %}—{% endif %}</td></tr>{% empty %}<tr><td class="px-4 py-8 text-center text-body-subtle" colspan="3">No hay solicitudes.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="mx-auto max-w-6xl">
+  <div class="flex items-end justify-between gap-4">
+    <div>
+      <a class="text-sm text-fg-brand hover:underline" href="{% url 'merenderos:lista' %}">← Volver a merenderos</a>
+      <h1 class="mt-4 text-3xl font-extrabold text-heading">Solicitudes en revisión</h1>
+    </div>
+    <a class="btn-nodo btn-brand btn-base" href="{% url 'merenderos:solicitud_crear' %}">Nueva solicitud</a>
+  </div>
+
+  <div class="mt-6 overflow-x-auto rounded-xl border border-base">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-light text-body-subtle"><tr><th class="px-4 py-3">Solicitud</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3 text-right">Acciones</th></tr></thead>
+      <tbody>
+        {% for solicitud in solicitudes %}
+          <tr class="border-b border-light">
+            <td class="px-4 py-3"><strong>{{ solicitud.nombre|default:'Solicitud sin nombre' }}</strong><br><span class="text-body-subtle">{{ solicitud.codigo|default:'—' }}</span></td>
+            <td class="px-4 py-3">{{ solicitud.get_estado_display }}</td>
+            <td class="px-4 py-3 text-right">
+              {% if solicitud.estado == 'EN_REVISION' %}
+                {% if solicitud.documentacion %}
+                  <form class="inline" method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'aprobar' %}">{% csrf_token %}<button class="text-fg-brand hover:underline">Aprobar</button></form>
+                {% else %}
+                  <span class="text-body-subtle" title="Requiere documentación respaldatoria">Aprobar bloqueado</span>
+                {% endif %}
+                <form class="ml-3 inline" method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'observar' %}">{% csrf_token %}<input type="hidden" name="motivo" value="Revisar documentación"><button class="text-fg-brand hover:underline">Observar</button></form>
+                <form class="ml-3 inline" method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'rechazar' %}">{% csrf_token %}<input type="hidden" name="motivo" value="Solicitud rechazada"><button class="text-fg-danger hover:underline">Rechazar</button></form>
+              {% elif solicitud.estado == 'OBSERVADA' %}
+                <form method="post" action="{% url 'merenderos:solicitud_resolver' solicitud.pk 'reenviar' %}">{% csrf_token %}<button class="text-fg-brand hover:underline">Reenviar a revisión</button></form>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td class="px-4 py-8 text-center text-body-subtle" colspan="3">No hay solicitudes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

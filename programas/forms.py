@@ -333,6 +333,11 @@ class SolicitudMerenderoForm(forms.ModelForm):
     def clean_codigo(self):
         return " ".join(self.cleaned_data["codigo"].split()).upper()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in ("codigo", "nombre", "domicilio", "zona", "barrio", "dias_horarios", "responsable_nombre"):
+            self.fields[campo].required = True
+
 
 class EntregaMercaderiaForm(forms.ModelForm):
     class Meta:
@@ -345,6 +350,10 @@ class EntregaMercaderiaForm(forms.ModelForm):
             "responsable_receptor": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "observaciones": _text_widget(),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["servicio"].required = True
 
 
 class PreguntaGlobalForm(_OpcionesMixin):

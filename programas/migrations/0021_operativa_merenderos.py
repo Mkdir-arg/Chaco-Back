@@ -19,6 +19,16 @@ class Migration(migrations.Migration):
             field=models.CharField(blank=True, max_length=240, verbose_name='Días y horarios'),
         ),
         migrations.AddField(
+            model_name='merendero',
+            name='estado_actualizado_en',
+            field=models.DateTimeField(blank=True, null=True, verbose_name='Fecha de actualización de estado'),
+        ),
+        migrations.AddField(
+            model_name='merendero',
+            name='estado_actualizado_por',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='merenderos_estado_actualizado', to=settings.AUTH_USER_MODEL, verbose_name='Estado actualizado por'),
+        ),
+        migrations.AddField(
             model_name='prestacionmensual',
             name='observaciones_por_dia',
             field=models.JSONField(blank=True, default=dict, verbose_name='Observaciones por día'),

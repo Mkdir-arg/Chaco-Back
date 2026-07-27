@@ -92,14 +92,37 @@ def reenviar_solicitud(solicitud):
 def registrar_entrega(merendero, *, fecha, cantidad_kits, servicio, responsable_receptor, observaciones):
     if merendero.estado != Merendero.Estado.ACTIVO:
         raise ValidationError("Solo se pueden registrar entregas en merenderos activos.")
+    if not isinstance(cantidad_kits, int) or isinstance(cantidad_kits, bool) or cantidad_kits <= 0:
+        raise ValidationError("La cantidad de kits debe ser un número entero mayor a cero.")
+    if not servicio or not servicio.strip():
+        raise ValidationError("El servicio de la entrega es obligatorio.")
     return EntregaMercaderia.objects.create(
         merendero=merendero,
         fecha=fecha,
         cantidad_kits=cantidad_kits,
-        servicio=servicio,
+        servicio=servicio.strip(),
         responsable_receptor=responsable_receptor,
         observaciones=observaciones,
     )
+
+
+def cambiar_estado_merendero(merendero, *, nuevo_estado, usuario):
+    """Aplica solo transiciones que conservan el historial operativo."""
+
+    permitidos = {
+        Merendero.Estado.ACTIVO: {Merendero.Estado.SUSPENDIDO, Merendero.Estado.CERRADO},
+        Merendero.Estado.SUSPENDIDO: {Merendero.Estado.CERRADO},
+        Merendero.Estado.CERRADO: set(),
+    }
+    with transaction.atomic():
+        merendero = Merendero.objects.select_for_update().get(pk=merendero.pk)
+        if nuevo_estado not in permitidos[merendero.estado]:
+            raise ValidationError("La transición de estado del merendero no está permitida.")
+        merendero.estado = nuevo_estado
+        merendero.estado_actualizado_por = usuario
+        merendero.estado_actualizado_en = timezone.now()
+        merendero.save(update_fields=["estado", "estado_actualizado_por", "estado_actualizado_en", "modificado"])
+        return merendero
 
 
 def guardar_prestacion(merendero, *, anio, mes, raciones, usuario, observaciones=None):
@@ -107,6 +130,8 @@ def guardar_prestacion(merendero, *, anio, mes, raciones, usuario, observaciones
 
     if merendero.estado != Merendero.Estado.ACTIVO:
         raise ValidationError("Solo se puede cargar prestación en merenderos activos.")
+    if not isinstance(anio, int) or not 2000 <= anio <= 2100:
+        raise ValidationError("Año inválido.")
     try:
         ultimo_dia = monthrange(anio, mes)[1]
     except (TypeError, ValueError) as error:
@@ -157,10 +182,14 @@ def guardar_prestacion(merendero, *, anio, mes, raciones, usuario, observaciones
             PrestacionDiaria.objects.bulk_create(nuevas)
         if actualizadas:
             PrestacionDiaria.objects.bulk_update(actualizadas, ["raciones", "firmado_por", "anulada", "modificado"])
-        prestacion.observaciones_por_dia = {
-            str(dia): texto.strip()
-            for dia, texto in observaciones.items()
-            if 1 <= int(dia) <= ultimo_dia and texto and texto.strip()
-        }
+        observaciones_limpias = {}
+        for dia, texto in observaciones.items():
+            try:
+                dia_numero = int(dia)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= dia_numero <= ultimo_dia and isinstance(texto, str) and texto.strip():
+                observaciones_limpias[str(dia_numero)] = texto.strip()
+        prestacion.observaciones_por_dia = observaciones_limpias
         prestacion.save(update_fields=["servicios", "observaciones_por_dia", "modificado"])
         return prestacion

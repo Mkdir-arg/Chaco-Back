@@ -1,10 +1,18 @@
+from datetime import date
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
+from programas.forms import SolicitudMerenderoForm
 from programas.models import Merendero, Programa, SolicitudMerendero
-from programas.services.merenderos import aprobar_solicitud, guardar_prestacion
+from programas.services.merenderos import (
+    aprobar_solicitud,
+    cambiar_estado_merendero,
+    guardar_prestacion,
+    registrar_entrega,
+)
 
 
 class MerenderosServiceTests(TestCase):
@@ -84,6 +92,78 @@ class MerenderosServiceTests(TestCase):
         self.assertEqual(primera.pk, segunda.pk)
         self.assertEqual(segunda.lineas_diarias.count(), 30 * 4)
         self.assertEqual(segunda.total_del_dia(1), 7)
+
+    def test_prestacion_rechaza_anio_fuera_del_rango_operativo(self):
+        merendero = Merendero.objects.create(
+            codigo="MER-ACEPT-04",
+            nombre="Esperanza",
+            domicilio="Belgrano 10",
+            responsable_nombre="Ana Díaz",
+        )
+
+        with self.assertRaisesMessage(ValidationError, "Año inválido"):
+            guardar_prestacion(merendero, anio=1999, mes=1, raciones={}, usuario=self.usuario)
+
+    def test_entrega_exige_kits_positivos_y_servicio(self):
+        merendero = Merendero.objects.create(
+            codigo="MER-ACEPT-05",
+            nombre="Nueva Vida",
+            domicilio="Rivadavia 20",
+            responsable_nombre="Ana Díaz",
+        )
+
+        with self.assertRaisesMessage(ValidationError, "kits"):
+            registrar_entrega(
+                merendero,
+                fecha=date(2026, 7, 27),
+                cantidad_kits=0,
+                servicio="Merienda",
+                responsable_receptor="",
+                observaciones="",
+            )
+        with self.assertRaisesMessage(ValidationError, "servicio"):
+            registrar_entrega(
+                merendero,
+                fecha=date(2026, 7, 27),
+                cantidad_kits=1,
+                servicio=" ",
+                responsable_receptor="",
+                observaciones="",
+            )
+
+    def test_suspension_guarda_quien_y_cuando_actualizo_el_estado(self):
+        merendero = Merendero.objects.create(
+            codigo="MER-ACEPT-06",
+            nombre="Sol Naciente",
+            domicilio="Moreno 30",
+            responsable_nombre="Ana Díaz",
+        )
+
+        cambiar_estado_merendero(merendero, nuevo_estado=Merendero.Estado.SUSPENDIDO, usuario=self.usuario)
+
+        merendero.refresh_from_db()
+        self.assertEqual(merendero.estado, Merendero.Estado.SUSPENDIDO)
+        self.assertEqual(merendero.estado_actualizado_por, self.usuario)
+        self.assertIsNotNone(merendero.estado_actualizado_en)
+
+
+class SolicitudMerenderoFormTests(TestCase):
+    def test_campos_institucionales_requeridos_no_pueden_enviarse_vacios(self):
+        form = SolicitudMerenderoForm(
+            data={
+                "codigo": "",
+                "nombre": "",
+                "domicilio": "",
+                "zona": "",
+                "barrio": "",
+                "dias_horarios": "",
+                "responsable_nombre": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        for campo in ("codigo", "nombre", "domicilio", "zona", "barrio", "dias_horarios", "responsable_nombre"):
+            self.assertIn(campo, form.errors)
 
 
 class MerenderosViewsTests(TestCase):
