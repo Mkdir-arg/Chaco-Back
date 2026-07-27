@@ -374,7 +374,7 @@ class PrestacionMensualForm(forms.Form):
         self.dias = self._dias_del_periodo()
         for dia in self.dias:
             for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
-                self.fields[self._nombre_racion(dia, servicio)] = forms.IntegerField(min_value=0, required=True)
+                self.fields[self._nombre_racion(dia, servicio)] = forms.IntegerField(min_value=0, required=False)
             self.fields[self._nombre_observacion(dia)] = forms.CharField(required=False)
 
     def _dias_del_periodo(self):
@@ -402,11 +402,15 @@ class PrestacionMensualForm(forms.Form):
 
         raciones, observaciones = {}, {}
         for dia in self.dias:
-            raciones[dia] = {
-                servicio: cleaned_data[self._nombre_racion(dia, servicio)]
-                for servicio, _etiqueta in PrestacionDiaria.Servicio.choices
-            }
+            raciones[dia] = {}
+            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
+                nombre_racion = self._nombre_racion(dia, servicio)
+                if nombre_racion not in self.data:
+                    self.add_error(nombre_racion, "La grilla de prestación debe enviarse completa.")
+                raciones[dia][servicio] = cleaned_data.get(nombre_racion) or 0
             observaciones[dia] = cleaned_data[self._nombre_observacion(dia)]
+        if self.errors:
+            return cleaned_data
         cleaned_data["raciones"] = raciones
         cleaned_data["observaciones"] = observaciones
         return cleaned_data

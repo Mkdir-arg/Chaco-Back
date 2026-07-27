@@ -292,7 +292,7 @@ class MerenderosViewsTests(TestCase):
         datos = {"anio": "2025", "mes": "2", "total-1": "9999"}
         for dia in range(1, 29):
             for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
-                datos[f"raciones-{dia}-{servicio}"] = "0"
+                datos[f"raciones-{dia}-{servicio}"] = ""
         datos["raciones-1-DESAYUNO"] = "20"
         datos["raciones-1-ALMUERZO"] = "30"
 
@@ -302,6 +302,7 @@ class MerenderosViewsTests(TestCase):
         prestacion = merendero.prestaciones_mensuales.get(anio=2025, mes=2)
         self.assertEqual(prestacion.lineas_diarias.count(), 28 * 4)
         self.assertEqual(prestacion.total_del_dia(1), 50)
+        self.assertEqual(prestacion.total_del_dia(2), 0)
 
     def test_prestacion_mensual_acepta_periodo_del_selector_nativo(self):
         merendero = Merendero.objects.create(
