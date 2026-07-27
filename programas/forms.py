@@ -13,11 +13,13 @@ from programas.models import (
     CampoTipoDispositivo,
     Convocatoria,
     Dispositivo,
+    EntregaMercaderia,
     Formulario,
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
     Segmento,
+    SolicitudMerendero,
     Subsegmento,
     TipoCampo,
     TipoDispositivo,
@@ -296,6 +298,53 @@ class CampoTipoDispositivoForm(_OpcionesMixin):
         super().__init__(*args, **kwargs)
         if tipo_dispositivo is not None:
             self.instance.tipo_dispositivo = tipo_dispositivo
+
+
+class SolicitudMerenderoForm(forms.ModelForm):
+    class Meta:
+        model = SolicitudMerendero
+        fields = [
+            "codigo",
+            "nombre",
+            "domicilio",
+            "zona",
+            "barrio",
+            "dias_horarios",
+            "responsable_nombre",
+            "responsable_documento",
+            "responsable_email",
+            "telefono",
+            "documentacion",
+        ]
+        widgets = {
+            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "zona": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "barrio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "dias_horarios": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_documento": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
+            "telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS}),
+        }
+
+    def clean_codigo(self):
+        return " ".join(self.cleaned_data["codigo"].split()).upper()
+
+
+class EntregaMercaderiaForm(forms.ModelForm):
+    class Meta:
+        model = EntregaMercaderia
+        fields = ["fecha", "cantidad_kits", "servicio", "responsable_receptor", "observaciones"]
+        widgets = {
+            "fecha": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+            "cantidad_kits": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
+            "servicio": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "responsable_receptor": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "observaciones": _text_widget(),
+        }
 
 
 class PreguntaGlobalForm(_OpcionesMixin):
