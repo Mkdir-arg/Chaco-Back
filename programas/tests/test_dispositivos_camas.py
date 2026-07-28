@@ -213,7 +213,10 @@ class IntegridadCamasTests(TestCase):
 
 class CamasViewsTests(TestCase):
     def setUp(self):
-        Programa.objects.create(codigo="DISPOSITIVOS", nombre="Dispositivos", tipo=Programa.TipoPrograma.DISPOSITIVOS)
+        Programa.objects.get_or_create(
+            codigo="DISPOSITIVOS",
+            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
+        )
         tipo = TipoDispositivo.objects.create(codigo="AM", nombre="Adulto Mayor", maneja_camas=True)
         self.dispositivo = Dispositivo.objects.create(codigo="HOGAR-004", nombre="Hogar Centro", tipo=tipo)
         self.admin = User.objects.create_superuser("admin-camas", "admin@example.com", "test")
