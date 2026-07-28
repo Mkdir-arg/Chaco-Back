@@ -1,5 +1,6 @@
 from django.urls import path
 
+from programas.views import admisiones
 from programas.views import dispositivos_config as cfg
 from programas.views import dispositivos_legajo as legajo
 
@@ -16,6 +17,17 @@ urlpatterns = [
     path("<int:pk>/inactivar/", legajo.DispositivoInactivarView.as_view(), name="inactivar"),
     path("<int:pk>/cerrar/", legajo.DispositivoCerrarView.as_view(), name="cerrar"),
     path("<int:pk>/camas/agregar/", legajo.CamasCreateView.as_view(), name="camas_agregar"),
+    path("<int:pk>/admisiones/nueva/", admisiones.AdmisionCreateView.as_view(), name="admitir"),
+    path("<int:pk>/admisiones/espera/", admisiones.EsperaAdmisionListView.as_view(), name="espera"),
+    path("<int:pk>/admisiones/<int:admision_pk>/egreso/", admisiones.EgresoAdmisionView.as_view(), name="egresar"),
+    path(
+        "<int:pk>/admisiones/<int:admision_pk>/traslado/", admisiones.TrasladoAdmisionView.as_view(), name="trasladar"
+    ),
+    path(
+        "<int:pk>/admisiones/espera/<int:espera_pk>/promover/",
+        admisiones.PromoverEsperaView.as_view(),
+        name="espera_promover",
+    ),
     path("camas/<int:pk>/editar/", legajo.CamaUpdateView.as_view(), name="cama_editar"),
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),

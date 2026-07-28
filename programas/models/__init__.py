@@ -625,8 +625,25 @@ class Admision(TimeStamped):
         verbose_name="Estado",
     )
     es_reingreso = models.BooleanField(default=False, verbose_name="Es reingreso")
+    respuestas_f00 = models.JSONField(default=dict, blank=True, verbose_name="Respuestas F-00")
     motivo_egreso = models.TextField(blank=True, verbose_name="Motivo de egreso")
     destino_egreso = models.CharField(max_length=240, blank=True, verbose_name="Destino de egreso/traslado")
+    responsable_egreso = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="egresos_dispositivos",
+        verbose_name="Responsable del egreso",
+    )
+    origen_traslado = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="traslados_destino",
+        verbose_name="Admisión de origen del traslado",
+    )
 
     class Meta:
         verbose_name = "Admisión/estadía"
@@ -642,7 +659,12 @@ class Admision(TimeStamped):
                 fields=["cama"],
                 condition=models.Q(cama__isnull=False, estado="ALOJADO"),
                 name="admision_una_cama_alojada",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["ciudadano", "dispositivo"],
+                condition=models.Q(estado="ALOJADO"),
+                name="admision_una_estadia_activa_por_dispositivo",
+            ),
         ]
 
     def __str__(self):
@@ -662,6 +684,39 @@ class Admision(TimeStamped):
             raise ValidationError({"inscripcion_programa": "La membresía debe pertenecer al ciudadano de la admisión."})
         if self.inscripcion_programa.programa.codigo != Programa.TipoPrograma.DISPOSITIVOS:
             raise ValidationError({"inscripcion_programa": "La membresía debe ser del programa Dispositivos."})
+
+
+class EsperaAdmision(TimeStamped):
+    """Cola propia de Dispositivos; no reutiliza la cola funcional de Becas."""
+
+    admision = models.OneToOneField(Admision, on_delete=models.PROTECT, related_name="espera")
+    posicion = models.PositiveIntegerField()
+    promovida = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        verbose_name = "Espera de admisión"
+        verbose_name_plural = "Esperas de admisión"
+        ordering = ["posicion", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["admision"],
+                condition=models.Q(promovida=False),
+                name="espera_admision_activa_unica",
+            )
+        ]
+
+
+class ArchivoAdmision(TimeStamped):
+    """Adjunto de un campo ARCHIVO del F-00, separado del JSON de respuestas."""
+
+    admision = models.ForeignKey(Admision, on_delete=models.PROTECT, related_name="archivos_f00")
+    campo = models.ForeignKey("CampoTipoDispositivo", on_delete=models.PROTECT, related_name="archivos_admisiones")
+    archivo = models.FileField(upload_to="admisiones/f00/")
+
+    class Meta:
+        verbose_name = "Archivo de admisión"
+        verbose_name_plural = "Archivos de admisión"
+        constraints = [models.UniqueConstraint(fields=["admision", "campo"], name="archivo_f00_unico_por_campo")]
 
 
 # ===========================================================================
@@ -919,6 +974,11 @@ class TipoCampo(models.TextChoices):
 class CampoTipoDispositivo(TimeStamped):
     """Campo configurable del formulario propio de un tipo de dispositivo."""
 
+    class RolCalculo(models.TextChoices):
+        NINGUNO = "NINGUNO", "No interviene en totales"
+        INGRESO = "INGRESO", "Ingreso para saldo estimado"
+        EGRESO = "EGRESO", "Egreso para saldo estimado"
+
     tipo_dispositivo = models.ForeignKey(
         TipoDispositivo,
         on_delete=models.CASCADE,
@@ -935,6 +995,12 @@ class CampoTipoDispositivo(TimeStamped):
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
     )
     obligatorio = models.BooleanField(default=False, verbose_name="Obligatorio")
+    rol_calculo = models.CharField(
+        max_length=10,
+        choices=RolCalculo.choices,
+        default=RolCalculo.NINGUNO,
+        verbose_name="Rol en totales F-00",
+    )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
 
     class Meta:

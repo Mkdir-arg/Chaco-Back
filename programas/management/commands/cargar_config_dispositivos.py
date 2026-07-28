@@ -18,12 +18,26 @@ NIVELES_EDUCATIVOS = [
 
 
 def campo(seccion, nombre, tipo_campo=TipoCampo.STRING, opciones=None):
+    rol_calculo = CampoTipoDispositivo.RolCalculo.NINGUNO
+    if nombre in {"Ingreso mensual", "Ingreso total mensual"}:
+        rol_calculo = CampoTipoDispositivo.RolCalculo.INGRESO
+    elif nombre in {
+        "Alquiler",
+        "Créditos",
+        "Cuotas",
+        "Medicamentos",
+        "Transporte",
+        "Transporte y otros",
+        "Otros egresos",
+    }:
+        rol_calculo = CampoTipoDispositivo.RolCalculo.EGRESO
     return {
         "seccion": seccion,
         "nombre": nombre,
         "tipo_campo": tipo_campo,
         "opciones": opciones,
         "obligatorio": False,
+        "rol_calculo": rol_calculo,
     }
 
 
@@ -251,6 +265,7 @@ class Command(BaseCommand):
                         "tipo_campo": definicion_campo["tipo_campo"],
                         "opciones": definicion_campo["opciones"],
                         "obligatorio": definicion_campo["obligatorio"],
+                        "rol_calculo": definicion_campo["rol_calculo"],
                         "orden": orden,
                     },
                 )
