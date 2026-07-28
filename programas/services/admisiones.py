@@ -12,7 +12,7 @@ def _programa_dispositivos():
     return Programa.objects.get(codigo=Programa.TipoPrograma.DISPOSITIVOS)
 
 
-def _membresia_activa(ciudadano, usuario):
+def _obtener_membresia(ciudadano, usuario):
     programa = _programa_dispositivos()
     try:
         with transaction.atomic():
@@ -21,6 +21,11 @@ def _membresia_activa(ciudadano, usuario):
             )
     except IntegrityError:
         membresia = InscripcionPrograma.objects.select_for_update().get(ciudadano=ciudadano, programa=programa)
+    return membresia
+
+
+def _membresia_activa(ciudadano, usuario):
+    membresia = _obtener_membresia(ciudadano, usuario)
     if membresia.estado != InscripcionPrograma.Estado.ACTIVO:
         membresia.estado = InscripcionPrograma.Estado.ACTIVO
         membresia.fecha_inicio = timezone.localdate()
@@ -99,6 +104,10 @@ def poner_en_espera(*, ciudadano, dispositivo, usuario, respuestas_f00=None, arc
     dispositivo = Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
     if dispositivo.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError("Solo se admiten personas en dispositivos activos.")
+    if origen is not None:
+        origen = Admision.objects.select_for_update().get(pk=origen.pk)
+        if Admision.objects.filter(origen_traslado=origen, estado=Admision.Estado.LISTA_ESPERA).exists():
+            raise ValidationError("La persona ya tiene un traslado pendiente.")
     if (
         Admision.objects.select_for_update()
         .filter(ciudadano=ciudadano, dispositivo=dispositivo, estado=Admision.Estado.LISTA_ESPERA)
@@ -108,9 +117,10 @@ def poner_en_espera(*, ciudadano, dispositivo, usuario, respuestas_f00=None, arc
     admision = Admision.objects.create(
         ciudadano=ciudadano,
         dispositivo=dispositivo,
-        inscripcion_programa=_membresia_activa(ciudadano, usuario),
+        inscripcion_programa=_obtener_membresia(ciudadano, usuario),
         fecha_ingreso=timezone.now(),
         estado=Admision.Estado.LISTA_ESPERA,
+        es_reingreso=_es_reingreso(ciudadano, dispositivo),
         origen_traslado=origen,
     )
     ultima = (
@@ -131,6 +141,8 @@ def egresar_admision(*, admision, usuario, fecha_egreso, motivo, destino):
         raise ValidationError("Solo se puede egresar una admisión alojada.")
     if fecha_egreso < admision.fecha_ingreso:
         raise ValidationError("La fecha de egreso no puede ser anterior al ingreso.")
+    if Admision.objects.filter(origen_traslado=admision, estado=Admision.Estado.LISTA_ESPERA).exists():
+        raise ValidationError("No se puede egresar mientras exista un traslado pendiente.")
 
     if admision.cama_id:
         cama = Cama.objects.select_for_update().get(pk=admision.cama_id)
@@ -224,8 +236,11 @@ def promover_espera(*, espera, cama, usuario):
     admision.cama = cama
     admision.estado = Admision.Estado.ALOJADO
     admision.fecha_ingreso = timezone.now()
+    admision.es_reingreso = admision.es_reingreso or _es_reingreso(admision.ciudadano, admision.dispositivo)
     admision.inscripcion_programa = _membresia_activa(admision.ciudadano, usuario)
-    admision.save(update_fields=["cama", "estado", "fecha_ingreso", "inscripcion_programa", "modificado"])
+    admision.save(
+        update_fields=["cama", "estado", "fecha_ingreso", "es_reingreso", "inscripcion_programa", "modificado"]
+    )
     cama.estado = Cama.Estado.OCUPADA
     cama.save(update_fields=["estado", "modificado"])
     espera.promovida = True

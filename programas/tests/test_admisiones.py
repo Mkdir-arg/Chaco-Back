@@ -124,6 +124,61 @@ class AdmisionesServiceTests(TestCase):
         espera.refresh_from_db()
         self.assertEqual(espera.estado, Admision.Estado.LISTA_ESPERA)
 
+    def test_espera_mantiene_membresia_pendiente_hasta_la_promocion(self):
+        espera = poner_en_espera(ciudadano=self.ciudadano, dispositivo=self.dispositivo, usuario=self.usuario)
+
+        self.assertEqual(espera.inscripcion_programa.estado, espera.inscripcion_programa.Estado.PENDIENTE)
+
+        promover_espera(espera=EsperaAdmision.objects.get(admision=espera), cama=self.cama, usuario=self.usuario)
+
+        espera.inscripcion_programa.refresh_from_db()
+        self.assertEqual(espera.inscripcion_programa.estado, espera.inscripcion_programa.Estado.ACTIVO)
+
+    def test_espera_de_reingreso_conserva_la_marca_al_promover(self):
+        primera = admitir_ciudadano(
+            ciudadano=self.ciudadano, dispositivo=self.dispositivo, cama=self.cama, usuario=self.usuario
+        )
+        egresar_admision(
+            admision=primera, usuario=self.usuario, fecha_egreso=timezone.now(), motivo="Alta", destino="Domicilio"
+        )
+
+        espera = poner_en_espera(ciudadano=self.ciudadano, dispositivo=self.dispositivo, usuario=self.usuario)
+        self.assertTrue(espera.es_reingreso)
+
+        promover_espera(espera=EsperaAdmision.objects.get(admision=espera), cama=self.cama, usuario=self.usuario)
+
+        espera.refresh_from_db()
+        self.assertTrue(espera.es_reingreso)
+
+    def test_no_permite_otro_traslado_pendiente_ni_egreso_del_origen(self):
+        origen = admitir_ciudadano(
+            ciudadano=self.ciudadano, dispositivo=self.dispositivo, cama=self.cama, usuario=self.usuario
+        )
+        destino_1 = Dispositivo.objects.create(
+            codigo="HOGAR-02", nombre="Hogar Sur", tipo=self.dispositivo.tipo, estado=Dispositivo.Estado.ACTIVO
+        )
+        destino_2 = Dispositivo.objects.create(
+            codigo="HOGAR-03", nombre="Hogar Este", tipo=self.dispositivo.tipo, estado=Dispositivo.Estado.ACTIVO
+        )
+
+        trasladar_admision(admision=origen, destino=destino_1, cama=None, usuario=self.usuario)
+
+        with self.assertRaisesMessage(ValidationError, "traslado pendiente"):
+            trasladar_admision(admision=origen, destino=destino_2, cama=None, usuario=self.usuario)
+        with self.assertRaisesMessage(ValidationError, "traslado pendiente"):
+            egresar_admision(
+                admision=origen,
+                usuario=self.usuario,
+                fecha_egreso=timezone.now(),
+                motivo="Alta",
+                destino="Domicilio",
+            )
+
+        origen.refresh_from_db()
+        self.cama.refresh_from_db()
+        self.assertEqual(origen.estado, Admision.Estado.ALOJADO)
+        self.assertEqual(self.cama.estado, Cama.Estado.OCUPADA)
+
 
 class F00DinamicoFormTests(TestCase):
     def setUp(self):
