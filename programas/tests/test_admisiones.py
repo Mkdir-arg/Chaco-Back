@@ -1,4 +1,5 @@
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -132,6 +133,7 @@ class F00DinamicoFormTests(TestCase):
             seccion="Ingresos y egresos",
             nombre="Ingreso total mensual",
             tipo_campo=TipoCampo.INT,
+            rol_calculo=CampoTipoDispositivo.RolCalculo.INGRESO,
             orden=1,
         )
         self.alquiler = CampoTipoDispositivo.objects.create(
@@ -139,6 +141,7 @@ class F00DinamicoFormTests(TestCase):
             seccion="Ingresos y egresos",
             nombre="Alquiler",
             tipo_campo=TipoCampo.INT,
+            rol_calculo=CampoTipoDispositivo.RolCalculo.EGRESO,
             orden=2,
         )
         self.texto = CampoTipoDispositivo.objects.create(
@@ -265,3 +268,20 @@ class AdmisionesViewsTests(TestCase):
         admision.refresh_from_db()
         self.assertEqual(response.status_code, 403)
         self.assertEqual(admision.estado, Admision.Estado.ALOJADO)
+
+    def test_dni_nuevo_precarga_los_datos_que_devuelve_renaper(self):
+        self.client.force_login(self.admin)
+        with patch(
+            "programas.views.admisiones.CiudadanosService.consultar_renaper",
+            return_value={
+                "success": True,
+                "data": {"nombre": "Nueva", "apellido": "Persona", "fecha_nacimiento": "2000-01-02", "genero": "F"},
+            },
+        ) as consultar:
+            response = self.client.get(
+                reverse("dispositivos:admitir", args=[self.dispositivo.pk]), {"dni": "30000005", "sexo": "F"}
+            )
+
+        consultar.assert_called_once_with("30000005", "F")
+        self.assertContains(response, 'value="Nueva"')
+        self.assertContains(response, 'value="Persona"')

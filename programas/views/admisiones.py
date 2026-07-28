@@ -9,6 +9,7 @@ from django.views import View
 
 from core import rbac
 from legajos.models import Ciudadano
+from legajos.services import CiudadanosService
 from programas.forms import (
     BusquedaCiudadanoDNIForm,
     CiudadanoAdmisionForm,
@@ -57,13 +58,26 @@ class AdmisionCreateView(DispositivoOperacionMixin, View):
 
     def get(self, request, pk):
         dni = request.GET.get("dni", "")
-        busqueda = BusquedaCiudadanoDNIForm({"dni": dni} if dni else None)
+        busqueda = BusquedaCiudadanoDNIForm(request.GET if dni else None)
         if not dni or not busqueda.is_valid():
             return render(request, self.template_name, self._contexto(busqueda=busqueda))
         ciudadano = Ciudadano.objects.filter(dni=busqueda.cleaned_data["dni"]).first()
         ciudadano_form = None
         if ciudadano is None:
-            ciudadano_form = CiudadanoAdmisionForm(initial={"dni": busqueda.cleaned_data["dni"]})
+            inicial = {"dni": busqueda.cleaned_data["dni"]}
+            if busqueda.cleaned_data["sexo"]:
+                resultado = CiudadanosService.consultar_renaper(
+                    busqueda.cleaned_data["dni"], busqueda.cleaned_data["sexo"]
+                )
+                if resultado.get("success"):
+                    inicial.update(
+                        {
+                            clave: resultado.get("data", {}).get(clave)
+                            for clave in ("nombre", "apellido", "fecha_nacimiento", "genero", "domicilio")
+                            if resultado.get("data", {}).get(clave) is not None
+                        }
+                    )
+            ciudadano_form = CiudadanoAdmisionForm(initial=inicial)
         f00_form = F00DinamicoForm(tipo_dispositivo=self.get_dispositivo().tipo, ciudadano=ciudadano)
         return render(
             request,
@@ -89,8 +103,7 @@ class AdmisionCreateView(DispositivoOperacionMixin, View):
             valido = False
         accion = request.POST.get("accion")
         if accion == "alojar" and cama is None:
-            messages.error(request, "Seleccioná una cama disponible o registrá la persona en espera.")
-            valido = False
+            accion = "espera"
         if accion not in {"alojar", "espera"}:
             messages.error(request, "Seleccioná una acción de admisión válida.")
             valido = False

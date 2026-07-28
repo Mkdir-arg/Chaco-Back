@@ -1,6 +1,5 @@
 """Formularios del backoffice de Programas."""
 
-import re
 from calendar import monthrange
 from collections import OrderedDict
 
@@ -290,12 +289,13 @@ class CampoTipoDispositivoForm(_OpcionesMixin):
 
     class Meta:
         model = CampoTipoDispositivo
-        fields = ["seccion", "nombre", "tipo_campo", "obligatorio", "orden"]
+        fields = ["seccion", "nombre", "tipo_campo", "obligatorio", "rol_calculo", "orden"]
         widgets = {
             "seccion": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo_campo": forms.Select(attrs={"class": INPUT_CLASS}),
             "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "rol_calculo": forms.Select(attrs={"class": INPUT_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 
@@ -311,6 +311,12 @@ class BusquedaCiudadanoDNIForm(forms.Form):
         max_length=20,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric", "autocomplete": "off"}),
     )
+    sexo = forms.ChoiceField(
+        label="Sexo registral (solo para consultar RENAPER si no existe el legajo)",
+        choices=[("", "No consultar RENAPER"), ("M", "Masculino"), ("F", "Femenino")],
+        required=False,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
 
     def clean_dni(self):
         dni = "".join(filter(str.isdigit, self.cleaned_data["dni"]))
@@ -325,6 +331,20 @@ class CiudadanoAdmisionForm(forms.Form):
     dni = forms.CharField(widget=forms.HiddenInput())
     nombre = forms.CharField(label="Nombre", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
     apellido = forms.CharField(label="Apellido", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    fecha_nacimiento = forms.DateField(
+        label="Fecha de nacimiento",
+        required=False,
+        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+    )
+    genero = forms.ChoiceField(
+        label="Género",
+        choices=[("", "Sin informar"), ("M", "Masculino"), ("F", "Femenino"), ("X", "No binario")],
+        required=False,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    domicilio = forms.CharField(
+        label="Domicilio", max_length=240, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
 
     def clean_dni(self):
         return "".join(filter(str.isdigit, self.cleaned_data["dni"]))
@@ -333,16 +353,13 @@ class CiudadanoAdmisionForm(forms.Form):
 class F00DinamicoForm(forms.Form):
     """Renderiza y valida la configuración vigente del tipo de dispositivo."""
 
-    _EGRESO_RE = re.compile(r"egreso|alquiler|cuota|medicamento|transporte|cr[eé]dito", re.I)
-
-    @classmethod
-    def es_egreso(cls, campo):
-        nombre = campo.nombre.casefold()
-        return "ingreso" not in nombre and bool(cls._EGRESO_RE.search(nombre))
+    @staticmethod
+    def es_egreso(campo):
+        return campo.rol_calculo == CampoTipoDispositivo.RolCalculo.EGRESO
 
     @staticmethod
     def es_ingreso(campo):
-        return "ingreso" in campo.nombre.casefold()
+        return campo.rol_calculo == CampoTipoDispositivo.RolCalculo.INGRESO
 
     def __init__(self, *args, tipo_dispositivo, ciudadano=None, respuestas=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -415,7 +432,7 @@ class F00DinamicoForm(forms.Form):
             for campo in self.campos_configurados
             if campo.tipo_campo == TipoCampo.INT and self.es_ingreso(campo)
         )
-        if egresos or ingresos:
+        if any(campo.rol_calculo != CampoTipoDispositivo.RolCalculo.NINGUNO for campo in self.campos_configurados):
             respuestas["_totales"] = {"egresos": egresos, "ingresos": ingresos, "saldo_estimado": ingresos - egresos}
         return respuestas, archivos
 

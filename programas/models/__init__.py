@@ -659,7 +659,12 @@ class Admision(TimeStamped):
                 fields=["cama"],
                 condition=models.Q(cama__isnull=False, estado="ALOJADO"),
                 name="admision_una_cama_alojada",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["ciudadano", "dispositivo"],
+                condition=models.Q(estado="ALOJADO"),
+                name="admision_una_estadia_activa_por_dispositivo",
+            ),
         ]
 
     def __str__(self):
@@ -969,6 +974,11 @@ class TipoCampo(models.TextChoices):
 class CampoTipoDispositivo(TimeStamped):
     """Campo configurable del formulario propio de un tipo de dispositivo."""
 
+    class RolCalculo(models.TextChoices):
+        NINGUNO = "NINGUNO", "No interviene en totales"
+        INGRESO = "INGRESO", "Ingreso para saldo estimado"
+        EGRESO = "EGRESO", "Egreso para saldo estimado"
+
     tipo_dispositivo = models.ForeignKey(
         TipoDispositivo,
         on_delete=models.CASCADE,
@@ -985,6 +995,12 @@ class CampoTipoDispositivo(TimeStamped):
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
     )
     obligatorio = models.BooleanField(default=False, verbose_name="Obligatorio")
+    rol_calculo = models.CharField(
+        max_length=10,
+        choices=RolCalculo.choices,
+        default=RolCalculo.NINGUNO,
+        verbose_name="Rol en totales F-00",
+    )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
 
     class Meta:

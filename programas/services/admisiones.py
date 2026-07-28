@@ -1,7 +1,7 @@
 """Operaciones atómicas del circuito de admisiones de Dispositivos."""
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -14,9 +14,13 @@ def _programa_dispositivos():
 
 def _membresia_activa(ciudadano, usuario):
     programa = _programa_dispositivos()
-    membresia, _ = InscripcionPrograma.objects.select_for_update().get_or_create(
-        ciudadano=ciudadano, programa=programa, defaults={"responsable": usuario}
-    )
+    try:
+        with transaction.atomic():
+            membresia, _ = InscripcionPrograma.objects.select_for_update().get_or_create(
+                ciudadano=ciudadano, programa=programa, defaults={"responsable": usuario}
+            )
+    except IntegrityError:
+        membresia = InscripcionPrograma.objects.select_for_update().get(ciudadano=ciudadano, programa=programa)
     if membresia.estado != InscripcionPrograma.Estado.ACTIVO:
         membresia.estado = InscripcionPrograma.Estado.ACTIVO
         membresia.fecha_inicio = timezone.localdate()
