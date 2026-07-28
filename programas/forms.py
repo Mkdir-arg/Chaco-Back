@@ -301,8 +301,12 @@ class CampoTipoDispositivoForm(_OpcionesMixin):
 
     def __init__(self, *args, tipo_dispositivo=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["rol_calculo"].required = False
         if tipo_dispositivo is not None:
             self.instance.tipo_dispositivo = tipo_dispositivo
+
+    def clean_rol_calculo(self):
+        return self.cleaned_data.get("rol_calculo") or CampoTipoDispositivo.RolCalculo.NINGUNO
 
 
 class BusquedaCiudadanoDNIForm(forms.Form):
