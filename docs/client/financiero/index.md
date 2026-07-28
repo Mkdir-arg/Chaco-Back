@@ -14,9 +14,9 @@
     ---
 
     :material-wallet-outline: Presupuesto: **500 horas**<br>
-    :material-clock-check-outline: Consumido: **232 h 25 min** (46%) — al 24/07<br>
-    :material-check-circle-outline: Saldo: **267 h 35 min** disponibles<br>
-    :material-briefcase-outline: Becas: **124 h 38 min** · Dispositivos: **90 h** · Transversal: **17 h 47 min**
+    :material-clock-check-outline: Consumido: **239 h 55 min** (48%) — al 27/07<br>
+    :material-check-circle-outline: Saldo: **260 h 05 min** disponibles<br>
+    :material-briefcase-outline: Becas: **126 h 08 min** · Dispositivos: **96 h** · Transversal: **17 h 47 min**
 
     **Estado:** :material-circle:{ style="color: #3b82f6" } En curso
 
