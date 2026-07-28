@@ -12,7 +12,7 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from programas.forms import CamaForm, CantidadCamasForm, DispositivoForm
-from programas.models import Cama, Dispositivo, TipoDispositivo
+from programas.models import Admision, Cama, Dispositivo, EsperaAdmision, TipoDispositivo
 from programas.services.camas import actualizar_cama, crear_camas, resumen_ocupacion
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
@@ -155,6 +155,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         context["trazas"] = self.object.trazas.select_related("usuario")
         context["camas"] = self.object.camas.all()
         context["resumen_camas"] = resumen_ocupacion(self.object)
+        context["admisiones_activas"] = self.object.admisiones.filter(estado=Admision.Estado.ALOJADO).select_related(
+            "ciudadano", "cama"
+        )
+        context["esperas_activas"] = EsperaAdmision.objects.filter(
+            admision__dispositivo=self.object, promovida=False
+        ).select_related("admision__ciudadano")
         context["puede_gestionar_camas"] = (
             self.object.tipo.maneja_camas
             and self.object.estado != Dispositivo.Estado.CERRADO
@@ -164,6 +170,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "dispositivo.editar",
             )
         )
+        context["puede_admitir"] = self.object.estado == Dispositivo.Estado.ACTIVO and puede_operar_dispositivo(
+            self.request.user, self.object, "dispositivo.admitir"
+        )
+        context["puede_egresar"] = puede_operar_dispositivo(self.request.user, self.object, "dispositivo.egresar")
         return context
 
 

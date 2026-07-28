@@ -57,6 +57,7 @@ class CampoTipoDispositivoFormTests(TestCase):
         campo = form.save()
         self.assertEqual(campo.opciones, ["Una", "Dos"])
         self.assertEqual(campo.tipo_dispositivo, self.tipo)
+        self.assertEqual(campo.rol_calculo, CampoTipoDispositivo.RolCalculo.NINGUNO)
 
     def test_rechaza_selectores_sin_opciones(self):
         for tipo_campo in (TipoCampo.SELECTOR, TipoCampo.SELECTOR_MULTIPLE):
