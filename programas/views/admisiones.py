@@ -94,9 +94,12 @@ class AdmisionCreateView(DispositivoOperacionMixin, View):
         ciudadano = Ciudadano.objects.filter(dni=busqueda.cleaned_data["dni"]).first()
         ciudadano_form = None if ciudadano else CiudadanoAdmisionForm(request.POST)
         f00_form = F00DinamicoForm(request.POST, request.FILES, tipo_dispositivo=dispositivo.tipo, ciudadano=ciudadano)
-        cama = Cama.objects.filter(
-            pk=request.POST.get("cama"), dispositivo=dispositivo, estado=Cama.Estado.DISPONIBLE
-        ).first()
+        cama_id = request.POST.get("cama")
+        cama = (
+            Cama.objects.filter(pk=cama_id, dispositivo=dispositivo, estado=Cama.Estado.DISPONIBLE).first()
+            if cama_id
+            else None
+        )
         valido = f00_form.is_valid() and (ciudadano is not None or ciudadano_form.is_valid())
         if ciudadano is None and not rbac.puede(request.user, "ciudadano.crear"):
             ciudadano_form.add_error(None, "No tenés permiso para crear un nuevo ciudadano.")

@@ -324,6 +324,18 @@ class AdmisionesViewsTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(admision.estado, Admision.Estado.ALOJADO)
 
+    def test_admision_en_espera_sin_cama_no_intenta_filtrar_pk_vacio(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("dispositivos:admitir", args=[self.dispositivo.pk]),
+            {"dni": self.ciudadano.dni, "cama": "", "accion": "espera"},
+        )
+
+        self.assertRedirects(response, reverse("dispositivos:detalle", args=[self.dispositivo.pk]))
+        espera = Admision.objects.get(ciudadano=self.ciudadano, estado=Admision.Estado.LISTA_ESPERA)
+        self.assertTrue(EsperaAdmision.objects.filter(admision=espera, promovida=False).exists())
+
     def test_dni_nuevo_precarga_los_datos_que_devuelve_renaper(self):
         self.client.force_login(self.admin)
         with patch(
