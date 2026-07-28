@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -24,7 +24,11 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
 from programas.forms import ConvocatoriaForm, ReasignarTerritorialForm, RelevamientoForm, ReprogramarForm
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
-from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
+from programas.services.autorizacion import (
+    puede_gestionar_segmento,
+    segmentos_visibles,
+    usuarios_territoriales_becas,
+)
 from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
@@ -73,6 +77,15 @@ def _assert_scope(request, relevamiento):
     """403 si el usuario no puede gestionar el segmento del relevamiento."""
     if not puede_gestionar_segmento(request.user, relevamiento.segmento):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
+
+
+def _mensaje_solapamiento(territorial, fecha, solapamiento):
+    nombre = territorial.get_full_name() or territorial.username
+    fecha_legible = fecha.strftime("%d/%m/%Y")
+    return (
+        f"El territorial {nombre} ya está asignado para {fecha_legible} "
+        f"en {solapamiento.zona}. ¿Confirmás la asignación?"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -333,23 +346,61 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     paginate_by = 25
 
     def get_queryset(self):
+        segmentos = segmentos_visibles(self.request.user)
         qs = (
             Relevamiento.objects.select_related("convocatoria__segmento", "territorial")
             .defer("observaciones", "convocatoria__descripcion", "convocatoria__segmento__descripcion")
-            .filter(convocatoria__segmento__in=segmentos_visibles(self.request.user))
+            .filter(convocatoria__segmento__in=segmentos)
             .order_by("-fecha_asignada", "nombre")
         )
-        estado = self.request.GET.get("estado")
+
+        q = self.request.GET.get("q", "").strip()
+        estado = self.request.GET.get("estado", "").strip()
+        segmento = self.request.GET.get("segmento", "").strip()
+        territorial = self.request.GET.get("territorial", "").strip()
+        fecha_desde = parse_date(self.request.GET.get("fecha_desde", ""))
+        fecha_hasta = parse_date(self.request.GET.get("fecha_hasta", ""))
+
+        if q:
+            qs = qs.filter(
+                Q(nombre__icontains=q)
+                | Q(zona__icontains=q)
+                | Q(territorial__username__icontains=q)
+                | Q(territorial__first_name__icontains=q)
+                | Q(territorial__last_name__icontains=q)
+            )
         if estado:
             qs = qs.filter(estado=estado)
+        if segmento:
+            qs = qs.filter(convocatoria__segmento_id=segmento)
+        if territorial:
+            qs = qs.filter(territorial_id=territorial)
+        if fecha_desde:
+            qs = qs.filter(fecha_asignada__gte=fecha_desde)
+        if fecha_hasta:
+            qs = qs.filter(fecha_asignada__lte=fecha_hasta)
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        segmentos = segmentos_visibles(self.request.user).order_by("nombre")
+        territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
-        ctx["estado_actual"] = self.request.GET.get("estado", "")
+        ctx["segmentos"] = segmentos
+        ctx["territoriales"] = territoriales
+        ctx["filtros"] = {
+            "q": self.request.GET.get("q", ""),
+            "estado": self.request.GET.get("estado", ""),
+            "segmento": self.request.GET.get("segmento", ""),
+            "territorial": self.request.GET.get("territorial", ""),
+            "fecha_desde": self.request.GET.get("fecha_desde", ""),
+            "fecha_hasta": self.request.GET.get("fecha_hasta", ""),
+        }
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        ctx["querystring"] = query_params.urlencode()
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
-        ctx["form_crear"] = RelevamientoForm(segmentos_permitidos=segmentos_visibles(self.request.user))
+        ctx["form_crear"] = RelevamientoForm(segmentos_permitidos=segmentos)
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         return ctx
 
@@ -366,6 +417,23 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         return kwargs
 
     def form_valid(self, form):
+        territorial = form.cleaned_data["territorial"]
+        fecha = form.cleaned_data["fecha_asignada"]
+        solapamiento = Relevamiento.asignaciones_solapadas(territorial=territorial, fecha=fecha).only("zona").first()
+        if solapamiento and self.request.POST.get("confirmar_solapamiento") != "1":
+            mensaje = _mensaje_solapamiento(territorial, fecha, solapamiento)
+            if is_ajax(self.request):
+                return JsonResponse(
+                    {"ok": False, "confirm_required": True, "message": mensaje},
+                    status=409,
+                )
+            return self.render_to_response(
+                self.get_context_data(
+                    form=form,
+                    advertencia_solapamiento=mensaje,
+                )
+            )
+
         self.object = form.save()
         if is_ajax(self.request):
             return _relevamientos_ajax(self.request, self.object.convocatoria)

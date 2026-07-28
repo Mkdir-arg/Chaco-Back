@@ -7,13 +7,21 @@
   <p class="text-sm text-body-subtle mb-6">El nombre se genera automáticamente (Relevamiento NNN).</p>
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
+    {% if advertencia_solapamiento %}
+      <input type="hidden" name="confirmar_solapamiento" value="1">
+      <div class="mb-4 rounded-lg bg-warning-soft p-3 text-sm text-fg-warning" role="alert">
+        {{ advertencia_solapamiento }}
+      </div>
+    {% endif %}
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
     {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
-      <button type="submit" class="btn-nodo btn-brand btn-base">Crear y asignar</button>
+      <button type="submit" class="btn-nodo btn-brand btn-base">
+        {% if advertencia_solapamiento %}Confirmar asignación{% else %}Crear y asignar{% endif %}
+      </button>
     </div>
   </form>
 </div>
