@@ -682,6 +682,7 @@ class Merendero(TimeStamped):
     domicilio = models.CharField(max_length=240, verbose_name="Domicilio")
     zona = models.CharField(max_length=120, blank=True, verbose_name="Zona")
     barrio = models.CharField(max_length=120, blank=True, verbose_name="Barrio")
+    dias_horarios = models.CharField(max_length=240, blank=True, verbose_name="Días y horarios")
     telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     responsable_nombre = models.CharField(max_length=200, verbose_name="Responsable")
     responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
@@ -693,6 +694,15 @@ class Merendero(TimeStamped):
         db_index=True,
         verbose_name="Estado",
     )
+    estado_actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merenderos_estado_actualizado",
+        verbose_name="Estado actualizado por",
+    )
+    estado_actualizado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de actualización de estado")
 
     class Meta:
         verbose_name = "Merendero"
@@ -714,6 +724,16 @@ class SolicitudMerendero(TimeStamped):
         APROBADA = "APROBADA", "Aprobada"
         RECHAZADA = "RECHAZADA", "Rechazada"
 
+    CAMPOS_INSTITUCIONALES_REQUERIDOS = (
+        "codigo",
+        "nombre",
+        "domicilio",
+        "zona",
+        "barrio",
+        "dias_horarios",
+        "responsable_nombre",
+    )
+
     merendero = models.ForeignKey(
         Merendero,
         on_delete=models.PROTECT,
@@ -722,6 +742,16 @@ class SolicitudMerendero(TimeStamped):
         related_name="solicitudes",
         verbose_name="Merendero",
     )
+    codigo = models.CharField(max_length=100, blank=True, verbose_name="Código institucional")
+    nombre = models.CharField(max_length=200, blank=True, verbose_name="Nombre")
+    domicilio = models.CharField(max_length=240, blank=True, verbose_name="Domicilio")
+    zona = models.CharField(max_length=120, blank=True, verbose_name="Zona")
+    barrio = models.CharField(max_length=120, blank=True, verbose_name="Barrio")
+    dias_horarios = models.CharField(max_length=240, blank=True, verbose_name="Días y horarios")
+    responsable_nombre = models.CharField(max_length=200, blank=True, verbose_name="Responsable")
+    responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
+    responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
+    telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     documentacion = models.FileField(
         upload_to="merenderos/solicitudes/%Y/%m/",
         verbose_name="Documentación respaldatoria",
@@ -734,6 +764,15 @@ class SolicitudMerendero(TimeStamped):
         verbose_name="Estado",
     )
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    validada_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_merendero_validadas",
+        verbose_name="Validada por",
+    )
+    validada_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de validación")
 
     class Meta:
         verbose_name = "Solicitud de merendero"
@@ -785,6 +824,7 @@ class PrestacionMensual(TimeStamped):
     mes = models.PositiveSmallIntegerField(verbose_name="Mes")
     servicios = models.JSONField(default=list, blank=True, verbose_name="Servicios habilitados")
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    observaciones_por_dia = models.JSONField(default=dict, blank=True, verbose_name="Observaciones por día")
     anulada = models.BooleanField(default=False, db_index=True, verbose_name="Anulada")
 
     class Meta:
@@ -801,6 +841,12 @@ class PrestacionMensual(TimeStamped):
 
     def __str__(self):
         return f"{self.merendero.nombre} · {self.mes:02d}/{self.anio}"
+
+    def total_del_dia(self, dia):
+        return sum(self.lineas_diarias.filter(dia=dia, anulada=False).values_list("raciones", flat=True))
+
+    def observacion_del_dia(self, dia):
+        return self.observaciones_por_dia.get(str(dia), "")
 
 
 class PrestacionDiaria(TimeStamped):
