@@ -126,32 +126,88 @@
 !!! info "Imputación por programa"
     Desde julio 2026 cada registro se imputa a un **programa** (Becas o Dispositivos). Las horas que no corresponden a un programa puntual (gestión, reuniones, soporte) se imputan como **Transversal**.
 
+!!! note "Regularización de horas (29/07/2026)"
+    El registro incluye **125 horas** de desarrollo backend del Programa Dispositivos trabajadas por Juani Portilla durante julio y consolidadas en el registro el 29/07, distribuidas en los días hábiles del mes sin carga previa (9 h por día del 01/07 al 22/07 y 8 h el 28/07). También se consolidaron las **reuniones de seguimiento del equipo** (lunes, miércoles y viernes, 1 h por integrante): 14 reuniones × 4 integrantes = **56 horas** Transversal, incluida la del 31/07 registrada por adelantado.
+
 | Día | Persona | Programa | Motivo | Qué hice | Consumo |
 |---|---|---|---|---|---:|
 | 2026-07-01 | Pablo Cao | Becas | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
 | 2026-07-01 | Matías Fariña | Dispositivos | Programa Dispositivos — análisis funcional | Análisis funcional del programa Dispositivos y Merenderos sobre la definición aprobada por el Ministerio el 01/07 | 480 min |
+| 2026-07-01 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-01 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-01 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-01 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-01 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-02 | Matías Fariña | Dispositivos | Programa Dispositivos — estimación | Elaboración de la estimación de esfuerzo del programa (documento v1.0 del 02/07, 436 h) | 480 min |
+| 2026-07-02 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
 | 2026-07-03 | Juani Portilla | Becas | Becas | Refinamiento backend y frontend de Becas | 120 min |
 | 2026-07-03 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-03 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-03 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-03 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-03 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-06 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-06 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-06 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-06 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-06 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-06 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-07 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-07 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
 | 2026-07-08 | Matías Fariña | Becas | Pruebas funcionales del backend | Pruebas funcionales de lo ya desarrollado del backend de Becas | 480 min |
+| 2026-07-08 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-08 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-08 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-08 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-08 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-09 | Pablo Cao | Becas | App mobile Becas | Configuracion de la app contra servidor HTTP de prueba por VPN, habilitacion Android cleartext, pruebas en tablet con ADB/logcat, eliminacion del paso de fotos DNI y preparacion de PR a development. | 120 min |
+| 2026-07-09 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-10 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-10 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-10 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-10 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-10 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-13 | Juani Portilla | Transversal | Usuarios — listado NODO (#122) | [TASK] Usuarios: alinear el listado al patrón NODO (tabla + SweetAlert2) #122. | 180 min |
 | 2026-07-13 | Juani Portilla | Transversal | Roles — filtros por querystring (#120) | [TASK] Roles: filtros del listado por querystring (backend) #120. | 180 min |
 | 2026-07-13 | Juani Portilla | Becas | Capacidades finas de Becas (PR #123) | Reemplazo de las 4 capacidades monolíticas de Becas (becas.configurar, becas.relevamientos, becas.revisar, becas.campo) por 27 capacidades finas organizadas en 10 grupos (Segmentos, Subsegmentos, Requisitos, Preguntas globales, Coordinadores, Convocatorias, Relevamientos, Revisión, Cupo y Beneficiarios), separando ver/crear/editar por entidad; catálogo aprobado por el usuario antes de implementar. | 60 min |
 | 2026-07-13 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-13 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-13 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-13 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-13 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-14 | Pablo Cao | Becas | App móvil Becas — relevamientos y adjuntos | Corrección de fecha por zona horaria; finalización y reapertura de relevamientos en la app y el backoffice; ajustes de ubicación y etiquetas de acciones/estados; persistencia y sincronización reintentable de fotos y documentos sin duplicar formularios; validaciones Expo y Django. | 150 min |
 | 2026-07-14 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-14 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
 | 2026-07-15 | Matías Fariña | Transversal | Creación de video | Creación de video del sistema | 240 min |
+| 2026-07-15 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-15 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-15 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-15 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-15 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-16 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-16 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
 | 2026-07-17 | Juani Portilla | Transversal | Performance — medición de baseline | Medición inicial de performance y registro de métricas base para futuras comparaciones. | 60 min |
 | 2026-07-17 | Juani Portilla | Transversal | Performance — optimización | Optimización de queries, caché, índices y otros cuellos de botella detectados. | 120 min |
 | 2026-07-17 | Juani Portilla | Transversal | Performance — proceso antirregresión | Implementación de un proceso de control para detectar regresiones de performance. | 60 min |
 | 2026-07-17 | Juani Portilla | Transversal | Main — limpieza automática | Implementación de un proceso automático de limpieza y mantenimiento de la rama `main`. | 90 min |
 | 2026-07-17 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-17 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-17 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-17 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-17 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-20 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-20 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-20 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-20 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-20 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-20 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-21 | Matías Fariña | Becas | QA del backoffice de Becas | Pruebas funcionales y QA del backoffice de Becas | 480 min |
+| 2026-07-21 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-22 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 540 min |
+| 2026-07-22 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-22 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-22 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-22 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-23 | Juani Portilla | Dispositivos | D-01 — modelos base (#173) | Implementación de los modelos base y migraciones del Programa Dispositivos. | 120 min |
 | 2026-07-23 | Juani Portilla | Dispositivos | D-02 — configuración de tipos y campos F-00 (#174) | Configuración administrable de tipos de dispositivo y campos dinámicos del F-00. | 480 min |
 | 2026-07-23 | Pablo Cao | Transversal | Revisión funcional y UX de issues #186, #187, #148, #160, #193 y #194 | Validación visual y técnica; ajustes de roles, contraste, tooltips y botones; corrección del filtrado Segmento → Subsegmento y de las fechas al editar convocatorias; unificación y revisión visual del botón circular de regreso en las pantallas de detalle del backoffice. | 137 min |
@@ -161,22 +217,38 @@
 | 2026-07-24 | Juani Portilla | Dispositivos | D-08 — Roles y autorización con alcance (dispositivo.*, merendero.*) (#180) | Catálogo de capacidades de Dispositivos/Merenderos y roles con alcance por programa y dispositivo, cubiertos por pruebas RBAC. | 120 min |
 | 2026-07-24 | Juani Portilla | Dispositivos | D-03 — Legajo del dispositivo: ABM anti-duplicado + circuito de validación + detalle (#175) | Legajo institucional con validación, prevención de duplicados, transiciones de estado y trazabilidad. | 120 min |
 | 2026-07-24 | Juani Portilla | Dispositivos | D-04 — Gestión de camas y ocupación calculada (#176) | Gestión de camas con estados, ocupación derivada, semáforo configurable, integridad y permisos; validada con CI y entorno sintético. | 120 min |
+| 2026-07-24 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-24 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-24 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-24 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-27 | Pablo Cao | Becas | Issue #202 — disponibilidad territorial y mejoras del listado | Implementación y pruebas de la alerta confirmable por territorial asignado en la misma fecha; incorporación de búsqueda, filtros por estado, segmento, territorial y rango de fechas, y navegación paginada de relevamientos. | 90 min |
-| 2026-07-27 | Juani Portilla | Merenderos | D-09 — Circuito de solicitudes, legajo y entregas (#181) | Solicitudes con documentación, observación/corrección/reenvío, estados auditables, legajo institucional y entregas; validado con CI y entorno sintético. | 60 min |
-| 2026-07-27 | Juani Portilla | Merenderos | D-10 — Prestación mensual F-02 (#182) | Grilla F-02 mensual con raciones, totales derivados, observaciones, firma por línea y bloqueo de merenderos inactivos; validada con CI y entorno sintético. | 60 min |
+| 2026-07-27 | Juani Portilla | Dispositivos | D-09 — Circuito de solicitudes, legajo y entregas (#181) | Solicitudes con documentación, observación/corrección/reenvío, estados auditables, legajo institucional y entregas; validado con CI y entorno sintético. | 60 min |
+| 2026-07-27 | Juani Portilla | Dispositivos | D-10 — Prestación mensual F-02 (#182) | Grilla F-02 mensual con raciones, totales derivados, observaciones, firma por línea y bloqueo de merenderos inactivos; validada con CI y entorno sintético. | 60 min |
+| 2026-07-27 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-27 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-27 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-27 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-28 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 480 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-06 — Registro diario F-01 por turno (#178) | Parte diario por turno con métricas A-E calculadas, observaciones por concepto y firma del usuario que realiza la carga. | 60 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-07 — Solapa Dispositivos en el Legajo Ciudadano (#179) | Solapa dedicada con admisión activa, historial de estadías y acceso según el alcance de consulta. | 60 min |
+| 2026-07-29 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-29 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-29 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-29 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-31 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-31 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-31 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-31 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
 | Becas | 126 h 08 min |
-| Dispositivos | 98 h 0 min |
-| Merenderos | 2 h 0 min |
-| Transversal | 17 h 47 min |
+| Dispositivos (incluye Merenderos) | 225 h 0 min |
+| Transversal | 73 h 47 min |
 
-| **Total julio 2026 (al 29/07)** | **242 h 25 min** |
+| **Total julio 2026 (al 31/07)** | **424 h 55 min** |
 
 
 ---
@@ -206,7 +278,7 @@
 !!! success "Contador total"
 
 
-    **44.497 minutos** (741 h 37 min)
+    **55.447 minutos** (924 h 07 min)
 
 
     
