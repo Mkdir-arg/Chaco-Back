@@ -6,17 +6,18 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
+from openpyxl import load_workbook
 
 from programas.models import Dispositivo, Merendero, TipoDispositivo
 
 
 class Command(BaseCommand):
-    help = "Importa dispositivos y merenderos desde un CSV normalizado."
+    help = "Importa dispositivos y merenderos desde un CSV o XLSX normalizado."
 
     REQUIRED_COLUMNS = {"entidad", "codigo", "nombre", "domicilio", "responsable_nombre"}
 
     def add_arguments(self, parser):
-        parser.add_argument("--file", required=True, help="Archivo CSV normalizado.")
+        parser.add_argument("--file", required=True, help="Archivo CSV o XLSX normalizado.")
         parser.add_argument("--fuente", required=True, help="Fuente del padrón.")
         parser.add_argument("--fecha", required=True, help="Fecha de referencia en formato AAAA-MM-DD.")
         parser.add_argument("--responsable", required=True, help="Responsable de la carga.")
@@ -25,8 +26,8 @@ class Command(BaseCommand):
         archivo = Path(options["file"])
         if not archivo.is_file():
             raise CommandError(f"No existe el archivo: {archivo}")
-        if archivo.suffix.lower() != ".csv":
-            raise CommandError("El importador admite archivos CSV normalizados.")
+        if archivo.suffix.lower() not in {".csv", ".xlsx"}:
+            raise CommandError("El importador admite archivos CSV o XLSX normalizados.")
         try:
             fecha = date.fromisoformat(options["fecha"])
         except ValueError as error:
@@ -37,12 +38,7 @@ class Command(BaseCommand):
         if not fuente or not responsable:
             raise CommandError("Fuente y responsable son obligatorios.")
 
-        with archivo.open("r", encoding="utf-8-sig", newline="") as stream:
-            reader = csv.DictReader(stream)
-            faltantes = self.REQUIRED_COLUMNS - set(reader.fieldnames or ())
-            if faltantes:
-                raise CommandError(f"Faltan columnas obligatorias: {', '.join(sorted(faltantes))}.")
-            filas = list(reader)
+        filas = self._leer_filas(archivo)
 
         creados = {"dispositivos": 0, "merenderos": 0}
         omitidos, errores = 0, []
@@ -70,6 +66,26 @@ class Command(BaseCommand):
     @staticmethod
     def _texto(fila, campo):
         return (fila.get(campo) or "").strip()
+
+    def _leer_filas(self, archivo):
+        if archivo.suffix.lower() == ".csv":
+            with archivo.open("r", encoding="utf-8-sig", newline="") as stream:
+                reader = csv.DictReader(stream)
+                headers = reader.fieldnames or ()
+                filas = list(reader)
+        else:
+            libro = load_workbook(archivo, read_only=True, data_only=True)
+            try:
+                hoja = libro.active
+                valores = hoja.iter_rows(values_only=True)
+                headers = [str(valor).strip() if valor is not None else "" for valor in next(valores, ())]
+                filas = [dict(zip(headers, fila)) for fila in valores if any(valor is not None for valor in fila)]
+            finally:
+                libro.close()
+        faltantes = self.REQUIRED_COLUMNS - set(headers)
+        if faltantes:
+            raise CommandError(f"Faltan columnas obligatorias: {', '.join(sorted(faltantes))}.")
+        return filas
 
     def _importar_fila(self, fila, *, fuente, fecha, responsable):
         entidad = self._texto(fila, "entidad").upper()

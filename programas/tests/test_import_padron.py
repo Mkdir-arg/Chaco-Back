@@ -5,11 +5,37 @@ from pathlib import Path
 
 from django.core.management import call_command
 from django.test import TestCase
+from openpyxl import Workbook
 
 from programas.models import Dispositivo, Merendero, TipoDispositivo
 
 
 class ImportPadronCommandTests(TestCase):
+    def test_admite_planilla_xlsx_normalizada(self):
+        TipoDispositivo.objects.create(codigo="XLSX", nombre="Tipo XLSX")
+
+        with tempfile.TemporaryDirectory() as directory:
+            archivo = Path(directory) / "padron.xlsx"
+            libro = Workbook()
+            hoja = libro.active
+            hoja.append(["entidad", "codigo", "nombre", "tipo", "domicilio", "responsable_nombre"])
+            hoja.append(["DISPOSITIVO", "DIS-XLSX", "Hogar XLSX", "XLSX", "Calle 3", "Cora"])
+            libro.save(archivo)
+
+            call_command(
+                "import_padron_dispositivos",
+                "--file",
+                str(archivo),
+                "--fuente",
+                "Ministerio",
+                "--fecha",
+                "2026-07-29",
+                "--responsable",
+                "Operador de carga",
+            )
+
+        self.assertTrue(Dispositivo.objects.filter(codigo="DIS-XLSX").exists())
+
     def test_importa_dispositivo_y_merendero_con_procedencia(self):
         TipoDispositivo.objects.create(codigo="AM", nombre="Adulto Mayor")
 

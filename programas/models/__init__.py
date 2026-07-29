@@ -343,6 +343,31 @@ class TipoDispositivo(TimeStamped):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         verbose_name="Ocupación desde la que el semáforo es rojo (%)",
     )
+    umbral_disponibilidad_verde = models.PositiveSmallIntegerField(
+        default=20,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Disponibilidad mínima para semáforo verde (%)",
+    )
+    dias_actualizacion_verde = models.PositiveSmallIntegerField(
+        default=15,
+        validators=[MinValueValidator(0), MaxValueValidator(365)],
+        verbose_name="Días máximos de actualización para verde",
+    )
+    dias_actualizacion_amarillo = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(0), MaxValueValidator(365)],
+        verbose_name="Días máximos de actualización para amarillo",
+    )
+    umbral_completitud_amarillo = models.PositiveSmallIntegerField(
+        default=70,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Completitud desde la que el semáforo es amarillo (%)",
+    )
+    umbral_completitud_verde = models.PositiveSmallIntegerField(
+        default=90,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Completitud desde la que el semáforo es verde (%)",
+    )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
 
     class Meta:
@@ -357,6 +382,10 @@ class TipoDispositivo(TimeStamped):
         super().clean()
         if self.umbral_ocupacion_amarillo >= self.umbral_ocupacion_rojo:
             raise ValidationError({"umbral_ocupacion_rojo": "El umbral rojo debe ser mayor que el amarillo."})
+        if self.dias_actualizacion_verde >= self.dias_actualizacion_amarillo:
+            raise ValidationError({"dias_actualizacion_amarillo": "El umbral amarillo debe ser mayor que el verde."})
+        if self.umbral_completitud_amarillo >= self.umbral_completitud_verde:
+            raise ValidationError({"umbral_completitud_verde": "El umbral verde debe ser mayor que el amarillo."})
 
 
 class Dispositivo(TimeStamped):

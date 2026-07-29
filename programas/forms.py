@@ -178,6 +178,11 @@ class TipoDispositivoForm(forms.ModelForm):
             "maneja_camas",
             "umbral_ocupacion_amarillo",
             "umbral_ocupacion_rojo",
+            "umbral_disponibilidad_verde",
+            "dias_actualizacion_verde",
+            "dias_actualizacion_amarillo",
+            "umbral_completitud_amarillo",
+            "umbral_completitud_verde",
             "activo",
         ]
         widgets = {
@@ -187,12 +192,25 @@ class TipoDispositivoForm(forms.ModelForm):
             "maneja_camas": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "umbral_ocupacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "umbral_ocupacion_rojo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
+            "umbral_disponibilidad_verde": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
+            "dias_actualizacion_verde": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 365}),
+            "dias_actualizacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 365}),
+            "umbral_completitud_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
+            "umbral_completitud_verde": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for nombre, default in (("umbral_ocupacion_amarillo", 50), ("umbral_ocupacion_rojo", 80)):
+        for nombre, default in (
+            ("umbral_ocupacion_amarillo", 50),
+            ("umbral_ocupacion_rojo", 80),
+            ("umbral_disponibilidad_verde", 20),
+            ("dias_actualizacion_verde", 15),
+            ("dias_actualizacion_amarillo", 30),
+            ("umbral_completitud_amarillo", 70),
+            ("umbral_completitud_verde", 90),
+        ):
             self.fields[nombre].required = False
             self.fields[nombre].initial = getattr(self.instance, nombre, default) or default
 
@@ -206,8 +224,20 @@ class TipoDispositivoForm(forms.ModelForm):
         cleaned["umbral_ocupacion_rojo"] = (
             rojo if rojo is not None else getattr(self.instance, "umbral_ocupacion_rojo", 80) or 80
         )
+        for nombre, default in (
+            ("umbral_disponibilidad_verde", 20),
+            ("dias_actualizacion_verde", 15),
+            ("dias_actualizacion_amarillo", 30),
+            ("umbral_completitud_amarillo", 70),
+            ("umbral_completitud_verde", 90),
+        ):
+            cleaned[nombre] = cleaned.get(nombre) if cleaned.get(nombre) is not None else getattr(self.instance, nombre, default)
         if cleaned["umbral_ocupacion_amarillo"] >= cleaned["umbral_ocupacion_rojo"]:
             self.add_error("umbral_ocupacion_rojo", "El umbral rojo debe ser mayor que el amarillo.")
+        if cleaned.get("dias_actualizacion_verde") >= cleaned.get("dias_actualizacion_amarillo"):
+            self.add_error("dias_actualizacion_amarillo", "El umbral amarillo debe ser mayor que el verde.")
+        if cleaned.get("umbral_completitud_amarillo") >= cleaned.get("umbral_completitud_verde"):
+            self.add_error("umbral_completitud_verde", "El umbral verde debe ser mayor que el amarillo.")
         return cleaned
 
 

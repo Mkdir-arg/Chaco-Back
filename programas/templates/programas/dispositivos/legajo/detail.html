@@ -49,6 +49,18 @@
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Camas/plazas</dt><dd class="mt-1 text-body">{{ resumen_camas.totales }}</dd></div>
     </dl>
   </section>
+  <section class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+    <div>
+      <h2 class="text-lg font-bold text-heading">Indicadores operativos</h2>
+      <p class="mt-1 text-sm text-body-subtle">Derivados de camas, admisiones y partes diarios; no admiten carga manual.</p>
+    </div>
+    <dl class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupación</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ indicadores.ocupacion.porcentaje }}% · {{ indicadores.ocupacion.semaforo|title }}</dd></div>
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Disponibilidad</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ indicadores.disponibilidad.porcentaje }}% · {{ indicadores.disponibilidad.semaforo|title }}</dd></div>
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Actualización</dt><dd class="mt-1 text-2xl font-bold text-heading">{% if indicadores.actualizacion.semaforo == 'SIN_DATOS' %}Sin datos{% else %}{{ indicadores.actualizacion.dias }} días · {{ indicadores.actualizacion.semaforo|title }}{% endif %}</dd></div>
+      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Completitud F-00</dt><dd class="mt-1 text-2xl font-bold text-heading">{% if indicadores.completitud.semaforo == 'SIN_DATOS' %}Sin datos{% else %}{{ indicadores.completitud.porcentaje }}% · {{ indicadores.completitud.semaforo|title }}{% endif %}</dd></div>
+    </dl>
+  </section>
   <section id="camas" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>

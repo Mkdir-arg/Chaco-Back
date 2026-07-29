@@ -14,6 +14,7 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Upd
 from programas.forms import CamaForm, CantidadCamasForm, DispositivoForm
 from programas.models import Admision, Cama, Dispositivo, EsperaAdmision, TipoDispositivo
 from programas.services.camas import actualizar_cama, crear_camas, resumen_ocupacion
+from programas.services.indicadores import indicadores_dispositivo
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     cerrar_dispositivo,
@@ -155,6 +156,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         context["trazas"] = self.object.trazas.select_related("usuario")
         context["camas"] = self.object.camas.all()
         context["resumen_camas"] = resumen_ocupacion(self.object)
+        context["indicadores"] = indicadores_dispositivo(self.object)
         context["admisiones_activas"] = self.object.admisiones.filter(estado=Admision.Estado.ALOJADO).select_related(
             "ciudadano", "cama"
         )
