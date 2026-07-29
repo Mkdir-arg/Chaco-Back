@@ -65,7 +65,8 @@ class Command(BaseCommand):
 
     @staticmethod
     def _texto(fila, campo):
-        return (fila.get(campo) or "").strip()
+        valor = fila.get(campo)
+        return "" if valor is None else str(valor).strip()
 
     def _leer_filas(self, archivo):
         if archivo.suffix.lower() == ".csv":

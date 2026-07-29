@@ -14,11 +14,13 @@ class Reporte:
     filas: tuple[tuple, ...]
 
 
-def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None):
+def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None):
     if tipo:
         dispositivos = dispositivos.filter(tipo_id=tipo)
     if estado:
         dispositivos = dispositivos.filter(estado=estado)
+    if localidad:
+        dispositivos = dispositivos.filter(localidad__icontains=localidad)
     return dispositivos
 
 

@@ -36,6 +36,29 @@ class ImportPadronCommandTests(TestCase):
 
         self.assertTrue(Dispositivo.objects.filter(codigo="DIS-XLSX").exists())
 
+    def test_normaliza_celdas_xlsx_no_textuales(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archivo = Path(directory) / "padron.xlsx"
+            libro = Workbook()
+            hoja = libro.active
+            hoja.append(["entidad", "codigo", "nombre", "domicilio", "responsable_nombre"])
+            hoja.append(["MERENDERO", 184, "Merendero numérico", "Calle 184", "Cora"])
+            libro.save(archivo)
+
+            call_command(
+                "import_padron_dispositivos",
+                "--file",
+                str(archivo),
+                "--fuente",
+                "Ministerio",
+                "--fecha",
+                "2026-07-29",
+                "--responsable",
+                "Operador de carga",
+            )
+
+        self.assertTrue(Merendero.objects.filter(codigo="184").exists())
+
     def test_importa_dispositivo_y_merendero_con_procedencia(self):
         TipoDispositivo.objects.create(codigo="AM", nombre="Adulto Mayor")
 

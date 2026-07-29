@@ -36,6 +36,7 @@
       <div><dt class="text-xs uppercase text-body-subtle">Zona / barrio</dt><dd>{{ merendero.zona }} · {{ merendero.barrio }}</dd></div>
       <div><dt class="text-xs uppercase text-body-subtle">Responsable</dt><dd>{{ merendero.responsable_nombre }}</dd></div>
       <div><dt class="text-xs uppercase text-body-subtle">Teléfono</dt><dd>{{ merendero.telefono|default:'—' }}</dd></div>
+      {% if merendero.fuente_padron %}<div><dt class="text-xs uppercase text-body-subtle">Procedencia del padrón</dt><dd>{{ merendero.fuente_padron }} · {{ merendero.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ merendero.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
     </dl>
   </section>
 

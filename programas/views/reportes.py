@@ -72,6 +72,7 @@ class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
             dispositivos_visibles(request.user),
             tipo=request.GET.get("tipo"),
             estado=request.GET.get("estado"),
+            localidad=request.GET.get("localidad", "").strip(),
         )
         if reporte == "padron":
             return _respuesta(padron_dispositivos(dispositivos), formato, "padron_dispositivos")
@@ -97,8 +98,11 @@ class MerenderoExportView(MerenderosPermissionMixin, View):
 
         merenderos = Merendero.objects.all()
         estado = request.GET.get("estado")
+        termino = request.GET.get("q", "").strip()
         if estado:
             merenderos = merenderos.filter(estado=estado)
+        if termino:
+            merenderos = merenderos.filter(nombre__icontains=termino)
         return _respuesta(
             padron_merenderos_con_entregas(merenderos, desde=desde, hasta=hasta),
             formato,

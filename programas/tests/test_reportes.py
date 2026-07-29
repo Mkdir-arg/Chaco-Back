@@ -59,11 +59,25 @@ class ReportesExportablesTests(TestCase):
             localidad="Barranqueras",
             estado=Dispositivo.Estado.INACTIVO,
         )
+        Dispositivo.objects.create(
+            codigo="DIS-003",
+            nombre="Hogar Este",
+            tipo=self.tipo_hogar,
+            localidad="Sáenz Peña",
+            estado=Dispositivo.Estado.ACTIVO,
+        )
         self.merendero = Merendero.objects.create(
             codigo="MER-001",
             nombre="Merendero Norte",
             domicilio="Calle 1",
             responsable_nombre="Ana",
+            estado=Merendero.Estado.ACTIVO,
+        )
+        Merendero.objects.create(
+            codigo="MER-002",
+            nombre="Merendero Sur",
+            domicilio="Calle 2",
+            responsable_nombre="Beto",
             estado=Merendero.Estado.ACTIVO,
         )
         self.admin = get_user_model().objects.create_superuser(username="admin-reportes", password="test")
@@ -82,7 +96,7 @@ class ReportesExportablesTests(TestCase):
             workbook.close()
 
     def test_padron_dispositivos_csv_y_excel_respetan_tipo_y_estado(self):
-        filtros = {"tipo": self.tipo_hogar.pk, "estado": Dispositivo.Estado.ACTIVO}
+        filtros = {"tipo": self.tipo_hogar.pk, "estado": Dispositivo.Estado.ACTIVO, "localidad": "Resistencia"}
 
         csv_response = self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"]), filtros)
         xlsx_response = self.client.get(reverse("dispositivos:exportar", args=["padron", "xlsx"]), filtros)
@@ -127,7 +141,8 @@ class ReportesExportablesTests(TestCase):
             {"desde": "2026-07-01", "hasta": "2026-07-31"},
         )
 
-        self.assertEqual(self._xlsx(ocupacion)[1][3:7], (2, 1, 1, 50))
+        fila_ocupacion = next(fila for fila in self._xlsx(ocupacion)[1:] if fila[0] == "DIS-001")
+        self.assertEqual(fila_ocupacion[3:7], (2, 1, 1, 50))
         filas_movimientos = self._csv(movimientos)
         self.assertEqual(filas_movimientos[1][0:2], ["Ingreso", "01/07/2026"])
         self.assertIn(["Egreso", "31/07/2026"], [fila[0:2] for fila in filas_movimientos[1:]])
@@ -145,7 +160,12 @@ class ReportesExportablesTests(TestCase):
             cantidad_kits=9,
             servicio="Merienda",
         )
-        filtros = {"estado": Merendero.Estado.ACTIVO, "desde": "2026-07-01", "hasta": "2026-07-31"}
+        filtros = {
+            "estado": Merendero.Estado.ACTIVO,
+            "q": "Norte",
+            "desde": "2026-07-01",
+            "hasta": "2026-07-31",
+        }
 
         csv_response = self.client.get(reverse("merenderos:exportar", args=["csv"]), filtros)
         xlsx_response = self.client.get(reverse("merenderos:exportar", args=["xlsx"]), filtros)
@@ -186,3 +206,28 @@ class ReportesExportablesTests(TestCase):
 
         self.assertEqual(self._csv(dispositivos)[1:], [["DIS-001", "Hogar Norte", "Hogar", "Resistencia", "Activo"]])
         self.assertEqual(merenderos.status_code, 403)
+
+    def test_exportacion_bloquea_usuario_inactivo_y_rol_desactivado(self):
+        usuario_inactivo = get_user_model().objects.create_user(
+            username="consulta-inactiva",
+            password="test",
+            is_active=False,
+        )
+        self.client.force_login(usuario_inactivo)
+        self.assertEqual(self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"])).status_code, 302)
+
+        usuario = get_user_model().objects.create_user(username="consulta-rol-inactivo", password="test")
+        rol = Group.objects.create(name="Consulta inactiva Reportes")
+        RolMeta.objects.create(
+            grupo=rol,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.dispositivos_programa,
+            activo=False,
+        )
+        rol.permissions.add(permiso("dispositivo.ver"))
+        usuario.groups.add(rol)
+        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo, rol=rol)
+        cache.clear()
+        self.client.force_login(usuario)
+
+        self.assertEqual(self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"])).status_code, 403)
