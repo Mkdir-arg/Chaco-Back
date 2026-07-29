@@ -38,7 +38,7 @@ def _fecha(valor, nombre):
 
 
 def _celda_segura(valor):
-    if isinstance(valor, str) and valor.startswith(("=", "+", "-", "@")):
+    if isinstance(valor, str) and valor.lstrip().startswith(("=", "+", "-", "@")):
         return f"'{valor}"
     return valor
 

@@ -174,9 +174,9 @@ class ReportesExportablesTests(TestCase):
         self.assertEqual(self._xlsx(xlsx_response)[1][-3:], ("15/07/2026", 5, "Merienda"))
 
     def test_exportaciones_neutralizan_formulas_en_csv_y_excel(self):
-        for prefijo in ("=", "+", "-", "@"):
-            with self.subTest(prefijo=prefijo):
-                valor = f"{prefijo}2+2"
+        for espacio in ("", "\t"):
+            for prefijo in ("=", "+", "-", "@"):
+                valor = f"{espacio}{prefijo}2+2"
                 self.dispositivo.nombre = valor
                 self.dispositivo.save(update_fields=["nombre", "modificado"])
 
