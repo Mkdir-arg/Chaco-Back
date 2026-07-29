@@ -388,6 +388,9 @@ class Dispositivo(TimeStamped):
     contacto_telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     contacto_email = models.EmailField(blank=True, verbose_name="Email")
     horarios = models.TextField(blank=True, verbose_name="Días y horarios")
+    fuente_padron = models.CharField(max_length=240, blank=True, verbose_name="Fuente del padrón")
+    fecha_padron = models.DateField(null=True, blank=True, verbose_name="Fecha de referencia del padrón")
+    responsable_padron = models.CharField(max_length=200, blank=True, verbose_name="Responsable de la carga del padrón")
     camas_totales = models.PositiveIntegerField(default=0, verbose_name="Camas/plazas totales")
     estado = models.CharField(
         max_length=30,
@@ -788,6 +791,9 @@ class Merendero(TimeStamped):
     responsable_nombre = models.CharField(max_length=200, verbose_name="Responsable")
     responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
     responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
+    fuente_padron = models.CharField(max_length=240, blank=True, verbose_name="Fuente del padrón")
+    fecha_padron = models.DateField(null=True, blank=True, verbose_name="Fecha de referencia del padrón")
+    responsable_padron = models.CharField(max_length=200, blank=True, verbose_name="Responsable de la carga del padrón")
     estado = models.CharField(
         max_length=20,
         choices=Estado.choices,
