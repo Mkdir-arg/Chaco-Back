@@ -11,7 +11,15 @@
       <p class="text-sm text-body-subtle mt-1.5">Instituciones, estado de validación e historial operativo.</p>
     </div>
     {% puede_en_programa_dispositivos request.user "dispositivo.crear" as puede_crear_dispositivos %}
-    {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Exportar padrón CSV</a>
+      <a href="{% url 'dispositivos:exportar' 'padron' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Excel</a>
+      <a href="{% url 'dispositivos:exportar' 'ocupacion' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Ocupación CSV</a>
+      <a href="{% url 'dispositivos:exportar' 'ocupacion' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Ocupación Excel</a>
+      <a href="{% url 'dispositivos:exportar' 'movimientos' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Movimientos CSV</a>
+      <a href="{% url 'dispositivos:exportar' 'movimientos' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Movimientos Excel</a>
+      {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
+    </div>
   </div>
 
   <form method="get" class="mb-5 grid gap-3 rounded-xl border border-base p-4 md:grid-cols-4" style="background:var(--bg-primary)">

@@ -22,7 +22,7 @@ class IndicadoresDispositivoTests(TestCase):
             tipo_campo="STRING",
             obligatorio=True,
         )
-        campo_faltante = CampoTipoDispositivo.objects.create(
+        CampoTipoDispositivo.objects.create(
             tipo_dispositivo=tipo,
             seccion="Datos",
             nombre="Contacto",

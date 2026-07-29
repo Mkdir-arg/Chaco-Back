@@ -61,11 +61,7 @@ def indicadores_dispositivo(dispositivo, hoy=None):
     campos = list(CampoTipoDispositivo.objects.filter(tipo_dispositivo=dispositivo.tipo, obligatorio=True))
     admisiones = Admision.objects.filter(dispositivo=dispositivo, estado=Admision.Estado.ALOJADO)
     esperados = len(campos) * admisiones.count()
-    completos = sum(
-        _tiene_valor(admision.respuestas_f00, campo)
-        for admision in admisiones
-        for campo in campos
-    )
+    completos = sum(_tiene_valor(admision.respuestas_f00, campo) for admision in admisiones for campo in campos)
     if not admisiones.exists() or not campos:
         completitud = {"completos": completos, "esperados": esperados, "porcentaje": None, "semaforo": "SIN_DATOS"}
     else:

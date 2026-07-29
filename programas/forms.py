@@ -231,7 +231,9 @@ class TipoDispositivoForm(forms.ModelForm):
             ("umbral_completitud_amarillo", 70),
             ("umbral_completitud_verde", 90),
         ):
-            cleaned[nombre] = cleaned.get(nombre) if cleaned.get(nombre) is not None else getattr(self.instance, nombre, default)
+            cleaned[nombre] = (
+                cleaned.get(nombre) if cleaned.get(nombre) is not None else getattr(self.instance, nombre, default)
+            )
         if cleaned["umbral_ocupacion_amarillo"] >= cleaned["umbral_ocupacion_rojo"]:
             self.add_error("umbral_ocupacion_rojo", "El umbral rojo debe ser mayor que el amarillo.")
         if cleaned.get("dias_actualizacion_verde") >= cleaned.get("dias_actualizacion_amarillo"):
