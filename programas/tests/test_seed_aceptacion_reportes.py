@@ -1,4 +1,5 @@
 from io import StringIO
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -11,8 +12,9 @@ class SeedAceptacionReportesTests(TestCase):
     def test_es_idempotente_y_prepara_los_escenarios_de_reportes(self):
         salida = StringIO()
 
-        call_command("seed_aceptacion_reportes", stdout=salida)
-        call_command("seed_aceptacion_reportes", stdout=salida)
+        with patch.dict("os.environ", {"CHACO_ACCEPTANCE_SEED": "1"}):
+            call_command("seed_aceptacion_reportes", stdout=salida)
+            call_command("seed_aceptacion_reportes", stdout=salida)
 
         dispositivo = Dispositivo.objects.get(codigo="ACEP-183-DIS")
         self.assertEqual(Dispositivo.objects.filter(codigo="ACEP-183-DIS").count(), 1)

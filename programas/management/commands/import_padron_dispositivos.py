@@ -4,6 +4,7 @@ import csv
 from datetime import date
 from pathlib import Path
 
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 from openpyxl import load_workbook
@@ -144,9 +145,16 @@ class Command(BaseCommand):
 
     @staticmethod
     def _crear_si_no_existe(modelo, codigo, defaults, resultado):
+        if modelo.objects.filter(codigo=codigo).exists():
+            return None
         try:
             with transaction.atomic():
-                _objeto, creado = modelo.objects.get_or_create(codigo=codigo, defaults=defaults)
+                objeto = modelo(codigo=codigo, **defaults)
+                objeto.full_clean()
+                objeto.save(force_insert=True)
+                creado = True
+        except ValidationError as error:
+            raise ValueError("; ".join(error.messages)) from error
         except IntegrityError:
             creado = False
         return resultado if creado else None

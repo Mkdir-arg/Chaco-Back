@@ -59,6 +59,29 @@ class ImportPadronCommandTests(TestCase):
 
         self.assertTrue(Merendero.objects.filter(codigo="184").exists())
 
+    def test_informa_fila_invalida_sin_crear_registro(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archivo = Path(directory) / "padron.csv"
+            archivo.write_text(
+                "entidad,codigo,nombre,domicilio,responsable_nombre,contacto_email\n"
+                "MERENDERO,MER-INVALIDO,Inválido,Calle 1,Ana,no-es-email\n",
+                encoding="utf-8",
+            )
+
+            call_command(
+                "import_padron_dispositivos",
+                "--file",
+                str(archivo),
+                "--fuente",
+                "Ministerio",
+                "--fecha",
+                "2026-07-29",
+                "--responsable",
+                "Operador de carga",
+            )
+
+        self.assertFalse(Merendero.objects.filter(codigo="MER-INVALIDO").exists())
+
     def test_importa_dispositivo_y_merendero_con_procedencia(self):
         TipoDispositivo.objects.create(codigo="AM", nombre="Adulto Mayor")
 

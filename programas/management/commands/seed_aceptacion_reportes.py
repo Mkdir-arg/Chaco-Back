@@ -1,7 +1,9 @@
 """Datos sintéticos e idempotentes para aceptar Dispositivos y Merenderos."""
 
+import os
+
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -23,6 +25,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if os.environ.get("CHACO_ACCEPTANCE_SEED") != "1":
+            raise CommandError("Este seed solo se puede ejecutar desde el entorno de aceptación aislado.")
         usuario, creado = get_user_model().objects.get_or_create(
             username="aceptacion_plan_183",
             defaults={"is_active": True, "is_staff": True},
