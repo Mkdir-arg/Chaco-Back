@@ -1,7 +1,7 @@
 from io import StringIO
 from unittest.mock import patch
 
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from programas.models import Admision, Dispositivo, EntregaMercaderia, Merendero
@@ -9,6 +9,11 @@ from programas.services.indicadores import indicadores_dispositivo
 
 
 class SeedAceptacionReportesTests(TestCase):
+    def test_requiere_habilitacion_explicita_del_entorno_de_aceptacion(self):
+        with patch.dict("os.environ", {}, clear=True):
+            with self.assertRaisesMessage(CommandError, "entorno de aceptación aislado"):
+                call_command("seed_aceptacion_reportes")
+
     def test_es_idempotente_y_prepara_los_escenarios_de_reportes(self):
         salida = StringIO()
 
