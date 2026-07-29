@@ -36,6 +36,7 @@
     <a class="border-b-2 border-fg-brand px-3 py-2 font-semibold text-fg-brand" href="#datos">Datos</a>
     <a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="#camas">Camas ({{ resumen_camas.totales }})</a>
     <a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="#admisiones">Admisiones ({{ admisiones_activas|length }})</a>
+    {% if puede_registrar_parte %}<a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="{% url 'dispositivos:parte_diario' dispositivo.pk %}">Parte diario</a>{% endif %}
     <a class="px-3 py-2 text-body-subtle" href="#historial">Historial</a>
   </nav>
   <section id="datos" class="rounded-xl border border-base p-6" style="background:var(--bg-primary)">
@@ -71,7 +72,7 @@
   <section id="admisiones" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div><h2 class="text-lg font-bold text-heading">Admisiones</h2><p class="mt-1 text-sm text-body-subtle">Estadías activas y lista de espera del dispositivo.</p></div>
-      <div class="flex gap-2">{% if puede_admitir %}<a href="{% url 'dispositivos:admitir' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Admitir persona</a>{% endif %}<a href="{% url 'dispositivos:espera' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Espera ({{ esperas_activas|length }})</a></div>
+      <div class="flex gap-2">{% if puede_admitir %}<a href="{% url 'dispositivos:admitir' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Admitir persona</a>{% endif %}{% if puede_registrar_parte %}<a href="{% url 'dispositivos:parte_diario' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Parte diario</a>{% endif %}<a href="{% url 'dispositivos:espera' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Espera ({{ esperas_activas|length }})</a></div>
     </div>
     {% if admisiones_activas %}<div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Persona</th><th class="px-3 py-2">Cama</th><th class="px-3 py-2">Ingreso</th><th class="px-3 py-2 text-right">Acciones</th></tr></thead><tbody>{% for admision in admisiones_activas %}<tr class="border-b border-light"><td class="px-3 py-3 font-medium text-heading">{{ admision.ciudadano.nombre_completo }}{% if admision.es_reingreso %}<span class="ml-1 text-xs text-body-subtle">Reingreso</span>{% endif %}</td><td class="px-3 py-3">{{ admision.cama.codigo|default:'—' }}</td><td class="px-3 py-3">{{ admision.fecha_ingreso|date:'d/m/Y H:i' }}</td><td class="px-3 py-3 text-right">{% if puede_egresar %}<a class="text-fg-brand hover:underline" href="{% url 'dispositivos:egresar' dispositivo.pk admision.pk %}">Egreso</a>{% endif %}{% if puede_admitir and puede_egresar %}<a class="ml-3 text-fg-brand hover:underline" href="{% url 'dispositivos:trasladar' dispositivo.pk admision.pk %}">Traslado</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="mt-5 text-sm text-body-subtle">No hay personas alojadas actualmente.</p>{% endif %}
   </section>

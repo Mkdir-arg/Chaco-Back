@@ -1,0 +1,21 @@
+{% extends "includes/base.html" %}
+{% block title %}Parte diario · {{ dispositivo.nombre }}{% endblock %}
+{% block main-content %}
+<main class="mx-auto max-w-4xl py-8">
+  <a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver al dispositivo</a>
+  <div class="mt-5 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+    <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand">F-01 · {{ dispositivo.codigo }}</p>
+    <h1 class="mt-1 text-2xl font-bold text-heading">Parte diario</h1>
+    <p class="mt-2 text-sm text-body-subtle">El sistema calcula las cantidades desde admisiones y camas. Solo registrás turno y observaciones.</p>
+    <p class="mt-1 text-sm text-body-subtle">Fecha: {{ fecha|date:'d/m/Y' }} · Firma al guardar: {{ request.user.get_full_name|default:request.user.username }}</p>
+    <form method="post" class="mt-6 space-y-5">{% csrf_token %}
+      {% if form.non_field_errors %}<div class="text-sm text-fg-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div><label class="block text-sm font-semibold text-heading" for="{{ form.turno.id_for_label }}">Turno</label>{{ form.turno }}{{ form.turno.errors }}</div>
+      <fieldset class="space-y-3"><legend class="text-sm font-semibold text-heading">Observaciones por concepto</legend>{% for campo in form %}{% if campo.name != 'turno' and campo.name != 'observaciones_generales' %}<div><label class="block text-sm text-body-subtle" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}{{ campo.errors }}</div>{% endif %}{% endfor %}</fieldset>
+      <div><label class="block text-sm font-semibold text-heading" for="{{ form.observaciones_generales.id_for_label }}">Observaciones generales</label>{{ form.observaciones_generales }}{{ form.observaciones_generales.errors }}</div>
+      <button class="btn-nodo btn-brand btn-base">Guardar parte</button>
+    </form>
+    <dl class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{% for etiqueta, valor in cantidades %}<div class="rounded-lg border border-light p-3"><dt class="text-xs text-body-subtle">{{ etiqueta }}</dt><dd class="mt-1 text-xl font-bold text-heading">{{ valor }}</dd></div>{% endfor %}</dl>
+  </div>
+</main>
+{% endblock %}

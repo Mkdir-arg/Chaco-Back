@@ -174,6 +174,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             self.request.user, self.object, "dispositivo.admitir"
         )
         context["puede_egresar"] = puede_operar_dispositivo(self.request.user, self.object, "dispositivo.egresar")
+        context["puede_registrar_parte"] = context["puede_admitir"]
         return context
 
 

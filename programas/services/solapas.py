@@ -2,8 +2,9 @@ import re
 import unicodedata
 
 from django.db.models import Q
+from django.urls import reverse
 
-from ..models import DerivacionPrograma, InscripcionPrograma, Programa
+from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
 
 
 class SolapasService:
@@ -41,14 +42,25 @@ class SolapasService:
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
+            if (
+                tipo_normalizado == "DISPOSITIVOS"
+                and not Admision.objects.filter(
+                    inscripcion_programa=inscripcion,
+                    estado=Admision.Estado.ALOJADO,
+                ).exists()
+            ):
+                continue
+            url_name = cls._obtener_url_programa(tipo_normalizado)
+            url_params = {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id}
             solapas.append(
                 {
                     "id": f"programa_{tipo_normalizado}",
                     "nombre": programa.nombre,
                     "icono": programa.icono or "star",
                     "color": programa.color,
-                    "url_name": cls._obtener_url_programa(tipo_normalizado),
-                    "url_params": {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id},
+                    "url_name": url_name,
+                    "url_params": url_params,
+                    "url": reverse(url_name, kwargs=url_params) if tipo_normalizado == "DISPOSITIVOS" else None,
                     "orden": 100 + programa.orden,
                     "estatica": False,
                     "programa": programa,
@@ -184,6 +196,7 @@ class SolapasService:
     @classmethod
     def _obtener_url_programa(cls, tipo_programa):
         url_map = {
+            "DISPOSITIVOS": "legajos:dispositivos_ciudadano",
             "ACOMPANAMIENTO_SOCIAL": "legajos:programa_detalle",
             "ECONOMICO": "programas:economico_detalle",
             "FAMILIAR": "programas:familiar_detalle",
