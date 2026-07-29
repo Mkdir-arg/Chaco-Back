@@ -37,7 +37,6 @@ class SolapaDispositivosTests(TestCase):
             ciudadano=ciudadano,
             dispositivo=dispositivo,
             inscripcion_programa=membresia,
-            cama=cama,
             fecha_ingreso=timezone.now() - timezone.timedelta(days=3),
             fecha_egreso=timezone.now() - timezone.timedelta(days=1),
             estado=Admision.Estado.EGRESADO,
@@ -59,6 +58,7 @@ class SolapaDispositivosTests(TestCase):
         self.assertContains(response, "Alojado")
         self.assertContains(response, "Egresado")
         self.assertContains(response, "Sí")
+        self.assertContains(response, "—")
         detalle = self.client.get(reverse("legajos:ciudadano_detalle", args=[ciudadano.pk]))
         self.assertContains(detalle, reverse("legajos:dispositivos_ciudadano", args=[ciudadano.pk, membresia.pk]))
 
