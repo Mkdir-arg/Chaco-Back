@@ -55,6 +55,31 @@ class Programa(TimeStamped):
     tiene_turnos = models.BooleanField(default=False, verbose_name="Tiene turnos")
     cupo_maximo = models.PositiveIntegerField(null=True, blank=True, verbose_name="Cupo máximo")
     tiene_lista_espera = models.BooleanField(default=False, verbose_name="Tiene lista de espera")
+    umbral_disponibilidad_verde = models.PositiveSmallIntegerField(
+        default=20,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Disponibilidad mínima para semáforo verde (%)",
+    )
+    dias_actualizacion_verde = models.PositiveSmallIntegerField(
+        default=15,
+        validators=[MinValueValidator(0), MaxValueValidator(365)],
+        verbose_name="Días máximos de actualización para verde",
+    )
+    dias_actualizacion_amarillo = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(0), MaxValueValidator(365)],
+        verbose_name="Días máximos de actualización para amarillo",
+    )
+    umbral_completitud_amarillo = models.PositiveSmallIntegerField(
+        default=70,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Completitud desde la que el semáforo es amarillo (%)",
+    )
+    umbral_completitud_verde = models.PositiveSmallIntegerField(
+        default=90,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Completitud desde la que el semáforo es verde (%)",
+    )
 
     icono = models.CharField(
         max_length=50,
@@ -92,6 +117,13 @@ class Programa(TimeStamped):
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        if self.dias_actualizacion_verde >= self.dias_actualizacion_amarillo:
+            raise ValidationError({"dias_actualizacion_amarillo": "El umbral amarillo debe ser mayor que el verde."})
+        if self.umbral_completitud_amarillo >= self.umbral_completitud_verde:
+            raise ValidationError({"umbral_completitud_verde": "El umbral verde debe ser mayor que el amarillo."})
 
 
 class InscripcionPrograma(TimeStamped):
@@ -388,6 +420,9 @@ class Dispositivo(TimeStamped):
     contacto_telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     contacto_email = models.EmailField(blank=True, verbose_name="Email")
     horarios = models.TextField(blank=True, verbose_name="Días y horarios")
+    fuente_padron = models.CharField(max_length=240, blank=True, verbose_name="Fuente del padrón")
+    fecha_padron = models.DateField(null=True, blank=True, verbose_name="Fecha de referencia del padrón")
+    responsable_padron = models.CharField(max_length=200, blank=True, verbose_name="Responsable de la carga del padrón")
     camas_totales = models.PositiveIntegerField(default=0, verbose_name="Camas/plazas totales")
     estado = models.CharField(
         max_length=30,
@@ -788,6 +823,9 @@ class Merendero(TimeStamped):
     responsable_nombre = models.CharField(max_length=200, verbose_name="Responsable")
     responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
     responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
+    fuente_padron = models.CharField(max_length=240, blank=True, verbose_name="Fuente del padrón")
+    fecha_padron = models.DateField(null=True, blank=True, verbose_name="Fecha de referencia del padrón")
+    responsable_padron = models.CharField(max_length=200, blank=True, verbose_name="Responsable de la carga del padrón")
     estado = models.CharField(
         max_length=20,
         choices=Estado.choices,

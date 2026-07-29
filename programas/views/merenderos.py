@@ -21,6 +21,7 @@ from programas.services.merenderos import (
     registrar_entrega,
     resolver_solicitud,
 )
+from programas.services.reportes import filtrar_merenderos, parsear_periodo
 
 
 def _programa_merenderos():
@@ -53,15 +54,21 @@ class MerenderoListView(MerenderosPermissionMixin, ListView):
     context_object_name = "merenderos"
     template_name = "programas/merenderos/list.html"
 
+    def get(self, request, *args, **kwargs):
+        try:
+            self.desde, self.hasta = parsear_periodo(request.GET.get("desde"), request.GET.get("hasta"))
+        except ValueError as error:
+            return HttpResponseBadRequest(str(error))
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
-        queryset = Merendero.objects.all()
-        estado = self.request.GET.get("estado")
-        termino = self.request.GET.get("q", "").strip()
-        if estado:
-            queryset = queryset.filter(estado=estado)
-        if termino:
-            queryset = queryset.filter(nombre__icontains=termino)
-        return queryset
+        return filtrar_merenderos(
+            Merendero.objects.all(),
+            estado=self.request.GET.get("estado"),
+            termino=self.request.GET.get("q", "").strip(),
+            desde=self.desde,
+            hasta=self.hasta,
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

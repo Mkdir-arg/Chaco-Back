@@ -14,7 +14,6 @@ class DatabasePartitioner:
     """Gestiona particionamiento automático de tablas por fecha"""
 
     PARTITIONED_TABLES = {
-        "legajos_registroasistencia": "fecha",
         "legajos_historialactividad": "creado",
         "legajos_historialinscripto": "creado",
         "legajos_alertaausentismo": "creado",
@@ -26,7 +25,6 @@ class DatabasePartitioner:
         with connection.cursor() as cursor:
             # Crear índices compuestos para optimizar consultas por fecha
             indexes = [
-                "CREATE INDEX IF NOT EXISTS idx_registro_fecha_inscripto ON legajos_registroasistencia (fecha DESC, inscripto_id)",
                 "CREATE INDEX IF NOT EXISTS idx_historial_act_fecha ON legajos_historialactividad (creado DESC, actividad_id)",
                 "CREATE INDEX IF NOT EXISTS idx_historial_ins_fecha ON legajos_historialinscripto (creado DESC, inscripto_id)",
                 "CREATE INDEX IF NOT EXISTS idx_alerta_activa_fecha ON legajos_alertaausentismo (activa, creado DESC)",

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from programas.views import admisiones
+from programas.views import admisiones, reportes
 from programas.views import dispositivos_config as cfg
 from programas.views import dispositivos_legajo as legajo
 
@@ -8,6 +8,7 @@ app_name = "dispositivos"
 
 urlpatterns = [
     path("", legajo.DispositivoListView.as_view(), name="lista"),
+    path("export/<str:reporte>/<str:formato>/", reportes.DispositivoExportView.as_view(), name="exportar"),
     path("nuevo/", legajo.DispositivoCreateView.as_view(), name="crear"),
     path("buscar-duplicados/", legajo.DispositivoDuplicateSearchView.as_view(), name="buscar_duplicados"),
     path("<int:pk>/enviar-validacion/", legajo.DispositivoEnviarValidacionView.as_view(), name="enviar_validacion"),

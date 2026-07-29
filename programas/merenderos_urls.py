@@ -1,11 +1,12 @@
 from django.urls import path
 
-from programas.views import merenderos
+from programas.views import merenderos, reportes
 
 app_name = "merenderos"
 
 urlpatterns = [
     path("", merenderos.MerenderoListView.as_view(), name="lista"),
+    path("export/<str:formato>/", reportes.MerenderoExportView.as_view(), name="exportar"),
     path("solicitudes/", merenderos.SolicitudMerenderoListView.as_view(), name="solicitudes"),
     path("solicitudes/nueva/", merenderos.SolicitudMerenderoCreateView.as_view(), name="solicitud_crear"),
     path("solicitudes/<int:pk>/editar/", merenderos.SolicitudMerenderoUpdateView.as_view(), name="solicitud_editar"),
