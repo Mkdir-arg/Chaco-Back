@@ -11,13 +11,23 @@
       <p class="text-sm text-body-subtle mt-1.5">Instituciones, estado de validación e historial operativo.</p>
     </div>
     {% puede_en_programa_dispositivos request.user "dispositivo.crear" as puede_crear_dispositivos %}
-    {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Exportar padrón CSV</a>
+      <a href="{% url 'dispositivos:exportar' 'padron' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Excel</a>
+      <a href="{% url 'dispositivos:exportar' 'ocupacion' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Ocupación CSV</a>
+      <a href="{% url 'dispositivos:exportar' 'ocupacion' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Ocupación Excel</a>
+      <a href="{% url 'dispositivos:exportar' 'movimientos' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Movimientos CSV</a>
+      <a href="{% url 'dispositivos:exportar' 'movimientos' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Movimientos Excel</a>
+      {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
+    </div>
   </div>
 
   <form method="get" class="mb-5 grid gap-3 rounded-xl border border-base p-4 md:grid-cols-4" style="background:var(--bg-primary)">
     <select name="tipo" class="nodo-field"><option value="">Todos los tipos</option>{% for tipo in tipos %}<option value="{{ tipo.pk }}" {% if request.GET.tipo == tipo.pk|stringformat:'s' %}selected{% endif %}>{{ tipo.nombre }}</option>{% endfor %}</select>
     <select name="estado" class="nodo-field"><option value="">Todos los estados</option>{% for value, label in estados %}<option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
     <input name="localidad" value="{{ request.GET.localidad }}" class="nodo-field" placeholder="Localidad">
+    <input name="desde" value="{{ request.GET.desde }}" class="nodo-field" type="date" aria-label="Movimientos desde">
+    <input name="hasta" value="{{ request.GET.hasta }}" class="nodo-field" type="date" aria-label="Movimientos hasta">
     <button class="btn-nodo btn-secondary btn-base" type="submit">Filtrar</button>
   </form>
 

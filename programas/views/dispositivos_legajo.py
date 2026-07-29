@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.utils import IntegrityError
-from django.http import JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -28,6 +28,8 @@ from programas.services.dispositivos import (
     registrar_edicion_dispositivo,
     validar_dispositivo,
 )
+from programas.services.indicadores import indicadores_dispositivo
+from programas.services.reportes import filtrar_dispositivos, parsear_periodo
 from programas.views.ajax_utils import is_ajax
 
 
@@ -71,18 +73,23 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
     template_name = "programas/dispositivos/legajo/list.html"
     context_object_name = "dispositivos"
 
+    def get(self, request, *args, **kwargs):
+        try:
+            self.desde, self.hasta = parsear_periodo(request.GET.get("desde"), request.GET.get("hasta"))
+        except ValueError as error:
+            return HttpResponseBadRequest(str(error))
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
         queryset = dispositivos_visibles(self.request.user).select_related("tipo")
-        tipo = self.request.GET.get("tipo")
-        estado = self.request.GET.get("estado")
-        localidad = self.request.GET.get("localidad", "").strip()
-        if tipo:
-            queryset = queryset.filter(tipo_id=tipo)
-        if estado:
-            queryset = queryset.filter(estado=estado)
-        if localidad:
-            queryset = queryset.filter(localidad__icontains=localidad)
-        return queryset
+        return filtrar_dispositivos(
+            queryset,
+            tipo=self.request.GET.get("tipo"),
+            estado=self.request.GET.get("estado"),
+            localidad=self.request.GET.get("localidad", "").strip(),
+            desde=self.desde,
+            hasta=self.hasta,
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -155,6 +162,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         context["trazas"] = self.object.trazas.select_related("usuario")
         context["camas"] = self.object.camas.all()
         context["resumen_camas"] = resumen_ocupacion(self.object)
+        context["indicadores"] = indicadores_dispositivo(self.object)
         context["admisiones_activas"] = self.object.admisiones.filter(estado=Admision.Estado.ALOJADO).select_related(
             "ciudadano", "cama"
         )

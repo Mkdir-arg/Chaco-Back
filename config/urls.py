@@ -32,8 +32,8 @@ urlpatterns = [
     path("dispositivos/", include("programas.dispositivos_urls")),
     path("merenderos/", include("programas.merenderos_urls")),
     # Root paths last
-    path("", include("django.contrib.auth.urls")),
     path("", include(("users.urls", "users"), namespace="users")),
+    path("", include("django.contrib.auth.urls")),
     path("", include(("core.urls", "core"), namespace="core")),
     path("", include("dashboard.urls")),
     path("", include(("healthcheck.urls", "healthcheck"), namespace="healthcheck")),

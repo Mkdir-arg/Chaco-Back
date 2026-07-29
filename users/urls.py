@@ -19,6 +19,7 @@ app_name = "users"
 
 urlpatterns = [
     path("", UsuariosLoginView.as_view(), name="login"),
+    path("login/", UsuariosLoginView.as_view(), name="login_compat"),
     path("logout", (LogoutView.as_view()), name="logout"),
     # --- Usuarios (RBAC por capacidad: usuario.administrar, vía AdminRequiredMixin) ---
     path("usuarios/", UserListView.as_view(), name="usuarios"),

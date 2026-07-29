@@ -79,6 +79,14 @@ class LoginUsuarioInactivoTests(TestCase):
         self.assertTrue(form.is_valid())
 
 
+class LoginRouteTests(TestCase):
+    def test_login_route_renders_custom_login(self):
+        response = self.client.get("/login/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "user/login.html")
+
+
 class RolPortalNoAsignableTests(TestCase):
     def test_rol_categoria_portal_no_aparece_en_selector(self):
         portal = Group.objects.create(name="Ciudadanos")

@@ -30,6 +30,7 @@ from programas.models import (
     TipoDispositivo,
 )
 from programas.services.becas import es_menor
+from programas.services.dispositivos import normalizar_codigo_institucional
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
@@ -192,7 +193,10 @@ class TipoDispositivoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for nombre, default in (("umbral_ocupacion_amarillo", 50), ("umbral_ocupacion_rojo", 80)):
+        for nombre, default in (
+            ("umbral_ocupacion_amarillo", 50),
+            ("umbral_ocupacion_rojo", 80),
+        ):
             self.fields[nombre].required = False
             self.fields[nombre].initial = getattr(self.instance, nombre, default) or default
 
@@ -255,7 +259,7 @@ class DispositivoForm(forms.ModelForm):
         self.fields["tipo"].queryset = tipos.order_by("nombre")
 
     def clean_codigo(self):
-        codigo = " ".join(self.cleaned_data["codigo"].split()).upper()
+        codigo = normalizar_codigo_institucional(self.cleaned_data["codigo"])
         duplicado = Dispositivo.objects.filter(codigo__iexact=codigo)
         if self.instance.pk:
             duplicado = duplicado.exclude(pk=self.instance.pk)
@@ -282,7 +286,7 @@ class CamaForm(forms.ModelForm):
         }
 
     def clean_codigo(self):
-        return " ".join(self.cleaned_data["codigo"].split()).upper()
+        return normalizar_codigo_institucional(self.cleaned_data["codigo"])
 
 
 class CampoTipoDispositivoForm(_OpcionesMixin):
@@ -558,7 +562,7 @@ class SolicitudMerenderoForm(forms.ModelForm):
         }
 
     def clean_codigo(self):
-        return " ".join(self.cleaned_data["codigo"].split()).upper()
+        return normalizar_codigo_institucional(self.cleaned_data["codigo"])
 
     def __init__(self, *args, validar_completitud=True, **kwargs):
         super().__init__(*args, **kwargs)

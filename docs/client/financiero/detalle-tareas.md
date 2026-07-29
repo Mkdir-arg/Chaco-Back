@@ -231,6 +231,9 @@
 | 2026-07-28 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 480 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-06 — Registro diario F-01 por turno (#178) | Parte diario por turno con métricas A-E calculadas, observaciones por concepto y firma del usuario que realiza la carga. | 60 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-07 — Solapa Dispositivos en el Legajo Ciudadano (#179) | Solapa dedicada con admisión activa, historial de estadías y acceso según el alcance de consulta. | 60 min |
+| 2026-07-29 | Juani Portilla | Dispositivos | D-11 — Indicadores operativos (#183) | Indicadores operativos de Dispositivos: ocupación, disponibilidad, vigencia y completitud F00. | 12 min |
+| 2026-07-29 | Juani Portilla | Dispositivos | D-12 — Reportes operativos (#184) | Exportaciones operativas CSV/XLSX de Dispositivos y Merenderos con filtros y permisos. | 30 min |
+| 2026-07-29 | Juani Portilla | Dispositivos | D-13 — Importación inicial de padrones (#185) | Importación idempotente de Dispositivos y Merenderos con procedencia y validación de filas. | 18 min |
 | 2026-07-29 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-29 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-29 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
@@ -245,10 +248,10 @@
 | Programa | Horas julio |
 |---|---:|
 | Becas | 126 h 08 min |
-| Dispositivos (incluye Merenderos) | 225 h 0 min |
+| Dispositivos (incluye Merenderos) | 226 h 0 min |
 | Transversal | 73 h 47 min |
 
-| **Total julio 2026 (al 31/07)** | **424 h 55 min** |
+| **Total julio 2026 (al 31/07)** | **425 h 55 min** |
 
 
 ---
@@ -278,7 +281,7 @@
 !!! success "Contador total"
 
 
-    **55.447 minutos** (924 h 07 min)
+    **55.507 minutos** (925 h 07 min)
 
 
     
