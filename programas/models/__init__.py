@@ -715,9 +715,7 @@ class RegistroDiario(TimeStamped):
         verbose_name_plural = "Registros diarios F-01"
         ordering = ["-fecha", "turno"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["dispositivo", "fecha", "turno"], name="registro_diario_unico_por_turno"
-            )
+            models.UniqueConstraint(fields=["dispositivo", "fecha", "turno"], name="registro_diario_unico_por_turno")
         ]
 
     def __str__(self):

@@ -164,7 +164,9 @@ class ParteDiarioView(DispositivoOperacionMixin, View):
     def _contexto(self, form, parte=None):
         dispositivo = self.get_dispositivo()
         fecha = timezone.localdate()
-        cantidades = parte.cantidades_legibles if parte else calcular_cantidades(dispositivo=dispositivo, fecha=fecha).items()
+        cantidades = (
+            parte.cantidades_legibles if parte else calcular_cantidades(dispositivo=dispositivo, fecha=fecha).items()
+        )
         return {
             "dispositivo": dispositivo,
             "form": form,
@@ -176,9 +178,7 @@ class ParteDiarioView(DispositivoOperacionMixin, View):
     def get(self, request, pk):
         turno = request.GET.get("turno")
         dispositivo = self.get_dispositivo()
-        parte = RegistroDiario.objects.filter(
-            dispositivo=dispositivo, fecha=timezone.localdate(), turno=turno
-        ).first()
+        parte = RegistroDiario.objects.filter(dispositivo=dispositivo, fecha=timezone.localdate(), turno=turno).first()
         form = RegistroDiarioForm(instance=parte, initial={"turno": turno} if turno else None)
         return render(request, self.template_name, self._contexto(form, parte))
 

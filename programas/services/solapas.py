@@ -41,10 +41,13 @@ class SolapasService:
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
-            if tipo_normalizado == "DISPOSITIVOS" and not Admision.objects.filter(
-                inscripcion_programa=inscripcion,
-                estado=Admision.Estado.ALOJADO,
-            ).exists():
+            if (
+                tipo_normalizado == "DISPOSITIVOS"
+                and not Admision.objects.filter(
+                    inscripcion_programa=inscripcion,
+                    estado=Admision.Estado.ALOJADO,
+                ).exists()
+            ):
                 continue
             solapas.append(
                 {
