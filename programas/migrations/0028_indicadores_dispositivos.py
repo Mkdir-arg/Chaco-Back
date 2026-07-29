@@ -12,27 +12,27 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='tipodispositivo',
+            model_name='programa',
             name='dias_actualizacion_amarillo',
             field=models.PositiveSmallIntegerField(default=30, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(365)], verbose_name='Días máximos de actualización para amarillo'),
         ),
         migrations.AddField(
-            model_name='tipodispositivo',
+            model_name='programa',
             name='dias_actualizacion_verde',
             field=models.PositiveSmallIntegerField(default=15, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(365)], verbose_name='Días máximos de actualización para verde'),
         ),
         migrations.AddField(
-            model_name='tipodispositivo',
+            model_name='programa',
             name='umbral_completitud_amarillo',
             field=models.PositiveSmallIntegerField(default=70, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)], verbose_name='Completitud desde la que el semáforo es amarillo (%)'),
         ),
         migrations.AddField(
-            model_name='tipodispositivo',
+            model_name='programa',
             name='umbral_completitud_verde',
             field=models.PositiveSmallIntegerField(default=90, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)], verbose_name='Completitud desde la que el semáforo es verde (%)'),
         ),
         migrations.AddField(
-            model_name='tipodispositivo',
+            model_name='programa',
             name='umbral_disponibilidad_verde',
             field=models.PositiveSmallIntegerField(default=20, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)], verbose_name='Disponibilidad mínima para semáforo verde (%)'),
         ),

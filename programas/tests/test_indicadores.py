@@ -5,12 +5,28 @@ from django.test import TestCase
 from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import Admision, Cama, CampoTipoDispositivo, Dispositivo, RegistroDiario, TipoDispositivo
+from programas.models import (
+    Admision,
+    Cama,
+    CampoTipoDispositivo,
+    Dispositivo,
+    Programa,
+    RegistroDiario,
+    TipoDispositivo,
+)
 from programas.services.indicadores import indicadores_dispositivo
 
 
 class IndicadoresDispositivoTests(TestCase):
+    def crear_programa_dispositivos(self, **umbrales):
+        return Programa.objects.create(
+            codigo=Programa.TipoPrograma.DISPOSITIVOS,
+            nombre="Dispositivos",
+            **umbrales,
+        )
+
     def test_calcula_indicadores_desde_camas_registro_diario_y_f00_activo(self):
+        self.crear_programa_dispositivos()
         tipo = TipoDispositivo.objects.create(codigo="IND", nombre="Indicadores", maneja_camas=True)
         dispositivo = Dispositivo.objects.create(codigo="IND-001", nombre="Hogar Indicadores", tipo=tipo)
         cama = Cama.objects.create(dispositivo=dispositivo, codigo="C-01", estado=Cama.Estado.OCUPADA)
@@ -56,6 +72,7 @@ class IndicadoresDispositivoTests(TestCase):
         self.assertEqual(indicadores["completitud"]["semaforo"], "ROJO")
 
     def test_informa_sin_datos_cuando_no_hay_admisiones_ni_registro_diario(self):
+        self.crear_programa_dispositivos()
         tipo = TipoDispositivo.objects.create(codigo="SIN", nombre="Sin datos")
         dispositivo = Dispositivo.objects.create(codigo="SIN-001", nombre="Sin datos", tipo=tipo)
 
@@ -64,14 +81,16 @@ class IndicadoresDispositivoTests(TestCase):
         self.assertEqual(indicadores["actualizacion"]["semaforo"], "SIN_DATOS")
         self.assertEqual(indicadores["completitud"]["semaforo"], "SIN_DATOS")
 
-    def test_aplica_umbrales_configurables_del_tipo(self):
+    def test_aplica_umbrales_centralizados_del_programa(self):
+        self.crear_programa_dispositivos(
+            umbral_disponibilidad_verde=60,
+            dias_actualizacion_verde=10,
+            dias_actualizacion_amarillo=20,
+        )
         tipo = TipoDispositivo.objects.create(
             codigo="CONF",
             nombre="Configurado",
             maneja_camas=True,
-            umbral_disponibilidad_verde=60,
-            dias_actualizacion_verde=10,
-            dias_actualizacion_amarillo=20,
         )
         dispositivo = Dispositivo.objects.create(codigo="CONF-001", nombre="Configurado", tipo=tipo)
         cama = Cama.objects.create(dispositivo=dispositivo, codigo="C-01", estado=Cama.Estado.OCUPADA)

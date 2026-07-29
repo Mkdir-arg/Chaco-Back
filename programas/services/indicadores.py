@@ -2,7 +2,7 @@
 
 from django.utils import timezone
 
-from programas.models import Admision, CampoTipoDispositivo, RegistroDiario
+from programas.models import Admision, CampoTipoDispositivo, Programa, RegistroDiario
 from programas.services.camas import resumen_ocupacion
 
 
@@ -37,10 +37,15 @@ def _tiene_valor(respuestas, campo):
     return valor not in (None, "")
 
 
+def _programa_dispositivos():
+    return Programa.objects.get(codigo=Programa.TipoPrograma.DISPOSITIVOS)
+
+
 def indicadores_dispositivo(dispositivo, hoy=None):
     """Calcula indicadores observables sin aceptar valores cargados a mano."""
 
     hoy = hoy or timezone.localdate()
+    programa = _programa_dispositivos()
     ocupacion = resumen_ocupacion(dispositivo)
     disponibilidad = (ocupacion["libres"] * 100 / ocupacion["operativas"]) if ocupacion["operativas"] else 0
 
@@ -53,8 +58,8 @@ def indicadores_dispositivo(dispositivo, hoy=None):
             "dias": dias,
             "semaforo": _semaforo_actualizacion(
                 dias,
-                dispositivo.tipo.dias_actualizacion_verde,
-                dispositivo.tipo.dias_actualizacion_amarillo,
+                programa.dias_actualizacion_verde,
+                programa.dias_actualizacion_amarillo,
             ),
         }
 
@@ -72,8 +77,8 @@ def indicadores_dispositivo(dispositivo, hoy=None):
             "porcentaje": porcentaje,
             "semaforo": _semaforo_completitud(
                 porcentaje,
-                dispositivo.tipo.umbral_completitud_amarillo,
-                dispositivo.tipo.umbral_completitud_verde,
+                programa.umbral_completitud_amarillo,
+                programa.umbral_completitud_verde,
             ),
         }
 
@@ -81,7 +86,7 @@ def indicadores_dispositivo(dispositivo, hoy=None):
         "ocupacion": ocupacion,
         "disponibilidad": {
             "porcentaje": round(disponibilidad),
-            "semaforo": _semaforo_disponibilidad(disponibilidad, dispositivo.tipo.umbral_disponibilidad_verde),
+            "semaforo": _semaforo_disponibilidad(disponibilidad, programa.umbral_disponibilidad_verde),
         },
         "actualizacion": actualizacion,
         "completitud": completitud,

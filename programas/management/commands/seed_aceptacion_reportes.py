@@ -15,6 +15,7 @@ from programas.models import (
     Dispositivo,
     EntregaMercaderia,
     Merendero,
+    Programa,
     RegistroDiario,
     TipoDispositivo,
 )
@@ -34,6 +35,11 @@ class Command(BaseCommand):
         if creado:
             usuario.set_unusable_password()
             usuario.save(update_fields=["password"])
+
+        Programa.objects.get_or_create(
+            codigo=Programa.TipoPrograma.DISPOSITIVOS,
+            defaults={"nombre": "Dispositivos", "estado": Programa.Estado.ACTIVO},
+        )
 
         tipo, _ = TipoDispositivo.objects.update_or_create(
             codigo="ACEP-183",
