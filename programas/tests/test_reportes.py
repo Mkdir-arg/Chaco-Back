@@ -173,6 +173,19 @@ class ReportesExportablesTests(TestCase):
         self.assertEqual(self._csv(csv_response)[1][-3:], ["15/07/2026", "5", "Merienda"])
         self.assertEqual(self._xlsx(xlsx_response)[1][-3:], ("15/07/2026", 5, "Merienda"))
 
+    def test_exportaciones_neutralizan_formulas_en_csv_y_excel(self):
+        for prefijo in ("=", "+", "-", "@"):
+            with self.subTest(prefijo=prefijo):
+                valor = f"{prefijo}2+2"
+                self.dispositivo.nombre = valor
+                self.dispositivo.save(update_fields=["nombre", "modificado"])
+
+                csv_response = self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"]))
+                xlsx_response = self.client.get(reverse("dispositivos:exportar", args=["padron", "xlsx"]))
+
+                self.assertEqual(self._csv(csv_response)[1][1], f"'{valor}")
+                self.assertEqual(self._xlsx(xlsx_response)[1][1], f"'{valor}")
+
     def test_periodo_invalido_devuelve_error_controlado_y_archivo_vacio_es_valido(self):
         invalido = self.client.get(
             reverse("dispositivos:exportar", args=["movimientos", "csv"]),

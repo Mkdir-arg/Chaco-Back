@@ -37,21 +37,28 @@ def _fecha(valor, nombre):
     return fecha
 
 
+def _celda_segura(valor):
+    if isinstance(valor, str) and valor.startswith(("=", "+", "-", "@")):
+        return f"'{valor}"
+    return valor
+
+
 def _respuesta(reporte, formato, nombre):
+    filas = ([_celda_segura(valor) for valor in fila] for fila in reporte.filas)
     if formato == "csv":
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{nombre}.csv"'
         response.write("\ufeff")
         writer = csv.writer(response)
         writer.writerow(reporte.encabezados)
-        writer.writerows(reporte.filas)
+        writer.writerows(filas)
         return response
     if formato == "xlsx":
         libro = Workbook(write_only=True)
         hoja = libro.create_sheet("Reporte")
         hoja.append(list(reporte.encabezados))
-        for fila in reporte.filas:
-            hoja.append(list(fila))
+        for fila in filas:
+            hoja.append(fila)
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = f'attachment; filename="{nombre}.xlsx"'
         libro.save(response)
