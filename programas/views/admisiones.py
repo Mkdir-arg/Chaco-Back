@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
@@ -16,9 +17,10 @@ from programas.forms import (
     EgresoAdmisionForm,
     F00DinamicoForm,
     PromoverEsperaForm,
+    RegistroDiarioForm,
     TrasladoAdmisionForm,
 )
-from programas.models import Admision, Cama, Dispositivo, EsperaAdmision
+from programas.models import Admision, Cama, Dispositivo, EsperaAdmision, RegistroDiario
 from programas.services.admisiones import (
     admitir_ciudadano,
     egresar_admision,
@@ -27,6 +29,7 @@ from programas.services.admisiones import (
     trasladar_admision,
 )
 from programas.services.dispositivos import dispositivos_visibles, puede_operar_dispositivo
+from programas.services.registro_diario import calcular_cantidades, registrar_parte_diario
 from programas.views.dispositivos_legajo import DispositivoProgramaPermissionMixin
 
 
@@ -152,6 +155,51 @@ class AdmisionCreateView(DispositivoOperacionMixin, View):
                 ),
             )
         return redirect("dispositivos:detalle", pk=admision.dispositivo_id)
+
+
+class ParteDiarioView(DispositivoOperacionMixin, View):
+    capacidad_requerida = "dispositivo.admitir"
+    template_name = "programas/dispositivos/legajo/parte_diario.html"
+
+    def _contexto(self, form, parte=None):
+        dispositivo = self.get_dispositivo()
+        fecha = timezone.localdate()
+        cantidades = parte.cantidades_legibles if parte else calcular_cantidades(dispositivo=dispositivo, fecha=fecha).items()
+        return {
+            "dispositivo": dispositivo,
+            "form": form,
+            "parte": parte,
+            "fecha": fecha,
+            "cantidades": cantidades,
+        }
+
+    def get(self, request, pk):
+        turno = request.GET.get("turno")
+        dispositivo = self.get_dispositivo()
+        parte = RegistroDiario.objects.filter(
+            dispositivo=dispositivo, fecha=timezone.localdate(), turno=turno
+        ).first()
+        form = RegistroDiarioForm(instance=parte, initial={"turno": turno} if turno else None)
+        return render(request, self.template_name, self._contexto(form, parte))
+
+    def post(self, request, pk):
+        form = RegistroDiarioForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, self._contexto(form))
+        try:
+            parte = registrar_parte_diario(
+                dispositivo=self.get_dispositivo(),
+                fecha=timezone.localdate(),
+                turno=form.cleaned_data["turno"],
+                usuario=request.user,
+                observaciones=form.observaciones_por_concepto(),
+                observaciones_generales=form.cleaned_data["observaciones_generales"],
+            )
+        except ValueError as error:
+            form.add_error(None, error)
+            return render(request, self.template_name, self._contexto(form))
+        messages.success(request, f"Parte {parte.get_turno_display().lower()} guardado con valores calculados.")
+        return redirect(f"{reverse('dispositivos:parte_diario', args=[parte.dispositivo_id])}?turno={parte.turno}")
 
 
 class EgresoAdmisionView(DispositivoOperacionMixin, View):

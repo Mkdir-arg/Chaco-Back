@@ -20,6 +20,7 @@ from programas.models import (
     Formulario,
     PreguntaGlobal,
     PrestacionDiaria,
+    RegistroDiario,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -488,6 +489,42 @@ class PromoverEsperaForm(forms.Form):
     def __init__(self, *args, dispositivo, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["cama"].queryset = Cama.objects.filter(dispositivo=dispositivo, estado=Cama.Estado.DISPONIBLE)
+
+
+class RegistroDiarioForm(forms.ModelForm):
+    OBSERVACIONES_POR_CONCEPTO = (
+        ("camas_totales", "Camas totales"),
+        ("ingresos", "Ingresos"),
+        ("egresos", "Egresos"),
+        ("ocupacion_nocturna", "Ocupación nocturna"),
+        ("camas_disponibles", "Camas disponibles"),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        observaciones = self.instance.observaciones if self.instance.pk else {}
+        for clave, etiqueta in self.OBSERVACIONES_POR_CONCEPTO:
+            self.fields[f"observacion_{clave}"] = forms.CharField(
+                label=f"Observación · {etiqueta}",
+                required=False,
+                initial=observaciones.get(clave, ""),
+                widget=_text_widget(rows=2),
+            )
+
+    def observaciones_por_concepto(self):
+        return {
+            clave: self.cleaned_data[f"observacion_{clave}"].strip()
+            for clave, _ in self.OBSERVACIONES_POR_CONCEPTO
+            if self.cleaned_data[f"observacion_{clave}"].strip()
+        }
+
+    class Meta:
+        model = RegistroDiario
+        fields = ["turno", "observaciones_generales"]
+        widgets = {
+            "turno": forms.Select(attrs={"class": INPUT_CLASS}),
+            "observaciones_generales": _text_widget(),
+        }
 
 
 class SolicitudMerenderoForm(forms.ModelForm):

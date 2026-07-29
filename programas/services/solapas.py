@@ -3,7 +3,7 @@ import unicodedata
 
 from django.db.models import Q
 
-from ..models import DerivacionPrograma, InscripcionPrograma, Programa
+from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
 
 
 class SolapasService:
@@ -41,6 +41,11 @@ class SolapasService:
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
+            if tipo_normalizado == "DISPOSITIVOS" and not Admision.objects.filter(
+                inscripcion_programa=inscripcion,
+                estado=Admision.Estado.ALOJADO,
+            ).exists():
+                continue
             solapas.append(
                 {
                     "id": f"programa_{tipo_normalizado}",
@@ -184,6 +189,7 @@ class SolapasService:
     @classmethod
     def _obtener_url_programa(cls, tipo_programa):
         url_map = {
+            "DISPOSITIVOS": "legajos:dispositivos_ciudadano",
             "ACOMPANAMIENTO_SOCIAL": "legajos:programa_detalle",
             "ECONOMICO": "programas:economico_detalle",
             "FAMILIAR": "programas:familiar_detalle",

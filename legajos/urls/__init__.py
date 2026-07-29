@@ -8,6 +8,7 @@ from ..views import contactos_panel as views_contactos_panel
 from ..views import dashboard_simple as views_simple
 from ..views import derivacion as views_derivacion
 from ..views import derivacion_programa as views_derivacion_programa
+from ..views import dispositivos as views_dispositivos
 from ..views import programas as views_programas
 
 app_name = "legajos"
@@ -22,6 +23,11 @@ urlpatterns = [
     path("ciudadanos/manual/", views_ciudadanos.CiudadanoManualView.as_view(), name="ciudadano_manual"),
     path("ciudadanos/<int:pk>/", views_ciudadanos.CiudadanoDetailView.as_view(), name="ciudadano_detalle"),
     path("ciudadanos/<int:pk>/editar/", views_ciudadanos.CiudadanoUpdateView.as_view(), name="ciudadano_editar"),
+    path(
+        "ciudadanos/<int:ciudadano_id>/dispositivos/<int:inscripcion_id>/",
+        views_dispositivos.CiudadanoDispositivosView.as_view(),
+        name="dispositivos_ciudadano",
+    ),
     path("programas/", views_programas.ProgramaListView.as_view(), name="programas"),
     path("programas/<int:pk>/", views_programas.ProgramaDetailView.as_view(), name="programa_detalle"),
     path(

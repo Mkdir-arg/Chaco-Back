@@ -2,6 +2,7 @@ from datetime import date
 
 from django.core.cache import cache
 from django.db.models import Q
+from django.urls import reverse
 
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
@@ -119,6 +120,9 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     solapas = [
         solapa for solapa in todas_las_solapas if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
     ]
+    for solapa in solapas:
+        if solapa["id"] == "programa_DISPOSITIVOS":
+            solapa["url"] = reverse(solapa["url_name"], kwargs=solapa["url_params"])
     programas_activos = [solapa["inscripcion"] for solapa in todas_las_solapas if "inscripcion" in solapa]
 
     context = {

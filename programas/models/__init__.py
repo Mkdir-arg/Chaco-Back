@@ -686,6 +686,54 @@ class Admision(TimeStamped):
             raise ValidationError({"inscripcion_programa": "La membresía debe ser del programa Dispositivos."})
 
 
+class RegistroDiario(TimeStamped):
+    """Snapshot operativo F-01 de un dispositivo por fecha y turno."""
+
+    class Turno(models.TextChoices):
+        MANIANA = "MANIANA", "Mañana"
+        TARDE = "TARDE", "Tarde"
+        NOCHE = "NOCHE", "Noche"
+
+    dispositivo = models.ForeignKey(
+        Dispositivo, on_delete=models.PROTECT, related_name="registros_diarios", verbose_name="Dispositivo"
+    )
+    fecha = models.DateField(db_index=True, verbose_name="Fecha")
+    turno = models.CharField(max_length=10, choices=Turno.choices, verbose_name="Turno")
+    camas_totales = models.PositiveIntegerField(default=0, editable=False)
+    ingresos = models.PositiveIntegerField(default=0, editable=False)
+    egresos = models.PositiveIntegerField(default=0, editable=False)
+    ocupacion_nocturna = models.PositiveIntegerField(default=0, editable=False)
+    camas_disponibles = models.PositiveIntegerField(default=0, editable=False)
+    observaciones = models.JSONField(default=dict, blank=True, verbose_name="Observaciones por concepto")
+    observaciones_generales = models.TextField(blank=True, verbose_name="Observaciones generales")
+    firmado_por = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="partes_diarios_dispositivos", verbose_name="Firmado por"
+    )
+
+    class Meta:
+        verbose_name = "Registro diario F-01"
+        verbose_name_plural = "Registros diarios F-01"
+        ordering = ["-fecha", "turno"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dispositivo", "fecha", "turno"], name="registro_diario_unico_por_turno"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.dispositivo.codigo} · {self.fecha:%Y-%m-%d} · {self.get_turno_display()}"
+
+    @property
+    def cantidades_legibles(self):
+        return (
+            ("Camas totales", self.camas_totales),
+            ("Ingresos", self.ingresos),
+            ("Egresos", self.egresos),
+            ("Ocupación nocturna", self.ocupacion_nocturna),
+            ("Camas disponibles", self.camas_disponibles),
+        )
+
+
 class EsperaAdmision(TimeStamped):
     """Cola propia de Dispositivos; no reutiliza la cola funcional de Becas."""
 
