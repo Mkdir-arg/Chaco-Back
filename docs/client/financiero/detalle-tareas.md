@@ -164,8 +164,8 @@
 | 2026-07-27 | Pablo Cao | Becas | Issue #202 — disponibilidad territorial y mejoras del listado | Implementación y pruebas de la alerta confirmable por territorial asignado en la misma fecha; incorporación de búsqueda, filtros por estado, segmento, territorial y rango de fechas, y navegación paginada de relevamientos. | 90 min |
 | 2026-07-27 | Juani Portilla | Merenderos | D-09 — Circuito de solicitudes, legajo y entregas (#181) | Solicitudes con documentación, observación/corrección/reenvío, estados auditables, legajo institucional y entregas; validado con CI y entorno sintético. | 60 min |
 | 2026-07-27 | Juani Portilla | Merenderos | D-10 — Prestación mensual F-02 (#182) | Grilla F-02 mensual con raciones, totales derivados, observaciones, firma por línea y bloqueo de merenderos inactivos; validada con CI y entorno sintético. | 60 min |
-| 2026-07-29 | Juani Portilla | Dispositivos | D-06 — Registro diario F-01 por turno (#178) | Parte diario transaccional con métricas A-E calculadas, observaciones por concepto, firma autenticada y validación en CI/entorno sintético. | 60 min |
-| 2026-07-29 | Juani Portilla | Dispositivos | D-07 — Solapa Dispositivos en el Legajo Ciudadano (#179) | Solapa dedicada con admisión activa, historial de estadías, alcance de consulta y validación en CI/entorno sintético. | 60 min |
+| 2026-07-29 | Juani Portilla | Dispositivos | D-06 — Registro diario F-01 por turno (#178) | Parte diario por turno con métricas A-E calculadas, observaciones por concepto y firma del usuario que realiza la carga. | 60 min |
+| 2026-07-29 | Juani Portilla | Dispositivos | D-07 — Solapa Dispositivos en el Legajo Ciudadano (#179) | Solapa dedicada con admisión activa, historial de estadías y acceso según el alcance de consulta. | 60 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 

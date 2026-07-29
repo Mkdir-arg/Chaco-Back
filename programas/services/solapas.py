@@ -2,6 +2,7 @@ import re
 import unicodedata
 
 from django.db.models import Q
+from django.urls import reverse
 
 from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
 
@@ -49,14 +50,17 @@ class SolapasService:
                 ).exists()
             ):
                 continue
+            url_name = cls._obtener_url_programa(tipo_normalizado)
+            url_params = {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id}
             solapas.append(
                 {
                     "id": f"programa_{tipo_normalizado}",
                     "nombre": programa.nombre,
                     "icono": programa.icono or "star",
                     "color": programa.color,
-                    "url_name": cls._obtener_url_programa(tipo_normalizado),
-                    "url_params": {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id},
+                    "url_name": url_name,
+                    "url_params": url_params,
+                    "url": reverse(url_name, kwargs=url_params) if tipo_normalizado == "DISPOSITIVOS" else None,
                     "orden": 100 + programa.orden,
                     "estatica": False,
                     "programa": programa,

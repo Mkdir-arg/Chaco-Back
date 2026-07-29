@@ -48,6 +48,7 @@ class SolapaDispositivosTests(TestCase):
         self.assertEqual([solapa["id"] for solapa in solapas].count("programa_DISPOSITIVOS"), 1)
         solapa = next(solapa for solapa in solapas if solapa["id"] == "programa_DISPOSITIVOS")
         self.assertEqual(solapa["url_name"], "legajos:dispositivos_ciudadano")
+        self.assertEqual(solapa["url"], reverse("legajos:dispositivos_ciudadano", args=[ciudadano.pk, membresia.pk]))
 
         administrador = User.objects.create_superuser(username="admin-solapa", password="clave")
         self.client.force_login(administrador)
