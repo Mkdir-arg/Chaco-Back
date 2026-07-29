@@ -10,6 +10,7 @@ from django.db import IntegrityError, transaction
 from openpyxl import load_workbook
 
 from programas.models import Dispositivo, Merendero, TipoDispositivo
+from programas.services.dispositivos import normalizar_codigo_institucional
 
 
 class Command(BaseCommand):
@@ -91,7 +92,7 @@ class Command(BaseCommand):
 
     def _importar_fila(self, fila, *, fuente, fecha, responsable):
         entidad = self._texto(fila, "entidad").upper()
-        codigo = self._texto(fila, "codigo").upper()
+        codigo = normalizar_codigo_institucional(self._texto(fila, "codigo"))
         nombre = self._texto(fila, "nombre")
         domicilio = self._texto(fila, "domicilio")
         responsable_nombre = self._texto(fila, "responsable_nombre")
@@ -145,7 +146,10 @@ class Command(BaseCommand):
 
     @staticmethod
     def _crear_si_no_existe(modelo, codigo, defaults, resultado):
-        if modelo.objects.filter(codigo=codigo).exists():
+        if any(
+            normalizar_codigo_institucional(codigo_existente) == codigo
+            for codigo_existente in modelo.objects.values_list("codigo", flat=True)
+        ):
             return None
         try:
             with transaction.atomic():

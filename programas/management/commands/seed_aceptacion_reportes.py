@@ -4,7 +4,7 @@ import os
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from legajos.models import Ciudadano
@@ -20,13 +20,23 @@ from programas.models import (
     TipoDispositivo,
 )
 
+ACCEPTANCE_DATABASE_NAME = "chaco_acceptance"
+
+
+def _es_base_aceptacion():
+    if connection.vendor != "mysql":
+        return False
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT DATABASE()")
+        return cursor.fetchone()[0] == ACCEPTANCE_DATABASE_NAME
+
 
 class Command(BaseCommand):
     help = "Siembra datos sintéticos de aceptación para indicadores y reportes de Programas."
 
     @transaction.atomic
     def handle(self, *args, **options):
-        if os.environ.get("CHACO_ACCEPTANCE_SEED") != "1":
+        if os.environ.get("CHACO_ACCEPTANCE_SEED") != "1" or not _es_base_aceptacion():
             raise CommandError("Este seed solo se puede ejecutar desde el entorno de aceptación aislado.")
         usuario, creado = get_user_model().objects.get_or_create(
             username="aceptacion_plan_183",

@@ -173,6 +173,69 @@ class ReportesExportablesTests(TestCase):
         self.assertEqual(self._csv(csv_response)[1][-3:], ["15/07/2026", "5", "Merienda"])
         self.assertEqual(self._xlsx(xlsx_response)[1][-3:], ("15/07/2026", 5, "Merienda"))
 
+    def test_periodo_dispositivos_muestra_y_exporta_el_mismo_conjunto_inclusivo(self):
+        inicio = timezone.make_aware(datetime(2026, 7, 1, 9, 0))
+        fin = timezone.make_aware(datetime(2026, 7, 31, 18, 0))
+        ciudadano = Ciudadano.objects.create(dni="38000003", nombre="Cora", apellido="Período")
+        Admision.objects.create(
+            ciudadano=ciudadano,
+            dispositivo=self.dispositivo,
+            fecha_ingreso=inicio,
+            estado=Admision.Estado.ALOJADO,
+        )
+        Admision.objects.create(
+            ciudadano=Ciudadano.objects.create(dni="38000004", nombre="Dino", apellido="Egreso"),
+            dispositivo=self.otro_dispositivo,
+            fecha_ingreso=timezone.make_aware(datetime(2026, 6, 30, 9, 0)),
+            fecha_egreso=fin,
+            estado=Admision.Estado.EGRESADO,
+        )
+        filtros = {"desde": "2026-07-01", "hasta": "2026-07-31"}
+
+        listado = self.client.get(reverse("dispositivos:lista"), filtros)
+        padron_csv = self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"]), filtros)
+        padron_xlsx = self.client.get(reverse("dispositivos:exportar", args=["padron", "xlsx"]), filtros)
+        movimientos_csv = self.client.get(reverse("dispositivos:exportar", args=["movimientos", "csv"]), filtros)
+        movimientos_xlsx = self.client.get(reverse("dispositivos:exportar", args=["movimientos", "xlsx"]), filtros)
+
+        visibles = {dispositivo.codigo for dispositivo in listado.context["dispositivos"]}
+        self.assertEqual(visibles, {"DIS-001", "DIS-002"})
+        self.assertEqual({fila[0] for fila in self._csv(padron_csv)[1:]}, visibles)
+        self.assertEqual({fila[0] for fila in self._xlsx(padron_xlsx)[1:]}, visibles)
+        self.assertEqual({fila[2] for fila in self._csv(movimientos_csv)[1:]}, visibles)
+        self.assertEqual({fila[2] for fila in self._xlsx(movimientos_xlsx)[1:]}, visibles)
+
+    def test_periodo_merenderos_muestra_y_exporta_el_mismo_conjunto_no_anulado(self):
+        EntregaMercaderia.objects.create(
+            merendero=self.merendero,
+            fecha=date(2026, 7, 1),
+            cantidad_kits=5,
+            servicio="Merienda",
+        )
+        merendero_anulado = Merendero.objects.create(
+            codigo="MER-003",
+            nombre="Merendero Anulado",
+            domicilio="Calle 3",
+            responsable_nombre="Cora",
+        )
+        EntregaMercaderia.objects.create(
+            merendero=merendero_anulado,
+            fecha=date(2026, 7, 31),
+            cantidad_kits=5,
+            servicio="Merienda",
+            anulada=True,
+        )
+        filtros = {"desde": "2026-07-01", "hasta": "2026-07-31"}
+
+        listado = self.client.get(reverse("merenderos:lista"), filtros)
+        csv_response = self.client.get(reverse("merenderos:exportar", args=["csv"]), filtros)
+        xlsx_response = self.client.get(reverse("merenderos:exportar", args=["xlsx"]), filtros)
+
+        visibles = {merendero.codigo for merendero in listado.context["merenderos"]}
+        self.assertEqual(visibles, {"MER-001"})
+        self.assertEqual({fila[0] for fila in self._csv(csv_response)[1:]}, visibles)
+        self.assertEqual({fila[0] for fila in self._xlsx(xlsx_response)[1:]}, visibles)
+
     def test_exportaciones_neutralizan_formulas_en_csv_y_excel(self):
         for espacio in ("", "\t"):
             for prefijo in ("=", "+", "-", "@"):

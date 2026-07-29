@@ -3,7 +3,6 @@
 import csv
 
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.utils.dateparse import parse_date
 from django.views import View
 from openpyxl import Workbook
 
@@ -11,30 +10,19 @@ from programas.models import Merendero
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.reportes import (
     filtrar_dispositivos,
+    filtrar_merenderos,
     movimientos_dispositivos,
     ocupacion_dispositivos,
     padron_dispositivos,
     padron_merenderos_con_entregas,
+    parsear_periodo,
 )
 from programas.views.dispositivos_legajo import DispositivoProgramaPermissionMixin
 from programas.views.merenderos import MerenderosPermissionMixin
 
 
 def _periodo(request):
-    desde = _fecha(request.GET.get("desde"), "desde")
-    hasta = _fecha(request.GET.get("hasta"), "hasta")
-    if desde and hasta and desde > hasta:
-        raise ValueError("La fecha desde no puede ser posterior a la fecha hasta.")
-    return desde, hasta
-
-
-def _fecha(valor, nombre):
-    if not valor:
-        return None
-    fecha = parse_date(valor)
-    if fecha is None:
-        raise ValueError(f"La fecha {nombre} no es válida.")
-    return fecha
+    return parsear_periodo(request.GET.get("desde"), request.GET.get("hasta"))
 
 
 def _celda_segura(valor):
@@ -80,6 +68,8 @@ class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
             tipo=request.GET.get("tipo"),
             estado=request.GET.get("estado"),
             localidad=request.GET.get("localidad", "").strip(),
+            desde=desde,
+            hasta=hasta,
         )
         if reporte == "padron":
             return _respuesta(padron_dispositivos(dispositivos), formato, "padron_dispositivos")
@@ -103,13 +93,13 @@ class MerenderoExportView(MerenderosPermissionMixin, View):
         except ValueError as error:
             return HttpResponseBadRequest(str(error))
 
-        merenderos = Merendero.objects.all()
-        estado = request.GET.get("estado")
-        termino = request.GET.get("q", "").strip()
-        if estado:
-            merenderos = merenderos.filter(estado=estado)
-        if termino:
-            merenderos = merenderos.filter(nombre__icontains=termino)
+        merenderos = filtrar_merenderos(
+            Merendero.objects.all(),
+            estado=request.GET.get("estado"),
+            termino=request.GET.get("q", "").strip(),
+            desde=desde,
+            hasta=hasta,
+        )
         return _respuesta(
             padron_merenderos_con_entregas(merenderos, desde=desde, hasta=hasta),
             formato,

@@ -154,3 +154,41 @@ class ImportPadronCommandTests(TestCase):
         self.assertEqual(merendero.fuente_padron, "Ministerio")
         self.assertEqual(dispositivo.fecha_padron, date(2026, 7, 29))
         self.assertEqual(merendero.responsable_padron, "Operador de carga")
+
+    def test_omite_codigos_legacy_ignorando_mayusculas_y_espacios(self):
+        tipo = TipoDispositivo.objects.create(codigo="LEG", nombre="Tipo legacy")
+        Dispositivo.objects.create(
+            codigo="dis   legacy",
+            nombre="Dispositivo legacy",
+            tipo=tipo,
+        )
+        Merendero.objects.create(
+            codigo="mer   legacy",
+            nombre="Merendero legacy",
+            domicilio="Calle 1",
+            responsable_nombre="Ana",
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            archivo = Path(directory) / "padron.csv"
+            archivo.write_text(
+                "entidad,codigo,nombre,tipo,domicilio,responsable_nombre\n"
+                "DISPOSITIVO,  DIS LEGACY  ,Otro dispositivo,LEG,Calle 2,Beto\n"
+                "MERENDERO,  MER LEGACY  ,Otro merendero,,Calle 3,Cora\n",
+                encoding="utf-8",
+            )
+
+            call_command(
+                "import_padron_dispositivos",
+                "--file",
+                str(archivo),
+                "--fuente",
+                "Ministerio",
+                "--fecha",
+                "2026-07-29",
+                "--responsable",
+                "Operador de carga",
+            )
+
+        self.assertEqual(Dispositivo.objects.count(), 1)
+        self.assertEqual(Merendero.objects.count(), 1)

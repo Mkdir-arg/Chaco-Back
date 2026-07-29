@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from django.db.models import Count, Prefetch, Q
+from django.utils.dateparse import parse_date
 
 from programas.models import Admision, Cama, EntregaMercaderia
 
@@ -14,13 +15,43 @@ class Reporte:
     filas: tuple[tuple, ...]
 
 
-def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None):
+def parsear_periodo(desde_valor, hasta_valor):
+    desde = _fecha(desde_valor, "desde")
+    hasta = _fecha(hasta_valor, "hasta")
+    if desde and hasta and desde > hasta:
+        raise ValueError("La fecha desde no puede ser posterior a la fecha hasta.")
+    return desde, hasta
+
+
+def _fecha(valor, nombre):
+    if not valor:
+        return None
+    fecha = parse_date(valor)
+    if fecha is None:
+        raise ValueError(f"La fecha {nombre} no es válida.")
+    return fecha
+
+
+def _movimientos_en_periodo(desde, hasta, *, prefijo=""):
+    ingreso, egreso = Q(), Q()
+    if desde:
+        ingreso &= Q(**{f"{prefijo}fecha_ingreso__date__gte": desde})
+        egreso &= Q(**{f"{prefijo}fecha_egreso__date__gte": desde})
+    if hasta:
+        ingreso &= Q(**{f"{prefijo}fecha_ingreso__date__lte": hasta})
+        egreso &= Q(**{f"{prefijo}fecha_egreso__date__lte": hasta})
+    return ingreso | egreso
+
+
+def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None, desde=None, hasta=None):
     if tipo:
         dispositivos = dispositivos.filter(tipo_id=tipo)
     if estado:
         dispositivos = dispositivos.filter(estado=estado)
     if localidad:
         dispositivos = dispositivos.filter(localidad__icontains=localidad)
+    if desde or hasta:
+        dispositivos = dispositivos.filter(_movimientos_en_periodo(desde, hasta, prefijo="admisiones__")).distinct()
     return dispositivos
 
 
@@ -85,10 +116,8 @@ def movimientos_dispositivos(dispositivos, *, desde: date | None = None, hasta: 
     admisiones = Admision.objects.filter(dispositivo__in=dispositivos).select_related(
         "ciudadano", "dispositivo", "dispositivo__tipo"
     )
-    if desde:
-        admisiones = admisiones.filter(Q(fecha_ingreso__date__gte=desde) | Q(fecha_egreso__date__gte=desde))
-    if hasta:
-        admisiones = admisiones.filter(Q(fecha_ingreso__date__lte=hasta) | Q(fecha_egreso__date__lte=hasta))
+    if desde or hasta:
+        admisiones = admisiones.filter(_movimientos_en_periodo(desde, hasta))
 
     movimientos = []
     for admision in admisiones:
@@ -129,6 +158,21 @@ def movimientos_dispositivos(dispositivos, *, desde: date | None = None, hasta: 
         encabezados=("Movimiento", "Fecha", "Código", "Dispositivo", "Tipo", "Ciudadano", "Estado de la estadía"),
         filas=filas,
     )
+
+
+def filtrar_merenderos(merenderos, *, estado=None, termino=None, desde=None, hasta=None):
+    if estado:
+        merenderos = merenderos.filter(estado=estado)
+    if termino:
+        merenderos = merenderos.filter(nombre__icontains=termino)
+    if desde or hasta:
+        entregas = Q(entregas_mercaderia__anulada=False)
+        if desde:
+            entregas &= Q(entregas_mercaderia__fecha__gte=desde)
+        if hasta:
+            entregas &= Q(entregas_mercaderia__fecha__lte=hasta)
+        merenderos = merenderos.filter(entregas).distinct()
+    return merenderos
 
 
 def padron_merenderos_con_entregas(merenderos, *, desde: date | None = None, hasta: date | None = None):

@@ -25,6 +25,10 @@ _CAMPOS_REQUERIDOS_VALIDACION = (
 )
 
 
+def normalizar_codigo_institucional(codigo):
+    return " ".join(codigo.split()).upper()
+
+
 def programa_dispositivos(user=None):
     """Obtiene el programa y cachea su ausencia solo durante la request."""
 
@@ -154,7 +158,7 @@ def buscar_posibles_duplicados(*, codigo="", nombre="", localidad=""):
 
     from programas.models import Dispositivo
 
-    codigo_normalizado = " ".join(codigo.split()).upper()
+    codigo_normalizado = normalizar_codigo_institucional(codigo)
     nombre = nombre.strip()
     localidad = localidad.strip()
 
