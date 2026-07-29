@@ -18,6 +18,7 @@ urlpatterns = [
     path("<int:pk>/cerrar/", legajo.DispositivoCerrarView.as_view(), name="cerrar"),
     path("<int:pk>/camas/agregar/", legajo.CamasCreateView.as_view(), name="camas_agregar"),
     path("<int:pk>/admisiones/nueva/", admisiones.AdmisionCreateView.as_view(), name="admitir"),
+    path("<int:pk>/parte-diario/", admisiones.ParteDiarioView.as_view(), name="parte_diario"),
     path("<int:pk>/admisiones/espera/", admisiones.EsperaAdmisionListView.as_view(), name="espera"),
     path("<int:pk>/admisiones/<int:admision_pk>/egreso/", admisiones.EgresoAdmisionView.as_view(), name="egresar"),
     path(

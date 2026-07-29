@@ -1,0 +1,12 @@
+{% extends "includes/base.html" %}
+{% block title %}Dispositivos · {{ ciudadano.nombre_completo }}{% endblock %}
+{% block main-content %}
+<main class="mx-auto max-w-5xl py-8">
+  <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver al legajo</a>
+  <section class="mt-5 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+    <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand">Legajo ciudadano</p>
+    <h1 class="mt-1 text-2xl font-bold text-heading">Dispositivos · {{ ciudadano.nombre_completo }}</h1>
+    <div class="mt-6 space-y-3">{% for admision in admisiones %}<article class="rounded-lg border border-light p-4"><div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-semibold text-heading">{{ admision.dispositivo.nombre }}</h2><span class="text-sm text-body-subtle">{{ admision.get_estado_display }}</span></div><dl class="mt-3 grid gap-3 sm:grid-cols-3 text-sm"><div><dt class="text-body-subtle">Ingreso</dt><dd class="font-medium text-heading">{{ admision.fecha_ingreso|date:'d/m/Y H:i' }}</dd></div><div><dt class="text-body-subtle">Cama</dt><dd class="font-medium text-heading">{% if admision.cama %}{{ admision.cama.codigo }}{% else %}—{% endif %}</dd></div><div><dt class="text-body-subtle">Reingreso</dt><dd class="font-medium text-heading">{% if admision.es_reingreso %}Sí{% else %}No{% endif %}</dd></div></dl></article>{% endfor %}</div>
+  </section>
+</main>
+{% endblock %}
