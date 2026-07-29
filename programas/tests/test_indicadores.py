@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from legajos.models import Ciudadano
+from programas.admin import ProgramaAdmin
 from programas.models import (
     Admision,
     Cama,
@@ -23,6 +24,19 @@ class IndicadoresDispositivoTests(TestCase):
             codigo=Programa.TipoPrograma.DISPOSITIVOS,
             nombre="Dispositivos",
             **umbrales,
+        )
+
+    def test_umbrales_centralizados_se_editan_desde_el_admin_del_programa(self):
+        campos = {campo for _, opciones in ProgramaAdmin.fieldsets for campo in opciones["fields"]}
+
+        self.assertTrue(
+            {
+                "umbral_disponibilidad_verde",
+                "dias_actualizacion_verde",
+                "dias_actualizacion_amarillo",
+                "umbral_completitud_amarillo",
+                "umbral_completitud_verde",
+            }.issubset(campos)
         )
 
     def test_calcula_indicadores_desde_camas_registro_diario_y_f00_activo(self):

@@ -49,6 +49,18 @@ class ProgramaAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Indicadores operativos",
+            {
+                "fields": (
+                    "umbral_disponibilidad_verde",
+                    "dias_actualizacion_verde",
+                    "dias_actualizacion_amarillo",
+                    "umbral_completitud_amarillo",
+                    "umbral_completitud_verde",
+                ),
+            },
+        ),
+        (
             "Estado",
             {
                 "fields": ("estado",),
