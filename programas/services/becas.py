@@ -135,15 +135,24 @@ def resolver_ciudadano_offline(formulario):
     dni = datos.get("dni")
     if not dni:
         return None
+    genero = str(datos.get("sexo") or datos.get("genero") or "").strip().upper()
+    if genero not in Ciudadano.Genero.values:
+        genero = ""
 
-    ciudadano, _creado = Ciudadano.objects.get_or_create(
+    ciudadano, creado = Ciudadano.objects.get_or_create(
         dni=dni,
         defaults={
             "nombre": datos.get("nombre", ""),
             "apellido": datos.get("apellido", ""),
             "fecha_nacimiento": datos.get("fecha_nacimiento") or None,
+            "genero": genero,
         },
     )
+    # Si el ciudadano ya existía, completamos el sexo únicamente cuando todavía
+    # no tenía uno registrado. Nunca pisamos un dato previo del legajo.
+    if not creado and not ciudadano.genero and genero:
+        ciudadano.genero = genero
+        ciudadano.save(update_fields=["genero", "modificado"])
     formulario.ciudadano = ciudadano
     formulario.datos_identificacion = None
     formulario.save(update_fields=["ciudadano", "datos_identificacion", "modificado"])

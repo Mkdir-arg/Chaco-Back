@@ -4,13 +4,16 @@ Auth por token (DRF authtoken). El territorial solo ve/gestiona SUS relevamiento
 y formularios. Capacidad requerida: ``becas.campo``.
 """
 
+from datetime import timedelta
+
 from django.db.models import Count
 from django.utils import timezone
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
@@ -27,6 +30,15 @@ from programas.models import Formulario, Relevamiento
 from programas.services.becas import resolver_ciudadano_offline
 
 CAP = "becas.campo"
+
+
+def _captura_habilitada(relevamiento, capturado_en=None):
+    """Permite operar hoy o sincronizar después una captura hecha en fecha."""
+    if capturado_en is None:
+        return relevamiento.fecha_asignada == timezone.localdate()
+    if capturado_en > timezone.now() + timedelta(minutes=5):
+        return False
+    return timezone.localdate(capturado_en) == relevamiento.fecha_asignada
 
 
 class CampoBecasPermission(BasePermission):
@@ -122,12 +134,15 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, CampoBecasPermission]
 
     def get_queryset(self):
-        return (
+        queryset = (
             Relevamiento.objects.filter(territorial=self.request.user)
             .select_related("convocatoria__segmento", "convocatoria__subsegmento")
             .annotate(formularios_count=Count("formularios"))
             .order_by("-fecha_asignada")
         )
+        if self.action == "list":
+            queryset = queryset.filter(fecha_asignada=timezone.localdate())
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -137,6 +152,11 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def iniciar(self, request, pk=None):
         rel = self.get_object()
+        if rel.fecha_asignada != timezone.localdate():
+            return Response(
+                {"detail": "Solo se puede relevar durante la fecha asignada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if rel.estado != Relevamiento.Estado.ASIGNADO:
             return Response({"detail": "Solo se puede iniciar un relevamiento asignado."}, status=400)
         rel.estado = Relevamiento.Estado.EN_CURSO
@@ -146,6 +166,20 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def finalizar(self, request, pk=None):
         rel = self.get_object()
+        capturado_en = request.data.get("capturado_en")
+        if capturado_en:
+            try:
+                capturado_en = serializers.DateTimeField().to_internal_value(capturado_en)
+            except serializers.ValidationError:
+                return Response(
+                    {"capturado_en": "La fecha de captura no es válida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if not _captura_habilitada(rel, capturado_en):
+            return Response(
+                {"detail": "Solo se puede relevar durante la fecha asignada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if rel.estado not in (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO):
             return Response({"detail": "El relevamiento no está en curso."}, status=400)
         rel.estado = Relevamiento.Estado.FINALIZADO
@@ -156,6 +190,11 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def reabrir(self, request, pk=None):
         rel = self.get_object()
+        if rel.fecha_asignada != timezone.localdate():
+            return Response(
+                {"detail": "Solo se puede relevar durante la fecha asignada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if rel.estado != Relevamiento.Estado.FINALIZADO:
             return Response({"detail": "Solo se puede reabrir un relevamiento finalizado."}, status=400)
         rel.estado = Relevamiento.Estado.EN_CURSO
@@ -175,6 +214,17 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = FormularioSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        capturado_en = serializer.validated_data.get("capturado_en")
+        if not _captura_habilitada(rel, capturado_en):
+            return Response(
+                {"detail": "La captura se realizó fuera de la fecha asignada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        client_uuid = serializer.validated_data.get("client_uuid")
+        if client_uuid:
+            existente = rel.formularios.filter(client_uuid=client_uuid).first()
+            if existente:
+                return Response(FormularioSerializer(existente).data, status=status.HTTP_200_OK)
         formulario = serializer.save(relevamiento=rel, created_by=request.user)
         _actualizar_validacion_identidad(
             formulario,
@@ -197,6 +247,10 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
         )
 
     def perform_update(self, serializer):
+        formulario = serializer.instance
+        capturado_en = formulario.capturado_en or serializer.validated_data.get("capturado_en")
+        if not _captura_habilitada(formulario.relevamiento, capturado_en):
+            raise ValidationError({"detail": "El relevamiento está fuera de su fecha asignada."})
         formulario = serializer.save()
         _actualizar_validacion_identidad(
             formulario,
@@ -216,6 +270,11 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
         if request.method == "GET":
             return Response(AdjuntoFormularioSerializer(formulario.adjuntos.all(), many=True).data)
 
+        if not _captura_habilitada(formulario.relevamiento, formulario.capturado_en):
+            return Response(
+                {"detail": "El relevamiento está fuera de su fecha asignada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = AdjuntoFormularioSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         adjunto = serializer.save(formulario=formulario)

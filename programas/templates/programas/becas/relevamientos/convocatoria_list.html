@@ -5,7 +5,7 @@
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
 <div class="mb-8"
-     x-data="{ modalCrear: false }"
+     x-data="convocatoriasPage('{% url 'becas:segmento_subsegmentos_json' pk=0 %}')"
      @becas-saved.window="modalCrear=false">
 
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
@@ -44,7 +44,10 @@
         </button>
       </div>
 
-      <form method="post" action="{% url 'becas:convocatoria_crear' %}" data-ajax>
+      <form method="post"
+            action="{% url 'becas:convocatoria_crear' %}"
+            data-ajax
+            data-convocatoria-modal>
         {% csrf_token %}
         <input type="hidden" name="activo" value="on">
         <div class="p-6 space-y-4">
@@ -62,6 +65,14 @@
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
               {{ form_convocatoria.subsegmento }}
+              <p x-show="loadingSubsegmentos"
+                 class="mt-1 text-xs text-body-subtle"
+                 role="status"
+                 aria-live="polite">Cargando subsegmentos…</p>
+              <p x-show="subsegmentosError"
+                 x-text="subsegmentosError"
+                 class="mt-1 text-xs text-fg-danger"
+                 role="alert"></p>
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="subsegmento"></p>
             </div>
           </div>
@@ -93,4 +104,60 @@
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% include "programas/becas/relevamientos/_reactivar_convocatoria_js.html" %}{% endblock %}
+{% block customJS %}
+{% include "programas/becas/_ajax_js.html" %}
+{% include "programas/becas/relevamientos/_reactivar_convocatoria_js.html" %}
+<script>
+function convocatoriasPage(subsegmentosUrlTemplate) {
+  return {
+    modalCrear: false,
+    loadingSubsegmentos: false,
+    subsegmentosError: '',
+    requestSequence: 0,
+
+    init() {
+      const form = this.$el.querySelector('[data-convocatoria-modal]');
+      const segmento = form?.querySelector('[name="segmento"]');
+      const subsegmento = form?.querySelector('[name="subsegmento"]');
+      if (!segmento || !subsegmento) return;
+
+      subsegmento.disabled = !segmento.value;
+      segmento.addEventListener('change', () => {
+        this.cargarSubsegmentos(segmento.value, subsegmento);
+      });
+    },
+
+    async cargarSubsegmentos(segmentoId, subsegmento) {
+      const sequence = ++this.requestSequence;
+      subsegmento.replaceChildren(new Option('---------', ''));
+      this.subsegmentosError = '';
+      if (!segmentoId) {
+        subsegmento.disabled = true;
+        return;
+      }
+
+      this.loadingSubsegmentos = true;
+      subsegmento.disabled = true;
+      try {
+        const url = subsegmentosUrlTemplate.replace('/0/', `/${segmentoId}/`);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const subsegmentos = await response.json();
+        if (sequence !== this.requestSequence) return;
+        subsegmentos.forEach((item) => {
+          subsegmento.add(new Option(item.nombre, item.id));
+        });
+        subsegmento.disabled = false;
+      } catch (_) {
+        if (sequence !== this.requestSequence) return;
+        this.subsegmentosError = 'No se pudieron cargar los subsegmentos. Intentá nuevamente.';
+      } finally {
+        if (sequence === this.requestSequence) {
+          this.loadingSubsegmentos = false;
+        }
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -922,7 +922,10 @@ class FormularioRevisionForm(forms.ModelForm):
             "email_contacto": forms.EmailInput(attrs={"class": INPUT_CLASS}),
             "apoderado_nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "apoderado_apellido": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "apoderado_fecha_nacimiento": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+            "apoderado_fecha_nacimiento": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={"class": INPUT_CLASS, "type": "date"},
+            ),
         }
 
     def clean(self):
@@ -943,3 +946,13 @@ class FormularioRevisionForm(forms.ModelForm):
                 if not cleaned_data.get(campo):
                     self.add_error(campo, "Este dato es obligatorio cuando la persona relevada es menor de edad.")
         return cleaned_data
+
+
+class CiudadanoGeneroRevisionForm(forms.Form):
+    """Carga el sexo registral requerido para consultar RENAPER."""
+
+    genero = forms.ChoiceField(
+        label="Sexo",
+        choices=[("", "Seleccionar..."), ("M", "M"), ("F", "F"), ("X", "X")],
+        widget=forms.RadioSelect(),
+    )

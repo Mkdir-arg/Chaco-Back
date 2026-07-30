@@ -1,12 +1,14 @@
 """Tests de la API REST de campo de Becas (#82)."""
 
-from datetime import date
+from datetime import date, timedelta
 from io import StringIO
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from legajos.models import Ciudadano
@@ -37,13 +39,13 @@ class _BaseApiTest(APITestCase):
         self.rel = Relevamiento.objects.create(
             convocatoria=self.conv,
             territorial=self.terri,
-            fecha_asignada=date(2026, 6, 1),
+            fecha_asignada=timezone.localdate(),
             zona="Centro",
         )
         self.rel_ajeno = Relevamiento.objects.create(
             convocatoria=self.conv,
             territorial=self.terri2,
-            fecha_asignada=date(2026, 6, 1),
+            fecha_asignada=timezone.localdate(),
             zona="Otra",
         )
 
@@ -83,6 +85,29 @@ class RelevamientoApiTests(_BaseApiTest):
         ids = [r["id"] for r in resp.data["results"]]
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(self.rel_ajeno.id, ids)
+
+    def test_lista_solo_relevamientos_asignados_hoy(self):
+        vencido = Relevamiento.objects.create(
+            convocatoria=self.conv,
+            territorial=self.terri,
+            fecha_asignada=timezone.localdate() - timedelta(days=1),
+            zona="Vencida",
+        )
+        futuro = Relevamiento.objects.create(
+            convocatoria=self.conv,
+            territorial=self.terri,
+            fecha_asignada=timezone.localdate() + timedelta(days=1),
+            zona="Futura",
+        )
+        self.autenticar(self.terri)
+
+        resp = self.client.get(reverse("becas_api:relevamiento-list"))
+
+        self.assertEqual(resp.status_code, 200)
+        ids = [r["id"] for r in resp.data["results"]]
+        self.assertIn(self.rel.id, ids)
+        self.assertNotIn(vencido.id, ids)
+        self.assertNotIn(futuro.id, ids)
 
     def test_detalle_incluye_definicion(self):
         PreguntaGlobal.objects.create(texto="Tenencia", tipo=TipoCampo.STRING, activo=True, orden=1)
@@ -124,6 +149,16 @@ class RelevamientoApiTests(_BaseApiTest):
         self.autenticar(self.terri)
         resp = self.client.post(reverse("becas_api:relevamiento-iniciar", args=[self.rel.id]))
         self.assertEqual(resp.status_code, 400)
+
+    def test_no_permite_iniciar_relevamiento_fuera_de_fecha(self):
+        self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
+        self.rel.save(update_fields=["fecha_asignada"])
+        self.autenticar(self.terri)
+
+        resp = self.client.post(reverse("becas_api:relevamiento-iniciar", args=[self.rel.id]))
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("fecha asignada", resp.data["detail"])
 
 
 class RenaperBecasApiTests(_BaseApiTest):
@@ -342,11 +377,25 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 201)
 
     def test_listar_formularios_del_relevamiento(self):
-        Formulario.objects.create(relevamiento=self.rel, celular="1", email_contacto="a@b.com")
+        ciudadano = Ciudadano.objects.create(
+            dni="12345678",
+            nombre="Nombre",
+            apellido="Visible",
+            fecha_nacimiento=date(1990, 1, 1),
+        )
+        Formulario.objects.create(
+            relevamiento=self.rel,
+            ciudadano=ciudadano,
+            celular="1",
+            email_contacto="a@b.com",
+        )
         self.autenticar(self.terri)
         url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 200)
+        formulario = resp.data["results"][0]
+        self.assertEqual(formulario["ciudadano_nombre"], "Nombre")
+        self.assertEqual(formulario["ciudadano_apellido"], "Visible")
 
     def test_actualizar_formulario(self):
         form = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
@@ -356,3 +405,84 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 200)
         form.refresh_from_db()
         self.assertEqual(form.celular, "999")
+
+    def test_no_permite_crear_formulario_fuera_de_fecha(self):
+        self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
+        self.rel.save(update_fields=["fecha_asignada"])
+        self.autenticar(self.terri)
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.id]),
+            {
+                "celular": "3624111222",
+                "email_contacto": "offline@demo.local",
+                "datos_identificacion": {"dni": "40400400"},
+                "data": {"globales": {}, "requisitos": {}},
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("fuera de la fecha", resp.data["detail"])
+
+    def test_permite_sincronizar_despues_una_captura_hecha_en_fecha(self):
+        capturado_en = timezone.now() - timedelta(days=1)
+        self.rel.fecha_asignada = timezone.localdate(capturado_en)
+        self.rel.save(update_fields=["fecha_asignada"])
+        client_uuid = uuid4()
+        self.autenticar(self.terri)
+
+        resp = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.id]),
+            {
+                "client_uuid": str(client_uuid),
+                "capturado_en": capturado_en.isoformat(),
+                "celular": "3624111222",
+                "email_contacto": "offline@demo.local",
+                "datos_identificacion": {"dni": "40400400"},
+                "data": {"globales": {}, "requisitos": {}},
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201)
+        formulario = Formulario.objects.get(client_uuid=client_uuid)
+        self.assertEqual(formulario.relevamiento, self.rel)
+        self.assertEqual(timezone.localdate(formulario.capturado_en), self.rel.fecha_asignada)
+
+    def test_reintento_con_mismo_uuid_no_duplica_formulario(self):
+        client_uuid = uuid4()
+        payload = {
+            "client_uuid": str(client_uuid),
+            "capturado_en": timezone.now().isoformat(),
+            "celular": "3624111222",
+            "email_contacto": "offline@demo.local",
+            "datos_identificacion": {"dni": "40400400"},
+            "data": {"globales": {}, "requisitos": {}},
+        }
+        self.autenticar(self.terri)
+        url = reverse("becas_api:relevamiento-formularios", args=[self.rel.id])
+
+        primera = self.client.post(url, payload, format="json")
+        segunda = self.client.post(url, payload, format="json")
+
+        self.assertEqual(primera.status_code, 201)
+        self.assertEqual(segunda.status_code, 200)
+        self.assertEqual(primera.data["id"], segunda.data["id"])
+        self.assertEqual(Formulario.objects.filter(client_uuid=client_uuid).count(), 1)
+
+    def test_no_permite_actualizar_formulario_fuera_de_fecha(self):
+        form = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
+        self.rel.fecha_asignada = timezone.localdate() - timedelta(days=1)
+        self.rel.save(update_fields=["fecha_asignada"])
+        self.autenticar(self.terri)
+
+        resp = self.client.patch(
+            reverse("becas_api:formulario-detail", args=[form.id]),
+            {"celular": "999"},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 400)
+        form.refresh_from_db()
+        self.assertEqual(form.celular, "111")
