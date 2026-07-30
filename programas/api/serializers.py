@@ -45,17 +45,25 @@ class RelevamientoDetailSerializer(RelevamientoListSerializer):
 
 class FormularioSerializer(serializers.ModelSerializer):
     ciudadano_dni = serializers.CharField(source="ciudadano.dni", read_only=True)
+    ciudadano_nombre = serializers.CharField(source="ciudadano.nombre", read_only=True)
+    ciudadano_apellido = serializers.CharField(source="ciudadano.apellido", read_only=True)
+    client_uuid = serializers.UUIDField(required=False, allow_null=True)
+    capturado_en = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = Formulario
         fields = [
             "id",
+            "client_uuid",
+            "capturado_en",
             "relevamiento",
             "estado",
             "motivo_rechazo",
             "validado_renaper",
             "ciudadano",
             "ciudadano_dni",
+            "ciudadano_nombre",
+            "ciudadano_apellido",
             "datos_identificacion",
             "celular",
             "email_contacto",
@@ -75,6 +83,8 @@ class FormularioSerializer(serializers.ModelSerializer):
             "motivo_rechazo",
             "ciudadano",
             "ciudadano_dni",
+            "ciudadano_nombre",
+            "ciudadano_apellido",
             "creado",
             "modificado",
         ]

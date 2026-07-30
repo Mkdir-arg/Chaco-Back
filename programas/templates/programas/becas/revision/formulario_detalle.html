@@ -3,6 +3,42 @@
 {% block title %}Becas · Formulario #{{ formulario.pk }}{% endblock %}
 
 {% block main-content %}
+<style>
+  .sexo-pill input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sexo-pill span {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-base);
+    border-radius: 9999px;
+    background: var(--bg-primary);
+    color: var(--text-body);
+    font-size: 13px;
+    font-weight: 700;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .sexo-pill:hover span {
+    border-color: var(--border-brand);
+    color: var(--text-fg-brand);
+  }
+  .sexo-pill input:checked + span {
+    border-color: var(--bg-brand);
+    background: var(--bg-brand);
+    color: #fff;
+  }
+  .sexo-pill input:focus-visible + span {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+</style>
 <div class="max-w-[1180px] mx-auto space-y-6">
 
   {# Header #}
@@ -37,7 +73,7 @@
       <h2 class="text-heading font-bold" style="font-size:16px;">Identidad</h2>
     </div>
     <div class="p-6">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div>
           <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Nombre completo</dt>
           <dd class="text-heading font-medium text-sm">
@@ -63,6 +99,49 @@
           </dd>
         </div>
         <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Sexo</dt>
+          <dd class="text-sm">
+            {% if formulario.ciudadano %}
+              {% if formulario.validado_renaper and formulario.ciudadano.genero %}
+                <span class="text-heading font-medium">
+                  {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
+                </span>
+              {% elif puede_revalidar_renaper %}
+                <form method="post"
+                      action="{% url 'becas:formulario_actualizar_genero' formulario.pk %}"
+                      class="flex items-center gap-2">
+                  {% csrf_token %}
+                  <div class="flex items-center gap-1.5" role="radiogroup" aria-label="Sexo">
+                    {% for opcion in genero_form.genero %}
+                      {% if opcion.data.value %}
+                        <label class="sexo-pill cursor-pointer">
+                          {{ opcion.tag }}
+                          <span>{{ opcion.choice_label }}</span>
+                        </label>
+                      {% endif %}
+                    {% endfor %}
+                    {% for error in genero_form.genero.errors %}
+                      <p class="mt-1 text-xs text-fg-danger">{{ error }}</p>
+                    {% endfor %}
+                  </div>
+                  <button type="submit"
+                          class="btn-nodo btn-tertiary btn-sm"
+                          style="width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;"
+                          aria-label="Guardar sexo"
+                          title="Guardar sexo">
+                    <i class="fas fa-save" aria-hidden="true"></i>
+                    <span class="sr-only">Guardar sexo</span>
+                  </button>
+                </form>
+              {% else %}
+                {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
+              {% endif %}
+            {% else %}
+              <span class="text-body-subtle">Sin ciudadano vinculado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
           <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">RENAPER</dt>
           <dd class="text-sm">
             {% if formulario.validado_renaper %}
@@ -80,19 +159,99 @@
     </div>
   </section>
 
-  {# 2. Datos de contacto y apoderado (editable) #}
+  {# 2. Trazabilidad temporal y ubicación #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">
+        <i class="fas fa-clock mr-1 text-fg-brand" aria-hidden="true"></i>
+        Trazabilidad de la toma
+      </h2>
+    </div>
+    <div class="p-6 space-y-6">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Fecha asignada</dt>
+          <dd class="text-heading text-sm">{{ relevamiento.fecha_asignada|date:"d/m/Y" }}</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Capturado en el dispositivo</dt>
+          <dd class="text-heading text-sm">
+            {% if formulario.capturado_en %}
+              {{ formulario.capturado_en|date:"d/m/Y H:i:s" }}
+            {% else %}
+              <span class="text-body-subtle">No informado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Recibido en el servidor</dt>
+          <dd class="text-heading text-sm">{{ formulario.creado|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Última actualización</dt>
+          <dd class="text-heading text-sm">{{ formulario.modificado|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+      </dl>
+
+      <div class="border-t border-light pt-5">
+        <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div>
+            <h3 class="text-heading font-semibold text-sm">
+              <i class="fas fa-map-marker-alt mr-1 text-fg-brand" aria-hidden="true"></i>
+              Lugar de la toma
+            </h3>
+            {% if mapa %}
+              <p class="text-xs text-body-subtle mt-1">{{ mapa.latitud }}, {{ mapa.longitud }}</p>
+            {% endif %}
+          </div>
+          {% if mapa %}
+            <a href="{{ mapa.open_url }}" target="_blank" rel="noopener noreferrer"
+               class="btn-nodo btn-tertiary btn-sm">
+              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa
+            </a>
+          {% endif %}
+        </div>
+        {% if mapa %}
+          <iframe
+            title="Mapa del lugar donde se realizó la toma"
+            src="{{ mapa.embed_url }}"
+            class="w-full rounded-xl border border-base"
+            style="height:320px;"
+            loading="lazy">
+          </iframe>
+        {% else %}
+          <div class="rounded-xl bg-secondary border border-light p-5 text-sm text-body-subtle">
+            Este formulario no tiene coordenadas GPS registradas.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# 3. Datos de contacto y apoderado (editable) #}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% csrf_token %}
     <div class="px-5 py-4 border-b border-light">
-      <h2 class="text-heading font-bold" style="font-size:16px;">Datos de contacto y apoderado</h2>
+      <h2 class="text-heading font-bold" style="font-size:16px;">Datos de contacto</h2>
     </div>
     <div class="p-6">
       {% if form.non_field_errors %}
         <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
       {% endif %}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {% for field in form %}<div>{% include "programas/becas/_field.html" %}</div>{% endfor %}
+        <div>{% with field=form.celular %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+        <div>{% with field=form.email_contacto %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
       </div>
+      {% if mostrar_apoderado %}
+        <div class="border-t border-light mt-2 pt-5">
+          <h3 class="text-heading font-semibold text-sm mb-4">Datos del apoderado</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>{% with field=form.apoderado_nombre %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_apellido %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_fecha_nacimiento %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+          </div>
+        </div>
+      {% endif %}
       <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
     </div>
     <div class="flex justify-end px-6 py-4 border-t border-light bg-secondary">
@@ -125,9 +284,9 @@
       <h2 class="text-heading font-bold" style="font-size:16px;">Requisitos del segmento</h2>
     </div>
     <div class="p-6">
-      {% if requisitos_list %}
+      {% if requisitos_segmento %}
       <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-        {% for item in requisitos_list %}
+        {% for item in requisitos_segmento %}
         <div>
           <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">{{ item.label }}</dt>
           <dd class="text-heading text-sm">{% include "programas/becas/_respuesta_valor.html" %}</dd>
@@ -138,7 +297,26 @@
     </div>
   </section>
 
-  {# 5. Resultado SIS (placeholder de integración pendiente) #}
+  {# 5. Requisitos del subsegmento #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Requisitos del subsegmento</h2>
+    </div>
+    <div class="p-6">
+      {% if requisitos_subsegmento %}
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+        {% for item in requisitos_subsegmento %}
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">{{ item.label }}</dt>
+          <dd class="text-heading text-sm">{% include "programas/becas/_respuesta_valor.html" %}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
+    </div>
+  </section>
+
+  {# 6. Resultado SIS (placeholder de integración pendiente) #}
   <section class="rounded-xl border border-base p-6" style="background:var(--bg-secondary);">
     <div class="flex items-center gap-2 mb-2">
       <i class="fas fa-plug text-fg-brand"></i>
@@ -220,12 +398,62 @@
       </div>
     </div>
   </div>
+
+  <div id="image-preview-overlay"
+       class="fixed inset-0 z-[1002] hidden items-center justify-center p-4 sm:p-8"
+       style="background:rgba(0,0,0,.86);"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="image-preview-title">
+    <button type="button" id="image-preview-close"
+            aria-label="Cerrar imagen ampliada"
+            class="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-white"
+            style="background:rgba(255,255,255,.16);">
+      <i class="fas fa-times text-xl" aria-hidden="true"></i>
+    </button>
+    <figure class="flex h-full w-full flex-col items-center justify-center gap-3">
+      <img id="image-preview-img"
+           src=""
+           alt=""
+           class="max-h-[82vh] max-w-full rounded-xl object-contain shadow-2xl">
+      <figcaption id="image-preview-title" class="text-center text-sm font-semibold text-white"></figcaption>
+    </figure>
+  </div>
 </div>
 {% endblock %}
 
 {% block customJS %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  const imageOverlay = document.getElementById('image-preview-overlay');
+  const imagePreview = document.getElementById('image-preview-img');
+  const imageTitle = document.getElementById('image-preview-title');
+  const imageClose = document.getElementById('image-preview-close');
+  let imagePreviouslyFocused = null;
+
+  function closeImagePreview() {
+    imageOverlay.classList.add('hidden');
+    imageOverlay.style.display = 'none';
+    imagePreview.src = '';
+    if (imagePreviouslyFocused) imagePreviouslyFocused.focus();
+  }
+
+  document.querySelectorAll('[data-image-preview]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      imagePreviouslyFocused = trigger;
+      imagePreview.src = trigger.dataset.imageUrl;
+      imagePreview.alt = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageTitle.textContent = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageOverlay.classList.remove('hidden');
+      imageOverlay.style.display = 'flex';
+      imageClose.focus();
+    });
+  });
+  imageClose.addEventListener('click', closeImagePreview);
+  imageOverlay.addEventListener('click', function (event) {
+    if (event.target === imageOverlay) closeImagePreview();
+  });
+
   const btnAprobar = document.getElementById('btn-aprobar');
   if (btnAprobar) {
     btnAprobar.addEventListener('click', function () {
@@ -274,6 +502,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target === rechazoOverlay) cerrarModalRechazo();
   });
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !imageOverlay.classList.contains('hidden')) {
+      closeImagePreview();
+      return;
+    }
     if (e.key === 'Escape' && !rechazoOverlay.classList.contains('hidden')) cerrarModalRechazo();
   });
 

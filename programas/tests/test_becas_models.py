@@ -254,6 +254,7 @@ class FormularioTests(TestCase):
                 "nombre": "Juan",
                 "apellido": "Pérez",
                 "fecha_nacimiento": "1990-01-15",
+                "sexo": "M",
                 "origen": "manual",
             },
         )
@@ -261,6 +262,7 @@ class FormularioTests(TestCase):
         form.refresh_from_db()
         self.assertIsNotNone(form.ciudadano)
         self.assertEqual(form.ciudadano.dni, "99887766")
+        self.assertEqual(form.ciudadano.genero, "M")
         self.assertIsNone(form.datos_identificacion)
         self.assertTrue(Ciudadano.objects.filter(dni="99887766").exists())
 
@@ -280,6 +282,29 @@ class FormularioTests(TestCase):
         # No se modifican los datos del ciudadano existente
         self.assertEqual(existente.nombre, "Ana")
         self.assertEqual(existente.apellido, "López")
+
+    def test_sync_offline_completa_sexo_faltante_sin_pisar_uno_existente(self):
+        sin_genero = Ciudadano.objects.create(dni="55554445", nombre="Ana", apellido="López")
+        form = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="3624100200",
+            email_contacto="a@b.com",
+            datos_identificacion={"dni": sin_genero.dni, "sexo": "F"},
+        )
+        resolver_ciudadano_offline(form)
+        sin_genero.refresh_from_db()
+        self.assertEqual(sin_genero.genero, "F")
+
+        con_genero = Ciudadano.objects.create(dni="55554446", nombre="Luis", apellido="Pérez", genero="M")
+        otro_form = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="3624100201",
+            email_contacto="c@d.com",
+            datos_identificacion={"dni": con_genero.dni, "sexo": "F"},
+        )
+        resolver_ciudadano_offline(otro_form)
+        con_genero.refresh_from_db()
+        self.assertEqual(con_genero.genero, "M")
 
 
 class HelpersTests(TestCase):

@@ -83,6 +83,11 @@ urlpatterns = [
     path("revision/formulario/<int:pk>/aprobar/", rev.formulario_aprobar, name="formulario_aprobar"),
     path("revision/formulario/<int:pk>/rechazar/", rev.formulario_rechazar, name="formulario_rechazar"),
     path(
+        "revision/formulario/<int:pk>/actualizar-genero/",
+        rev.formulario_actualizar_genero,
+        name="formulario_actualizar_genero",
+    ),
+    path(
         "revision/formulario/<int:pk>/revalidar-renaper/",
         rev.formulario_revalidar_renaper,
         name="formulario_revalidar_renaper",

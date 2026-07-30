@@ -1540,6 +1540,19 @@ class Formulario(TimeStamped):
         db_index=True,
         verbose_name="Estado",
     )
+    client_uuid = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador de captura mobile",
+    )
+    capturado_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Fecha de captura en el dispositivo",
+    )
     motivo_rechazo = models.TextField(blank=True, verbose_name="Motivo de rechazo")
     validado_renaper = models.BooleanField(default=False, verbose_name="Validado RENAPER")
 
