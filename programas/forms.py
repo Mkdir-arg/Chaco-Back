@@ -713,7 +713,18 @@ class AsignacionCoordinadorForm(forms.ModelForm):
         # Solo usuarios con el rol Coordinador de Becas (#74).
         from programas.services.autorizacion import usuarios_coordinadores_becas
 
-        self.fields["coordinador"].queryset = usuarios_coordinadores_becas()
+        coordinadores = usuarios_coordinadores_becas()
+        # En el selector solo se ofrecen coordinadores todavía disponibles para
+        # este segmento. En un POST conservamos el queryset completo para que
+        # ``clean()`` pueda informar explícitamente una asignación duplicada en
+        # lugar de devolver el error genérico de "opción no válida".
+        if segmento is not None and not self.is_bound:
+            coordinadores = coordinadores.exclude(
+                pk__in=AsignacionCoordinador.objects.filter(
+                    segmento=segmento,
+                ).values("coordinador_id"),
+            )
+        self.fields["coordinador"].queryset = coordinadores
         self.fields["coordinador"].label_from_instance = lambda u: u.get_full_name() or u.username
 
     def clean(self):
@@ -815,6 +826,11 @@ class _SelectConSegmento(forms.Select):
             segmento_id = getattr(asignacion, "segmento_id", None)
         if segmento_id:
             option["attrs"]["data-segmento"] = segmento_id
+        fecha_inicio = getattr(instance, "fecha_inicio", None)
+        fecha_fin = getattr(instance, "fecha_fin", None)
+        if fecha_inicio and fecha_fin:
+            option["attrs"]["data-fecha-inicio"] = fecha_inicio.isoformat()
+            option["attrs"]["data-fecha-fin"] = fecha_fin.isoformat()
         return option
 
 
@@ -890,6 +906,26 @@ class ReprogramarForm(forms.Form):
         widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
         label="Nueva fecha asignada",
     )
+
+    def __init__(self, *args, convocatoria=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.convocatoria = convocatoria
+        if convocatoria is not None:
+            self.fields["fecha_asignada"].widget.attrs.update(
+                min=convocatoria.fecha_inicio.isoformat(),
+                max=convocatoria.fecha_fin.isoformat(),
+            )
+
+    def clean_fecha_asignada(self):
+        fecha = self.cleaned_data["fecha_asignada"]
+        if self.convocatoria and not self.convocatoria.fecha_inicio <= fecha <= self.convocatoria.fecha_fin:
+            inicio = self.convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = self.convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            raise forms.ValidationError(
+                "La fecha del relevamiento debe estar comprendida dentro "
+                f"del período de la convocatoria ({inicio} - {fin})."
+            )
+        return fecha
 
 
 class FormularioRevisionForm(forms.ModelForm):

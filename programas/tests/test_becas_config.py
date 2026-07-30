@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from programas.forms import AsignacionCoordinadorForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
@@ -175,6 +176,32 @@ class CoordinadorTests(_BaseConfigTest):
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(AsignacionCoordinador.objects.filter(segmento=self.seg, coordinador=self.coord).exists())
+
+    def test_selector_excluye_coordinadores_ya_asignados(self):
+        disponible = User.objects.create_user("coord_disponible", password="x")
+        disponible.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        AsignacionCoordinador.objects.create(segmento=self.seg, coordinador=self.coord)
+
+        form = AsignacionCoordinadorForm(segmento=self.seg)
+        opciones = form.fields["coordinador"].queryset
+
+        self.assertNotIn(self.coord, opciones)
+        self.assertIn(disponible, opciones)
+
+        form_duplicado = AsignacionCoordinadorForm(
+            {"coordinador": self.coord.pk},
+            segmento=self.seg,
+        )
+
+        self.assertFalse(form_duplicado.is_valid())
+        self.assertIn(
+            "Ese coordinador ya está asignado a este segmento.",
+            form_duplicado.errors["coordinador"],
+        )
+        self.assertEqual(
+            AsignacionCoordinador.objects.filter(segmento=self.seg, coordinador=self.coord).count(),
+            1,
+        )
 
     def test_no_asignar_usuario_sin_rol_coordinador(self):
         otro = User.objects.create_user("otro", password="x")  # sin rol coordinador
