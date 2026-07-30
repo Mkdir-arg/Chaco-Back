@@ -86,7 +86,7 @@ class RelevamientoApiTests(_BaseApiTest):
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(self.rel_ajeno.id, ids)
 
-    def test_lista_solo_relevamientos_asignados_hoy(self):
+    def test_lista_incluye_relevamientos_de_hoy_y_proximos(self):
         vencido = Relevamiento.objects.create(
             convocatoria=self.conv,
             territorial=self.terri,
@@ -107,7 +107,7 @@ class RelevamientoApiTests(_BaseApiTest):
         ids = [r["id"] for r in resp.data["results"]]
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(vencido.id, ids)
-        self.assertNotIn(futuro.id, ids)
+        self.assertIn(futuro.id, ids)
 
     def test_detalle_incluye_definicion(self):
         PreguntaGlobal.objects.create(texto="Tenencia", tipo=TipoCampo.STRING, activo=True, orden=1)

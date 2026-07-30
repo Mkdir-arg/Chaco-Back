@@ -8,6 +8,7 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
   (function () {
     const convocatoria = document.getElementById('id_convocatoria');
     const territorial = document.getElementById('id_territorial');
+    const fechaAsignada = document.getElementById('id_fecha_asignada');
     if (!convocatoria || !territorial) return;
 
     const filtrar = () => {
@@ -20,6 +21,10 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
         opt.disabled = !visible;
         if (!visible && opt.selected) opt.selected = false;
       });
+      if (fechaAsignada) {
+        fechaAsignada.min = opcion ? (opcion.dataset.fechaInicio || '') : '';
+        fechaAsignada.max = opcion ? (opcion.dataset.fechaFin || '') : '';
+      }
     };
 
     convocatoria.addEventListener('change', filtrar);

@@ -1328,6 +1328,23 @@ class Relevamiento(TimeStamped):
     def __str__(self):
         return self.nombre
 
+    def clean(self):
+        super().clean()
+        if not self.convocatoria_id or self.fecha_asignada is None:
+            return
+        convocatoria = self.convocatoria
+        if not convocatoria.fecha_inicio <= self.fecha_asignada <= convocatoria.fecha_fin:
+            inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            raise ValidationError(
+                {
+                    "fecha_asignada": (
+                        "La fecha del relevamiento debe estar comprendida dentro "
+                        f"del período de la convocatoria ({inicio} - {fin})."
+                    )
+                }
+            )
+
     @classmethod
     def proximo_nombre(cls):
         """Nombre autogenerado del próximo relevamiento.
