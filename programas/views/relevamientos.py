@@ -473,7 +473,10 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
-        ctx["form_reprogramar"] = ReprogramarForm(initial={"fecha_asignada": rel.fecha_asignada})
+        ctx["form_reprogramar"] = ReprogramarForm(
+            initial={"fecha_asignada": rel.fecha_asignada},
+            convocatoria=rel.convocatoria,
+        )
         # Personas relevadas: se listan en la solapa "Formularios". Se materializa
         # una vez y el contador se deriva en Python (evita un COUNT extra).
         formularios = list(rel.formularios.select_related("ciudadano").order_by("-creado"))
@@ -544,11 +547,11 @@ def relevamiento_reprogramar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
     if request.method == "POST":
-        form = ReprogramarForm(request.POST)
+        form = ReprogramarForm(request.POST, convocatoria=rel.convocatoria)
         if form.is_valid():
             rel.fecha_asignada = form.cleaned_data["fecha_asignada"]
             rel.save(update_fields=["fecha_asignada", "modificado"])
             messages.success(request, "Relevamiento reprogramado.")
         else:
-            messages.error(request, "Fecha inválida.")
+            messages.error(request, form.errors["fecha_asignada"][0])
     return redirect("becas:relevamiento_detalle", pk=rel.pk)

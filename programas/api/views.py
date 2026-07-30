@@ -141,7 +141,9 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             .order_by("-fecha_asignada")
         )
         if self.action == "list":
-            queryset = queryset.filter(fecha_asignada=timezone.localdate())
+            queryset = queryset.filter(
+                fecha_asignada__gte=timezone.localdate(),
+            ).order_by("fecha_asignada", "nombre")
         return queryset
 
     def get_serializer_class(self):

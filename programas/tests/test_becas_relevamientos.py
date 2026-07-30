@@ -14,6 +14,7 @@ from programas.management.commands.seed_becas import (
     ROL_COORDINADOR,
     ROL_TERRITORIAL,
 )
+from programas.forms import RelevamientoForm, ReprogramarForm
 from programas.models import AsignacionCoordinador, AsignacionTerritorial, Convocatoria, Relevamiento, Segmento
 
 
@@ -141,6 +142,39 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         nuevo = Relevamiento.objects.get(zona="Nueva zona")
         self.assertTrue(nuevo.nombre.startswith("Relevamiento "))
         self.assertEqual(nuevo.estado, Relevamiento.Estado.ASIGNADO)
+
+    def test_fecha_debe_estar_dentro_del_periodo_de_convocatoria(self):
+        for fecha in ("2025-12-31", "2027-01-01"):
+            with self.subTest(fecha=fecha):
+                form = RelevamientoForm(
+                    {
+                        "convocatoria": self.conv_a.pk,
+                        "territorial": self.territorial.pk,
+                        "fecha_asignada": fecha,
+                        "zona": "Fuera de período",
+                    }
+                )
+                self.assertFalse(form.is_valid())
+                self.assertIn("período de la convocatoria", form.errors["fecha_asignada"][0])
+
+    def test_fecha_acepta_limites_inclusivos_de_convocatoria(self):
+        for fecha in ("2026-01-01", "2026-12-31"):
+            with self.subTest(fecha=fecha):
+                form = RelevamientoForm(
+                    {
+                        "convocatoria": self.conv_a.pk,
+                        "territorial": self.territorial.pk,
+                        "fecha_asignada": fecha,
+                        "zona": "Fecha límite",
+                    }
+                )
+                self.assertTrue(form.is_valid(), form.errors)
+
+    def test_opciones_de_convocatoria_exponen_limites_para_el_datepicker(self):
+        html = str(RelevamientoForm()["convocatoria"])
+
+        self.assertIn('data-fecha-inicio="2026-01-01"', html)
+        self.assertIn('data-fecha-fin="2026-12-31"', html)
 
     def test_crear_solapado_advierte_sin_guardar(self):
         self.client.force_login(self.admin)
@@ -318,6 +352,17 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertEqual(resp.status_code, 302)
         self.rel_a.refresh_from_db()
         self.assertEqual(self.rel_a.fecha_asignada, date(2026, 9, 15))
+
+    def test_reprogramar_rechaza_fecha_fuera_de_convocatoria(self):
+        form = ReprogramarForm(
+            {"fecha_asignada": "2027-01-01"},
+            convocatoria=self.conv_a,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("período de la convocatoria", form.errors["fecha_asignada"][0])
+        self.assertEqual(form.fields["fecha_asignada"].widget.attrs["min"], "2026-01-01")
+        self.assertEqual(form.fields["fecha_asignada"].widget.attrs["max"], "2026-12-31")
 
 
 class FinalizarReabrirTests(_BaseRelevTest):
