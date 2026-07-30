@@ -5,6 +5,9 @@ para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcanc
 por segmento. La validación SIS es un placeholder.
 """
 
+from pathlib import Path
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,7 +19,7 @@ from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
 from legajos.services.consulta_renaper import consultar_datos_renaper
-from programas.forms import FormularioRevisionForm
+from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm
 from programas.models import (
     Formulario,
     PreguntaGlobal,
@@ -26,12 +29,13 @@ from programas.models import (
     TipoCampo,
 )
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
-from programas.services.becas import registrar_traza
+from programas.services.becas import es_menor, registrar_traza
 from programas.services.cupo import aprobar_o_poner_en_espera
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
+EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
 
 
 def _assert_scope_relevamiento(request, relevamiento):
@@ -157,11 +161,22 @@ def _respuestas_resueltas(formulario):
         label = campo.texto if campo else f"Campo #{k}"
         es_archivo = campo is not None and campo.tipo == TipoCampo.ARCHIVO
         adjunto = adjuntos_map.get(int(k)) if es_archivo and str(k).isdigit() else None
-        return {"label": label, "valor": v, "es_archivo": es_archivo, "adjunto": adjunto}
+        es_imagen = bool(adjunto and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN)
+        return {
+            "label": label,
+            "valor": v,
+            "es_multiple": isinstance(v, list),
+            "es_archivo": es_archivo,
+            "adjunto": adjunto,
+            "es_imagen": es_imagen,
+            "es_subsegmento": bool(getattr(campo, "subsegmento_id", None)),
+        }
 
     globales_list = [_fila(preguntas, adjuntos_pregunta, k, v) for k, v in globales.items()]
     requisitos_list = [_fila(requisitos_map, adjuntos_requisito, k, v) for k, v in requisitos.items()]
-    return globales_list, requisitos_list
+    requisitos_segmento = [item for item in requisitos_list if not item["es_subsegmento"]]
+    requisitos_subsegmento = [item for item in requisitos_list if item["es_subsegmento"]]
+    return globales_list, requisitos_segmento, requisitos_subsegmento
 
 
 @login_required
@@ -194,7 +209,37 @@ def formulario_detalle(request, pk):
     else:
         form = FormularioRevisionForm(instance=formulario)
 
-    globales_list, requisitos_list = _respuestas_resueltas(formulario)
+    globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
+    fecha_nacimiento = None
+    if formulario.ciudadano_id:
+        fecha_nacimiento = formulario.ciudadano.fecha_nacimiento
+    elif isinstance(formulario.datos_identificacion, dict):
+        fecha_nacimiento = formulario.datos_identificacion.get("fecha_nacimiento")
+        if isinstance(fecha_nacimiento, str):
+            fecha_nacimiento = parse_date(fecha_nacimiento)
+    tiene_datos_apoderado = bool(
+        formulario.apoderado_nombre or formulario.apoderado_apellido or formulario.apoderado_fecha_nacimiento
+    )
+    mostrar_apoderado = bool(es_menor(fecha_nacimiento) or tiene_datos_apoderado)
+    mapa = None
+    if formulario.gps_lat is not None and formulario.gps_lng is not None:
+        lat = float(formulario.gps_lat)
+        lng = float(formulario.gps_lng)
+        margen = 0.005
+        mapa = {
+            "latitud": formulario.gps_lat,
+            "longitud": formulario.gps_lng,
+            "embed_url": "https://www.openstreetmap.org/export/embed.html?"
+            + urlencode(
+                {
+                    "bbox": (f"{lng - margen:.6f},{lat - margen:.6f},{lng + margen:.6f},{lat + margen:.6f}"),
+                    "layer": "mapnik",
+                    "marker": f"{lat:.6f},{lng:.6f}",
+                }
+            ),
+            "open_url": "https://www.openstreetmap.org/?"
+            + urlencode({"mlat": f"{lat:.6f}", "mlon": f"{lng:.6f}", "zoom": 16}),
+        }
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
@@ -202,12 +247,59 @@ def formulario_detalle(request, pk):
             "formulario": formulario,
             "relevamiento": formulario.relevamiento,
             "form": form,
+            "genero_form": CiudadanoGeneroRevisionForm(
+                initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
+            ),
+            "mostrar_apoderado": mostrar_apoderado,
             "globales_list": globales_list,
-            "requisitos_list": requisitos_list,
+            "requisitos_segmento": requisitos_segmento,
+            "requisitos_subsegmento": requisitos_subsegmento,
+            "mapa": mapa,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
         },
     )
+
+
+@login_required
+@requiere(CAP_REVALIDAR_RENAPER)
+def formulario_actualizar_genero(request, pk):
+    formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
+    _assert_scope_formulario(request, formulario)
+    if request.method != "POST":
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if formulario.ciudadano is None:
+        messages.error(request, "El formulario no tiene un ciudadano vinculado.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if formulario.validado_renaper and formulario.ciudadano.genero:
+        messages.info(request, "La identidad ya fue validada por RENAPER; el sexo es de solo lectura.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    form = CiudadanoGeneroRevisionForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Seleccioná un sexo válido.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    ciudadano = formulario.ciudadano
+    genero_anterior = ciudadano.genero
+    genero_nuevo = form.cleaned_data["genero"]
+    if genero_anterior == genero_nuevo:
+        messages.info(request, "El sexo no cambió.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    etiquetas = dict(ciudadano.Genero.choices)
+    ciudadano.genero = genero_nuevo
+    ciudadano.save(update_fields=["genero", "modificado"])
+    registrar_traza(
+        formulario,
+        request.user,
+        [("Ciudadano · sexo", etiquetas.get(genero_anterior, "Sin informar"), etiquetas[genero_nuevo])],
+    )
+    if formulario.validado_renaper:
+        messages.success(request, "Sexo guardado.")
+    else:
+        messages.success(request, "Sexo guardado. Ya podés revalidar con RENAPER.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
 @login_required

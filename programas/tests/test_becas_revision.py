@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
@@ -15,18 +16,24 @@ from legajos.models import Ciudadano
 from programas.forms import FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
+    AdjuntoFormulario,
     AsignacionCoordinador,
     Convocatoria,
     Formulario,
     ListaEspera,
+    PreguntaGlobal,
     Relevamiento,
     Segmento,
+    TipoCampo,
     TracaFormulario,
 )
 
 
 class _BaseRevisionTest(TestCase):
     def setUp(self):
+        # programa_becas() cachea una instancia de Programa. Cada TestCase
+        # revierte la base, por lo que no debe reutilizarse la PK del caso anterior.
+        cache.clear()
         call_command("seed_becas", stdout=StringIO())
         self.seg_a = Segmento.objects.create(nombre="Seg A", cupo_maximo=100)
         self.seg_b = Segmento.objects.create(nombre="Seg B", cupo_maximo=100)
@@ -116,6 +123,55 @@ class EdicionTrazaTests(_BaseRevisionTest):
         self.assertEqual(traza.first().valor_anterior, "3624100100")
         self.assertEqual(traza.first().valor_nuevo, "3624999999")
 
+    def test_adjunto_imagen_muestra_thumbnail_y_preview(self):
+        pregunta = PreguntaGlobal.objects.create(
+            texto="Foto DNI",
+            tipo=TipoCampo.ARCHIVO,
+            activo=True,
+        )
+        self.form_a.data = {
+            "globales": {str(pregunta.pk): {"archivo_adjunto": True}},
+            "requisitos": {},
+        }
+        self.form_a.save(update_fields=["data"])
+        AdjuntoFormulario.objects.create(
+            formulario=self.form_a,
+            pregunta_global=pregunta,
+            archivo=SimpleUploadedFile("dni.jpg", b"imagen", content_type="image/jpeg"),
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "data-image-preview")
+        self.assertContains(resp, "<img", html=False)
+        self.assertContains(resp, "Ampliar imagen")
+
+    def test_detalle_muestra_fechas_y_mapa_de_la_toma(self):
+        self.form_a.gps_lat = "-34.577067"
+        self.form_a.gps_lng = "-58.486240"
+        self.form_a.save(update_fields=["gps_lat", "gps_lng"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Trazabilidad de la toma")
+        self.assertContains(resp, "Fecha asignada")
+        self.assertContains(resp, "Capturado en el dispositivo")
+        self.assertContains(resp, "Recibido en el servidor")
+        self.assertContains(resp, "Última actualización")
+        self.assertContains(resp, "Mapa del lugar donde se realizó la toma")
+        self.assertContains(resp, "-34.577067")
+        self.assertContains(resp, "-58.486240")
+        self.assertContains(resp, "openstreetmap.org")
+
+    def test_detalle_sin_gps_informa_que_no_hay_coordenadas(self):
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Este formulario no tiene coordenadas GPS registradas.")
+        self.assertNotContains(resp, "Mapa del lugar donde se realizó la toma")
+
     def test_editar_sin_cambios_no_traza(self):
         self.client.post(
             reverse("becas:formulario_detalle", args=[self.form_a.pk]),
@@ -155,6 +211,45 @@ class EdicionTrazaTests(_BaseRevisionTest):
             {"apoderado_nombre", "apoderado_apellido", "apoderado_fecha_nacimiento"},
         )
 
+    def test_detalle_adulto_sin_apoderado_oculta_sus_campos(self):
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="60600601",
+            nombre="Persona",
+            apellido="Adulta",
+            fecha_nacimiento=date(1990, 1, 1),
+        )
+        self.form_a.save(update_fields=["ciudadano"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Datos de contacto")
+        self.assertNotContains(resp, "Datos del apoderado")
+        self.assertNotContains(resp, 'name="apoderado_fecha_nacimiento"')
+
+    def test_detalle_menor_muestra_fecha_apoderado_en_formato_html(self):
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="60600602",
+            nombre="Persona",
+            apellido="Menor",
+            fecha_nacimiento=date(2020, 1, 1),
+        )
+        self.form_a.apoderado_nombre = "Ana"
+        self.form_a.apoderado_apellido = "Pérez"
+        self.form_a.apoderado_fecha_nacimiento = date(1993, 7, 13)
+        self.form_a.save(
+            update_fields=[
+                "ciudadano",
+                "apoderado_nombre",
+                "apoderado_apellido",
+                "apoderado_fecha_nacimiento",
+            ]
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Datos del apoderado")
+        self.assertContains(resp, 'value="1993-07-13"')
+
 
 class RevalidacionRenaperTests(_BaseRevisionTest):
     def setUp(self):
@@ -170,6 +265,27 @@ class RevalidacionRenaperTests(_BaseRevisionTest):
         self.form_a.ciudadano = self.ciudadano
         self.form_a.validado_renaper = False
         self.form_a.save(update_fields=["ciudadano", "validado_renaper"])
+
+    def test_admin_puede_completar_genero_desde_el_detalle(self):
+        self.ciudadano.genero = ""
+        self.ciudadano.save(update_fields=["genero"])
+        self.client.force_login(self.admin)
+
+        resp = self.client.post(
+            reverse("becas:formulario_actualizar_genero", args=[self.form_a.pk]),
+            {"genero": "F"},
+        )
+
+        self.assertRedirects(resp, reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+        self.ciudadano.refresh_from_db()
+        self.assertEqual(self.ciudadano.genero, "F")
+        self.assertTrue(
+            TracaFormulario.objects.filter(
+                formulario=self.form_a,
+                campo="Ciudadano · sexo",
+                valor_nuevo="Femenino",
+            ).exists()
+        )
 
     @patch("programas.views.revision.consultar_datos_renaper")
     def test_admin_revalida_corrige_ciudadano_y_registra_traza(self, consultar):

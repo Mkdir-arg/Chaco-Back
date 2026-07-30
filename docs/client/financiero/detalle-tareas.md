@@ -238,6 +238,7 @@
 | 2026-07-29 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-29 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-29 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-30 | Pablo Cao | Becas | Issues #208 y #209 — backoffice y app mobile offline | Corrección del selector de subsegmentos; persistencia y sincronización offline sin pérdida ni duplicados; trazabilidad temporal y GPS; mejoras de revisión, adjuntos, fechas, identidad, sexo y apoderado; pruebas locales, en APK y servidor. | 290 min |
 | 2026-07-31 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-31 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-31 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
@@ -247,11 +248,11 @@
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 126 h 08 min |
+| Becas | 130 h 58 min |
 | Dispositivos (incluye Merenderos) | 226 h 0 min |
 | Transversal | 73 h 47 min |
 
-| **Total julio 2026 (al 31/07)** | **425 h 55 min** |
+| **Total julio 2026 (al 31/07)** | **430 h 45 min** |
 
 
 ---
@@ -281,7 +282,7 @@
 !!! success "Contador total"
 
 
-    **55.507 minutos** (925 h 07 min)
+    **55.797 minutos** (929 h 57 min)
 
 
     
