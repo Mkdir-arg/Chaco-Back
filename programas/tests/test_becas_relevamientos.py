@@ -9,12 +9,12 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from programas.forms import RelevamientoForm, ReprogramarForm
 from programas.management.commands.seed_becas import (
     ROL_ADMIN,
     ROL_COORDINADOR,
     ROL_TERRITORIAL,
 )
-from programas.forms import RelevamientoForm, ReprogramarForm
 from programas.models import AsignacionCoordinador, AsignacionTerritorial, Convocatoria, Relevamiento, Segmento
 
 
