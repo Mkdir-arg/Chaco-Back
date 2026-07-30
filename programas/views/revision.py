@@ -161,10 +161,7 @@ def _respuestas_resueltas(formulario):
         label = campo.texto if campo else f"Campo #{k}"
         es_archivo = campo is not None and campo.tipo == TipoCampo.ARCHIVO
         adjunto = adjuntos_map.get(int(k)) if es_archivo and str(k).isdigit() else None
-        es_imagen = bool(
-            adjunto
-            and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN
-        )
+        es_imagen = bool(adjunto and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN)
         return {
             "label": label,
             "valor": v,
@@ -221,9 +218,7 @@ def formulario_detalle(request, pk):
         if isinstance(fecha_nacimiento, str):
             fecha_nacimiento = parse_date(fecha_nacimiento)
     tiene_datos_apoderado = bool(
-        formulario.apoderado_nombre
-        or formulario.apoderado_apellido
-        or formulario.apoderado_fecha_nacimiento
+        formulario.apoderado_nombre or formulario.apoderado_apellido or formulario.apoderado_fecha_nacimiento
     )
     mostrar_apoderado = bool(es_menor(fecha_nacimiento) or tiene_datos_apoderado)
     mapa = None
@@ -237,10 +232,7 @@ def formulario_detalle(request, pk):
             "embed_url": "https://www.openstreetmap.org/export/embed.html?"
             + urlencode(
                 {
-                    "bbox": (
-                        f"{lng - margen:.6f},{lat - margen:.6f},"
-                        f"{lng + margen:.6f},{lat + margen:.6f}"
-                    ),
+                    "bbox": (f"{lng - margen:.6f},{lat - margen:.6f},{lng + margen:.6f},{lat + margen:.6f}"),
                     "layer": "mapnik",
                     "marker": f"{lat:.6f},{lng:.6f}",
                 }

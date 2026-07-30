@@ -16,8 +16,8 @@ from legajos.models import Ciudadano
 from programas.forms import FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
-    AsignacionCoordinador,
     AdjuntoFormulario,
+    AsignacionCoordinador,
     Convocatoria,
     Formulario,
     ListaEspera,
