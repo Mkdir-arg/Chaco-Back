@@ -30,6 +30,33 @@
     {% endif %}
   </div>
 
+  <form method="get" data-dynamic-list-filters class="mb-4">
+    <label class="sr-only" for="preguntas-filtro-texto">Texto</label>
+    <input id="preguntas-filtro-texto" type="search" name="q" value="{{ request.GET.q }}" placeholder="Texto de la pregunta" class="nodo-field">
+
+    <label class="sr-only" for="preguntas-filtro-tipo">Tipo</label>
+    <select id="preguntas-filtro-tipo" name="tipo" class="nodo-field">
+      <option value="">Todos los tipos</option>
+      {% for valor, etiqueta in tipo_choices %}
+      <option value="{{ valor }}" {% if request.GET.tipo == valor %}selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="sr-only" for="preguntas-filtro-obligatorio">Obligatoriedad</label>
+    <select id="preguntas-filtro-obligatorio" name="obligatorio" class="nodo-field">
+      <option value="">Todas</option>
+      <option value="1" {% if request.GET.obligatorio == '1' %}selected{% endif %}>Obligatorias</option>
+      <option value="0" {% if request.GET.obligatorio == '0' %}selected{% endif %}>Opcionales</option>
+    </select>
+
+    <label class="sr-only" for="preguntas-filtro-activo">Estado</label>
+    <select id="preguntas-filtro-activo" name="activo" class="nodo-field">
+      <option value="">Todos los estados</option>
+      <option value="1" {% if request.GET.activo == '1' %}selected{% endif %}>Activas</option>
+      <option value="0" {% if request.GET.activo == '0' %}selected{% endif %}>Inactivas</option>
+    </select>
+  </form>
+
   <div id="preguntas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% include "programas/becas/config/_preguntas_table.html" %}
   </div>

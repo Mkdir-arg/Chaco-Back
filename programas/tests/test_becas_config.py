@@ -1,6 +1,7 @@
 """Tests del backoffice de Configuración de Becas (#74)."""
 
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
@@ -105,6 +106,11 @@ class AccesoConfigTests(_BaseConfigTest):
 class SegmentoCrudTests(_BaseConfigTest):
     def setUp(self):
         super().setUp()
+        self.programas_siis = patch(
+            "programas.forms.listar_programas", return_value=[{"id": 38, "nombre": "Producción"}]
+        )
+        self.programas_siis.start()
+        self.addCleanup(self.programas_siis.stop)
         self.client.force_login(self.admin)
 
     def test_crear_segmento(self):
@@ -115,6 +121,7 @@ class SegmentoCrudTests(_BaseConfigTest):
                 "descripcion": "Población objetivo del segmento productivo",
                 "cupo_maximo": 200,
                 "coordinador": self.coord.pk,
+                "siis_programa_id": 38,
             },
         )
         self.assertEqual(resp.status_code, 302)
@@ -124,7 +131,7 @@ class SegmentoCrudTests(_BaseConfigTest):
         seg = Segmento.objects.create(nombre="S1", cupo_maximo=100)
         resp = self.client.post(
             reverse("becas:segmento_editar", args=[seg.pk]),
-            {"nombre": "S1 editado", "descripcion": "", "cupo_maximo": 150, "activo": "on"},
+            {"nombre": "S1 editado", "descripcion": "", "cupo_maximo": 150, "activo": "on", "siis_programa_id": 38},
         )
         self.assertEqual(resp.status_code, 302)
         seg.refresh_from_db()
@@ -142,12 +149,18 @@ class SubsegmentoCupoTests(_BaseConfigTest):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.admin)
-        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200)
+        self.segmentos_siis = patch(
+            "programas.forms.listar_segmentos",
+            return_value=[{"id": 7, "nombre": "Ladrillo"}, {"id": 8, "nombre": "Carbón"}],
+        )
+        self.segmentos_siis.start()
+        self.addCleanup(self.segmentos_siis.stop)
+        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200, siis_programa_id=38)
 
     def test_crear_subsegmento_ok(self):
         resp = self.client.post(
             reverse("becas:subsegmento_crear", args=[self.seg.pk]),
-            {"nombre": "Ladrillo", "cupo_maximo": 120},
+            {"siis_segmento_id": 7, "nombre": "Ladrillo", "cupo_maximo": 120},
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Subsegmento.objects.filter(segmento=self.seg, nombre="Ladrillo").exists())
@@ -156,7 +169,7 @@ class SubsegmentoCupoTests(_BaseConfigTest):
         Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=120)
         resp = self.client.post(
             reverse("becas:subsegmento_crear", args=[self.seg.pk]),
-            {"nombre": "Carbón", "cupo_maximo": 100},  # 120 + 100 > 200
+            {"siis_segmento_id": 8, "nombre": "Carbón", "cupo_maximo": 100},  # 120 + 100 > 200
         )
         self.assertEqual(resp.status_code, 200)  # re-render con error
         self.assertFalse(Subsegmento.objects.filter(nombre="Carbón").exists())
@@ -297,3 +310,16 @@ class PreguntaGlobalTests(_BaseConfigTest):
         p = PreguntaGlobal.objects.create(texto="X", tipo=TipoCampo.STRING)
         self.client.post(reverse("becas:pregunta_eliminar", args=[p.pk]))
         self.assertFalse(PreguntaGlobal.objects.filter(pk=p.pk).exists())
+
+    def test_filtra_preguntas_con_componente_dinamico(self):
+        esperada = PreguntaGlobal.objects.create(
+            texto="Fecha de inscripción", tipo=TipoCampo.DATE, obligatorio=True, activo=True
+        )
+        PreguntaGlobal.objects.create(texto="Observaciones", tipo=TipoCampo.STRING, obligatorio=False, activo=True)
+        respuesta = self.client.get(
+            reverse("becas:preguntas"),
+            {"q": "Fecha", "tipo": TipoCampo.DATE, "obligatorio": "1", "activo": "1"},
+        )
+        self.assertEqual(list(respuesta.context["preguntas"]), [esperada])
+        self.assertContains(respuesta, "data-dynamic-list-filters")
+        self.assertTrue(respuesta.context["hay_filtros_activos"])

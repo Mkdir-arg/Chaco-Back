@@ -16,6 +16,7 @@
        subEditNombre: '',
        subEditDesc: '',
        subEditCupo: '',
+       subEditSiisId: '',
        editReqUrl: '',
        editReqTexto: '',
        editReqTipo: '',
@@ -31,11 +32,12 @@
          this.editReqOpciones = (opciones || []).join('\n');
          this.modalReqEdit = true;
        },
-       openSubEdit(url, nombre, desc, cupo) {
+       openSubEdit(url, nombre, desc, cupo, siisId) {
          this.subEditUrl = url;
          this.subEditNombre = nombre;
          this.subEditDesc = desc;
          this.subEditCupo = cupo;
+         this.subEditSiisId = siisId;
          this.modalSubEdit = true;
        }
      }"
@@ -143,6 +145,13 @@
             <label class="flex items-center gap-2 text-sm text-body cursor-pointer">
               {{ form_segmento.requiere_gps }} Requiere captura de GPS en el formulario
             </label>
+            <div class="border-t border-light pt-4">
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Programa SIIS</label>
+                {{ form_segmento.siis_programa_id }}
+                {% if form_segmento.siis_programa_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_segmento.siis_programa_id.help_text }}</p>{% endif %}
+              </div>
+            </div>
             <div class="flex flex-wrap gap-3 pt-2">
               <button type="submit" form="form-segmento" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> Guardar cambios</button>
               <button type="button" class="btn-nodo btn-danger btn-base"
@@ -324,14 +333,16 @@
         {% comment %}BODY{% endcomment %}
         <div class="p-6 space-y-5">
 
-          {% comment %}Nombre{% endcomment %}
           <div>
             <label class="block text-[13px] font-semibold text-heading mb-1.5">
-              Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
+              Segmento SIIS<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
-            {{ form_subsegmento.nombre }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+            {{ form_subsegmento.siis_segmento_id }}
+            {% if form_subsegmento.siis_segmento_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_subsegmento.siis_segmento_id.help_text }}</p>{% endif %}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_segmento_id"></p>
           </div>
+
+          <p class="text-xs text-body-subtle">El subsegmento local tomará el nombre y el ID del segmento seleccionado en SIIS.</p>
 
           {% comment %}Descripción{% endcomment %}
           <div>
@@ -414,6 +425,7 @@
       <form method="post" :action="subEditUrl" data-ajax data-reset="false">
         {% csrf_token %}
         <input type="hidden" name="origin" value="panel">
+        <input type="hidden" name="siis_segmento_id" :value="subEditSiisId">
 
         {% comment %}BODY{% endcomment %}
         <div class="p-6 space-y-5">
@@ -423,7 +435,7 @@
             <label class="block text-[13px] font-semibold text-heading mb-1.5">
               Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
-            <input type="text" name="nombre" required class="nodo-field" x-model="subEditNombre">
+            <input type="text" name="nombre" readonly class="nodo-field" x-model="subEditNombre">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
           </div>
 

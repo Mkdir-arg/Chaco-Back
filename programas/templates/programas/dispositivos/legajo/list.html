@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  <form method="get" class="mb-5 grid gap-3 rounded-xl border border-base p-4 md:grid-cols-4" style="background:var(--bg-primary)">
+  <form method="get" data-dynamic-list-filters class="mb-5 grid gap-3 rounded-xl border border-base p-4 md:grid-cols-4" style="background:var(--bg-primary)">
     <select name="tipo" class="nodo-field"><option value="">Todos los tipos</option>{% for tipo in tipos %}<option value="{{ tipo.pk }}" {% if request.GET.tipo == tipo.pk|stringformat:'s' %}selected{% endif %}>{{ tipo.nombre }}</option>{% endfor %}</select>
     <select name="estado" class="nodo-field"><option value="">Todos los estados</option>{% for value, label in estados %}<option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
     <input name="localidad" value="{{ request.GET.localidad }}" class="nodo-field" placeholder="Localidad">

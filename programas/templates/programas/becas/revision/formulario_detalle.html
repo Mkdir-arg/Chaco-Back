@@ -1,6 +1,6 @@
 {% extends "includes/base.html" %}
 {% load rbac %}
-{% block title %}Becas · Formulario #{{ formulario.pk }}{% endblock %}
+{% block title %}Becas · Formulario {{ formulario.numero }}{% endblock %}
 
 {% block main-content %}
 <style>
@@ -49,7 +49,7 @@
          aria-label="Volver a formularios del relevamiento">
         <i class="fas fa-arrow-left" aria-hidden="true"></i>
       </a>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario #{{ formulario.pk }}</h1>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario {{ formulario.numero }}</h1>
       {% if formulario.estado == 'APROBADO' %}
         <span class="badge badge-success badge-dot">Aprobado</span>
       {% elif formulario.estado == 'RECHAZADO' %}
@@ -57,8 +57,39 @@
       {% else %}
         <span class="badge badge-warning badge-dot">Enviado</span>
       {% endif %}
+      {% if tiene_conflicto_duplicado_pendiente %}
+        <span class="badge badge-warning"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
+      {% endif %}
     </div>
   </div>
+
+  {% if conflicto_pendiente %}
+  <section class="rounded-xl border p-5" style="border-color:#f59e0b;background:#fffbeb;">
+    <div class="flex items-start gap-3">
+      <i class="fas fa-triangle-exclamation mt-1" style="color:#b45309;"></i>
+      <div class="flex-1">
+        <h2 class="font-bold" style="color:#92400e;">DNI cargado desde más de un dispositivo</h2>
+        <p class="mt-1 text-sm" style="color:#92400e;">
+          Los formularios {{ conflicto_pendiente.duplicado_de.numero }} y {{ conflicto_pendiente.numero }} corresponden al mismo DNI.
+          Revisá ambas cargas y decidí cuál conservar.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}" class="btn-nodo btn-tertiary btn-base">Comparar con formulario {{ formulario_comparacion.numero }}</a>
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_previo{% else %}conservar_actual{% endif %}">
+            <button class="btn-nodo btn-tertiary btn-base" type="submit">Conservar el otro</button>
+          </form>
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_actual{% else %}conservar_previo{% endif %}">
+            <button class="btn-nodo btn-brand btn-base" type="submit">Conservar este</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
 
   {# Rechazo alert #}
   {% if formulario.estado == 'RECHAZADO' and formulario.motivo_rechazo %}
@@ -142,7 +173,7 @@
           </dd>
         </div>
         <div>
-          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">RENAPER</dt>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Validación de identidad</dt>
           <dd class="text-sm">
             {% if formulario.validado_renaper %}
               <span class="badge badge-success">Validado</span>
@@ -248,8 +279,13 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>{% with field=form.apoderado_nombre %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
             <div>{% with field=form.apoderado_apellido %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_dni %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_genero %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
             <div>{% with field=form.apoderado_fecha_nacimiento %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
           </div>
+          {% if formulario.apoderado_ciudadano %}
+            <p class="text-xs text-body-subtle mt-3">Vinculado al ciudadano #{{ formulario.apoderado_ciudadano_id }}.</p>
+          {% endif %}
         </div>
       {% endif %}
       <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
@@ -316,14 +352,30 @@
     </div>
   </section>
 
-  {# 6. Resultado SIS (placeholder de integración pendiente) #}
-  <section class="rounded-xl border border-base p-6" style="background:var(--bg-secondary);">
-    <div class="flex items-center gap-2 mb-2">
+  {# 6. Resultado SIIS #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light flex items-center gap-2">
       <i class="fas fa-plug text-fg-brand"></i>
-      <h2 class="text-heading font-bold" style="font-size:16px;">Resultado SIS</h2>
+      <h2 class="text-heading font-bold" style="font-size:16px;">Resultado SIIS</h2>
     </div>
-    <p class="text-sm text-body-subtle">Integración pendiente. La validación socioeconómica y la asignación de cupo se resolverán cuando el SIS esté disponible.</p>
-    <div class="mt-3"><span class="badge badge-gray">Pendiente de integración SIS</span></div>
+    <div class="p-6">
+    {% if validacion_sis %}
+    <div class="text-sm text-body-subtle space-y-1">
+      <p><strong>Estado:</strong> {{ validacion_sis.get_estado_display }}</p>
+      <p><strong>Fecha:</strong> {{ validacion_sis.fecha_validacion|default:validacion_sis.creado|date:"d/m/Y H:i" }}</p>
+      {% if validacion_sis.codigo_motivo %}<p><strong>Código:</strong> {{ validacion_sis.motivo_amigable }}</p>{% endif %}
+      {% if validacion_sis.motivo %}<p><strong>Detalle:</strong> {{ validacion_sis.motivo }}</p>{% endif %}
+    </div>
+    {% else %}
+    <p class="text-sm text-body-subtle">Todavía no se consultó la compatibilidad de esta persona.</p>
+    {% endif %}
+    {% if puede_revalidar_renaper %}
+    <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}" class="mt-4">
+      {% csrf_token %}
+      <button type="submit" class="btn-nodo btn-brand btn-base">{% if validacion_sis %}Reintentar validación SIIS{% else %}Validar con SIIS{% endif %}</button>
+    </form>
+    {% endif %}
+    </div>
   </section>
 
   {# 6. Traza de cambios #}

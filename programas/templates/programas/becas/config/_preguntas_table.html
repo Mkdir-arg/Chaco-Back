@@ -71,12 +71,18 @@
 {% else %}
 <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
   <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+  {% if hay_filtros_activos %}
+  <p class="text-[17px] font-bold text-heading">Sin resultados</p>
+  <p class="text-sm text-body max-w-xs">Ninguna pregunta coincide con los filtros aplicados.</p>
+  <a href="{% url 'becas:preguntas' %}" class="btn-nodo btn-tertiary btn-base mt-2">Limpiar filtros</a>
+  {% else %}
   <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
   <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
   {% if request.user|puede:"becas.pregunta.crear" %}
   <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
     <i class="fas fa-plus"></i> Nueva pregunta
   </button>
+  {% endif %}
   {% endif %}
 </div>
 {% endif %}

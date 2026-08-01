@@ -74,6 +74,27 @@ class SegmentoCupoTests(TestCase):
         self.assertEqual(self.segmento.cupo_distribuido, 200)
         self.assertEqual(self.segmento.cupo_disponible, 0)
 
+    def test_no_permite_bajar_cupo_por_debajo_de_lo_distribuido(self):
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Ladrillo", cupo_maximo=120)
+        self.segmento.cupo_maximo = 100
+        with self.assertRaises(ValidationError) as ctx:
+            self.segmento.full_clean()
+        self.assertIn("120", str(ctx.exception))
+
+    def test_no_permite_cambiar_programa_siis_con_subsegmentos(self):
+        self.segmento.siis_programa_id = 41
+        self.segmento.save(update_fields=["siis_programa_id"])
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20, siis_segmento_id=1)
+        self.segmento.siis_programa_id = 42
+        with self.assertRaises(ValidationError):
+            self.segmento.full_clean()
+
+    def test_no_permite_repetir_segmento_siis_en_mismo_segmento(self):
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20, siis_segmento_id=1)
+        repetido = Subsegmento(segmento=self.segmento, nombre="Otra etiqueta", cupo_maximo=20, siis_segmento_id=1)
+        with self.assertRaises(ValidationError):
+            repetido.full_clean()
+
 
 class ConvocatoriaTests(TestCase):
     def setUp(self):
@@ -131,7 +152,26 @@ class RelevamientoTests(TestCase):
             zona="Centro",
         )
         self.assertEqual(rel.nombre, "Relevamiento 001")
+        self.assertEqual(rel.numero, 1)
         self.assertEqual(rel.estado, Relevamiento.Estado.ASIGNADO)
+
+    def test_numeracion_es_independiente_por_convocatoria(self):
+        otra_conv = Convocatoria.objects.create(
+            nombre="Otra",
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        primero = Relevamiento.objects.create(
+            convocatoria=self.conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 1), zona="A"
+        )
+        segundo = Relevamiento.objects.create(
+            convocatoria=self.conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 2), zona="B"
+        )
+        primero_otra = Relevamiento.objects.create(
+            convocatoria=otra_conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 1), zona="C"
+        )
+        self.assertEqual((primero.numero, segundo.numero, primero_otra.numero), (1, 2, 1))
 
 
 class CamposFormularioTests(TestCase):

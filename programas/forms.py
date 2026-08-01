@@ -31,6 +31,7 @@ from programas.models import (
 )
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
+from programas.services.siis import listar_programas, listar_segmentos
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
@@ -38,14 +39,36 @@ INPUT_CLASS = "nodo-field"
 CHECKBOX_CLASS = "h-4 w-4 rounded border-base text-fg-brand focus:ring-brand"
 
 
+def _catalogo_choices(items, empty_label):
+    return [("", empty_label)] + [(str(item["id"]), item["nombre"]) for item in items]
+
+
+def _cargar_catalogo(loader):
+    try:
+        return loader(), ""
+    except Exception:
+        return [], "No se pudo cargar el catálogo de SIIS. Verificá la conexión e intentá nuevamente."
+
+
 def _text_widget(rows=3):
     return forms.Textarea(attrs={"class": INPUT_CLASS, "rows": rows})
 
 
 class SegmentoForm(forms.ModelForm):
+    siis_programa_id = forms.ChoiceField(
+        label="Programa SIIS", choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+
     class Meta:
         model = Segmento
-        fields = ["nombre", "descripcion", "cupo_maximo", "requiere_gps", "activo"]
+        fields = [
+            "nombre",
+            "descripcion",
+            "cupo_maximo",
+            "requiere_gps",
+            "siis_programa_id",
+            "activo",
+        ]
         widgets = {
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "descripcion": _text_widget(),
@@ -53,6 +76,25 @@ class SegmentoForm(forms.ModelForm):
             "requiere_gps": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        programas, error = _cargar_catalogo(listar_programas)
+        self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
+        actual = self.instance.siis_programa_id if self.instance.pk else None
+        if actual and str(actual) not in {value for value, _ in self.fields["siis_programa_id"].choices}:
+            self.fields["siis_programa_id"].choices += [(str(actual), f"Programa SIIS #{actual}")]
+        if error:
+            self.fields["siis_programa_id"].help_text = error
+
+    def clean_siis_programa_id(self):
+        programa_id = int(self.cleaned_data["siis_programa_id"])
+        duplicado = Segmento.objects.filter(siis_programa_id=programa_id)
+        if self.instance.pk:
+            duplicado = duplicado.exclude(pk=self.instance.pk)
+        if duplicado.exists():
+            raise forms.ValidationError("Ese programa SIIS ya está asociado a otro segmento.")
+        return programa_id
 
 
 class SegmentoCreateForm(forms.ModelForm):
@@ -68,10 +110,13 @@ class SegmentoCreateForm(forms.ModelForm):
         empty_label="Seleccioná…",
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
+    siis_programa_id = forms.ChoiceField(
+        label="Programa SIIS", choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
 
     class Meta:
         model = Segmento
-        fields = ["nombre", "descripcion", "cupo_maximo"]
+        fields = ["siis_programa_id", "nombre", "descripcion", "cupo_maximo"]
         widgets = {
             "nombre": forms.TextInput(
                 attrs={
@@ -97,11 +142,31 @@ class SegmentoCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["nombre"].required = False
         self.fields["descripcion"].required = True
+        programas, error = _cargar_catalogo(listar_programas)
+        self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
+        if error:
+            self.fields["siis_programa_id"].help_text = error
         from programas.services.autorizacion import usuarios_coordinadores_becas
 
         self.fields["coordinador"].queryset = usuarios_coordinadores_becas()
         self.fields["coordinador"].label_from_instance = lambda u: u.get_full_name() or u.username
+
+    def clean_siis_programa_id(self):
+        programa_id = int(self.cleaned_data["siis_programa_id"])
+        if Segmento.objects.filter(siis_programa_id=programa_id).exists():
+            raise forms.ValidationError("Ese programa SIIS ya está asociado a otro segmento.")
+        return programa_id
+
+    def clean(self):
+        cleaned = super().clean()
+        programa_id = cleaned.get("siis_programa_id")
+        if programa_id:
+            nombre = dict(self.fields["siis_programa_id"].choices).get(str(programa_id))
+            if nombre:
+                cleaned["nombre"] = nombre
+        return cleaned
 
 
 class SubsegmentoForm(forms.ModelForm):
@@ -109,7 +174,7 @@ class SubsegmentoForm(forms.ModelForm):
 
     class Meta:
         model = Subsegmento
-        fields = ["nombre", "descripcion", "cupo_maximo"]
+        fields = ["siis_segmento_id", "nombre", "descripcion", "cupo_maximo"]
         widgets = {
             "nombre": forms.TextInput(
                 attrs={
@@ -129,9 +194,50 @@ class SubsegmentoForm(forms.ModelForm):
 
     def __init__(self, *args, segmento=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["nombre"].required = False
+        self.fields["nombre"].widget.attrs["readonly"] = True
+        self.fields["siis_segmento_id"] = forms.ChoiceField(
+            label="Segmento SIIS",
+            choices=(),
+            error_messages={"invalid_choice": "Ese segmento SIIS ya fue agregado o ya no está disponible."},
+            widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        )
         self.fields["descripcion"].required = False
         if segmento is not None:
             self.instance.segmento = segmento
+        programa_id = segmento.siis_programa_id if segmento is not None else None
+        if programa_id:
+            items, error = _cargar_catalogo(lambda: listar_segmentos(programa_id))
+        else:
+            items, error = [], "Primero asociá el segmento local con un programa SIIS."
+        if segmento is not None:
+            usados = set(segmento.subsegmentos.exclude(pk=self.instance.pk).values_list("siis_segmento_id", flat=True))
+            items = [item for item in items if item["id"] not in usados]
+        self.fields["siis_segmento_id"].choices = _catalogo_choices(items, "Seleccioná un segmento…")
+        actual = self.instance.siis_segmento_id if self.instance.pk else None
+        if actual and str(actual) not in {value for value, _ in self.fields["siis_segmento_id"].choices}:
+            self.fields["siis_segmento_id"].choices += [(str(actual), f"Segmento SIIS #{actual}")]
+        if error:
+            self.fields["siis_segmento_id"].help_text = error
+
+    def clean_siis_segmento_id(self):
+        segmento_siis_id = int(self.cleaned_data["siis_segmento_id"])
+        duplicado = Subsegmento.objects.filter(segmento_id=self.instance.segmento_id, siis_segmento_id=segmento_siis_id)
+        if self.instance.pk:
+            duplicado = duplicado.exclude(pk=self.instance.pk)
+        if duplicado.exists():
+            raise forms.ValidationError("Ese segmento SIIS ya fue agregado a este segmento local.")
+        return segmento_siis_id
+
+    def clean(self):
+        cleaned = super().clean()
+        segmento_id = cleaned.get("siis_segmento_id")
+        if segmento_id:
+            nombres = dict(self.fields["siis_segmento_id"].choices)
+            nombre = nombres.get(str(segmento_id))
+            if nombre and not nombre.startswith("Segmento SIIS #"):
+                cleaned["nombre"] = nombre
+        return cleaned
 
 
 class _OpcionesMixin(forms.ModelForm):
@@ -941,6 +1047,8 @@ class FormularioRevisionForm(forms.ModelForm):
         "email_contacto": "Correo electrónico",
         "apoderado_nombre": "Apoderado · nombre",
         "apoderado_apellido": "Apoderado · apellido",
+        "apoderado_dni": "Apoderado · DNI",
+        "apoderado_genero": "Apoderado · sexo",
         "apoderado_fecha_nacimiento": "Apoderado · fecha de nacimiento",
     }
 
@@ -951,6 +1059,8 @@ class FormularioRevisionForm(forms.ModelForm):
             "email_contacto",
             "apoderado_nombre",
             "apoderado_apellido",
+            "apoderado_dni",
+            "apoderado_genero",
             "apoderado_fecha_nacimiento",
         ]
         widgets = {
@@ -958,6 +1068,8 @@ class FormularioRevisionForm(forms.ModelForm):
             "email_contacto": forms.EmailInput(attrs={"class": INPUT_CLASS}),
             "apoderado_nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "apoderado_apellido": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "apoderado_dni": forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
+            "apoderado_genero": forms.Select(attrs={"class": INPUT_CLASS}),
             "apoderado_fecha_nacimiento": forms.DateInput(
                 format="%Y-%m-%d",
                 attrs={"class": INPUT_CLASS, "type": "date"},
@@ -978,7 +1090,13 @@ class FormularioRevisionForm(forms.ModelForm):
                     fecha_nacimiento = None
 
         if es_menor(fecha_nacimiento):
-            for campo in ("apoderado_nombre", "apoderado_apellido", "apoderado_fecha_nacimiento"):
+            for campo in (
+                "apoderado_nombre",
+                "apoderado_apellido",
+                "apoderado_dni",
+                "apoderado_genero",
+                "apoderado_fecha_nacimiento",
+            ):
                 if not cleaned_data.get(campo):
                     self.add_error(campo, "Este dato es obligatorio cuando la persona relevada es menor de edad.")
         return cleaned_data

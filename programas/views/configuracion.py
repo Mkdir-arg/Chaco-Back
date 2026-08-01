@@ -12,7 +12,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db import IntegrityError, transaction
 from django.db.models import Count
+from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
@@ -163,9 +165,10 @@ class SegmentoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView
     success_url = reverse_lazy("becas:segmentos")
 
     def form_valid(self, form):
-        self.object = form.save()
-        # El coordinador del alta se persiste como asignación (modal del kit).
-        AsignacionCoordinador.objects.create(segmento=self.object, coordinador=form.cleaned_data["coordinador"])
+        with transaction.atomic():
+            self.object = form.save()
+            # El coordinador del alta se persiste como asignación (modal del kit).
+            AsignacionCoordinador.objects.create(segmento=self.object, coordinador=form.cleaned_data["coordinador"])
         # "Guardar y configurar": ir al detalle a cargar subsegmentos/cupos.
         detalle = reverse("becas:segmento_detalle", args=[self.object.pk])
         if is_ajax(self.request):
@@ -267,7 +270,18 @@ def subsegmento_crear(request, segmento_pk):
     if request.method == "POST":
         form = SubsegmentoForm(request.POST, segmento=segmento)
         if form.is_valid():
-            form.save()
+            try:
+                with transaction.atomic():
+                    form.save()
+            except IntegrityError:
+                form.add_error("siis_segmento_id", "Ese segmento SIIS ya fue agregado a este segmento local.")
+                if is_ajax(request):
+                    return ajax_errors(form)
+                return render(
+                    request,
+                    "programas/becas/config/subsegmento_form.html",
+                    {"form": form, "segmento": segmento, "subsegmento": None},
+                )
             if is_ajax(request):
                 subs = list(segmento.subsegmentos.all().order_by("nombre"))
                 return ajax_ok(
@@ -301,7 +315,18 @@ def subsegmento_editar(request, pk):
     if request.method == "POST":
         form = SubsegmentoForm(request.POST, instance=sub, segmento=sub.segmento)
         if form.is_valid():
-            form.save()
+            try:
+                with transaction.atomic():
+                    form.save()
+            except IntegrityError:
+                form.add_error("siis_segmento_id", "Ese segmento SIIS ya fue agregado a este segmento local.")
+                if is_ajax(request):
+                    return ajax_errors(form)
+                return render(
+                    request,
+                    "programas/becas/config/subsegmento_form.html",
+                    {"form": form, "segmento": sub.segmento, "subsegmento": sub},
+                )
             if is_ajax(request):
                 origin = request.POST.get("origin")
                 if origin == "panel":
@@ -341,8 +366,11 @@ def subsegmento_eliminar(request, pk):
     _assert_scope(request, sub.segmento)
     segmento_pk = sub.segmento_id
     if request.method == "POST":
-        sub.delete()
-        messages.success(request, "Subsegmento eliminado.")
+        try:
+            sub.delete()
+            messages.success(request, "Subsegmento eliminado.")
+        except ProtectedError:
+            messages.error(request, "No se puede eliminar el subsegmento porque está utilizado por una convocatoria.")
     return redirect("becas:segmento_detalle", pk=segmento_pk)
 
 
@@ -530,11 +558,27 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
     context_object_name = "preguntas"
 
     def get_queryset(self):
-        return PreguntaGlobal.objects.order_by("orden", "id")
+        queryset = PreguntaGlobal.objects.order_by("orden", "id")
+        texto = self.request.GET.get("q", "").strip()
+        tipo = self.request.GET.get("tipo", "").strip()
+        obligatorio = self.request.GET.get("obligatorio", "").strip()
+        activo = self.request.GET.get("activo", "").strip()
+        if texto:
+            queryset = queryset.filter(texto__icontains=texto)
+        if tipo in TipoCampo.values:
+            queryset = queryset.filter(tipo=tipo)
+        if obligatorio in {"1", "0"}:
+            queryset = queryset.filter(obligatorio=obligatorio == "1")
+        if activo in {"1", "0"}:
+            queryset = queryset.filter(activo=activo == "1")
+        return queryset
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["tipo_choices"] = TipoCampo.choices
+        ctx["hay_filtros_activos"] = any(
+            self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
+        )
         return ctx
 
 

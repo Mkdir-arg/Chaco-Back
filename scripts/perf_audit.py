@@ -86,7 +86,7 @@ def build_targets():
     conversacion = (
         Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME).order_by("fecha_inicio").first()
     )
-    relevamiento = Relevamiento.objects.get(nombre="PERF Relevamiento 0000")
+    relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
 
     if conversacion is None:
         raise RuntimeError("seed_perf no creó la conversación PERF requerida")

@@ -2,7 +2,7 @@
 
 Acceso granular: ``becas.revision.ver`` para listar/consultar, ``becas.revision.editar``
 para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcance
-por segmento. La validación SIS es un placeholder.
+por segmento. La validación SIIS es un placeholder.
 """
 
 from pathlib import Path
@@ -13,12 +13,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_datetime
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from legajos.services.consulta_renaper import consultar_datos_renaper
 from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm
 from programas.models import (
     Formulario,
@@ -27,15 +27,23 @@ from programas.models import (
     RequisitoNativo,
     Segmento,
     TipoCampo,
+    ValidacionSIS,
 )
 from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
-from programas.services.becas import es_menor, registrar_traza
+from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera
+from programas.services.personas import consultar_persona
+from programas.services.siis import validar_compatibilidad
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
+
+
+def _con_conflicto_duplicado_pendiente(queryset):
+    conflictos = Formulario.objects.filter(duplicado_de_id=OuterRef("pk"), conflicto_resuelto=False)
+    return queryset.annotate(tiene_carga_duplicada_pendiente=Exists(conflictos))
 
 
 def _assert_scope_relevamiento(request, relevamiento):
@@ -48,6 +56,12 @@ def _assert_scope_formulario(request, formulario):
         raise PermissionDenied("No tiene acceso a este formulario.")
 
 
+def _tiene_conflicto_duplicado_pendiente(formulario):
+    return (
+        formulario.conflicto_duplicado and not formulario.conflicto_resuelto
+    ) or formulario.cargas_en_conflicto.filter(conflicto_resuelto=False).exists()
+
+
 class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     """Personas relevadas (formularios sincronizados), con su convocatoria y
     relevamiento. Puerta de entrada a la revisión caso a caso."""
@@ -58,7 +72,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
     paginate_by = 25
 
     def get_queryset(self):
-        qs = (
+        qs = _con_conflicto_duplicado_pendiente(
             Formulario.objects.select_related(
                 "ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__territorial"
             )
@@ -120,7 +134,9 @@ def revision_formularios(request, relevamiento_pk):
     relevamiento = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=relevamiento_pk)
     _assert_scope_relevamiento(request, relevamiento)
 
-    formularios = relevamiento.formularios.select_related("ciudadano").order_by("-creado")
+    formularios = _con_conflicto_duplicado_pendiente(
+        relevamiento.formularios.select_related("ciudadano").order_by("numero")
+    )
     estado = request.GET.get("estado")
     if estado:
         formularios = formularios.filter(estado=estado)
@@ -187,6 +203,17 @@ def formulario_detalle(request, pk):
     )
     _assert_scope_formulario(request, formulario)
 
+    conflicto_pendiente = None
+    if formulario.conflicto_duplicado and not formulario.conflicto_resuelto:
+        conflicto_pendiente = formulario
+    else:
+        conflicto_pendiente = formulario.cargas_en_conflicto.filter(conflicto_resuelto=False).first()
+    formulario_comparacion = None
+    if conflicto_pendiente:
+        formulario_comparacion = (
+            conflicto_pendiente.duplicado_de if formulario.pk == conflicto_pendiente.pk else conflicto_pendiente
+        )
+
     if request.method == "POST":
         if not puede_alguna(request.user, [CAP_REVISION_EDITAR]):
             raise PermissionDenied("No tiene permisos para editar este formulario.")
@@ -200,6 +227,7 @@ def formulario_detalle(request, pk):
                 if anteriores[campo] != nuevo:
                     cambios.append((FormularioRevisionForm.LABELS[campo], anteriores[campo], nuevo))
             form.save()
+            resolver_ciudadano_offline(formulario)
             n = registrar_traza(formulario, request.user, cambios)
             if n:
                 messages.success(request, f"Formulario actualizado ({n} cambio(s) registrado(s)).")
@@ -218,7 +246,11 @@ def formulario_detalle(request, pk):
         if isinstance(fecha_nacimiento, str):
             fecha_nacimiento = parse_date(fecha_nacimiento)
     tiene_datos_apoderado = bool(
-        formulario.apoderado_nombre or formulario.apoderado_apellido or formulario.apoderado_fecha_nacimiento
+        formulario.apoderado_nombre
+        or formulario.apoderado_apellido
+        or formulario.apoderado_dni
+        or formulario.apoderado_genero
+        or formulario.apoderado_fecha_nacimiento
     )
     mostrar_apoderado = bool(es_menor(fecha_nacimiento) or tiene_datos_apoderado)
     mapa = None
@@ -257,8 +289,67 @@ def formulario_detalle(request, pk):
             "mapa": mapa,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
+            "validacion_sis": formulario.validaciones_sis.first(),
+            "tiene_conflicto_duplicado_pendiente": _tiene_conflicto_duplicado_pendiente(formulario),
+            "conflicto_pendiente": conflicto_pendiente,
+            "formulario_comparacion": formulario_comparacion,
         },
     )
+
+
+@login_required
+@requiere(CAP_REVALIDAR_RENAPER)
+def formulario_validar_sis(request, pk):
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento"), pk=pk
+    )
+    _assert_scope_formulario(request, formulario)
+    if request.method != "POST":
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    convocatoria = formulario.relevamiento.convocatoria
+    segmento = convocatoria.segmento
+    subsegmento = convocatoria.subsegmento
+    ciudadano = formulario.ciudadano
+    if not segmento.siis_programa_id:
+        messages.error(request, "El segmento no tiene configurado el programa correspondiente de SIIS.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if subsegmento is None or not subsegmento.siis_segmento_id:
+        messages.error(request, "El subsegmento no tiene configurado el segmento correspondiente de SIIS.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if ciudadano is None or not ciudadano.dni:
+        messages.error(request, "El formulario no tiene un ciudadano con DNI vinculado.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if ciudadano.genero not in ("F", "M"):
+        messages.error(request, "El ciudadano debe tener sexo F o M para consultar SIIS.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    resultado = validar_compatibilidad(ciudadano.dni, ciudadano.genero, subsegmento.siis_segmento_id)
+    data = resultado.get("data") or {}
+    estado = ValidacionSIS.Estado.ERROR
+    if resultado.get("success"):
+        estado = ValidacionSIS.Estado.OK if resultado.get("compatible") else ValidacionSIS.Estado.RECHAZADO
+    ValidacionSIS.objects.create(
+        formulario=formulario,
+        estado=estado,
+        id_programa=segmento.siis_programa_id,
+        id_segmento=subsegmento.siis_segmento_id,
+        documento=ciudadano.dni,
+        sexo=ciudadano.genero,
+        id_consulta=data.get("id_consulta") or None,
+        fecha_validacion=parse_datetime(str(data.get("fecha_validacion") or "")),
+        codigo_motivo=str(data.get("codigo_motivo") or ""),
+        motivo=str(data.get("motivo") or resultado.get("error") or ""),
+        respuesta=data,
+        solicitado_por=request.user,
+    )
+    if estado == ValidacionSIS.Estado.OK:
+        messages.success(request, "SIIS informo que la persona es compatible.")
+    elif estado == ValidacionSIS.Estado.RECHAZADO:
+        messages.warning(request, f"SIIS rechazo la compatibilidad: {data.get('motivo') or 'sin motivo informado'}.")
+    else:
+        messages.error(request, resultado.get("error") or "No se pudo validar contra SIIS.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
 @login_required
@@ -272,7 +363,7 @@ def formulario_actualizar_genero(request, pk):
         messages.error(request, "El formulario no tiene un ciudadano vinculado.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     if formulario.validado_renaper and formulario.ciudadano.genero:
-        messages.info(request, "La identidad ya fue validada por RENAPER; el sexo es de solo lectura.")
+        messages.info(request, "La identidad ya fue validada; el sexo es de solo lectura.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
 
     form = CiudadanoGeneroRevisionForm(request.POST)
@@ -298,7 +389,7 @@ def formulario_actualizar_genero(request, pk):
     if formulario.validado_renaper:
         messages.success(request, "Sexo guardado.")
     else:
-        messages.success(request, "Sexo guardado. Ya podés revalidar con RENAPER.")
+        messages.success(request, "Sexo guardado. Ya podés revalidar con Base de Personas.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
@@ -308,6 +399,9 @@ def formulario_aprobar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method == "POST":
+        if _tiene_conflicto_duplicado_pendiente(formulario):
+            messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
+            return redirect("becas:formulario_detalle", pk=formulario.pk)
         try:
             resultado = aprobar_o_poner_en_espera(formulario, request.user)
         except ValidationError as e:
@@ -326,10 +420,62 @@ def formulario_aprobar(request, pk):
 
 @login_required
 @requiere(CAP_REVISION_EDITAR)
+def formulario_resolver_duplicado(request, pk):
+    formulario = get_object_or_404(Formulario, pk=pk, conflicto_duplicado=True)
+    _assert_scope_formulario(request, formulario)
+    if request.method != "POST" or formulario.conflicto_resuelto:
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    decision = request.POST.get("decision")
+    with transaction.atomic():
+        formulario = Formulario.objects.select_for_update().get(pk=formulario.pk)
+        previo = Formulario.objects.select_for_update().filter(pk=formulario.duplicado_de_id).first()
+        if previo is None:
+            messages.error(request, "No se encontró la carga anterior vinculada.")
+            return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+        if decision == "conservar_previo":
+            estado_anterior = formulario.estado
+            formulario.estado = Formulario.Estado.RECHAZADO
+            formulario.motivo_rechazo = f"Carga duplicada del Formulario {previo.numero}."
+            formulario.conflicto_resuelto = True
+            formulario.save(update_fields=["estado", "motivo_rechazo", "conflicto_resuelto", "modificado"])
+            registrar_traza(
+                formulario,
+                request.user,
+                [("Conflicto DNI", estado_anterior, f"Se conservó el Formulario {previo.numero}")],
+            )
+            messages.success(request, f"Se conservó el Formulario {previo.numero} y se descartó esta carga duplicada.")
+        elif decision == "conservar_actual":
+            if previo.estado != Formulario.Estado.ENVIADO:
+                messages.error(request, "La carga anterior ya fue procesada y no puede reemplazarse desde aquí.")
+                return redirect("becas:formulario_detalle", pk=formulario.pk)
+            previo.estado = Formulario.Estado.RECHAZADO
+            previo.motivo_rechazo = f"Reemplazado por la carga duplicada del Formulario {formulario.numero}."
+            previo.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+            formulario.conflicto_resuelto = True
+            formulario.save(update_fields=["conflicto_resuelto", "modificado"])
+            registrar_traza(
+                previo,
+                request.user,
+                [("Conflicto DNI", "ENVIADO", f"Reemplazado por el Formulario {formulario.numero}")],
+            )
+            registrar_traza(formulario, request.user, [("Conflicto DNI", "PENDIENTE", "Carga conservada")])
+            messages.success(request, f"Se conservó esta carga y se descartó el Formulario {previo.numero}.")
+        else:
+            messages.error(request, "Seleccioná qué carga querés conservar.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
 def formulario_rechazar(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method == "POST":
+        if _tiene_conflicto_duplicado_pendiente(formulario):
+            messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
+            return redirect("becas:formulario_detalle", pk=formulario.pk)
         motivo = (request.POST.get("motivo") or "").strip()
         if not motivo:
             messages.error(request, "Debés indicar el motivo del rechazo.")
@@ -353,15 +499,12 @@ def formulario_revalidar_renaper(request, pk):
     if ciudadano is None:
         messages.error(request, "El formulario no tiene un ciudadano vinculado para revalidar.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    if not ciudadano.genero:
-        messages.error(request, "El ciudadano no tiene sexo registrado; completalo antes de consultar RENAPER.")
+    if ciudadano.genero not in ("F", "M"):
+        messages.error(request, "Completá el sexo F o M antes de consultar Base de Personas.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-
-    resultado = consultar_datos_renaper(ciudadano.dni, ciudadano.genero)
+    resultado = consultar_persona(ciudadano.dni, ciudadano.genero)
     if not resultado.get("success"):
-        mensaje = resultado.get("error") or "RENAPER no pudo validar a la persona."
-        if resultado.get("fallecido"):
-            mensaje = "RENAPER informa que la persona está fallecida."
+        mensaje = resultado.get("error") or "Base de Personas no pudo validar a la persona."
         messages.error(request, mensaje)
         return redirect("becas:formulario_detalle", pk=formulario.pk)
 
@@ -394,10 +537,10 @@ def formulario_revalidar_renaper(request, pk):
         if not formulario.validado_renaper:
             formulario.validado_renaper = True
             formulario.save(update_fields=["validado_renaper", "modificado"])
-            cambios.append(("RENAPER", "Pendiente", "Validado"))
+            cambios.append(("Base de Personas", "Pendiente", "Validado"))
         registrar_traza(formulario, request.user, cambios)
 
-    messages.success(request, "Identidad revalidada correctamente con RENAPER.")
+    messages.success(request, "Identidad revalidada correctamente con Base de Personas.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 

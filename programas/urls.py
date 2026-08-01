@@ -80,7 +80,13 @@ urlpatterns = [
     path("revision/relevamiento/<int:pk>/iniciar/", rev.relevamiento_iniciar_revision, name="revision_iniciar"),
     path("revision/relevamiento/<int:pk>/terminar/", rev.relevamiento_terminar, name="revision_terminar"),
     path("revision/formulario/<int:pk>/", rev.formulario_detalle, name="formulario_detalle"),
+    path("revision/formulario/<int:pk>/validar-sis/", rev.formulario_validar_sis, name="formulario_validar_sis"),
     path("revision/formulario/<int:pk>/aprobar/", rev.formulario_aprobar, name="formulario_aprobar"),
+    path(
+        "revision/formulario/<int:pk>/resolver-duplicado/",
+        rev.formulario_resolver_duplicado,
+        name="formulario_resolver_duplicado",
+    ),
     path("revision/formulario/<int:pk>/rechazar/", rev.formulario_rechazar, name="formulario_rechazar"),
     path(
         "revision/formulario/<int:pk>/actualizar-genero/",

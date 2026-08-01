@@ -326,6 +326,18 @@ RENAPER_TEST_MODE = os.getenv("RENAPER_TEST_MODE", "False") == "True"
 RENAPER_CONNECT_TIMEOUT = int(os.getenv("RENAPER_CONNECT_TIMEOUT", "10"))
 RENAPER_TIMEOUT = int(os.getenv("RENAPER_TIMEOUT", "20"))
 RENAPER_RETRIES = int(os.getenv("RENAPER_RETRIES", "0"))
+PERSONAS_API_URL = os.getenv("PERSONAS_API_URL", "https://personas.ecomdev.ar/api/v1").strip().rstrip("/")
+PERSONAS_API_CLIENT_ID = os.getenv("PERSONAS_API_CLIENT_ID", "")
+PERSONAS_API_CLIENT_SECRET = os.getenv("PERSONAS_API_CLIENT_SECRET", "")
+PERSONAS_API_ENTIDAD_UUID = os.getenv("PERSONAS_API_ENTIDAD_UUID", "")
+PERSONAS_API_FUENTE_ID = int(os.getenv("PERSONAS_API_FUENTE_ID", "13"))
+PERSONAS_API_CONNECT_TIMEOUT = int(os.getenv("PERSONAS_API_CONNECT_TIMEOUT", "10"))
+PERSONAS_API_TIMEOUT = int(os.getenv("PERSONAS_API_TIMEOUT", "20"))
+SIIS_API_URL = os.getenv("SIIS_API_URL", "https://siisapi.ecomdev.ar").strip().rstrip("/")
+SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
+SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
+SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "10"))
+SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "30"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 LOG_DIR = BASE_DIR / "logs"

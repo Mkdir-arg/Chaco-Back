@@ -28,10 +28,17 @@
     const addBtn = document.getElementById('add-filter');
     const logicSelect = document.getElementById('filters-logic');
     const hiddenInput = document.getElementById('filters-input');
+    const footer = document.getElementById('filters-footer');
 
-    if (!rowsContainer || !addBtn || !logicSelect || !hiddenInput) {
+    if (!rowsContainer || !addBtn || !logicSelect || !hiddenInput || !footer) {
         console.warn('AdvancedFilters: faltan elementos requeridos en el DOM.');
         return;
+    }
+
+    function syncVisibility() {
+        const hasRows = rowsContainer.children.length > 0;
+        rowsContainer.hidden = !hasRows;
+        footer.hidden = !hasRows;
     }
 
     const operatorLabels = Object.assign(
@@ -183,37 +190,31 @@
 
     function addRow(prefill) {
         const row = document.createElement('div');
-        row.className = 'filters-row';
-        row.style.display = 'flex';
-        row.style.gap = '8px';
-        row.style.alignItems = 'center';
-        row.style.flexWrap = 'wrap';
+        row.className = 'dynamic-list-filters__row';
 
         const fieldSel = createSelect('nodo-field', fieldOptions);
-        fieldSel.style.width = '180px';
+        fieldSel.classList.add('dynamic-list-filters__field');
         const opSel = createSelect('nodo-field');
-        opSel.style.width = '150px';
+        opSel.classList.add('dynamic-list-filters__operator');
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
-        valueInput.className = 'nodo-field';
+        valueInput.className = 'nodo-field dynamic-list-filters__value';
         valueInput.placeholder = 'Valor';
-        valueInput.style.width = '220px';
 
         const selectValue = createSelect('nodo-field');
+        selectValue.classList.add('dynamic-list-filters__value');
         selectValue.style.display = 'none';
-        selectValue.style.width = '180px';
 
         const emptyModeSel = createSelect('nodo-field', emptyModeOptions);
+        emptyModeSel.classList.add('dynamic-list-filters__value');
         emptyModeSel.style.display = 'none';
-        emptyModeSel.style.width = '180px';
 
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
-        removeBtn.className = 'btn-nodo btn-danger btn-sm';
+        removeBtn.className = 'dynamic-list-filters__remove';
         removeBtn.setAttribute('aria-label', 'Quitar filtro');
-        removeBtn.style.minWidth = '0';
-        removeBtn.style.padding = '8px';
-        removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+        removeBtn.title = 'Quitar filtro';
+        removeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>';
 
         const refs = {
             fieldSel,
@@ -300,7 +301,10 @@
         });
 
         opSel.addEventListener('change', () => adjustVisibility());
-        removeBtn.addEventListener('click', () => row.remove());
+        removeBtn.addEventListener('click', () => {
+            row.remove();
+            syncVisibility();
+        });
 
         row.appendChild(fieldSel);
         row.appendChild(opSel);
@@ -338,6 +342,7 @@
         }
 
         row._advancedFilterRefs = refs;
+        syncVisibility();
     }
 
     addBtn.addEventListener('click', () => addRow());
@@ -403,7 +408,6 @@
         }
     }
 
-    if (!loadFromQuerystring()) {
-        addRow();
-    }
+    loadFromQuerystring();
+    syncVisibility();
 })();

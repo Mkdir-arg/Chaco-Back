@@ -17,6 +17,7 @@ urlpatterns = [
     path("", views_ciudadanos.CiudadanoListView.as_view(), name="lista"),
     path("nuevo/", views_ciudadanos.CiudadanoCreateView.as_view(), name="nuevo"),
     path("ciudadanos/", views_ciudadanos.CiudadanoListView.as_view(), name="ciudadanos"),
+    path("ciudadanos/exportar-csv/", views_ciudadanos.ciudadanos_exportar_csv, name="ciudadanos_exportar_csv"),
     path("ciudadanos/buscar/", views_ciudadanos_api.ciudadano_buscar_api, name="ciudadano_buscar_api"),
     path("ciudadanos/nuevo/", views_ciudadanos.CiudadanoCreateView.as_view(), name="ciudadano_nuevo"),
     path("ciudadanos/confirmar/", views_ciudadanos.CiudadanoConfirmarView.as_view(), name="ciudadano_confirmar"),

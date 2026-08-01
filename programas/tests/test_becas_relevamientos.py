@@ -79,8 +79,8 @@ class ScopingTests(_BaseRelevTest):
     def test_coordinador_ve_solo_su_segmento(self):
         self.client.force_login(self.coord_a)
         resp = self.client.get(reverse("becas:relevamientos"))
-        self.assertContains(resp, self.rel_a.nombre)
-        self.assertNotContains(resp, self.rel_b.nombre)
+        self.assertContains(resp, self.rel_a.zona)
+        self.assertNotContains(resp, self.rel_b.zona)
 
     def test_coordinador_detalle_fuera_de_alcance_403(self):
         self.client.force_login(self.coord_a)
@@ -105,8 +105,8 @@ class ScopingTests(_BaseRelevTest):
                 "fecha_hasta": "2026-06-01",
             },
         )
-        self.assertContains(resp, self.rel_a.nombre)
-        self.assertNotContains(resp, self.rel_b.nombre)
+        self.assertContains(resp, self.rel_a.zona)
+        self.assertNotContains(resp, self.rel_b.zona)
 
     def test_paginacion_muestra_25_y_permite_segunda_pagina(self):
         for numero in range(24):
