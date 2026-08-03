@@ -1,204 +1,445 @@
 {% extends "includes/base.html" %}
 {% load static %}
 
-{% block title %}{% if object %}Editar{% else %}Nuevo{% endif %} Usuario{% endblock %}
+{% block title %}{% if object %}Editar{% else %}Nuevo{% endif %} usuario{% endblock %}
+
+{% block head %}
+<style>
+    /* ── Picker de roles por categoría (ABM de Usuarios) ───────────────────── */
+    .roles-picker [hidden] { display: none !important; }
+
+    .roles-search { position: relative; max-width: 380px; flex: 1 1 240px; }
+
+    .roles-search svg {
+        position: absolute;
+        left: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-body-subtle);
+        pointer-events: none;
+    }
+
+    .roles-search input.nodo-field { padding-left: 38px; }
+
+    .roles-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 12px;
+        font-family: var(--font-sans);
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-body-subtle);
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        border-radius: 8px 8px 0 0;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: color 150ms, border-color 150ms;
+    }
+
+    .roles-tab:hover { color: var(--text-heading); }
+
+    .roles-tab[aria-selected="true"] {
+        color: var(--text-fg-brand);
+        border-bottom-color: var(--border-brand);
+    }
+
+    .roles-tab:focus-visible { box-shadow: var(--ring-brand); }
+
+    .roles-tab-badge {
+        padding: 1px 6px;
+        border-radius: var(--rounded-full);
+        background: var(--bg-brand-soft);
+        color: var(--text-fg-brand-strong);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.5;
+    }
+
+    .roles-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: background 150ms;
+    }
+
+    .roles-item + .roles-item { border-top: 1px solid var(--border-light); }
+
+    .roles-item:hover { background: var(--bg-tertiary); }
+
+    .roles-item:has(input:checked) { background: var(--bg-brand-softer); }
+
+    .roles-check {
+        width: 16px;
+        height: 16px;
+        margin-top: 2px;
+        flex: 0 0 auto;
+        accent-color: var(--bg-brand);
+        cursor: pointer;
+    }
+
+    .roles-check:focus-visible {
+        outline: 2px solid transparent;
+        border-radius: var(--rounded);
+        box-shadow: var(--ring-brand);
+    }
+
+    .roles-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px 4px 10px;
+        font-family: var(--font-sans);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-fg-brand-strong);
+        background: var(--bg-brand-soft);
+        border: 1px solid var(--border-brand-subtle);
+        border-radius: var(--rounded-full);
+        cursor: pointer;
+    }
+
+    .roles-chip:hover { background: var(--bg-brand-medium); }
+
+    .roles-chip:focus-visible { box-shadow: var(--ring-brand); }
+
+    {% comment %}En modo tabs la categoría la comunica la solapa activa; en búsqueda se listan todas.{% endcomment %}
+    .roles-picker[data-mode="tabs"] .roles-cat-label { display: none; }
+</style>
+{% endblock %}
 
 {% block main-content %}
-<div class="p-6">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">{% if object %}Editar{% else %}Nuevo{% endif %} Usuario</h1>
-    </div>
 
-    <div class="bg-white rounded-lg shadow p-6">
-        <form method="post">
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-                <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md p-4 mb-6">
-                    {{ form.non_field_errors }}
-                </div>
-            {% endif %}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre de usuario</label>
-                    {{ form.username }}
-                    {% if form.username.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.username.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div>
-                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    {{ form.email }}
-                    {% if form.email.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.email.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div>
-                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
-                    {{ form.first_name }}
-                    {% if form.first_name.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.first_name.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div>
-                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Apellido</label>
-                    {{ form.last_name }}
-                    {% if form.last_name.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.last_name.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                {% if not object %}
-                <div class="md:col-span-2">
-                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
-                    {{ form.password }}
-                    {% if form.password.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.password.errors }}</div>
-                    {% endif %}
-                </div>
-                {% endif %}
-                
-                <div>
-                    <label for="{{ form.groups.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Roles</label>
-                    <div class="space-y-3">
-                        <div class="space-y-2">
-                            <div class="hidden">
-                                {{ form.groups }}
-                            </div>
-                            <div id="group-options" class="flex flex-wrap gap-2"></div>
-                        </div>
-                        <div id="selected-groups-tags" class="flex flex-wrap gap-2"></div>
-                        <p class="text-xs text-gray-500">Seleccioná uno o más roles activos. Podés quitar un rol haciendo clic en su etiqueta.</p>
-                    </div>
-                    {% if form.groups.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.groups.errors }}</div>
-                    {% endif %}
-                </div>
-
-                <div id="segmento-territorial-field" class="hidden">
-                    <label for="id_segmento_territorial" class="block text-sm font-medium text-gray-700 mb-2">{{ form.segmento_territorial.label }} <span class="text-red-600">*</span></label>
-                    {{ form.segmento_territorial }}
-                    <p class="text-xs text-gray-500 mt-1">{{ form.segmento_territorial.help_text }}</p>
-                    {% if form.segmento_territorial.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.segmento_territorial.errors }}</div>
-                    {% endif %}
-                </div>
-
-            </div>
-            
-            <div class="flex justify-end space-x-3 mt-6">
-                <a href="{% url 'users:usuarios' %}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">Cancelar</a>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Guardar</button>
-            </div>
-        </form>
-    </div>
+{# Page Header #}
+<div class="mb-6">
+    <h1 class="text-3xl font-extrabold tracking-tight text-heading">{% if object %}Editar usuario{% else %}Nuevo usuario{% endif %}</h1>
+    <p class="mt-1 text-sm text-body-subtle">
+        {% if object %}Actualizá los datos de acceso y los roles de {{ object.get_full_name|default:object.username }}.
+        {% else %}Creá el usuario y asignale los roles que necesita.{% endif %}
+    </p>
 </div>
-{{ form.grupos_territoriales_ids|json_script:"grupos-territoriales-ids" }}
+
+<form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="mb-4 rounded-lg border border-danger-subtle bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {# Card: datos del usuario #}
+    <div class="mb-6 rounded-xl border border-base bg-white p-6 shadow-sm">
+        <h2 class="mb-5 text-lg font-bold text-heading">Datos del usuario</h2>
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+                <label for="{{ form.username.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Nombre de usuario</label>
+                {{ form.username }}
+                {% for error in form.username.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ form.email.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Email</label>
+                {{ form.email }}
+                {% for error in form.email.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ form.first_name.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Nombre</label>
+                {{ form.first_name }}
+                {% for error in form.first_name.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ form.last_name.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Apellido</label>
+                {{ form.last_name }}
+                {% for error in form.last_name.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            {% if not object %}
+            <div class="md:col-span-2">
+                <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Contraseña</label>
+                {{ form.password }}
+                {% for error in form.password.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Card: roles por categoría #}
+    {% with tabs=form.roles_por_categoria %}
+    <div id="roles-picker" class="roles-picker rounded-xl border border-base bg-white shadow-sm" data-mode="tabs">
+        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-light p-5">
+            <div>
+                <h2 class="text-lg font-bold text-heading">Roles por categoría</h2>
+                <p class="mt-0.5 text-sm text-body-subtle">Un usuario puede tener roles de múltiples categorías.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-body-subtle"><span id="roles-total">{{ form.groups.value|length }}</span> seleccionado(s)</span>
+                <button type="button" id="roles-limpiar" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">Limpiar</button>
+            </div>
+        </div>
+
+        {% if tabs %}
+        {# Seleccionados (todas las categorías) + buscador transversal #}
+        <div class="border-b border-light px-5 py-4">
+            <div id="roles-chips" class="mb-3 flex flex-wrap gap-2"></div>
+            <div class="roles-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                <input type="search" id="roles-search-input" class="nodo-field" autocomplete="off"
+                       placeholder="Buscar rol en todas las categorías…" aria-controls="roles-panels">
+            </div>
+        </div>
+
+        {# Solapas por categoría #}
+        <div class="overflow-x-auto border-b border-light px-5">
+            <nav class="flex gap-1" role="tablist" aria-label="Categorías de rol">
+                {% for tab in tabs %}
+                <button type="button" class="roles-tab" role="tab" data-tab="{{ tab.id }}"
+                        id="tab-rol-{{ tab.id }}" aria-controls="panel-rol-{{ tab.id }}" aria-selected="false">
+                    {{ tab.label }}
+                    <span class="text-xs font-normal text-body-subtle">({{ tab.total }})</span>
+                    <span class="roles-tab-badge" data-tab-badge="{{ tab.id }}" hidden>0</span>
+                </button>
+                {% endfor %}
+            </nav>
+        </div>
+
+        {# Paneles #}
+        <div id="roles-panels" class="p-5">
+            {% for tab in tabs %}
+            <section id="panel-rol-{{ tab.id }}" class="roles-panel" data-panel="{{ tab.id }}"
+                     role="tabpanel" aria-labelledby="tab-rol-{{ tab.id }}" hidden>
+                <p class="roles-cat-label mb-2 text-xs font-bold uppercase tracking-wide text-body-subtle">{{ tab.label }}</p>
+                <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                    {% for grupo in tab.grupos %}
+                    <div class="overflow-hidden rounded-lg border border-base" data-card>
+                        {% if grupo.label %}
+                        <div class="flex items-center gap-2 border-b border-light bg-secondary px-4 py-2.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="shrink-0 text-fg-brand" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+                            <span class="text-sm font-bold text-heading">{{ grupo.label }}</span>
+                            <span class="text-xs text-body-subtle">({{ grupo.roles|length }})</span>
+                        </div>
+                        {% endif %}
+                        {% for rol in grupo.roles %}
+                        <label class="roles-item" data-item
+                               data-buscar="{{ rol.nombre|lower }} {{ rol.descripcion|lower }} {{ grupo.label|lower }} {{ tab.label|lower }}">
+                            <input type="checkbox" name="groups" value="{{ rol.id }}" id="{{ rol.input_id }}"
+                                   class="roles-check" data-rol-check data-tab="{{ tab.id }}"
+                                   data-nombre="{{ rol.nombre }}"
+                                   {% if rol.territorial %}data-territorial="1"{% endif %}
+                                   {% if rol.checked %}checked{% endif %}>
+                            <span class="min-w-0">
+                                <span class="flex flex-wrap items-center gap-1.5">
+                                    <span class="text-sm font-semibold text-heading">{{ rol.nombre }}</span>
+                                    {% if rol.inactivo %}<span class="badge badge-danger badge-sm">Inactivo</span>{% endif %}
+                                </span>
+                                {% if rol.descripcion %}
+                                <span class="mt-0.5 block text-xs text-body-subtle">{{ rol.descripcion }}</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+
+            <p id="roles-sin-resultados" class="py-6 text-center text-sm text-body-subtle" hidden>
+                Ningún rol coincide con la búsqueda.
+            </p>
+
+            {% if form.groups.errors %}
+            <div class="mt-3">
+                {% for error in form.groups.errors %}<p class="text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center gap-2.5 px-6 py-14 text-center">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-fg-brand" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+            <p class="text-sm text-body">No hay roles disponibles para asignar.</p>
+            <p class="mt-1 text-xs text-body-subtle">Creá un rol activo desde <a href="{% url 'users:roles' %}" class="font-semibold text-fg-brand underline">Roles</a>.</p>
+        </div>
+        {% endif %}
+
+        {# Segmento (Becas): solo con un rol territorial tildado #}
+        {% comment %}Con error de validación se muestra desde el server: el JS lo re-evalúa igual al cargar.{% endcomment %}
+        <div id="segmento-territorial-field" class="border-t border-light px-5 py-4"{% if not form.segmento_territorial.errors %} hidden{% endif %}>
+            <div class="max-w-sm">
+                <label for="id_segmento_territorial" class="mb-1.5 block text-sm font-semibold text-heading">
+                    {{ form.segmento_territorial.label }} <span class="text-fg-danger">*</span>
+                </label>
+                {{ form.segmento_territorial }}
+                <p class="mt-1 text-xs text-body-subtle">{{ form.segmento_territorial.help_text }}</p>
+                {% for error in form.segmento_territorial.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+
+    <div class="mt-6 flex justify-end gap-3">
+        <a href="{% url 'users:usuarios' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+        <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
+    </div>
+</form>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const select = document.getElementById('id_groups') || document.getElementById('id_groups_edit');
-        const tagsContainer = document.getElementById('selected-groups-tags');
-        const optionsContainer = document.getElementById('group-options');
+        var picker = document.getElementById('roles-picker');
+        if (!picker) return;
 
-        if (!select || !tagsContainer || !optionsContainer) {
-            return;
+        var checks = Array.from(picker.querySelectorAll('[data-rol-check]'));
+        var tabs = Array.from(picker.querySelectorAll('.roles-tab'));
+        var panels = Array.from(picker.querySelectorAll('.roles-panel'));
+        var items = Array.from(picker.querySelectorAll('[data-item]'));
+        var cards = Array.from(picker.querySelectorAll('[data-card]'));
+        var chipsEl = document.getElementById('roles-chips');
+        var totalEl = document.getElementById('roles-total');
+        var searchInput = document.getElementById('roles-search-input');
+        var sinResultados = document.getElementById('roles-sin-resultados');
+        var segmentoField = document.getElementById('segmento-territorial-field');
+        var limpiarBtn = document.getElementById('roles-limpiar');
+        var tabActual = tabs.length ? tabs[0].dataset.tab : null;
+
+        // ---- Solapas ----
+        function activarTab(id) {
+            tabActual = id;
+            picker.dataset.mode = 'tabs';
+            items.forEach(function (i) { i.hidden = false; });
+            cards.forEach(function (c) { c.hidden = false; });
+            tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.tab === id ? 'true' : 'false'); });
+            panels.forEach(function (p) { p.hidden = p.dataset.panel !== id; });
+            if (sinResultados) sinResultados.hidden = true;
         }
 
-        // Segmento (Becas): visible solo con un rol territorial tildado.
-        const segmentoField = document.getElementById('segmento-territorial-field');
-        const gruposTerritorialesEl = document.getElementById('grupos-territoriales-ids');
-        const gruposTerritoriales = gruposTerritorialesEl ? JSON.parse(gruposTerritorialesEl.textContent) : [];
-        const toggleSegmento = () => {
-            if (!segmentoField) return;
-            const esTerritorial = Array.from(select.selectedOptions).some((o) => gruposTerritoriales.includes(o.value));
-            segmentoField.classList.toggle('hidden', !esTerritorial);
-        };
-        select.addEventListener('change', toggleSegmento);
-        toggleSegmento();
-
-        const optionButtons = new Map();
-
-        const baseButtonClasses = 'px-3 py-2 text-sm rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400';
-        const selectedClasses = 'bg-blue-600 text-white border-blue-600 shadow';
-        const unselectedClasses = 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50';
-
-        const updateButtonState = (button, isSelected) => {
-            button.className = `${baseButtonClasses} ${isSelected ? selectedClasses : unselectedClasses}`;
-            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        };
-
-        Array.from(select.options).forEach((option) => {
-            if (!option.value) {
-                return;
-            }
-
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = option.text;
-
-            updateButtonState(button, option.selected);
-
-            button.addEventListener('click', () => {
-                option.selected = !option.selected;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                updateButtonState(button, option.selected);
-                renderTags();
+        tabs.forEach(function (t, i) {
+            t.addEventListener('click', function () {
+                if (searchInput) searchInput.value = '';
+                activarTab(t.dataset.tab);
             });
-
-            optionsContainer.appendChild(button);
-            optionButtons.set(option.value, button);
+            // Tablist: flechas mueven entre solapas (patrón ARIA).
+            t.addEventListener('keydown', function (ev) {
+                var paso = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+                if (!paso) return;
+                ev.preventDefault();
+                var destino = tabs[(i + paso + tabs.length) % tabs.length];
+                if (searchInput) searchInput.value = '';
+                activarTab(destino.dataset.tab);
+                destino.focus();
+            });
         });
 
-        const renderTags = () => {
-            const selected = Array.from(select.selectedOptions);
-
-            tagsContainer.innerHTML = '';
-
-            if (selected.length === 0) {
-                const empty = document.createElement('span');
-                empty.className = 'text-gray-400 text-sm';
-                empty.textContent = 'Ningún rol seleccionado';
-                tagsContainer.appendChild(empty);
+        // ---- Buscador transversal (muestra todas las categorías con coincidencias) ----
+        function buscar() {
+            var q = searchInput.value.trim().toLowerCase();
+            if (!q) {
+                activarTab(tabActual);
                 return;
             }
+            picker.dataset.mode = 'search';
+            tabs.forEach(function (t) { t.setAttribute('aria-selected', 'false'); });
 
-            selected.forEach((option) => {
-                const tag = document.createElement('button');
-                tag.type = 'button';
-                tag.className = 'flex items-center space-x-1 bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full shadow-sm hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400';
-                tag.dataset.value = option.value;
+            var visibles = 0;
+            items.forEach(function (item) {
+                var match = (item.dataset.buscar || '').indexOf(q) !== -1;
+                item.hidden = !match;
+                if (match) visibles++;
+            });
+            cards.forEach(function (card) {
+                card.hidden = !Array.from(card.querySelectorAll('[data-item]')).some(function (i) { return !i.hidden; });
+            });
+            panels.forEach(function (panel) {
+                panel.hidden = !Array.from(panel.querySelectorAll('[data-card]')).some(function (c) { return !c.hidden; });
+            });
+            if (sinResultados) sinResultados.hidden = visibles > 0;
+        }
 
-                const label = document.createElement('span');
-                label.textContent = option.text;
+        if (searchInput) {
+            searchInput.addEventListener('input', buscar);
+            // Enter dentro del buscador no debe enviar el formulario.
+            searchInput.addEventListener('keydown', function (ev) {
+                if (ev.key !== 'Enter') return;
+                ev.preventDefault();
+                if (ev.target.value) { ev.target.value = ''; buscar(); }
+            });
+        }
 
-                const close = document.createElement('span');
-                close.className = 'text-blue-600 text-sm font-semibold leading-none';
-                close.innerHTML = '&times;';
+        // ---- Contadores, chips y campo dependiente ----
+        function crearChip(check) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'roles-chip';
+            chip.setAttribute('aria-label', 'Quitar el rol ' + check.dataset.nombre);
 
-                tag.appendChild(label);
-                tag.appendChild(close);
+            var texto = document.createElement('span');
+            texto.textContent = check.dataset.nombre;
+            var cruz = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            cruz.setAttribute('width', '12');
+            cruz.setAttribute('height', '12');
+            cruz.setAttribute('viewBox', '0 0 24 24');
+            cruz.setAttribute('fill', 'none');
+            cruz.setAttribute('stroke', 'currentColor');
+            cruz.setAttribute('stroke-width', '2');
+            cruz.setAttribute('aria-hidden', 'true');
+            var trazo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            trazo.setAttribute('stroke-linecap', 'round');
+            trazo.setAttribute('stroke-linejoin', 'round');
+            trazo.setAttribute('d', 'M6 18L18 6M6 6l12 12');
+            cruz.appendChild(trazo);
 
-                tag.addEventListener('click', () => {
-                    option.selected = false;
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    renderTags();
-                });
+            chip.appendChild(texto);
+            chip.appendChild(cruz);
+            chip.addEventListener('click', function () {
+                check.checked = false;
+                refrescar();
+            });
+            return chip;
+        }
 
-                tagsContainer.appendChild(tag);
+        function refrescar() {
+            var seleccionados = checks.filter(function (c) { return c.checked; });
+            if (totalEl) totalEl.textContent = seleccionados.length;
+
+            picker.querySelectorAll('[data-tab-badge]').forEach(function (badge) {
+                var id = badge.dataset.tabBadge;
+                var n = seleccionados.filter(function (c) { return c.dataset.tab === id; }).length;
+                badge.textContent = n;
+                badge.hidden = n === 0;
             });
 
-            optionButtons.forEach((button, value) => {
-                const option = Array.from(select.options).find(opt => opt.value === value);
-                if (option) {
-                    updateButtonState(button, option.selected);
+            if (chipsEl) {
+                chipsEl.innerHTML = '';
+                if (!seleccionados.length) {
+                    var vacio = document.createElement('span');
+                    vacio.className = 'text-sm text-body-subtle';
+                    vacio.textContent = 'Ningún rol seleccionado';
+                    chipsEl.appendChild(vacio);
+                } else {
+                    seleccionados.forEach(function (c) { chipsEl.appendChild(crearChip(c)); });
                 }
-            });
-        };
+            }
 
-        select.addEventListener('change', renderTags);
-        renderTags();
+            if (segmentoField) {
+                segmentoField.hidden = !seleccionados.some(function (c) { return c.dataset.territorial === '1'; });
+            }
+        }
+
+        checks.forEach(function (c) { c.addEventListener('change', refrescar); });
+
+        if (limpiarBtn) {
+            limpiarBtn.addEventListener('click', function () {
+                checks.forEach(function (c) { c.checked = false; });
+                refrescar();
+            });
+        }
+
+        // Estado inicial: abre la primera categoría con roles tildados.
+        var conSeleccion = checks.find(function (c) { return c.checked; });
+        activarTab(conSeleccion ? conSeleccion.dataset.tab : tabActual);
+        refrescar();
     });
 </script>
 {% endblock %}

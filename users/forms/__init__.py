@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import Group, User
+from django.utils.text import slugify
 
 from core import rbac
 
@@ -49,7 +50,7 @@ def _normalize_groups_args(args, kwargs):
     return args, kwargs
 
 
-_INPUT_ABM = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+_INPUT_ABM = "nodo-field"
 
 
 def _agregar_campo_segmento_territorial(form):
@@ -110,11 +111,83 @@ def _roles_asignables_queryset(operador=None):
     return qs.filter(meta__programa__in=programas_administrables(operador))
 
 
-class UserCreationForm(forms.ModelForm):
+_SIN_CATEGORIA = "Sin categoría"
+
+
+class RolesPorCategoriaMixin:
+    """Expone los roles asignables agrupados por categoría para el panel del ABM.
+
+    El campo sigue siendo ``groups`` (``ModelMultipleChoiceField``): el panel
+    renderiza checkboxes ``name="groups"`` y la validación no cambia. El árbol se
+    arma en el render (no en ``__init__``) para reflejar lo tildado en un POST
+    inválido y no pagar la query cuando el form no se muestra.
+    """
+
+    def _roles_seleccionados_ids(self):
+        """Ids (str) tildados: del POST si está bound, del initial si no."""
+        valor = self["groups"].value() or []
+        if not isinstance(valor, (list, tuple, set)):
+            valor = [valor]
+        return {str(getattr(v, "pk", v)) for v in valor}
+
+    def roles_por_categoria(self):
+        """``[{"id", "label", "total", "grupos": [{"label", "roles"}]}]``.
+
+        Las categorías se ordenan según :data:`core.rbac.CATEGORIAS_ROL` y solo
+        se incluyen las que tienen roles asignables. Dentro de ``Programa`` los
+        roles se subagrupan por programa (una tarjeta por programa).
+        """
+        seleccionados = self._roles_seleccionados_ids()
+        territoriales = set(getattr(self, "grupos_territoriales_ids", []))
+        roles = self.fields["groups"].queryset.select_related("meta", "meta__programa")
+
+        por_categoria = {}
+        for grupo in sorted(roles, key=lambda g: g.name.lower()):
+            meta = getattr(grupo, "meta", None)
+            categoria = getattr(meta, "categoria", "") or _SIN_CATEGORIA
+            programa = getattr(meta, "programa", None)
+            por_categoria.setdefault(categoria, []).append(
+                {
+                    "id": str(grupo.pk),
+                    "input_id": f"rol-{grupo.pk}",
+                    "nombre": grupo.name,
+                    "descripcion": getattr(meta, "descripcion", "") or "",
+                    "checked": str(grupo.pk) in seleccionados,
+                    "inactivo": meta is not None and not meta.activo,
+                    "territorial": str(grupo.pk) in territoriales,
+                    "programa": getattr(programa, "nombre", "") or "",
+                }
+            )
+
+        orden = [c for c in rbac.CATEGORIAS_ROL if c in por_categoria]
+        orden += [c for c in por_categoria if c not in orden]
+        return [
+            {
+                "id": slugify(categoria) or "otros",
+                "label": categoria,
+                "total": len(por_categoria[categoria]),
+                "grupos": _subgrupos_de_categoria(categoria, por_categoria[categoria]),
+            }
+            for categoria in orden
+        ]
+
+
+def _subgrupos_de_categoria(categoria, roles):
+    """Tarjetas dentro de una categoría: por programa en ``Programa``, una sola en el resto."""
+    if categoria != rbac.CATEGORIA_PROGRAMA:
+        return [{"label": "", "roles": roles}]
+
+    por_programa = {}
+    for rol in roles:
+        por_programa.setdefault(rol["programa"] or "Sin programa", []).append(rol)
+    return [{"label": nombre, "roles": por_programa[nombre]} for nombre in sorted(por_programa)]
+
+
+class UserCreationForm(RolesPorCategoriaMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
-                "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "class": "nodo-field",
                 "placeholder": "Ingrese la contraseña",
             }
         ),
@@ -125,7 +198,7 @@ class UserCreationForm(forms.ModelForm):
         required=False,
         widget=forms.SelectMultiple(
             attrs={
-                "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "class": "nodo-field",
                 "id": "id_groups",
                 "size": "4",
             }
@@ -146,25 +219,25 @@ class UserCreationForm(forms.ModelForm):
         widgets = {
             "username": forms.TextInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el nombre de usuario",
                 }
             ),
             "email": forms.EmailInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el email",
                 }
             ),
             "first_name": forms.TextInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el nombre",
                 }
             ),
             "last_name": forms.TextInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el apellido",
                 }
             ),
@@ -181,11 +254,11 @@ class UserCreationForm(forms.ModelForm):
         return _validar_segmento_territorial(self)
 
 
-class CustomUserChangeForm(forms.ModelForm):
+class CustomUserChangeForm(RolesPorCategoriaMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
-                "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "class": "nodo-field",
                 "placeholder": "Dejar en blanco para no cambiar",
             }
         ),
@@ -197,7 +270,7 @@ class CustomUserChangeForm(forms.ModelForm):
         required=False,
         widget=forms.SelectMultiple(
             attrs={
-                "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "class": "nodo-field",
                 "id": "id_groups_edit",
                 "size": "4",
             }
@@ -218,25 +291,25 @@ class CustomUserChangeForm(forms.ModelForm):
         widgets = {
             "username": forms.TextInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el nombre de usuario",
                 }
             ),
             "email": forms.EmailInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el email",
                 }
             ),
             "first_name": forms.TextInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el nombre",
                 }
             ),
             "last_name": forms.TextInput(
                 attrs={
-                    "class": "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    "class": "nodo-field",
                     "placeholder": "Ingrese el apellido",
                 }
             ),
