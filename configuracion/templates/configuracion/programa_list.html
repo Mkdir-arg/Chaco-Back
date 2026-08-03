@@ -1,10 +1,10 @@
-{% extends "includes/main.html" %}
+{% extends "includes/base.html" %}
 {% load static %}
 
 {% block title %}Programas{% endblock %}
 
-{% block content %}
-<div class="px-6 py-7">
+{% block main-content %}
+<div>
 
     {# ── PageHeader ── #}
     <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
@@ -27,7 +27,7 @@
     {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
 
     {# ── FilterBar ── #}
-    <form method="get" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:16px;">
+    <form method="get" data-dynamic-list-filters style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:16px;">
         <div style="display:flex;flex-direction:column;gap:6px;">
             <label for="id-q" style="font-size:13px;font-weight:600;color:var(--text-heading);">Buscar</label>
             <div style="position:relative;">

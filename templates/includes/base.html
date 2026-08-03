@@ -191,6 +191,7 @@
         <link rel="stylesheet" href="{% static 'custom/css/mobile-forms.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/mobile-tables.css' %}" />
         <link rel="stylesheet" href="{% static 'custom/css/alertas_notifications.css' %}" />
+        <link rel="stylesheet" href="{% static 'custom/css/dynamic-list-filters.css' %}" />
 
         <!-- NODO Toast (notificaciones toast — reemplaza los mensajes inline) -->
         <link rel="stylesheet" href="{% static 'custom/css/nodo-toast.css' %}" />
@@ -232,6 +233,7 @@
         {% include 'components/alertas_eventos.html' %}
         
         <!-- Sistema de Modales Modernos -->
+        {% include "components/list_filters.html" with template_mode=True %}
         <div id="modal-overlay" class="modal-responsive fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm transition-opacity duration-300">
             <div class="flex min-h-[100dvh] items-end justify-center p-0 sm:min-h-screen sm:items-center sm:p-4">
                 <div id="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-300 scale-95 opacity-0 sm:max-w-md sm:rounded-2xl">
@@ -464,6 +466,7 @@
         {% block customJS %}{% endblock %}
 
         <script src="{% static 'custom/js/nodo-tooltips.js' %}"></script>
+        <script src="{% static 'custom/js/dynamic_list_filters.js' %}"></script>
 
         <!-- NODO SweetAlert2 theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()

@@ -124,7 +124,7 @@ RELEVAMIENTOS = [
         "Carbon",
         "Pcia. Roque Saenz Pena",
         1,
-        Relevamiento.Estado.EN_CURSO,
+        Relevamiento.Estado.ASIGNADO,
         "Operativo con referentes barriales.",
     ),
     (
@@ -151,7 +151,7 @@ RELEVAMIENTOS = [
         "Ladrillo",
         "Quitilipi",
         4,
-        Relevamiento.Estado.EN_CURSO,
+        Relevamiento.Estado.ASIGNADO,
         "Relevar predios productivos familiares.",
     ),
     (
@@ -169,7 +169,7 @@ RELEVAMIENTOS = [
         "Universitario",
         "Barranqueras",
         1,
-        Relevamiento.Estado.EN_CURSO,
+        Relevamiento.Estado.ASIGNADO,
         "Turno tarde con estudiantes universitarios.",
     ),
     (
@@ -343,6 +343,11 @@ def asegurar_relevamientos(convocatorias, territorial):
 def asegurar_formularios(relevamientos, territorial):
     persona_index = 0
     for rel_index, rel in enumerate(relevamientos[:6]):
+        if rel.estado != Relevamiento.Estado.EN_CURSO:
+            # Reconciliación idempotente de seeds anteriores que cargaban
+            # formularios aun cuando el operativo seguía ASIGNADO.
+            rel.formularios.filter(datos_identificacion__origen="seed_demo_mobile").delete()
+            continue
         cantidad = rel_index % 3
         for _ in range(cantidad):
             dni, nombre, apellido = PERSONAS[persona_index % len(PERSONAS)]

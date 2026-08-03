@@ -22,6 +22,7 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
         model = Relevamiento
         fields = [
             "id",
+            "numero",
             "nombre",
             "zona",
             "fecha_asignada",
@@ -54,6 +55,7 @@ class FormularioSerializer(serializers.ModelSerializer):
         model = Formulario
         fields = [
             "id",
+            "numero",
             "client_uuid",
             "capturado_en",
             "relevamiento",
@@ -69,7 +71,10 @@ class FormularioSerializer(serializers.ModelSerializer):
             "email_contacto",
             "apoderado_nombre",
             "apoderado_apellido",
+            "apoderado_dni",
+            "apoderado_genero",
             "apoderado_fecha_nacimiento",
+            "apoderado_ciudadano",
             "gps_lat",
             "gps_lng",
             "data",
@@ -78,6 +83,7 @@ class FormularioSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "numero",
             "relevamiento",
             "estado",
             "motivo_rechazo",
@@ -85,6 +91,7 @@ class FormularioSerializer(serializers.ModelSerializer):
             "ciudadano_dni",
             "ciudadano_nombre",
             "ciudadano_apellido",
+            "apoderado_ciudadano",
             "creado",
             "modificado",
         ]
@@ -124,6 +131,8 @@ class FormularioSerializer(serializers.ModelSerializer):
             campos_apoderado = (
                 "apoderado_nombre",
                 "apoderado_apellido",
+                "apoderado_dni",
+                "apoderado_genero",
                 "apoderado_fecha_nacimiento",
             )
             faltantes = [
@@ -138,6 +147,16 @@ class FormularioSerializer(serializers.ModelSerializer):
                         for campo in faltantes
                     }
                 )
+            valor_dni = attrs.get("apoderado_dni") if "apoderado_dni" in attrs else self.instance.apoderado_dni
+            dni_apoderado = "".join(character for character in str(valor_dni or "") if character.isdigit())
+            if len(dni_apoderado) not in (7, 8):
+                raise serializers.ValidationError({"apoderado_dni": "Ingresá un DNI válido de 7 u 8 dígitos."})
+            attrs["apoderado_dni"] = dni_apoderado
+            valor_genero = (
+                attrs.get("apoderado_genero") if "apoderado_genero" in attrs else self.instance.apoderado_genero
+            )
+            if valor_genero not in (Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO):
+                raise serializers.ValidationError({"apoderado_genero": "Seleccioná sexo F o M."})
         return attrs
 
 

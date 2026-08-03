@@ -112,6 +112,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
                 "email_contacto": "a@b.com",  # igual
                 "apoderado_nombre": "",
                 "apoderado_apellido": "",
+                "apoderado_dni": "",
+                "apoderado_genero": "",
                 "apoderado_fecha_nacimiento": "",
             },
         )
@@ -180,6 +182,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
                 "email_contacto": "a@b.com",
                 "apoderado_nombre": "",
                 "apoderado_apellido": "",
+                "apoderado_dni": "",
+                "apoderado_genero": "",
                 "apoderado_fecha_nacimiento": "",
             },
         )
@@ -200,6 +204,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
                 "email_contacto": "a@b.com",
                 "apoderado_nombre": "",
                 "apoderado_apellido": "",
+                "apoderado_dni": "",
+                "apoderado_genero": "",
                 "apoderado_fecha_nacimiento": "",
             },
             instance=self.form_a,
@@ -208,7 +214,13 @@ class EdicionTrazaTests(_BaseRevisionTest):
         self.assertFalse(form.is_valid())
         self.assertEqual(
             set(form.errors),
-            {"apoderado_nombre", "apoderado_apellido", "apoderado_fecha_nacimiento"},
+            {
+                "apoderado_nombre",
+                "apoderado_apellido",
+                "apoderado_dni",
+                "apoderado_genero",
+                "apoderado_fecha_nacimiento",
+            },
         )
 
     def test_detalle_adulto_sin_apoderado_oculta_sus_campos(self):
@@ -235,12 +247,16 @@ class EdicionTrazaTests(_BaseRevisionTest):
         )
         self.form_a.apoderado_nombre = "Ana"
         self.form_a.apoderado_apellido = "Pérez"
+        self.form_a.apoderado_dni = "27111444"
+        self.form_a.apoderado_genero = "F"
         self.form_a.apoderado_fecha_nacimiento = date(1993, 7, 13)
         self.form_a.save(
             update_fields=[
                 "ciudadano",
                 "apoderado_nombre",
                 "apoderado_apellido",
+                "apoderado_dni",
+                "apoderado_genero",
                 "apoderado_fecha_nacimiento",
             ]
         )
@@ -287,7 +303,7 @@ class RevalidacionRenaperTests(_BaseRevisionTest):
             ).exists()
         )
 
-    @patch("programas.views.revision.consultar_datos_renaper")
+    @patch("programas.views.revision.consultar_persona")
     def test_admin_revalida_corrige_ciudadano_y_registra_traza(self, consultar):
         consultar.return_value = {
             "success": True,
@@ -308,9 +324,9 @@ class RevalidacionRenaperTests(_BaseRevisionTest):
         self.assertTrue(self.form_a.validado_renaper)
         self.assertEqual(self.ciudadano.nombre, "Nombre")
         self.assertEqual(self.ciudadano.apellido, "Correcto")
-        self.assertTrue(TracaFormulario.objects.filter(formulario=self.form_a, campo="RENAPER").exists())
+        self.assertTrue(TracaFormulario.objects.filter(formulario=self.form_a, campo="Base de Personas").exists())
 
-    @patch("programas.views.revision.consultar_datos_renaper")
+    @patch("programas.views.revision.consultar_persona")
     def test_error_renaper_no_modifica_formulario(self, consultar):
         consultar.return_value = {"success": False, "error": "Servicio no disponible"}
         self.client.force_login(self.admin)
@@ -323,7 +339,7 @@ class RevalidacionRenaperTests(_BaseRevisionTest):
         self.assertEqual(self.ciudadano.nombre, "Nomvre")
         self.assertFalse(TracaFormulario.objects.filter(formulario=self.form_a).exists())
 
-    @patch("programas.views.revision.consultar_datos_renaper")
+    @patch("programas.views.revision.consultar_persona")
     def test_coordinador_no_puede_revalidar(self, consultar):
         self.client.force_login(self.coord_a)
 

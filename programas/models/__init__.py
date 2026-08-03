@@ -3,7 +3,7 @@ import json
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 
 from core.models import TimeStamped
 from legajos.models import Ciudadano
@@ -1114,14 +1114,35 @@ class Segmento(TimeStamped):
         help_text="Si está activo, el formulario del territorial pide lat/lng.",
     )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+    siis_programa_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="ID de programa SIIS")
 
     class Meta:
         verbose_name = "Segmento"
         verbose_name_plural = "Segmentos"
         ordering = ["nombre"]
+        constraints = [models.UniqueConstraint(fields=["siis_programa_id"], name="uniq_segmento_siis_programa")]
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        if not self.pk:
+            return
+        anterior = Segmento.objects.filter(pk=self.pk).values("siis_programa_id").first()
+        if anterior and anterior["siis_programa_id"] != self.siis_programa_id and self.subsegmentos.exists():
+            raise ValidationError(
+                {"siis_programa_id": "No se puede cambiar el programa SIIS mientras existan subsegmentos."}
+            )
+        distribuido = self.subsegmentos.aggregate(t=models.Sum("cupo_maximo"))["t"] or 0
+        if self.cupo_maximo is not None and self.cupo_maximo < distribuido:
+            raise ValidationError(
+                {"cupo_maximo": f"El cupo no puede ser menor que los {distribuido} ya distribuidos en subsegmentos."}
+            )
+        cupo = getattr(self, "cupo", None)
+        ocupado = cupo.cupo_ocupado if cupo else 0
+        if self.cupo_maximo is not None and self.cupo_maximo < ocupado:
+            raise ValidationError({"cupo_maximo": f"El cupo no puede ser menor que los {ocupado} lugares ocupados."})
 
     @property
     def tiene_subsegmentos(self):
@@ -1155,12 +1176,16 @@ class Subsegmento(TimeStamped):
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
+    siis_segmento_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="ID de segmento SIIS")
 
     class Meta:
         verbose_name = "Subsegmento"
         verbose_name_plural = "Subsegmentos"
         ordering = ["segmento", "nombre"]
         unique_together = [["segmento", "nombre"]]
+        constraints = [
+            models.UniqueConstraint(fields=["segmento", "siis_segmento_id"], name="uniq_subsegmento_siis_por_segmento")
+        ]
 
     def __str__(self):
         return f"{self.segmento.nombre} / {self.nombre}"
@@ -1184,7 +1209,7 @@ class Subsegmento(TimeStamped):
 
 
 class CupoSegmento(TimeStamped):
-    """Contador de cupo ocupado por segmento. La ocupación efectiva (post-SIS)
+    """Contador de cupo ocupado por segmento. La ocupación efectiva (post-SIIS)
     queda fuera del alcance de esta versión; el modelo es la estructura base."""
 
     segmento = models.OneToOneField(
@@ -1293,6 +1318,7 @@ class Relevamiento(TimeStamped):
         TERMINADO = "TERMINADO", "Terminado"
 
     nombre = models.CharField(max_length=100, editable=False, verbose_name="Nombre")
+    numero = models.PositiveIntegerField(editable=False, verbose_name="Número dentro de la convocatoria")
     convocatoria = models.ForeignKey(
         Convocatoria,
         on_delete=models.PROTECT,
@@ -1324,6 +1350,9 @@ class Relevamiento(TimeStamped):
         indexes = [
             models.Index(fields=["estado", "fecha_asignada"]),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=["convocatoria", "numero"], name="uniq_relevamiento_numero_convocatoria"),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -1352,13 +1381,24 @@ class Relevamiento(TimeStamped):
         Usa ``Max(id)`` en vez de ``count()`` (evita el full scan y la carrera
         de dos altas simultáneas con el mismo número).
         """
-        siguiente = (cls.objects.aggregate(m=models.Max("id"))["m"] or 0) + 1
+        siguiente = cls.proximo_numero()
         return f"Relevamiento {siguiente:03d}"
 
+    @classmethod
+    def proximo_numero(cls, convocatoria=None):
+        qs = cls.objects.filter(convocatoria=convocatoria) if convocatoria else cls.objects.none()
+        return (qs.aggregate(m=models.Max("numero"))["m"] or 0) + 1
+
     def save(self, *args, **kwargs):
+        if self._state.adding and not self.numero:
+            with transaction.atomic():
+                Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)
+                self.numero = self.proximo_numero(self.convocatoria_id)
+                self.nombre = f"Relevamiento {self.numero:03d}"
+                return super().save(*args, **kwargs)
         if not self.nombre:
-            self.nombre = self.proximo_nombre()
-        super().save(*args, **kwargs)
+            self.nombre = f"Relevamiento {self.numero:03d}"
+        return super().save(*args, **kwargs)
 
     @classmethod
     def asignaciones_solapadas(cls, *, territorial, fecha, excluir_pk=None):
@@ -1527,7 +1567,7 @@ class AsignacionTerritorial(TimeStamped):
 
 class Formulario(TimeStamped):
     """Una persona relevada (1 por relevamiento). Llega del territorial y el
-    backoffice lo revisa (aprobado/rechazado). La validación SIS y la ocupación
+    backoffice lo revisa (aprobado/rechazado). La validación SIIS y la ocupación
     de cupo quedan fuera del alcance de esta versión."""
 
     class Estado(models.TextChoices):
@@ -1542,6 +1582,7 @@ class Formulario(TimeStamped):
         related_name="formularios",
         verbose_name="Relevamiento",
     )
+    numero = models.PositiveIntegerField(editable=False, verbose_name="Número dentro del relevamiento")
     ciudadano = models.ForeignKey(
         Ciudadano,
         on_delete=models.PROTECT,
@@ -1571,6 +1612,20 @@ class Formulario(TimeStamped):
         verbose_name="Fecha de captura en el dispositivo",
     )
     motivo_rechazo = models.TextField(blank=True, verbose_name="Motivo de rechazo")
+    conflicto_duplicado = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Posible DNI duplicado pendiente de revisión",
+    )
+    conflicto_resuelto = models.BooleanField(default=False, verbose_name="Conflicto de DNI resuelto")
+    duplicado_de = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargas_en_conflicto",
+        verbose_name="Formulario previo con el mismo DNI",
+    )
     validado_renaper = models.BooleanField(default=False, verbose_name="Validado RENAPER")
 
     # Bloque C — Contacto (manual, obligatorio)
@@ -1580,8 +1635,23 @@ class Formulario(TimeStamped):
     # Bloque D — Apoderado (solo si el ciudadano es menor; RN-22)
     apoderado_nombre = models.CharField(max_length=120, blank=True, verbose_name="Nombre del apoderado")
     apoderado_apellido = models.CharField(max_length=120, blank=True, verbose_name="Apellido del apoderado")
+    apoderado_dni = models.CharField(max_length=20, blank=True, db_index=True, verbose_name="DNI del apoderado")
+    apoderado_genero = models.CharField(
+        max_length=1,
+        choices=Ciudadano.Genero.choices,
+        blank=True,
+        verbose_name="Sexo del apoderado",
+    )
     apoderado_fecha_nacimiento = models.DateField(
         null=True, blank=True, verbose_name="Fecha de nacimiento del apoderado"
+    )
+    apoderado_ciudadano = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="formularios_becas_como_apoderado",
+        verbose_name="Ciudadano apoderado",
     )
 
     # Geolocalización (solo si el segmento lo requiere; §6.2)
@@ -1616,11 +1686,27 @@ class Formulario(TimeStamped):
             models.Index(fields=["relevamiento", "estado"]),
             models.Index(fields=["estado"]),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=["relevamiento", "numero"], name="uniq_formulario_numero_relevamiento"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.numero:
+            with transaction.atomic():
+                Relevamiento.objects.select_for_update().get(pk=self.relevamiento_id)
+                self.numero = (
+                    Formulario.objects.filter(relevamiento_id=self.relevamiento_id).aggregate(m=models.Max("numero"))[
+                        "m"
+                    ]
+                    or 0
+                ) + 1
+                return super().save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         if self.ciudadano_id:
-            return f"Formulario #{self.pk} - {self.ciudadano}"
-        return f"Formulario #{self.pk} (sin ciudadano)"
+            return f"Formulario {self.numero} - {self.ciudadano}"
+        return f"Formulario {self.numero} (sin ciudadano)"
 
 
 class AdjuntoFormulario(TimeStamped):
@@ -1701,9 +1787,55 @@ class TracaFormulario(models.Model):
         return f"{self.formulario_id} · {self.campo} ({self.created_at:%Y-%m-%d %H:%M})"
 
 
+class ValidacionSIS(models.Model):
+    """Intento inmutable de validación de compatibilidad contra SIIS."""
+
+    class Estado(models.TextChoices):
+        OK = "OK", "Compatible"
+        RECHAZADO = "RECHAZADO", "Incompatible"
+        ERROR = "ERROR", "Error técnico"
+
+    formulario = models.ForeignKey(
+        Formulario, on_delete=models.CASCADE, related_name="validaciones_sis", verbose_name="Formulario"
+    )
+    estado = models.CharField(max_length=15, choices=Estado.choices, db_index=True)
+    id_programa = models.PositiveIntegerField(null=True, blank=True)
+    id_segmento = models.PositiveIntegerField()
+    documento = models.CharField(max_length=20)
+    sexo = models.CharField(max_length=1)
+    id_consulta = models.UUIDField(null=True, blank=True, db_index=True)
+    fecha_validacion = models.DateTimeField(null=True, blank=True)
+    codigo_motivo = models.CharField(max_length=100, blank=True)
+    motivo = models.TextField(blank=True)
+    respuesta = models.JSONField(default=dict, blank=True)
+    solicitado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="validaciones_sis_solicitadas"
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-creado"]
+        verbose_name = "Validación SIIS"
+        verbose_name_plural = "Validaciones SIIS"
+
+    def __str__(self):
+        return f"Formulario #{self.formulario_id} · {self.estado}"
+
+    @property
+    def motivo_amigable(self):
+        etiquetas = {
+            "RECHAZADO_PERSONA_INEXISTENTE": "Rechazado. Persona inexistente en el sistema",
+            "BENEFICIO_EXISTENTE": "Rechazado. La persona ya posee un beneficio",
+            "RECHAZADO_EMPLEO_PUBLICO_DOCENTE": "Rechazado. Incompatibilidad por empleo público docente",
+        }
+        if not self.codigo_motivo:
+            return ""
+        return etiquetas.get(self.codigo_motivo, self.codigo_motivo)
+
+
 class ListaEspera(TimeStamped):
     """Persona validada-OK sin cupo disponible. La lógica de promoción depende
-    de SIS y queda fuera del alcance de esta versión; el modelo es la base."""
+    de SIIS y queda fuera del alcance de esta versión; el modelo es la base."""
 
     formulario = models.ForeignKey(
         Formulario,

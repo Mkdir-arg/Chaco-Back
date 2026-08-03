@@ -43,9 +43,9 @@
   </div>
 
   {# Filter bar #}
-  <form method="get" class="flex items-center gap-3 mb-4 flex-wrap">
+  <form method="get" data-dynamic-list-filters class="flex items-center gap-3 mb-4 flex-wrap">
     <label class="text-sm text-body-subtle font-medium">Estado:</label>
-    <select name="estado" onchange="this.form.submit()"
+    <select name="estado"
             class="rounded-full border border-base bg-white px-4 py-1.5 text-sm text-body focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
       <option value="">Todos</option>
       {% for value, label in estados %}
@@ -60,9 +60,10 @@
       <table class="w-full border-collapse">
         <thead>
           <tr class="bg-secondary border-b border-base">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Formulario</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Contacto</th>
-            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">RENAPER</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Identidad</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
             <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
           </tr>
@@ -70,6 +71,7 @@
         <tbody>
           {% for f in formularios %}
           <tr class="hover:bg-secondary">
+            <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-semibold">{{ f.numero }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
               {% if f.ciudadano %}
                 {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
@@ -91,6 +93,9 @@
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-light">
               {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado dot=True color_enviado="warning" %}
+              {% if f.conflicto_duplicado and not f.conflicto_resuelto or f.tiene_carga_duplicada_pendiente %}
+                <span class="badge badge-warning mt-1"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
+              {% endif %}
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-right">
               <a href="{% url 'becas:formulario_detalle' f.pk %}" class="btn-nodo btn-tertiary btn-sm">
