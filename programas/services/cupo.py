@@ -1,7 +1,7 @@
 """Lógica de dominio para gestión de cupo y lista de espera (RN-04/05, issue #78).
 
 El cupo ocupado se calcula dinámicamente (COUNT de formularios APROBADO) para
-evitar desincronización con la integración SIS futura (#72). CupoSegmento queda
+evitar desincronización con la integración SIIS futura (#72). CupoSegmento queda
 como estructura base pero no se muta aquí.
 """
 

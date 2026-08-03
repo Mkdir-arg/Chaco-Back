@@ -213,12 +213,11 @@ class Command(BaseCommand):
         for index in range(scale):
             bucket = 0 if index < min(50, scale) else index % segment_count
             relevamiento, _ = Relevamiento.objects.update_or_create(
-                nombre=f"PERF Relevamiento {index:04d}",
+                convocatoria=convocatorias[bucket],
+                zona=f"Zona PERF item {index:04d}",
                 defaults={
-                    "convocatoria": convocatorias[bucket],
                     "territorial": territoriales[bucket],
                     "fecha_asignada": date(2025, 2, 1) + timedelta(days=index % 28),
-                    "zona": f"Zona PERF {bucket:03d}",
                     "observaciones": "Relevamiento sintético para auditoría de performance.",
                     "estado": Relevamiento.Estado.EN_REVISION,
                 },

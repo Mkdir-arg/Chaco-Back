@@ -154,7 +154,7 @@
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.ciudadano.dni }}</td>
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
                 <a href="{% url 'becas:formulario_detalle' formulario.pk %}" style="color:var(--text-fg-brand);font-weight:600;">
-                  #{{ formulario.pk }}
+                  Formulario {{ formulario.numero }}
                 </a>
                 <span style="font-size:12px;color:var(--text-body-subtle);display:block;margin-top:1px;">{{ formulario.relevamiento.convocatoria.nombre }}</span>
               </td>

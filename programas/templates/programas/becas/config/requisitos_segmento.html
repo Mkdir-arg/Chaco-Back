@@ -33,10 +33,10 @@
   </div>
 
   {# Filtros dinámicos (auto-submit, sin botón) #}
-  <form method="get" id="reqseg-filtros" class="flex flex-wrap gap-4 mb-4">
+  <form method="get" data-dynamic-list-filters id="reqseg-filtros" class="flex flex-wrap gap-4 mb-4">
     <div class="flex-1 min-w-[200px]">
       <label class="block text-sm font-medium text-heading mb-1">Segmento</label>
-      <select name="segmento" onchange="document.getElementById('reqseg-filtros').submit()"
+      <select name="segmento"
               class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
         <option value="">Todos los segmentos</option>
         {% for seg in segmentos %}
@@ -46,7 +46,7 @@
     </div>
     <div class="flex-1 min-w-[200px]">
       <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
-      <select name="subsegmento" onchange="document.getElementById('reqseg-filtros').submit()"
+      <select name="subsegmento"
               class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
         <option value="">Todos los subsegmentos</option>
         {% for sub in subsegmentos %}

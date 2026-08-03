@@ -60,7 +60,7 @@ def get_ciudadanos_queryset(search=""):
         queryset = queryset.filter(
             Q(dni__icontains=search) | Q(nombre__icontains=search) | Q(apellido__icontains=search)
         )
-    return queryset.only("id", "nombre", "apellido", "dni").order_by("apellido", "nombre")
+    return queryset.only("id", "nombre", "apellido", "dni", "creado").order_by("apellido", "nombre")
 
 
 def _build_ciudadanos_dashboard_metrics(total_ciudadanos=None):

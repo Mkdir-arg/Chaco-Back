@@ -479,7 +479,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         )
         # Personas relevadas: se listan en la solapa "Formularios". Se materializa
         # una vez y el contador se deriva en Python (evita un COUNT extra).
-        formularios = list(rel.formularios.select_related("ciudadano").order_by("-creado"))
+        formularios = list(rel.formularios.select_related("ciudadano").order_by("numero"))
         ctx["formularios"] = formularios
         ctx["n_formularios"] = len(formularios)
         ctx["puede_revisar"] = puede(self.request.user, "becas.revision.ver")

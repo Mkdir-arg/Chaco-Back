@@ -165,7 +165,7 @@
 {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
 
 {# Toolbar (filtros por querystring) #}
-<form method="get" x-data style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+<form method="get" data-dynamic-list-filters x-data style="margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <div class="roles-search">
         <button type="submit" class="roles-search-button btn-secondary" aria-label="Buscar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
@@ -173,21 +173,21 @@
         <input type="text" name="q" value="{{ filtro_q }}" placeholder="Buscar rol..." class="nodo-field">
     </div>
 
-    <select name="categoria" class="nodo-field" style="width:190px;" @change="$el.form.submit()">
+    <select name="categoria" class="nodo-field" style="width:190px;">
         <option value="">Todas las categorías</option>
         {% for cat in categorias_rol %}
         <option value="{{ cat }}" {% if filtro_categoria == cat %}selected{% endif %}>{{ cat }}</option>
         {% endfor %}
     </select>
 
-    <select name="programa" class="nodo-field" style="width:200px;" @change="$el.form.submit()">
+    <select name="programa" class="nodo-field" style="width:200px;">
         <option value="">— Todos los programas</option>
         {% for programa in programas_admin %}
         <option value="{{ programa.pk }}" {% if filtro_programa == programa.pk|stringformat:"s" %}selected{% endif %}>{{ programa.nombre }}</option>
         {% endfor %}
     </select>
 
-    <select name="estado" class="nodo-field" style="width:160px;" @change="$el.form.submit()">
+    <select name="estado" class="nodo-field" style="width:160px;">
         <option value="">Todos los estados</option>
         <option value="activo" {% if filtro_estado == "activo" %}selected{% endif %}>Activos</option>
         <option value="inactivo" {% if filtro_estado == "inactivo" %}selected{% endif %}>Inactivos</option>
