@@ -145,6 +145,8 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             initial={"convocatoria": conv},
             segmentos_permitidos=segmentos_visibles(self.request.user),
         )
+        # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
+        ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         return ctx
 
