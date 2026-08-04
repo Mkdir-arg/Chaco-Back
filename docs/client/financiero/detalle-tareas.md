@@ -257,6 +257,23 @@
 
 ---
 
+## :material-calendar-month: Consumo de agosto 2026 — detalle día por día
+
+| Día | Persona | Programa | Motivo | Qué hice | Consumo |
+|---|---|---|---|---|---:|
+| 2026-08-04 | Juani Portilla | Transversal | Issue #215 — agente canónico de diseño | Investigación, implementación, tests automáticos y prueba manual del agente de diseño code-first alineado al frontend productivo. | 90 min |
+
+### :material-briefcase-outline: Consumo de agosto por programa
+
+| Programa | Horas agosto |
+|---|---:|
+| Becas | 0 h 00 min |
+| Dispositivos | 0 h 00 min |
+| Transversal | 1 h 30 min |
+| **Total agosto 2026 (al 04/08)** | **1 h 30 min** |
+
+---
+
 ## :material-account-group: Consumo de junio por persona
 
 | Persona | Foco principal (según registros) | Horas junio |
@@ -282,7 +299,9 @@
 !!! success "Contador total"
 
 
-    **55.797 minutos** (929 h 57 min)
+    **55.887 minutos** (931 h 27 min)
+
+    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026: **25.845 min (430 h 45 min)** · Agosto 2026 (al 04/08): **90 min (1 h 30 min)**
 
 
     

@@ -33,22 +33,22 @@ Trabajar code-first.
 
 ## Diseño / UI (nuevo sistema de diseño)
 
-El proyecto migra su UI a un sistema de diseño nuevo, **calcado del kit** en
-[`docs/design-kb/`](docs/design-kb/) (la app de referencia `Programa Becas - Chaco NODO.html`,
-los `tokens/*.css` y los `components/**/*.jsx`). Tokens reales del proyecto en
-`static/custom/css/chaco-tokens.css`; clases en `nodo-buttons.css` / `nodo-badges.css`.
+El frontend productivo es la evidencia que prevalece para toda decisión de UI.
+`docs/design-kb/` conserva assets, prototipos y antecedentes; no autoriza a cambiar
+el producto para calcarlo. Los tokens y componentes cargados se relevan desde el
+código y se inventarían en el agente canónico.
 
-Para cualquier trabajo de UI usá los **dos agentes** (en `.claude/agents/`):
+Para cualquier trabajo de UI, leé `AGENTS.md` y usá los agentes de
+`.claude/agents/`:
 
-- **`chaco-design-reviewer`** — el **canon** del diseño (valores exactos de tokens,
-  componentes, patrones de pantalla, login, sidebar, dark mode, contenido es-AR).
-  Usalo para **auditar/corregir** un template contra el sistema. Es la fuente de verdad.
+- **`.claude/agents/chaco-design-system.md`** — fuente operativa única de diseño e
+  inventario. Se contrasta contra el código antes de cada cambio.
 - **`chaco-frontend`** — **desarrollo y migración** (con `Write`): construir una pantalla
-  nueva o migrar/ajustar una vieja al diseño nuevo. Hereda el canon del revisor y suma la
-  arquitectura Django del repo + metodología + auto-revisión + "gotchas" del repo.
+  nueva o ajustar una existente, preservando contratos Django.
+- **`chaco-design-reviewer`** — revisión de UI contra el código y el agente canónico.
 
-Regla de oro: **cero hex hardcodeado** (todo por token), **Manrope** única, accesibilidad
-primero. Al tocar UI, dejá que el agente lea su canon (no repitas las reglas a mano).
+Al tocar UI, no repitas reglas visuales ni adoptes valores desde materiales históricos:
+seguí el inventario y la reconciliación de `.claude/agents/chaco-design-system.md`.
 
 **Auditoría mecánica compartida:** `scripts/design_audit.py` es la fuente única de los
 chequeos de adherencia (hex, fuentes legacy, `confirm()`, gradientes legacy, etc.).
