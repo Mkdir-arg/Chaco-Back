@@ -331,6 +331,7 @@ def asegurar_relevamientos(convocatorias, territorial):
             zona=zona,
             defaults={
                 "fecha_asignada": base_date + timedelta(days=offset),
+                "fecha_hasta": base_date + timedelta(days=offset + 2),
                 "estado": estado,
                 "observaciones": observaciones,
                 "fecha_finalizado": None,

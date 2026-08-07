@@ -56,10 +56,24 @@ def _formulario_dni_existe(relevamiento, dni):
 def _captura_habilitada(relevamiento, capturado_en=None):
     """Permite operar hoy o sincronizar después una captura hecha en fecha."""
     if capturado_en is None:
-        return relevamiento.fecha_asignada == timezone.localdate()
+        return relevamiento.habilitado_en(timezone.localdate())
     if capturado_en > timezone.now() + timedelta(minutes=5):
         return False
-    return timezone.localdate(capturado_en) == relevamiento.fecha_asignada
+    return relevamiento.habilitado_en(timezone.localdate(capturado_en))
+
+
+def _mensaje_pausa(relevamiento):
+    pausa = relevamiento.pausa_efectiva
+    if not pausa:
+        return None
+    return f"El relevamiento está pausado: {pausa.pausa_motivo}"
+
+
+def _respuesta_pausa(relevamiento):
+    mensaje = _mensaje_pausa(relevamiento)
+    if mensaje:
+        return Response({"detail": mensaje, "pausado": True}, status=status.HTTP_409_CONFLICT)
+    return None
 
 
 class CampoBecasPermission(BasePermission):
@@ -156,7 +170,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         )
         if self.action == "list":
             queryset = queryset.filter(
-                fecha_asignada__gte=timezone.localdate(),
+                fecha_hasta__gte=timezone.localdate(),
             ).order_by("fecha_asignada", "nombre")
         return queryset
 
@@ -168,6 +182,8 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def iniciar(self, request, pk=None):
         rel = self.get_object()
+        if respuesta := _respuesta_pausa(rel):
+            return respuesta
         capturado_en = request.data.get("capturado_en")
         if capturado_en:
             try:
@@ -179,7 +195,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 )
         if not _captura_habilitada(rel, capturado_en):
             return Response(
-                {"detail": "Solo se puede relevar durante la fecha asignada."},
+                {"detail": "Solo se puede relevar dentro del período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if rel.estado == Relevamiento.Estado.EN_CURSO:
@@ -193,6 +209,8 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def finalizar(self, request, pk=None):
         rel = self.get_object()
+        if respuesta := _respuesta_pausa(rel):
+            return respuesta
         capturado_en = request.data.get("capturado_en")
         if capturado_en:
             try:
@@ -204,7 +222,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 )
         if not _captura_habilitada(rel, capturado_en):
             return Response(
-                {"detail": "Solo se puede relevar durante la fecha asignada."},
+                {"detail": "Solo se puede relevar dentro del período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if rel.estado not in (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO):
@@ -217,9 +235,11 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def reabrir(self, request, pk=None):
         rel = self.get_object()
-        if rel.fecha_asignada != timezone.localdate():
+        if respuesta := _respuesta_pausa(rel):
+            return respuesta
+        if not rel.habilitado_en(timezone.localdate()):
             return Response(
-                {"detail": "Solo se puede relevar durante la fecha asignada."},
+                {"detail": "Solo se puede relevar dentro del período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if rel.estado != Relevamiento.Estado.FINALIZADO:
@@ -239,6 +259,9 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 return self.get_paginated_response(FormularioSerializer(page, many=True).data)
             return Response(FormularioSerializer(qs, many=True).data)
 
+        if respuesta := _respuesta_pausa(rel):
+            return respuesta
+
         serializer = FormularioSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
@@ -252,7 +275,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             capturado_en = serializer.validated_data.get("capturado_en")
             if not _captura_habilitada(rel, capturado_en):
                 return Response(
-                    {"detail": "La captura se realizó fuera de la fecha asignada."},
+                    {"detail": "La captura se realizó fuera del período asignado."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             client_uuid = serializer.validated_data.get("client_uuid")
@@ -260,6 +283,15 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 existente = rel.formularios.filter(client_uuid=client_uuid).first()
                 if existente:
                     return Response(FormularioSerializer(existente).data, status=status.HTTP_200_OK)
+            if rel.formularios.count() >= rel.cupo_maximo:
+                return Response(
+                    {
+                        "detail": "Se alcanzó el cupo del relevamiento. No se pueden cargar nuevas personas.",
+                        "code": "CUPO_RELEVAMIENTO_COMPLETO",
+                        "cupo_maximo": rel.cupo_maximo,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
             datos_identificacion = serializer.validated_data.get("datos_identificacion") or {}
             dni = _normalizar_dni(datos_identificacion.get("dni"))
             datos_identificacion["dni"] = dni
@@ -297,9 +329,11 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
 
     def perform_update(self, serializer):
         formulario = serializer.instance
+        if mensaje := _mensaje_pausa(formulario.relevamiento):
+            raise ValidationError({"detail": mensaje})
         capturado_en = formulario.capturado_en or serializer.validated_data.get("capturado_en")
         if not _captura_habilitada(formulario.relevamiento, capturado_en):
-            raise ValidationError({"detail": "El relevamiento está fuera de su fecha asignada."})
+            raise ValidationError({"detail": "El relevamiento está fuera de su período asignado."})
         formulario = serializer.save()
         _actualizar_validacion_identidad(
             formulario,
@@ -319,9 +353,12 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
         if request.method == "GET":
             return Response(AdjuntoFormularioSerializer(formulario.adjuntos.all(), many=True).data)
 
+        if respuesta := _respuesta_pausa(formulario.relevamiento):
+            return respuesta
+
         if not _captura_habilitada(formulario.relevamiento, formulario.capturado_en):
             return Response(
-                {"detail": "El relevamiento está fuera de su fecha asignada."},
+                {"detail": "El relevamiento está fuera de su período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         serializer = AdjuntoFormularioSerializer(data=request.data)

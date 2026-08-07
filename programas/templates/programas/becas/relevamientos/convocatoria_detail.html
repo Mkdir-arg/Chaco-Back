@@ -19,8 +19,16 @@
           <p class="text-sm text-body-subtle mt-1">{{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}</p>
         </div>
       </div>
-      {% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
-      {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
+      <div class="flex items-center gap-2">
+        {% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>
+        {% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
+        {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
+        {% if request.user|puede:"becas.programa.administrar" %}
+        <a href="{% url 'becas:gestionar_pausa' 'convocatoria' convocatoria.pk %}" class="btn-nodo {% if convocatoria.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
+          {% if convocatoria.pausado %}Reanudar{% else %}Pausar{% endif %}
+        </a>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -272,19 +280,25 @@
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
             {{ form_crear.territorial }}
+            {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" data-segment-id="{{ convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="territorial"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
               {{ form_crear.zona }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha desde <span class="text-fg-danger">*</span></label>
               {{ form_crear.fecha_asignada }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_asignada"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha hasta <span class="text-fg-danger">*</span></label>
+              {{ form_crear.fecha_hasta }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_hasta"></p>
             </div>
           </div>
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
@@ -298,6 +312,7 @@
   </div>
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "includes/base.html" %}
+{% block title %}Programas · Regiones{% endblock %}
+{% block main-content %}
+<div class="mb-8">
+  <div class="mb-6">
+    <h1 class="font-extrabold text-heading" style="font-size:28px">Regiones y localidades</h1>
+    <p class="mt-1.5 text-sm text-body-subtle">Cada región agrupa las localidades disponibles para un Coordinador regional.</p>
+  </div>
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <section class="rounded-xl border border-base bg-white p-6 shadow-sm">
+      <h2 class="mb-4 text-lg font-bold text-heading">{% if editando %}Editar {{ editando.nombre }}{% else %}Nueva región{% endif %}</h2>
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold text-heading" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+        <div class="flex gap-2">
+          <button class="btn-nodo btn-brand btn-base" type="submit">Guardar región</button>
+          {% if editando %}<a class="btn-nodo btn-secondary btn-base" href="{% url 'becas:regiones' %}">Cancelar</a>{% endif %}
+        </div>
+      </form>
+    </section>
+    <section class="overflow-hidden rounded-xl border border-base bg-white shadow-sm">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-light text-left"><th class="p-4">Región</th><th class="p-4">Localidades</th><th class="p-4">Estado</th><th class="p-4"></th></tr></thead>
+        <tbody>
+          {% for region in regiones %}
+          <tr class="border-b border-light">
+            <td class="p-4 font-semibold">{{ region.nombre }}</td>
+            <td class="p-4">{% for localidad in region.localidades.all %}{{ localidad.nombre }}{% if not forloop.last %}, {% endif %}{% empty %}Sin localidades{% endfor %}</td>
+            <td class="p-4">{% if region.activo %}Activa{% else %}Inactiva{% endif %}</td>
+            <td class="p-4"><a class="text-fg-brand" href="{% url 'becas:region_editar' region.pk %}">Editar</a></td>
+          </tr>
+          {% empty %}<tr><td class="p-6 text-body-subtle" colspan="4">Todavía no hay regiones.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <section class="mt-6 rounded-xl border border-base bg-white p-6 shadow-sm">
+    <h2 class="mb-2 text-lg font-bold text-heading">Transferir una región</h2>
+    <p class="mb-4 text-sm text-body-subtle">Transfiere convocatorias vigentes y Territoriales. El creador original y los datos históricos no cambian.</p>
+    <form method="post" class="grid grid-cols-1 items-end gap-4 md:grid-cols-3">
+      {% csrf_token %}<input type="hidden" name="accion" value="transferir">
+      <div><label class="mb-1.5 block text-sm font-semibold">Coordinador actual</label><select class="nodo-field" name="origen" required><option value="">Seleccioná…</option>{% for user in coordinadores_regionales %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endfor %}</select></div>
+      <div><label class="mb-1.5 block text-sm font-semibold">Reemplazante</label><select class="nodo-field" name="destino" required><option value="">Seleccioná…</option>{% for user in coordinadores_regionales %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endfor %}</select></div>
+      <button class="btn-nodo btn-brand btn-base" type="submit">Transferir responsabilidad</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -17,6 +17,17 @@ from core.rbac import (
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     dark_mode = models.BooleanField(default=True)
+    dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
+    telefono = models.CharField(max_length=30, blank=True, default="", verbose_name="Teléfono")
+    institucion = models.CharField(max_length=255, blank=True, default="", verbose_name="Institución")
+    observacion = models.TextField(blank=True, default="", verbose_name="Observación")
+    backoffice_session_key = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Sesión activa de Backoffice",
+    )
 
     def __str__(self):
         return f"Perfil de {self.user.username}"

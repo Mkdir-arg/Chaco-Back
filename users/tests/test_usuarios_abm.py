@@ -2,7 +2,8 @@ import json
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
-from django.test import Client, TestCase
+from django.core.management import call_command
+from django.test import Client, TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 
 from core import rbac
@@ -78,13 +79,79 @@ class LoginUsuarioInactivoTests(TestCase):
         form = UsuariosAuthenticationForm(data={"username": "activo", "password": "clave-correcta"})
         self.assertTrue(form.is_valid())
 
+    def test_usuario_exclusivamente_territorial_no_ingresa_al_backoffice(self):
+        from programas.management.commands.seed_becas import ROL_TERRITORIAL
+
+        call_command("seed_becas", verbosity=0)
+        territorial = User.objects.create_user("territorial-mobile", password="clave-correcta")
+        territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+
+        form = UsuariosAuthenticationForm(data={"username": territorial.username, "password": "clave-correcta"})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(self._codigo_error(form), "territorial_mobile_only")
+        self.assertEqual(form.non_field_errors()[0], "Usuario no válido para ingresar al sistema.")
+
 
 class LoginRouteTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("usuario-login", password="clave-correcta")
+
     def test_login_route_renders_custom_login(self):
         response = self.client.get("/login/")
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "user/login.html")
+
+    def test_sin_recordarme_la_sesion_vence_al_cerrar_el_navegador(self):
+        response = self.client.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+
+    @override_settings(SESSION_COOKIE_AGE=86400)
+    def test_con_recordarme_la_sesion_persiste_por_el_periodo_configurado(self):
+        response = self.client.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta", "remember": "on"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertAlmostEqual(self.client.session.get_expiry_age(), 86400, delta=2)
+
+    def test_usuario_ya_autenticado_no_vuelve_a_ver_el_login(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/")
+
+        self.assertRedirects(response, reverse("core:inicio"), fetch_redirect_response=False)
+
+    def test_nuevo_login_reemplaza_la_sesion_web_anterior(self):
+        primera_sesion = Client()
+        segunda_sesion = Client()
+
+        primera_sesion.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta"},
+        )
+        segunda_sesion.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta"},
+        )
+
+        respuesta_anterior = primera_sesion.get(reverse("core:inicio"))
+        respuesta_nueva = segunda_sesion.get(reverse("core:inicio"))
+
+        self.assertRedirects(respuesta_anterior, reverse("users:login"), fetch_redirect_response=False)
+        aviso = primera_sesion.get(reverse("users:login"))
+        self.assertContains(aviso, "Tu sesión fue reemplazada por un nuevo ingreso.")
+        self.assertEqual(respuesta_nueva.status_code, 200)
+        self.assertNotIn("_auth_user_id", primera_sesion.session)
+        self.assertEqual(int(segunda_sesion.session["_auth_user_id"]), self.user.pk)
 
 
 class RolPortalNoAsignableTests(TestCase):

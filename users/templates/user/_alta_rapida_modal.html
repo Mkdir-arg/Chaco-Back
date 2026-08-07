@@ -1,0 +1,53 @@
+<div id="quick-user-modal" class="fixed inset-0 z-[70] flex items-center justify-center p-4" style="display:none;">
+  <div class="absolute inset-0 bg-black/50" data-quick-user-close></div>
+  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+    <div class="flex justify-between items-center mb-5">
+      <h3 class="text-xl font-bold text-heading">Crear <span data-quick-user-title>usuario</span></h3>
+      <button type="button" data-quick-user-close class="btn-nodo btn-tertiary btn-sm">Cerrar</button>
+    </div>
+    <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% csrf_token %}<input type="hidden" name="tipo"><input type="hidden" name="segmento_id">
+      <div><label class="text-sm font-semibold">Usuario *</label><input class="nodo-field" name="username" required></div>
+      <div><label class="text-sm font-semibold">Email</label><input class="nodo-field" name="email" type="email"></div>
+      <div><label class="text-sm font-semibold">Nombre</label><input class="nodo-field" name="first_name"></div>
+      <div><label class="text-sm font-semibold">Apellido</label><input class="nodo-field" name="last_name"></div>
+      <div><label class="text-sm font-semibold">DNI</label><input class="nodo-field" name="dni" maxlength="8"></div>
+      <div><label class="text-sm font-semibold">Teléfono</label><input class="nodo-field" name="telefono"></div>
+      <div class="md:col-span-2"><label class="text-sm font-semibold">Institución</label><input class="nodo-field" name="institucion"></div>
+      <div class="md:col-span-2"><label class="text-sm font-semibold">Observación</label><textarea class="nodo-field" name="observacion" rows="2"></textarea></div>
+      <div class="md:col-span-2"><label class="text-sm font-semibold">Contraseña provisoria *</label><input class="nodo-field" name="password" type="password" required></div>
+      <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger"></div>
+      <div class="md:col-span-2 flex justify-end gap-3"><button type="button" data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button><button class="btn-nodo btn-brand btn-base" type="submit">Crear y seleccionar</button></div>
+    </form>
+  </div>
+</div>
+<script>
+(() => {
+  const modal = document.getElementById('quick-user-modal');
+  const form = document.getElementById('quick-user-form');
+  if (!modal || !form || modal.dataset.ready) return;
+  modal.dataset.ready = '1'; let target = null;
+  const close = () => { modal.style.display = 'none'; };
+  document.querySelectorAll('[data-quick-user-close]').forEach(el => el.addEventListener('click', close));
+  document.querySelectorAll('[data-quick-user]').forEach(button => button.addEventListener('click', () => {
+    const tipo = button.dataset.quickUser; target = document.querySelector(button.dataset.userSelect);
+    let segmento = button.dataset.segmentId || '';
+    if (!segmento) {
+      const convocatoria = document.querySelector(button.dataset.segmentSource || '#id_convocatoria');
+      segmento = convocatoria?.selectedOptions?.[0]?.dataset?.segmento || '';
+    }
+    if (tipo === 'territorial' && !segmento) { alert('Primero seleccioná una convocatoria.'); return; }
+    form.reset(); form.elements.tipo.value = tipo; form.elements.segmento_id.value = segmento;
+    modal.querySelector('[data-quick-user-title]').textContent = tipo; document.getElementById('quick-user-error').textContent = '';
+    modal.style.display = 'flex';
+  }));
+  form.addEventListener('submit', async event => {
+    event.preventDefault(); const error = document.getElementById('quick-user-error'); error.textContent = '';
+    const response = await fetch(form.action, {method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'}});
+    const data = await response.json();
+    if (!response.ok) { error.textContent = data.message || Object.values(data.errors || {}).flat().join(' '); return; }
+    if (target) { const option = new Option(data.user.label, data.user.id, true, true); option.dataset.segmento = data.user.segmento_id || ''; target.add(option); target.dispatchEvent(new Event('change', {bubbles:true})); }
+    close();
+  });
+})();
+</script>

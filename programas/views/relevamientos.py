@@ -22,11 +22,21 @@ from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import CapacidadRequeridaMixin, puede, requiere
-from programas.forms import ConvocatoriaForm, ReasignarTerritorialForm, RelevamientoForm, ReprogramarForm
+from programas.forms import (
+    ConvocatoriaForm,
+    CupoRelevamientoForm,
+    ReasignarTerritorialForm,
+    RelevamientoForm,
+    ReprogramarForm,
+)
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
 from programas.services.autorizacion import (
+    convocatorias_visibles,
+    es_coordinador_regional_becas,
+    programa_becas,
     puede_gestionar_segmento,
     segmentos_visibles,
+    subsegmentos_visibles,
     usuarios_territoriales_becas,
 )
 from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
@@ -45,7 +55,7 @@ def _convocatorias_qs(request):
         Convocatoria.objects.select_related("segmento", "subsegmento")
         .defer("descripcion", "segmento__descripcion", "subsegmento__descripcion")
         .annotate(n_relevamientos=Count("relevamientos", distinct=True))
-        .filter(segmento__in=segmentos_visibles(request.user))
+        .filter(pk__in=convocatorias_visibles(request.user))
         .order_by("-fecha_inicio", "nombre")
     )
 
@@ -75,15 +85,27 @@ def _relevamientos_ajax(request, convocatoria, message="Relevamiento creado y as
 
 def _assert_scope(request, relevamiento):
     """403 si el usuario no puede gestionar el segmento del relevamiento."""
-    if not puede_gestionar_segmento(request.user, relevamiento.segmento):
+    programa = programa_becas()
+    if (
+        not puede_gestionar_segmento(request.user, relevamiento.segmento, programa=programa)
+        or not convocatorias_visibles(request.user, programa=programa).filter(pk=relevamiento.convocatoria_id).exists()
+    ):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
 
 
-def _mensaje_solapamiento(territorial, fecha, solapamiento):
+def _rechazar_si_pausado(request, relevamiento):
+    pausa = relevamiento.pausa_efectiva
+    if not pausa:
+        return False
+    messages.error(request, f"La operación no está disponible porque el elemento está pausado: {pausa.pausa_motivo}")
+    return True
+
+
+def _mensaje_solapamiento(territorial, fecha_desde, fecha_hasta, solapamiento):
     nombre = territorial.get_full_name() or territorial.username
-    fecha_legible = fecha.strftime("%d/%m/%Y")
+    fecha_legible = f"{fecha_desde:%d/%m/%Y} al {fecha_hasta:%d/%m/%Y}"
     return (
-        f"El territorial {nombre} ya está asignado para {fecha_legible} "
+        f"El territorial {nombre} ya tiene una asignación que se superpone con {fecha_legible} "
         f"en {solapamiento.zona}. ¿Confirmás la asignación?"
     )
 
@@ -101,7 +123,7 @@ class ConvocatoriaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        form = ConvocatoriaForm()
+        form = ConvocatoriaForm(subsegmentos_permitidos=subsegmentos_visibles(self.request.user))
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         ctx["form_convocatoria"] = form
         return ctx
@@ -114,9 +136,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     context_object_name = "convocatoria"
 
     def get_queryset(self):
-        return Convocatoria.objects.select_related("segmento", "subsegmento").filter(
-            segmento__in=segmentos_visibles(self.request.user)
-        )
+        return convocatorias_visibles(self.request.user).select_related("segmento", "subsegmento")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -137,13 +157,19 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["n_aprobados"] = sum(1 for f in beneficiarios if f.estado == Formulario.Estado.APROBADO)
         ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
         ctx["cupo_segmento"] = conv.segmento.cupo_maximo
-        form = ConvocatoriaForm(instance=conv)
-        form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
+        segmentos = segmentos_visibles(self.request.user)
+        form = ConvocatoriaForm(instance=conv, subsegmentos_permitidos=subsegmentos_visibles(self.request.user))
+        form.fields["segmento"].queryset = segmentos
         ctx["form_convocatoria"] = form
         # Modal "Nuevo relevamiento" con esta convocatoria preseleccionada.
         ctx["form_crear"] = RelevamientoForm(
             initial={"convocatoria": conv},
-            segmentos_permitidos=segmentos_visibles(self.request.user),
+            segmentos_permitidos=segmentos,
+            convocatorias_permitidas=convocatorias_visibles(self.request.user),
+            territoriales_permitidos=usuarios_territoriales_becas().filter(
+                asignacion_territorial__segmento__in=segmentos
+            ),
+            operador=self.request.user,
         )
         # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
         ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
@@ -158,12 +184,21 @@ class ConvocatoriaCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     success_url = reverse_lazy("becas:convocatorias")
 
     def get_form(self, form_class=None):
-        form = super().get_form(form_class)
+        form = ConvocatoriaForm(
+            data=self.request.POST or None,
+            files=self.request.FILES or None,
+            subsegmentos_permitidos=subsegmentos_visibles(self.request.user),
+        )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         return form
 
     def form_valid(self, form):
-        self.object = form.save()
+        self.object = form.save(commit=False)
+        if not self.object.creada_por_id:
+            self.object.creada_por = self.request.user
+        if es_coordinador_regional_becas(self.request.user):
+            self.object.responsable_regional = self.request.user
+        self.object.save()
         if is_ajax(self.request):
             return _convocatorias_ajax(self.request, "Convocatoria creada.")
         messages.success(self.request, "Convocatoria creada.")
@@ -182,10 +217,15 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
     context_object_name = "convocatoria"
 
     def get_queryset(self):
-        return Convocatoria.objects.filter(segmento__in=segmentos_visibles(self.request.user))
+        return convocatorias_visibles(self.request.user)
 
     def get_form(self, form_class=None):
-        form = super().get_form(form_class)
+        form = ConvocatoriaForm(
+            data=self.request.POST or None,
+            files=self.request.FILES or None,
+            instance=self.object,
+            subsegmentos_permitidos=subsegmentos_visibles(self.request.user),
+        )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         return form
 
@@ -200,7 +240,7 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
 @login_required
 @requiere(CAP_CONVOCATORIA_EDITAR)
 def convocatoria_toggle_activo(request, pk):
-    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
+    conv = get_object_or_404(convocatorias_visibles(request.user), pk=pk)
     destino = request.POST.get("next") or "becas:convocatorias"
     if request.method == "POST":
         # Reactivar una vencida exige extender la fecha (fecha manda): eso va por
@@ -226,7 +266,7 @@ def convocatoria_toggle_activo(request, pk):
 def convocatoria_reactivar(request, pk):
     """Reactiva una convocatoria vencida extendiendo su fecha de fin (fecha manda).
     Se dispara desde el pop-up con selector de fecha de la tabla."""
-    conv = get_object_or_404(Convocatoria.objects.filter(segmento__in=segmentos_visibles(request.user)), pk=pk)
+    conv = get_object_or_404(convocatorias_visibles(request.user), pk=pk)
     destino = request.POST.get("next") or "becas:convocatorias"
 
     nueva_fecha = parse_date(request.POST.get("fecha_fin") or "")
@@ -281,7 +321,17 @@ def convocatoria_export_relevamientos(request, pk):
     response.write("﻿")
     writer = csv.writer(response)
     writer.writerow(
-        ["Relevamiento", "Territorial", "Fecha asignada", "Zona", "Estado", "Enviados", "Aprobados", "Rechazados"]
+        [
+            "Relevamiento",
+            "Territorial",
+            "Fecha desde",
+            "Fecha hasta",
+            "Zona",
+            "Estado",
+            "Enviados",
+            "Aprobados",
+            "Rechazados",
+        ]
     )
     relevamientos = (
         conv.relevamientos.select_related("territorial")
@@ -299,6 +349,7 @@ def convocatoria_export_relevamientos(request, pk):
                 r.nombre,
                 terr,
                 r.fecha_asignada.strftime("%d/%m/%Y"),
+                r.fecha_hasta.strftime("%d/%m/%Y"),
                 r.zona,
                 r.get_estado_display(),
                 r.n_enviados,
@@ -348,11 +399,10 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     paginate_by = 25
 
     def get_queryset(self):
-        segmentos = segmentos_visibles(self.request.user)
         qs = (
             Relevamiento.objects.select_related("convocatoria__segmento", "territorial")
             .defer("observaciones", "convocatoria__descripcion", "convocatoria__segmento__descripcion")
-            .filter(convocatoria__segmento__in=segmentos)
+            .filter(convocatoria__in=convocatorias_visibles(self.request.user))
             .order_by("-fecha_asignada", "nombre")
         )
 
@@ -378,7 +428,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         if territorial:
             qs = qs.filter(territorial_id=territorial)
         if fecha_desde:
-            qs = qs.filter(fecha_asignada__gte=fecha_desde)
+            qs = qs.filter(fecha_hasta__gte=fecha_desde)
         if fecha_hasta:
             qs = qs.filter(fecha_asignada__lte=fecha_hasta)
         return qs
@@ -402,7 +452,14 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         query_params.pop("page", None)
         ctx["querystring"] = query_params.urlencode()
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
-        ctx["form_crear"] = RelevamientoForm(segmentos_permitidos=segmentos)
+        ctx["form_crear"] = RelevamientoForm(
+            segmentos_permitidos=segmentos,
+            convocatorias_permitidas=convocatorias_visibles(self.request.user),
+            territoriales_permitidos=usuarios_territoriales_becas().filter(
+                asignacion_territorial__segmento__in=segmentos
+            ),
+            operador=self.request.user,
+        )
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         return ctx
 
@@ -416,14 +473,26 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["segmentos_permitidos"] = segmentos_visibles(self.request.user)
+        kwargs["convocatorias_permitidas"] = convocatorias_visibles(self.request.user)
+        kwargs["territoriales_permitidos"] = usuarios_territoriales_becas().filter(
+            asignacion_territorial__segmento__in=segmentos_visibles(self.request.user)
+        )
+        kwargs["operador"] = self.request.user
         return kwargs
 
     def form_valid(self, form):
         territorial = form.cleaned_data["territorial"]
-        fecha = form.cleaned_data["fecha_asignada"]
-        solapamiento = Relevamiento.asignaciones_solapadas(territorial=territorial, fecha=fecha).only("zona").first()
+        fecha_desde = form.cleaned_data["fecha_asignada"]
+        fecha_hasta = form.cleaned_data["fecha_hasta"]
+        solapamiento = (
+            Relevamiento.asignaciones_solapadas(
+                territorial=territorial, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta
+            )
+            .only("zona")
+            .first()
+        )
         if solapamiento and self.request.POST.get("confirmar_solapamiento") != "1":
-            mensaje = _mensaje_solapamiento(territorial, fecha, solapamiento)
+            mensaje = _mensaje_solapamiento(territorial, fecha_desde, fecha_hasta, solapamiento)
             if is_ajax(self.request):
                 return JsonResponse(
                     {"ok": False, "confirm_required": True, "message": mensaje},
@@ -476,9 +545,10 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
         ctx["form_reprogramar"] = ReprogramarForm(
-            initial={"fecha_asignada": rel.fecha_asignada},
+            initial={"fecha_asignada": rel.fecha_asignada, "fecha_hasta": rel.fecha_hasta},
             convocatoria=rel.convocatoria,
         )
+        ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
         # Personas relevadas: se listan en la solapa "Formularios". Se materializa
         # una vez y el contador se deriva en Python (evita un COUNT extra).
         formularios = list(rel.formularios.select_related("ciudadano").order_by("numero"))
@@ -499,6 +569,8 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
 def relevamiento_finalizar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
+    if _rechazar_si_pausado(request, rel):
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if rel.estado != Relevamiento.Estado.EN_CURSO:
         messages.error(request, "Solo se puede finalizar un relevamiento en curso.")
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
@@ -516,6 +588,8 @@ def relevamiento_finalizar(request, pk):
 def relevamiento_reabrir(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
+    if _rechazar_si_pausado(request, rel):
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if rel.estado != Relevamiento.Estado.FINALIZADO:
         messages.error(request, "Solo se puede reabrir un relevamiento finalizado.")
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
@@ -532,6 +606,8 @@ def relevamiento_reabrir(request, pk):
 def relevamiento_reasignar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
+    if _rechazar_si_pausado(request, rel):
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if request.method == "POST":
         form = ReasignarTerritorialForm(request.POST, segmento=rel.convocatoria.segmento)
         if form.is_valid():
@@ -548,12 +624,30 @@ def relevamiento_reasignar(request, pk):
 def relevamiento_reprogramar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
+    if _rechazar_si_pausado(request, rel):
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if request.method == "POST":
         form = ReprogramarForm(request.POST, convocatoria=rel.convocatoria)
         if form.is_valid():
             rel.fecha_asignada = form.cleaned_data["fecha_asignada"]
-            rel.save(update_fields=["fecha_asignada", "modificado"])
+            rel.fecha_hasta = form.cleaned_data["fecha_hasta"]
+            rel.save(update_fields=["fecha_asignada", "fecha_hasta", "modificado"])
             messages.success(request, "Relevamiento reprogramado.")
         else:
-            messages.error(request, form.errors["fecha_asignada"][0])
+            messages.error(request, next(iter(form.errors.values()))[0])
+    return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+
+@login_required
+@requiere(CAP_RELEVAMIENTO_CREAR)
+@require_POST
+def relevamiento_modificar_cupo(request, pk):
+    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
+    _assert_scope(request, rel)
+    form = CupoRelevamientoForm(request.POST, instance=rel)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Cupo del relevamiento actualizado.")
+    else:
+        messages.error(request, next(iter(form.errors.values()))[0])
     return redirect("becas:relevamiento_detalle", pk=rel.pk)

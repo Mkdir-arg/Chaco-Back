@@ -94,6 +94,17 @@
                 <!-- Tarjeta del formulario -->
                 <div style="border:1px solid var(--border-base); border-radius:16px; padding:28px; background:#fff; box-shadow:var(--shadow-sm);">
 
+                    {% if messages %}
+                        {% for message in messages %}
+                        <div role="alert" style="display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:12px; margin-bottom:18px; background:#fffbeb; border:1px solid #fde68a; color:#92400e;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                            </svg>
+                            <p style="margin:0; font-size:13px; font-weight:600;">{{ message }}</p>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+
                     {% if form.non_field_errors %}
                     <div style="display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:12px; margin-bottom:18px; background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle);">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; color:var(--text-fg-danger);">
@@ -150,7 +161,8 @@
                         <!-- Recordarme -->
                         <div style="display:flex; align-items:center; font-size:13px;">
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-body);">
-                                <input type="checkbox" name="remember" style="width:15px; height:15px; accent-color:var(--bg-brand);"> Recordarme
+                                <input type="checkbox" id="id_remember" name="remember"{% if form.remember.value %} checked{% endif %}
+                                       style="width:15px; height:15px; accent-color:var(--bg-brand);"> Recordarme
                             </label>
                         </div>
 

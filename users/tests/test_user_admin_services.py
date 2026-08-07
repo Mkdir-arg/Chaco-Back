@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from core import rbac
 from users.forms import CustomUserChangeForm, UserCreationForm
-from users.models import Capacidad, RolMeta
+from users.models import Capacidad, Profile, RolMeta
 from users.services import UsuariosAdminService
 
 
@@ -32,6 +32,10 @@ class UsuariosAdminServiceTests(TestCase):
                 "groups[]": [str(self.group_admin.pk), str(self.group_op.pk)],
                 "last_name": "Perez",
                 "first_name": "Ana",
+                "dni": "30111222",
+                "telefono": "3624000000",
+                "institucion": "ECOM",
+                "observacion": "Usuario territorial",
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
@@ -40,6 +44,10 @@ class UsuariosAdminServiceTests(TestCase):
 
         self.assertEqual(user.username, "operador1")
         self.assertTrue(user.check_password("clave-segura-123"))
+        self.assertEqual(user.profile.dni, "30111222")
+        self.assertEqual(user.profile.telefono, "3624000000")
+        self.assertEqual(user.profile.institucion, "ECOM")
+        self.assertEqual(user.profile.observacion, "Usuario territorial")
         self.assertCountEqual(
             list(user.groups.values_list("name", flat=True)),
             ["Administrador", "Operador"],
@@ -64,6 +72,10 @@ class UsuariosAdminServiceTests(TestCase):
                 "groups": [str(self.group_admin.pk)],
                 "last_name": "Gomez",
                 "first_name": "Luis",
+                "dni": "28999888",
+                "telefono": "3624111111",
+                "institucion": "Desarrollo Social",
+                "observacion": "Dato actualizado",
             },
             instance=user,
         )
@@ -75,6 +87,10 @@ class UsuariosAdminServiceTests(TestCase):
         self.assertEqual(updated_user.email, "new@example.com")
         self.assertEqual(updated_user.password, original_password_hash)
         self.assertTrue(updated_user.check_password("clave-original"))
+        self.assertEqual(updated_user.profile.dni, "28999888")
+        self.assertEqual(updated_user.profile.telefono, "3624111111")
+        self.assertEqual(updated_user.profile.institucion, "Desarrollo Social")
+        self.assertEqual(updated_user.profile.observacion, "Dato actualizado")
         self.assertCountEqual(
             list(updated_user.groups.values_list("name", flat=True)),
             ["Administrador"],
@@ -96,3 +112,21 @@ class UsuariosAdminServiceTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn("groups", form.errors)
+
+    def test_dni_no_puede_repetirse(self):
+        existente = User.objects.create_user("existente", password="x")
+        Profile.objects.update_or_create(user=existente, defaults={"dni": "30111222"})
+
+        form = UserCreationForm(
+            data={
+                "username": "duplicado",
+                "email": "duplicado@example.com",
+                "password": "clave-segura-123",
+                "last_name": "Duplicado",
+                "first_name": "DNI",
+                "dni": "30111222",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("dni", form.errors)

@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 from django import forms
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -20,6 +21,7 @@ from programas.models import (
     Formulario,
     PreguntaGlobal,
     PrestacionDiaria,
+    Region,
     RegistroDiario,
     Relevamiento,
     RequisitoNativo,
@@ -31,7 +33,7 @@ from programas.models import (
 )
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
-from programas.services.siis import listar_programas, listar_segmentos
+from programas.services.siis import SiisCatalogError, listar_programas, listar_segmentos
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
@@ -46,6 +48,8 @@ def _catalogo_choices(items, empty_label):
 def _cargar_catalogo(loader):
     try:
         return loader(), ""
+    except SiisCatalogError as exc:
+        return [], str(exc)
     except Exception:
         return [], "No se pudo cargar el catálogo de SIIS. Verificá la conexión e intentá nuevamente."
 
@@ -95,6 +99,24 @@ class SegmentoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ese programa SIIS ya está asociado a otro segmento.")
         return programa_id
+
+
+class RegionForm(forms.ModelForm):
+    class Meta:
+        model = Region
+        fields = ["nombre", "localidades", "activo"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "localidades": forms.SelectMultiple(attrs={"class": INPUT_CLASS, "size": 10}),
+            "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["localidades"].queryset = Subsegmento.objects.select_related("segmento").order_by(
+            "segmento__nombre", "nombre"
+        )
+        self.fields["localidades"].help_text = "Seleccioná una o más localidades/subsegmentos."
 
 
 class SegmentoCreateForm(forms.ModelForm):
@@ -868,7 +890,7 @@ class ConvocatoriaForm(forms.ModelForm):
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, subsegmentos_permitidos=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["subsegmento"].required = False
         segmento_id = self.data.get("segmento") if self.is_bound else self.instance.segmento_id
@@ -876,11 +898,14 @@ class ConvocatoriaForm(forms.ModelForm):
             segmento_id = int(segmento_id) if segmento_id else None
         except (TypeError, ValueError):
             segmento_id = None
-        self.fields["subsegmento"].queryset = (
+        subsegmentos = (
             Subsegmento.objects.select_related("segmento").filter(segmento_id=segmento_id)
             if segmento_id
             else Subsegmento.objects.none()
         )
+        if subsegmentos_permitidos is not None:
+            subsegmentos = subsegmentos.filter(pk__in=subsegmentos_permitidos)
+        self.fields["subsegmento"].queryset = subsegmentos
         if self.instance.pk:
             for field_name in ("fecha_inicio", "fecha_fin"):
                 self.fields[field_name].required = False
@@ -946,23 +971,57 @@ class RelevamientoForm(forms.ModelForm):
 
     class Meta:
         model = Relevamiento
-        fields = ["convocatoria", "territorial", "fecha_asignada", "zona", "observaciones"]
+        fields = [
+            "convocatoria",
+            "territorial",
+            "fecha_asignada",
+            "fecha_hasta",
+            "zona",
+            "cupo_maximo",
+            "observaciones",
+        ]
         widgets = {
             "convocatoria": forms.Select(attrs={"class": INPUT_CLASS}),
             "territorial": forms.Select(attrs={"class": INPUT_CLASS}),
             "fecha_asignada": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+            "fecha_hasta": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
             "zona": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
             "observaciones": forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
         }
 
-    def __init__(self, *args, segmentos_permitidos=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        segmentos_permitidos=None,
+        convocatorias_permitidas=None,
+        territoriales_permitidos=None,
+        operador=None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
-        from programas.services.autorizacion import usuarios_territoriales_becas
+        self.operador = operador
+        from programas.services.autorizacion import es_coordinador_regional_becas, usuarios_territoriales_becas
 
         terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial")
-        conv_qs = Convocatoria.objects.select_related("segmento").filter(activo=True)
+        conv_qs = (
+            Convocatoria.objects.select_related("segmento", "subsegmento")
+            .filter(
+                activo=True,
+                pausado=False,
+                segmento__pausado=False,
+            )
+            .filter(models.Q(subsegmento__isnull=True) | models.Q(subsegmento__pausado=False))
+        )
         if segmentos_permitidos is not None:
             conv_qs = conv_qs.filter(segmento__in=segmentos_permitidos)
+        if convocatorias_permitidas is not None:
+            conv_qs = conv_qs.filter(pk__in=convocatorias_permitidas)
+        if territoriales_permitidos is not None:
+            terr_qs = terr_qs.filter(pk__in=territoriales_permitidos)
+
+        if es_coordinador_regional_becas(operador):
+            terr_qs = (terr_qs | User.objects.filter(pk=operador.pk)).distinct()
         # ModelChoiceIteratorValue expone la instancia de cada opción; así el
         # widget agrega data-segmento sin evaluar ambos querysets por duplicado.
         self.fields["convocatoria"].widget = _SelectConSegmento(attrs={"class": INPUT_CLASS})
@@ -974,16 +1033,51 @@ class RelevamientoForm(forms.ModelForm):
         ].help_text = "Solo se listan los territoriales del segmento de la convocatoria elegida."
         self.fields["convocatoria"].queryset = conv_qs
         self.fields["observaciones"].required = False
+        # Compatibilidad con clientes/formularios anteriores: un relevamiento
+        # de un solo día usa fecha_desde como fecha_hasta y el cupo conserva
+        # el valor vigente (o el default del modelo en un alta).
+        self.fields["fecha_hasta"].required = False
+        self.fields["cupo_maximo"].required = False
 
     def clean(self):
+        from programas.services.autorizacion import es_coordinador_regional_becas
+
         cleaned = super().clean()
         convocatoria = cleaned.get("convocatoria")
         territorial = cleaned.get("territorial")
         if convocatoria and territorial:
-            asignacion = getattr(territorial, "asignacion_territorial", None)
-            if asignacion is None or asignacion.segmento_id != convocatoria.segmento_id:
+            try:
+                asignacion = territorial.asignacion_territorial
+            except ObjectDoesNotExist:
+                asignacion = None
+            es_carga_regional_propia = territorial == self.operador and es_coordinador_regional_becas(self.operador)
+            if not es_carga_regional_propia and (
+                asignacion is None or asignacion.segmento_id != convocatoria.segmento_id
+            ):
                 self.add_error("territorial", "El territorial no pertenece al segmento de la convocatoria.")
+        fecha_desde = cleaned.get("fecha_asignada")
+        fecha_hasta = cleaned.get("fecha_hasta") or fecha_desde
+        if fecha_hasta:
+            cleaned["fecha_hasta"] = fecha_hasta
+        if not cleaned.get("cupo_maximo"):
+            cleaned["cupo_maximo"] = self.instance.cupo_maximo or Relevamiento._meta.get_field("cupo_maximo").default
+        if fecha_desde and fecha_hasta and fecha_hasta < fecha_desde:
+            self.add_error("fecha_hasta", "La fecha hasta no puede ser anterior a la fecha desde.")
         return cleaned
+
+
+class CupoRelevamientoForm(forms.ModelForm):
+    class Meta:
+        model = Relevamiento
+        fields = ["cupo_maximo"]
+        widgets = {"cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1})}
+
+    def clean_cupo_maximo(self):
+        cupo = self.cleaned_data["cupo_maximo"]
+        utilizados = self.instance.formularios.count()
+        if cupo < utilizados:
+            raise forms.ValidationError(f"No puede reducirse por debajo de las {utilizados} personas ya relevadas.")
+        return cupo
 
 
 class ReasignarTerritorialForm(forms.Form):
@@ -1010,28 +1104,55 @@ class ReasignarTerritorialForm(forms.Form):
 class ReprogramarForm(forms.Form):
     fecha_asignada = forms.DateField(
         widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-        label="Nueva fecha asignada",
+        label="Nueva fecha desde",
+    )
+    fecha_hasta = forms.DateField(
+        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+        label="Nueva fecha hasta",
     )
 
     def __init__(self, *args, convocatoria=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["fecha_hasta"].required = False
         self.convocatoria = convocatoria
         if convocatoria is not None:
-            self.fields["fecha_asignada"].widget.attrs.update(
-                min=convocatoria.fecha_inicio.isoformat(),
-                max=convocatoria.fecha_fin.isoformat(),
-            )
+            for campo in ("fecha_asignada", "fecha_hasta"):
+                self.fields[campo].widget.attrs.update(
+                    min=convocatoria.fecha_inicio.isoformat(),
+                    max=convocatoria.fecha_fin.isoformat(),
+                )
 
-    def clean_fecha_asignada(self):
-        fecha = self.cleaned_data["fecha_asignada"]
-        if self.convocatoria and not self.convocatoria.fecha_inicio <= fecha <= self.convocatoria.fecha_fin:
+    def clean(self):
+        cleaned = super().clean()
+        fecha_desde = cleaned.get("fecha_asignada")
+        fecha_hasta = cleaned.get("fecha_hasta") or fecha_desde
+        if fecha_hasta:
+            cleaned["fecha_hasta"] = fecha_hasta
+        if fecha_desde and fecha_hasta and fecha_hasta < fecha_desde:
+            self.add_error("fecha_hasta", "La fecha hasta no puede ser anterior a la fecha desde.")
+        if (
+            self.convocatoria
+            and fecha_desde
+            and not self.convocatoria.fecha_inicio <= fecha_desde <= self.convocatoria.fecha_fin
+        ):
             inicio = self.convocatoria.fecha_inicio.strftime("%d/%m/%Y")
             fin = self.convocatoria.fecha_fin.strftime("%d/%m/%Y")
-            raise forms.ValidationError(
-                "La fecha del relevamiento debe estar comprendida dentro "
-                f"del período de la convocatoria ({inicio} - {fin})."
+            self.add_error(
+                "fecha_asignada",
+                f"La fecha desde debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin}).",
             )
-        return fecha
+        if (
+            self.convocatoria
+            and fecha_hasta
+            and not self.convocatoria.fecha_inicio <= fecha_hasta <= self.convocatoria.fecha_fin
+        ):
+            inicio = self.convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = self.convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            self.add_error(
+                "fecha_hasta",
+                f"La fecha hasta debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin}).",
+            )
+        return cleaned
 
 
 class FormularioRevisionForm(forms.ModelForm):
