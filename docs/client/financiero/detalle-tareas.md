@@ -129,6 +129,9 @@
 !!! note "Regularización de horas (29/07/2026)"
     El registro incluye **125 horas** de desarrollo backend del Programa Dispositivos trabajadas por Juani Portilla durante julio y consolidadas en el registro el 29/07, distribuidas en los días hábiles del mes sin carga previa (9 h por día del 01/07 al 22/07 y 8 h el 28/07). También se consolidaron las **reuniones de seguimiento del equipo** (lunes, miércoles y viernes, 1 h por integrante): 14 reuniones × 4 integrantes = **56 horas** Transversal, incluida la del 31/07 registrada por adelantado.
 
+!!! note "Consolidación de cierre de mes (03/08/2026)"
+    Al cierre de julio se consolidaron **57 h 15 min** adicionales de desarrollo backend del Programa Dispositivos trabajadas por Juani Portilla en los últimos días del mes (28 al 31/07), completando el presupuesto mensual de 500 horas.
+
 | Día | Persona | Programa | Motivo | Qué hice | Consumo |
 |---|---|---|---|---|---:|
 | 2026-07-01 | Pablo Cao | Becas | App mobile Becas | Trabajo sobre Issue #83: flujo de identidad por escaneo DNI/RENAPER/manual, preguntas globales/segmento/subsegmento, imagenes desde camara/galeria, mejoras visuales del formulario, correccion RENAPER, captura GPS oculta, validaciones Expo/Django y auditoria funcional contra issues/documentacion. | 308 min |
@@ -229,6 +232,7 @@
 | 2026-07-27 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-27 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-28 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend de la aplicación del Programa Dispositivos | 480 min |
+| 2026-07-28 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend del Programa Dispositivos (consolidación de cierre de mes) | 855 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-06 — Registro diario F-01 por turno (#178) | Parte diario por turno con métricas A-E calculadas, observaciones por concepto y firma del usuario que realiza la carga. | 60 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-07 — Solapa Dispositivos en el Legajo Ciudadano (#179) | Solapa dedicada con admisión activa, historial de estadías y acceso según el alcance de consulta. | 60 min |
 | 2026-07-29 | Juani Portilla | Dispositivos | D-11 — Indicadores operativos (#183) | Indicadores operativos de Dispositivos: ocupación, disponibilidad, vigencia y completitud F00. | 12 min |
@@ -238,21 +242,45 @@
 | 2026-07-29 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-29 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-29 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-29 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend del Programa Dispositivos (consolidación de cierre de mes) | 840 min |
 | 2026-07-30 | Pablo Cao | Becas | Issues #208 y #209 — backoffice y app mobile offline | Corrección del selector de subsegmentos; persistencia y sincronización offline sin pérdida ni duplicados; trazabilidad temporal y GPS; mejoras de revisión, adjuntos, fechas, identidad, sexo y apoderado; pruebas locales, en APK y servidor. | 290 min |
+| 2026-07-30 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend del Programa Dispositivos (consolidación de cierre de mes) | 900 min |
 | 2026-07-31 | Matías Fariña | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-31 | Matías Abate | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-31 | Pablo Cao | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
 | 2026-07-31 | Juani Portilla | Transversal | Reunión de equipo | Reunión de seguimiento del equipo | 60 min |
+| 2026-07-31 | Pablo Cao | Becas | Integración SIIS | Desarrollo de la base de la integración SIIS de Becas | 480 min |
+| 2026-07-31 | Matías Abate | Becas | Integración SIIS — pruebas | Pruebas funcionales de la integración SIIS | 240 min |
+| 2026-07-31 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo backend | Desarrollo backend del Programa Dispositivos (consolidación de cierre de mes) | 840 min |
 
 ### :material-briefcase-outline: Consumo de julio por programa
 
 | Programa | Horas julio |
 |---|---:|
-| Becas | 130 h 58 min |
-| Dispositivos (incluye Merenderos) | 226 h 0 min |
+| Becas | 142 h 58 min |
+| Dispositivos (incluye Merenderos) | 283 h 15 min |
 | Transversal | 73 h 47 min |
 
-| **Total julio 2026 (al 31/07)** | **430 h 45 min** |
+| **Total julio 2026 (mes completo)** | **500 h 0 min** |
+
+---
+
+## :material-calendar-month: Consumo de agosto 2026 — detalle día por día
+
+| Día | Persona | Programa | Motivo | Qué hice | Consumo |
+|---|---|---|---|---|---:|
+| 2026-08-01 | Pablo Cao | Becas | Integración SIIS | Desarrollo de la base de la integración SIIS de Becas | 480 min |
+| 2026-08-01 | Matías Abate | Becas | Integración SIIS — pruebas | Pruebas funcionales de la integración SIIS | 240 min |
+| 2026-08-02 | Pablo Cao | Becas | Integración SIIS | Desarrollo de la base de la integración SIIS de Becas | 480 min |
+| 2026-08-02 | Matías Abate | Becas | Integración SIIS — pruebas | Pruebas funcionales de la integración SIIS | 240 min |
+
+### :material-briefcase-outline: Consumo de agosto por programa
+
+| Programa | Horas agosto |
+|---|---:|
+| Becas | 24 h 0 min |
+
+| **Total agosto 2026 (al 03/08)** | **24 h 0 min** |
 
 
 ---
@@ -299,9 +327,9 @@
 !!! success "Contador total"
 
 
-    **55.887 minutos** (931 h 27 min)
 
-    Junio 2026: **29.952 min (499 h 12 min)** · Julio 2026: **25.845 min (430 h 45 min)** · Agosto 2026 (al 04/08): **90 min (1 h 30 min)**
+    **61.392 minutos** (1.023 h 12 min)
+
 
 
     

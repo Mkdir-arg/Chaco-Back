@@ -18,32 +18,17 @@
 
         <div class="bg-white rounded-lg shadow p-6 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <div class="md:col-span-2">
                     <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre del rol</label>
                     {{ form.name }}
                     {% if form.name.errors %}<div class="text-red-600 text-sm mt-1">{{ form.name.errors }}</div>{% endif %}
                 </div>
-                {% if form.es_admin_global %}
                 <div>
                     <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
                     {{ form.categoria }}
                     {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
                 </div>
-                {% else %}
-                <div>
-                    <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                    {{ form.categoria }}
-                    {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
-                </div>
-                {% endif %}
-
-                <div class="md:col-span-2">
-                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                    {{ form.descripcion }}
-                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
-                </div>
-
-                <div>
+                <div id="campo-programa"{% if form.categoria.value != 'Programa' %} class="hidden"{% endif %}>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
                     {% if form.programa_fijo %}
                         <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
@@ -52,6 +37,12 @@
                         {{ form.programa }}
                     {% endif %}
                     {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
                 </div>
                 <div id="dispositivos-alcance" class="md:col-span-2{% if not form.muestra_alcance_dispositivos %} hidden{% endif %}" data-programa-dispositivos="{{ form.programa_dispositivos_id }}">
                     <label for="{{ form.dispositivos_alcance.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Alcance por dispositivo</label>
@@ -158,6 +149,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var alcanceDispositivos = document.getElementById('dispositivos-alcance');
+    var campoPrograma = document.getElementById('campo-programa');
     var programaInput = document.querySelector('[name="programa"]');
     var categoriaInput = document.getElementById('{{ form.categoria.id_for_label }}');
     function actualizarAlcanceDispositivos() {
@@ -166,9 +158,17 @@ document.addEventListener('DOMContentLoaded', function () {
             && categoriaInput.value === 'Programa';
         alcanceDispositivos.classList.toggle('hidden', !mostrar);
     }
+    function actualizarCampoPrograma() {
+        if (!campoPrograma || !categoriaInput) return;
+        var esPrograma = categoriaInput.value === 'Programa';
+        campoPrograma.classList.toggle('hidden', !esPrograma);
+        // Al ocultarlo se vacía el select: un programa arrastrado en el POST es error del form.
+        if (!esPrograma && programaInput && programaInput.tagName === 'SELECT') programaInput.value = '';
+        actualizarAlcanceDispositivos();
+    }
     if (programaInput) programaInput.addEventListener('change', actualizarAlcanceDispositivos);
-    if (categoriaInput) categoriaInput.addEventListener('change', actualizarAlcanceDispositivos);
-    actualizarAlcanceDispositivos();
+    if (categoriaInput) categoriaInput.addEventListener('change', actualizarCampoPrograma);
+    actualizarCampoPrograma();
 
     var totalEl = document.getElementById('total-seleccionadas');
 

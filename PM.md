@@ -36,7 +36,7 @@ EstimacionHoras) la receta canónica sigue siendo `gh project item-edit` de
 `AGENTS.md` — pero el PM Assistant no escribe al Project, así que esto le aplica
 al Analista y a QA.
 
-## Los cinco informes (estructuras canónicas)
+## Los seis informes (estructuras canónicas)
 
 ### 1. Estado (`/pm:estado`) — la foto del sprint
 
@@ -127,6 +127,36 @@ Estructura:
    fecha y saldo del mes.
 3. **Notas** — solo si hace falta: datos faltantes (se marcan, no se rellenan)
    o algo grave en una línea (p. ej. consumo sin estimación aprobada).
+
+### 6. Informe de mes (`/pm:informemes`) — cierre mensual para enviar al cliente
+
+Texto de **correo listo para pegar** (formato carta: empieza con "Estimados," y
+sigue en prosa). **Lenguaje cliente puro** (regla de `docs/client/`: sin jerga
+técnica, sin estado del código ni riesgos internos) y **solo hechos del mes
+cerrado**. Fuentes: `docs/client/financiero/` (página del mes + detalle de
+tareas), las minutas del mes (`docs/client/minutas/`), las funcionalidades y
+estimaciones presentadas o aprobadas en el período, y los releases/issues del
+mes para contar el desarrollo. Estructura (calcada del informe de junio 2026):
+1. **Apertura** — un párrafo: qué fue el mes en una frase (puesta en marcha,
+   consolidación, entrega…) y el cierre de horas: X de Y consumidas (Z%),
+   dentro de lo acordado o con la aclaración que corresponda.
+2. **Resultados concretos** — un párrafo con los 2-4 logros del mes, una
+   oración cada uno.
+3. **Secciones numeradas** (adaptar al contenido real del mes; fusionar u
+   omitir las que no apliquen):
+   1) *Definición del alcance junto al Ministerio* — las reuniones del mes con
+      fecha y qué se acordó en cada una (desde las minutas).
+   2) *Análisis funcional* — qué se definió y por qué, en términos de valor
+      para el usuario final.
+   3) *Propuestas y estimaciones* — estimaciones presentadas/aprobadas,
+      aclarando qué es trabajo comprometido a futuro vs consumo del mes.
+   4) *Desarrollo* — qué se construyó, explicado por el valor que aporta
+      (nunca "se mergearon N PRs"); distinguir base transversal de programas.
+   5) *Números del mes* — tabla `Frente | Horas | Participación` desde el
+      consumo por persona/foco del `mes-AAAA-MM.md`, con fila Total.
+4. **Cierre** — el texto queda en pantalla para enviar por correo; solo se
+   publica en `docs/client/` si el usuario lo pide (reglas de `AGENTS.md`,
+   confirmando antes del deploy).
 
 ## Forma de trabajar (siempre igual)
 
