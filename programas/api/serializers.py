@@ -14,9 +14,12 @@ logger = logging.getLogger(__name__)
 
 class RelevamientoListSerializer(serializers.ModelSerializer):
     segmento = serializers.CharField(source="convocatoria.segmento.nombre", read_only=True)
+    localidad = serializers.CharField(source="convocatoria.subsegmento.nombre", read_only=True, default="")
     convocatoria_nombre = serializers.CharField(source="convocatoria.nombre", read_only=True)
     # Anotado en el queryset del viewset (evita un COUNT por ítem).
     formularios_count = serializers.IntegerField(read_only=True)
+    pausado = serializers.SerializerMethodField()
+    pausa_motivo = serializers.SerializerMethodField()
 
     class Meta:
         model = Relevamiento
@@ -26,12 +29,26 @@ class RelevamientoListSerializer(serializers.ModelSerializer):
             "nombre",
             "zona",
             "fecha_asignada",
+            "fecha_hasta",
             "estado",
             "segmento",
+            "localidad",
             "convocatoria_nombre",
             "fecha_finalizado",
             "formularios_count",
+            "cupo_maximo",
+            "cupo_disponible",
+            "cupo_completo",
+            "pausado",
+            "pausa_motivo",
         ]
+
+    def get_pausado(self, obj):
+        return obj.pausa_efectiva is not None
+
+    def get_pausa_motivo(self, obj):
+        pausa = obj.pausa_efectiva
+        return pausa.pausa_motivo if pausa else ""
 
 
 class RelevamientoDetailSerializer(RelevamientoListSerializer):

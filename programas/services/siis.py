@@ -12,6 +12,14 @@ PROGRAMAS_CACHE_KEY = "siis_api:programas:activos"
 CATALOGO_CACHE_SECONDS = 300
 
 
+class SiisCatalogError(Exception):
+    """Error seguro para mostrar al usuario al cargar catálogos de SIIS."""
+
+
+class _SiisConfigurationError(Exception):
+    pass
+
+
 class SiisAPIClient:
     def __init__(self):
         self.base_url = str(settings.SIIS_API_URL or "").strip().rstrip("/")
@@ -24,7 +32,7 @@ class SiisAPIClient:
         if token:
             return token
         if not all((self.base_url, self.client_id, self.client_secret)):
-            raise ValueError("Configuración SIIS incompleta.")
+            raise _SiisConfigurationError("Configuración SIIS incompleta.")
         response = requests.post(
             f"{self.base_url}/api/v1/auth/token",
             json={"client_id": self.client_id, "client_secret": self.client_secret},
@@ -34,7 +42,7 @@ class SiisAPIClient:
         body = response.json()
         token = body.get("access_token")
         if not token:
-            raise ValueError("SIIS no devolvió access_token.")
+            raise _SiisConfigurationError("SIIS no devolvió access_token.")
         ttl = max(int(body.get("expires_in") or 3600) - 60, 60)
         cache.set(TOKEN_CACHE_KEY, token, ttl)
         return token
@@ -49,6 +57,38 @@ class SiisAPIClient:
             cache.delete(TOKEN_CACHE_KEY)
         response.raise_for_status()
         return response.json()
+
+    def _cargar_catalogo(self, path, mensaje_no_encontrado):
+        try:
+            return self._get(path)
+        except _SiisConfigurationError as exc:
+            logger.exception("Configuración incompleta al consultar un catálogo de SIIS")
+            raise SiisCatalogError("La integración con SIIS no está configurada. Contactá a Infraestructura.") from exc
+        except requests.Timeout as exc:
+            logger.exception("Timeout al consultar un catálogo de SIIS")
+            raise SiisCatalogError("SIIS tardó demasiado en responder. Intentá nuevamente en unos minutos.") from exc
+        except requests.ConnectionError as exc:
+            logger.exception("Error de conexión al consultar un catálogo de SIIS")
+            raise SiisCatalogError(
+                "No se pudo conectar con SIIS. Verificá que el servicio esté disponible e intentá nuevamente."
+            ) from exc
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            logger.exception("SIIS respondió HTTP %s al consultar un catálogo", status)
+            if status in (401, 403):
+                mensaje = "SIIS rechazó las credenciales configuradas. Contactá a Infraestructura."
+            elif status == 404:
+                mensaje = mensaje_no_encontrado
+            elif status is not None and status >= 500:
+                mensaje = "SIIS no está disponible temporalmente. Intentá nuevamente más tarde."
+            else:
+                mensaje = "SIIS rechazó la consulta del catálogo. Contactá a Infraestructura."
+            raise SiisCatalogError(mensaje) from exc
+        except (requests.RequestException, TypeError, ValueError) as exc:
+            logger.exception("Respuesta inválida al consultar un catálogo de SIIS")
+            raise SiisCatalogError(
+                "SIIS devolvió una respuesta que la aplicación no pudo interpretar. Contactá a Infraestructura."
+            ) from exc
 
     @staticmethod
     def _items(body, *keys):
@@ -86,7 +126,10 @@ class SiisAPIClient:
         cached = cache.get(PROGRAMAS_CACHE_KEY)
         if cached is not None:
             return cached
-        body = self._get("/api/v1/programas?estado=ACTIVO")
+        body = self._cargar_catalogo(
+            "/api/v1/programas?estado=ACTIVO",
+            "SIIS no encontró el catálogo de programas. Es posible que ECOM haya cambiado la integración.",
+        )
         programas = self._normalizar_catalogo(self._items(body, "programas", "results"), ("id", "id_programa"))
         cache.set(PROGRAMAS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
         return programas
@@ -97,7 +140,11 @@ class SiisAPIClient:
         cached = cache.get(key)
         if cached is not None:
             return cached
-        body = self._get(f"/api/v1/programas/{id_programa}/segmentos")
+        body = self._cargar_catalogo(
+            f"/api/v1/programas/{id_programa}/segmentos",
+            "SIIS no encontró los segmentos del programa seleccionado. "
+            "Es posible que ECOM haya cambiado la integración o que el programa no tenga segmentos cargados.",
+        )
         segmentos = self._normalizar_catalogo(self._items(body, "segmentos", "results"), ("id", "id_segmento"))
         cache.set(key, segmentos, CATALOGO_CACHE_SECONDS)
         return segmentos

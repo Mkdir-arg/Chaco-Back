@@ -15,6 +15,12 @@
       </a>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight min-w-0">{{ relevamiento.nombre }}</h1>
       {% with rel=relevamiento %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}
+      {% if relevamiento.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausado</span>{% endif %}
+      {% if request.user|puede:"becas.programa.administrar" %}
+      <a href="{% url 'becas:gestionar_pausa' 'relevamiento' relevamiento.pk %}" class="btn-nodo {% if relevamiento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
+        {% if relevamiento.pausado %}Reanudar{% else %}Pausar{% endif %}
+      </a>
+      {% endif %}
     </div>
   </div>
 
@@ -63,11 +69,11 @@
           </div>
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Fecha asignada</span>
-            <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y" }}</span>
+            <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y" }} al {{ relevamiento.fecha_hasta|date:"d/m/Y" }}</span>
           </div>
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Personas relevadas</span>
-            <span class="text-heading font-semibold">{{ n_formularios }}</span>
+            <span class="text-heading font-semibold">{{ n_formularios }} / {{ relevamiento.cupo_maximo }}</span>
           </div>
           {% if relevamiento.observaciones %}
           <div class="pt-2">
@@ -113,6 +119,7 @@
               <i class="fas fa-user-pen mr-1 text-fg-brand"></i> Reasignar territorial
             </h3>
             {% with field=form_reasignar.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_reasignar.territorial.id_for_label }}" data-segment-id="{{ relevamiento.convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
           </form>
 
@@ -123,8 +130,22 @@
               <i class="fas fa-calendar-day mr-1 text-fg-brand"></i> Reprogramar fecha
             </h3>
             {% with field=form_reprogramar.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% with field=form_reprogramar.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reprogramar</button>
           </form>
+
+          {% if request.user|puede:"becas.relevamiento.crear" %}
+          <form method="post" action="{% url 'becas:relevamiento_modificar_cupo' relevamiento.pk %}"
+                class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-bold text-heading mb-3">
+              <i class="fas fa-users-gear mr-1 text-fg-brand"></i> Modificar cupo
+            </h3>
+            <p class="text-xs text-body-subtle mb-3">Puede aumentarse, pero nunca reducirse por debajo de las personas ya relevadas.</p>
+            {% with field=form_cupo.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Actualizar cupo</button>
+          </form>
+          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -205,6 +226,7 @@
     </div>
   </div>
 </div>
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

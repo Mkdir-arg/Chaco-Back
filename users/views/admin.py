@@ -2,9 +2,12 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from django.views import View
 from django.views.generic import CreateView, ListView, UpdateView
 
@@ -19,6 +22,7 @@ from ..selectors.usuarios import (
 )
 from ..services import UsuariosService
 from ..services.admin import UsuariosAdminService
+from ..services.invitations import enviar_invitacion_usuario
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +38,7 @@ class AdminRequiredMixin(CapacidadRequeridaMixin):
     (``programa.configurar`` en algún programa). El alcance fino lo aplica cada vista.
     """
 
-    capacidades_requeridas = ["usuario.administrar", "programa.configurar"]
+    capacidades_requeridas = ["usuario.administrar", "programa.configurar", "becas.usuario.territorial"]
 
 
 class UserListView(AdminRequiredMixin, ListView):
@@ -76,6 +80,23 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
             logger.exception("Error al crear usuario")
             form.add_error(None, f"Error al guardar el usuario: {exc}")
             return self.form_invalid(form)
+
+        if self.object.email:
+            uid = urlsafe_base64_encode(force_bytes(self.object.pk))
+            token = default_token_generator.make_token(self.object)
+            ruta = reverse("users:establecer_contrasena", kwargs={"uidb64": uid, "token": token})
+            enlace = self.request.build_absolute_uri(ruta)
+            try:
+                enviar_invitacion_usuario(self.object, enlace)
+                messages.success(self.request, "Usuario creado. Se envió el correo de acceso.")
+            except Exception:
+                logger.exception("El usuario fue creado, pero no se pudo enviar la invitación")
+                messages.warning(
+                    self.request,
+                    "El usuario fue creado, pero no se pudo enviar el correo. Revisá la configuración de correo.",
+                )
+        else:
+            messages.warning(self.request, "Usuario creado sin correo; no se pudo enviar la invitación.")
 
         return self.redirect_with_timestamp()
 

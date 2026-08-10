@@ -94,6 +94,7 @@
             <div>
               <label class="block text-[13px] font-semibold text-heading mb-1.5">Coordinador asignado <span class="text-fg-danger" style="margin-left:3px">*</span></label>
               {{ form_segmento.coordinador }}
+              {% if request.user|puede:"becas.programa.administrar" %}<button type="button" data-quick-user="coordinador" data-user-select="#id_coordinador" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear coordinador</button>{% endif %}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="coordinador"></p>
             </div>
           </div>
@@ -176,6 +177,7 @@
     </div>
   </div>
 </div>
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

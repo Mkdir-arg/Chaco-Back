@@ -30,6 +30,28 @@ def usuarios_visibles_para(user):
     qs = get_usuarios_queryset()
     if es_admin_global_usuarios(user):
         return qs
+    if rbac.puede(user, "becas.usuario.territorial"):
+        from django.contrib.auth.models import Group
+
+        from programas.services.autorizacion import (
+            es_coordinador_regional_becas,
+            grupos_territoriales_becas,
+            segmentos_para_gestion_territoriales,
+        )
+
+        roles_territoriales = grupos_territoriales_becas()
+        roles_no_territoriales = Group.objects.exclude(pk__in=roles_territoriales)
+        visibles = (
+            qs.filter(
+                groups__in=roles_territoriales,
+                asignacion_territorial__segmento__in=segmentos_para_gestion_territoriales(user),
+            )
+            .exclude(groups__in=roles_no_territoriales)
+            .distinct()
+        )
+        if es_coordinador_regional_becas(user):
+            visibles = visibles.filter(asignacion_territorial__coordinador_regional=user)
+        return visibles
     programas = programas_administrables(user)
     return qs.filter(groups__meta__programa__in=programas, groups__meta__activo=True).distinct()
 
@@ -44,6 +66,10 @@ def alcance_roles_ids(user):
     """
     if es_admin_global_usuarios(user):
         return None
+    if rbac.puede(user, "becas.usuario.territorial"):
+        from programas.services.autorizacion import grupos_territoriales_becas
+
+        return set(grupos_territoriales_becas().values_list("id", flat=True))
     from users.forms import _roles_asignables_queryset
 
     return set(_roles_asignables_queryset(user).values_list("id", flat=True))
@@ -57,5 +83,24 @@ def puede_gestionar_usuario(operador, target):
     """
     if es_admin_global_usuarios(operador):
         return True
+    if rbac.puede(operador, "becas.usuario.territorial"):
+        from programas.services.autorizacion import (
+            es_coordinador_regional_becas,
+            grupos_territoriales_becas,
+            segmentos_para_gestion_territoriales,
+        )
+
+        roles = set(target.groups.values_list("pk", flat=True))
+        roles_territoriales = set(grupos_territoriales_becas().values_list("pk", flat=True))
+        es_solo_territorial = bool(roles) and roles.issubset(roles_territoriales)
+        asignacion = getattr(target, "asignacion_territorial", None)
+        permitido = bool(
+            es_solo_territorial
+            and asignacion
+            and segmentos_para_gestion_territoriales(operador).filter(pk=asignacion.segmento_id).exists()
+        )
+        if permitido and es_coordinador_regional_becas(operador):
+            permitido = asignacion.coordinador_regional_id == operador.pk
+        return permitido
     programas = set(programas_administrables(operador).values_list("pk", flat=True))
     return target.groups.filter(meta__programa__in=programas, meta__activo=True).exists()

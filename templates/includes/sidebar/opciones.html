@@ -407,7 +407,7 @@
         </div>
         {% endif %}
 
-        {# ── Becas (grupo colapsable) ─────────────────────────── #}
+        {# ── Programas (grupo colapsable) ─────────────────────── #}
         {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" %}
         <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
@@ -426,7 +426,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round"
                                   d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"/>
                         </svg>
-                        <span class="flex-1">Becas</span>
+                        <span class="flex-1">Programas</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                              width="14" height="14" aria-hidden="true"
                              style="color: var(--text-body-subtle); transition: transform 150ms;"
@@ -450,6 +450,15 @@
                                       d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 6v.776"/>
                             </svg>
                             Segmentos
+                        </a>
+                        {% endif %}
+                        {% if request.user|puede:"becas.programa.administrar" %}
+                        <a href="{% url 'becas:regiones' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/config/regiones' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}">
+                            <span aria-hidden="true">🗺️</span>
+                            Regiones
                         </a>
                         {% endif %}
                         {% if request.user|puede:"becas.pregunta.ver" %}
@@ -525,8 +534,8 @@
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
-                   title="Becas"
-                   aria-label="Becas">
+                   title="Programas"
+                   aria-label="Programas">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                          width="20" height="20" aria-hidden="true"
                          style="color: {% if 'becas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
@@ -617,7 +626,7 @@
         {% endif %}
 
         {# ── Administración (grupo colapsable) ────────────────── #}
-        {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
+        {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" or request.user|puede:"becas.usuario.territorial" %}
         <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -646,7 +655,7 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
-                        {% if request.user|puede:"usuario.administrar" or request.user|puede:"programa.configurar" %}
+                        {% if request.user|puede:"usuario.administrar" or request.user|puede:"programa.configurar" or request.user|puede:"becas.usuario.territorial" %}
                         <a href="{% url 'users:usuarios' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -683,7 +692,7 @@
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% if request.user|puede:'usuario.administrar' or request.user|puede:'programa.configurar' %}{% url 'users:usuarios' %}{% else %}{% url 'users:roles' %}{% endif %}"
+                <a href="{% if request.user|puede:'usuario.administrar' or request.user|puede:'programa.configurar' or request.user|puede:'becas.usuario.territorial' %}{% url 'users:usuarios' %}{% else %}{% url 'users:roles' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
