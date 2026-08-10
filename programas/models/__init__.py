@@ -9,6 +9,50 @@ from core.models import TimeStamped
 from legajos.models import Ciudadano
 
 
+class PausableMixin(models.Model):
+    pausado = models.BooleanField(default=False, db_index=True, verbose_name="Pausado")
+    pausa_motivo = models.TextField(blank=True, default="", verbose_name="Motivo de la pausa")
+    pausado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Pausado por",
+    )
+    pausado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de pausa")
+
+    class Meta:
+        abstract = True
+
+    @property
+    def pausa_efectiva(self):
+        return self if self.pausado else None
+
+
+class RegistroPausa(TimeStamped):
+    class Accion(models.TextChoices):
+        PAUSAR = "PAUSAR", "Pausar"
+        REANUDAR = "REANUDAR", "Reanudar"
+
+    tipo_entidad = models.CharField(max_length=30, db_index=True, verbose_name="Tipo de elemento")
+    objeto_id = models.PositiveBigIntegerField(db_index=True, verbose_name="ID del elemento")
+    objeto_nombre = models.CharField(max_length=255, verbose_name="Elemento")
+    accion = models.CharField(max_length=10, choices=Accion.choices, verbose_name="Acción")
+    motivo = models.TextField(verbose_name="Motivo")
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="registros_pausa",
+        verbose_name="Usuario",
+    )
+
+    class Meta:
+        ordering = ["-creado", "-pk"]
+        verbose_name = "Registro de pausa"
+        verbose_name_plural = "Registros de pausa"
+
+
 class Programa(TimeStamped):
     """Catálogo de programas sociales del sistema."""
 
@@ -1102,7 +1146,7 @@ class CampoTipoDispositivo(TimeStamped):
         return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
 
 
-class Segmento(TimeStamped):
+class Segmento(PausableMixin, TimeStamped):
     """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2)."""
 
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
@@ -1164,7 +1208,7 @@ class Segmento(TimeStamped):
         return self.cupo_maximo
 
 
-class Subsegmento(TimeStamped):
+class Subsegmento(PausableMixin, TimeStamped):
     """Nivel opcional dentro de un segmento, con cupo propio (RN-35/40)."""
 
     segmento = models.ForeignKey(
@@ -1189,6 +1233,10 @@ class Subsegmento(TimeStamped):
 
     def __str__(self):
         return f"{self.segmento.nombre} / {self.nombre}"
+
+    @property
+    def pausa_efectiva(self):
+        return self if self.pausado else self.segmento.pausa_efectiva
 
     def clean(self):
         """RN-40: sum(hermanos.cupo_maximo) + nuevo_cupo <= segmento.cupo_maximo."""
@@ -1246,7 +1294,7 @@ class CupoSegmento(TimeStamped):
             )
 
 
-class Convocatoria(TimeStamped):
+class Convocatoria(PausableMixin, TimeStamped):
     """Agrupador dentro del programa; apunta a un segmento (requerido) y a un
     subsegmento opcional de ese segmento (RN-30)."""
 
@@ -1269,6 +1317,22 @@ class Convocatoria(TimeStamped):
     fecha_fin = models.DateField(verbose_name="Fecha de fin")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+    creada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="convocatorias_creadas",
+        verbose_name="Creada por",
+    )
+    responsable_regional = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="convocatorias_regionales",
+        verbose_name="Responsable regional",
+    )
     # Trazabilidad del cierre automático por vencimiento (procesar_vencimientos).
     # Distingue la baja por fecha de la desactivación manual y guarda el cuándo.
     cerrada_automaticamente = models.BooleanField(
@@ -1290,6 +1354,14 @@ class Convocatoria(TimeStamped):
     def __str__(self):
         return self.nombre
 
+    @property
+    def pausa_efectiva(self):
+        if self.pausado:
+            return self
+        if self.segmento.pausa_efectiva:
+            return self.segmento.pausa_efectiva
+        return self.subsegmento.pausa_efectiva if self.subsegmento_id else None
+
     def clean(self):
         """El subsegmento (si se indica) debe pertenecer al segmento elegido."""
         super().clean()
@@ -1306,7 +1378,7 @@ class Convocatoria(TimeStamped):
         return self.fecha_fin is not None and self.fecha_fin < timezone.localdate()
 
 
-class Relevamiento(TimeStamped):
+class Relevamiento(PausableMixin, TimeStamped):
     """Campaña de campo asignada a un territorial. Nombre auto-generado."""
 
     class Estado(models.TextChoices):
@@ -1331,8 +1403,17 @@ class Relevamiento(TimeStamped):
         related_name="relevamientos_asignados",
         verbose_name="Territorial",
     )
-    fecha_asignada = models.DateField(verbose_name="Fecha asignada")
+    # Se conserva el nombre técnico histórico para evitar romper integraciones;
+    # funcionalmente representa el inicio del período.
+    fecha_asignada = models.DateField(verbose_name="Fecha desde")
+    fecha_hasta = models.DateField(verbose_name="Fecha hasta")
     zona = models.CharField(max_length=200, verbose_name="Zona")
+    cupo_maximo = models.PositiveIntegerField(
+        default=100,
+        validators=[MinValueValidator(1)],
+        verbose_name="Cupo de personas",
+        help_text="Cantidad máxima de personas que pueden cargarse en este relevamiento.",
+    )
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     estado = models.CharField(
         max_length=20,
@@ -1348,7 +1429,7 @@ class Relevamiento(TimeStamped):
         verbose_name_plural = "Relevamientos"
         ordering = ["-fecha_asignada", "nombre"]
         indexes = [
-            models.Index(fields=["estado", "fecha_asignada"]),
+            models.Index(fields=["estado", "fecha_asignada", "fecha_hasta"]),
         ]
         constraints = [
             models.UniqueConstraint(fields=["convocatoria", "numero"], name="uniq_relevamiento_numero_convocatoria"),
@@ -1357,22 +1438,38 @@ class Relevamiento(TimeStamped):
     def __str__(self):
         return self.nombre
 
+    @property
+    def pausa_efectiva(self):
+        return self if self.pausado else self.convocatoria.pausa_efectiva
+
     def clean(self):
         super().clean()
-        if not self.convocatoria_id or self.fecha_asignada is None:
+        if self.pk and self.cupo_maximo is not None:
+            utilizados = self.formularios.count()
+            if self.cupo_maximo < utilizados:
+                raise ValidationError(
+                    {"cupo_maximo": f"El cupo no puede ser menor que las {utilizados} personas ya relevadas."}
+                )
+        if not self.convocatoria_id or self.fecha_asignada is None or self.fecha_hasta is None:
             return
         convocatoria = self.convocatoria
+        errores = {}
+        if self.fecha_hasta < self.fecha_asignada:
+            errores["fecha_hasta"] = "La fecha hasta no puede ser anterior a la fecha desde."
         if not convocatoria.fecha_inicio <= self.fecha_asignada <= convocatoria.fecha_fin:
             inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
             fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
-            raise ValidationError(
-                {
-                    "fecha_asignada": (
-                        "La fecha del relevamiento debe estar comprendida dentro "
-                        f"del período de la convocatoria ({inicio} - {fin})."
-                    )
-                }
+            errores["fecha_asignada"] = (
+                f"La fecha desde debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin})."
             )
+        if not convocatoria.fecha_inicio <= self.fecha_hasta <= convocatoria.fecha_fin:
+            inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            errores["fecha_hasta"] = (
+                f"La fecha hasta debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin})."
+            )
+        if errores:
+            raise ValidationError(errores)
 
     @classmethod
     def proximo_nombre(cls):
@@ -1390,6 +1487,8 @@ class Relevamiento(TimeStamped):
         return (qs.aggregate(m=models.Max("numero"))["m"] or 0) + 1
 
     def save(self, *args, **kwargs):
+        if self.fecha_asignada and self.fecha_hasta is None:
+            self.fecha_hasta = self.fecha_asignada
         if self._state.adding and not self.numero:
             with transaction.atomic():
                 Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)
@@ -1401,13 +1500,19 @@ class Relevamiento(TimeStamped):
         return super().save(*args, **kwargs)
 
     @classmethod
-    def asignaciones_solapadas(cls, *, territorial, fecha, excluir_pk=None):
-        """Relevamientos del territorial en la misma fecha.
+    def asignaciones_solapadas(cls, *, territorial, fecha=None, fecha_desde=None, fecha_hasta=None, excluir_pk=None):
+        """Relevamientos del territorial cuyo período se superpone.
 
         Es una consulta informativa: el negocio permite confirmar y conservar
         el solapamiento, por lo que no corresponde una restricción de base.
         """
-        qs = cls.objects.filter(territorial=territorial, fecha_asignada=fecha)
+        fecha_desde = fecha_desde or fecha
+        fecha_hasta = fecha_hasta or fecha_desde
+        qs = cls.objects.filter(
+            territorial=territorial,
+            fecha_asignada__lte=fecha_hasta,
+            fecha_hasta__gte=fecha_desde,
+        )
         if excluir_pk is not None:
             qs = qs.exclude(pk=excluir_pk)
         return qs.order_by("zona", "pk")
@@ -1417,14 +1522,35 @@ class Relevamiento(TimeStamped):
         return self.convocatoria.segmento
 
     @property
+    def cupo_utilizado(self):
+        anotado = getattr(self, "formularios_count", None)
+        return anotado if anotado is not None else self.formularios.count()
+
+    @property
+    def cupo_disponible(self):
+        return max(self.cupo_maximo - self.cupo_utilizado, 0)
+
+    @property
+    def cupo_completo(self):
+        return self.cupo_utilizado >= self.cupo_maximo
+
+    def habilitado_en(self, fecha):
+        return bool(
+            not self.pausa_efectiva
+            and self.fecha_asignada
+            and self.fecha_hasta
+            and self.fecha_asignada <= fecha <= self.fecha_hasta
+        )
+
+    @property
     def esta_vencido(self):
-        """Vencido = sigue abierto en campo y la fecha asignada ya pasó."""
+        """Vencido = sigue abierto en campo y la fecha hasta ya pasó."""
         from django.utils import timezone
 
         return (
             self.estado in (self.Estado.ASIGNADO, self.Estado.EN_CURSO)
-            and self.fecha_asignada is not None
-            and self.fecha_asignada < timezone.localdate()
+            and self.fecha_hasta is not None
+            and self.fecha_hasta < timezone.localdate()
         )
 
 
@@ -1533,6 +1659,93 @@ class AsignacionCoordinador(TimeStamped):
         return f"{self.coordinador} → {self.segmento.nombre}"
 
 
+class Region(TimeStamped):
+    """Región operativa compuesta por una o más localidades/subsegmentos."""
+
+    nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
+    localidades = models.ManyToManyField(Subsegmento, related_name="regiones", verbose_name="Localidades")
+    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activa")
+
+    class Meta:
+        verbose_name = "Región"
+        verbose_name_plural = "Regiones"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+
+class AsignacionReferente(TimeStamped):
+    """Un Referente depende de un Coordinador del segmento."""
+
+    referente = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="asignacion_referente", verbose_name="Referente"
+    )
+    coordinador = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="referentes_asignados", verbose_name="Coordinador"
+    )
+    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+
+    class Meta:
+        verbose_name = "Asignación de referente"
+        verbose_name_plural = "Asignaciones de referentes"
+        ordering = ["coordinador", "referente"]
+
+    def __str__(self):
+        return f"{self.referente} → {self.coordinador}"
+
+
+class AsignacionCoordinadorRegional(TimeStamped):
+    """Asignación vigente de un Coordinador regional a una Región."""
+
+    coordinador = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="asignacion_coordinador_regional",
+        verbose_name="Coordinador regional",
+    )
+    region = models.ForeignKey(
+        Region, on_delete=models.PROTECT, related_name="coordinadores_asignados", verbose_name="Región"
+    )
+    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+
+    class Meta:
+        verbose_name = "Asignación de coordinador regional"
+        verbose_name_plural = "Asignaciones de coordinadores regionales"
+        ordering = ["region", "coordinador"]
+
+    def __str__(self):
+        return f"{self.coordinador} → {self.region}"
+
+
+class TransferenciaRegional(TimeStamped):
+    """Auditoría inmutable de un reemplazo de Coordinador regional."""
+
+    region = models.ForeignKey(Region, on_delete=models.PROTECT, related_name="transferencias", verbose_name="Región")
+    coordinador_origen = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="transferencias_regionales_salientes", verbose_name="Origen"
+    )
+    coordinador_destino = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="transferencias_regionales_entrantes", verbose_name="Destino"
+    )
+    ejecutado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="transferencias_regionales_ejecutadas",
+        verbose_name="Ejecutado por",
+    )
+    convocatorias_transferidas = models.PositiveIntegerField(default=0)
+    territoriales_transferidos = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Transferencia regional"
+        verbose_name_plural = "Transferencias regionales"
+        ordering = ["-creado"]
+
+    def __str__(self):
+        return f"{self.region}: {self.coordinador_origen} → {self.coordinador_destino}"
+
+
 class AsignacionTerritorial(TimeStamped):
     """Asignación de un territorial a un segmento (un territorial → un segmento).
 
@@ -1554,6 +1767,14 @@ class AsignacionTerritorial(TimeStamped):
         related_name="asignacion_territorial",
         verbose_name="Territorial",
     )
+    coordinador_regional = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="territoriales_regionales",
+        verbose_name="Coordinador regional",
+    )
     fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
 
     class Meta:
@@ -1567,8 +1788,8 @@ class AsignacionTerritorial(TimeStamped):
 
 class Formulario(TimeStamped):
     """Una persona relevada (1 por relevamiento). Llega del territorial y el
-    backoffice lo revisa (aprobado/rechazado). La validación SIIS y la ocupación
-    de cupo quedan fuera del alcance de esta versión."""
+    backoffice lo revisa (aprobado/rechazado). Cada formulario ocupa un lugar
+    del cupo del relevamiento, independientemente de su estado de revisión."""
 
     class Estado(models.TextChoices):
         ENVIADO = "ENVIADO", "Enviado"

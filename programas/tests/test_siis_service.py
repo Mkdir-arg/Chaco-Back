@@ -1,9 +1,10 @@
 from unittest.mock import Mock, patch
 
+import requests
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
-from programas.services.siis import TOKEN_CACHE_KEY, SiisAPIClient
+from programas.services.siis import TOKEN_CACHE_KEY, SiisAPIClient, SiisCatalogError
 
 
 @override_settings(
@@ -82,3 +83,20 @@ class SiisClientTests(SimpleTestCase):
 
         self.assertEqual(SiisAPIClient().listar_segmentos(38), [{"id": 7, "nombre": "Segmento A"}])
         self.assertIn("/api/v1/programas/38/segmentos", get.call_args.args[0])
+
+    @patch("programas.services.siis.requests.get")
+    def test_segmentos_inexistentes_informan_posible_cambio_de_integracion(self, get):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=404)
+        respuesta.raise_for_status.side_effect = requests.HTTPError(response=respuesta)
+        get.return_value = respuesta
+
+        with self.assertRaisesMessage(SiisCatalogError, "ECOM haya cambiado la integración"):
+            SiisAPIClient().listar_segmentos(38)
+
+    @patch("programas.services.siis.requests.get", side_effect=requests.Timeout)
+    def test_timeout_del_catalogo_muestra_un_mensaje_util(self, _get):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+
+        with self.assertRaisesMessage(SiisCatalogError, "tardó demasiado en responder"):
+            SiisAPIClient().listar_programas()

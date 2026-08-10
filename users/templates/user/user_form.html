@@ -134,7 +134,7 @@
         <h2 class="mb-5 text-lg font-bold text-heading">Datos del usuario</h2>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
-                <label for="{{ form.username.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Nombre de usuario</label>
+                <label for="{{ form.username.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Nombre de usuario <span class="text-fg-danger">*</span></label>
                 {{ form.username }}
                 {% for error in form.username.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
@@ -157,9 +157,33 @@
                 {% for error in form.last_name.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
 
+            <div>
+                <label for="{{ form.dni.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">DNI</label>
+                {{ form.dni }}
+                {% for error in form.dni.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ form.telefono.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Teléfono</label>
+                {{ form.telefono }}
+                {% for error in form.telefono.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="{{ form.institucion.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Institución</label>
+                {{ form.institucion }}
+                {% for error in form.institucion.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="{{ form.observacion.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Observación</label>
+                {{ form.observacion }}
+                {% for error in form.observacion.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            </div>
+
             {% if not object %}
             <div class="md:col-span-2">
-                <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Contraseña</label>
+                <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Contraseña <span class="text-fg-danger">*</span></label>
                 {{ form.password }}
                 {% for error in form.password.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
@@ -276,6 +300,23 @@
                 <p class="mt-1 text-xs text-body-subtle">{{ form.segmento_territorial.help_text }}</p>
                 {% for error in form.segmento_territorial.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
             </div>
+        </div>
+
+        <div class="border-t border-light px-5 py-4">
+            <h3 class="mb-3 text-sm font-bold text-heading">Alcance de Referente o Coordinador regional</h3>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label for="{{ form.coordinador_referente.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">{{ form.coordinador_referente.label }}</label>
+                    {{ form.coordinador_referente }}
+                    {% for error in form.coordinador_referente.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label for="{{ form.region_coordinador.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">{{ form.region_coordinador.label }}</label>
+                    {{ form.region_coordinador }}
+                    {% for error in form.region_coordinador.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+            <p class="mt-2 text-xs text-body-subtle">Estos campos se vuelven obligatorios al seleccionar el rol correspondiente.</p>
         </div>
     </div>
     {% endwith %}

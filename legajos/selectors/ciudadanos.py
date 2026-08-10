@@ -103,7 +103,7 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # Las alertas se generan por señal (al guardar legajos/contactos) y por el
     # comando periódico `generar_alertas`; la vista de detalle solo las lee.
 
-    acompanamientos = (
+    acompanamientos = list(
         InscripcionPrograma.objects.filter(
             ciudadano=ciudadano,
             programa__tipo__in=[
@@ -125,7 +125,7 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         "puede_ver_sensible": puede_ver_sensible,
         "legajos": LegajoAtencion.objects.none(),
         "acompanamientos": acompanamientos,
-        "acompanamientos_activos_count": acompanamientos.count(),
+        "acompanamientos_activos_count": len(acompanamientos),
         "solapas": solapas,
         "programas_activos": programas_activos,
     }

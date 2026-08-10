@@ -1,0 +1,51 @@
+{% extends "includes/base.html" %}
+{% block title %}{% if objeto.pausado %}Reanudar{% else %}Pausar{% endif %} · {{ objeto }}{% endblock %}
+
+{% block main-content %}
+<div class="max-w-3xl mx-auto space-y-5">
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h1 class="text-2xl font-extrabold text-heading">
+      {% if objeto.pausado %}Reanudar{% else %}Pausar{% endif %} {{ tipo }}
+    </h1>
+    <p class="text-body-subtle mt-1">{{ objeto }}</p>
+
+    {% if objeto.pausado %}
+    <div class="mt-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm">
+      <strong>Actualmente pausado</strong><br>
+      {{ objeto.pausa_motivo }}<br>
+      <span class="text-body-subtle">Por {{ objeto.pausado_por.get_full_name|default:objeto.pausado_por.username }} · {{ objeto.pausado_en|date:"d/m/Y H:i" }}</span>
+    </div>
+    {% endif %}
+
+    <form method="post" class="mt-5 space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="{% if objeto.pausado %}reanudar{% else %}pausar{% endif %}">
+      <div>
+        <label for="motivo" class="block text-sm font-semibold text-heading mb-1">
+          Motivo de {% if objeto.pausado %}la reanudación{% else %}la pausa{% endif %} <span class="text-fg-danger">*</span>
+        </label>
+        <textarea id="motivo" name="motivo" rows="4" required class="w-full rounded-lg border border-base px-3 py-2" placeholder="Dejá asentado el motivo..."></textarea>
+      </div>
+      <div class="flex gap-3">
+        <button type="submit" class="btn-nodo {% if objeto.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-base">
+          {% if objeto.pausado %}Reanudar{% else %}Pausar{% endif %}
+        </button>
+        <button type="button" onclick="history.back()" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-lg font-bold text-heading mb-3">Historial</h2>
+    {% for registro in historial_pausas %}
+      <div class="py-3 border-t border-light text-sm">
+        <strong>{{ registro.get_accion_display }}</strong> por {{ registro.usuario.get_full_name|default:registro.usuario.username }}
+        <span class="text-body-subtle">· {{ registro.creado|date:"d/m/Y H:i" }}</span>
+        <p class="mt-1 text-body">{{ registro.motivo }}</p>
+      </div>
+    {% empty %}
+      <p class="text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

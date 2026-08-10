@@ -74,10 +74,12 @@ def buscar_ciudadanos(request):
             filtro = Q(dni__startswith=query)
         else:
             filtro = Q(nombre__istartswith=query) | Q(apellido__istartswith=query)
-        ciudadanos = Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(filtro)[:8]
+        coincidencias = list(Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(filtro)[:21])
+        hay_mas = len(coincidencias) > 20
+        ciudadanos = coincidencias[:20]
 
         resultados = [{"id": c.id, "nombre": f"{c.apellido}, {c.nombre}", "dni": c.dni} for c in ciudadanos]
-        return Response({"results": resultados})
+        return Response({"results": resultados, "has_more": hay_mas})
     except Exception as e:
         logger.error(f"Error en busqueda de ciudadanos: {e}", exc_info=True)
         return Response({"results": [], "error": "Error en la busqueda"}, status=500)

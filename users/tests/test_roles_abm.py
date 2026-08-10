@@ -133,6 +133,7 @@ class RolCategoriaFormTests(TestCase):
     def test_categoria_programa_en_selector_global(self):
         choices = {value for value, _label in RolForm().fields["categoria"].choices}
         self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
+        self.assertNotIn(rbac.CATEGORIA_BECAS, choices)
 
     def test_alta_rol_becas_con_programa(self):  # TC-64-01
         form = RolForm(
@@ -374,6 +375,8 @@ class RolAlcanceTests(TestCase):
         form = RolForm(operador=self.admin_becas)
         choices = {value for value, _label in form.fields["categoria"].choices}
         self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
+        self.assertNotIn(rbac.CATEGORIA_BECAS, choices)
+        self.assertEqual(form.fields["categoria"].initial, rbac.CATEGORIA_PROGRAMA)
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(

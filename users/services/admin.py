@@ -11,7 +11,9 @@ class UsuariosAdminService:
         user = User()
         UsuariosAdminService._apply_user_data(form, user)
         user.save()
-        UsuariosAdminService._sync_related_data(user, form.cleaned_data, alcance_group_ids)
+        UsuariosAdminService._sync_related_data(
+            user, form.cleaned_data, alcance_group_ids, operador=getattr(form, "operador", None)
+        )
         return user
 
     @staticmethod
@@ -23,7 +25,9 @@ class UsuariosAdminService:
         programas_previos = UsuariosAdminService._programas_que_administra(user)
         UsuariosAdminService._apply_user_data(form, user)
         user.save()
-        UsuariosAdminService._sync_related_data(user, form.cleaned_data, alcance_group_ids)
+        UsuariosAdminService._sync_related_data(
+            user, form.cleaned_data, alcance_group_ids, operador=getattr(form, "operador", None)
+        )
         # Si la edición quitó la última capacidad de administración del sistema
         # (p. ej. el admin se sacó su propio rol), revierte la transacción.
         rbac.asegurar_admin_restante()
@@ -60,7 +64,7 @@ class UsuariosAdminService:
             user.password = form._original_password_hash
 
     @staticmethod
-    def _sync_related_data(user, cleaned_data, alcance_group_ids=None):
+    def _sync_related_data(user, cleaned_data, alcance_group_ids=None, operador=None):
         seleccionados = list(cleaned_data.get("groups", []))
         if alcance_group_ids is None:
             # Admin global: reemplaza todos los grupos (comportamiento histórico).
@@ -71,10 +75,26 @@ class UsuariosAdminService:
             fuera_de_alcance = list(user.groups.exclude(id__in=alcance_group_ids))
             en_alcance_seleccionados = [g for g in seleccionados if g.id in alcance_group_ids]
             user.groups.set(fuera_de_alcance + en_alcance_seleccionados)
-        UsuariosAdminService._sync_asignacion_territorial(user, cleaned_data)
+        UsuariosAdminService._sync_profile(user, cleaned_data)
+        UsuariosAdminService._sync_asignacion_territorial(user, cleaned_data, operador=operador)
+        UsuariosAdminService._sync_jerarquia_becas(user, cleaned_data)
 
     @staticmethod
-    def _sync_asignacion_territorial(user, cleaned_data):
+    def _sync_profile(user, cleaned_data):
+        from users.models import Profile
+
+        perfil, _ = Profile.objects.get_or_create(user=user)
+        perfil.dni = cleaned_data.get("dni") or None
+        perfil.telefono = cleaned_data.get("telefono", "")
+        perfil.institucion = cleaned_data.get("institucion", "")
+        perfil.observacion = cleaned_data.get("observacion", "")
+        perfil.save(update_fields=["dni", "telefono", "institucion", "observacion"])
+        # Si una señal creó el perfil al guardar User, puede haber otra instancia
+        # cacheada en la relación OneToOne. Mantener ambas referencias coherentes.
+        user._state.fields_cache["profile"] = perfil
+
+    @staticmethod
+    def _sync_asignacion_territorial(user, cleaned_data, operador=None):
         """Mantiene la asignación de segmento del territorial de Becas.
 
         Regla: un territorial → un segmento, obligatorio mientras tenga un rol
@@ -92,4 +112,31 @@ class UsuariosAdminService:
         if not es_territorial:
             AsignacionTerritorial.objects.filter(territorial=user).delete()
         elif segmento is not None:
-            AsignacionTerritorial.objects.update_or_create(territorial=user, defaults={"segmento": segmento})
+            defaults = {"segmento": segmento}
+            from programas.services.autorizacion import es_coordinador_regional_becas
+
+            if es_coordinador_regional_becas(operador):
+                defaults["coordinador_regional"] = operador
+            AsignacionTerritorial.objects.update_or_create(territorial=user, defaults=defaults)
+
+    @staticmethod
+    def _sync_jerarquia_becas(user, cleaned_data):
+        from programas.models import AsignacionCoordinadorRegional, AsignacionReferente
+        from programas.services.autorizacion import (
+            grupos_coordinadores_regionales_becas,
+            grupos_referentes_becas,
+        )
+
+        es_referente = user.groups.filter(id__in=grupos_referentes_becas()).exists()
+        coordinador = cleaned_data.get("coordinador_referente")
+        if not es_referente:
+            AsignacionReferente.objects.filter(referente=user).delete()
+        elif coordinador is not None:
+            AsignacionReferente.objects.update_or_create(referente=user, defaults={"coordinador": coordinador})
+
+        es_regional = user.groups.filter(id__in=grupos_coordinadores_regionales_becas()).exists()
+        region = cleaned_data.get("region_coordinador")
+        if not es_regional:
+            AsignacionCoordinadorRegional.objects.filter(coordinador=user).delete()
+        elif region is not None:
+            AsignacionCoordinadorRegional.objects.update_or_create(coordinador=user, defaults={"region": region})

@@ -29,7 +29,7 @@ from programas.models import (
     TipoCampo,
     ValidacionSIS,
 )
-from programas.services.autorizacion import puede_gestionar_segmento, segmentos_visibles
+from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera
 from programas.services.personas import consultar_persona
@@ -47,12 +47,18 @@ def _con_conflicto_duplicado_pendiente(queryset):
 
 
 def _assert_scope_relevamiento(request, relevamiento):
-    if not puede_gestionar_segmento(request.user, relevamiento.segmento):
+    if (
+        not puede_gestionar_segmento(request.user, relevamiento.segmento)
+        or not convocatorias_visibles(request.user).filter(pk=relevamiento.convocatoria_id).exists()
+    ):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
 
 
 def _assert_scope_formulario(request, formulario):
-    if not puede_gestionar_segmento(request.user, formulario.relevamiento.segmento):
+    if (
+        not puede_gestionar_segmento(request.user, formulario.relevamiento.segmento)
+        or not convocatorias_visibles(request.user).filter(pk=formulario.relevamiento.convocatoria_id).exists()
+    ):
         raise PermissionDenied("No tiene acceso a este formulario.")
 
 
@@ -76,7 +82,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
             Formulario.objects.select_related(
                 "ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__territorial"
             )
-            .filter(relevamiento__convocatoria__segmento__in=segmentos_visibles(self.request.user))
+            .filter(relevamiento__convocatoria__in=convocatorias_visibles(self.request.user))
             .order_by("-creado")
         )
         estado = self.request.GET.get("estado")

@@ -15,7 +15,14 @@ from programas.management.commands.seed_becas import (
     ROL_COORDINADOR,
     ROL_TERRITORIAL,
 )
-from programas.models import AsignacionCoordinador, AsignacionTerritorial, Convocatoria, Relevamiento, Segmento
+from programas.models import (
+    AsignacionCoordinador,
+    AsignacionTerritorial,
+    Convocatoria,
+    Formulario,
+    Relevamiento,
+    Segmento,
+)
 
 
 class _BaseRelevTest(TestCase):
@@ -363,6 +370,42 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertIn("período de la convocatoria", form.errors["fecha_asignada"][0])
         self.assertEqual(form.fields["fecha_asignada"].widget.attrs["min"], "2026-01-01")
         self.assertEqual(form.fields["fecha_asignada"].widget.attrs["max"], "2026-12-31")
+
+    def test_cupo_se_puede_aumentar(self):
+        self.client.force_login(self.coord_a)
+
+        respuesta = self.client.post(
+            reverse("becas:relevamiento_modificar_cupo", args=[self.rel_a.pk]),
+            {"cupo_maximo": 150},
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.cupo_maximo, 150)
+
+    def test_cupo_no_se_puede_reducir_por_debajo_de_personas_relevadas(self):
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="3624000000",
+            email_contacto="persona@example.com",
+        )
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="3624000001",
+            email_contacto="otra@example.com",
+        )
+        self.rel_a.cupo_maximo = 5
+        self.rel_a.save(update_fields=["cupo_maximo", "modificado"])
+        self.client.force_login(self.coord_a)
+
+        respuesta = self.client.post(
+            reverse("becas:relevamiento_modificar_cupo", args=[self.rel_a.pk]),
+            {"cupo_maximo": 1},
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.cupo_maximo, 5)
 
 
 class FinalizarReabrirTests(_BaseRelevTest):

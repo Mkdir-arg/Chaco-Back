@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.text import slugify
 
 from core import rbac
@@ -53,7 +54,52 @@ def _normalize_groups_args(args, kwargs):
 _INPUT_ABM = "nodo-field"
 
 
-def _agregar_campo_segmento_territorial(form):
+def _agregar_campos_perfil_usuario(form):
+    form.fields["dni"] = forms.RegexField(
+        regex=r"^\d{6,8}$",
+        required=False,
+        label="DNI",
+        error_messages={"invalid": "Ingresá un DNI de 6 a 8 números."},
+        widget=forms.TextInput(attrs={"class": _INPUT_ABM, "placeholder": "Ingrese el DNI", "inputmode": "numeric"}),
+    )
+    form.fields["telefono"] = forms.CharField(
+        required=False,
+        max_length=30,
+        label="Teléfono",
+        widget=forms.TextInput(attrs={"class": _INPUT_ABM, "placeholder": "Ingrese el teléfono", "type": "tel"}),
+    )
+    form.fields["institucion"] = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Institución",
+        widget=forms.TextInput(attrs={"class": _INPUT_ABM, "placeholder": "Ingrese la institución"}),
+    )
+    form.fields["observacion"] = forms.CharField(
+        required=False,
+        label="Observación",
+        widget=forms.Textarea(attrs={"class": _INPUT_ABM, "placeholder": "Ingrese una observación", "rows": 3}),
+    )
+
+    if form.instance and form.instance.pk:
+        perfil = getattr(form.instance, "profile", None)
+        if perfil is not None:
+            for campo in ("dni", "telefono", "institucion", "observacion"):
+                form.fields[campo].initial = getattr(perfil, campo, "") or ""
+
+
+def _validar_dni_perfil_usuario(form):
+    from users.models import Profile
+
+    dni = form.cleaned_data.get("dni") or None
+    duplicado = Profile.objects.filter(dni=dni) if dni else Profile.objects.none()
+    if form.instance and form.instance.pk:
+        duplicado = duplicado.exclude(user=form.instance)
+    if duplicado.exists():
+        form.add_error("dni", "Ya existe un usuario registrado con este DNI.")
+    form.cleaned_data["dni"] = dni
+
+
+def _agregar_campo_segmento_territorial(form, operador=None):
     """Suma el campo ``segmento_territorial`` (Becas) al form del ABM.
 
     Es obligatorio cuando el usuario tiene tildado un rol que otorga
@@ -63,8 +109,13 @@ def _agregar_campo_segmento_territorial(form):
     from programas.models import Segmento
     from programas.services.autorizacion import grupos_territoriales_becas
 
+    segmentos = Segmento.objects.filter(activo=True).order_by("nombre")
+    if operador is not None and rbac.puede(operador, "becas.usuario.territorial"):
+        from programas.services.autorizacion import segmentos_para_gestion_territoriales
+
+        segmentos = segmentos_para_gestion_territoriales(operador).filter(activo=True).order_by("nombre")
     form.fields["segmento_territorial"] = forms.ModelChoiceField(
-        queryset=Segmento.objects.filter(activo=True).order_by("nombre"),
+        queryset=segmentos,
         required=False,
         label="Segmento asignado (Becas)",
         empty_label="Seleccioná…",
@@ -94,6 +145,48 @@ def _validar_segmento_territorial(form):
     return cleaned
 
 
+def _agregar_campos_jerarquia_becas(form):
+    from programas.models import Region
+    from programas.services.autorizacion import (
+        grupos_coordinadores_regionales_becas,
+        grupos_referentes_becas,
+        usuarios_coordinadores_becas,
+    )
+
+    form.fields["coordinador_referente"] = forms.ModelChoiceField(
+        queryset=usuarios_coordinadores_becas(),
+        required=False,
+        label="Coordinador del Referente",
+        empty_label="Seleccioná…",
+        widget=forms.Select(attrs={"class": _INPUT_ABM}),
+    )
+    form.fields["region_coordinador"] = forms.ModelChoiceField(
+        queryset=Region.objects.filter(activo=True).order_by("nombre"),
+        required=False,
+        label="Región del Coordinador regional",
+        empty_label="Seleccioná…",
+        widget=forms.Select(attrs={"class": _INPUT_ABM}),
+    )
+    form.grupos_referentes_ids = set(grupos_referentes_becas().values_list("id", flat=True))
+    form.grupos_regionales_ids = set(grupos_coordinadores_regionales_becas().values_list("id", flat=True))
+
+
+def _validar_jerarquia_becas(form):
+    cleaned = form.cleaned_data
+    grupos = {g.id for g in (cleaned.get("groups") or [])}
+    es_referente = bool(grupos & getattr(form, "grupos_referentes_ids", set()))
+    es_regional = bool(grupos & getattr(form, "grupos_regionales_ids", set()))
+    if es_referente and not cleaned.get("coordinador_referente"):
+        form.add_error("coordinador_referente", "Seleccioná el Coordinador del Referente.")
+    if es_regional and not cleaned.get("region_coordinador"):
+        form.add_error("region_coordinador", "Seleccioná la región del Coordinador regional.")
+    if not es_referente:
+        cleaned["coordinador_referente"] = None
+    if not es_regional:
+        cleaned["region_coordinador"] = None
+    return cleaned
+
+
 def _roles_asignables_queryset(operador=None):
     """Roles asignables a usuarios del backoffice: activos y NO de categoría Portal.
 
@@ -106,6 +199,10 @@ def _roles_asignables_queryset(operador=None):
     qs = Group.objects.filter(meta__activo=True).exclude(meta__categoria=rbac.CATEGORIA_PORTAL).order_by("name")
     if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
         return qs
+    if rbac.puede(operador, "becas.usuario.territorial") and not rbac.puede(operador, "programa.configurar"):
+        from programas.services.autorizacion import grupos_territoriales_becas
+
+        return qs.filter(pk__in=grupos_territoriales_becas())
     from users.selectors.roles import programas_administrables
 
     return qs.filter(meta__programa__in=programas_administrables(operador))
@@ -246,12 +343,17 @@ class UserCreationForm(RolesPorCategoriaMixin, forms.ModelForm):
     def __init__(self, *args, operador=None, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
+        self.operador = operador
         self.fields["groups"].queryset = _roles_asignables_queryset(operador)
-        _agregar_campo_segmento_territorial(self)
+        _agregar_campos_perfil_usuario(self)
+        _agregar_campo_segmento_territorial(self, operador)
+        _agregar_campos_jerarquia_becas(self)
 
     def clean(self):
         super().clean()
-        return _validar_segmento_territorial(self)
+        _validar_dni_perfil_usuario(self)
+        _validar_segmento_territorial(self)
+        return _validar_jerarquia_becas(self)
 
 
 class CustomUserChangeForm(RolesPorCategoriaMixin, forms.ModelForm):
@@ -318,6 +420,7 @@ class CustomUserChangeForm(RolesPorCategoriaMixin, forms.ModelForm):
     def __init__(self, *args, operador=None, **kwargs):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
+        self.operador = operador
         es_global = operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar")
         asignables = _roles_asignables_queryset(operador)
         # Admin global: incluye los roles ya asignados (aunque estén inactivos)
@@ -329,12 +432,26 @@ class CustomUserChangeForm(RolesPorCategoriaMixin, forms.ModelForm):
         self.fields["groups"].queryset = asignables
         self._original_password_hash = self.instance.password
         self.fields["password"].initial = ""
-        _agregar_campo_segmento_territorial(self)
+        _agregar_campos_perfil_usuario(self)
+        _agregar_campo_segmento_territorial(self, operador)
+        _agregar_campos_jerarquia_becas(self)
         if self.instance and self.instance.pk:
             asignacion = getattr(self.instance, "asignacion_territorial", None)
             if asignacion is not None:
                 self.fields["segmento_territorial"].initial = asignacion.segmento_id
+            try:
+                referente = self.instance.asignacion_referente
+                self.fields["coordinador_referente"].initial = referente.coordinador_id
+            except ObjectDoesNotExist:
+                pass
+            try:
+                regional = self.instance.asignacion_coordinador_regional
+                self.fields["region_coordinador"].initial = regional.region_id
+            except ObjectDoesNotExist:
+                pass
 
     def clean(self):
         super().clean()
-        return _validar_segmento_territorial(self)
+        _validar_dni_perfil_usuario(self)
+        _validar_segmento_territorial(self)
+        return _validar_jerarquia_becas(self)

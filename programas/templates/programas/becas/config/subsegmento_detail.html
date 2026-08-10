@@ -66,6 +66,12 @@
           <i class="fas fa-edit"></i> Editar
         </button>
         {% endif %}
+        {% if subsegmento.pausa_efectiva %}<span class="badge badge-warning badge-dot ml-2">Pausado</span>{% endif %}
+        {% if request.user|puede:"becas.programa.administrar" %}
+        <a href="{% url 'becas:gestionar_pausa' 'subsegmento' subsegmento.pk %}" class="btn-nodo {% if subsegmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm ml-2">
+          {% if subsegmento.pausado %}Reanudar{% else %}Pausar{% endif %}
+        </a>
+        {% endif %}
       </div>
 
     </div>
