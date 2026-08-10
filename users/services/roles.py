@@ -45,14 +45,14 @@ def _programa_que_administra(group):
     """Programa que este rol administra hoy, o ``None``.
 
     Un rol "administra" un programa si es de categoría 'Programa', tiene
-    ``programa`` y la capacidad ``programa.configurar`` tildada. Se usa para el
-    check scoped de "programa sin administrador" (RN-8)."""
+    ``programa`` y alguna capacidad de ``rbac.CAPS_ADMIN_PROGRAMA`` tildada. Se
+    usa para el check scoped de "programa sin administrador" (RN-8)."""
     meta = getattr(group, "meta", None)
     if (
         meta
         and meta.categoria == rbac.CATEGORIA_PROGRAMA
         and meta.programa_id
-        and "programa.configurar" in rbac.capacidades_de_grupo(group)
+        and not set(rbac.CAPS_ADMIN_PROGRAMA).isdisjoint(rbac.capacidades_de_grupo(group))
     ):
         return meta.programa
     return None

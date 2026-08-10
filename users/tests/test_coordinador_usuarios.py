@@ -6,9 +6,16 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_TERRITORIAL
+from core import rbac
+from programas.management.commands.seed_becas import (
+    ROL_ADMIN,
+    ROL_COORDINADOR,
+    ROL_REFERENTE,
+    ROL_TERRITORIAL,
+)
 from programas.models import AsignacionCoordinador, AsignacionTerritorial, Segmento
 from users.forms import UserCreationForm
+from users.selectors.usuarios import es_gestor_territorial, usuarios_visibles_para
 
 
 class CoordinadorGestionTerritorialesTests(TestCase):
@@ -118,6 +125,9 @@ class CoordinadorGestionTerritorialesTests(TestCase):
         creado = User.objects.get(username="coordinador-modal")
         self.assertTrue(creado.groups.filter(name=ROL_COORDINADOR).exists())
 
+    def test_el_coordinador_si_queda_acotado_al_alcance_territorial(self):
+        self.assertTrue(es_gestor_territorial(self.coordinador))
+
     def test_ve_solo_territoriales_de_su_segmento_y_no_administra_roles(self):
         propio = User.objects.create_user("territorial-propio")
         propio.groups.add(self.rol_territorial)
@@ -135,3 +145,52 @@ class CoordinadorGestionTerritorialesTests(TestCase):
         self.assertEqual(roles.status_code, 302)
         self.assertContains(usuarios, reverse("users:usuarios"))
         self.assertNotContains(usuarios, reverse("users:roles"))
+
+
+class AdminBecasAlcanceProgramaTests(TestCase):
+    """El Administrador de Becas conserva ``becas.usuario.territorial`` —le habilita
+    el atajo "Crear territorial"— pero su alcance es el **programa entero**, no los
+    segmentos que coordina, que son ninguno. Sin la guarda de
+    ``es_gestor_territorial`` la rama territorial lo interceptaba y el ABM le
+    mostraba 0 usuarios."""
+
+    def setUp(self):
+        cache.clear()
+        call_command("seed_becas", stdout=StringIO())
+        self.segmento = Segmento.objects.create(nombre="Cualquiera", cupo_maximo=20)
+        self.admin = User.objects.create_user("admin-becas", password="x")
+        self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        # Admin global presente para que la auto-protección del RBAC no salte.
+        User.objects.create_superuser("root", "root@example.com", "x")
+
+    def test_conserva_la_capacidad_territorial_pero_no_su_alcance(self):
+        self.assertTrue(rbac.puede(self.admin, "becas.usuario.territorial"))
+        self.assertFalse(es_gestor_territorial(self.admin))
+
+    def test_ve_los_usuarios_de_su_programa(self):
+        coord = User.objects.create_user("coord-visible")
+        coord.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        territorial = User.objects.create_user("territorial-visible")
+        territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        AsignacionTerritorial.objects.create(territorial=territorial, segmento=self.segmento)
+        ajeno = User.objects.create_user("sin-rol-de-becas")
+
+        visibles = set(usuarios_visibles_para(self.admin))
+
+        self.assertIn(coord, visibles)
+        self.assertIn(territorial, visibles)
+        self.assertNotIn(ajeno, visibles)
+
+    def test_el_combo_de_segmentos_no_queda_vacio(self):
+        form = UserCreationForm(operador=self.admin)
+
+        self.assertIn(self.segmento, list(form.fields["segmento_territorial"].queryset))
+
+    def test_puede_asignar_todos_los_roles_de_su_programa(self):
+        """No solo el Territorial: antes la rama territorial le recortaba el combo
+        a los roles de app de campo y no podía dar de alta un Coordinador."""
+        form = UserCreationForm(operador=self.admin)
+
+        ofrecidos = {g.name for g in form.fields["groups"].queryset}
+
+        self.assertEqual(ofrecidos, {ROL_ADMIN, ROL_COORDINADOR, ROL_REFERENTE, ROL_TERRITORIAL})

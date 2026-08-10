@@ -303,6 +303,13 @@ TABS_CAPACIDADES = [
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
 CAPS_ADMINISTRACION = ("usuario.administrar", "rol.administrar")
 
+# Capacidades que, en un rol con ``RolMeta.programa`` seteado, marcan a su portador
+# como administrador de ESE programa (alcance del ABM de Usuarios y del check de
+# "no dejar un programa sin admin"). Son dos porque ``programa.configurar`` además
+# habilita el wizard global de programas: los roles administradores de un programa
+# concreto llevan su capacidad paraguas en lugar de esa.
+CAPS_ADMIN_PROGRAMA = ("programa.configurar", "becas.programa.administrar")
+
 # Nombre del rol protegido y del marcador de identidad del portal.
 ROL_ADMINISTRADOR = "Administrador"
 GRUPO_CIUDADANO_PORTAL = "Ciudadanos"
@@ -653,11 +660,11 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
     """Usuarios **activos** que administran un programa concreto.
 
     Cuenta a quien tiene un rol **activo** con ``RolMeta.programa = programa`` y
-    la capacidad ``programa.configurar``, más los **superusuarios** activos
-    (acceso de emergencia, igual que el check global).
+    alguna capacidad de :data:`CAPS_ADMIN_PROGRAMA`, más los **superusuarios**
+    activos (acceso de emergencia, igual que el check global).
     """
     programa_pk = getattr(programa, "pk", programa)
-    codename = codename_de("programa.configurar")
+    codenames = [codename_de(c) for c in CAPS_ADMIN_PROGRAMA]
     return (
         User.objects.filter(is_active=True)
         .exclude(id__in=list(excluir_ids))
@@ -666,7 +673,7 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
             | Q(
                 groups__meta__activo=True,
                 groups__meta__programa=programa_pk,
-                groups__permissions__codename=codename,
+                groups__permissions__codename__in=codenames,
             )
         )
         .distinct()

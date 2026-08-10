@@ -10,6 +10,18 @@ def get_usuarios_queryset():
     return User.objects.select_related("profile").prefetch_related("groups").order_by("-id")
 
 
+def es_gestor_territorial(user):
+    """¿El operador está acotado a los territoriales de los segmentos que coordina?
+
+    Es el alcance del Coordinador y del Referente de Becas. Un **administrador de
+    programa** queda afuera aunque tenga ``becas.usuario.territorial``: su alcance
+    es el programa entero, que ya incluye a esos territoriales. Sin esta guarda la
+    rama territorial lo interceptaría y le devolvería 0 usuarios, porque un admin
+    no coordina ningún segmento.
+    """
+    return rbac.puede(user, "becas.usuario.territorial") and not programas_administrables(user).exists()
+
+
 def es_admin_global_usuarios(user):
     """¿El operador gestiona **todos** los usuarios? (superusuario o ``usuario.administrar``).
 
@@ -30,7 +42,7 @@ def usuarios_visibles_para(user):
     qs = get_usuarios_queryset()
     if es_admin_global_usuarios(user):
         return qs
-    if rbac.puede(user, "becas.usuario.territorial"):
+    if es_gestor_territorial(user):
         from django.contrib.auth.models import Group
 
         from programas.services.autorizacion import (
@@ -63,7 +75,7 @@ def alcance_roles_ids(user):
     """
     if es_admin_global_usuarios(user):
         return None
-    if rbac.puede(user, "becas.usuario.territorial"):
+    if es_gestor_territorial(user):
         from programas.services.autorizacion import grupos_territoriales_becas
 
         return set(grupos_territoriales_becas().values_list("id", flat=True))
@@ -80,7 +92,7 @@ def puede_gestionar_usuario(operador, target):
     """
     if es_admin_global_usuarios(operador):
         return True
-    if rbac.puede(operador, "becas.usuario.territorial"):
+    if es_gestor_territorial(operador):
         from programas.services.autorizacion import (
             grupos_territoriales_becas,
             segmentos_para_gestion_territoriales,
