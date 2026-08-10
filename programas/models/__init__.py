@@ -30,6 +30,25 @@ class PausableMixin(models.Model):
         return self if self.pausado else None
 
 
+class BloqueoSiis:
+    """Bloqueo derivado del estado del programa en SIIS.
+
+    Duck-type de :class:`PausableMixin`: los consumidores de ``pausa_efectiva``
+    solo leen ``pausa_motivo``, así que el bloqueo por SIIS viaja por la misma
+    cadena (segmento → subsegmento → convocatoria → relevamiento, backoffice y
+    app de campo) sin tocar el campo ``pausado``, que es una acción manual con
+    autor y trazabilidad propia.
+    """
+
+    pausado = True
+
+    def __init__(self, motivo):
+        self.pausa_motivo = motivo
+
+    def __str__(self):
+        return self.pausa_motivo
+
+
 class RegistroPausa(TimeStamped):
     class Accion(models.TextChoices):
         PAUSAR = "PAUSAR", "Pausar"
@@ -1149,6 +1168,14 @@ class CampoTipoDispositivo(TimeStamped):
 class Segmento(PausableMixin, TimeStamped):
     """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2)."""
 
+    class EstadoSiis(models.TextChoices):
+        ACTIVO = "ACTIVO", "Activo"
+        INACTIVO = "INACTIVO", "Inactivo"
+        DESCONOCIDO = "DESCONOCIDO", "Desconocido"
+
+    # Estados de SIIS que dejan el segmento fuera de operación.
+    ESTADOS_SIIS_BLOQUEANTES = (EstadoSiis.INACTIVO, EstadoSiis.DESCONOCIDO)
+
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
@@ -1159,6 +1186,19 @@ class Segmento(PausableMixin, TimeStamped):
     )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
     siis_programa_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="ID de programa SIIS")
+    # Foto del programa al momento de vincularlo: es la referencia contra la que
+    # se compara después, y lo que muestra el detalle informativo.
+    siis_programa_datos = models.JSONField(default=dict, blank=True, verbose_name="Detalle del programa SIIS")
+    siis_programa_estado = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        db_index=True,
+        choices=EstadoSiis.choices,
+        verbose_name="Estado actual del programa en SIIS",
+    )
+    siis_vinculado_en = models.DateTimeField(null=True, blank=True, verbose_name="Programa SIIS vinculado el")
+    siis_verificado_en = models.DateTimeField(null=True, blank=True, verbose_name="Última verificación con SIIS")
 
     class Meta:
         verbose_name = "Segmento"
@@ -1184,6 +1224,33 @@ class Segmento(PausableMixin, TimeStamped):
         ocupado = cupo.cupo_ocupado if cupo else 0
         if self.cupo_maximo is not None and self.cupo_maximo < ocupado:
             raise ValidationError({"cupo_maximo": f"El cupo no puede ser menor que los {ocupado} lugares ocupados."})
+
+    @property
+    def siis_programa_nombre(self):
+        return (self.siis_programa_datos or {}).get("nombre") or ""
+
+    @property
+    def siis_bloqueado(self):
+        """¿SIIS dejó de tener vigente el programa vinculado?"""
+        return self.siis_programa_estado in self.ESTADOS_SIIS_BLOQUEANTES
+
+    @property
+    def siis_motivo_bloqueo(self):
+        if not self.siis_bloqueado:
+            return ""
+        referencia = self.siis_programa_nombre or f"#{self.siis_programa_id}"
+        if self.siis_programa_estado == self.EstadoSiis.INACTIVO:
+            return f"El programa «{referencia}» pasó a INACTIVO en SIIS."
+        return f"SIIS ya no informa el programa «{referencia}»."
+
+    @property
+    def pausa_efectiva(self):
+        """Pausa manual o, si no, bloqueo automático por el estado en SIIS."""
+        if self.pausado:
+            return self
+        if self.siis_bloqueado:
+            return BloqueoSiis(self.siis_motivo_bloqueo)
+        return None
 
     @property
     def tiene_subsegmentos(self):

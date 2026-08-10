@@ -53,6 +53,19 @@ def _cargar_catalogo(loader):
         return [], "No se pudo cargar el catálogo de SIIS. Verificá la conexión e intentá nuevamente."
 
 
+def _congelar_programa_siis(instance, programa):
+    """Guarda en el segmento la foto del programa al momento de vincularlo.
+
+    Es la referencia contra la que después se compara el estado que informa
+    SIIS, y lo que muestra el detalle informativo del segmento.
+    """
+    ahora = timezone.now()
+    instance.siis_programa_datos = programa
+    instance.siis_programa_estado = programa.get("estado") or Segmento.EstadoSiis.ACTIVO
+    instance.siis_vinculado_en = ahora
+    instance.siis_verificado_en = ahora
+
+
 def _text_widget(rows=3):
     return forms.Textarea(attrs={"class": INPUT_CLASS, "rows": rows})
 
@@ -83,10 +96,15 @@ class SegmentoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         programas, error = _cargar_catalogo(listar_programas)
+        self._programas_siis = {programa["id"]: programa for programa in programas}
+        self._siis_programa_id_previo = self.instance.siis_programa_id if self.instance.pk else None
         self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
         actual = self.instance.siis_programa_id if self.instance.pk else None
         if actual and str(actual) not in {value for value, _ in self.fields["siis_programa_id"].choices}:
-            self.fields["siis_programa_id"].choices += [(str(actual), f"Programa SIIS #{actual}")]
+            # El programa vinculado ya no está en el catálogo activo: se conserva
+            # como opción para no perder el vínculo al guardar otro campo.
+            etiqueta = self.instance.siis_programa_nombre or f"Programa SIIS #{actual}"
+            self.fields["siis_programa_id"].choices += [(str(actual), f"{etiqueta} — inactivo en SIIS")]
         if error:
             self.fields["siis_programa_id"].help_text = error
 
@@ -98,6 +116,15 @@ class SegmentoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ese programa SIIS ya está asociado a otro segmento.")
         return programa_id
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        programa = self._programas_siis.get(instance.siis_programa_id)
+        if programa and instance.siis_programa_id != self._siis_programa_id_previo:
+            _congelar_programa_siis(instance, programa)
+        if commit:
+            instance.save()
+        return instance
 
 
 class SegmentoCreateForm(forms.ModelForm):
@@ -148,6 +175,7 @@ class SegmentoCreateForm(forms.ModelForm):
         self.fields["nombre"].required = False
         self.fields["descripcion"].required = True
         programas, error = _cargar_catalogo(listar_programas)
+        self._programas_siis = {programa["id"]: programa for programa in programas}
         self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
         if error:
             self.fields["siis_programa_id"].help_text = error
@@ -170,6 +198,15 @@ class SegmentoCreateForm(forms.ModelForm):
             if nombre:
                 cleaned["nombre"] = nombre
         return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        programa = self._programas_siis.get(instance.siis_programa_id)
+        if programa:
+            _congelar_programa_siis(instance, programa)
+        if commit:
+            instance.save()
+        return instance
 
 
 class SubsegmentoForm(forms.ModelForm):
@@ -962,6 +999,9 @@ class RelevamientoForm(forms.ModelForm):
                 pausado=False,
                 segmento__pausado=False,
             )
+            # El bloqueo por SIIS es una property del segmento; acá se filtra por
+            # la columna porque esto es un queryset.
+            .exclude(segmento__siis_programa_estado__in=Segmento.ESTADOS_SIIS_BLOQUEANTES)
             .filter(models.Q(subsegmento__isnull=True) | models.Q(subsegmento__pausado=False))
         )
         if segmentos_permitidos is not None:

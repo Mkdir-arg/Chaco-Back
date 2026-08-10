@@ -85,14 +85,84 @@ class SiisClientTests(SimpleTestCase):
         self.assertEqual(resultado["error"], "VALIDACION_ENTRADA")
 
     @patch("programas.services.siis.requests.get")
-    def test_lista_programas_normaliza_id_del_contrato_real(self, get):
+    def test_lista_programas_conserva_el_detalle_informativo_del_contrato(self, get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
-        respuesta.json.return_value = {"programas": [{"id": 38, "nombre": "Programa A"}]}
+        respuesta.json.return_value = {
+            "programas": [
+                {
+                    "id": 38,
+                    "nombre": "Programa A",
+                    "descripcion": "Fortalecimiento comunitario",
+                    "jurisdiccion_id": 3,
+                    "estado": "ACTIVO",
+                    "controla_empleo_publico": True,
+                    "controla_horas_docentes": False,
+                    "edad_minima": 18,
+                }
+            ]
+        }
         respuesta.raise_for_status.return_value = None
         get.return_value = respuesta
 
-        self.assertEqual(SiisAPIClient().listar_programas(), [{"id": 38, "nombre": "Programa A"}])
+        programas = SiisAPIClient().listar_programas()
+
+        self.assertEqual(len(programas), 1)
+        self.assertEqual(programas[0]["id"], 38)
+        self.assertEqual(programas[0]["nombre"], "Programa A")
+        self.assertEqual(programas[0]["estado"], "ACTIVO")
+        self.assertEqual(programas[0]["edad_minima"], 18)
+        self.assertTrue(programas[0]["controla_empleo_publico"])
+        self.assertIn("estado=ACTIVO", get.call_args.args[0])
+
+    @patch("programas.services.siis.requests.get")
+    def test_lista_programas_descarta_inactivos_que_llegan_igual(self, get):
+        """El filtro se le pide a SIIS y se reaplica: un inactivo no llega al select."""
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {
+            "programas": [
+                {"id": 38, "nombre": "Vigente", "estado": "ACTIVO"},
+                {"id": 39, "nombre": "Dado de baja", "estado": "INACTIVO"},
+            ]
+        }
+        respuesta.raise_for_status.return_value = None
+        get.return_value = respuesta
+
+        self.assertEqual([p["id"] for p in SiisAPIClient().listar_programas()], [38])
+
+    @patch("programas.services.siis.requests.get")
+    def test_programa_sin_estado_se_asume_activo(self, get):
+        """Si ECOM dejara de informar ``estado``, mejor catálogo completo que vacío."""
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {"programas": [{"id": 38, "nombre": "Sin estado"}]}
+        respuesta.raise_for_status.return_value = None
+        get.return_value = respuesta
+
+        programas = SiisAPIClient().listar_programas()
+
+        self.assertEqual([p["id"] for p in programas], [38])
+        self.assertEqual(programas[0]["estado"], "ACTIVO")
+
+    @patch("programas.services.siis.requests.get")
+    def test_catalogo_completo_pide_todos_y_conserva_los_inactivos(self, get):
+        """Detectar una baja necesita ``estado=TODOS``: con ACTIVO el programa desaparece."""
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {
+            "programas": [
+                {"id": 38, "nombre": "Vigente", "estado": "ACTIVO"},
+                {"id": 39, "nombre": "Dado de baja", "estado": "INACTIVO"},
+            ]
+        }
+        respuesta.raise_for_status.return_value = None
+        get.return_value = respuesta
+
+        programas = SiisAPIClient().listar_programas_todos()
+
+        self.assertEqual({p["id"]: p["estado"] for p in programas}, {38: "ACTIVO", 39: "INACTIVO"})
+        self.assertIn("estado=TODOS", get.call_args.args[0])
 
     def test_motivos_de_rechazo_solo_traduce_las_banderas_incumplidas(self):
         motivos = motivos_de_rechazo(

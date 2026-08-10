@@ -9,7 +9,25 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 TOKEN_CACHE_KEY = "siis_api:access_token"  # nosec B105
 PROGRAMAS_CACHE_KEY = "siis_api:programas:activos"
+PROGRAMAS_TODOS_CACHE_KEY = "siis_api:programas:todos"
 CATALOGO_CACHE_SECONDS = 300
+
+ESTADO_ACTIVO = "ACTIVO"
+ESTADO_INACTIVO = "INACTIVO"
+ESTADO_DESCONOCIDO = "DESCONOCIDO"
+
+# Campos informativos del programa que conservamos del contrato de ECOM. Se
+# congelan en el segmento al vincularlo y son los que muestra el detalle.
+CAMPOS_DETALLE_PROGRAMA = (
+    "descripcion",
+    "jurisdiccion_id",
+    "controla_empleo_publico",
+    "controla_horas_docentes",
+    "controla_duplicidad_becas",
+    "controla_smvm",
+    "controla_edad_minima",
+    "edad_minima",
+)
 
 # Valores del mapa ``validaciones`` que implican rechazo, con su texto para el
 # operador. El resto de los valores del contrato son informativos o "sin
@@ -130,20 +148,52 @@ class SiisAPIClient:
                 item_id = int(item_id)
             except (TypeError, ValueError):
                 continue
-            if nombre:
-                resultado.append({"id": item_id, "nombre": str(nombre).strip()})
+            if not nombre:
+                continue
+            # Si ECOM dejara de informar ``estado``, asumirlo ACTIVO: preferimos
+            # un catálogo completo antes que vaciar el select de golpe.
+            programa = {
+                "id": item_id,
+                "nombre": str(nombre).strip(),
+                "estado": str(item.get("estado") or ESTADO_ACTIVO).strip().upper(),
+            }
+            programa.update({campo: item[campo] for campo in CAMPOS_DETALLE_PROGRAMA if campo in item})
+            resultado.append(programa)
         return resultado
 
+    def _catalogo_programas(self, estado):
+        body = self._cargar_catalogo(
+            f"/api/v1/programas?estado={estado}",
+            "SIIS no encontró el catálogo de programas. Es posible que ECOM haya cambiado la integración.",
+        )
+        return self._normalizar_catalogo(self._items(body, "programas", "results"), ("id", "id_programa"))
+
     def listar_programas(self):
+        """Catálogo para elegir programa: solo los ACTIVOS.
+
+        El filtro se le pide a SIIS *y* se vuelve a aplicar acá. Si el servicio
+        ignorara el parámetro o cambiara su default, un programa dado de baja no
+        tiene que llegar igual al select.
+        """
         cached = cache.get(PROGRAMAS_CACHE_KEY)
         if cached is not None:
             return cached
-        body = self._cargar_catalogo(
-            "/api/v1/programas?estado=ACTIVO",
-            "SIIS no encontró el catálogo de programas. Es posible que ECOM haya cambiado la integración.",
-        )
-        programas = self._normalizar_catalogo(self._items(body, "programas", "results"), ("id", "id_programa"))
+        programas = [p for p in self._catalogo_programas(ESTADO_ACTIVO) if p["estado"] == ESTADO_ACTIVO]
         cache.set(PROGRAMAS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
+        return programas
+
+    def listar_programas_todos(self):
+        """Catálogo completo (ACTIVO + INACTIVO) para sincronizar estados.
+
+        ``estado=ACTIVO`` no sirve para detectar una baja: el programa
+        simplemente desaparece de la respuesta y no se distingue de una lista
+        incompleta por un error del servicio.
+        """
+        cached = cache.get(PROGRAMAS_TODOS_CACHE_KEY)
+        if cached is not None:
+            return cached
+        programas = self._catalogo_programas("TODOS")
+        cache.set(PROGRAMAS_TODOS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
         return programas
 
     def validar_compatibilidad(self, dni, id_programa, fecha_nacimiento=None):
@@ -189,6 +239,10 @@ def validar_compatibilidad(dni, id_programa, fecha_nacimiento=None):
 
 def listar_programas():
     return SiisAPIClient().listar_programas()
+
+
+def listar_programas_todos():
+    return SiisAPIClient().listar_programas_todos()
 
 
 def motivos_de_rechazo(validaciones):

@@ -1,5 +1,25 @@
 {% load becas_extras %}
 {% load rbac %}
+{% if segmentos_bloqueados_siis %}
+{# SIIS dio de baja el programa de estos segmentos: quedan bloqueados para operar. #}
+<div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" style="margin:16px" role="alert">
+  <strong class="text-heading">Cambio informado por SIIS</strong>
+  <p class="text-body mt-1">
+    {{ segmentos_bloqueados_siis|length }} segmento{{ segmentos_bloqueados_siis|length|pluralize }} quedó bloqueado
+    para operar porque su programa dejó de estar vigente en SIIS. No se pueden cargar ni editar relevamientos
+    hasta que SIIS lo reactive o se vincule otro programa.
+  </p>
+  <ul class="mt-2 space-y-1">
+    {% for s in segmentos_bloqueados_siis %}
+    <li class="text-body">
+      <a href="{% url 'becas:segmento_detalle' s.pk %}" class="font-semibold text-fg-brand hover:underline">{{ s.nombre }}</a>
+      — {{ s.siis_motivo_bloqueo }}
+      {% if s.siis_verificado_en %}<span class="text-body-subtle">Detectado el {{ s.siis_verificado_en|date:"d/m/Y H:i" }}.</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 {% if segmentos %}
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
@@ -38,14 +58,30 @@
           {% endwith %}
         </td>
         <td class="px-4 py-[13px] border-t border-light text-center" style="font-size:13.5px">
-          {% if s.activo %}
-            <span class="badge badge-success badge-dot">Activo</span>
-          {% else %}
-            <span class="badge badge-danger badge-dot">Inactivo</span>
-          {% endif %}
+          <div class="flex items-center justify-center gap-1.5 flex-wrap">
+            {% if s.activo %}
+              <span class="badge badge-success badge-dot">Activo</span>
+            {% else %}
+              <span class="badge badge-danger badge-dot">Inactivo</span>
+            {% endif %}
+            {# El estado en SIIS es otra dimensión: el segmento puede estar activo acá y bloqueado allá. #}
+            {% if s.siis_bloqueado %}
+              <span class="badge badge-warning badge-dot" title="{{ s.siis_motivo_bloqueo }}">SIIS inactivo</span>
+            {% endif %}
+          </div>
         </td>
         <td class="px-4 py-[13px] border-t border-light text-right" style="font-size:13.5px">
           <div class="flex items-center justify-end gap-2">
+            {% if s.siis_programa_id %}
+            <button type="button" aria-label="Ver detalle del programa SIIS"
+              class="{% if s.siis_bloqueado %}text-fg-warning{% else %}text-fg-brand{% endif %} p-1.5 rounded-lg hover:bg-secondary"
+              @click="openInfo({{ s|siis_info }})">
+              {# InformationCircleIcon — Heroicons v2 outline #}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+              </svg>
+            </button>
+            {% endif %}
             {% if request.user|puede:"becas.segmento.editar" %}
             <button type="button" aria-label="Editar segmento"
               class="text-fg-brand p-1.5 rounded-lg hover:bg-secondary"
@@ -55,7 +91,8 @@
                 {{ s.cupo_maximo }},
                 {{ s.requiere_gps|yesno:'true,false' }},
                 {{ s.activo|yesno:'true,false' }},
-                '{% url 'becas:segmento_editar' s.pk %}'
+                '{% url 'becas:segmento_editar' s.pk %}',
+                '{{ s.siis_programa_id|default_if_none:"" }}'
               )">
               {# PencilSquareIcon — Heroicons v2 outline #}
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
