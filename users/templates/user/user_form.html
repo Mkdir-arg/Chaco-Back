@@ -58,20 +58,39 @@
         line-height: 1.5;
     }
 
+    {% comment %}Cada rol es una ficha: aguanta igual de bien 3 roles que 28, en una o dos columnas.{% endcomment %}
+    .roles-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        align-items: start;
+    }
+
+    @media (min-width: 1024px) {
+        .roles-grid { grid-template-columns: 1fr 1fr; }
+    }
+
     .roles-item {
         display: flex;
         align-items: flex-start;
         gap: 10px;
-        padding: 10px 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--border-base);
+        border-radius: var(--rounded-lg);
+        background: var(--bg-white);
         cursor: pointer;
-        transition: background 150ms;
+        transition: background 150ms, border-color 150ms;
     }
 
-    .roles-item + .roles-item { border-top: 1px solid var(--border-light); }
+    .roles-item:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--border-base-strong);
+    }
 
-    .roles-item:hover { background: var(--bg-tertiary); }
-
-    .roles-item:has(input:checked) { background: var(--bg-brand-softer); }
+    .roles-item:has(input:checked) {
+        background: var(--bg-brand-softer);
+        border-color: var(--border-brand-subtle);
+    }
 
     .roles-check {
         width: 16px;
@@ -191,13 +210,13 @@
         </div>
     </div>
 
-    {# Card: roles por categoría #}
-    {% with tabs=form.roles_por_categoria %}
+    {# Card: roles por ámbito #}
+    {% with tabs=form.roles_por_ambito %}
     <div id="roles-picker" class="roles-picker rounded-xl border border-base bg-white shadow-sm" data-mode="tabs">
         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-light p-5">
             <div>
-                <h2 class="text-lg font-bold text-heading">Roles por categoría</h2>
-                <p class="mt-0.5 text-sm text-body-subtle">Un usuario puede tener roles de múltiples categorías.</p>
+                <h2 class="text-lg font-bold text-heading">Roles por ámbito</h2>
+                <p class="mt-0.5 text-sm text-body-subtle">Una solapa por ámbito: módulos del backoffice y programas. Un usuario puede tener roles de varios ámbitos.</p>
             </div>
             <div class="flex items-center gap-3">
                 <span class="text-sm text-body-subtle"><span id="roles-total">{{ form.groups.value|length }}</span> seleccionado(s)</span>
@@ -236,36 +255,25 @@
             <section id="panel-rol-{{ tab.id }}" class="roles-panel" data-panel="{{ tab.id }}"
                      role="tabpanel" aria-labelledby="tab-rol-{{ tab.id }}" hidden>
                 <p class="roles-cat-label mb-2 text-xs font-bold uppercase tracking-wide text-body-subtle">{{ tab.label }}</p>
-                <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                    {% for grupo in tab.grupos %}
-                    <div class="overflow-hidden rounded-lg border border-base" data-card>
-                        {% if grupo.label %}
-                        <div class="flex items-center gap-2 border-b border-light bg-secondary px-4 py-2.5">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="shrink-0 text-fg-brand" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
-                            <span class="text-sm font-bold text-heading">{{ grupo.label }}</span>
-                            <span class="text-xs text-body-subtle">({{ grupo.roles|length }})</span>
-                        </div>
-                        {% endif %}
-                        {% for rol in grupo.roles %}
-                        <label class="roles-item" data-item
-                               data-buscar="{{ rol.nombre|lower }} {{ rol.descripcion|lower }} {{ grupo.label|lower }} {{ tab.label|lower }}">
-                            <input type="checkbox" name="groups" value="{{ rol.id }}" id="{{ rol.input_id }}"
-                                   class="roles-check" data-rol-check data-tab="{{ tab.id }}"
-                                   data-nombre="{{ rol.nombre }}"
-                                   {% if rol.territorial %}data-territorial="1"{% endif %}
-                                   {% if rol.checked %}checked{% endif %}>
-                            <span class="min-w-0">
-                                <span class="flex flex-wrap items-center gap-1.5">
-                                    <span class="text-sm font-semibold text-heading">{{ rol.nombre }}</span>
-                                    {% if rol.inactivo %}<span class="badge badge-danger badge-sm">Inactivo</span>{% endif %}
-                                </span>
-                                {% if rol.descripcion %}
-                                <span class="mt-0.5 block text-xs text-body-subtle">{{ rol.descripcion }}</span>
-                                {% endif %}
+                <div class="roles-grid">
+                    {% for rol in tab.roles %}
+                    <label class="roles-item" data-item
+                           data-buscar="{{ rol.nombre|lower }} {{ rol.descripcion|lower }} {{ tab.label|lower }}">
+                        <input type="checkbox" name="groups" value="{{ rol.id }}" id="{{ rol.input_id }}"
+                               class="roles-check" data-rol-check data-tab="{{ tab.id }}"
+                               data-nombre="{{ rol.nombre }}"
+                               {% if rol.territorial %}data-territorial="1"{% endif %}
+                               {% if rol.checked %}checked{% endif %}>
+                        <span class="min-w-0">
+                            <span class="flex flex-wrap items-center gap-1.5">
+                                <span class="text-sm font-semibold text-heading">{{ rol.nombre }}</span>
+                                {% if rol.inactivo %}<span class="badge badge-danger badge-sm">Inactivo</span>{% endif %}
                             </span>
-                        </label>
-                        {% endfor %}
-                    </div>
+                            {% if rol.descripcion %}
+                            <span class="mt-0.5 block text-xs text-body-subtle">{{ rol.descripcion }}</span>
+                            {% endif %}
+                        </span>
+                    </label>
                     {% endfor %}
                 </div>
             </section>
@@ -336,7 +344,6 @@
         var tabs = Array.from(picker.querySelectorAll('.roles-tab'));
         var panels = Array.from(picker.querySelectorAll('.roles-panel'));
         var items = Array.from(picker.querySelectorAll('[data-item]'));
-        var cards = Array.from(picker.querySelectorAll('[data-card]'));
         var chipsEl = document.getElementById('roles-chips');
         var totalEl = document.getElementById('roles-total');
         var searchInput = document.getElementById('roles-search-input');
@@ -350,7 +357,6 @@
             tabActual = id;
             picker.dataset.mode = 'tabs';
             items.forEach(function (i) { i.hidden = false; });
-            cards.forEach(function (c) { c.hidden = false; });
             tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.tab === id ? 'true' : 'false'); });
             panels.forEach(function (p) { p.hidden = p.dataset.panel !== id; });
             if (sinResultados) sinResultados.hidden = true;
@@ -389,11 +395,8 @@
                 item.hidden = !match;
                 if (match) visibles++;
             });
-            cards.forEach(function (card) {
-                card.hidden = !Array.from(card.querySelectorAll('[data-item]')).some(function (i) { return !i.hidden; });
-            });
             panels.forEach(function (panel) {
-                panel.hidden = !Array.from(panel.querySelectorAll('[data-card]')).some(function (c) { return !c.hidden; });
+                panel.hidden = !Array.from(panel.querySelectorAll('[data-item]')).some(function (i) { return !i.hidden; });
             });
             if (sinResultados) sinResultados.hidden = visibles > 0;
         }
