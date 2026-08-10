@@ -11,7 +11,6 @@ from users.tests.test_rbac import _perm, render_sidebar
 
 _CAPS_OPERADOR = [
     "ciudadano.ver",
-    "programa.ver",
     "reporte.ver",
     "config.administrar",
     "usuario.administrar",
