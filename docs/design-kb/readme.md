@@ -18,16 +18,17 @@ Everything here is in **Spanish (es-AR)** — the platform's only language. Copy
 
 ## Sources
 
-This system was reverse-engineered from the product's own repository and its in-repo design
-knowledge base. If you have access, explore them to build more faithfully:
+This folder is a historical design reference. Production decisions start from the
+current frontend and `.claude/agents/chaco-design-system.md`; validate any material
+here against loaded code before using it.
 
 - **Code + design-kb:** https://github.com/Mkdir-arg/Chaco
-  - `static/custom/css/chaco-tokens.css` — the Figma-derived v1.0/v1.1 token set (source of truth for color + type).
+  - `static/custom/css/chaco-tokens.css` — a production token source to inspect with its load path and consumers.
   - `static/custom/css/nodo-brand.css`, `paleta-unificada.css`, `portal-modern.css` — brand + portal styling.
-  - `docs/design-kb/` — the authoritative **design knowledge base**: `design-constitution.md`,
+  - `docs/design-kb/` — reference material: `design-constitution.md`,
     `implicit-rules.md`, `foundations/` (colors, typography, iconography, spacing), 13 component
-    specs under `components/*.yaml`, and 5 patterns under `patterns/*.md`. **Read this first** when
-    extending the system.
+    specs under `components/*.yaml`, and 5 patterns under `patterns/*.md`. Do not use it as
+    authority when extending the system.
   - `docs/internal/analisis/003-programa-becas-relevamiento-propuesta.md` — functional analysis
     behind the **Programa Becas** UI kit (domain: Segmento → Subsegmento → Convocatoria →
     Relevamiento → Formulario; roles Admin / Coordinador / Territorial; RENAPER; cupo + lista de espera).

@@ -1,12 +1,12 @@
 # Referencia — repo `Mkdir-arg/Chaco`
 
-Material traído del repositorio real para usar como **referencia** al diseñar.
-El repo es la fuente de verdad de *cómo funciona* el sistema; el diseño de este
-proyecto es lo que se va a implementar. Esta carpeta NO es parte del entregable.
+Material histórico traído del repositorio real para usar como **referencia**. Esta
+carpeta no es parte del entregable ni define el diseño vigente: contrastar siempre
+con el frontend productivo y `.claude/agents/chaco-design-system.md`.
 
 ## Qué hay acá
-- `branding.py` — fuente de verdad del branding en el código (perfil activo: `chaco`).
-  Genera las CSS variables `--color-*`, `--nodo-*`, gradientes y estados de botón.
+- `branding.py` — antecedente técnico del branding; verificar su carga y consumidores
+  antes de derivar una regla de UI.
 - `design-kb/` — base de conocimiento de diseño (principios, anti-patrones, specs
   de componentes en `.yaml`, patrones de pantalla en `patterns/`, foundations).
 

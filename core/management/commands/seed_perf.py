@@ -50,6 +50,11 @@ def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuse
     if created:
         user.set_unusable_password()
     user.save()
+    # El entorno productivo completa perfiles existentes mediante la migración
+    # de sesión única; el seed de performance debe reproducir ese estado.
+    from users.models import Profile
+
+    Profile.objects.get_or_create(user=user)
     return user
 
 

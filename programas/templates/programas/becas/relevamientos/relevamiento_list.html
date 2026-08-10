@@ -97,7 +97,7 @@
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.convocatoria.segmento.nombre }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }} al {{ rel.fecha_hasta|date:"d/m/Y" }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-right">
               <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver" aria-label="Ver">
@@ -178,16 +178,21 @@
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
             {{ form_crear.territorial }}
+            {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
               {{ form_crear.zona }}
             </div>
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha desde <span class="text-fg-danger">*</span></label>
               {{ form_crear.fecha_asignada }}
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha hasta <span class="text-fg-danger">*</span></label>
+              {{ form_crear.fecha_hasta }}
             </div>
           </div>
         </div>
@@ -200,4 +205,5 @@
   </div>
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}

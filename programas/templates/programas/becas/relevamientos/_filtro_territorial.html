@@ -9,6 +9,7 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
     const convocatoria = document.getElementById('id_convocatoria');
     const territorial = document.getElementById('id_territorial');
     const fechaAsignada = document.getElementById('id_fecha_asignada');
+    const fechaHasta = document.getElementById('id_fecha_hasta');
     if (!convocatoria || !territorial) return;
 
     const filtrar = () => {
@@ -24,6 +25,10 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
       if (fechaAsignada) {
         fechaAsignada.min = opcion ? (opcion.dataset.fechaInicio || '') : '';
         fechaAsignada.max = opcion ? (opcion.dataset.fechaFin || '') : '';
+      }
+      if (fechaHasta) {
+        fechaHasta.min = opcion ? (opcion.dataset.fechaInicio || '') : '';
+        fechaHasta.max = opcion ? (opcion.dataset.fechaFin || '') : '';
       }
     };
 

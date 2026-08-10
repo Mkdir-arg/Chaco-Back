@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 
 from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
@@ -36,19 +36,21 @@ class SolapasService:
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"],
             )
             .select_related("programa", "responsable")
+            .annotate(
+                tiene_admision_alojada=Exists(
+                    Admision.objects.filter(
+                        inscripcion_programa_id=OuterRef("pk"),
+                        estado=Admision.Estado.ALOJADO,
+                    )
+                )
+            )
             .order_by("programa__orden")
         )
 
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
-            if (
-                tipo_normalizado == "DISPOSITIVOS"
-                and not Admision.objects.filter(
-                    inscripcion_programa=inscripcion,
-                    estado=Admision.Estado.ALOJADO,
-                ).exists()
-            ):
+            if tipo_normalizado == "DISPOSITIVOS" and not inscripcion.tiene_admision_alojada:
                 continue
             url_name = cls._obtener_url_programa(tipo_normalizado)
             url_params = {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id}

@@ -160,6 +160,11 @@
                       data-confirm-text="{{ segmento.nombre }}" data-confirm-icon="question" data-confirm-ok="Sí">
                 <i class="fas fa-ban"></i> {% if segmento.activo %}Desactivar{% else %}Activar{% endif %} segmento
               </button>
+              {% if request.user|puede:"becas.programa.administrar" %}
+              <a href="{% url 'becas:gestionar_pausa' 'segmento' segmento.pk %}" class="btn-nodo {% if segmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-base">
+                <i class="fas fa-pause"></i> {% if segmento.pausado %}Reanudar{% else %}Pausar{% endif %} segmento
+              </a>
+              {% endif %}
             </div>
           </form>
           {% endif %}
@@ -193,13 +198,14 @@
             </div>
             {% endif %}
             {% if request.user|puede:"becas.coordinador.crear" %}
-            <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="flex flex-wrap items-end gap-3">
+            <form method="post" action="{% url 'becas:coordinador_asignar' segmento.pk %}" class="space-y-2">
               {% csrf_token %}
-              <div class="flex-1 min-w-[220px]">
-                <label class="block text-sm font-medium text-heading mb-1">Asignar coordinador</label>
-                {{ form_coordinador.coordinador }}
+              <label class="block text-sm font-medium text-heading">Asignar coordinador</label>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div class="flex-1 min-w-[220px]">{{ form_coordinador.coordinador }}</div>
+                {% if request.user|puede:"becas.programa.administrar" %}<button type="button" data-quick-user="coordinador" data-user-select="#{{ form_coordinador.coordinador.id_for_label }}" class="btn-nodo btn-tertiary btn-base sm:flex-shrink-0"><i class="fas fa-user-plus"></i> Crear coordinador</button>{% endif %}
+                <button type="submit" class="btn-nodo btn-tertiary btn-base sm:flex-shrink-0"><i class="fas fa-plus"></i> Asignar coordinador</button>
               </div>
-              <button type="submit" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-plus"></i> Asignar coordinador</button>
             </form>
             {% endif %}
           </div>
@@ -605,6 +611,7 @@
   </div>
 
 </div>
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
 {% block customJS %}

@@ -12,13 +12,15 @@ El RBAC tiene alcance de *programa*, no de *segmento*; el alcance por segmento l
 aporta este módulo combinando la capacidad con ``AsignacionCoordinador``.
 """
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 
 from core import rbac
 from programas.services.becas import coordinador_gestiona_segmento, get_segmentos_coordinador
 
 CAP_ADMINISTRAR = "becas.programa.administrar"
 CAP_CAMPO = "becas.campo"
+CAP_REFERENTE = "becas.referente"
+CAP_COORDINADOR_REGIONAL = "becas.coordinador.regional"
 
 
 def _caps_gestion():
@@ -72,6 +74,38 @@ def es_coordinador_becas(user, programa=None):
     return rbac.puede_alguna(user, CAPS_GESTION, programa=programa)
 
 
+def es_referente_becas(user, programa=None):
+    programa = programa or programa_becas()
+    return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_REFERENTE, programa=programa)
+
+
+def es_coordinador_regional_becas(user, programa=None):
+    programa = programa or programa_becas()
+    return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_COORDINADOR_REGIONAL, programa=programa)
+
+
+def _segmentos_referente(user):
+    from programas.models import Segmento
+
+    try:
+        asignacion = user.asignacion_referente
+    except ObjectDoesNotExist:
+        return Segmento.objects.none()
+    return get_segmentos_coordinador(asignacion.coordinador)
+
+
+def _localidades_regionales(user):
+    from programas.models import Subsegmento
+
+    try:
+        asignacion = user.asignacion_coordinador_regional
+    except ObjectDoesNotExist:
+        return Subsegmento.objects.none()
+    if not asignacion.region.activo:
+        return Subsegmento.objects.none()
+    return asignacion.region.localidades.all()
+
+
 def puede_gestionar_segmento(user, segmento, programa=None):
     """¿``user`` puede gestionar/revisar el ``segmento``?
 
@@ -83,6 +117,10 @@ def puede_gestionar_segmento(user, segmento, programa=None):
     programa = programa or programa_becas()
     if es_admin_becas(user, programa=programa):
         return True
+    if es_referente_becas(user, programa=programa):
+        return _segmentos_referente(user).filter(pk=segmento.pk).exists()
+    if es_coordinador_regional_becas(user, programa=programa):
+        return _localidades_regionales(user).filter(segmento=segmento).exists()
     if rbac.puede_alguna(user, CAPS_GESTION, programa=programa):
         return coordinador_gestiona_segmento(user, segmento)
     return False
@@ -101,6 +139,10 @@ def segmentos_visibles(user, programa=None):
     programa = programa or programa_becas()
     if es_admin_becas(user, programa=programa):
         return Segmento.objects.all()
+    if es_referente_becas(user, programa=programa):
+        return _segmentos_referente(user)
+    if es_coordinador_regional_becas(user, programa=programa):
+        return Segmento.objects.filter(subsegmentos__in=_localidades_regionales(user)).distinct()
     if rbac.puede_alguna(user, CAPS_GESTION, programa=programa):
         return get_segmentos_coordinador(user)
     return Segmento.objects.none()
@@ -110,7 +152,27 @@ def subsegmentos_visibles(user, programa=None):
     """Queryset de ``Subsegmento`` cuyo segmento el usuario puede gestionar/revisar."""
     from programas.models import Subsegmento
 
+    if es_coordinador_regional_becas(user, programa=programa):
+        return _localidades_regionales(user)
     return Subsegmento.objects.filter(segmento__in=segmentos_visibles(user, programa=programa))
+
+
+def convocatorias_visibles(user, programa=None):
+    from programas.models import Convocatoria
+
+    if es_coordinador_regional_becas(user, programa=programa):
+        return Convocatoria.objects.filter(responsable_regional=user, creada_por=user)
+    return Convocatoria.objects.filter(segmento__in=segmentos_visibles(user, programa=programa))
+
+
+def segmentos_para_gestion_territoriales(user):
+    if es_referente_becas(user):
+        return _segmentos_referente(user)
+    if es_coordinador_regional_becas(user):
+        from programas.models import Segmento
+
+        return Segmento.objects.filter(subsegmentos__in=_localidades_regionales(user)).distinct()
+    return get_segmentos_coordinador(user)
 
 
 def requisitos_visibles(user, programa=None):
@@ -155,7 +217,17 @@ def usuarios_coordinadores_becas(programa=None):
     """Usuarios activos con capacidad de gestión de Becas (``CAPS_GESTION``),
     candidatos a ser asignados como coordinador de un segmento.
     """
-    return _usuarios_con_capacidad_en_programa(CAPS_GESTION, programa=programa)
+    return (
+        _usuarios_con_capacidad_en_programa(CAPS_GESTION, programa=programa)
+        .exclude(
+            groups__permissions__codename__in=[
+                rbac.codename_de(CAP_ADMINISTRAR),
+                rbac.codename_de(CAP_REFERENTE),
+                rbac.codename_de(CAP_COORDINADOR_REGIONAL),
+            ]
+        )
+        .distinct()
+    )
 
 
 def usuarios_territoriales_becas(programa=None, segmento=None):
@@ -181,11 +253,38 @@ def grupos_territoriales_becas(programa=None):
 
     programa = programa or programa_becas()
     programa_pk = getattr(programa, "pk", programa)
-    return Group.objects.filter(
-        meta__activo=True,
-        meta__programa=programa_pk,
-        permissions__codename=rbac.codename_de(CAP_CAMPO),
-    ).distinct()
+    return (
+        Group.objects.filter(
+            meta__activo=True,
+            meta__programa=programa_pk,
+            permissions__codename=rbac.codename_de(CAP_CAMPO),
+        )
+        .exclude(permissions__codename=rbac.codename_de(CAP_COORDINADOR_REGIONAL))
+        .distinct()
+    )
+
+
+def _grupos_con_capacidad(codigo, programa=None):
+    from django.contrib.auth.models import Group
+
+    programa = programa or programa_becas()
+    return (
+        Group.objects.filter(
+            meta__activo=True,
+            meta__programa=getattr(programa, "pk", programa),
+            permissions__codename=rbac.codename_de(codigo),
+        )
+        .exclude(permissions__codename=rbac.codename_de(CAP_ADMINISTRAR))
+        .distinct()
+    )
+
+
+def grupos_referentes_becas(programa=None):
+    return _grupos_con_capacidad(CAP_REFERENTE, programa=programa)
+
+
+def grupos_coordinadores_regionales_becas(programa=None):
+    return _grupos_con_capacidad(CAP_COORDINADOR_REGIONAL, programa=programa)
 
 
 class SegmentoScopedMixin:

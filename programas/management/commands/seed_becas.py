@@ -30,6 +30,8 @@ PROGRAMA_BECAS_CODIGO = "BECAS"
 # Coordinador lo aporta AsignacionCoordinador (ver services/autorizacion.py).
 ROL_ADMIN = "Becas — Administrador"
 ROL_COORDINADOR = "Becas — Coordinador"
+ROL_REFERENTE = "Becas — Referente"
+ROL_COORDINADOR_REGIONAL = "Becas — Coordinador regional"
 ROL_TERRITORIAL = "Becas — Territorial"
 
 
@@ -47,6 +49,7 @@ ROLES_BECAS = {
     ROL_COORDINADOR: {
         "descripcion": "Gestiona relevamientos y revisa formularios solo de sus segmentos asignados.",
         "capacidades": [
+            "becas.usuario.territorial",
             "becas.segmento.ver",
             "becas.subsegmento.ver",
             "becas.requisito.ver",
@@ -62,6 +65,36 @@ ROLES_BECAS = {
             "becas.cupo.ver",
             "becas.beneficiario.ver",
             "becas.beneficiario.editar",
+        ],
+    },
+    ROL_REFERENTE: {
+        "descripcion": "Asiste a un Coordinador y administra Territoriales de sus segmentos, sin pausar ni crear roles.",
+        "capacidades": [
+            "becas.referente",
+            "becas.usuario.territorial",
+            "becas.segmento.ver",
+            "becas.subsegmento.ver",
+            "becas.convocatoria.ver",
+            "becas.relevamiento.ver",
+            "becas.revision.ver",
+            "becas.cupo.ver",
+        ],
+    },
+    ROL_COORDINADOR_REGIONAL: {
+        "descripcion": "Gestiona convocatorias, relevamientos y Territoriales solamente dentro de su región.",
+        "capacidades": [
+            "becas.coordinador.regional",
+            "becas.usuario.territorial",
+            "becas.segmento.ver",
+            "becas.subsegmento.ver",
+            "becas.convocatoria.ver",
+            "becas.convocatoria.crear",
+            "becas.convocatoria.editar",
+            "becas.relevamiento.ver",
+            "becas.relevamiento.crear",
+            "becas.relevamiento.editar",
+            "becas.revision.ver",
+            "becas.campo",
         ],
     },
     ROL_TERRITORIAL: {
@@ -95,6 +128,11 @@ def asegurar_programa_becas():
             "color": "#0ea5e9",
         },
     )
+    # Evita conservar una instancia con PK obsoleta entre recreaciones de la
+    # base de test o ejecuciones idempotentes del seed.
+    from django.core.cache import cache
+
+    cache.delete("programas:becas")
     return programa
 
 

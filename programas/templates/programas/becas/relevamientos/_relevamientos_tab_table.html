@@ -19,7 +19,7 @@
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona|default:"—" }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }}</td>
+        <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y" }} al {{ rel.fecha_hasta|date:"d/m/Y" }}</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-center">{% with rel=rel %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}</td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver detalle" aria-label="Ver detalle"><i class="fas fa-chevron-right"></i></a>

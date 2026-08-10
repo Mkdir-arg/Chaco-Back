@@ -99,6 +99,9 @@ CATALOGO = [
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
+            ("becas.usuario.territorial", "Crear y administrar territoriales de los segmentos coordinados"),
+            ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
+            ("becas.coordinador.regional", "Operar como Coordinador regional dentro de su región"),
         ],
     },
     {

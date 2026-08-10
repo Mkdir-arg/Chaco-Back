@@ -58,6 +58,12 @@ class RolForm(forms.Form):
         self.instance = instance  # Group o None
         self.operador = operador
         super().__init__(*args, **kwargs)
+        # ``Becas`` se conserva como valor legacy para poder identificar datos
+        # antiguos, pero ya no es una categoría seleccionable. Los roles del
+        # módulo se crean y editan con categoría ``Programa`` + programa Becas.
+        self.fields["categoria"].choices = [
+            (value, label) for value, label in self.fields["categoria"].choices if value != rbac.CATEGORIA_BECAS
+        ]
 
         # Modo del formulario según el operador (admin global vs admin de programa).
         from users.selectors.roles import es_admin_global, programas_administrables
@@ -74,10 +80,9 @@ class RolForm(forms.Form):
             self.fields["programa"].empty_label = None
             self.fields["categoria"].choices = [
                 (rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_PROGRAMA),
-                (rbac.CATEGORIA_BECAS, rbac.CATEGORIA_BECAS),
             ]
             self.fields["categoria"].required = True
-            self.fields["categoria"].initial = rbac.CATEGORIA_BECAS
+            self.fields["categoria"].initial = rbac.CATEGORIA_PROGRAMA
             self.fields["programa"].required = False
             # Materializado una vez para decidir (evita COUNT + SELECT extra);
             # el field conserva el queryset.

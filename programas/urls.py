@@ -4,6 +4,7 @@ from django.urls import path
 
 from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
+from programas.views import pausas as pau
 from programas.views import relevamientos as rel
 from programas.views import revision as rev
 from programas.views import solapas_becas as sb
@@ -11,8 +12,11 @@ from programas.views import solapas_becas as sb
 app_name = "becas"
 
 urlpatterns = [
+    path("pausas/<str:tipo>/<int:pk>/", pau.gestionar_pausa, name="gestionar_pausa"),
     # --- Configuración: Segmentos ---
     path("config/segmentos/", cfg.SegmentoListView.as_view(), name="segmentos"),
+    path("config/regiones/", cfg.regiones, name="regiones"),
+    path("config/regiones/<int:pk>/editar/", cfg.regiones, name="region_editar"),
     path("config/segmentos/nuevo/", cfg.SegmentoCreateView.as_view(), name="segmento_crear"),
     path("config/segmentos/<int:pk>/", cfg.SegmentoDetailView.as_view(), name="segmento_detalle"),
     path("config/segmentos/<int:pk>/editar/", cfg.SegmentoUpdateView.as_view(), name="segmento_editar"),
@@ -73,6 +77,7 @@ urlpatterns = [
     path("relevamientos/<int:pk>/reabrir/", rel.relevamiento_reabrir, name="relevamiento_reabrir"),
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
+    path("relevamientos/<int:pk>/cupo/", rel.relevamiento_modificar_cupo, name="relevamiento_modificar_cupo"),
     # --- Revisión de formularios ---
     path("revision/", rev.RevisionPersonasListView.as_view(), name="revision"),
     path("revision/renaper/pendientes/", rev.RenaperPendientesListView.as_view(), name="renaper_pendientes"),

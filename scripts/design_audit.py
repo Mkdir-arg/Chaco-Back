@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Auditoría mecánica del sistema de diseño Chaco/NODO.
 
-Fuente única de los chequeos que antes vivían como greps en prosa dentro de
-`.claude/agents/chaco-design-reviewer.md` y `.claude/agents/chaco-frontend.md`.
-Ambos agentes (y cualquier dev) deben correr ESTE script — así todos auditan
-exactamente lo mismo.
+Chequeos mecánicos compartidos para cambios de UI. El inventario y las decisiones
+operativas viven en `.claude/agents/chaco-design-system.md`, que se contrasta con
+el frontend productivo antes de usar este script.
 
 Uso:
     python scripts/design_audit.py [paths...]      # audita archivos o carpetas
@@ -14,7 +13,7 @@ Uso:
 Sin argumentos audita las superficies de UI del repo (templates/ + static/custom/css
 + templates de apps). Exit code 1 si hay violaciones ERROR; las WARN no cortan.
 
-Reglas (espejo del canon chaco-design-reviewer.md):
+Reglas mecánicas complementarias del agente canónico de diseño:
   HEX        Cero hex hardcodeado (salvo #fff/#ffffff). Excluye chaco-tokens.css
              y líneas con template tags dinámicos ({{ ... }}).
   FONT       Manrope única: Fredoka/Gellat/Geliat/Satoshi/Inter/Roboto/Montserrat.
@@ -228,7 +227,7 @@ def hook_mode() -> int:
     if len(errors) > 15:
         sys.stderr.write(f'  ... y {len(errors) - 15} más (corré scripts/design_audit.py "{fp}")\n')
     sys.stderr.write(
-        "Si las introdujo TU edición, corregilas con tokens/clases del sistema (canon: chaco-design-reviewer). "
+        "Si las introdujo TU edición, corregilas según el inventario canónico y el código productivo. "
         "Si son preexistentes de una pantalla legacy que no estás migrando, no bloquean: mencionáselo al usuario y seguí.\n"
     )
     return 2
