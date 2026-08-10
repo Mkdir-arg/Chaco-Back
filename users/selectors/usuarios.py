@@ -34,7 +34,6 @@ def usuarios_visibles_para(user):
         from django.contrib.auth.models import Group
 
         from programas.services.autorizacion import (
-            es_coordinador_regional_becas,
             grupos_territoriales_becas,
             segmentos_para_gestion_territoriales,
         )
@@ -49,8 +48,6 @@ def usuarios_visibles_para(user):
             .exclude(groups__in=roles_no_territoriales)
             .distinct()
         )
-        if es_coordinador_regional_becas(user):
-            visibles = visibles.filter(asignacion_territorial__coordinador_regional=user)
         return visibles
     programas = programas_administrables(user)
     return qs.filter(groups__meta__programa__in=programas, groups__meta__activo=True).distinct()
@@ -85,7 +82,6 @@ def puede_gestionar_usuario(operador, target):
         return True
     if rbac.puede(operador, "becas.usuario.territorial"):
         from programas.services.autorizacion import (
-            es_coordinador_regional_becas,
             grupos_territoriales_becas,
             segmentos_para_gestion_territoriales,
         )
@@ -99,8 +95,6 @@ def puede_gestionar_usuario(operador, target):
             and asignacion
             and segmentos_para_gestion_territoriales(operador).filter(pk=asignacion.segmento_id).exists()
         )
-        if permitido and es_coordinador_regional_becas(operador):
-            permitido = asignacion.coordinador_regional_id == operador.pk
         return permitido
     programas = set(programas_administrables(operador).values_list("pk", flat=True))
     return target.groups.filter(meta__programa__in=programas, meta__activo=True).exists()

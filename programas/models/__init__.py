@@ -1317,22 +1317,6 @@ class Convocatoria(PausableMixin, TimeStamped):
     fecha_fin = models.DateField(verbose_name="Fecha de fin")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
-    creada_por = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="convocatorias_creadas",
-        verbose_name="Creada por",
-    )
-    responsable_regional = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="convocatorias_regionales",
-        verbose_name="Responsable regional",
-    )
     # Trazabilidad del cierre automático por vencimiento (procesar_vencimientos).
     # Distingue la baja por fecha de la desactivación manual y guarda el cuándo.
     cerrada_automaticamente = models.BooleanField(
@@ -1659,22 +1643,6 @@ class AsignacionCoordinador(TimeStamped):
         return f"{self.coordinador} → {self.segmento.nombre}"
 
 
-class Region(TimeStamped):
-    """Región operativa compuesta por una o más localidades/subsegmentos."""
-
-    nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
-    localidades = models.ManyToManyField(Subsegmento, related_name="regiones", verbose_name="Localidades")
-    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activa")
-
-    class Meta:
-        verbose_name = "Región"
-        verbose_name_plural = "Regiones"
-        ordering = ["nombre"]
-
-    def __str__(self):
-        return self.nombre
-
-
 class AsignacionReferente(TimeStamped):
     """Un Referente depende de un Coordinador del segmento."""
 
@@ -1693,57 +1661,6 @@ class AsignacionReferente(TimeStamped):
 
     def __str__(self):
         return f"{self.referente} → {self.coordinador}"
-
-
-class AsignacionCoordinadorRegional(TimeStamped):
-    """Asignación vigente de un Coordinador regional a una Región."""
-
-    coordinador = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name="asignacion_coordinador_regional",
-        verbose_name="Coordinador regional",
-    )
-    region = models.ForeignKey(
-        Region, on_delete=models.PROTECT, related_name="coordinadores_asignados", verbose_name="Región"
-    )
-    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
-
-    class Meta:
-        verbose_name = "Asignación de coordinador regional"
-        verbose_name_plural = "Asignaciones de coordinadores regionales"
-        ordering = ["region", "coordinador"]
-
-    def __str__(self):
-        return f"{self.coordinador} → {self.region}"
-
-
-class TransferenciaRegional(TimeStamped):
-    """Auditoría inmutable de un reemplazo de Coordinador regional."""
-
-    region = models.ForeignKey(Region, on_delete=models.PROTECT, related_name="transferencias", verbose_name="Región")
-    coordinador_origen = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="transferencias_regionales_salientes", verbose_name="Origen"
-    )
-    coordinador_destino = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="transferencias_regionales_entrantes", verbose_name="Destino"
-    )
-    ejecutado_por = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="transferencias_regionales_ejecutadas",
-        verbose_name="Ejecutado por",
-    )
-    convocatorias_transferidas = models.PositiveIntegerField(default=0)
-    territoriales_transferidos = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        verbose_name = "Transferencia regional"
-        verbose_name_plural = "Transferencias regionales"
-        ordering = ["-creado"]
-
-    def __str__(self):
-        return f"{self.region}: {self.coordinador_origen} → {self.coordinador_destino}"
 
 
 class AsignacionTerritorial(TimeStamped):
@@ -1766,14 +1683,6 @@ class AsignacionTerritorial(TimeStamped):
         on_delete=models.CASCADE,
         related_name="asignacion_territorial",
         verbose_name="Territorial",
-    )
-    coordinador_regional = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="territoriales_regionales",
-        verbose_name="Coordinador regional",
     )
     fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
 
