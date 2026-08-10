@@ -32,7 +32,7 @@ from programas.models import (
 )
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
-from programas.services.siis import SiisCatalogError, listar_programas, listar_segmentos
+from programas.services.siis import SiisCatalogError, listar_programas
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
@@ -51,6 +51,19 @@ def _cargar_catalogo(loader):
         return [], str(exc)
     except Exception:
         return [], "No se pudo cargar el catálogo de SIIS. Verificá la conexión e intentá nuevamente."
+
+
+def _congelar_programa_siis(instance, programa):
+    """Guarda en el segmento la foto del programa al momento de vincularlo.
+
+    Es la referencia contra la que después se compara el estado que informa
+    SIIS, y lo que muestra el detalle informativo del segmento.
+    """
+    ahora = timezone.now()
+    instance.siis_programa_datos = programa
+    instance.siis_programa_estado = programa.get("estado") or Segmento.EstadoSiis.ACTIVO
+    instance.siis_vinculado_en = ahora
+    instance.siis_verificado_en = ahora
 
 
 def _text_widget(rows=3):
@@ -83,10 +96,15 @@ class SegmentoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         programas, error = _cargar_catalogo(listar_programas)
+        self._programas_siis = {programa["id"]: programa for programa in programas}
+        self._siis_programa_id_previo = self.instance.siis_programa_id if self.instance.pk else None
         self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
         actual = self.instance.siis_programa_id if self.instance.pk else None
         if actual and str(actual) not in {value for value, _ in self.fields["siis_programa_id"].choices}:
-            self.fields["siis_programa_id"].choices += [(str(actual), f"Programa SIIS #{actual}")]
+            # El programa vinculado ya no está en el catálogo activo: se conserva
+            # como opción para no perder el vínculo al guardar otro campo.
+            etiqueta = self.instance.siis_programa_nombre or f"Programa SIIS #{actual}"
+            self.fields["siis_programa_id"].choices += [(str(actual), f"{etiqueta} — inactivo en SIIS")]
         if error:
             self.fields["siis_programa_id"].help_text = error
 
@@ -98,6 +116,15 @@ class SegmentoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ese programa SIIS ya está asociado a otro segmento.")
         return programa_id
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        programa = self._programas_siis.get(instance.siis_programa_id)
+        if programa and instance.siis_programa_id != self._siis_programa_id_previo:
+            _congelar_programa_siis(instance, programa)
+        if commit:
+            instance.save()
+        return instance
 
 
 class SegmentoCreateForm(forms.ModelForm):
@@ -148,6 +175,7 @@ class SegmentoCreateForm(forms.ModelForm):
         self.fields["nombre"].required = False
         self.fields["descripcion"].required = True
         programas, error = _cargar_catalogo(listar_programas)
+        self._programas_siis = {programa["id"]: programa for programa in programas}
         self.fields["siis_programa_id"].choices = _catalogo_choices(programas, "Seleccioná un programa…")
         if error:
             self.fields["siis_programa_id"].help_text = error
@@ -171,13 +199,22 @@ class SegmentoCreateForm(forms.ModelForm):
                 cleaned["nombre"] = nombre
         return cleaned
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        programa = self._programas_siis.get(instance.siis_programa_id)
+        if programa:
+            _congelar_programa_siis(instance, programa)
+        if commit:
+            instance.save()
+        return instance
+
 
 class SubsegmentoForm(forms.ModelForm):
     """El segmento se fija desde la vista (no es un campo editable)."""
 
     class Meta:
         model = Subsegmento
-        fields = ["siis_segmento_id", "nombre", "descripcion", "cupo_maximo"]
+        fields = ["nombre", "descripcion", "cupo_maximo"]
         widgets = {
             "nombre": forms.TextInput(
                 attrs={
@@ -197,50 +234,20 @@ class SubsegmentoForm(forms.ModelForm):
 
     def __init__(self, *args, segmento=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["nombre"].required = False
-        self.fields["nombre"].widget.attrs["readonly"] = True
-        self.fields["siis_segmento_id"] = forms.ChoiceField(
-            label="Segmento SIIS",
-            choices=(),
-            error_messages={"invalid_choice": "Ese segmento SIIS ya fue agregado o ya no está disponible."},
-            widget=forms.Select(attrs={"class": INPUT_CLASS}),
-        )
+        # El subsegmento es local: su nombre lo escribe el operador. Antes se
+        # copiaba del catálogo de segmentos de SIIS, que ECOM dejó de exponer.
         self.fields["descripcion"].required = False
         if segmento is not None:
             self.instance.segmento = segmento
-        programa_id = segmento.siis_programa_id if segmento is not None else None
-        if programa_id:
-            items, error = _cargar_catalogo(lambda: listar_segmentos(programa_id))
-        else:
-            items, error = [], "Primero asociá el segmento local con un programa SIIS."
-        if segmento is not None:
-            usados = set(segmento.subsegmentos.exclude(pk=self.instance.pk).values_list("siis_segmento_id", flat=True))
-            items = [item for item in items if item["id"] not in usados]
-        self.fields["siis_segmento_id"].choices = _catalogo_choices(items, "Seleccioná un segmento…")
-        actual = self.instance.siis_segmento_id if self.instance.pk else None
-        if actual and str(actual) not in {value for value, _ in self.fields["siis_segmento_id"].choices}:
-            self.fields["siis_segmento_id"].choices += [(str(actual), f"Segmento SIIS #{actual}")]
-        if error:
-            self.fields["siis_segmento_id"].help_text = error
 
-    def clean_siis_segmento_id(self):
-        segmento_siis_id = int(self.cleaned_data["siis_segmento_id"])
-        duplicado = Subsegmento.objects.filter(segmento_id=self.instance.segmento_id, siis_segmento_id=segmento_siis_id)
+    def clean_nombre(self):
+        nombre = (self.cleaned_data.get("nombre") or "").strip()
+        duplicado = Subsegmento.objects.filter(segmento_id=self.instance.segmento_id, nombre__iexact=nombre)
         if self.instance.pk:
             duplicado = duplicado.exclude(pk=self.instance.pk)
         if duplicado.exists():
-            raise forms.ValidationError("Ese segmento SIIS ya fue agregado a este segmento local.")
-        return segmento_siis_id
-
-    def clean(self):
-        cleaned = super().clean()
-        segmento_id = cleaned.get("siis_segmento_id")
-        if segmento_id:
-            nombres = dict(self.fields["siis_segmento_id"].choices)
-            nombre = nombres.get(str(segmento_id))
-            if nombre and not nombre.startswith("Segmento SIIS #"):
-                cleaned["nombre"] = nombre
-        return cleaned
+            raise forms.ValidationError("Ya existe un subsegmento con ese nombre en este segmento.")
+        return nombre
 
 
 class _OpcionesMixin(forms.ModelForm):
@@ -992,6 +999,9 @@ class RelevamientoForm(forms.ModelForm):
                 pausado=False,
                 segmento__pausado=False,
             )
+            # El bloqueo por SIIS es una property del segmento; acá se filtra por
+            # la columna porque esto es un queryset.
+            .exclude(segmento__siis_programa_estado__in=Segmento.ESTADOS_SIIS_BLOQUEANTES)
             .filter(models.Q(subsegmento__isnull=True) | models.Q(subsegmento__pausado=False))
         )
         if segmentos_permitidos is not None:

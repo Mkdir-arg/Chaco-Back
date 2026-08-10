@@ -4,7 +4,7 @@ import requests
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
-from programas.services.siis import TOKEN_CACHE_KEY, SiisAPIClient, SiisCatalogError
+from programas.services.siis import TOKEN_CACHE_KEY, SiisAPIClient, SiisCatalogError, motivos_de_rechazo
 
 
 @override_settings(
@@ -19,34 +19,55 @@ class SiisClientTests(SimpleTestCase):
         cache.clear()
 
     @patch("programas.services.siis.requests.post")
-    def test_compatible_obtiene_token_y_envia_sexo(self, post):
+    def test_compatible_obtiene_token_y_envia_el_contrato_vigente(self, post):
         token = Mock(status_code=200)
         token.json.return_value = {"access_token": "abc", "expires_in": 3600}
         token.raise_for_status.return_value = None
         respuesta = Mock(status_code=200)
-        respuesta.json.return_value = {"resultado": "OK", "id_consulta": "9b04df54-bde0-4aaa-85e7-99234e9e21aa"}
+        respuesta.json.return_value = {
+            "resultado": "OK",
+            "apto": True,
+            "id_consulta": "9b04df54-bde0-4aaa-85e7-99234e9e21aa",
+        }
         post.side_effect = [token, respuesta]
 
-        resultado = SiisAPIClient().validar_compatibilidad("21884116", "m", 59)
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 59, "2005-08-15")
 
         self.assertTrue(resultado["success"])
         self.assertTrue(resultado["compatible"])
         self.assertEqual(
-            post.call_args_list[1].kwargs["json"], {"documento": "21884116", "sexo": "M", "id_segmento": 59}
+            post.call_args_list[1].kwargs["json"],
+            {"dni": "21884116", "id_programa": 59, "fecha_nacimiento": "2005-08-15"},
         )
 
     @patch("programas.services.siis.requests.post")
-    def test_rechazo_funcional_no_se_trata_como_error_tecnico(self, post):
+    def test_sin_fecha_de_nacimiento_no_manda_el_campo(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
-        respuesta = Mock(status_code=400)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {"resultado": "OK", "apto": True}
+        post.return_value = respuesta
+
+        SiisAPIClient().validar_compatibilidad("21884116", 59)
+
+        self.assertEqual(post.call_args.kwargs["json"], {"dni": "21884116", "id_programa": 59})
+
+    @patch("programas.services.siis.requests.post")
+    def test_rechazo_llega_en_http_200_y_no_es_error_tecnico(self, post):
+        """SIIS resuelve el veredicto siempre con 200: el rechazo viaja en ``apto``."""
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
         respuesta.json.return_value = {
             "resultado": "RECHAZADO",
-            "codigo_motivo": "BENEFICIO_EXISTENTE",
-            "motivo": "Ya posee beneficio",
+            "apto": False,
+            "validaciones": {
+                "padron_siis": "REGISTRADO",
+                "empleo_publico": "INCOMPATIBLE_PLANTA",
+                "duplicidad_becas": "SIN_INCOMPATIBILIDAD",
+            },
         }
         post.return_value = respuesta
 
-        resultado = SiisAPIClient().validar_compatibilidad("21884116", "M", 59)
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 59)
 
         self.assertTrue(resultado["success"])
         self.assertFalse(resultado["compatible"])
@@ -55,44 +76,110 @@ class SiisClientTests(SimpleTestCase):
     def test_error_de_contrato_se_informa_como_tecnico(self, post):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=400)
-        respuesta.json.return_value = {"error": "id_segmento invalido"}
+        respuesta.json.return_value = {"error": "VALIDACION_ENTRADA"}
         post.return_value = respuesta
 
-        resultado = SiisAPIClient().validar_compatibilidad("21884116", "M", 999)
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 999)
 
         self.assertFalse(resultado["success"])
-        self.assertEqual(resultado["error"], "id_segmento invalido")
+        self.assertEqual(resultado["error"], "VALIDACION_ENTRADA")
 
     @patch("programas.services.siis.requests.get")
-    def test_lista_programas_normaliza_id_del_contrato_real(self, get):
+    def test_lista_programas_conserva_el_detalle_informativo_del_contrato(self, get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
-        respuesta.json.return_value = {"programas": [{"id": 38, "nombre": "Programa A"}]}
+        respuesta.json.return_value = {
+            "programas": [
+                {
+                    "id": 38,
+                    "nombre": "Programa A",
+                    "descripcion": "Fortalecimiento comunitario",
+                    "jurisdiccion_id": 3,
+                    "estado": "ACTIVO",
+                    "controla_empleo_publico": True,
+                    "controla_horas_docentes": False,
+                    "edad_minima": 18,
+                }
+            ]
+        }
         respuesta.raise_for_status.return_value = None
         get.return_value = respuesta
 
-        self.assertEqual(SiisAPIClient().listar_programas(), [{"id": 38, "nombre": "Programa A"}])
+        programas = SiisAPIClient().listar_programas()
+
+        self.assertEqual(len(programas), 1)
+        self.assertEqual(programas[0]["id"], 38)
+        self.assertEqual(programas[0]["nombre"], "Programa A")
+        self.assertEqual(programas[0]["estado"], "ACTIVO")
+        self.assertEqual(programas[0]["edad_minima"], 18)
+        self.assertTrue(programas[0]["controla_empleo_publico"])
+        self.assertIn("estado=ACTIVO", get.call_args.args[0])
 
     @patch("programas.services.siis.requests.get")
-    def test_lista_segmentos_del_programa(self, get):
+    def test_lista_programas_descarta_inactivos_que_llegan_igual(self, get):
+        """El filtro se le pide a SIIS y se reaplica: un inactivo no llega al select."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
         respuesta = Mock(status_code=200)
-        respuesta.json.return_value = {"data": [{"id_segmento": 7, "nombre": "Segmento A"}]}
+        respuesta.json.return_value = {
+            "programas": [
+                {"id": 38, "nombre": "Vigente", "estado": "ACTIVO"},
+                {"id": 39, "nombre": "Dado de baja", "estado": "INACTIVO"},
+            ]
+        }
         respuesta.raise_for_status.return_value = None
         get.return_value = respuesta
 
-        self.assertEqual(SiisAPIClient().listar_segmentos(38), [{"id": 7, "nombre": "Segmento A"}])
-        self.assertIn("/api/v1/programas/38/segmentos", get.call_args.args[0])
+        self.assertEqual([p["id"] for p in SiisAPIClient().listar_programas()], [38])
 
     @patch("programas.services.siis.requests.get")
-    def test_segmentos_inexistentes_informan_posible_cambio_de_integracion(self, get):
+    def test_programa_sin_estado_se_asume_activo(self, get):
+        """Si ECOM dejara de informar ``estado``, mejor catálogo completo que vacío."""
         cache.set(TOKEN_CACHE_KEY, "abc", 60)
-        respuesta = Mock(status_code=404)
-        respuesta.raise_for_status.side_effect = requests.HTTPError(response=respuesta)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {"programas": [{"id": 38, "nombre": "Sin estado"}]}
+        respuesta.raise_for_status.return_value = None
         get.return_value = respuesta
 
-        with self.assertRaisesMessage(SiisCatalogError, "ECOM haya cambiado la integración"):
-            SiisAPIClient().listar_segmentos(38)
+        programas = SiisAPIClient().listar_programas()
+
+        self.assertEqual([p["id"] for p in programas], [38])
+        self.assertEqual(programas[0]["estado"], "ACTIVO")
+
+    @patch("programas.services.siis.requests.get")
+    def test_catalogo_completo_pide_todos_y_conserva_los_inactivos(self, get):
+        """Detectar una baja necesita ``estado=TODOS``: con ACTIVO el programa desaparece."""
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {
+            "programas": [
+                {"id": 38, "nombre": "Vigente", "estado": "ACTIVO"},
+                {"id": 39, "nombre": "Dado de baja", "estado": "INACTIVO"},
+            ]
+        }
+        respuesta.raise_for_status.return_value = None
+        get.return_value = respuesta
+
+        programas = SiisAPIClient().listar_programas_todos()
+
+        self.assertEqual({p["id"]: p["estado"] for p in programas}, {38: "ACTIVO", 39: "INACTIVO"})
+        self.assertIn("estado=TODOS", get.call_args.args[0])
+
+    def test_motivos_de_rechazo_solo_traduce_las_banderas_incumplidas(self):
+        motivos = motivos_de_rechazo(
+            {
+                "padron_siis": "REGISTRADO",
+                "vigencia_programa": "VIGENTE",
+                "edad_minima": "EDAD_INSUFICIENTE",
+                "empleo_publico": "INCOMPATIBLE_PLANTA",
+                "horas_docentes": "SIN_INCOMPATIBILIDAD",
+            }
+        )
+
+        self.assertEqual([bandera for bandera, _ in motivos], ["edad_minima", "empleo_publico"])
+        self.assertIn("edad mínima", motivos[0][1])
+
+    def test_motivos_de_rechazo_tolera_una_respuesta_sin_validaciones(self):
+        self.assertEqual(motivos_de_rechazo(None), [])
 
     @patch("programas.services.siis.requests.get", side_effect=requests.Timeout)
     def test_timeout_del_catalogo_muestra_un_mensaje_util(self, _get):

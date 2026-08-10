@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from programas.forms import AsignacionCoordinadorForm
+from programas.forms import AsignacionCoordinadorForm, SubsegmentoForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
@@ -149,27 +149,31 @@ class SubsegmentoCupoTests(_BaseConfigTest):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.admin)
-        self.segmentos_siis = patch(
-            "programas.forms.listar_segmentos",
-            return_value=[{"id": 7, "nombre": "Ladrillo"}, {"id": 8, "nombre": "Carbón"}],
-        )
-        self.segmentos_siis.start()
-        self.addCleanup(self.segmentos_siis.stop)
         self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200, siis_programa_id=38)
 
     def test_crear_subsegmento_ok(self):
+        """El nombre lo escribe el operador: el subsegmento no consulta a SIIS."""
         resp = self.client.post(
             reverse("becas:subsegmento_crear", args=[self.seg.pk]),
-            {"siis_segmento_id": 7, "nombre": "Ladrillo", "cupo_maximo": 120},
+            {"nombre": "Ladrillo", "cupo_maximo": 120},
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Subsegmento.objects.filter(segmento=self.seg, nombre="Ladrillo").exists())
+
+    def test_no_permite_dos_subsegmentos_con_el_mismo_nombre(self):
+        """Se valida sobre el form (no vía HTTP) para no depender del render."""
+        Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=50)
+
+        form = SubsegmentoForm({"nombre": "ladrillo", "cupo_maximo": 50}, segmento=self.seg)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("nombre", form.errors)
 
     def test_subsegmento_excede_cupo_rn40(self):
         Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=120)
         resp = self.client.post(
             reverse("becas:subsegmento_crear", args=[self.seg.pk]),
-            {"siis_segmento_id": 8, "nombre": "Carbón", "cupo_maximo": 100},  # 120 + 100 > 200
+            {"nombre": "Carbón", "cupo_maximo": 100},  # 120 + 100 > 200
         )
         self.assertEqual(resp.status_code, 200)  # re-render con error
         self.assertFalse(Subsegmento.objects.filter(nombre="Carbón").exists())

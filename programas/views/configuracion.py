@@ -81,12 +81,24 @@ def _segmentos_qs(user):
     )
 
 
+def _segmentos_bloqueados_siis(user):
+    """Segmentos cuyo programa dejó de estar vigente en SIIS (aviso en pantalla)."""
+    return (
+        segmentos_visibles(user)
+        .filter(siis_programa_estado__in=Segmento.ESTADOS_SIIS_BLOQUEANTES)
+        .order_by("nombre")
+    )
+
+
 def _segmentos_ajax(request, message="Segmento guardado."):
     return ajax_ok(
         request,
         target="#segmentos-table",
         partial="programas/becas/config/_segmentos_table.html",
-        context={"segmentos": _segmentos_qs(request.user)},
+        context={
+            "segmentos": _segmentos_qs(request.user),
+            "segmentos_bloqueados_siis": _segmentos_bloqueados_siis(request.user),
+        },
         message=message,
     )
 
@@ -154,6 +166,7 @@ class SegmentoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_segmento"] = SegmentoCreateForm()
+        ctx["segmentos_bloqueados_siis"] = _segmentos_bloqueados_siis(self.request.user)
         return ctx
 
 
@@ -274,7 +287,7 @@ def subsegmento_crear(request, segmento_pk):
                 with transaction.atomic():
                     form.save()
             except IntegrityError:
-                form.add_error("siis_segmento_id", "Ese segmento SIIS ya fue agregado a este segmento local.")
+                form.add_error("nombre", "Ya existe un subsegmento con ese nombre en este segmento.")
                 if is_ajax(request):
                     return ajax_errors(form)
                 return render(
@@ -319,7 +332,7 @@ def subsegmento_editar(request, pk):
                 with transaction.atomic():
                     form.save()
             except IntegrityError:
-                form.add_error("siis_segmento_id", "Ese segmento SIIS ya fue agregado a este segmento local.")
+                form.add_error("nombre", "Ya existe un subsegmento con ese nombre en este segmento.")
                 if is_ajax(request):
                     return ajax_errors(form)
                 return render(
