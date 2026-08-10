@@ -130,3 +130,54 @@ class UsuariosAdminServiceTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("dni", form.errors)
+
+    def _form_edicion(self, user, dni):
+        return CustomUserChangeForm(
+            data={
+                "username": user.username,
+                "email": user.email or "x@example.com",
+                "password": "",
+                "last_name": "X",
+                "first_name": "X",
+                "dni": dni,
+            },
+            instance=user,
+        )
+
+    def test_dni_no_puede_repetirse_al_editar(self):
+        """La edición corre la misma validación que el alta (antes sin cobertura)."""
+        ajeno = User.objects.create_user("ajeno", password="x")
+        Profile.objects.update_or_create(user=ajeno, defaults={"dni": "30111222"})
+        editado = User.objects.create_user("editado", email="editado@example.com", password="x")
+        Profile.objects.update_or_create(user=editado, defaults={"dni": "28999888"})
+
+        form = self._form_edicion(editado, "30111222")
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("dni", form.errors)
+
+    def test_editar_conservando_el_propio_dni_no_es_duplicado(self):
+        """El chequeo se excluye a sí mismo: guardar sin tocar el DNI no debe fallar."""
+        editado = User.objects.create_user("editado", email="editado@example.com", password="x")
+        Profile.objects.update_or_create(user=editado, defaults={"dni": "28999888"})
+
+        form = self._form_edicion(editado, "28999888")
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_varios_usuarios_sin_dni_conviven(self):
+        """El vacío se guarda como NULL, no como cadena: el unique no los choca."""
+        for n in range(3):
+            form = UserCreationForm(
+                data={
+                    "username": f"sin-dni-{n}",
+                    "email": f"sin-dni-{n}@example.com",
+                    "password": "clave-segura-123",
+                    "last_name": "Sin",
+                    "first_name": "DNI",
+                    "dni": "",
+                }
+            )
+            self.assertTrue(form.is_valid(), form.errors)
+            usuario = UsuariosAdminService.create_user_from_form(form)
+            self.assertIsNone(usuario.profile.dni)

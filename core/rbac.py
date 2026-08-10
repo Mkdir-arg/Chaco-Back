@@ -48,8 +48,6 @@ CATALOGO = [
         "tab": "backoffice",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
-            ("programa.ver", "Ver programas"),
-            ("programa.operar", "Operar programas"),
             ("programa.configurar", "Configurar programas"),
         ],
     },

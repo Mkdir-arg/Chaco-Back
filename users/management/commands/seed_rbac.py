@@ -89,7 +89,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_LABEL("\nRol Operador de backoffice..."))
         caps_operador = [
             "ciudadano.ver",
-            "programa.ver",
             "reporte.ver",
             "config.administrar",
             "usuario.administrar",
