@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from programas.forms import AsignacionCoordinadorForm
+from programas.forms import AsignacionCoordinadorForm, SubsegmentoForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
@@ -161,15 +161,13 @@ class SubsegmentoCupoTests(_BaseConfigTest):
         self.assertTrue(Subsegmento.objects.filter(segmento=self.seg, nombre="Ladrillo").exists())
 
     def test_no_permite_dos_subsegmentos_con_el_mismo_nombre(self):
+        """Se valida sobre el form (no vía HTTP) para no depender del render."""
         Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=50)
 
-        resp = self.client.post(
-            reverse("becas:subsegmento_crear", args=[self.seg.pk]),
-            {"nombre": "ladrillo", "cupo_maximo": 50},
-        )
+        form = SubsegmentoForm({"nombre": "ladrillo", "cupo_maximo": 50}, segmento=self.seg)
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Subsegmento.objects.filter(segmento=self.seg).count(), 1)
+        self.assertFalse(form.is_valid())
+        self.assertIn("nombre", form.errors)
 
     def test_subsegmento_excede_cupo_rn40(self):
         Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=120)
