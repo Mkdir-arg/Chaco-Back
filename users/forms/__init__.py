@@ -112,10 +112,48 @@ def _roles_asignables_queryset(operador=None):
 
 
 _SIN_CATEGORIA = "Sin categoría"
+_SIN_PROGRAMA = "Sin programa"
 
 
-class RolesPorCategoriaMixin:
-    """Expone los roles asignables agrupados por categoría para el panel del ABM.
+def _ambito_de(meta):
+    """Solapa a la que pertenece un rol.
+
+    Un rol de categoría ``Programa`` pertenece al ámbito de **su programa**; el
+    resto, al de su categoría. Así "Becas" es una sola solapa: fusiona los roles
+    del programa Becas con los de la categoría homónima (que existe por historia)
+    y no queda un "Becas" adentro de otro "Programa".
+    """
+    categoria = getattr(meta, "categoria", "") or _SIN_CATEGORIA
+    if categoria != rbac.CATEGORIA_PROGRAMA:
+        return categoria
+    return getattr(getattr(meta, "programa", None), "nombre", "") or _SIN_PROGRAMA
+
+
+def _orden_de_ambitos(ambitos):
+    """Categorías canónicas primero, después los programas alfabéticos, y los huérfanos al final."""
+    canonicas = [c for c in rbac.CATEGORIAS_ROL if c != rbac.CATEGORIA_PROGRAMA]
+    colas = (_SIN_CATEGORIA, _SIN_PROGRAMA)
+    orden = [a for a in canonicas if a in ambitos]
+    orden += sorted(a for a in ambitos if a not in canonicas and a not in colas)
+    orden += [a for a in colas if a in ambitos]
+    return orden
+
+
+def _ids_unicos(labels):
+    """``{label: id}`` con el slug del label, desambiguando choques (ej. "Ñachec"/"Nachec")."""
+    ids, usados = {}, set()
+    for label in labels:
+        base = slugify(label) or "otros"
+        candidato, n = base, 2
+        while candidato in usados:
+            candidato, n = f"{base}-{n}", n + 1
+        usados.add(candidato)
+        ids[label] = candidato
+    return ids
+
+
+class RolesPorAmbitoMixin:
+    """Expone los roles asignables agrupados por ámbito para el panel del ABM.
 
     El campo sigue siendo ``groups`` (``ModelMultipleChoiceField``): el panel
     renderiza checkboxes ``name="groups"`` y la validación no cambia. El árbol se
@@ -130,23 +168,24 @@ class RolesPorCategoriaMixin:
             valor = [valor]
         return {str(getattr(v, "pk", v)) for v in valor}
 
-    def roles_por_categoria(self):
-        """``[{"id", "label", "total", "grupos": [{"label", "roles"}]}]``.
+    def roles_por_ambito(self):
+        """``[{"id", "label", "total", "roles": [...]}]``, una solapa por ámbito.
 
-        Las categorías se ordenan según :data:`core.rbac.CATEGORIAS_ROL` y solo
-        se incluyen las que tienen roles asignables. Dentro de ``Programa`` los
-        roles se subagrupan por programa (una tarjeta por programa).
+        Un ámbito es una categoría de rol (Backoffice, Sistema, …) o un **programa**
+        (Becas, Dispositivos, …). Los roles de categoría ``Programa`` se listan en la
+        solapa de su programa, no en una solapa "Programa" con tarjetas adentro: así
+        cada solapa es un nivel único y "Becas" no aparece dos veces (ver
+        :func:`_ambito_de`). Cada solapa trae su lista plana de roles ordenada por
+        nombre.
         """
         seleccionados = self._roles_seleccionados_ids()
         territoriales = set(getattr(self, "grupos_territoriales_ids", []))
         roles = self.fields["groups"].queryset.select_related("meta", "meta__programa")
 
-        por_categoria = {}
+        por_ambito = {}
         for grupo in sorted(roles, key=lambda g: g.name.lower()):
             meta = getattr(grupo, "meta", None)
-            categoria = getattr(meta, "categoria", "") or _SIN_CATEGORIA
-            programa = getattr(meta, "programa", None)
-            por_categoria.setdefault(categoria, []).append(
+            por_ambito.setdefault(_ambito_de(meta), []).append(
                 {
                     "id": str(grupo.pk),
                     "input_id": f"rol-{grupo.pk}",
@@ -155,35 +194,23 @@ class RolesPorCategoriaMixin:
                     "checked": str(grupo.pk) in seleccionados,
                     "inactivo": meta is not None and not meta.activo,
                     "territorial": str(grupo.pk) in territoriales,
-                    "programa": getattr(programa, "nombre", "") or "",
                 }
             )
 
-        orden = [c for c in rbac.CATEGORIAS_ROL if c in por_categoria]
-        orden += [c for c in por_categoria if c not in orden]
+        orden = _orden_de_ambitos(por_ambito)
+        ids = _ids_unicos(orden)
         return [
             {
-                "id": slugify(categoria) or "otros",
-                "label": categoria,
-                "total": len(por_categoria[categoria]),
-                "grupos": _subgrupos_de_categoria(categoria, por_categoria[categoria]),
+                "id": ids[ambito],
+                "label": ambito,
+                "total": len(por_ambito[ambito]),
+                "roles": por_ambito[ambito],
             }
-            for categoria in orden
+            for ambito in orden
         ]
 
 
-def _subgrupos_de_categoria(categoria, roles):
-    """Tarjetas dentro de una categoría: por programa en ``Programa``, una sola en el resto."""
-    if categoria != rbac.CATEGORIA_PROGRAMA:
-        return [{"label": "", "roles": roles}]
-
-    por_programa = {}
-    for rol in roles:
-        por_programa.setdefault(rol["programa"] or "Sin programa", []).append(rol)
-    return [{"label": nombre, "roles": por_programa[nombre]} for nombre in sorted(por_programa)]
-
-
-class UserCreationForm(RolesPorCategoriaMixin, forms.ModelForm):
+class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
@@ -254,7 +281,7 @@ class UserCreationForm(RolesPorCategoriaMixin, forms.ModelForm):
         return _validar_segmento_territorial(self)
 
 
-class CustomUserChangeForm(RolesPorCategoriaMixin, forms.ModelForm):
+class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
