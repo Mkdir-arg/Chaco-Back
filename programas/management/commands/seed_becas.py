@@ -31,7 +31,6 @@ PROGRAMA_BECAS_CODIGO = "BECAS"
 ROL_ADMIN = "Becas — Administrador"
 ROL_COORDINADOR = "Becas — Coordinador"
 ROL_REFERENTE = "Becas — Referente"
-ROL_COORDINADOR_REGIONAL = "Becas — Coordinador regional"
 ROL_TERRITORIAL = "Becas — Territorial"
 
 
@@ -78,23 +77,6 @@ ROLES_BECAS = {
             "becas.relevamiento.ver",
             "becas.revision.ver",
             "becas.cupo.ver",
-        ],
-    },
-    ROL_COORDINADOR_REGIONAL: {
-        "descripcion": "Gestiona convocatorias, relevamientos y Territoriales solamente dentro de su región.",
-        "capacidades": [
-            "becas.coordinador.regional",
-            "becas.usuario.territorial",
-            "becas.segmento.ver",
-            "becas.subsegmento.ver",
-            "becas.convocatoria.ver",
-            "becas.convocatoria.crear",
-            "becas.convocatoria.editar",
-            "becas.relevamiento.ver",
-            "becas.relevamiento.crear",
-            "becas.relevamiento.editar",
-            "becas.revision.ver",
-            "becas.campo",
         ],
     },
     ROL_TERRITORIAL: {

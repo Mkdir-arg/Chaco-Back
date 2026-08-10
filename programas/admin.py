@@ -4,7 +4,6 @@ from django.utils.html import format_html
 
 from .models import (
     AsignacionCoordinador,
-    AsignacionCoordinadorRegional,
     AsignacionDispositivo,
     AsignacionReferente,
     AsignacionTerritorial,
@@ -16,13 +15,11 @@ from .models import (
     ListaEspera,
     PreguntaGlobal,
     Programa,
-    Region,
     Relevamiento,
     RequisitoNativo,
     Segmento,
     Subsegmento,
     TracaFormulario,
-    TransferenciaRegional,
 )
 
 
@@ -253,51 +250,10 @@ class AsignacionCoordinadorAdmin(admin.ModelAdmin):
     search_fields = ("coordinador__username", "segmento__nombre")
 
 
-@admin.register(Region)
-class RegionAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "activo", "creado")
-    list_filter = ("activo",)
-    filter_horizontal = ("localidades",)
-    search_fields = ("nombre", "localidades__nombre")
-
-
 @admin.register(AsignacionReferente)
 class AsignacionReferenteAdmin(admin.ModelAdmin):
     list_display = ("referente", "coordinador", "fecha_asignacion")
     search_fields = ("referente__username", "coordinador__username")
-
-
-@admin.register(AsignacionCoordinadorRegional)
-class AsignacionCoordinadorRegionalAdmin(admin.ModelAdmin):
-    list_display = ("coordinador", "region", "fecha_asignacion")
-    list_filter = ("region",)
-    search_fields = ("coordinador__username", "region__nombre")
-
-
-@admin.register(TransferenciaRegional)
-class TransferenciaRegionalAdmin(admin.ModelAdmin):
-    list_display = ("region", "coordinador_origen", "coordinador_destino", "ejecutado_por", "creado")
-    list_filter = ("region", "creado")
-    search_fields = ("region__nombre", "coordinador_origen__username", "coordinador_destino__username")
-    readonly_fields = (
-        "region",
-        "coordinador_origen",
-        "coordinador_destino",
-        "ejecutado_por",
-        "convocatorias_transferidas",
-        "territoriales_transferidos",
-        "creado",
-        "modificado",
-    )
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(AsignacionDispositivo)
@@ -309,7 +265,7 @@ class AsignacionDispositivoAdmin(admin.ModelAdmin):
 
 @admin.register(AsignacionTerritorial)
 class AsignacionTerritorialAdmin(admin.ModelAdmin):
-    list_display = ("territorial", "segmento", "coordinador_regional", "fecha_asignacion")
+    list_display = ("territorial", "segmento", "fecha_asignacion")
     list_filter = ("segmento",)
     search_fields = ("territorial__username", "segmento__nombre")
 

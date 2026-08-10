@@ -515,7 +515,9 @@ El documento lo describe como “mano derecha del coordinador del programa”.
 
 # Cambio 18 — Coordinador regional
 
-🟢 **HECHO**
+⚫ **RETIRADO POR DECISIÓN FUNCIONAL — 10/08/2026**
+
+> El pedido original se conserva debajo como trazabilidad del DOCX, pero ya no forma parte del alcance implementado. Se eliminaron el rol Coordinador regional, la entidad Región, la pantalla de configuración, las asignaciones, transferencias y filtros regionales. Permanecen sin cambios Administrador, Coordinador del segmento, Referente y Territorial.
 
 ## 18.1 Sólo ve datos de la convocatoria que creó
 
@@ -576,7 +578,7 @@ El documento lo describe como “mano derecha del coordinador del programa”.
 - Incorporar una relación explícita entre Coordinador regional y Territorial.
 - Aplicar el filtro a relevamientos, personas, formularios, avances y reportes.
 
-## Definición aplicada
+## Definición aplicada originalmente (posteriormente retirada)
 
 - Es un rol nuevo.
 - Una Región agrupa una o más localidades/subsegmentos.
@@ -616,7 +618,7 @@ El documento lo describe como “mano derecha del coordinador del programa”.
 15. ¿Qué información puede consultar de ellos: usuarios, relevamientos, formularios, avances, beneficiarios, cupos y reportes?
 16. ¿Puede editar, desactivar y reasignar Territoriales o solamente crearlos y consultarlos?
 
-**Implementación:** Se agregaron Región, asignación de Coordinador regional, creador y responsable de convocatoria, responsable regional del Territorial, pantalla de configuración/transferencia y filtros de servidor.
+**Estado final:** implementación retirada. El Punto 18 queda documentado únicamente como pedido original no vigente.
 
 ---
 

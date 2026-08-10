@@ -21,7 +21,6 @@ from programas.models import (
     Formulario,
     PreguntaGlobal,
     PrestacionDiaria,
-    Region,
     RegistroDiario,
     Relevamiento,
     RequisitoNativo,
@@ -99,24 +98,6 @@ class SegmentoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ese programa SIIS ya está asociado a otro segmento.")
         return programa_id
-
-
-class RegionForm(forms.ModelForm):
-    class Meta:
-        model = Region
-        fields = ["nombre", "localidades", "activo"]
-        widgets = {
-            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "localidades": forms.SelectMultiple(attrs={"class": INPUT_CLASS, "size": 10}),
-            "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["localidades"].queryset = Subsegmento.objects.select_related("segmento").order_by(
-            "segmento__nombre", "nombre"
-        )
-        self.fields["localidades"].help_text = "Seleccioná una o más localidades/subsegmentos."
 
 
 class SegmentoCreateForm(forms.ModelForm):
@@ -1001,7 +982,7 @@ class RelevamientoForm(forms.ModelForm):
     ):
         super().__init__(*args, **kwargs)
         self.operador = operador
-        from programas.services.autorizacion import es_coordinador_regional_becas, usuarios_territoriales_becas
+        from programas.services.autorizacion import usuarios_territoriales_becas
 
         terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial")
         conv_qs = (
@@ -1020,8 +1001,6 @@ class RelevamientoForm(forms.ModelForm):
         if territoriales_permitidos is not None:
             terr_qs = terr_qs.filter(pk__in=territoriales_permitidos)
 
-        if es_coordinador_regional_becas(operador):
-            terr_qs = (terr_qs | User.objects.filter(pk=operador.pk)).distinct()
         # ModelChoiceIteratorValue expone la instancia de cada opción; así el
         # widget agrega data-segmento sin evaluar ambos querysets por duplicado.
         self.fields["convocatoria"].widget = _SelectConSegmento(attrs={"class": INPUT_CLASS})
@@ -1040,8 +1019,6 @@ class RelevamientoForm(forms.ModelForm):
         self.fields["cupo_maximo"].required = False
 
     def clean(self):
-        from programas.services.autorizacion import es_coordinador_regional_becas
-
         cleaned = super().clean()
         convocatoria = cleaned.get("convocatoria")
         territorial = cleaned.get("territorial")
@@ -1050,10 +1027,7 @@ class RelevamientoForm(forms.ModelForm):
                 asignacion = territorial.asignacion_territorial
             except ObjectDoesNotExist:
                 asignacion = None
-            es_carga_regional_propia = territorial == self.operador and es_coordinador_regional_becas(self.operador)
-            if not es_carga_regional_propia and (
-                asignacion is None or asignacion.segmento_id != convocatoria.segmento_id
-            ):
+            if asignacion is None or asignacion.segmento_id != convocatoria.segmento_id:
                 self.add_error("territorial", "El territorial no pertenece al segmento de la convocatoria.")
         fecha_desde = cleaned.get("fecha_asignada")
         fecha_hasta = cleaned.get("fecha_hasta") or fecha_desde

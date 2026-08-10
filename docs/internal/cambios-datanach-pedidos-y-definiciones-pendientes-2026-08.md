@@ -20,7 +20,7 @@
 | **Punto 1 — Revisar “Recordarme” porque no funciona** | Hacer que el Backoffice recuerde la sesión cuando el usuario marque la opción. | **Resuelto:** se definió una duración de 24 horas. Sin marcarlo, la sesión termina al cerrar el navegador. |
 | **Punto 2 — Quitar usuarios y datos de prueba** | Limpiar la información utilizada durante las pruebas. | **Fuera del listado de definiciones pendientes por decisión actual.** Se conserva únicamente la trazabilidad del pedido original. |
 | **Punto 3 — Reemplazar “Becas” por “Programas”** | Cambiar la denominación visible del módulo. | **Resuelto:** se acordó cambiar solamente el texto del menú lateral. No implica cambiar rutas, permisos, API ni APK. |
-| **Punto 4 — Revisar los tipos de usuarios de esta etapa** | Adecuar los perfiles a Administrador/Coordinador general, Coordinador del segmento, Referente, Coordinador regional y Territorial. | **Resuelto:** los cinco perfiles y su jerarquía quedaron definidos; Coordinador general y Administrador son el mismo rol. |
+| **Punto 4 — Revisar los tipos de usuarios de esta etapa** | Adecuar los perfiles a Administrador/Coordinador general, Coordinador del segmento, Referente, Coordinador regional y Territorial. | **Definición actualizada:** quedan Administrador, Coordinador del segmento, Referente y Territorial. Se decidió retirar el Coordinador regional. Coordinador general y Administrador son el mismo rol. |
 | **Punto 5 — Agregar datos al crear usuarios** | Incorporar DNI, teléfono, institución y observación. | Confirmar cuáles deben ser obligatorios y si los usuarios existentes deben completarlos. Actualmente son opcionales. |
 | **Punto 6 — Poner Usuarios y Roles dentro de Programas** | Ubicar la gestión de usuarios y roles dentro del sector Programas. | **Resuelto:** se incorporó el alta contextual de usuarios mediante modales, con selección/asignación directa y roles limitados por permisos. No se duplicaron los ABM por programa. |
 | **Punto 7 — Quitar la categoría “Becas” y dejar “Programa”** | Utilizar Programa como categoría de los roles. | **Sin definiciones pendientes.** La categoría Becas fue retirada del selector. |
@@ -34,7 +34,7 @@
 | **Punto 15 — Administrador del programa** | Permitir crear usuarios y roles y pausar cualquier sector, segmento, subsegmento y relevamiento. El DOCX agrega “Creo que ya lo hace, pero chequeo”. | **Sin definiciones pendientes para lo implementado.** Se interpretó “sector” como convocatoria y se agregó auditoría. |
 | **Punto 16 — Coordinador del segmento** | Permitir crear Territoriales, impedir crear roles o pausar y limitar la consulta a sus segmentos. | **Sin definiciones pendientes para lo implementado.** |
 | **Punto 17 — Referente** | Crear un perfil que ayude al Coordinador, cree usuarios sin crear roles, no pause y consulte solamente información bajo su responsabilidad. | **Resuelto:** depende de un Coordinador del segmento y administra Territoriales dentro del alcance heredado. |
-| **Punto 18 — Coordinador regional** | Gestionar convocatorias, localidades y Territoriales de una región; crear solamente Territoriales y consultar sus datos. | **Resuelto:** es un rol nuevo y la Región agrupa localidades/subsegmentos; se controla propiedad, responsabilidad y transferencia. |
+| **Punto 18 — Coordinador regional** | Gestionar convocatorias, localidades y Territoriales de una región; crear solamente Territoriales y consultar sus datos. | **Retirado por decisión funcional del 10/08/2026:** no se conservarán el rol Coordinador regional ni el módulo Regiones. |
 | **Punto 19 — Territorial** | Restringirlo a la APK y a la localidad/subsegmento seleccionado por el Coordinador, y especificar el cupo de cada relevador. El DOCX aclara sobre el cupo: “Creo que está”. | El acceso, la localidad y el cupo por relevamiento están resueltos. El cupo cuenta toda persona, bloquea nuevas cargas al completarse, incluye pendientes offline, puede aumentarse y no puede reducirse por debajo de lo utilizado. **Se confirmó el control GPS**; falta completar únicamente la validación geográfica en servidor. |
 
 ## Punto 17 del DOCX — Referente
@@ -59,6 +59,8 @@
 10. Si un Territorial cambia de segmento o Coordinador, ¿deja de estar visible para el Referente anterior?
 
 ## Punto 18 del DOCX — Coordinador regional
+
+> **Decisión posterior (10/08/2026):** este punto quedó fuera del alcance. Se retiraron el rol, la entidad Región, su pantalla, asignaciones, transferencias y filtros asociados.
 
 ### Pedido original relacionado
 
