@@ -16,7 +16,6 @@
        subEditNombre: '',
        subEditDesc: '',
        subEditCupo: '',
-       subEditSiisId: '',
        editReqUrl: '',
        editReqTexto: '',
        editReqTipo: '',
@@ -32,12 +31,11 @@
          this.editReqOpciones = (opciones || []).join('\n');
          this.modalReqEdit = true;
        },
-       openSubEdit(url, nombre, desc, cupo, siisId) {
+       openSubEdit(url, nombre, desc, cupo) {
          this.subEditUrl = url;
          this.subEditNombre = nombre;
          this.subEditDesc = desc;
          this.subEditCupo = cupo;
-         this.subEditSiisId = siisId;
          this.modalSubEdit = true;
        }
      }"
@@ -337,14 +335,11 @@
 
           <div>
             <label class="block text-[13px] font-semibold text-heading mb-1.5">
-              Segmento SIIS<span class="text-fg-danger" style="margin-left:3px">*</span>
+              Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
-            {{ form_subsegmento.siis_segmento_id }}
-            {% if form_subsegmento.siis_segmento_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_subsegmento.siis_segmento_id.help_text }}</p>{% endif %}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_segmento_id"></p>
+            {{ form_subsegmento.nombre }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
           </div>
-
-          <p class="text-xs text-body-subtle">El subsegmento local tomará el nombre y el ID del segmento seleccionado en SIIS.</p>
 
           {% comment %}Descripción{% endcomment %}
           <div>
@@ -427,7 +422,6 @@
       <form method="post" :action="subEditUrl" data-ajax data-reset="false">
         {% csrf_token %}
         <input type="hidden" name="origin" value="panel">
-        <input type="hidden" name="siis_segmento_id" :value="subEditSiisId">
 
         {% comment %}BODY{% endcomment %}
         <div class="p-6 space-y-5">
@@ -437,7 +431,7 @@
             <label class="block text-[13px] font-semibold text-heading mb-1.5">
               Nombre<span class="text-fg-danger" style="margin-left:3px">*</span>
             </label>
-            <input type="text" name="nombre" readonly class="nodo-field" x-model="subEditNombre">
+            <input type="text" name="nombre" required class="nodo-field" x-model="subEditNombre">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
           </div>
 

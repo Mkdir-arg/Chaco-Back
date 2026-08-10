@@ -274,7 +274,7 @@ def subsegmento_crear(request, segmento_pk):
                 with transaction.atomic():
                     form.save()
             except IntegrityError:
-                form.add_error("siis_segmento_id", "Ese segmento SIIS ya fue agregado a este segmento local.")
+                form.add_error("nombre", "Ya existe un subsegmento con ese nombre en este segmento.")
                 if is_ajax(request):
                     return ajax_errors(form)
                 return render(
@@ -319,7 +319,7 @@ def subsegmento_editar(request, pk):
                 with transaction.atomic():
                     form.save()
             except IntegrityError:
-                form.add_error("siis_segmento_id", "Ese segmento SIIS ya fue agregado a este segmento local.")
+                form.add_error("nombre", "Ya existe un subsegmento con ese nombre en este segmento.")
                 if is_ajax(request):
                     return ajax_errors(form)
                 return render(

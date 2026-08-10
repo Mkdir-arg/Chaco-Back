@@ -32,7 +32,7 @@ from programas.models import (
 )
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
-from programas.services.siis import SiisCatalogError, listar_programas, listar_segmentos
+from programas.services.siis import SiisCatalogError, listar_programas
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
@@ -177,7 +177,7 @@ class SubsegmentoForm(forms.ModelForm):
 
     class Meta:
         model = Subsegmento
-        fields = ["siis_segmento_id", "nombre", "descripcion", "cupo_maximo"]
+        fields = ["nombre", "descripcion", "cupo_maximo"]
         widgets = {
             "nombre": forms.TextInput(
                 attrs={
@@ -197,50 +197,20 @@ class SubsegmentoForm(forms.ModelForm):
 
     def __init__(self, *args, segmento=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["nombre"].required = False
-        self.fields["nombre"].widget.attrs["readonly"] = True
-        self.fields["siis_segmento_id"] = forms.ChoiceField(
-            label="Segmento SIIS",
-            choices=(),
-            error_messages={"invalid_choice": "Ese segmento SIIS ya fue agregado o ya no está disponible."},
-            widget=forms.Select(attrs={"class": INPUT_CLASS}),
-        )
+        # El subsegmento es local: su nombre lo escribe el operador. Antes se
+        # copiaba del catálogo de segmentos de SIIS, que ECOM dejó de exponer.
         self.fields["descripcion"].required = False
         if segmento is not None:
             self.instance.segmento = segmento
-        programa_id = segmento.siis_programa_id if segmento is not None else None
-        if programa_id:
-            items, error = _cargar_catalogo(lambda: listar_segmentos(programa_id))
-        else:
-            items, error = [], "Primero asociá el segmento local con un programa SIIS."
-        if segmento is not None:
-            usados = set(segmento.subsegmentos.exclude(pk=self.instance.pk).values_list("siis_segmento_id", flat=True))
-            items = [item for item in items if item["id"] not in usados]
-        self.fields["siis_segmento_id"].choices = _catalogo_choices(items, "Seleccioná un segmento…")
-        actual = self.instance.siis_segmento_id if self.instance.pk else None
-        if actual and str(actual) not in {value for value, _ in self.fields["siis_segmento_id"].choices}:
-            self.fields["siis_segmento_id"].choices += [(str(actual), f"Segmento SIIS #{actual}")]
-        if error:
-            self.fields["siis_segmento_id"].help_text = error
 
-    def clean_siis_segmento_id(self):
-        segmento_siis_id = int(self.cleaned_data["siis_segmento_id"])
-        duplicado = Subsegmento.objects.filter(segmento_id=self.instance.segmento_id, siis_segmento_id=segmento_siis_id)
+    def clean_nombre(self):
+        nombre = (self.cleaned_data.get("nombre") or "").strip()
+        duplicado = Subsegmento.objects.filter(segmento_id=self.instance.segmento_id, nombre__iexact=nombre)
         if self.instance.pk:
             duplicado = duplicado.exclude(pk=self.instance.pk)
         if duplicado.exists():
-            raise forms.ValidationError("Ese segmento SIIS ya fue agregado a este segmento local.")
-        return segmento_siis_id
-
-    def clean(self):
-        cleaned = super().clean()
-        segmento_id = cleaned.get("siis_segmento_id")
-        if segmento_id:
-            nombres = dict(self.fields["siis_segmento_id"].choices)
-            nombre = nombres.get(str(segmento_id))
-            if nombre and not nombre.startswith("Segmento SIIS #"):
-                cleaned["nombre"] = nombre
-        return cleaned
+            raise forms.ValidationError("Ya existe un subsegmento con ese nombre en este segmento.")
+        return nombre
 
 
 class _OpcionesMixin(forms.ModelForm):

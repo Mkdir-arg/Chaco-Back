@@ -11,6 +11,18 @@ TOKEN_CACHE_KEY = "siis_api:access_token"  # nosec B105
 PROGRAMAS_CACHE_KEY = "siis_api:programas:activos"
 CATALOGO_CACHE_SECONDS = 300
 
+# Valores del mapa ``validaciones`` que implican rechazo, con su texto para el
+# operador. El resto de los valores del contrato son informativos o "sin
+# incompatibilidad", así que no necesitan entrada acá.
+MOTIVOS_RECHAZO = {
+    "PROGRAMA_INACTIVO": "El programa no está vigente en SIIS.",
+    "EDAD_INSUFICIENTE": "No alcanza la edad mínima exigida por el programa.",
+    "INCOMPATIBLE_PLANTA": "Registra empleo público activo en la administración provincial.",
+    "INCOMPATIBLE_EXCEDE_HORAS": "Supera el tope de horas cátedra docentes toleradas.",
+    "BENEFICIO_ACTIVO_EXISTENTE": "Ya registra una beca o programa activo incompatible.",
+    "SUSPENDIDO_TEMPORAL": "Registra una suspensión vigente en otro beneficio.",
+}
+
 
 class SiisCatalogError(Exception):
     """Error seguro para mostrar al usuario al cargar catálogos de SIIS."""
@@ -134,23 +146,16 @@ class SiisAPIClient:
         cache.set(PROGRAMAS_CACHE_KEY, programas, CATALOGO_CACHE_SECONDS)
         return programas
 
-    def listar_segmentos(self, id_programa):
-        id_programa = int(id_programa)
-        key = f"siis_api:programa:{id_programa}:segmentos"
-        cached = cache.get(key)
-        if cached is not None:
-            return cached
-        body = self._cargar_catalogo(
-            f"/api/v1/programas/{id_programa}/segmentos",
-            "SIIS no encontró los segmentos del programa seleccionado. "
-            "Es posible que ECOM haya cambiado la integración o que el programa no tenga segmentos cargados.",
-        )
-        segmentos = self._normalizar_catalogo(self._items(body, "segmentos", "results"), ("id", "id_segmento"))
-        cache.set(key, segmentos, CATALOGO_CACHE_SECONDS)
-        return segmentos
+    def validar_compatibilidad(self, dni, id_programa, fecha_nacimiento=None):
+        """Prevalida elegibilidad de una persona contra un programa del SIIS.
 
-    def validar_compatibilidad(self, documento, sexo, id_segmento):
-        payload = {"documento": str(documento), "sexo": str(sexo).upper(), "id_segmento": int(id_segmento)}
+        SIIS resuelve el veredicto **siempre con HTTP 200**: ``resultado`` viene
+        en ``OK``/``RECHAZADO`` y ``apto`` lo acompaña. Un 4xx es un error de
+        integración (payload inválido, credenciales), no un rechazo de negocio.
+        """
+        payload = {"dni": str(dni), "id_programa": int(id_programa)}
+        if fecha_nacimiento:
+            payload["fecha_nacimiento"] = str(fecha_nacimiento)
         try:
             response = requests.post(
                 f"{self.base_url}/api/v1/validaciones/compatibilidad",
@@ -164,10 +169,8 @@ class SiisAPIClient:
                 body = {}
             if response.status_code == 401:
                 cache.delete(TOKEN_CACHE_KEY)
-            if response.status_code == 200 and body.get("resultado") == "OK":
-                return {"success": True, "compatible": True, "data": body}
-            if response.status_code == 400 and body.get("resultado") == "RECHAZADO":
-                return {"success": True, "compatible": False, "data": body}
+            if response.status_code == 200 and body.get("resultado") in ("OK", "RECHAZADO"):
+                return {"success": True, "compatible": bool(body.get("apto")), "data": body}
             if response.status_code >= 400:
                 return {
                     "success": False,
@@ -175,18 +178,26 @@ class SiisAPIClient:
                     "data": body,
                 }
             return {"success": False, "error": "SIIS devolvió una respuesta no reconocida.", "data": body}
-        except (requests.RequestException, TypeError, ValueError):
+        except (requests.RequestException, TypeError, ValueError, _SiisConfigurationError):
             logger.exception("Error técnico al validar compatibilidad en SIIS")
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
 
 
-def validar_compatibilidad(documento, sexo, id_segmento):
-    return SiisAPIClient().validar_compatibilidad(documento, sexo, id_segmento)
+def validar_compatibilidad(dni, id_programa, fecha_nacimiento=None):
+    return SiisAPIClient().validar_compatibilidad(dni, id_programa, fecha_nacimiento)
 
 
 def listar_programas():
     return SiisAPIClient().listar_programas()
 
 
-def listar_segmentos(id_programa):
-    return SiisAPIClient().listar_segmentos(id_programa)
+def motivos_de_rechazo(validaciones):
+    """Banderas incumplidas del mapa ``validaciones``, como ``[(bandera, texto)]``.
+
+    SIIS informa el detalle por bandera y no un motivo redactado, así que el
+    texto para el operador se arma acá. Las banderas que no rechazan (``VIGENTE``,
+    ``SIN_INCOMPATIBILIDAD``, ``NUEVO_SOLICITANTE``…) simplemente no aparecen.
+    """
+    if not isinstance(validaciones, dict):
+        return []
+    return [(bandera, MOTIVOS_RECHAZO[valor]) for bandera, valor in validaciones.items() if valor in MOTIVOS_RECHAZO]

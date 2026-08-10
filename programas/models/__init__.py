@@ -1173,11 +1173,8 @@ class Segmento(PausableMixin, TimeStamped):
         super().clean()
         if not self.pk:
             return
-        anterior = Segmento.objects.filter(pk=self.pk).values("siis_programa_id").first()
-        if anterior and anterior["siis_programa_id"] != self.siis_programa_id and self.subsegmentos.exists():
-            raise ValidationError(
-                {"siis_programa_id": "No se puede cambiar el programa SIIS mientras existan subsegmentos."}
-            )
+        # El subsegmento es local: ya no espeja un segmento SIIS, así que cambiar
+        # el programa SIIS del segmento no invalida los subsegmentos existentes.
         distribuido = self.subsegmentos.aggregate(t=models.Sum("cupo_maximo"))["t"] or 0
         if self.cupo_maximo is not None and self.cupo_maximo < distribuido:
             raise ValidationError(
@@ -1220,16 +1217,12 @@ class Subsegmento(PausableMixin, TimeStamped):
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
-    siis_segmento_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="ID de segmento SIIS")
 
     class Meta:
         verbose_name = "Subsegmento"
         verbose_name_plural = "Subsegmentos"
         ordering = ["segmento", "nombre"]
         unique_together = [["segmento", "nombre"]]
-        constraints = [
-            models.UniqueConstraint(fields=["segmento", "siis_segmento_id"], name="uniq_subsegmento_siis_por_segmento")
-        ]
 
     def __str__(self):
         return f"{self.segmento.nombre} / {self.nombre}"
@@ -1930,9 +1923,11 @@ class ValidacionSIS(models.Model):
     )
     estado = models.CharField(max_length=15, choices=Estado.choices, db_index=True)
     id_programa = models.PositiveIntegerField(null=True, blank=True)
-    id_segmento = models.PositiveIntegerField()
+    # SIIS dejó de exponer el nivel "segmento" y de pedir el sexo: ambos quedan
+    # solo para no perder el histórico de las validaciones ya registradas.
+    id_segmento = models.PositiveIntegerField(null=True, blank=True)
     documento = models.CharField(max_length=20)
-    sexo = models.CharField(max_length=1)
+    sexo = models.CharField(max_length=1, blank=True, default="")
     id_consulta = models.UUIDField(null=True, blank=True, db_index=True)
     fecha_validacion = models.DateTimeField(null=True, blank=True)
     codigo_motivo = models.CharField(max_length=100, blank=True)

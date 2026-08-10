@@ -81,17 +81,19 @@ class SegmentoCupoTests(TestCase):
             self.segmento.full_clean()
         self.assertIn("120", str(ctx.exception))
 
-    def test_no_permite_cambiar_programa_siis_con_subsegmentos(self):
+    def test_permite_cambiar_programa_siis_con_subsegmentos(self):
+        """El subsegmento es local: ya no espeja un segmento del programa SIIS,
+        así que cambiar el programa del segmento no lo invalida."""
         self.segmento.siis_programa_id = 41
         self.segmento.save(update_fields=["siis_programa_id"])
-        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20, siis_segmento_id=1)
-        self.segmento.siis_programa_id = 42
-        with self.assertRaises(ValidationError):
-            self.segmento.full_clean()
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
 
-    def test_no_permite_repetir_segmento_siis_en_mismo_segmento(self):
-        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20, siis_segmento_id=1)
-        repetido = Subsegmento(segmento=self.segmento, nombre="Otra etiqueta", cupo_maximo=20, siis_segmento_id=1)
+        self.segmento.siis_programa_id = 42
+        self.segmento.full_clean()  # no debe levantar
+
+    def test_no_permite_repetir_nombre_en_el_mismo_segmento(self):
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
+        repetido = Subsegmento(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
         with self.assertRaises(ValidationError):
             repetido.full_clean()
 

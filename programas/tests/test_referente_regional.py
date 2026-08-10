@@ -33,10 +33,10 @@ class ReferenteTests(TestCase):
         self.segmento = Segmento.objects.create(nombre="Norte", cupo_maximo=100)
         self.otro_segmento = Segmento.objects.create(nombre="Sur", cupo_maximo=100)
         self.localidad = Subsegmento.objects.create(
-            segmento=self.segmento, nombre="Resistencia", cupo_maximo=50, siis_segmento_id=8001
+            segmento=self.segmento, nombre="Resistencia", cupo_maximo=50
         )
         self.otra_localidad = Subsegmento.objects.create(
-            segmento=self.otro_segmento, nombre="Villa Ángela", cupo_maximo=50, siis_segmento_id=8002
+            segmento=self.otro_segmento, nombre="Villa Ángela", cupo_maximo=50
         )
         self.admin = self._usuario("admin-r", ROL_ADMIN)
         self.coordinador = self._usuario("coord-r", ROL_COORDINADOR)

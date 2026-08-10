@@ -106,7 +106,6 @@ class RelevamientoApiTests(_BaseApiTest):
             segmento=self.seg,
             nombre="Localidad Norte",
             cupo_maximo=50,
-            siis_segmento_id=901,
         )
         self.conv.subsegmento = localidad
         self.conv.save(update_fields=["subsegmento", "modificado"])

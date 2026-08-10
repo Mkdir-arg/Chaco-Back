@@ -33,7 +33,7 @@ from programas.services.autorizacion import convocatorias_visibles, puede_gestio
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera
 from programas.services.personas import consultar_persona
-from programas.services.siis import validar_compatibilidad
+from programas.services.siis import motivos_de_rechazo, validar_compatibilidad
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
@@ -315,44 +315,44 @@ def formulario_validar_sis(request, pk):
 
     convocatoria = formulario.relevamiento.convocatoria
     segmento = convocatoria.segmento
-    subsegmento = convocatoria.subsegmento
     ciudadano = formulario.ciudadano
     if not segmento.siis_programa_id:
         messages.error(request, "El segmento no tiene configurado el programa correspondiente de SIIS.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    if subsegmento is None or not subsegmento.siis_segmento_id:
-        messages.error(request, "El subsegmento no tiene configurado el segmento correspondiente de SIIS.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
     if ciudadano is None or not ciudadano.dni:
         messages.error(request, "El formulario no tiene un ciudadano con DNI vinculado.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    if ciudadano.genero not in ("F", "M"):
-        messages.error(request, "El ciudadano debe tener sexo F o M para consultar SIIS.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
 
-    resultado = validar_compatibilidad(ciudadano.dni, ciudadano.genero, subsegmento.siis_segmento_id)
+    # SIIS valida contra el programa (nuestro Segmento). El subsegmento es local
+    # y ya no participa; la fecha de nacimiento es opcional y solo se usa para
+    # evaluar edad mínima cuando la persona no figura en su padrón.
+    resultado = validar_compatibilidad(
+        ciudadano.dni,
+        segmento.siis_programa_id,
+        ciudadano.fecha_nacimiento.isoformat() if ciudadano.fecha_nacimiento else None,
+    )
     data = resultado.get("data") or {}
     estado = ValidacionSIS.Estado.ERROR
     if resultado.get("success"):
         estado = ValidacionSIS.Estado.OK if resultado.get("compatible") else ValidacionSIS.Estado.RECHAZADO
+    motivos = motivos_de_rechazo(data.get("validaciones"))
     ValidacionSIS.objects.create(
         formulario=formulario,
         estado=estado,
         id_programa=segmento.siis_programa_id,
-        id_segmento=subsegmento.siis_segmento_id,
         documento=ciudadano.dni,
-        sexo=ciudadano.genero,
         id_consulta=data.get("id_consulta") or None,
-        fecha_validacion=parse_datetime(str(data.get("fecha_validacion") or "")),
-        codigo_motivo=str(data.get("codigo_motivo") or ""),
-        motivo=str(data.get("motivo") or resultado.get("error") or ""),
+        fecha_validacion=parse_datetime(str(data.get("fecha_hora") or "")),
+        codigo_motivo=", ".join(bandera for bandera, _ in motivos)[:100],
+        motivo=" ".join(texto for _, texto in motivos) or str(resultado.get("error") or ""),
         respuesta=data,
         solicitado_por=request.user,
     )
     if estado == ValidacionSIS.Estado.OK:
         messages.success(request, "SIIS informo que la persona es compatible.")
     elif estado == ValidacionSIS.Estado.RECHAZADO:
-        messages.warning(request, f"SIIS rechazo la compatibilidad: {data.get('motivo') or 'sin motivo informado'}.")
+        detalle = " ".join(texto for _, texto in motivos) or "sin motivo informado"
+        messages.warning(request, f"SIIS rechazo la compatibilidad: {detalle}")
     else:
         messages.error(request, resultado.get("error") or "No se pudo validar contra SIIS.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
