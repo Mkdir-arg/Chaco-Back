@@ -108,9 +108,13 @@ def _agregar_campo_segmento_territorial(form, operador=None):
     """
     from programas.models import Segmento
     from programas.services.autorizacion import grupos_territoriales_becas
+    from users.selectors.usuarios import es_gestor_territorial
 
     segmentos = Segmento.objects.filter(activo=True).order_by("nombre")
-    if operador is not None and rbac.puede(operador, "becas.usuario.territorial"):
+    # Solo se acota a quien gestiona territoriales de SUS segmentos; un admin de
+    # programa elige entre todos los segmentos activos (los suyos son el programa
+    # entero, y acotarlo por coordinación le dejaría el combo vacío).
+    if operador is not None and es_gestor_territorial(operador):
         from programas.services.autorizacion import segmentos_para_gestion_territoriales
 
         segmentos = segmentos_para_gestion_territoriales(operador).filter(activo=True).order_by("nombre")
@@ -184,7 +188,9 @@ def _roles_asignables_queryset(operador=None):
     qs = Group.objects.filter(meta__activo=True).exclude(meta__categoria=rbac.CATEGORIA_PORTAL).order_by("name")
     if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
         return qs
-    if rbac.puede(operador, "becas.usuario.territorial") and not rbac.puede(operador, "programa.configurar"):
+    from users.selectors.usuarios import es_gestor_territorial
+
+    if es_gestor_territorial(operador):
         from programas.services.autorizacion import grupos_territoriales_becas
 
         return qs.filter(pk__in=grupos_territoriales_becas())

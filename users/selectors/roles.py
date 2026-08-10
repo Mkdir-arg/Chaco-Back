@@ -16,6 +16,8 @@ def _capacidades_desde_prefetch(group):
 _CAPACIDAD_LABELS = {codigo: etiqueta for modulo in rbac.CATALOGO for codigo, etiqueta in modulo["capacidades"]}
 _CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_BECAS}
 
+_CODENAMES_ADMIN_PROGRAMA = [rbac.codename_de(c) for c in rbac.CAPS_ADMIN_PROGRAMA]
+
 
 def _capacidades_para_tabla(codigos):
     """Capacidades renderizables sin perder el código estable del catálogo."""
@@ -49,19 +51,18 @@ def es_admin_global(user):
 def programas_administrables(user):
     """Programas donde el operador es **administrador de programa**.
 
-    Es decir, tiene un rol **activo** con ``RolMeta.programa = X`` y la capacidad
-    ``programa.configurar`` tildada. Para un admin global/superusuario devuelve
-    **todos** los programas.
+    Es decir, tiene un rol **activo** con ``RolMeta.programa = X`` y alguna
+    capacidad de ``rbac.CAPS_ADMIN_PROGRAMA``. Para un admin global/superusuario
+    devuelve **todos** los programas.
     """
     if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
         return Programa.objects.none()
     if es_admin_global(user):
         return Programa.objects.all()
-    codename = rbac.codename_de("programa.configurar")
     return Programa.objects.filter(
         roles_meta__activo=True,
         roles_meta__grupo__user=user,
-        roles_meta__grupo__permissions__codename=codename,
+        roles_meta__grupo__permissions__codename__in=_CODENAMES_ADMIN_PROGRAMA,
     ).distinct()
 
 

@@ -106,24 +106,25 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
                     {% for modulo in tab.modulos %}
                     <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
-                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-lg">
-                            <label class="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
-                                <input type="checkbox" class="select-all rounded border-gray-300" data-modulo="{{ modulo.modulo }}">
-                                {{ modulo.label }}
-                                <span class="text-xs font-normal text-gray-500">(<span class="contador-modulo" data-modulo="{{ modulo.modulo }}">0</span>/{{ modulo.capacidades|length }})</span>
+                        <div class="flex items-start justify-between gap-2 px-4 py-3 bg-gray-50 rounded-t-lg">
+                            <label class="flex items-start gap-2 text-sm font-medium text-gray-800 cursor-pointer min-w-0">
+                                <input type="checkbox" class="select-all rounded border-gray-300 shrink-0 mt-0.5" data-modulo="{{ modulo.modulo }}">
+                                <span class="min-w-0">{{ modulo.label }}
+                                    <span class="text-xs font-normal text-gray-500">(<span class="contador-modulo" data-modulo="{{ modulo.modulo }}">0</span>/{{ modulo.capacidades|length }})</span>
+                                </span>
                             </label>
-                            <button type="button" @click="open = !open" class="text-gray-400 hover:text-gray-600">
+                            <button type="button" @click="open = !open" class="text-gray-400 hover:text-gray-600 shrink-0">
                                 <i class="fas fa-chevron-down text-xs transition-transform" :class="{ 'rotate-180': open }"></i>
                             </button>
                         </div>
-                        <div x-show="open" x-transition class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div x-show="open" x-transition class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
                             {% for cap in modulo.capacidades %}
-                            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer cap-item" data-label="{{ cap.label|lower }} {{ cap.codigo|lower }}">
+                            <label class="flex items-start gap-2 text-sm text-gray-700 cursor-pointer cap-item" data-label="{{ cap.label|lower }} {{ cap.codigo|lower }}">
                                 <input type="checkbox" name="capacidades" value="{{ cap.codigo }}"
-                                       class="cap-check rounded border-gray-300" data-modulo="{{ modulo.modulo }}"
+                                       class="cap-check rounded border-gray-300 shrink-0 mt-0.5" data-modulo="{{ modulo.modulo }}"
                                        data-tab="{{ tab.id }}"
                                        {% if cap.checked %}checked{% endif %}>
-                                <span>{{ cap.label }} <span class="text-xs text-gray-400 font-mono">{{ cap.codigo }}</span></span>
+                                <span class="min-w-0">{{ cap.label }}<span class="block text-xs text-gray-400 font-mono break-all">{{ cap.codigo }}</span></span>
                             </label>
                             {% endfor %}
                         </div>
