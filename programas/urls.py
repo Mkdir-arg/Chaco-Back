@@ -15,8 +15,6 @@ urlpatterns = [
     path("pausas/<str:tipo>/<int:pk>/", pau.gestionar_pausa, name="gestionar_pausa"),
     # --- Configuración: Segmentos ---
     path("config/segmentos/", cfg.SegmentoListView.as_view(), name="segmentos"),
-    path("config/regiones/", cfg.regiones, name="regiones"),
-    path("config/regiones/<int:pk>/editar/", cfg.regiones, name="region_editar"),
     path("config/segmentos/nuevo/", cfg.SegmentoCreateView.as_view(), name="segmento_crear"),
     path("config/segmentos/<int:pk>/", cfg.SegmentoDetailView.as_view(), name="segmento_detalle"),
     path("config/segmentos/<int:pk>/editar/", cfg.SegmentoUpdateView.as_view(), name="segmento_editar"),

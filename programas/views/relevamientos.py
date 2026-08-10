@@ -32,7 +32,6 @@ from programas.forms import (
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
 from programas.services.autorizacion import (
     convocatorias_visibles,
-    es_coordinador_regional_becas,
     programa_becas,
     puede_gestionar_segmento,
     segmentos_visibles,
@@ -194,10 +193,6 @@ class ConvocatoriaCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
 
     def form_valid(self, form):
         self.object = form.save(commit=False)
-        if not self.object.creada_por_id:
-            self.object.creada_por = self.request.user
-        if es_coordinador_regional_becas(self.request.user):
-            self.object.responsable_regional = self.request.user
         self.object.save()
         if is_ajax(self.request):
             return _convocatorias_ajax(self.request, "Convocatoria creada.")

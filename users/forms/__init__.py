@@ -146,9 +146,7 @@ def _validar_segmento_territorial(form):
 
 
 def _agregar_campos_jerarquia_becas(form):
-    from programas.models import Region
     from programas.services.autorizacion import (
-        grupos_coordinadores_regionales_becas,
         grupos_referentes_becas,
         usuarios_coordinadores_becas,
     )
@@ -160,30 +158,17 @@ def _agregar_campos_jerarquia_becas(form):
         empty_label="Seleccioná…",
         widget=forms.Select(attrs={"class": _INPUT_ABM}),
     )
-    form.fields["region_coordinador"] = forms.ModelChoiceField(
-        queryset=Region.objects.filter(activo=True).order_by("nombre"),
-        required=False,
-        label="Región del Coordinador regional",
-        empty_label="Seleccioná…",
-        widget=forms.Select(attrs={"class": _INPUT_ABM}),
-    )
     form.grupos_referentes_ids = set(grupos_referentes_becas().values_list("id", flat=True))
-    form.grupos_regionales_ids = set(grupos_coordinadores_regionales_becas().values_list("id", flat=True))
 
 
 def _validar_jerarquia_becas(form):
     cleaned = form.cleaned_data
     grupos = {g.id for g in (cleaned.get("groups") or [])}
     es_referente = bool(grupos & getattr(form, "grupos_referentes_ids", set()))
-    es_regional = bool(grupos & getattr(form, "grupos_regionales_ids", set()))
     if es_referente and not cleaned.get("coordinador_referente"):
         form.add_error("coordinador_referente", "Seleccioná el Coordinador del Referente.")
-    if es_regional and not cleaned.get("region_coordinador"):
-        form.add_error("region_coordinador", "Seleccioná la región del Coordinador regional.")
     if not es_referente:
         cleaned["coordinador_referente"] = None
-    if not es_regional:
-        cleaned["region_coordinador"] = None
     return cleaned
 
 
@@ -469,11 +454,6 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
             try:
                 referente = self.instance.asignacion_referente
                 self.fields["coordinador_referente"].initial = referente.coordinador_id
-            except ObjectDoesNotExist:
-                pass
-            try:
-                regional = self.instance.asignacion_coordinador_regional
-                self.fields["region_coordinador"].initial = regional.region_id
             except ObjectDoesNotExist:
                 pass
 

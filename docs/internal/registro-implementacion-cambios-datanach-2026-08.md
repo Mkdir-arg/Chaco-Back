@@ -18,7 +18,7 @@ Registrar cada modificación realizada a partir del documento “Cambios en Data
 | 1 — Recordarme | 🟢 **Hecho** | Backoffice / sesión | No |
 | 2 — Limpieza de datos de prueba | 🟡 **Para limpieza en base de test** | Infraestructura / datos | No desarrollada |
 | 3 — Becas → Programas en menú | 🟢 **Hecho** | Backoffice | No |
-| 4 — Revisar tipos de usuarios | 🟢 **Hecho** | Backoffice / permisos | `programas.0038` + `users.0015` |
+| 4 — Revisar tipos de usuarios | 🟢 **Hecho, sin Coordinador regional** | Backoffice / permisos | `programas.0038`, `programas.0041`, `users.0015` y `users.0016` |
 | 5 — Datos adicionales de usuario | 🟢 **Hecho** | Backoffice / modelo / API | `users.0012` |
 | 6 — Usuarios y Roles dentro de Programas | 🟢 **Hecho mediante alta contextual** | Backoffice | No |
 | 7 — Quitar categoría Becas | 🟢 **Hecho** | Backoffice / roles | No |
@@ -32,7 +32,7 @@ Registrar cada modificación realizada a partir del documento “Cambios en Data
 | 15 — Administrador de programa y pausas | 🟢 **Hecho** | Backoffice / Mobile / API | `programas.0037` |
 | 16 — Coordinador del segmento | 🟢 **Hecho** | Backoffice / permisos | `users.0014` |
 | 17 — Referente | 🟢 **Hecho** | Backoffice / permisos / servidor | `programas.0038` + `users.0015` |
-| 18 — Coordinador regional | 🟢 **Hecho** | Backoffice / Mobile / permisos / servidor | `programas.0038` + `users.0015` |
+| 18 — Coordinador regional | ⚫ **Retirado por decisión funcional** | Backoffice / Mobile / permisos / servidor | Eliminado por `programas.0041` + `users.0016` |
 | 19 — Territorial | 🟡 **Parcialmente hecho — GPS pendiente** | Backoffice / Mobile / permisos / servidor | `programas.0040` |
 
 ---
@@ -144,19 +144,19 @@ No requiere cambios de base de datos. Reemplazar solamente las tres etiquetas vi
 - **Coordinador del segmento** continúa siendo un perfil distinto, con alcance limitado a sus segmentos.
 - **Territorial** continúa siendo el perfil exclusivo de Mobile.
 - **Referente** depende de un Coordinador del segmento y administra Territoriales dentro del alcance heredado.
-- **Coordinador regional** es un perfil distinto, limitado a una Región formada por localidades.
+- El perfil **Coordinador regional** fue retirado por decisión funcional posterior.
 
 ## Impacto técnico
 
-Se completó la matriz de roles, capacidades y filtros del servidor mediante los Cambios 17 y 18. No se duplicó el rol Administrador.
+La matriz vigente queda formada por Administrador, Coordinador del segmento, Referente y Territorial. No se duplicó el rol Administrador.
 
 ## Validación
 
-La matriz se verificó junto con las pruebas de los Cambios 17 y 18.
+La matriz se verificó junto con las pruebas del Cambio 17 y la eliminación del Cambio 18.
 
 ## Reversión
 
-La reversión funcional se encuentra detallada en los Cambios 17 y 18. Si se decidiera separar Coordinador general y Administrador, primero deberá definirse una matriz nueva para evitar permisos contradictorios.
+La reversión funcional del Referente se encuentra detallada en el Cambio 17. Si se decidiera separar Coordinador general y Administrador, primero deberá definirse una matriz nueva para evitar permisos contradictorios.
 
 ---
 
@@ -648,7 +648,40 @@ Antes de revertir, respaldar la base. Quitar el rol Referente de los usuarios o 
 
 # Cambio 18 — Coordinador regional
 
-🟢 **HECHO**
+⚫ **RETIRADO POR DECISIÓN FUNCIONAL — 10/08/2026**
+
+## Decisión vigente
+
+Se eliminó completamente este módulo. Ya no existen el rol `Becas — Coordinador regional`, la entidad Región, su pantalla, las asignaciones regionales, la transferencia de responsabilidad ni los filtros regionales.
+
+Se conservaron los datos y comportamientos ajenos a este punto: Referente, Coordinador, Territorial, convocatorias, relevamientos y cupos.
+
+## Archivos retirados o modificados
+
+- `programas/templates/programas/becas/config/regiones.html` (retirado)
+- `programas/services/regiones.py` (retirado)
+- `programas/models/__init__.py`
+- `programas/forms.py`
+- `programas/views/configuracion.py`
+- `programas/views/relevamientos.py`
+- `programas/services/autorizacion.py`
+- `programas/management/commands/seed_becas.py`
+- `programas/admin.py`
+- `programas/urls.py`
+- `users/forms/__init__.py`
+- `users/services/admin.py`
+- `users/selectors/usuarios.py`
+- `users/templates/user/user_form.html`
+- `core/rbac.py`
+- `templates/includes/sidebar/opciones.html`
+- `programas/migrations/0041_remove_region_localidades_and_more.py`
+- `users/migrations/0016_alter_capacidad_options.py`
+
+## Reversión de esta eliminación
+
+Para recuperar el módulo no alcanza con revertir una sola migración: primero debe restaurarse el código retirado y luego revertirse `users.0016` y `programas.0041`, o recuperarse el commit anterior completo. Si alguna de esas migraciones fue aplicada, realizar respaldo antes porque `programas.0041` elimina tablas y relaciones regionales.
+
+## Implementación anterior retirada
 
 ## Implementación
 
@@ -657,6 +690,8 @@ Antes de revertir, respaldar la base. Quitar el rol Referente de los usuarios o 
 - Puede crear, editar, activar, desactivar y asignar solamente Territoriales propios; no administra roles ni pausa elementos.
 - Puede recibir un relevamiento propio y operar por Mobile con las mismas validaciones de asignación.
 - El Administrador dispone de una pantalla de Regiones y una acción explícita de reemplazo.
+- El selector de localidades de Regiones se unificó con la experiencia visual del Backoffice: permite buscar, seleccionar varias opciones, seleccionar las visibles, limpiar y muestra la cantidad elegida sin exigir `Ctrl`/`Cmd`.
+- La edición de una Región se realiza en un modal sobre el listado, con los datos y localidades actuales precargados; la URL de edición se conserva como respaldo y reabre el mismo modal.
 - El reemplazo transfiere Región, convocatorias vigentes y Territoriales, preserva el creador original y todos los datos, y registra origen, destino, ejecutor, fecha y cantidades transferidas en una auditoría inmutable.
 
 ## Archivos principales

@@ -452,15 +452,6 @@
                             Segmentos
                         </a>
                         {% endif %}
-                        {% if request.user|puede:"becas.programa.administrar" %}
-                        <a href="{% url 'becas:regiones' %}"
-                           class="flex items-center gap-2 transition-colors duration-150"
-                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
-                                  {% if 'becas/config/regiones' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}">
-                            <span aria-hidden="true">🗺️</span>
-                            Regiones
-                        </a>
-                        {% endif %}
                         {% if request.user|puede:"becas.pregunta.ver" %}
                         <a href="{% url 'becas:preguntas' %}"
                            class="flex items-center gap-2 transition-colors duration-150"

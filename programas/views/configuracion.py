@@ -11,8 +11,7 @@ segmentos que tiene asignados.
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.models import User
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.db.models.deletion import ProtectedError
@@ -26,7 +25,6 @@ from core.rbac import CapacidadRequeridaMixin, puede_alguna, requiere
 from programas.forms import (
     AsignacionCoordinadorForm,
     PreguntaGlobalForm,
-    RegionForm,
     RequisitoNativoForm,
     SegmentoCreateForm,
     SegmentoForm,
@@ -35,7 +33,6 @@ from programas.forms import (
 from programas.models import (
     AsignacionCoordinador,
     PreguntaGlobal,
-    Region,
     RequisitoNativo,
     Segmento,
     Subsegmento,
@@ -43,51 +40,12 @@ from programas.models import (
 )
 from programas.services.autorizacion import (
     SegmentoScopedMixin,
-    grupos_coordinadores_regionales_becas,
     puede_gestionar_segmento,
     requisitos_visibles,
     segmentos_visibles,
     subsegmentos_visibles,
 )
-from programas.services.regiones import transferir_responsabilidad_regional
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
-
-
-@login_required
-@requiere("becas.programa.administrar")
-def regiones(request, pk=None):
-    if request.method == "POST" and request.POST.get("accion") == "transferir":
-        origen = get_object_or_404(User, pk=request.POST.get("origen"))
-        destino = get_object_or_404(User, pk=request.POST.get("destino"))
-        try:
-            resultado = transferir_responsabilidad_regional(origen=origen, destino=destino, ejecutado_por=request.user)
-        except ValidationError as exc:
-            messages.error(request, "; ".join(exc.messages))
-        else:
-            messages.success(
-                request,
-                f"Región {resultado['region']} transferida: "
-                f"{resultado['convocatorias']} convocatorias y {resultado['territoriales']} Territoriales.",
-            )
-        return redirect("becas:regiones")
-    region = get_object_or_404(Region, pk=pk) if pk else None
-    form = RegionForm(request.POST or None, instance=region)
-    if request.method == "POST" and form.is_valid():
-        guardada = form.save()
-        messages.success(request, f"Región {guardada.nombre} guardada correctamente.")
-        return redirect("becas:regiones")
-    coordinadores_regionales = User.objects.filter(groups__in=grupos_coordinadores_regionales_becas()).distinct()
-    return render(
-        request,
-        "programas/becas/config/regiones.html",
-        {
-            "regiones": Region.objects.prefetch_related("localidades__segmento"),
-            "form": form,
-            "editando": region,
-            "coordinadores_regionales": coordinadores_regionales,
-        },
-    )
-
 
 CAP_SEGMENTO_VER = "becas.segmento.ver"
 CAP_SEGMENTO_CREAR = "becas.segmento.crear"

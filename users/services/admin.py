@@ -112,20 +112,12 @@ class UsuariosAdminService:
         if not es_territorial:
             AsignacionTerritorial.objects.filter(territorial=user).delete()
         elif segmento is not None:
-            defaults = {"segmento": segmento}
-            from programas.services.autorizacion import es_coordinador_regional_becas
-
-            if es_coordinador_regional_becas(operador):
-                defaults["coordinador_regional"] = operador
-            AsignacionTerritorial.objects.update_or_create(territorial=user, defaults=defaults)
+            AsignacionTerritorial.objects.update_or_create(territorial=user, defaults={"segmento": segmento})
 
     @staticmethod
     def _sync_jerarquia_becas(user, cleaned_data):
-        from programas.models import AsignacionCoordinadorRegional, AsignacionReferente
-        from programas.services.autorizacion import (
-            grupos_coordinadores_regionales_becas,
-            grupos_referentes_becas,
-        )
+        from programas.models import AsignacionReferente
+        from programas.services.autorizacion import grupos_referentes_becas
 
         es_referente = user.groups.filter(id__in=grupos_referentes_becas()).exists()
         coordinador = cleaned_data.get("coordinador_referente")
@@ -133,10 +125,3 @@ class UsuariosAdminService:
             AsignacionReferente.objects.filter(referente=user).delete()
         elif coordinador is not None:
             AsignacionReferente.objects.update_or_create(referente=user, defaults={"coordinador": coordinador})
-
-        es_regional = user.groups.filter(id__in=grupos_coordinadores_regionales_becas()).exists()
-        region = cleaned_data.get("region_coordinador")
-        if not es_regional:
-            AsignacionCoordinadorRegional.objects.filter(coordinador=user).delete()
-        elif region is not None:
-            AsignacionCoordinadorRegional.objects.update_or_create(coordinador=user, defaults={"region": region})
