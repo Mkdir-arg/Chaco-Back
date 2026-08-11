@@ -13,8 +13,8 @@ from django.http import Http404
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from programas.forms import RelevamientoForm, SubsegmentoForm
-from programas.management.commands.seed_becas import ROL_COORDINADOR_REGIONAL
+from programas.forms import ConvocatoriaForm, RelevamientoForm, SubsegmentoForm
+from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR_REGIONAL
 from programas.models import Convocatoria, Segmento, Subsegmento
 from programas.services.autorizacion import (
     convocatorias_visibles,
@@ -154,6 +154,72 @@ class CoordinadorRegionalTests(TestCase):
     def test_puede_gestionar_territoriales_de_su_segmento(self):
         self.assertIn(self.segmento, segmentos_para_gestion_territoriales(self.ana))
         self.assertNotIn(self.otro_segmento, segmentos_para_gestion_territoriales(self.ana))
+
+    # --- El subsegmento es obligatorio para este rol --------------------------
+
+    def _datos_convocatoria(self, **cambios):
+        datos = {
+            "nombre": "Convocatoria de Ana",
+            "segmento": self.segmento.pk,
+            "subsegmento": self.sub_ana.pk,
+            "fecha_inicio": "2026-09-01",
+            "fecha_fin": "2026-09-30",
+            "descripcion": "",
+            "activo": "on",
+        }
+        datos.update(cambios)
+        return datos
+
+    def test_el_regional_no_puede_crear_una_convocatoria_sin_subsegmento(self):
+        """Sin subsegmento la convocatoria queda fuera de su propio alcance: se
+        guardaba bien y desaparecía del listado de quien acababa de crearla."""
+        form = ConvocatoriaForm(
+            self._datos_convocatoria(subsegmento=""),
+            subsegmentos_permitidos=subsegmentos_visibles(self.ana),
+            operador=self.ana,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("fuera de tu alcance", form.errors["subsegmento"][0])
+
+    def test_el_regional_crea_con_su_subsegmento(self):
+        form = ConvocatoriaForm(
+            self._datos_convocatoria(),
+            subsegmentos_permitidos=subsegmentos_visibles(self.ana),
+            operador=self.ana,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        convocatoria = form.save()
+        self.assertIn(convocatoria, convocatorias_visibles(self.ana))
+
+    def test_el_regional_no_puede_usar_el_subsegmento_de_un_par(self):
+        form = ConvocatoriaForm(
+            self._datos_convocatoria(subsegmento=self.sub_beto.pk),
+            subsegmentos_permitidos=subsegmentos_visibles(self.ana),
+            operador=self.ana,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("subsegmento", form.errors)
+
+    def test_para_otros_roles_el_subsegmento_sigue_siendo_opcional(self):
+        """Una convocatoria a nivel segmento sigue siendo válida para el Admin:
+        su alcance es el segmento, así que la ve igual."""
+        admin = User.objects.create_user("admin_becas_conv", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+
+        form = ConvocatoriaForm(self._datos_convocatoria(subsegmento=""), operador=admin)
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_el_asterisco_aparece_solo_para_el_regional(self):
+        """El template lo dibuja según ``field.required``."""
+        del_regional = ConvocatoriaForm(subsegmentos_permitidos=subsegmentos_visibles(self.ana), operador=self.ana)
+        sin_operador = ConvocatoriaForm()
+
+        self.assertTrue(del_regional.fields["subsegmento"].required)
+        self.assertFalse(sin_operador.fields["subsegmento"].required)
 
     # --- Select de subsegmentos del form de convocatoria ----------------------
 

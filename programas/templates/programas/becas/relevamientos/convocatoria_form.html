@@ -36,7 +36,7 @@
     {# subsegmento — se repuebla dinámicamente, deshabilitado sin segmento #}
     <div class="mb-4">
       <label class="block text-sm font-medium text-heading mb-1" for="{{ form.subsegmento.id_for_label }}">
-        {{ form.subsegmento.label }}
+        {{ form.subsegmento.label }}{% if form.subsegmento.field.required %} <span class="text-fg-danger">*</span>{% endif %}
       </label>
       <select name="subsegmento"
               id="{{ form.subsegmento.id_for_label }}"

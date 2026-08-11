@@ -931,9 +931,11 @@ class ConvocatoriaForm(forms.ModelForm):
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
 
-    def __init__(self, *args, subsegmentos_permitidos=None, **kwargs):
+    def __init__(self, *args, subsegmentos_permitidos=None, operador=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.operador = operador
         self.fields["subsegmento"].required = False
+        self._exigir_subsegmento_al_regional()
         segmento_id = self.data.get("segmento") if self.is_bound else self.instance.segmento_id
         try:
             segmento_id = int(segmento_id) if segmento_id else None
@@ -951,6 +953,29 @@ class ConvocatoriaForm(forms.ModelForm):
             for field_name in ("fecha_inicio", "fecha_fin"):
                 self.fields[field_name].required = False
                 self.fields[field_name].help_text = "Dejalo sin cambios para mantener la fecha actual."
+
+    def _exigir_subsegmento_al_regional(self):
+        """Para el Coordinador Regional el subsegmento deja de ser opcional.
+
+        Su alcance se define por subsegmento (``convocatorias_visibles``), así que
+        una convocatoria a nivel segmento se guardaba bien y desaparecía del listado
+        de quien acababa de crearla: quedaba fuera de su propio alcance. No se
+        amplía su visibilidad —vería las convocatorias de sus pares del mismo
+        segmento, que es justo lo que el rol separa—, se le exige el dato que hace
+        suya la convocatoria.
+        """
+        if self.operador is None:
+            return
+        from programas.services.autorizacion import es_coordinador_regional_becas
+
+        if not es_coordinador_regional_becas(self.operador):
+            return
+        campo = self.fields["subsegmento"]
+        campo.required = True
+        campo.error_messages["required"] = (
+            "Elegí el subsegmento a tu cargo: una convocatoria a nivel segmento queda "
+            "fuera de tu alcance y no la verías en tu listado."
+        )
 
     def clean(self):
         """ "Fecha manda": no se puede dejar activa una convocatoria con la fecha

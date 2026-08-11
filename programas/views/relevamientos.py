@@ -122,7 +122,10 @@ class ConvocatoriaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        form = ConvocatoriaForm(subsegmentos_permitidos=subsegmentos_visibles(self.request.user))
+        form = ConvocatoriaForm(
+            subsegmentos_permitidos=subsegmentos_visibles(self.request.user),
+            operador=self.request.user,
+        )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         ctx["form_convocatoria"] = form
         return ctx
@@ -157,7 +160,11 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
         ctx["cupo_segmento"] = conv.segmento.cupo_maximo
         segmentos = segmentos_visibles(self.request.user)
-        form = ConvocatoriaForm(instance=conv, subsegmentos_permitidos=subsegmentos_visibles(self.request.user))
+        form = ConvocatoriaForm(
+            instance=conv,
+            subsegmentos_permitidos=subsegmentos_visibles(self.request.user),
+            operador=self.request.user,
+        )
         form.fields["segmento"].queryset = segmentos
         ctx["form_convocatoria"] = form
         # Modal "Nuevo relevamiento" con esta convocatoria preseleccionada.
@@ -187,6 +194,7 @@ class ConvocatoriaCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
             data=self.request.POST or None,
             files=self.request.FILES or None,
             subsegmentos_permitidos=subsegmentos_visibles(self.request.user),
+            operador=self.request.user,
         )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         return form
@@ -220,6 +228,7 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
             files=self.request.FILES or None,
             instance=self.object,
             subsegmentos_permitidos=subsegmentos_visibles(self.request.user),
+            operador=self.request.user,
         )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         return form

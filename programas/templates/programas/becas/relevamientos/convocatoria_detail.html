@@ -83,7 +83,8 @@
                 {{ form_convocatoria.segmento }}
               </div>
               <div>
-                <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
+                {# Obligatorio para el Coordinador Regional: su alcance es el subsegmento. #}
+                <label class="block text-sm font-medium text-heading mb-1">Subsegmento{% if form_convocatoria.subsegmento.field.required %} <span class="text-fg-danger">*</span>{% endif %}</label>
                 {{ form_convocatoria.subsegmento }}
               </div>
             </div>
