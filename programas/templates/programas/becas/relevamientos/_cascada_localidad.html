@@ -1,0 +1,63 @@
+{% comment %}Cascada Municipio → Localidad del campo de zona de un relevamiento.
+
+   Se engancha por atributos (`data-municipio` y `data-localidad`, puestos por
+   RelevamientoForm) y con un listener delegado en document, así que funciona
+   igual en los modales que Alpine inyecta después de cargada la página.
+
+   El endpoint es el mismo que usa el domicilio del ciudadano; devuelve las
+   localidades del municipio pedido. El municipio ya viene acotado a la provincia
+   operativa desde el form, y el servidor revalida la localidad al guardar: esto
+   es comodidad de carga, no un control de acceso.{% endcomment %}
+<script>
+(function () {
+  var URL_LOCALIDADES = "{% url 'core:ajax_load_localidades' %}";
+
+  function opcion(valor, texto) {
+    var op = document.createElement('option');
+    op.value = valor;
+    op.textContent = texto;
+    return op;
+  }
+
+  function poblar(selectMunicipio) {
+    var form = selectMunicipio.closest('form');
+    var selectLocalidad = form && form.querySelector('[data-localidad]');
+    if (!selectLocalidad) return;
+
+    var municipioId = selectMunicipio.value;
+    selectLocalidad.innerHTML = '';
+    if (!municipioId) {
+      selectLocalidad.appendChild(opcion('', 'Elegí primero el municipio'));
+      return;
+    }
+    selectLocalidad.appendChild(opcion('', 'Cargando localidades…'));
+
+    fetch(URL_LOCALIDADES + '?municipio_id=' + encodeURIComponent(municipioId), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('respuesta ' + resp.status);
+      return resp.json();
+    }).then(function (localidades) {
+      selectLocalidad.innerHTML = '';
+      if (!localidades || !localidades.length) {
+        selectLocalidad.appendChild(opcion('', 'El municipio no tiene localidades cargadas'));
+        return;
+      }
+      selectLocalidad.appendChild(opcion('', 'Elegí una localidad'));
+      localidades.forEach(function (loc) {
+        selectLocalidad.appendChild(opcion(loc.id, loc.nombre));
+      });
+    }).catch(function () {
+      selectLocalidad.innerHTML = '';
+      selectLocalidad.appendChild(opcion('', 'No se pudieron cargar las localidades'));
+      if (window.becasToast) window.becasToast('No se pudieron cargar las localidades. Reintentá.', true);
+    });
+  }
+
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (el instanceof HTMLSelectElement && el.hasAttribute('data-municipio')) poblar(el);
+  });
+})();
+</script>

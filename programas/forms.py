@@ -11,6 +11,8 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from core.models import Localidad, Municipio
+from core.selectors.geografia import localidades_operativas, municipios_operativos
 from programas.models import (
     AsignacionCoordinador,
     Cama,
@@ -1006,7 +1008,41 @@ class _SelectConSegmento(forms.Select):
 
 class RelevamientoForm(forms.ModelForm):
     """ABM de relevamiento. El territorial se elige entre los usuarios con rol
-    Territorial **del segmento de la convocatoria** (``AsignacionTerritorial``)."""
+    Territorial **del segmento de la convocatoria** (``AsignacionTerritorial``).
+
+    La zona dejó de escribirse a mano: se elige del catálogo de localidades
+    (`/configuracion/localidades/`) con dos selectores encadenados, Municipio y
+    Localidad, ambos acotados a la provincia que opera el sistema. ``zona`` sigue
+    siendo texto en el modelo —no hubo migración— y guarda el nombre de la
+    localidad elegida; el municipio solo filtra y no se persiste.
+    """
+
+    municipio = forms.ModelChoiceField(
+        queryset=Municipio.objects.none(),
+        label="Municipio",
+        empty_label="Elegí un municipio",
+        widget=forms.Select(attrs={"class": INPUT_CLASS, "data-municipio": "1"}),
+        help_text="Filtra las localidades disponibles.",
+    )
+    # Pisa el CharField del modelo: el operador elige una Localidad y
+    # ``clean_zona`` la reduce al texto que se guarda.
+    zona = forms.ModelChoiceField(
+        queryset=Localidad.objects.none(),
+        label="Localidad",
+        empty_label="Elegí primero el municipio",
+        widget=forms.Select(attrs={"class": INPUT_CLASS, "data-localidad": "1"}),
+    )
+
+    field_order = [
+        "convocatoria",
+        "territorial",
+        "municipio",
+        "zona",
+        "fecha_asignada",
+        "fecha_hasta",
+        "cupo_maximo",
+        "observaciones",
+    ]
 
     class Meta:
         model = Relevamiento
@@ -1024,7 +1060,6 @@ class RelevamientoForm(forms.ModelForm):
             "territorial": forms.Select(attrs={"class": INPUT_CLASS}),
             "fecha_asignada": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
             "fecha_hasta": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-            "zona": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
             "observaciones": forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
         }
@@ -1078,6 +1113,45 @@ class RelevamientoForm(forms.ModelForm):
         # el valor vigente (o el default del modelo en un alta).
         self.fields["fecha_hasta"].required = False
         self.fields["cupo_maximo"].required = False
+        self._preparar_localidad()
+
+    def _preparar_localidad(self):
+        """Deja listos los dos selectores de la zona.
+
+        El de Localidad se llena por AJAX al elegir el municipio, así que se
+        renderiza vacío: mandar las localidades de toda la provincia en cada carga
+        de la pantalla es peso muerto, y son cientos. La validación **no** usa esas
+        opciones sino el queryset completo, de modo que un POST armado a mano
+        tampoco puede meter una localidad de otra provincia.
+
+        Cuando el form vuelve con errores hay que repoblar las opciones del
+        municipio elegido, o el operador pierde lo que había seleccionado.
+        """
+        self.fields["municipio"].queryset = municipios_operativos()
+        self.fields["zona"].queryset = localidades_operativas()
+
+        municipio_id = self.data.get(self.add_prefix("municipio")) if self.is_bound else None
+        opciones = []
+        if municipio_id:
+            opciones = [
+                (loc.pk, loc.nombre) for loc in self.fields["zona"].queryset.filter(municipio_id=municipio_id)
+            ]
+        vacia = "Elegí una localidad" if opciones else "Elegí primero el municipio"
+        self.fields["zona"].widget.choices = [("", vacia), *opciones]
+
+    def clean_zona(self):
+        """Del catálogo al texto: se guarda el nombre de la localidad.
+
+        El cruce contra el municipio se hace acá porque ``field_order`` lo limpia
+        antes; después de esto la instancia de Localidad se pierde.
+        """
+        localidad = self.cleaned_data.get("zona")
+        if localidad is None:
+            return ""
+        municipio = self.cleaned_data.get("municipio")
+        if municipio is not None and localidad.municipio_id != municipio.pk:
+            raise forms.ValidationError("Esa localidad no pertenece al municipio elegido.")
+        return localidad.nombre
 
     def clean(self):
         cleaned = super().clean()

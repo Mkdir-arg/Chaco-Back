@@ -181,11 +181,20 @@
             {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
-              {{ form_crear.zona }}
+              <label class="block text-sm font-medium text-heading mb-1">Municipio <span class="text-fg-danger">*</span></label>
+              {{ form_crear.municipio }}
+              <p class="text-xs text-body-subtle mt-1">Filtra las localidades disponibles.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="municipio"></p>
             </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Localidad <span class="text-fg-danger">*</span></label>
+              {{ form_crear.zona }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Fecha desde <span class="text-fg-danger">*</span></label>
               {{ form_crear.fecha_asignada }}
@@ -205,5 +214,6 @@
   </div>
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
+{% include "programas/becas/relevamientos/_cascada_localidad.html" %}
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
