@@ -39,8 +39,12 @@ if [ "${RUN_COLLECTSTATIC:-false}" = "true" ]; then
   python manage.py collectstatic --noinput
 fi
 
-if [ "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin seed_datos_base crear_programas}" != "false" ]; then
-  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-crear_superadmin seed_datos_base crear_programas}"
+# El bootstrap NO crea usuarios: siembra roles, capacidades y programas. El
+# superusuario se crea a mano con `createsuperuser`, con las credenciales que
+# defina quien monta el ambiente (antes existia un `crear_superadmin` con usuario
+# y contrasena escritos en el codigo, que se ejecutaba en cualquier ambiente).
+if [ "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}" != "false" ]; then
+  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}"
 fi
 
 if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then
