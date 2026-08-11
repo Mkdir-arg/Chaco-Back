@@ -305,6 +305,17 @@ Las migraciones vuelven a aplicarse solas en el arranque, antes de que la aplica
 !!! tip "Si la versión trae variables nuevas"
     Al agregarse una integración pueden aparecer variables que el ambiente no tenía. Conviene comparar `.env.production` contra `.env.qa.example` después de cada actualización: una variable faltante no rompe el arranque, pero deja la funcionalidad que depende de ella silenciosamente apagada.
 
+!!! danger "Cambio importante de esta versión: el arranque ya no crea usuarios"
+    Hasta la versión anterior, el arranque creaba un superusuario con **usuario y contraseña fijos**, los mismos en cualquier ambiente. Se retiró, porque dejaba una credencial conocida en todo servidor donde se levantara el sistema. Qué implica al actualizar:
+
+    - **Un ambiente en funcionamiento no se ve afectado**: los usuarios que ya existen siguen igual y se sigue entrando como siempre.
+    - **Si en algún momento se recrea la base**, hay que crear el superusuario a mano: es el paso 5 de esta guía.
+    - **Si el ambiente se sembró con una versión anterior, tiene un usuario `admin` con la contraseña conocida.** Hay que cambiarla —o eliminar ese usuario si no se usa— desde Administración → Usuarios, o con:
+
+    ```bash
+    docker exec -it chaco-web-1 python manage.py changepassword admin
+    ```
+
 !!! danger "Cosas a NO hacer"
     - **No operar con `sudo su`**: la clave de acceso al repositorio y a Docker es del usuario de despliegue; como root fallan `git pull` y el deploy.
     - **No editar la base a mano**: el esquema lo manejan las migraciones.

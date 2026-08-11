@@ -1929,6 +1929,7 @@ Tres agravantes:
 - Se retiró de `docker-compose.prod.yml` la bandera `RUN_CREAR_SUPERADMIN`, que además **no la leía nadie**: era configuración muerta.
 - Las dos plantillas de variables aclaran que el bootstrap no crea usuarios y muestran el comando.
 - La guía interna (`setup.md`, `processes.md`) y la **guía pública** documentan cómo crear el superusuario. En la pública es un paso propio, el 5, con la variante interactiva y la de script, la advertencia de elegir contraseña propia y la aclaración de que ese usuario es solo la puerta de entrada: los usuarios de trabajo se dan de alta desde el sistema.
+- La sección **«Actualizar a una versión nueva»** de la guía pública avisa del cambio de comportamiento: un ambiente en marcha no se ve afectado, pero si se recrea la base hay que crear el usuario a mano, y **si el ambiente se sembró con una versión anterior tiene el `admin` con la contraseña conocida y hay que cambiarla** (con `changepassword` o desde el sistema). Es el lugar donde ECOM va a leerlo.
 
 ## Archivos
 
