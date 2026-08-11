@@ -59,8 +59,24 @@ Del otro lado **no** es un repo pasivo: tiene CI/CD propio.
   Nada que ver con `icore-srv`, que seguimos desplegando a mano.
 - **La rama `test` de ECOM no es nuestra.** Tiene commits propios de su
   automatización (autor `argocd`, `[ci skip]`), así que está divergida de nuestra
-  `main`: un push normal se rechaza y forzarlo les borraría esos commits y su
-  copia del pipeline. Actualizarla se acuerda con ellos.
+  `main`: un push normal se rechaza. **No se fuerza.** Se actualiza haciendo que
+  nuestro contenido *descienda* del suyo, con un commit de merge cuyo árbol es
+  idéntico al de `main`:
+
+  ```powershell
+  # Su commit no se puede traer con `git fetch ecom test`: el servidor corta con
+  # HTTP 500. Se obtiene con un clon superficial y se opera ahí, sin ensuciar el
+  # repo del proyecto.
+  git clone --depth=1 --branch test <url-ecom> $tmp
+  git -C $tmp fetch <ruta-del-repo> main          # por filesystem, sin red
+  $tree  = git -C $tmp rev-parse FETCH_HEAD^{tree}
+  $merge = git -C $tmp commit-tree $tree -p FETCH_HEAD -p HEAD -m "merge: ..."
+  git -C $tmp push origin ${merge}:refs/heads/test
+  ```
+
+  Es un avance directo, así que entra sin `--force` y conserva su historial. La
+  contra: `test` queda con un commit que `main` no tiene, así que la próxima
+  actualización repite la maniobra.
 - Un cambio de **código fuente** se despliega solo. Un cambio de **configuración**
   —variables de entorno, secretos, un CronJob— lo hace su equipo de devops. Por
   eso el SMTP y la sincronización periódica de SIIS dependen de ellos en esos

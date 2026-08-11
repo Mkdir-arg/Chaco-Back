@@ -167,7 +167,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
 | 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟢 **Hecho** | No |
-| 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟡 **Hecho — falta acordar la rama `test` con ECOM** | No |
+| 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟡 **Hecho — el build de ECOM falla por su runner** | No |
 
 **Notas del índice**
 
@@ -1738,7 +1738,7 @@ No aplica: entrada nueva. Cierra el «Pendiente detectado» que había quedado a
 
 # Cambio 27 — El release lleva el pipeline de ECOM
 
-🟡 **HECHO — 11/08/2026 · FALTA ACORDAR LA RAMA `test` CON ECOM**
+🟡 **HECHO — 11/08/2026 · EL BUILD DE ECOM FALLA POR SU RUNNER**
 
 | | |
 |---|---|
@@ -1797,15 +1797,24 @@ No requiere migración.
 
 ## Puesta en marcha en el servidor
 
-No aplica a `icore-srv`: nuestro despliegue sigue siendo manual y no usa este pipeline. El efecto es del lado de ECOM y se activa con el próximo `/pushGitLabecom`, que a partir de ahora **va a disparar un build de la imagen `…/datanach/main:latest`**. Conviene avisarles antes del primero.
+No aplica a `icore-srv`: nuestro despliegue sigue siendo manual y no usa este pipeline. El efecto es del lado de ECOM.
+
+### Lo que pasó al espejar, el 11/08/2026
+
+- **`main` quedó en `23c70da`** y, con el pipeline ya incluido, **disparó el primer build real**. Confirmado: antes las ramas se actualizaban sin construir nada.
+- **Ese build falló, y no por el código.** El job `#31692` murió con `Cannot connect to the Docker daemon at tcp://docker:2375`: el servicio `docker:dind` no pasa el health check (`FATAL: No HOST or PORT found`). Tres indicios apuntan al runner `global_runner` (#81): quedó un contenedor de servicio huérfano (`Service docker:dind is already created. Ignoring.`), `docker:dind` y `docker:latest` resuelven a la **misma** imagen local (`sha256:084e385b…`) con pull policy `if-not-present`, y el demonio se queja de iptables (`can't open '/proc/net/ip6_tables_names'`), síntoma de dind sin `privileged = true`. El build **no llegó a leer el `Dockerfile`**: el checkout y el login al registry salieron bien.
+- **`test` quedó en `3e2e1ac`, sin forzar.** La rama estaba divergida y un push normal se rechaza, pero en vez de `--force` se hizo que nuestro contenido descienda del suyo: un commit de merge con el **árbol idéntico al de `main`** y padres `[23c70da, 888c121]`. Entra como avance directo y **conserva el commit de `argocd`**. El procedimiento quedó documentado en [branching.md](branching.md), incluido el rodeo del clon superficial —su servidor no puede servir ese commit por `fetch`, corta con HTTP 500—.
+- **El entorno de testing todavía no se actualizó**, y no lo hará hasta que su runner pueda construir: sin imagen nueva, ArgoCD no tiene qué desplegar.
+
+Antes se había verificado que sobrescribir `test` no habría perdido contenido de ellos —su `.gitlab-ci.yml` es el mismo blob que el nuestro y los otros cinco archivos que diferían eran restos de una estructura vieja de nuestro repo—, pero el camino sin reescritura era mejor y era posible.
 
 ## Pendientes / a definir
 
 Para ECOM:
 
-- ¿El pipeline corre para `main` aunque la rama no traiga el archivo, o hacía falta esto?
-- ¿Quién actualiza `test`: nos autorizan a sobrescribirla, o mergean `main` → `test` de su lado?
+- **Arreglar el runner `global_runner` (#81)**, que es lo único que bloquea el despliegue de testing y de QA: `privileged = true` en su `config.toml`, limpieza de contenedores de servicio huérfanos y refresco de las imágenes `docker:latest` / `docker:dind` (o `pull_policy = always`). Si por política no pueden habilitar `privileged`, hay que rehacer el pipeline para construir sin demonio (Kaniko o similar), y ahí habría que saber si el runner puede descargar esa imagen.
 - QA: ¿va a tomar `…/main:latest`? ¿Con qué URL?
+- ¿Cómo quieren que manejemos `main`: la actualizamos en cada release nuestra, o solo cuando avisemos que hay una versión estable? Ahora cada push construye.
 - ¿Las variables de entorno de testing están cargadas (base, SIIS, correo)?
 - Accesos a ArgoCD con usuario de dominio.
 - El sync periódico de SIIS en Kubernetes sería un CronJob, o sea configuración: ¿lo definen ellos?
