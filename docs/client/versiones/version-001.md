@@ -142,8 +142,22 @@ REDIS_PORT=6379
 REDIS_DB=1
 
 # ─── Arranque del contenedor ──────────────────────────────
+# Este bloque lo lee el proceso de arranque, no la aplicación: en Kubernetes tiene
+# que ir como variables de entorno del pod (no alcanza un archivo montado).
+#
+# Ajustes endurecidos para un ambiente servido: exige DJANGO_ALLOWED_HOSTS (falla al
+# arrancar si falta), fuerza DEBUG=False y redirige a HTTPS. El proxy o ingress debe
+# enviar el encabezado X-Forwarded-Proto: https, o las peticiones entran en bucle.
+DJANGO_SETTINGS_MODULE=config.settings_production
 APP_RUNTIME=daphne
 RUN_MIGRATIONS=true
+# Recolecta los estáticos al arrancar. Con ENVIRONMENT=prd|qa ya es el default; se
+# deja explícito. La app sirve /static/ por sí sola: no hace falta nginx para eso.
+RUN_COLLECTSTATIC=true
+# Solo sin nginx adelante (Kubernetes): la app sirve también /media/, los archivos
+# que suben los territoriales. Ese directorio necesita almacenamiento persistente.
+# En la VM queda en False, porque /media/ lo sirve nginx.
+SERVE_MEDIA=False
 # Siembra roles, capacidades, programas y catálogos base. Conviene dejarlo tal cual:
 # recortar esta lista deja los roles congelados. No crea usuarios: el superusuario se
 # crea a mano en el paso 5, con las credenciales que definan ustedes.
