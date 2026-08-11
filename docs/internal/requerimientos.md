@@ -164,7 +164,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 21 | Textos con caracteres rotos | Transversal / textos | `#textos` `#ui` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 22 | Vigencia del programa SIIS en los segmentos | Becas / integración | `#siis` `#pausas` `#convocatorias` `#infra` | Pedido posterior — origen sin registrar | sin registrar | 🟢 **Hecho** | `programas.0043` |
 | 23 | Orden de los requisitos: autonumerado y sin repetidos | Becas / requisitos | `#requisitos` `#ui` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
-| 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | `users.0020` |
+| 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
 
 **Notas del índice**
 
@@ -992,6 +992,8 @@ El rol vuelve, pero **anclado al subsegmento** en lugar de a una Región. Las Re
 
 **Reversión:** revertir el filtrado en `segmento_subsegmentos_json` y retirar las dos pruebas. Se vuelve al comportamiento anterior sin tocar la base.
 
+**Puesta en marcha:** desplegado el 11/08/2026 en la release `e5477a2`, junto con el Cambio 24. No requiere nada más que el deploy.
+
 **Pendiente detectado:** el campo Subsegmento sigue siendo opcional para este rol. Si el Coordinador Regional crea una convocatoria sin subsegmento, queda a nivel segmento y `convocatorias_visibles` la deja fuera de su alcance, con lo cual desaparece de su listado apenas la guarda. Se resuelve exigiendo el subsegmento cuando quien crea es Coordinador Regional; queda a definición.
 
 ## Historial: eliminación del 10/08/2026
@@ -1289,6 +1291,10 @@ No requiere base de datos. Alcanza con restaurar los cuatro archivos al commit a
 
 El template no debe revertirse parcialmente: el título, las dos etiquetas y el aviso del modal tienen que quedar todos en la misma codificación.
 
+## Puesta en marcha en el servidor
+
+Desplegado el 11/08/2026 en la release `e5477a2`. Solo el template llega al release: los tres archivos de prueba también viajan, pero el texto corregido que ve el operador es el de `segmento_list.html`.
+
 ## Recomendación pendiente
 
 Incorporar esta detección a `scripts/design_audit.py`, que ya es la fuente única de los chequeos mecánicos y se ejecuta automáticamente después de cada edición. Así el defecto no podría volver a entrar sin aviso. No se implementó dentro de este alcance.
@@ -1456,7 +1462,7 @@ No aplica: entrada nueva.
 
 # Cambio 24 — El alcance sobre Usuarios y Roles, solo por capacidades transversales
 
-🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+🟢 **HECHO — 11/08/2026**
 
 | | |
 |---|---|
@@ -1526,11 +1532,15 @@ La causa era que la capacidad paraguas del programa (`becas.programa.administrar
 
 ## Puesta en marcha en el servidor
 
-**Pendiente de despliegue.** La migración se aplica sola al arrancar el contenedor, antes de atender pedidos, así que no hay ventana en la que un rol quede sin alcance. Después de desplegar hay que entrar con un usuario real de cada rol de Becas —Administrador, Coordinador, Coordinador Regional y Referente— y confirmar que Usuarios y Roles listen lo que corresponde a cada uno. **El síntoma a buscar es la lista vacía, no el aviso de permisos.**
+**Desplegado el 11/08/2026 en la release `e5477a2` (`development@c55fd5f`)**, sin backup de base por pedido del PM: la migración es un `RunPython` que solo reparte permisos ya existentes entre grupos, no toca esquema ni datos de negocio, y su vuelta atrás es no-op.
+
+La migración la aplicó el entrypoint al arrancar el contenedor, antes de atender pedidos, así que no hubo ventana en la que un rol quedara sin alcance. Verificado en el servidor: `users.0020` en `[X]`, `web` y `websocket` healthy, nginx reiniciado después de recrearlos, `/health/` y el login en 200, y las constantes nuevas horneadas en el contenedor (`CAPS_ADMIN_PROGRAMA_USUARIOS` con una sola capacidad y el sidebar derivando de los filtros).
+
+**Queda la verificación funcional por rol:** entrar con un usuario real de cada rol de Becas —Administrador, Coordinador, Coordinador Regional y Referente— y confirmar que Usuarios y Roles listen lo que corresponde a cada uno. **El síntoma a buscar es la lista vacía, no el aviso de permisos.**
 
 ## Pendientes / a definir
 
-- **Despliegue y verificación por rol**, según el punto anterior.
+- **Verificación funcional por rol en el servidor**, según el punto anterior. Es lo único que el despliegue no cubre: la migración quedó aplicada, pero que cada rol vea a quien debe se comprueba entrando.
 - **`becas.usuario.territorial` sigue nombrada dentro de una constante transversal**, como capacidad que abre el módulo de Usuarios. No afecta el funcionamiento; queda para cuando se modele el alcance del Coordinador con una capacidad genérica.
 - **El entorno local de pruebas no sirve como red de seguridad completa.** Corre Python 3.14, incompatible con el cliente de pruebas de Django 4.2: falla con `AttributeError: 'super' object has no attribute 'dicts'` en cualquier prueba que renderice una plantilla, y de ahí sale la mayor parte de las 124 en rojo, todas anteriores a este cambio. Tres de las 19 corregidas siguen figurando en rojo por esa causa, pero ya superan el control de acceso y fallan recién al renderizar. Se arregla volviendo el entorno a **Python 3.12**, el stack documentado en `CLAUDE.md`; hasta entonces conviene validar los formularios sobre el formulario mismo y no sobre la respuesta de la vista. Receta del entorno sin Docker en [venv-setup.md](venv-setup.md).
 
