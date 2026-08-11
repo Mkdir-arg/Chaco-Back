@@ -165,7 +165,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 22 | Vigencia del programa SIIS en los segmentos | Becas / integración | `#siis` `#pausas` `#convocatorias` `#infra` | Pedido posterior — origen sin registrar | sin registrar | 🟢 **Hecho** | `programas.0043` |
 | 23 | Orden de los requisitos: autonumerado y sin repetidos | Becas / requisitos | `#requisitos` `#ui` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
-| 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
+| 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -1559,7 +1559,7 @@ No aplica: entrada nueva. Modifica el criterio del **Cambio 20**, cuyo historial
 
 # Cambio 25 — La zona del relevamiento se elige del catálogo de localidades
 
-🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+🟢 **HECHO — 11/08/2026**
 
 | | |
 |---|---|
@@ -1626,7 +1626,11 @@ No aplica: entrada nueva. Modifica el criterio del **Cambio 20**, cuyo historial
 
 ## Puesta en marcha en el servidor
 
-**Pendiente de despliegue.** No necesita nada más que el deploy: sin migración, sin cron y sin variables. Lo que sí conviene mirar después es que el catálogo de localidades del ambiente tenga cargada la provincia con el nombre `Chaco`; si estuviera vacío o con otro nombre, el selector de municipios aparece vacío y no se puede crear un relevamiento.
+**Desplegado el 11/08/2026 en la release `8df9985` (`development@cfa5250`).** No necesitó nada más que el deploy: sin migración, sin cron y sin variables.
+
+El riesgo a verificar era que el ambiente tuviera cargado el catálogo con la provincia escrita `Chaco` —si estuviera vacío o con otro nombre, el selector de municipios aparece vacío y no se puede crear un relevamiento—. Verificado contra producción llamando a los selectores desplegados: **79 municipios y 778 localidades**. `/health/` y el login en 200, nginx reiniciado después de recrear `web` y `websocket`.
+
+Ese chequeo hay que repetirlo en cualquier ambiente nuevo, porque el catálogo se carga con `load_initial_data` y no viaja con el deploy.
 
 ## Pendientes / a definir
 
