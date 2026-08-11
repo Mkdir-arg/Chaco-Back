@@ -23,12 +23,19 @@ spec:
           volumeMounts:
             - name: media
               mountPath: /app/media
+            # Compartido con el contenedor web: el collectstatic del bootstrap
+            # escribe acá. Sin este volumen, los estáticos quedan en el filesystem
+            # efímero del initContainer y el web (con comando propio) arranca sin
+            # manifest: toda pantalla con estáticos responde 500.
+            - name: staticfiles
+              mountPath: /app/staticfiles
       containers:
         - name: web
           image: <IMAGEN>
           # Sin command/args el entrypoint repite el bootstrap (es idempotente) y
           # levanta daphne. Con comando propio, el initContainer de arriba es el
-          # que garantiza migraciones y sembrado.
+          # que garantiza migraciones, sembrado y estáticos (vía el volumen
+          # staticfiles compartido).
           envFrom:
             - secretRef:
                 name: <SECRET-ENV>
@@ -47,7 +54,12 @@ spec:
             # Persistente: acá viven los adjuntos que cargan los territoriales.
             - name: media
               mountPath: /app/media
+            - name: staticfiles
+              mountPath: /app/staticfiles
       volumes:
         - name: media
           persistentVolumeClaim:
             claimName: datanach-media
+        # Efímero a propósito: se regenera en cada arranque con collectstatic.
+        - name: staticfiles
+          emptyDir: {}

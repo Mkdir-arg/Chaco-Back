@@ -2200,7 +2200,13 @@ Quitar whitenoise de requirements, middleware y storage; quitar `SERVE_MEDIA` de
 
 ## Historial
 
-No aplica: entrada nueva. Implementa lo que el **Cambio 30** había dejado documentado como responsabilidad de la plataforma.
+Entrada nueva; implementa lo que el **Cambio 30** había dejado documentado como responsabilidad de la plataforma.
+
+**11/08/2026, más tarde — re-revisión a pedido del PM («¿en teoría no hay ningún error?»).** Se releyeron los manifiestos y los claims de la documentación buscando errores, y aparecieron tres, corregidos en el momento:
+
+1. **El ejemplo del initContainer tenía un hueco real:** con `command` propio en el contenedor web, el `collectstatic` del bootstrap escribía en el filesystem efímero del initContainer y los estáticos nunca llegaban al contenedor que sirve — whitenoise sin manifest responde 500 en toda pantalla. Se agregó el `emptyDir` de `/app/staticfiles` compartido entre ambos, con el motivo comentado.
+2. **El comentario de horarios de `cronjobs.yaml` era impreciso:** decía «horarios en UTC-3 según el timezone del cluster», pero Kubernetes interpreta `schedule` en el timezone del controlador (UTC salvo configuración). Ahora indica `timeZone: America/Argentina/Buenos_Aires` (K8s ≥ 1.27) o correr los horarios tres horas.
+3. **Trampa de correo sin documentar:** el backend SMTP solo se activa con `ENVIRONMENT=prd`; con `qa` el correo sale por la consola del pod aunque el SMTP esté configurado. Es deliberado del código (un QA no debe mandar mails reales), pero nadie lo decía: quedó anotado en la plantilla y en la guía, con la salida (correr el QA con `prd` si necesita probar invitaciones de punta a punta).
 
 # Verificaciones generales pendientes antes de desplegar
 

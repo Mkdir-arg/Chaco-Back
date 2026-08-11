@@ -1,7 +1,12 @@
 # Tareas programadas de DATAÑACH como CronJob de Kubernetes.
 # Reemplazar <IMAGEN> por la imagen del registry y <SECRET-ENV> por el Secret con
-# las variables del ambiente (las mismas del Deployment). Horarios en UTC-3 según
-# el timezone del cluster; los de abajo replican el cron de la VM.
+# las variables del ambiente (las mismas del Deployment).
+#
+# HORARIOS: Kubernetes interpreta `schedule` en el timezone del controlador (UTC,
+# salvo que el cluster diga otra cosa). Los horarios de abajo replican el cron de
+# la VM en hora argentina: para que signifiquen lo mismo, agregar a cada spec
+# `timeZone: America/Argentina/Buenos_Aires` (Kubernetes >= 1.27) o correr los
+# horarios tres horas.
 #
 # Qué pasa si no corren, comando por comando, está en la guía publicada
 # (sección "Tareas programadas").

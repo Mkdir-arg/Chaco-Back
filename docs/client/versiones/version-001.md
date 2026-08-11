@@ -186,7 +186,9 @@ RENAPER_AUTH_MODE=credentials
 RENAPER_HTTP_METHOD=get
 
 # ─── Correo saliente ──────────────────────────────────────
-# Sin esto el alta de usuario funciona, pero la invitación no sale.
+# Sin esto el alta de usuario funciona, pero la invitación no sale. El envío real
+# ocurre solo con ENVIRONMENT=prd: con qa el correo va a la consola del pod (a
+# propósito, para que un ambiente de prueba no mande mails de verdad).
 EMAIL_HOST=<servidor-smtp>
 EMAIL_PORT=587
 EMAIL_HOST_USER=<usuario>
