@@ -168,6 +168,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟢 **Hecho** | No |
 | 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟢 **Hecho** | No |
+| 27.1 | Plantilla de variables y guía de configuración de entornos | Transversal / infraestructura | `#infra` `#correo` `#siis` | PM — para responderle a ECOM qué configurar sin entregar secretos | 11/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -1833,6 +1834,47 @@ Borrar `.gitlab-ci.yml`, su línea en `.gitattributes` y los dos nombres agregad
 ## Historial
 
 No aplica: entrada nueva.
+
+## 27.1 Plantilla de variables y guía de configuración de entornos
+
+🟢 **HECHO — 11/08/2026**
+
+### Pedido original
+
+Al montar ECOM sus entornos, el PM preguntó si había que pasarles las variables de entorno del servidor productivo. La respuesta fue que no —los valores no se comparten entre entornos— y el pedido derivó en dejar por escrito **qué** hay que configurar y **quién** provee cada valor.
+
+### Decisiones tomadas
+
+- **No se entregan los valores de producción, y esto queda escrito.** Motivos, en orden de gravedad: una `DJANGO_SECRET_KEY` compartida hace que una sesión firmada en un entorno valga en el otro; unas credenciales de base compartidas ponen los datos reales al alcance de una prueba; y ante una filtración no habría forma de saber de qué entorno salió.
+- **Lo que se entrega es una plantilla, no un archivo lleno.** `.env.qa.example` no contiene ni un valor real y viaja en el release, así que ECOM la tiene en el repositorio espejado sin que nadie mande nada por chat.
+- **Cada variable dice quién la provee.** Es la parte que faltaba: la lista de nombres ya existía en `.env.local.example`, pero no que las credenciales de **SIIS y Personas las emite ECOM** —el pedido va al revés de lo que parecía— ni que RENAPER puede quedar en modo de prueba para no bloquear un QA.
+- **Se documentaron las dos causas típicas de «desplegué y no anda»**: el dominio ausente de `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS`, que devuelve 400 en todo, y la base vacía sin sembrado, que deja el sistema sin roles ni programas y por lo tanto sin poder iniciar sesión.
+
+### Implementación
+
+- `.env.qa.example`: plantilla comentada por grupos —Django, URL del entorno, base, Redis, arranque, SIIS, Personas, RENAPER, correo, sesión, observabilidad—, con marca de obligatoriedad y de origen del valor.
+- `processes.md` suma dos secciones: **Entornos**, con la tabla de los cuatro y quién despliega cada uno, y **Variables de entorno**, con la regla de no compartir valores, la tabla de quién provee qué y las dos trampas del entorno nuevo.
+
+### Archivos
+
+- `.env.qa.example`
+- `docs/internal/processes.md`
+
+### Base de datos
+
+No requiere migración.
+
+### Validación
+
+`manage.py check` sin observaciones —no toca código— y la plantilla se contrastó contra las variables que `config/settings.py` lee realmente, no contra el ejemplo anterior.
+
+### Pendientes / a definir
+
+Los valores concretos siguen siendo de ECOM: credenciales de SIIS y Personas para sus entornos, el SMTP y las de RENAPER. La plantilla no los reemplaza, solo dice qué falta.
+
+### Reversión
+
+Borrar el archivo y las dos secciones de `processes.md`. Sin efecto sobre la aplicación.
 
 # Verificaciones generales pendientes antes de desplegar
 
