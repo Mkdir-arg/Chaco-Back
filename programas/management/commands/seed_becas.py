@@ -36,9 +36,17 @@ ROL_TERRITORIAL = "Becas — Territorial"
 
 
 def _capacidades_admin_becas():
-    """Todas las capacidades finas de Becas salvo ``becas.campo`` (el Admin no
-    opera la app de territorial, es un rol de backoffice)."""
-    return [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c != "becas.campo"]
+    """Capacidades del Administrador: todas las finas de Becas salvo ``becas.campo``
+    (no opera la app del territorial, es un rol de backoffice), más el alcance
+    transversal sobre los ABM de Usuarios y Roles del programa.
+
+    Las transversales van explícitas porque ``becas.programa.administrar`` ya no las
+    confiere (ver ``rbac.CAPS_ADMIN_PROGRAMA_*``). Sin ellas el Administrador no vería
+    los usuarios ni los roles de Becas, y como ``asegurar_roles_becas`` usa
+    ``permissions.set()``, una corrida del seed revertiría el traspaso de ``users.0020``.
+    """
+    finas = [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c != "becas.campo"]
+    return finas + list(rbac.CAPS_ADMIN_PROGRAMA)
 
 
 ROLES_BECAS = {

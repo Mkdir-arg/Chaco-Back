@@ -298,7 +298,9 @@ class AutoProteccionProgramaTests(TestCase):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.rol = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
-        self.rol.permissions.add(_perm("programa.configurar"))
+        # El check cuenta las capacidades de rbac.CAPS_ADMIN_PROGRAMA: `programa.configurar`
+        # quedó afuera (es potestad de sistema, no alcance de programa).
+        self.rol.permissions.add(_perm("programa.usuario.administrar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol)
 
@@ -370,3 +372,71 @@ class CatalogoProgramaTests(TestCase):
         self.assertNotIn("ciudadano.ver", cods)
         self.assertTrue(rbac.es_codigo_de_programa("relevamiento.gestionar"))
         self.assertFalse(rbac.es_codigo_de_programa("ciudadano.ver"))
+
+
+class AlcanceAbmSoloTransversalesTests(TestCase):
+    """El alcance sobre los ABM de Usuarios y Roles lo dan **solo** las dos
+    capacidades transversales.
+
+    Antes lo confería también ``becas.programa.administrar``, la paraguas del dominio
+    Becas, así que no había forma de quitarle los ABM al Administrador de Becas sin
+    vaciarle el rol. Ahora la paraguas queda para su dominio (reportes, RENAPER,
+    pausas, alta de coordinadores) y el alcance se otorga o se quita por separado.
+    """
+
+    def setUp(self):
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.rol = Group.objects.create(name="Admin Becas")
+        RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
+        self.user = User.objects.create_user("adm", password="x")
+        self.user.groups.add(self.rol)
+        # Sin superusuario a propósito: el check por programa lo cuenta como
+        # administrador (acceso de emergencia) y taparía lo que se quiere probar.
+
+    def _recargar(self):
+        return User.objects.get(pk=self.user.pk)
+
+    def test_la_paraguas_de_becas_no_confiere_alcance(self):
+        from users.selectors.roles import programas_administrables_roles, programas_administrables_usuarios
+
+        self.rol.permissions.add(_perm("becas.programa.administrar"))
+        user = self._recargar()
+
+        self.assertTrue(rbac.puede(user, "becas.programa.administrar", programa=self.becas))
+        self.assertEqual(list(programas_administrables_usuarios(user)), [])
+        self.assertEqual(list(programas_administrables_roles(user)), [])
+
+    def test_la_paraguas_sola_no_muestra_la_seccion_administracion(self):
+        self.rol.permissions.add(_perm("becas.programa.administrar"))
+        html = render_sidebar(self._recargar())
+
+        self.assertNotIn(reverse("users:usuarios"), html)
+        self.assertNotIn(reverse("users:roles"), html)
+
+    def test_la_paraguas_sola_no_cuenta_como_administrador_del_programa(self):
+        self.rol.permissions.add(_perm("becas.programa.administrar"))
+
+        with self.assertRaises(rbac.SinAdministradorProgramaError):
+            rbac.asegurar_admin_restante(programa=self.becas)
+
+    def test_las_transversales_dan_el_alcance(self):
+        from users.selectors.roles import programas_administrables_roles, programas_administrables_usuarios
+
+        self.rol.permissions.add(_perm("programa.usuario.administrar"), _perm("programa.rol.administrar"))
+        user = self._recargar()
+
+        self.assertEqual(list(programas_administrables_usuarios(user)), [self.becas])
+        self.assertEqual(list(programas_administrables_roles(user)), [self.becas])
+        rbac.asegurar_admin_restante(programa=self.becas)  # no lanza
+
+        html = render_sidebar(self._recargar())
+        self.assertIn(reverse("users:usuarios"), html)
+        self.assertIn(reverse("users:roles"), html)
+
+    def test_cada_abm_se_otorga_por_separado(self):
+        """Dar los usuarios del programa no arrastra sus roles (ni al revés)."""
+        self.rol.permissions.add(_perm("programa.usuario.administrar"))
+        html = render_sidebar(self._recargar())
+
+        self.assertIn(reverse("users:usuarios"), html)
+        self.assertNotIn(reverse("users:roles"), html)

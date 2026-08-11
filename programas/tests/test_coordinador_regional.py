@@ -9,7 +9,9 @@ from io import StringIO
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import TestCase
+from django.http import Http404
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from programas.forms import RelevamientoForm, SubsegmentoForm
 from programas.management.commands.seed_becas import ROL_COORDINADOR_REGIONAL
@@ -25,6 +27,7 @@ from programas.services.autorizacion import (
     usuarios_coordinadores_becas,
     usuarios_coordinadores_regionales_becas,
 )
+from programas.views.configuracion import segmento_subsegmentos_json
 
 
 class CoordinadorRegionalTests(TestCase):
@@ -151,6 +154,27 @@ class CoordinadorRegionalTests(TestCase):
     def test_puede_gestionar_territoriales_de_su_segmento(self):
         self.assertIn(self.segmento, segmentos_para_gestion_territoriales(self.ana))
         self.assertNotIn(self.otro_segmento, segmentos_para_gestion_territoriales(self.ana))
+
+    # --- Select de subsegmentos del form de convocatoria ----------------------
+
+    def test_el_endpoint_de_subsegmentos_solo_ofrece_los_suyos(self):
+        """El select "Subsegmento" se puebla por AJAX, no por el queryset del
+        form: sin scoping en el endpoint, Ana veía ahí el subsegmento de Beto."""
+        self.client.force_login(self.ana)
+
+        response = self.client.get(reverse("becas:segmento_subsegmentos_json", args=[self.segmento.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["nombre"] for item in response.json()], [self.sub_ana.nombre])
+
+    def test_el_endpoint_de_subsegmentos_rechaza_un_segmento_fuera_de_alcance(self):
+        """Sobre la vista y no por el test client: el 404 pasa por el handler de
+        error, que renderiza un template (ver el piso de Py3.14 del suite)."""
+        request = RequestFactory().get("/")
+        request.user = self.ana
+
+        with self.assertRaises(Http404):
+            segmento_subsegmentos_json(request, self.otro_segmento.pk)
 
 
 class ReferenteDelSubsegmentoFormTests(TestCase):

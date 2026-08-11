@@ -679,9 +679,20 @@ def pregunta_eliminar(request, pk):
 # ---------------------------------------------------------------------------
 @login_required
 def segmento_subsegmentos_json(request, pk):
-    """Devuelve los subsegmentos de un segmento para el filtrado dinámico."""
+    """Devuelve los subsegmentos de un segmento para el filtrado dinámico.
+
+    Va scoped igual que el queryset del form (``subsegmentos_permitidos`` de
+    ``ConvocatoriaForm``): el select se puebla por acá, así que sin este corte
+    el Coordinador Regional veía en la lista los subsegmentos de sus pares
+    (el POST igual los rechazaba, pero la UI ofrecía lo que no puede elegir).
+    """
     if not puede_alguna(request.user, ["becas.convocatoria.ver", "becas.convocatoria.crear"]):
         raise PermissionDenied
-    segmento = get_object_or_404(Segmento, pk=pk)
-    data = list(segmento.subsegmentos.order_by("nombre").values("id", "nombre", "cupo_maximo"))
+    segmento = get_object_or_404(segmentos_visibles(request.user), pk=pk)
+    data = list(
+        subsegmentos_visibles(request.user)
+        .filter(segmento=segmento)
+        .order_by("nombre")
+        .values("id", "nombre", "cupo_maximo")
+    )
     return JsonResponse(data, safe=False)

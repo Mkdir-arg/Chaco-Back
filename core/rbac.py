@@ -308,12 +308,20 @@ CAPS_ADMINISTRACION = ("usuario.administrar", "rol.administrar")
 # a administrar ESE programa. Van separadas por ABM: se puede dar la gestión de
 # usuarios del programa sin la de sus roles, y viceversa.
 #
-# ``programa.configurar`` NO figura acá a propósito: habilita el wizard global de
-# programas (crear/editar cualquiera), que es una potestad de sistema y no un
-# alcance acotado. ``becas.programa.administrar`` sí, por ser la capacidad
-# paraguas del programa Becas.
-CAPS_ADMIN_PROGRAMA_USUARIOS = ("programa.usuario.administrar", "becas.programa.administrar")
-CAPS_ADMIN_PROGRAMA_ROLES = ("programa.rol.administrar", "becas.programa.administrar")
+# Acá solo van capacidades **transversales**: ningún programa confiere este alcance
+# con su propia capacidad paraguas. Así un programa nuevo delega la gestión de sus
+# usuarios y roles tildando estas dos, sin inventar una capacidad propia, y se le
+# puede quitar sin desarmarle el rol.
+#
+# Quedaron afuera a propósito:
+# - ``programa.configurar``: habilita el wizard global de programas (crear/editar
+#   cualquiera), que es potestad de sistema y no un alcance acotado.
+# - ``becas.programa.administrar``: es la paraguas del dominio Becas (reportes,
+#   RENAPER, pausas, alta de coordinadores). Confería además este alcance, lo que
+#   hacía imposible quitarle los ABM al Administrador de Becas sin vaciarle el rol.
+#   La migración ``users.0020`` le pasó estas dos a los roles que la tenían.
+CAPS_ADMIN_PROGRAMA_USUARIOS = ("programa.usuario.administrar",)
+CAPS_ADMIN_PROGRAMA_ROLES = ("programa.rol.administrar",)
 
 # Unión de ambas: "administra algo de este programa". La usa el check de "no dejar
 # un programa sin administrador", que no distingue de qué ABM se trata.

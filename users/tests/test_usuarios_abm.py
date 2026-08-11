@@ -247,7 +247,8 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
 
-        # Admin de programa Becas (programa.configurar).
+        # Admin de los usuarios de Becas. El alcance sobre el ABM de Usuarios lo da
+        # `programa.usuario.administrar` (ver rbac.CAPS_ADMIN_PROGRAMA_USUARIOS).
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_admin_becas,
@@ -255,7 +256,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_admin_becas.permissions.add(_perm("programa.usuario.administrar"))
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
@@ -399,12 +400,13 @@ class ProgramaSinAdminTests(TestCase):
         self.rol_global.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
         self.jefe = User.objects.create_user("jefe", password="x")
         self.jefe.groups.add(self.rol_global)
-        # María, única administradora de Becas.
+        # María, única administradora de Becas. El check de "programa sin administrador"
+        # cuenta las capacidades de rbac.CAPS_ADMIN_PROGRAMA (los dos ABM).
         self.rol_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
         )
-        self.rol_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_becas.permissions.add(_perm("programa.usuario.administrar"), _perm("programa.rol.administrar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol_becas)
 
@@ -446,7 +448,12 @@ class ProgramaSinAdminTests(TestCase):
 
 
 class SidebarAdministracionTests(TestCase):
-    """#68 — la sección Administración del sidebar respeta programa.configurar."""
+    """#68 — la sección Administración del sidebar respeta el alcance de programa.
+
+    Las entradas derivan de ``rbac.CAPS_ENTRADA_ABM_*``, así que el admin de programa
+    las ve por tener las dos capacidades transversales, no por la paraguas del programa
+    ni por ``programa.configurar``.
+    """
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -454,7 +461,7 @@ class SidebarAdministracionTests(TestCase):
         RolMeta.objects.create(
             grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
         )
-        self.rol_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_becas.permissions.add(_perm("programa.usuario.administrar"), _perm("programa.rol.administrar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol_becas)
 
