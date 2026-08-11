@@ -227,7 +227,9 @@ class RolAlcanceTests(TestCase):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
 
-        # Rol administrador de Becas (programa.configurar) + su usuario.
+        # Rol administrador de los roles de Becas + su usuario. El alcance sobre el
+        # ABM de Roles lo da `programa.rol.administrar`: ni `programa.configurar` ni
+        # la paraguas del programa lo confieren (ver rbac.CAPS_ADMIN_PROGRAMA_ROLES).
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_admin_becas,
@@ -235,7 +237,7 @@ class RolAlcanceTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_admin_becas.permissions.add(_perm("programa.rol.administrar"))
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
@@ -334,7 +336,7 @@ class RolAlcanceTests(TestCase):
             programa=dispositivos,
             activo=True,
         )
-        rol.permissions.add(_perm("programa.configurar"))
+        rol.permissions.add(_perm("programa.rol.administrar"))
         admin_dispositivos = User.objects.create_user("adm-dispositivos", password="x")
         admin_dispositivos.groups.add(rol)
 
@@ -482,7 +484,7 @@ class RolesFiltrosTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_admin_becas.permissions.add(_perm("programa.rol.administrar"))
         self.admin_becas = User.objects.create_user("adm-becas-filtros", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
