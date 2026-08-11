@@ -1889,6 +1889,10 @@ No requiere migración.
 
 Borrar el archivo y las dos secciones de `processes.md`. Sin efecto sobre la aplicación.
 
+### Historial
+
+**11/08/2026, más tarde — la sección de despliegue de la guía pública se reescribió en tono técnico**, a pedido del PM («borrar el biri biri; técnico, claro y conciso»). Mismo contenido y mismos títulos —los nueve anclajes publicados se preservaron, verificado contra el build—, pero el cuerpo pasó de ~320 a ~180 líneas: fuera la prosa explicativa, los pasos como comandos con una línea de contexto, las advertencias largas comprimidas a bullets. No cambió ninguna decisión técnica; solo la redacción.
+
 # Cambio 28 — Se retira el superusuario con credenciales escritas en el código
 
 🟡 **HECHO — 11/08/2026 · FALTA CAMBIAR LA CONTRASEÑA DEL `admin` YA CREADO**
