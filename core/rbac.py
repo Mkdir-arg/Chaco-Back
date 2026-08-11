@@ -99,6 +99,7 @@ CATALOGO = [
             ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
             ("becas.usuario.territorial", "Crear y administrar territoriales de los segmentos coordinados"),
             ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
+            ("becas.coordinador_regional", "Operar como Coordinador Regional dentro de su subsegmento asignado"),
         ],
     },
     {

@@ -1284,6 +1284,16 @@ class Subsegmento(PausableMixin, TimeStamped):
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
+    # Un solo referente por subsegmento: asignarlo reemplaza al anterior. Un
+    # mismo Coordinador Regional puede tener varios subsegmentos a cargo.
+    referente = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subsegmentos_a_cargo",
+        verbose_name="Referente asignado",
+    )
 
     class Meta:
         verbose_name = "Subsegmento"

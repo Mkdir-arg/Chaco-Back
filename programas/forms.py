@@ -214,7 +214,7 @@ class SubsegmentoForm(forms.ModelForm):
 
     class Meta:
         model = Subsegmento
-        fields = ["nombre", "descripcion", "cupo_maximo"]
+        fields = ["nombre", "descripcion", "cupo_maximo", "referente"]
         widgets = {
             "nombre": forms.TextInput(
                 attrs={
@@ -230,6 +230,7 @@ class SubsegmentoForm(forms.ModelForm):
                 }
             ),
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+            "referente": forms.Select(attrs={"class": INPUT_CLASS}),
         }
 
     def __init__(self, *args, segmento=None, **kwargs):
@@ -239,6 +240,13 @@ class SubsegmentoForm(forms.ModelForm):
         self.fields["descripcion"].required = False
         if segmento is not None:
             self.instance.segmento = segmento
+        # Un solo referente por subsegmento: elegir otro reemplaza al anterior.
+        from programas.services.autorizacion import usuarios_coordinadores_regionales_becas
+
+        self.fields["referente"].required = False
+        self.fields["referente"].empty_label = "Sin referente asignado"
+        self.fields["referente"].queryset = usuarios_coordinadores_regionales_becas()
+        self.fields["referente"].label_from_instance = lambda u: u.get_full_name() or u.username
 
     def clean_nombre(self):
         nombre = (self.cleaned_data.get("nombre") or "").strip()

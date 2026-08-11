@@ -30,6 +30,7 @@ PROGRAMA_BECAS_CODIGO = "BECAS"
 # Coordinador lo aporta AsignacionCoordinador (ver services/autorizacion.py).
 ROL_ADMIN = "Becas — Administrador"
 ROL_COORDINADOR = "Becas — Coordinador"
+ROL_COORDINADOR_REGIONAL = "Becas — Coordinador Regional"
 ROL_REFERENTE = "Becas — Referente"
 ROL_TERRITORIAL = "Becas — Territorial"
 
@@ -64,6 +65,25 @@ ROLES_BECAS = {
             "becas.cupo.ver",
             "becas.beneficiario.ver",
             "becas.beneficiario.editar",
+        ],
+    },
+    ROL_COORDINADOR_REGIONAL: {
+        "descripcion": (
+            "Opera únicamente los subsegmentos que tiene a cargo: convocatorias, relevamientos y "
+            "territoriales. Ve el segmento como contexto, pero no lo configura."
+        ),
+        "capacidades": [
+            "becas.coordinador_regional",
+            "becas.usuario.territorial",
+            "becas.segmento.ver",
+            "becas.subsegmento.ver",
+            "becas.convocatoria.ver",
+            "becas.convocatoria.crear",
+            "becas.convocatoria.editar",
+            "becas.relevamiento.ver",
+            "becas.relevamiento.crear",
+            "becas.relevamiento.editar",
+            "becas.cupo.ver",
         ],
     },
     ROL_REFERENTE: {

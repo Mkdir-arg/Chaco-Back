@@ -20,6 +20,7 @@ from programas.services.becas import coordinador_gestiona_segmento, get_segmento
 CAP_ADMINISTRAR = "becas.programa.administrar"
 CAP_CAMPO = "becas.campo"
 CAP_REFERENTE = "becas.referente"
+CAP_COORD_REGIONAL = "becas.coordinador_regional"
 
 
 def _caps_gestion():
@@ -78,6 +79,33 @@ def es_referente_becas(user, programa=None):
     return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_REFERENTE, programa=programa)
 
 
+def es_coordinador_regional_becas(user, programa=None):
+    """¿El usuario opera acotado a los subsegmentos que tiene a cargo?
+
+    A diferencia del Coordinador (que gestiona segmentos enteros), el alcance
+    del Coordinador Regional es el subsegmento: ve el segmento que lo contiene
+    solo como contexto y no puede configurarlo.
+    """
+    programa = programa or programa_becas()
+    return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_COORD_REGIONAL, programa=programa)
+
+
+def subsegmentos_a_cargo(user):
+    """Subsegmentos donde ``user`` es el referente asignado."""
+    from programas.models import Subsegmento
+
+    if user is None or not getattr(user, "is_authenticated", False):
+        return Subsegmento.objects.none()
+    return Subsegmento.objects.filter(referente=user)
+
+
+def _segmentos_coordinador_regional(user):
+    """Segmentos que contienen algún subsegmento a cargo de ``user``."""
+    from programas.models import Segmento
+
+    return Segmento.objects.filter(subsegmentos__referente=user).distinct()
+
+
 def _segmentos_referente(user):
     from programas.models import Segmento
 
@@ -101,9 +129,30 @@ def puede_gestionar_segmento(user, segmento, programa=None):
         return True
     if es_referente_becas(user, programa=programa):
         return _segmentos_referente(user).filter(pk=segmento.pk).exists()
+    # Antes de la rama de Coordinador: el Regional no tiene AsignacionCoordinador,
+    # su alcance sale del subsegmento. Acá "gestionar" es el permiso de entrada al
+    # segmento; lo que puede hacer adentro lo acotan sus capacidades y los
+    # querysets de subsegmentos/convocatorias.
+    if es_coordinador_regional_becas(user, programa=programa):
+        return _segmentos_coordinador_regional(user).filter(pk=segmento.pk).exists()
     if rbac.puede_alguna(user, CAPS_GESTION, programa=programa):
         return coordinador_gestiona_segmento(user, segmento)
     return False
+
+
+def puede_operar_subsegmento(user, subsegmento, programa=None):
+    """¿``user`` puede operar **este** subsegmento?
+
+    Para casi todos los roles alcanza con poder gestionar el segmento padre.
+    El Coordinador Regional es la excepción: su alcance es el subsegmento, así
+    que sin este chequeo podría abrir el de un par del mismo segmento.
+    """
+    programa = programa or programa_becas()
+    if not puede_gestionar_segmento(user, subsegmento.segmento, programa=programa):
+        return False
+    if es_coordinador_regional_becas(user, programa=programa):
+        return subsegmento.referente_id == getattr(user, "pk", None)
+    return True
 
 
 def segmentos_visibles(user, programa=None):
@@ -121,27 +170,42 @@ def segmentos_visibles(user, programa=None):
         return Segmento.objects.all()
     if es_referente_becas(user, programa=programa):
         return _segmentos_referente(user)
+    if es_coordinador_regional_becas(user, programa=programa):
+        return _segmentos_coordinador_regional(user)
     if rbac.puede_alguna(user, CAPS_GESTION, programa=programa):
         return get_segmentos_coordinador(user)
     return Segmento.objects.none()
 
 
 def subsegmentos_visibles(user, programa=None):
-    """Queryset de ``Subsegmento`` cuyo segmento el usuario puede gestionar/revisar."""
+    """Queryset de ``Subsegmento`` cuyo segmento el usuario puede gestionar/revisar.
+
+    El Coordinador Regional es la excepción: ve el segmento como contexto pero
+    solo sus subsegmentos, así que si un segmento tiene tres a cargo de tres
+    personas distintas, cada una ve únicamente el suyo.
+    """
     from programas.models import Subsegmento
 
+    if es_coordinador_regional_becas(user, programa=programa):
+        return subsegmentos_a_cargo(user)
     return Subsegmento.objects.filter(segmento__in=segmentos_visibles(user, programa=programa))
 
 
 def convocatorias_visibles(user, programa=None):
     from programas.models import Convocatoria
 
+    if es_coordinador_regional_becas(user, programa=programa):
+        # Solo las de sus subsegmentos: una convocatoria a nivel segmento
+        # (``subsegmento`` nulo) queda fuera de su alcance.
+        return Convocatoria.objects.filter(subsegmento__in=subsegmentos_a_cargo(user))
     return Convocatoria.objects.filter(segmento__in=segmentos_visibles(user, programa=programa))
 
 
 def segmentos_para_gestion_territoriales(user):
     if es_referente_becas(user):
         return _segmentos_referente(user)
+    if es_coordinador_regional_becas(user):
+        return _segmentos_coordinador_regional(user)
     return get_segmentos_coordinador(user)
 
 
@@ -193,9 +257,19 @@ def usuarios_coordinadores_becas(programa=None):
             groups__permissions__codename__in=[
                 rbac.codename_de(CAP_ADMINISTRAR),
                 rbac.codename_de(CAP_REFERENTE),
+                rbac.codename_de(CAP_COORD_REGIONAL),
             ]
         )
         .distinct()
+    )
+
+
+def usuarios_coordinadores_regionales_becas(programa=None):
+    """Usuarios activos con ``becas.coordinador_regional``, candidatos a ser
+    referentes de un subsegmento.
+    """
+    return _usuarios_con_capacidad_en_programa([CAP_COORD_REGIONAL], programa=programa).exclude(
+        groups__permissions__codename=rbac.codename_de(CAP_ADMINISTRAR)
     )
 
 
@@ -262,3 +336,7 @@ class SegmentoScopedMixin:
     def assert_puede_gestionar_segmento(self, segmento):
         if not puede_gestionar_segmento(self.request.user, segmento):
             raise PermissionDenied("No tiene acceso a este segmento.")
+
+    def assert_puede_operar_subsegmento(self, subsegmento):
+        if not puede_operar_subsegmento(self.request.user, subsegmento):
+            raise PermissionDenied("No tiene acceso a este subsegmento.")
