@@ -166,7 +166,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 23 | Orden de los requisitos: autonumerado y sin repetidos | Becas / requisitos | `#requisitos` `#ui` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
 | 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
-| 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
+| 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -1652,7 +1652,7 @@ No aplica: entrada nueva. Se relaciona con el **Cambio 9**, que había dejado ab
 
 # Cambio 26 — El subsegmento es obligatorio para el Coordinador Regional
 
-🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+🟢 **HECHO — 11/08/2026**
 
 | | |
 |---|---|
@@ -1716,9 +1716,11 @@ No requiere migración.
 
 ## Puesta en marcha en el servidor
 
-Pendiente de despliegue. No necesita nada más que el deploy.
+**Desplegado el 11/08/2026 en la release `96ca49b` (`development@7d946c5`).** No necesitó nada más que el deploy. Verificado: `/health/` y el login en 200 y el código horneado en el contenedor.
 
-Para verificarlo después: entrar con un Coordinador Regional, intentar crear una convocatoria sin subsegmento y confirmar que el formulario lo frena con el mensaje; después crearla con el subsegmento y confirmar que **aparece en su listado**, que es el síntoma que originó el cambio.
+El primer intento de despliegue se cortó por una caída de VPN antes de aplicar el `git pull`; el servidor quedó intacto en la release anterior y se retomó desde ahí sin consecuencias.
+
+Queda la verificación funcional: entrar con un Coordinador Regional, intentar crear una convocatoria sin subsegmento y confirmar que el formulario lo frena con el mensaje; después crearla con el subsegmento y confirmar que **aparece en su listado**, que es el síntoma que originó el cambio. Al 11/08 hay tres usuarios con ese rol en producción.
 
 ## Pendientes / a definir
 
