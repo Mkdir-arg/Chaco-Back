@@ -12,6 +12,7 @@ build:
   services:
     - name: docker:dind
       alias: docker
+      command: ["--tls=false"]
   before_script:
     - docker login -u ${ONPREM_ACCOUNT} -p ${ONPREM_PASSWORD} ${ONPREM_REGISTRY}
   script:
