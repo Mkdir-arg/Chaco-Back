@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import Localidad, Municipio, Provincia
 from programas.forms import RelevamientoForm, ReprogramarForm
 from programas.management.commands.seed_becas import (
     ROL_ADMIN,
@@ -47,6 +48,12 @@ class _BaseRelevTest(TestCase):
         self.territorial = User.objects.create_user("terri", password="x")
         self.territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
         AsignacionTerritorial.objects.create(segmento=self.seg_a, territorial=self.territorial)
+
+        # La zona se elige del catálogo de localidades: el alta necesita un
+        # municipio y una localidad de la provincia operativa.
+        self.provincia, _ = Provincia.objects.get_or_create(nombre="Chaco")
+        self.municipio, _ = Municipio.objects.get_or_create(nombre="Resistencia", provincia=self.provincia)
+        self.localidad, _ = Localidad.objects.get_or_create(nombre="Barranqueras", municipio=self.municipio)
 
         self.rel_a = Relevamiento.objects.create(
             convocatoria=self.conv_a,
@@ -142,11 +149,12 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-07-01",
-                "zona": "Nueva zona",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
             },
         )
         self.assertEqual(resp.status_code, 302)
-        nuevo = Relevamiento.objects.get(zona="Nueva zona")
+        nuevo = Relevamiento.objects.get(zona=self.localidad.nombre)
         self.assertTrue(nuevo.nombre.startswith("Relevamiento "))
         self.assertEqual(nuevo.estado, Relevamiento.Estado.ASIGNADO)
 
@@ -158,7 +166,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                         "convocatoria": self.conv_a.pk,
                         "territorial": self.territorial.pk,
                         "fecha_asignada": fecha,
-                        "zona": "Fuera de período",
+                        "municipio": self.municipio.pk,
+                        "zona": self.localidad.pk,
                     }
                 )
                 self.assertFalse(form.is_valid())
@@ -172,7 +181,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                         "convocatoria": self.conv_a.pk,
                         "territorial": self.territorial.pk,
                         "fecha_asignada": fecha,
-                        "zona": "Fecha límite",
+                        "municipio": self.municipio.pk,
+                        "zona": self.localidad.pk,
                     }
                 )
                 self.assertTrue(form.is_valid(), form.errors)
@@ -191,7 +201,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-06-01",
-                "zona": "Nueva zona",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
             },
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
@@ -200,7 +211,7 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertIn("terri", resp.json()["message"])
         self.assertIn("01/06/2026", resp.json()["message"])
         self.assertIn("Zona A", resp.json()["message"])
-        self.assertFalse(Relevamiento.objects.filter(zona="Nueva zona").exists())
+        self.assertFalse(Relevamiento.objects.filter(zona=self.localidad.nombre).exists())
 
     def test_crear_solapado_confirmado_guarda(self):
         self.client.force_login(self.admin)
@@ -210,12 +221,13 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-06-01",
-                "zona": "Nueva zona confirmada",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
                 "confirmar_solapamiento": "1",
             },
         )
         self.assertEqual(resp.status_code, 302)
-        self.assertTrue(Relevamiento.objects.filter(zona="Nueva zona confirmada").exists())
+        self.assertTrue(Relevamiento.objects.filter(zona=self.localidad.nombre).exists())
 
     def test_crear_en_fecha_libre_no_advierte(self):
         self.client.force_login(self.admin)
@@ -225,11 +237,12 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-06-02",
-                "zona": "Fecha libre",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
             },
         )
         self.assertEqual(resp.status_code, 302)
-        self.assertTrue(Relevamiento.objects.filter(zona="Fecha libre").exists())
+        self.assertTrue(Relevamiento.objects.filter(zona=self.localidad.nombre).exists())
 
     def test_coordinador_no_crea_en_segmento_ajeno(self):
         self.client.force_login(self.coord_a)
@@ -239,12 +252,13 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_b.pk,  # segmento B, fuera de alcance
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-07-01",
-                "zona": "X",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
             },
         )
         # La convocatoria B no está en el queryset permitido → form inválido.
         self.assertEqual(resp.status_code, 200)
-        self.assertFalse(Relevamiento.objects.filter(zona="X").exists())
+        self.assertFalse(Relevamiento.objects.filter(zona=self.localidad.nombre).exists())
 
     def test_crear_con_territorial_de_otro_segmento_falla(self):
         """RN nueva: el territorial debe pertenecer al segmento de la convocatoria."""
@@ -258,7 +272,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,  # segmento A
                 "territorial": terri_b.pk,  # asignado al segmento B
                 "fecha_asignada": "2026-07-01",
-                "zona": "Cruzada",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
             }
         )
         self.assertFalse(form.is_valid())
@@ -274,7 +289,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": suelto.pk,
                 "fecha_asignada": "2026-07-01",
-                "zona": "Sin segmento",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
             }
         )
         self.assertFalse(form.is_valid())
@@ -327,13 +343,14 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-07-20",
-                "zona": "Zona next",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
                 "next": next_url,
             },
         )
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, next_url)
-        self.assertTrue(Relevamiento.objects.filter(zona="Zona next").exists())
+        self.assertTrue(Relevamiento.objects.filter(zona=self.localidad.nombre).exists())
 
     def test_next_externo_se_ignora(self):
         self.client.force_login(self.admin)
@@ -343,7 +360,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                 "convocatoria": self.conv_a.pk,
                 "territorial": self.territorial.pk,
                 "fecha_asignada": "2026-07-20",
-                "zona": "Zona externa",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
                 "next": "https://evil.example/phishing",
             },
         )
@@ -516,3 +534,81 @@ class ConvocatoriaTests(_BaseRelevTest):
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Convocatoria.objects.filter(nombre="Conv nueva").exists())
+
+
+class ZonaDesdeCatalogoTests(_BaseRelevTest):
+    """La zona sale del catálogo de localidades, acotada a la provincia operativa.
+
+    El municipio solo filtra: no se guarda. Lo que queda en ``zona`` es el nombre
+    de la localidad elegida.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # Segundo municipio de Chaco: sirve para probar el cruce localidad/municipio.
+        self.otro_municipio = Municipio.objects.create(nombre="Villa Ángela", provincia=self.provincia)
+        self.localidad_otro_municipio = Localidad.objects.create(
+            nombre="Coronel Du Graty", municipio=self.otro_municipio
+        )
+        # Provincia ajena: no tiene que aparecer en ningún selector.
+        self.provincia_ajena = Provincia.objects.create(nombre="Corrientes")
+        self.municipio_ajeno = Municipio.objects.create(nombre="Goya", provincia=self.provincia_ajena)
+        self.localidad_ajena = Localidad.objects.create(nombre="Colonia Carolina", municipio=self.municipio_ajeno)
+
+    def _datos(self, **cambios):
+        datos = {
+            "convocatoria": self.conv_a.pk,
+            "territorial": self.territorial.pk,
+            "fecha_asignada": "2026-07-05",
+            "municipio": self.municipio.pk,
+            "zona": self.localidad.pk,
+        }
+        datos.update(cambios)
+        return datos
+
+    def test_el_selector_de_municipios_es_solo_de_la_provincia_operativa(self):
+        municipios = list(RelevamientoForm().fields["municipio"].queryset)
+
+        self.assertIn(self.municipio, municipios)
+        self.assertIn(self.otro_municipio, municipios)
+        self.assertNotIn(self.municipio_ajeno, municipios)
+
+    def test_guarda_el_nombre_de_la_localidad_elegida(self):
+        self.client.force_login(self.admin)
+
+        resp = self.client.post(reverse("becas:relevamiento_crear"), self._datos())
+
+        self.assertEqual(resp.status_code, 302)
+        nuevo = Relevamiento.objects.get(fecha_asignada=date(2026, 7, 5))
+        self.assertEqual(nuevo.zona, self.localidad.nombre)
+
+    def test_rechaza_una_localidad_que_no_es_del_municipio_elegido(self):
+        """La cascada la ofrece bien, pero el POST se puede armar a mano."""
+        form = RelevamientoForm(self._datos(zona=self.localidad_otro_municipio.pk))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("no pertenece al municipio elegido", form.errors["zona"][0])
+
+    def test_rechaza_una_localidad_de_otra_provincia(self):
+        form = RelevamientoForm(self._datos(municipio=self.municipio_ajeno.pk, zona=self.localidad_ajena.pk))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("municipio", form.errors)
+        self.assertIn("zona", form.errors)
+
+    def test_la_zona_es_obligatoria(self):
+        form = RelevamientoForm(self._datos(zona=""))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("zona", form.errors)
+
+    def test_el_select_de_localidad_llega_vacio_y_se_repuebla_al_volver_con_error(self):
+        """Vacío en la carga (son cientos por provincia) y con las del municipio
+        elegido cuando el form vuelve con errores, para no perder la selección."""
+        vacio = str(RelevamientoForm()["zona"])
+        self.assertIn("Elegí primero el municipio", vacio)
+        self.assertNotIn(self.localidad.nombre, vacio)
+
+        con_municipio = str(RelevamientoForm(self._datos(fecha_asignada=""))["zona"])
+        self.assertIn(self.localidad.nombre, con_municipio)
+        self.assertNotIn(self.localidad_otro_municipio.nombre, con_municipio)

@@ -165,6 +165,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 22 | Vigencia del programa SIIS en los segmentos | Becas / integración | `#siis` `#pausas` `#convocatorias` `#infra` | Pedido posterior — origen sin registrar | sin registrar | 🟢 **Hecho** | `programas.0043` |
 | 23 | Orden de los requisitos: autonumerado y sin repetidos | Becas / requisitos | `#requisitos` `#ui` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
+| 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
 
 **Notas del índice**
 
@@ -620,6 +621,10 @@ No requiere migración. Es justamente el motivo por el que se eligió esta salid
 ## Reversión
 
 No aplica. Si se quiere dejar de usar la localidad en el título, se editan los títulos de las convocatorias.
+
+## Nota del 11/08/2026 — parte de la pregunta 1 quedó respondida
+
+El **Cambio 25** empezó a usar el catálogo de `/configuracion/localidades/` como fuente de la zona de un relevamiento. Eso contesta la pregunta de cuál es el catálogo disponible —es el nacional que comparte el domicilio de los ciudadanos, con 778 localidades de Chaco— pero **no** cambia la decisión de esta entrada: el subsegmento sigue siendo la unidad estructural y la localidad se sigue anotando en el título de la convocatoria. Lo que falta definir sigue siendo quién mantiene ese catálogo y los tres puntos que siguen.
 
 ---
 
@@ -1551,6 +1556,92 @@ Revertir los archivos de código y el sembrado. La migración `users.0020` se pu
 ## Historial
 
 No aplica: entrada nueva. Modifica el criterio del **Cambio 20**, cuyo historial quedó registrado en esa entrada.
+
+# Cambio 25 — La zona del relevamiento se elige del catálogo de localidades
+
+🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — relevamientos |
+| **Etiquetas** | `#relevamientos` `#ui` `#datos` |
+| **Solicitante** | PM, pedido directo en sesión de trabajo |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «En Nuevo relevamiento, el campo Zona / Localidad tiene que tomar el valor de `/configuracion/localidades/`.» Y al definir la forma: «no hace falta hacer migración, y que sea un selector filtrado con 2 campos Municipios y Localidades, siempre filtrando por Chaco».
+
+## Alcance acordado
+
+- El campo deja de escribirse a mano y pasa a elegirse con **dos selectores encadenados**: Municipio filtra, Localidad es el valor.
+- Los dos se acotan a **Chaco**; el catálogo es nacional.
+- **Sin migración**: `zona` sigue siendo texto en el modelo.
+- Queda afuera la zona de los **merenderos**, que es otro modelo con un campo homónimo.
+
+## Decisiones tomadas
+
+- **El catálogo es nacional y hubo que acotarlo.** `/configuracion/localidades/` tiene **8779 localidades en 2109 municipios** de todo el país —lo comparte el domicilio de los ciudadanos—, de las cuales **778 son de Chaco, en 79 municipios**. Ofrecer el catálogo entero habría dejado elegir una localidad de Buenos Aires para un relevamiento de Chaco.
+- **El recorte se resuelve por nombre de provincia, no por id.** Motivo: el id depende de cómo se cargó el catálogo en cada ambiente, y un id fijo en el código se rompe en el próximo. Vive en un solo lugar (`PROVINCIA_OPERATIVA`), que es lo único a tocar si algún día el sistema atendiera más de una provincia.
+- **Se guarda el nombre de la localidad; el municipio solo filtra y no se persiste.** Motivo: es lo pedido —el valor es la localidad— y es lo que permite no migrar. Consecuencia asumida abajo, en Base de datos.
+- **El selector de Localidad se renderiza vacío y se llena por AJAX.** Motivo: mandar las 778 opciones en cada carga del listado y del detalle de convocatoria es peso muerto en dos pantallas que ya son pesadas. Cuando el formulario vuelve con errores sí se repueblan las del municipio elegido, o el operador perdería lo que había seleccionado.
+- **La validación no usa las opciones renderizadas sino el catálogo completo de Chaco**, más el cruce de que la localidad pertenezca al municipio elegido. Motivo: el select vacío es comodidad de carga, no un control; un POST armado a mano tiene que chocar contra el servidor igual.
+- **Se reusó el endpoint del domicilio del ciudadano** (`/ajax/load-localidades/`) en lugar de escribir uno nuevo. Motivo: hace exactamente esto y ya está probado; el municipio que recibe ya viene acotado desde el formulario.
+- **No se tocó el rótulo «Zona» de los listados ni el texto que viaja a Mobile.** Motivo: `zona` sigue siendo el mismo string; la APK instalada no se entera del cambio.
+
+## Implementación
+
+- El modal **Nuevo relevamiento** —el del detalle de convocatoria y el del listado— y el alta de página completa muestran **Municipio** y **Localidad** en lugar del campo de texto.
+- Al elegir un municipio se cargan sus localidades; mientras no haya municipio, el segundo selector dice «Elegí primero el municipio».
+- Si el municipio no tiene localidades cargadas, el selector lo dice en lugar de quedar mudo.
+- Guardar deja en el relevamiento el **nombre de la localidad**, que es lo que siguen mostrando el listado, el detalle, la exportación y la app de campo.
+
+## Archivos
+
+- `core/selectors/geografia.py`
+- `core/selectors/__init__.py`
+- `programas/forms.py`
+- `programas/templates/programas/becas/relevamientos/_cascada_localidad.html`
+- `programas/templates/programas/becas/relevamientos/convocatoria_detail.html`
+- `programas/templates/programas/becas/relevamientos/relevamiento_list.html`
+- `programas/templates/programas/becas/relevamientos/relevamiento_form.html`
+- `programas/tests/test_becas_relevamientos.py`
+
+## Base de datos
+
+**No requiere migración**, que es lo pedido. Dos consecuencias asumidas:
+
+1. **Los nombres de localidad se repiten dentro de Chaco** —hay 5 «San Antonio» y 5 «El Palmar» en municipios distintos—, así que dos relevamientos de localidades diferentes pueden quedar con el mismo texto. Para el trabajo de campo alcanza; para reportar por localidad haría falta guardar la relación, que es lo que se descartó al no migrar.
+2. **Los relevamientos ya cargados conservan su texto anterior** (en producción son dos: `Resistencia` y `Test`). No molesta porque **la zona solo se define al crear**: no existe edición de relevamiento —reprogramar toca fechas y reasignar toca territorial—, así que ningún selector tiene que reabrir un valor viejo.
+
+## Validación
+
+- Seis pruebas nuevas: el selector de municipios excluye otra provincia; se guarda el nombre de la localidad; se rechaza una localidad que no es del municipio elegido; se rechaza una de otra provincia; la zona sigue siendo obligatoria; y el select llega vacío pero se repuebla al volver con errores.
+- Se actualizaron las once altas de las pruebas existentes, que mandaban la zona como texto libre.
+- Módulo `test_becas_relevamientos` medido contra el estado previo en un worktree en HEAD: **12 errores antes y 12 después**, todos del entorno (Python 3.14 renderizando plantillas, ver Cambio 24). Ninguna prueba nueva o modificada falla.
+- `manage.py check` sin observaciones y `makemigrations --check` sin cambios detectados, que confirma que no hubo migración. `scripts/design_audit.py --changed`: 0 errores (1 WARN preexistente de `outline:none` en un select que no se tocó). `scripts/compile_templates.py`: 302 plantillas, 0 errores.
+
+## Puesta en marcha en el servidor
+
+**Pendiente de despliegue.** No necesita nada más que el deploy: sin migración, sin cron y sin variables. Lo que sí conviene mirar después es que el catálogo de localidades del ambiente tenga cargada la provincia con el nombre `Chaco`; si estuviera vacío o con otro nombre, el selector de municipios aparece vacío y no se puede crear un relevamiento.
+
+## Pendientes / a definir
+
+- **La palabra «zona» quedó con dos sentidos.** El campo ahora es una localidad, pero la columna de los listados y el campo que viaja a Mobile se siguen llamando «Zona». Renombrarlos es cosmético y arrastra la APK, así que se dejó.
+- **La API le manda a Mobile dos localidades distintas**: `zona` (esta, donde trabaja el territorial) y `localidad` (el nombre del subsegmento, del Cambio 19). No se pisan, pero conviene decidir cuál mostrar cuando se toque la app.
+- **Si más adelante se quiere reportar por localidad**, hay que guardar la relación y no el texto. Es la misma decisión que el Cambio 9 dejó abierta.
+- **No hay pantalla de edición de la zona.** Si alguna vez se agrega, el formulario tiene que resolver el texto guardado hacia los dos selectores, y ahí sí molesta la ambigüedad de los nombres repetidos.
+
+## Reversión
+
+Revertir los archivos listados. No hay migración que deshacer ni datos que se pierdan: los relevamientos creados con el selector quedan con un texto de zona perfectamente válido para el formulario anterior.
+
+## Historial
+
+No aplica: entrada nueva. Se relaciona con el **Cambio 9**, que había dejado abierta la fuente oficial del catálogo de localidades, y con el **Cambio 19**, que expone la localidad del subsegmento a Mobile.
 
 # Verificaciones generales pendientes antes de desplegar
 
