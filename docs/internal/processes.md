@@ -46,12 +46,28 @@ Quién pone qué:
    `DJANGO_CSRF_TRUSTED_ORIGINS`.** Si no, la aplicación responde 400 a toda
    petición y los formularios fallan por CSRF. Es la causa más común de
    «desplegué y no anda».
-2. **Una base vacía necesita el sembrado inicial.** Sin `seed_rbac`,
-   `crear_programas` y `crear_superadmin` no hay roles ni programas, así que nadie
-   puede iniciar sesión. Para Becas sumar `seed_becas`. En nuestro servidor lo hace
-   el entrypoint con `LOCAL_BOOTSTRAP_COMMANDS`; en Kubernetes hay que decidir si va
-   en el arranque o se corre una vez a mano — teniendo en cuenta la advertencia de
-   *Cron del host* sobre los comandos de bootstrap que pueden fallar.
+2. **Una base vacía necesita el sembrado inicial y un superusuario.** El bootstrap
+   (`seed_rbac`, `crear_programas`, y `seed_becas` para Becas) crea roles,
+   capacidades y programas, pero **a propósito no crea ningún usuario**. El primer
+   superusuario se crea una vez, a mano, con las credenciales que defina el
+   ambiente:
+
+   ```bash
+   docker exec -it chaco-web-1 python manage.py createsuperuser
+   ```
+
+   En nuestro servidor el sembrado lo hace el entrypoint con
+   `LOCAL_BOOTSTRAP_COMMANDS`; en Kubernetes hay que decidir si va en el arranque o
+   se corre una vez a mano — teniendo en cuenta la advertencia de *Cron del host*
+   sobre los comandos de bootstrap que pueden fallar.
+
+   !!! danger "Por qué no hay un comando que lo cree solo"
+       Existía `crear_superadmin`, con usuario y contraseña **escritos en el
+       código** (`admin` / una contraseña conocida), y corría en el bootstrap de
+       **cualquier** ambiente. Se retiró el 11/08/2026: dejaba un superusuario con
+       credencial pública en todo entorno servido, incluido uno expuesto a
+       internet. Si algún ambiente lo tuvo, **hay que cambiarle la contraseña a ese
+       usuario**: borrar el comando no cambia lo ya creado.
 
 ## Deploy a producción
 

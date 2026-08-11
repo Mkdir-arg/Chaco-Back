@@ -27,9 +27,24 @@ docker compose exec django python manage.py migrate
 # 6. Cargar datos iniciales
 docker compose exec django python manage.py load_initial_data
 
-# 7. Crear superusuario
-docker compose exec django python manage.py crear_superadmin
+# 7. Crear el superusuario (elegís usuario, correo y contraseña)
+docker compose exec django python manage.py createsuperuser
 ```
+
+!!! note
+    No hay ningún comando que cree un superusuario con credenciales fijas: existía
+    uno (`crear_superadmin`, con `admin`/`mkdir123` escritos en el código) y se
+    retiró porque corría igual en los ambientes servidos. Si necesitás crearlo sin
+    interacción —por ejemplo para el harness de E2E—, pasá las credenciales por
+    entorno:
+
+    ```bash
+    docker compose exec \
+      -e DJANGO_SUPERUSER_USERNAME=admin \
+      -e DJANGO_SUPERUSER_EMAIL=admin@localhost \
+      -e DJANGO_SUPERUSER_PASSWORD=<local> \
+      django python manage.py createsuperuser --noinput
+    ```
 
 ## Verificar que todo funciona
 

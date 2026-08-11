@@ -144,7 +144,9 @@ REDIS_DB=1
 # ─── Arranque del contenedor ──────────────────────────────
 APP_RUNTIME=daphne
 RUN_MIGRATIONS=true
-LOCAL_BOOTSTRAP_COMMANDS=crear_superadmin seed_rbac crear_programas
+# Siembra roles, capacidades y programas. No crea usuarios: el superusuario se
+# crea a mano en el paso 5, con las credenciales que definan ustedes.
+LOCAL_BOOTSTRAP_COMMANDS=seed_rbac crear_programas
 LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS=procesar_vencimientos
 
 # ─── SIIS: catálogo de programas (Becas) ──────────────────
@@ -194,7 +196,7 @@ Quién provee cada valor:
 !!! danger "Las dos causas de «desplegué y no anda»"
     **1. El dominio ausente.** Si el dominio o la IP del ambiente no figuran en `DJANGO_ALLOWED_HOSTS` **y** en `DJANGO_CSRF_TRUSTED_ORIGINS`, la aplicación responde **400 a toda petición** y los formularios fallan por CSRF. Si se entra por más de una dirección, van todas separadas por coma.
 
-    **2. La base vacía sin sembrar.** Una base nueva no tiene roles, permisos ni programas, así que **nadie puede iniciar sesión**, ni el administrador. Eso lo resuelve `LOCAL_BOOTSTRAP_COMMANDS` en el arranque. Para operar el programa Becas hay que sumar además el sembrado de sus roles (`seed_becas`).
+    **2. La base vacía sin sembrar.** Una base nueva no tiene roles, permisos ni programas. Eso lo resuelve `LOCAL_BOOTSTRAP_COMMANDS` en el arranque. Para operar el programa Becas hay que sumar además el sembrado de sus roles (`seed_becas`). Y como el sistema **no crea ningún usuario por su cuenta**, hay que crear el primer superusuario a mano: es el paso 5.
 
 !!! warning "Los dos bloques de base de datos no son redundantes"
     `DATABASE_*` las lee **Django**; `MYSQL_*` las lee el **contenedor de MySQL** cuando crea la base por primera vez. Si no coinciden, MySQL levanta bien y la aplicación no puede entrar a su propia base. Es un error difícil de diagnosticar porque los contenedores quedan *healthy*.
@@ -228,7 +230,31 @@ Al arrancar, el contenedor de la app hace **solo, sin intervención**:
     docker restart chaco-nginx-1
     ```
 
-### :material-numeric-5-circle: Verificar que quedó sano
+### :material-numeric-5-circle: Crear el primer superusuario
+
+El sistema **no crea ningún usuario por su cuenta**: el sembrado del paso anterior deja los roles y los programas, pero ninguna cuenta. El primer superusuario se crea una sola vez, y **las credenciales las define quien monta el ambiente**:
+
+```bash
+docker exec -it chaco-web-1 python manage.py createsuperuser
+```
+
+Pide usuario, correo y contraseña de forma interactiva. Si hace falta hacerlo sin interacción —por ejemplo desde un script—, se pasan por variables de entorno:
+
+```bash
+docker exec \
+  -e DJANGO_SUPERUSER_USERNAME=<usuario> \
+  -e DJANGO_SUPERUSER_EMAIL=<correo> \
+  -e DJANGO_SUPERUSER_PASSWORD=<contraseña> \
+  chaco-web-1 python manage.py createsuperuser --noinput
+```
+
+!!! warning "Elegir una contraseña propia, y no dejarla en el historial"
+    Ninguna versión del sistema trae usuarios ni contraseñas por defecto: **la contraseña la eligen ustedes**. La forma interactiva es preferible en un ambiente servido, porque la variante con variables deja la contraseña en el historial del shell.
+
+!!! tip "Este usuario es solo la puerta de entrada"
+    El superusuario tiene acceso total y sirve para entrar la primera vez. Los usuarios de trabajo —administradores de programa, coordinadores, referentes y territoriales— se dan de alta **desde el propio sistema**, en Administración → Usuarios, con el rol que corresponda.
+
+### :material-numeric-6-circle: Verificar que quedó sano
 
 ```bash
 curl -f http://localhost/health/               # debe responder 200
@@ -240,7 +266,7 @@ docker exec chaco-web-1 python manage.py showmigrations | tail -20
 !!! tip "El acceso al sistema es la raíz"
     El ingreso está en `/`. No existe `/login/`.
 
-### :material-numeric-6-circle: Tareas programadas
+### :material-numeric-7-circle: Tareas programadas
 
 Hay trabajo periódico que **no** corre dentro de la aplicación: lo dispara el cron del usuario de despliegue. Los snippets están versionados en `docker/cron/` dentro del código. **Se instalan una sola vez por servidor y no viajan con el despliegue**: un servidor nuevo los necesita de nuevo.
 

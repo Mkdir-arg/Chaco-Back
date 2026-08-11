@@ -169,6 +169,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟢 **Hecho** | No |
 | 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟢 **Hecho** | No |
 | 27.1 | Plantilla de variables y guía de configuración de entornos | Transversal / infraestructura | `#infra` `#correo` `#siis` | PM — para responderle a ECOM qué configurar sin entregar secretos | 11/08/2026 | 🟢 **Hecho** | No |
+| 28 | Retirar el superusuario con credenciales en el código | Transversal / seguridad | `#infra` `#usuarios` `#sesion` | PM — surgió al revisar qué crea el bootstrap | 11/08/2026 | 🟡 **Hecho — falta cambiar la contraseña del `admin` ya creado** | No |
 
 **Notas del índice**
 
@@ -1884,6 +1885,92 @@ No requiere migración.
 ### Reversión
 
 Borrar el archivo y las dos secciones de `processes.md`. Sin efecto sobre la aplicación.
+
+# Cambio 28 — Se retira el superusuario con credenciales escritas en el código
+
+🟡 **HECHO — 11/08/2026 · FALTA CAMBIAR LA CONTRASEÑA DEL `admin` YA CREADO**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — seguridad y despliegue |
+| **Etiquetas** | `#infra` `#usuarios` `#sesion` |
+| **Solicitante** | PM. Salió de preguntar qué usuarios crea el bootstrap al levantar un ambiente |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice · Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «¿Podemos borrar el comando que crea el superadmin hardcodeado y poner en la documentación el comando que tienen que ejecutar para crearlo, a definición de ellos el nombre y usuario?»
+
+## El problema
+
+El comando `crear_superadmin` creaba el superusuario con **usuario y contraseña escritos en el código** (`admin` y una contraseña conocida del equipo). Servía para desarrollo local, pero **estaba en el default del bootstrap del entrypoint**, así que corría en cualquier ambiente donde la variable `LOCAL_BOOTSTRAP_COMMANDS` no estuviera definida — que es exactamente el caso de nuestro servidor productivo.
+
+Tres agravantes:
+
+- En producción **el usuario existe**: se creó por ese default.
+- El **código está en el repositorio espejado a ECOM**, así que la contraseña viaja con él.
+- El entorno de testing de ECOM está **deliberadamente más expuesto a internet** para que llegue la app móvil, así que ahí el mismo bootstrap habría dejado un superusuario con credencial pública alcanzable desde afuera.
+
+## Decisiones tomadas
+
+- **Se borra el comando en vez de parametrizarlo.** Motivo: cualquier variante que lo deje creando usuarios en el arranque vuelve a poner una credencial por defecto en un ambiente servido. Sin comando, la única forma es que alguien decida las credenciales.
+- **La alternativa documentada es `createsuperuser`, el de Django.** Motivo: ya existe, es interactivo por defecto —así la contraseña no queda en el historial del shell— y acepta `DJANGO_SUPERUSER_*` con `--noinput` para los casos que necesitan script.
+- **Se verificó que un superusuario creado así no queda incompleto.** El `Profile` —que usa la sesión única del Cambio 14— se crea solo con `get_or_create` en el login y en el middleware, así que no hace falta ningún paso extra.
+- **Se corrigió el default del entrypoint**, que era `crear_superadmin seed_datos_base crear_programas`. Dejarlo apuntando a un comando borrado **habría dejado el contenedor sin arrancar** en el próximo deploy: el script corre con `set -eu`. Se comprobó además que `.env.production` del servidor no define `LOCAL_BOOTSTRAP_COMMANDS`, o sea que dependía de ese default.
+- **El sembrado sigue creando roles y programas, y ningún usuario.** Se confirmó leyendo los tres comandos: `seed_rbac`, `crear_programas` y `seed_becas` solo tocan `Group` y `Programa`.
+
+## Implementación
+
+- Se eliminó `users/management/commands/crear_superadmin.py`.
+- El default del bootstrap del entrypoint pasó a `seed_datos_base crear_programas`, y el de `docker-compose.yml` a `seed_rbac crear_programas`.
+- Se retiró de `docker-compose.prod.yml` la bandera `RUN_CREAR_SUPERADMIN`, que además **no la leía nadie**: era configuración muerta.
+- Las dos plantillas de variables aclaran que el bootstrap no crea usuarios y muestran el comando.
+- La guía interna (`setup.md`, `processes.md`) y la **guía pública** documentan cómo crear el superusuario. En la pública es un paso propio, el 5, con la variante interactiva y la de script, la advertencia de elegir contraseña propia y la aclaración de que ese usuario es solo la puerta de entrada: los usuarios de trabajo se dan de alta desde el sistema.
+
+## Archivos
+
+- `users/management/commands/crear_superadmin.py` (eliminado)
+- `docker-entrypoint.sh`
+- `docker-compose.yml`
+- `docker-compose.prod.yml`
+- `.env.local.example`
+- `.env.qa.example`
+- `docs/internal/setup.md`
+- `docs/internal/processes.md`
+- `docs/client/versiones/version-001.md`
+
+## Base de datos
+
+No requiere migración. **Pero borrar el comando no cambia lo ya creado:** el usuario `admin` de producción sigue existiendo con su contraseña original.
+
+## Validación
+
+- `manage.py crear_superadmin` ya responde `Unknown command`.
+- `manage.py check` sin observaciones y `mkdocs build --strict` sin advertencias.
+- Se revisó que no quede ninguna referencia funcional al comando: las tres que restan son la prosa que explica por qué se retiró.
+- Se verificó en el servidor que `.env.production` no define variables de bootstrap, de modo que el cambio de default es el que gobierna el próximo arranque.
+
+## Puesta en marcha en el servidor
+
+Sin acción en el deploy. **Lo que hay que hacer aparte y no es opcional: cambiarle la contraseña al `admin` de producción**, y avisarle a ECOM que haga lo mismo si algún ambiente suyo llegó a sembrarse con el comando viejo.
+
+## Pendientes / a definir
+
+- **Cambiar la contraseña del `admin` en producción.** Es lo único que cierra la exposición.
+- **Avisar a ECOM**, por el mismo motivo, para testing y para QA cuando lo levanten.
+- **El harness de E2E** entraba con ese usuario y contraseña en el Docker local. En un entorno local nuevo hay que crearlo a mano; la receta no interactiva quedó en `setup.md`.
+- `RUN_CREAR_PROGRAMAS` de `docker-compose.prod.yml` **tampoco la lee nadie**. Se dejó por no mezclar, pero es configuración muerta y conviene retirarla.
+
+## Reversión
+
+Restaurar el archivo del comando y las líneas de bootstrap. No se recomienda: la reversión reintroduce la credencial en el código.
+
+## Historial
+
+No aplica: entrada nueva.
 
 # Verificaciones generales pendientes antes de desplegar
 
