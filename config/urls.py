@@ -62,4 +62,14 @@ if settings.DEBUG:
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+# Las dos líneas de arriba solo actúan con DEBUG. En un ambiente servido sin nginx
+# adelante (Kubernetes), SERVE_MEDIA=True hace que la app sirva los archivos
+# subidos; los estáticos ya los sirve whitenoise sin ruta extra.
+if settings.SERVE_MEDIA:
+    from django.views.static import serve as _media_serve
+
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", _media_serve, {"document_root": settings.MEDIA_ROOT}),
+    ]
+
 handler500 = "config.views.server_error"

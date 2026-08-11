@@ -22,8 +22,10 @@ lo tiene que aplicar su equipo de infraestructura.
     hipótesis más probable de por qué el testing de ECOM quedó con 3 de 5 roles de
     Becas. Diagnóstico: en los logs del arranque del pod tienen que verse
     `Aplicando migraciones...` y `Seed de datos base`; si aparece
-    `Comando personalizado detectado`, el bootstrap no corrió. El checklist
-    completo de Kubernetes está en la guía pública (versión 001, sección
+    `Comando personalizado detectado`, el bootstrap no corrió. La salida para ese
+    caso es un initContainer o Job con la misma imagen y `args: ["bootstrap"]`
+    (modo one-shot del entrypoint). Plantillas en [`docker/k8s/`](../../docker/k8s/)
+    y el checklist completo en la guía pública (versión 001, sección
     *Si el despliegue es en Kubernetes*).
 
 ## Variables de entorno

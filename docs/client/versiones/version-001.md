@@ -299,19 +299,19 @@ Aplicando migraciones...
 Ejecutando python manage.py seed_datos_base
 ```
 
-Si en cambio aparece `Comando personalizado detectado: ...`, el bootstrap no corrió: hay que quitar el `command`/`args` del manifiesto, o correr migraciones y sembrado por otra vía (init container o Job) de forma explícita.
+Si en cambio aparece `Comando personalizado detectado: ...`, el bootstrap no corrió. Dos salidas: quitar el `command`/`args` del manifiesto, o correrlo aparte con un **initContainer o Job usando la misma imagen con `args: ["bootstrap"]`** — es un modo one-shot que ejecuta migraciones, estáticos y sembrado y termina. Hay un ejemplo completo en `docker/k8s/bootstrap-initcontainer.yaml`, dentro del repositorio.
 
 **2. Las variables van como variables de entorno del pod, no solo en un archivo.** Las del bloque *Arranque del contenedor* (`RUN_MIGRATIONS`, `RUN_COLLECTSTATIC`, `LOCAL_BOOTSTRAP_COMMANDS`, `APP_RUNTIME`) y `DJANGO_SETTINGS_MODULE` las lee el script de arranque, no la aplicación: un archivo `.env.production` montado no alcanza para ellas.
 
 **3. HTTPS detrás del ingress.** Con `DJANGO_SETTINGS_MODULE=config.settings_production` la aplicación exige `DJANGO_ALLOWED_HOSTS` (falla al arrancar si falta, a propósito) y redirige todo a HTTPS. El ingress **debe enviar el encabezado `X-Forwarded-Proto: https`** al pod; sin él, cada petición entra en un bucle de redirección infinito.
 
-**4. Estáticos y archivos subidos.** La imagen no trae un servidor de estáticos: con `RUN_COLLECTSTATIC=true` el arranque los deja en `/app/staticfiles`, y **algo tiene que servir `/static/` y `/media/`** (en la VM lo hace nginx). Además, `/media/` necesita **almacenamiento persistente**: ahí viven los archivos adjuntos que cargan los territoriales, y sin un volumen se pierden en cada reinicio del pod.
+**4. Estáticos y archivos subidos.** La app sirve `/static/` **por sí sola** (whitenoise), y con `ENVIRONMENT=prd|qa` los recolecta al arrancar por defecto: no hace falta nginx ni un sidecar. Para `/media/` —los archivos que suben los territoriales— hay dos cosas: con `SERVE_MEDIA=True` la app también los sirve, y el directorio `/app/media` necesita **almacenamiento persistente** (un PVC); sin volumen, los adjuntos se pierden en cada reinicio del pod.
 
 **5. Websockets.** Con `APP_RUNTIME=daphne`, el mismo proceso atiende HTTP y websockets (ruta `/ws/`). El ingress tiene que dejar pasar los encabezados `Upgrade` y `Connection` hacia el pod.
 
 **6. Probes.** `/health/` responde 200 y sirve tal cual como liveness y readiness probe.
 
-**7. Tareas programadas = CronJob.** Cada comando de la tabla anterior es un `CronJob` de Kubernetes (`python manage.py <comando>` sobre la misma imagen). `sincronizar_programas_siis` **nunca va en el arranque del pod**: depende de un servicio externo, y una caída de ese servicio dejaría el pod sin levantar.
+**7. Tareas programadas = CronJob.** Cada comando de la tabla anterior es un `CronJob` de Kubernetes (`python manage.py <comando>` sobre la misma imagen). Hay plantillas de los cuatro en `docker/k8s/cronjobs.yaml`, dentro del repositorio. `sincronizar_programas_siis` **nunca va en el arranque del pod**: depende de un servicio externo, y una caída de ese servicio dejaría el pod sin levantar.
 
 **8. Base de datos propia.** El pin de `mysql:8.0.32` es una limitación de nuestra VM, no del sistema: en Kubernetes usan su MySQL 8 con los valores de conexión en `DATABASE_*`.
 

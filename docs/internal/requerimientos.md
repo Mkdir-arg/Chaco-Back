@@ -172,6 +172,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 28 | Retirar el superusuario con credenciales en el código | Transversal / seguridad | `#infra` `#usuarios` `#sesion` | PM — surgió al revisar qué crea el bootstrap | 11/08/2026 | 🟡 **Hecho — falta cambiar la contraseña del `admin` ya creado** | No |
 | 29 | El bootstrap unificado en `seed_datos_base` | Transversal / infraestructura | `#infra` `#rbac` `#datos` | PM — vio que en el testing de ECOM faltaban roles de Becas | 11/08/2026 | 🟢 **Hecho** | No |
 | 30 | La guía cubre el despliegue en Kubernetes desde cero | Transversal / infraestructura | `#infra` `#siis` | PM — pidió el repaso final de la guía para setear el sistema desde cero en Kubernetes | 11/08/2026 | 🟢 **Hecho** | No |
+| 31 | La imagen autosuficiente para Kubernetes | Transversal / infraestructura | `#infra` `#relevamientos` `#ui` | PM — «que quede para levantarse en Kubernetes en todos los aspectos» | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
 
 **Notas del índice**
 
@@ -2122,6 +2123,84 @@ Revertir los tres archivos. Sin efecto sobre la aplicación.
 ## Historial
 
 No aplica: entrada nueva. Completa la 27.1 (la guía) con lo específico de Kubernetes, y le da al Cambio 29 su hipótesis de causa raíz del lado de ECOM.
+
+# Cambio 31 — La imagen autosuficiente para Kubernetes
+
+🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — infraestructura y despliegue |
+| **Etiquetas** | `#infra` `#relevamientos` `#ui` |
+| **Solicitante** | PM: «hacé los cambios necesarios para que quede para levantarse en Kubernetes en todos los aspectos» |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice · Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 30 documentó los huecos de Kubernetes; este los **resuelve en el código** para que la imagen no dependa de piezas externas que la plataforma tenga que inventar.
+
+## Decisiones tomadas
+
+- **Los estáticos los sirve la propia app (whitenoise), siempre.** Motivo: era el hueco más estructural — la imagen no traía servidor de estáticos y dependía del nginx de la VM. El middleware queda activo también en la VM porque es inerte ahí: nginx responde `/static/` antes de que la petición llegue a Django. Se eligió whitenoise por ser la solución estándar del ecosistema, sin proceso extra.
+- **El storage de estáticos usa manifest también en `qa`, no solo en `prd`.** Motivo: estaba condicionado a `ENVIRONMENT == "prd"`, con lo cual un QA servía estáticos sin hash — distinto de producción justo en el ambiente que existe para parecerse a producción. Ahora `prd` y `qa` usan `CompressedManifestStaticFilesStorage` (manifest + precompresión).
+- **`/media/` se sirve desde la app solo con `SERVE_MEDIA=True`.** Motivo: `django.views.static.serve` alcanza para la escala de QA pero no es un CDN; en la VM lo sirve nginx y el flag queda apagado. El límite queda explícito en vez de implícito.
+- **`RUN_COLLECTSTATIC` pasa a valer `true` por defecto cuando `ENVIRONMENT` es `prd` o `qa`.** Motivo: sin el manifest cualquier template con `{% static %}` responde 500; que el default seguro dependa del tipo de ambiente elimina la variable que más fácil se olvida. En dev sigue apagado para no alargar cada arranque.
+- **El entrypoint gana el modo one-shot `bootstrap`.** Motivo: si el manifiesto del pod define `command`/`args`, el entrypoint se saltea; con `args: ["bootstrap"]` un initContainer o Job corre migraciones + estáticos + sembrado y termina. Además, el aviso de «Comando personalizado detectado» ahora explica la consecuencia y la salida.
+- **Se agregan manifiestos de referencia en `docker/k8s/`** (README, los cuatro CronJob, y el Deployment con initContainer y PVC de media). Motivo: viajan en el release —`docker/` no está excluido—, así que ECOM los tiene sin depender de la página. Son plantillas con `<IMAGEN>`/`<SECRET-ENV>`, no manifiestos listos: las decisiones de plataforma siguen siendo de ellos.
+
+## Implementación
+
+- `whitenoise==6.8.2` en requirements; middleware inmediatamente después de `SecurityMiddleware`; storage con manifest y precompresión en `prd`/`qa`.
+- `SERVE_MEDIA` en settings y la ruta `/media/` en urls, activa solo con el flag.
+- Entrypoint reestructurado: funciones primero, modo `bootstrap`, default de `collectstatic` por ambiente, aviso explicativo al saltearse.
+- `docker/k8s/` con README, `cronjobs.yaml` y `bootstrap-initcontainer.yaml`.
+- La plantilla y la guía pública actualizadas: los puntos de estáticos, media, bootstrap y CronJobs ahora dicen lo que la imagen hace sola y qué queda del lado de la plataforma.
+
+## Archivos
+
+- `requirements.txt`
+- `config/settings.py`
+- `config/urls.py`
+- `docker-entrypoint.sh`
+- `docker/k8s/README.md`
+- `docker/k8s/cronjobs.yaml`
+- `docker/k8s/bootstrap-initcontainer.yaml`
+- `.env.qa.example`
+- `docs/client/versiones/version-001.md`
+- `docs/internal/processes.md`
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- Sintaxis POSIX del entrypoint verificada (`sh -n`).
+- `whitenoise==6.8.2` instalado en el venv y validados los imports del middleware y el storage.
+- `manage.py check` sin observaciones con el middleware activo.
+- Módulo de pruebas que renderiza el menú medido contra HEAD en un worktree: **2 errores antes y 2 después**, ambos el piso conocido de Python 3.14 — whitenoise no cambia el comportamiento de render.
+- `mkdocs build --strict` sin advertencias y `scripts/requerimientos.py --check` en OK (ver commit).
+
+## Puesta en marcha en el servidor
+
+**Pendiente de despliegue en `icore-srv`** (rebuild de la imagen: cambia requirements). Sin migración y sin variables nuevas obligatorias: en la VM `SERVE_MEDIA` queda apagado y whitenoise es inerte detrás de nginx. Para ECOM, el efecto llega con el próximo espejo + build de su pipeline.
+
+## Pendientes / a definir
+
+- Desplegar en `icore-srv` y verificar que nginx siga sirviendo estáticos igual (no debería notarse nada).
+- Espejar a ECOM: este release y los dos anteriores sin espejar.
+- Si ECOM confirma que su pod usa `command` propio, indicarles el initContainer de `docker/k8s/bootstrap-initcontainer.yaml`.
+
+## Reversión
+
+Quitar whitenoise de requirements, middleware y storage; quitar `SERVE_MEDIA` de settings/urls; restaurar el entrypoint anterior y borrar `docker/k8s/`. Sin datos que se pierdan. La reversión reabre los huecos del Cambio 30.
+
+## Historial
+
+No aplica: entrada nueva. Implementa lo que el **Cambio 30** había dejado documentado como responsabilidad de la plataforma.
 
 # Verificaciones generales pendientes antes de desplegar
 
