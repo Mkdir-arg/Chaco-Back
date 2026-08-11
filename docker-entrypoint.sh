@@ -1,13 +1,6 @@
 #!/bin/sh
 set -eu
 
-echo "Iniciando entorno local de SistemSo..."
-
-if [ "$#" -gt 0 ]; then
-  echo "Comando personalizado detectado: $*"
-  exec "$@"
-fi
-
 wait_for_database() {
   echo "Esperando base de datos..."
   until python manage.py shell -c "from django.db import connection; connection.ensure_connection(); print('db-ready')" >/dev/null 2>&1; do
@@ -27,30 +20,60 @@ run_management_commands() {
   done
 }
 
-wait_for_database
+run_bootstrap() {
+  wait_for_database
 
-if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
-  echo "Aplicando migraciones..."
-  python manage.py migrate --run-syncdb --noinput
+  if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    echo "Aplicando migraciones..."
+    python manage.py migrate --run-syncdb --noinput
+  fi
+
+  # En un ambiente servido (prd/qa) los estaticos se recolectan por defecto: sin
+  # el manifest, cualquier template con {% static %} responde 500. En dev queda
+  # apagado para no alargar cada arranque.
+  collect_default="false"
+  case "${ENVIRONMENT:-dev}" in
+    prd|qa) collect_default="true" ;;
+  esac
+  if [ "${RUN_COLLECTSTATIC:-$collect_default}" = "true" ]; then
+    echo "Recolectando archivos estaticos..."
+    python manage.py collectstatic --noinput
+  fi
+
+  # El bootstrap NO crea usuarios: siembra roles, capacidades y programas. El
+  # superusuario se crea a mano con `createsuperuser`, con las credenciales que
+  # defina quien monta el ambiente (antes existia un `crear_superadmin` con usuario
+  # y contrasena escritos en el codigo, que se ejecutaba en cualquier ambiente).
+  if [ "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}" != "false" ]; then
+    run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}"
+  fi
+
+  if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then
+    echo "Ejecutando bootstrap opcional..."
+    run_management_commands "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS}"
+  fi
+}
+
+# Modo one-shot para Kubernetes: un initContainer o Job con args ["bootstrap"]
+# corre migraciones + estaticos + sembrado y termina, dejando que el contenedor
+# principal arranque el server con el comando que quiera.
+if [ "${1:-}" = "bootstrap" ]; then
+  echo "Modo bootstrap (one-shot): migraciones, estaticos y sembrado."
+  run_bootstrap
+  echo "Bootstrap listo. Fin del modo one-shot."
+  exit 0
 fi
 
-if [ "${RUN_COLLECTSTATIC:-false}" = "true" ]; then
-  echo "Recolectando archivos estaticos..."
-  python manage.py collectstatic --noinput
+if [ "$#" -gt 0 ]; then
+  echo "Comando personalizado detectado: $*"
+  echo "ATENCION: se saltean migraciones, estaticos y sembrado. Si nada mas los corre"
+  echo "(p. ej. un initContainer con el argumento 'bootstrap'), la app queda con el"
+  echo "esquema atrasado y roles faltantes."
+  exec "$@"
 fi
 
-# El bootstrap NO crea usuarios: siembra roles, capacidades y programas. El
-# superusuario se crea a mano con `createsuperuser`, con las credenciales que
-# defina quien monta el ambiente (antes existia un `crear_superadmin` con usuario
-# y contrasena escritos en el codigo, que se ejecutaba en cualquier ambiente).
-if [ "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}" != "false" ]; then
-  run_management_commands "${LOCAL_BOOTSTRAP_COMMANDS:-seed_datos_base crear_programas}"
-fi
-
-if [ -n "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS:-}" ]; then
-  echo "Ejecutando bootstrap opcional..."
-  run_management_commands "${LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS}"
-fi
+echo "Iniciando entorno de DATAÑACH..."
+run_bootstrap
 
 APP_BIND="${APP_BIND:-0.0.0.0}"
 APP_PORT="${APP_PORT:-8000}"

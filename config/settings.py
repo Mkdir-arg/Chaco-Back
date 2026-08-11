@@ -119,6 +119,9 @@ if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Sirve /static/ desde la propia app. En la VM nginx responde esas rutas antes
+    # de llegar acá; en Kubernetes es lo que evita depender de un sidecar.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "core.middleware.ApiCorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -172,11 +175,19 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
+# En ambientes servidos: manifest (URLs con hash, cacheables) + precompresión de
+# whitenoise. Antes solo "prd" usaba manifest, con lo cual un QA quedaba con
+# estáticos sin hash y distinto de producción.
 STATICFILES_STORAGE = (
-    "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
-    if ENVIRONMENT == "prd"
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    if ENVIRONMENT in ("prd", "qa")
     else "django.contrib.staticfiles.storage.StaticFilesStorage"
 )
+
+# Servir /media/ desde la app (django.views.static.serve). Pensado para ambientes
+# servidos sin nginx adelante (Kubernetes): alcanza para la escala de QA. Los
+# archivos viven en MEDIA_ROOT, que ahí debe ser un volumen persistente.
+SERVE_MEDIA = os.environ.get("SERVE_MEDIA", "False") == "True"
 
 LOGIN_URL = "users:login"
 LOGIN_REDIRECT_URL = "core:inicio"

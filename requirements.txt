@@ -16,6 +16,10 @@ redis==5.0.1
 # Health checks
 django-health-check==3.17.0
 
+# Estaticos servidos por la propia app (clave en Kubernetes, donde no hay nginx
+# adelante; en la VM nginx los intercepta antes y el middleware queda inerte)
+whitenoise==6.8.2
+
 # Environment & Config
 python-dotenv==1.2.2
 gunicorn==23.0.0

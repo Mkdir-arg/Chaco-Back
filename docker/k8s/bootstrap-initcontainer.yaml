@@ -1,0 +1,53 @@
+# Fragmento de Deployment: cómo correr el bootstrap cuando el contenedor principal
+# define su propio comando (si no define command/args, esto NO hace falta — el
+# entrypoint lo hace solo).
+#
+# El initContainer usa la MISMA imagen con args ["bootstrap"]: el entrypoint corre
+# migraciones + estáticos + sembrado y termina. Así el server puede arrancar con el
+# comando que la plataforma prefiera sin dejar el esquema atrasado ni roles
+# faltantes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datanach-web
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: bootstrap
+          image: <IMAGEN>
+          args: ["bootstrap"]
+          envFrom:
+            - secretRef:
+                name: <SECRET-ENV>
+          volumeMounts:
+            - name: media
+              mountPath: /app/media
+      containers:
+        - name: web
+          image: <IMAGEN>
+          # Sin command/args el entrypoint repite el bootstrap (es idempotente) y
+          # levanta daphne. Con comando propio, el initContainer de arriba es el
+          # que garantiza migraciones y sembrado.
+          envFrom:
+            - secretRef:
+                name: <SECRET-ENV>
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            periodSeconds: 30
+          volumeMounts:
+            # Persistente: acá viven los adjuntos que cargan los territoriales.
+            - name: media
+              mountPath: /app/media
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: datanach-media
