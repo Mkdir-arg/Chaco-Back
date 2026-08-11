@@ -18,7 +18,7 @@ def _perm(codigo):
 
 
 def _rol_admin(nombre="Admins"):
-    """Crea un rol activo con capacidades de administraciÃ³n + un usuario activo."""
+    """Crea un rol activo con capacidades de administración + un usuario activo."""
     g = Group.objects.create(name=nombre)
     RolMeta.objects.create(grupo=g, categoria="Sistema", activo=True)
     g.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
@@ -85,7 +85,7 @@ class RolesServiceTests(TestCase):
             RolesAdminService.actualizar(form, g)
 
     def test_eliminar_rol_desvincula_usuarios(self):
-        _rol_admin()  # otro admin para no disparar la auto-protecciÃ³n
+        _rol_admin()  # otro admin para no disparar la auto-protección
         g = Group.objects.create(name="Temporal")
         RolMeta.objects.create(grupo=g, categoria="Backoffice")
         u = User.objects.create_user("user-temp", password="x")
@@ -111,7 +111,7 @@ class RolesServiceTests(TestCase):
         self.assertTrue(RolesAdminService.toggle_activo(g))
 
     def test_auto_bloqueo_al_quitar_capacidad_del_unico_rol_admin(self):
-        g, _u = _rol_admin()  # Ãºnico rol con administraciÃ³n
+        g, _u = _rol_admin()  # único rol con administración
         form = RolForm(
             data={"name": g.name, "categoria": "Sistema", "capacidades": ["ciudadano.ver"]},
             instance=g,
@@ -119,7 +119,7 @@ class RolesServiceTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         with self.assertRaises(rbac.SinAdministradorError):
             RolesAdminService.actualizar(form, g)
-        # La transacciÃ³n se revierte: el rol conserva la capacidad de administraciÃ³n
+        # La transacción se revierte: el rol conserva la capacidad de administración
         g.refresh_from_db()
         self.assertIn("usuario.administrar", rbac.capacidades_de_grupo(g))
 
@@ -221,7 +221,7 @@ class RolCategoriaFormTests(TestCase):
 
 
 class RolAlcanceTests(TestCase):
-    """#66 â€" ABM de Roles con alcance de Programa."""
+    """#66 — ABM de Roles con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -259,7 +259,7 @@ class RolAlcanceTests(TestCase):
 
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
-    # --- Listado / agrupaciÃ³n ---
+    # --- Listado / agrupación ---
     def test_listado_global_ve_todo(self):  # TC-66-01 / TC-66-10
         data = roles_visibles_para(self.su)
         cats = {c for c, _ in data["categorias"]}
@@ -289,9 +289,9 @@ class RolAlcanceTests(TestCase):
         self.assertIn("Coordinador Becas", nombres)
 
     def test_programa_sin_roles_no_subseccion(self):  # TC-66-11
-        Programa.objects.create(codigo="VACIO", nombre="VacÃ­o")
+        Programa.objects.create(codigo="VACIO", nombre="Vacío")
         progs = {p.nombre for p, _ in roles_visibles_para(self.su)["programas"]}
-        self.assertNotIn("VacÃ­o", progs)
+        self.assertNotIn("Vacío", progs)
 
     # --- Formulario ---
     def test_form_admin_programa_fija_programa_y_arbol(self):  # TC-66-03
@@ -397,7 +397,7 @@ class RolAlcanceTests(TestCase):
             data={"name": "Coord Becas 2", "capacidades": ["relevamiento.gestionar", "ciudadano.ver"]},
             operador=self.admin_becas,
         )
-        self.assertFalse(form.is_valid())  # ciudadano.ver no estÃ¡ en las choices acotadas
+        self.assertFalse(form.is_valid())  # ciudadano.ver no está en las choices acotadas
 
     def test_form_global_programa_combo(self):  # TC-66-04
         form = RolForm(

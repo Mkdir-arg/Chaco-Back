@@ -5,10 +5,16 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
+from django.db.models import Max
 from django.test import TestCase
 from django.urls import reverse
 
-from programas.forms import AsignacionCoordinadorForm, SubsegmentoForm
+from programas.forms import (
+    AsignacionCoordinadorForm,
+    PreguntaGlobalForm,
+    RequisitoNativoForm,
+    SubsegmentoForm,
+)
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
@@ -327,3 +333,128 @@ class PreguntaGlobalTests(_BaseConfigTest):
         self.assertEqual(list(respuesta.context["preguntas"]), [esperada])
         self.assertContains(respuesta, "data-dynamic-list-filters")
         self.assertTrue(respuesta.context["hay_filtros_activos"])
+
+
+class OrdenRequisitosTests(_BaseConfigTest):
+    """El orden se puede escribir o dejar vacío (autonumera), pero no se repite
+    entre requisitos del mismo alcance."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=100)
+        self.sub = Subsegmento.objects.create(segmento=self.seg, nombre="Sub", cupo_maximo=40)
+
+    def _crear_requisito(self, texto, orden="", subsegmento=None):
+        url = reverse("becas:requisito_crear", args=[self.seg.pk])
+        datos = {"texto": texto, "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": orden}
+        if subsegmento is not None:
+            url += f"?subsegmento={subsegmento.pk}"
+            datos["subsegmento"] = subsegmento.pk
+        return self.client.post(url, datos)
+
+    def test_autonumera_correlativo_cuando_el_orden_viene_vacio(self):
+        self._crear_requisito("Primero")
+        self._crear_requisito("Segundo")
+        self.assertEqual(RequisitoNativo.objects.get(texto="Primero").orden, 1)
+        self.assertEqual(RequisitoNativo.objects.get(texto="Segundo").orden, 2)
+
+    def test_autonumera_despues_del_orden_mas_alto_cargado_a_mano(self):
+        self._crear_requisito("Manual", orden=7)
+        self._crear_requisito("Automatico")
+        self.assertEqual(RequisitoNativo.objects.get(texto="Automatico").orden, 8)
+
+    def test_rechaza_dos_requisitos_con_el_mismo_orden_en_el_segmento(self):
+        self._crear_requisito("Primero", orden=3)
+        form = RequisitoNativoForm(
+            {"texto": "Repetido", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 3},
+            segmento=self.seg,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("orden 3", form.errors["orden"][0])
+        self.assertIn("segmento", form.errors["orden"][0])
+
+    def test_rechaza_dos_requisitos_con_el_mismo_orden_en_el_subsegmento(self):
+        self._crear_requisito("Propio", orden=2, subsegmento=self.sub)
+        form = RequisitoNativoForm(
+            {"texto": "Repetido", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 2},
+            segmento=self.seg,
+            subsegmento=self.sub,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("subsegmento", form.errors["orden"][0])
+
+    def test_el_orden_del_subsegmento_es_independiente_del_segmento(self):
+        # Cada alcance numera por su cuenta: el requisito propio del
+        # subsegmento puede repetir el orden de uno heredado del segmento.
+        self._crear_requisito("Del segmento", orden=1)
+        self._crear_requisito("Del subsegmento", orden=1, subsegmento=self.sub)
+        propio = RequisitoNativo.objects.get(texto="Del subsegmento")
+        self.assertEqual(propio.orden, 1)
+        self.assertEqual(propio.subsegmento, self.sub)
+
+    def test_autonumera_el_subsegmento_desde_su_propia_numeracion(self):
+        self._crear_requisito("Del segmento", orden=9)
+        self._crear_requisito("Del subsegmento", subsegmento=self.sub)
+        self.assertEqual(RequisitoNativo.objects.get(texto="Del subsegmento").orden, 1)
+
+    def test_editar_sin_tocar_el_orden_no_choca_consigo_mismo(self):
+        self._crear_requisito("Original", orden=4)
+        req = RequisitoNativo.objects.get(texto="Original")
+        resp = self.client.post(
+            reverse("becas:requisito_editar", args=[req.pk]),
+            {"texto": "Renombrado", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 4},
+        )
+        self.assertEqual(resp.status_code, 302)
+        req.refresh_from_db()
+        self.assertEqual((req.texto, req.orden), ("Renombrado", 4))
+
+    def test_editar_hacia_un_orden_ocupado_se_rechaza(self):
+        self._crear_requisito("Primero", orden=1)
+        self._crear_requisito("Segundo", orden=2)
+        segundo = RequisitoNativo.objects.get(texto="Segundo")
+        form = RequisitoNativoForm(
+            {"texto": "Segundo", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 1},
+            instance=segundo,
+            segmento=self.seg,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("orden 1", form.errors["orden"][0])
+
+
+class OrdenPreguntasGlobalesTests(_BaseConfigTest):
+    """Mismo contrato de orden para los requisitos generales."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+
+    def _crear_pregunta(self, texto, orden=""):
+        return self.client.post(
+            reverse("becas:pregunta_crear"),
+            {"texto": texto, "tipo": TipoCampo.STRING, "orden": orden, "obligatorio": "on", "activo": "on"},
+        )
+
+    def test_autonumera_cuando_el_orden_viene_vacio(self):
+        tope = PreguntaGlobal.objects.aggregate(m=Max("orden"))["m"]
+        self._crear_pregunta("Nueva")
+        self.assertEqual(PreguntaGlobal.objects.get(texto="Nueva").orden, tope + 1)
+
+    def test_rechaza_dos_preguntas_con_el_mismo_orden(self):
+        self._crear_pregunta("Primera", orden=3)
+        form = PreguntaGlobalForm(
+            {"texto": "Repetida", "tipo": TipoCampo.STRING, "orden": 3, "obligatorio": "on", "activo": "on"}
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("orden 3", form.errors["orden"][0])
+
+    def test_editar_sin_tocar_el_orden_no_choca_consigo_mismo(self):
+        self._crear_pregunta("Original", orden=3)
+        pregunta = PreguntaGlobal.objects.get(texto="Original")
+        resp = self.client.post(
+            reverse("becas:pregunta_editar", args=[pregunta.pk]),
+            {"texto": "Renombrada", "tipo": TipoCampo.STRING, "orden": 3, "obligatorio": "on", "activo": "on"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        pregunta.refresh_from_db()
+        self.assertEqual((pregunta.texto, pregunta.orden), ("Renombrada", 3))

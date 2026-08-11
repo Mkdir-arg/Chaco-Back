@@ -15,6 +15,7 @@ from programas.management.commands.seed_becas import (
     ROL_TERRITORIAL,
 )
 from programas.models import AsignacionCoordinador, AsignacionTerritorial, Segmento
+from programas.services.autorizacion import usuarios_coordinadores_regionales_becas
 from users.forms import UserCreationForm
 from users.selectors.usuarios import es_gestor_territorial, usuarios_visibles_para
 
@@ -125,6 +126,43 @@ class CoordinadorGestionTerritorialesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         creado = User.objects.get(username="coordinador-modal")
         self.assertTrue(creado.groups.filter(name=ROL_COORDINADOR).exists())
+
+    def test_coordinador_no_puede_crear_referente(self):
+        response = self.client.post(
+            reverse("users:usuario_alta_rapida"),
+            {
+                "tipo": "referente",
+                "username": "referente-prohibido",
+                "password": "clave-segura-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(User.objects.filter(username="referente-prohibido").exists())
+
+    def test_administrador_puede_crear_referente_desde_modal(self):
+        """El atajo "Crear referente" del modal de subsegmento da de alta un
+        Coordinador Regional: es el único rol que puede quedar como referente."""
+        admin = User.objects.create_superuser("admin-referente", "admin-ref@example.com", "x")
+        self.client.force_login(admin)
+        response = self.client.post(
+            reverse("users:usuario_alta_rapida"),
+            {
+                "tipo": "referente",
+                "username": "referente-modal",
+                "email": "ref-modal@example.com",
+                "password": "clave-segura-123",
+                "first_name": "Referente",
+                "last_name": "Modal",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        creado = User.objects.get(username="referente-modal")
+        self.assertTrue(creado.groups.filter(name=ROL_COORDINADOR_REGIONAL).exists())
+        self.assertIn(creado, usuarios_coordinadores_regionales_becas())
+        self.assertEqual(response.json()["user"]["id"], creado.pk)
+        self.assertIsNone(response.json()["user"]["segmento_id"])
 
     def test_el_coordinador_si_queda_acotado_al_alcance_territorial(self):
         self.assertTrue(es_gestor_territorial(self.coordinador))

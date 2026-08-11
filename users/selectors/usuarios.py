@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 
 from core import rbac
-from users.selectors.roles import programas_administrables
+from users.selectors.roles import programas_administrables_usuarios
 
 
 def get_usuarios_queryset():
@@ -19,7 +19,7 @@ def es_gestor_territorial(user):
     rama territorial lo interceptaría y le devolvería 0 usuarios, porque un admin
     no coordina ningún segmento.
     """
-    return rbac.puede(user, "becas.usuario.territorial") and not programas_administrables(user).exists()
+    return rbac.puede(user, "becas.usuario.territorial") and not programas_administrables_usuarios(user).exists()
 
 
 def es_admin_global_usuarios(user):
@@ -61,7 +61,7 @@ def usuarios_visibles_para(user):
             .distinct()
         )
         return visibles
-    programas = programas_administrables(user)
+    programas = programas_administrables_usuarios(user)
     return qs.filter(groups__meta__programa__in=programas, groups__meta__activo=True).distinct()
 
 
@@ -108,5 +108,5 @@ def puede_gestionar_usuario(operador, target):
             and segmentos_para_gestion_territoriales(operador).filter(pk=asignacion.segmento_id).exists()
         )
         return permitido
-    programas = set(programas_administrables(operador).values_list("pk", flat=True))
+    programas = set(programas_administrables_usuarios(operador).values_list("pk", flat=True))
     return target.groups.filter(meta__programa__in=programas, meta__activo=True).exists()

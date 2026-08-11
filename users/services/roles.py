@@ -82,7 +82,7 @@ class RolesAdminService:
         if _meta(group).protegido:
             raise RolProtegidoError("El rol está protegido y no puede editarse.")
         # Programa que este rol administraba ANTES del cambio (puede quedar
-        # huérfano si la edición le saca programa.configurar o le cambia el programa).
+        # huérfano si la edición le saca la capacidad de administración o le cambia el programa).
         programa_previo = _programa_que_administra(group)
         cd = form.cleaned_data
         group.name = cd["name"]
@@ -125,7 +125,7 @@ class RolesAdminService:
         programa_admin = _programa_que_administra(group)
         meta.activo = not meta.activo
         meta.save(update_fields=["activo"])
-        # Desactivar un rol de programa SÍ deja de otorgar programa.configurar:
+        # Desactivar un rol de programa SÍ deja de otorgar su capacidad de administración:
         # si era el último admin de ese programa, revierte.
         if not meta.activo and programa_admin is not None:
             rbac.asegurar_admin_restante(programa=programa_admin)

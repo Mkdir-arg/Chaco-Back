@@ -49,6 +49,8 @@ CATALOGO = [
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("programa.configurar", "Configurar programas"),
+            ("programa.usuario.administrar", "Administrar los usuarios de su programa"),
+            ("programa.rol.administrar", "Administrar los roles de su programa"),
         ],
     },
     {
@@ -302,12 +304,25 @@ TABS_CAPACIDADES = [
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
 CAPS_ADMINISTRACION = ("usuario.administrar", "rol.administrar")
 
-# Capacidades que, en un rol con ``RolMeta.programa`` seteado, marcan a su portador
-# como administrador de ESE programa (alcance del ABM de Usuarios y del check de
-# "no dejar un programa sin admin"). Son dos porque ``programa.configurar`` además
-# habilita el wizard global de programas: los roles administradores de un programa
-# concreto llevan su capacidad paraguas en lugar de esa.
-CAPS_ADMIN_PROGRAMA = ("programa.configurar", "becas.programa.administrar")
+# Capacidades que, en un rol con ``RolMeta.programa`` seteado, acotan a su portador
+# a administrar ESE programa. Van separadas por ABM: se puede dar la gestión de
+# usuarios del programa sin la de sus roles, y viceversa.
+#
+# ``programa.configurar`` NO figura acá a propósito: habilita el wizard global de
+# programas (crear/editar cualquiera), que es una potestad de sistema y no un
+# alcance acotado. ``becas.programa.administrar`` sí, por ser la capacidad
+# paraguas del programa Becas.
+CAPS_ADMIN_PROGRAMA_USUARIOS = ("programa.usuario.administrar", "becas.programa.administrar")
+CAPS_ADMIN_PROGRAMA_ROLES = ("programa.rol.administrar", "becas.programa.administrar")
+
+# Unión de ambas: "administra algo de este programa". La usa el check de "no dejar
+# un programa sin administrador", que no distingue de qué ABM se trata.
+CAPS_ADMIN_PROGRAMA = tuple(dict.fromkeys(CAPS_ADMIN_PROGRAMA_USUARIOS + CAPS_ADMIN_PROGRAMA_ROLES))
+
+# Capacidades que abren cada ABM. Se derivan del alcance para que la puerta y el
+# alcance no puedan quedar desalineados (entrar y no ver nada, o al revés).
+CAPS_ENTRADA_ABM_USUARIOS = ("usuario.administrar", *CAPS_ADMIN_PROGRAMA_USUARIOS, "becas.usuario.territorial")
+CAPS_ENTRADA_ABM_ROLES = ("rol.administrar", *CAPS_ADMIN_PROGRAMA_ROLES)
 
 # Nombre del rol protegido y del marcador de identidad del portal.
 ROL_ADMINISTRADOR = "Administrador"

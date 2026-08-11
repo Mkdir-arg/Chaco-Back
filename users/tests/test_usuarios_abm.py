@@ -241,7 +241,7 @@ class UsuarioFiltrosTests(TestCase):
 
 
 class UsuarioAlcanceProgramaTests(TestCase):
-    """#67 â€” ABM de Usuarios con alcance de Programa."""
+    """#67 — ABM de Usuarios con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -271,7 +271,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.rol_global = Group.objects.create(name="Backoffice X")
         RolMeta.objects.create(grupo=self.rol_global, categoria="Backoffice", activo=True)
 
-        # Superusuario: admin global presente para que la auto-protecciÃ³n global no salte.
+        # Superusuario: admin global presente para que la auto-protección global no salte.
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
     def test_listado_filtrado_por_programa(self):  # TC-67-01 / TC-67-09
@@ -299,7 +299,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertIn(self.rol_becas, roles)
         self.assertNotIn(self.rol_vivienda, roles)  # el rol de Vivienda no aparece
 
-    def test_guardar_no_pierde_roles_fuera_de_alcance(self):  # TC-67-05 (crÃ­tico)
+    def test_guardar_no_pierde_roles_fuera_de_alcance(self):  # TC-67-05 (crítico)
         user = User.objects.create_user("multi2", password="x")
         user.groups.add(self.rol_becas, self.rol_vivienda)
         form = CustomUserChangeForm(
@@ -355,7 +355,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertEqual(self.client.get(reverse("users:usuarios")).status_code, 302)
 
     def test_usuario_con_rol_de_programa_inactivo_no_visible(self):
-        # Consistencia de alcance: un usuario cuyo Ãºnico vÃ­nculo con Becas es un rol
+        # Consistencia de alcance: un usuario cuyo único vínculo con Becas es un rol
         # INACTIVO no debe ser visible ni gestionable por el admin de Becas.
         inactivo = Group.objects.create(name="Becas inactivo")
         RolMeta.objects.create(grupo=inactivo, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=False)
@@ -389,7 +389,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
 
 
 class ProgramaSinAdminTests(TestCase):
-    """#68 â€” no dejar un programa sin administrador (flujos de Usuarios)."""
+    """#68 — no dejar un programa sin administrador (flujos de Usuarios)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -399,7 +399,7 @@ class ProgramaSinAdminTests(TestCase):
         self.rol_global.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
         self.jefe = User.objects.create_user("jefe", password="x")
         self.jefe.groups.add(self.rol_global)
-        # MarÃ­a, Ãºnica administradora de Becas.
+        # María, única administradora de Becas.
         self.rol_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
@@ -442,11 +442,11 @@ class ProgramaSinAdminTests(TestCase):
         self.client.force_login(self.jefe)
         self.client.post(reverse("users:usuario_toggle", args=[self.maria.pk]))
         self.maria.refresh_from_db()
-        self.assertTrue(self.maria.is_active)  # la operaciÃ³n se revierte
+        self.assertTrue(self.maria.is_active)  # la operación se revierte
 
 
 class SidebarAdministracionTests(TestCase):
-    """#68 â€” la secciÃ³n AdministraciÃ³n del sidebar respeta programa.configurar."""
+    """#68 — la sección Administración del sidebar respeta programa.configurar."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -460,7 +460,7 @@ class SidebarAdministracionTests(TestCase):
 
     def test_admin_programa_ve_administracion(self):  # TC-68-04
         html = render_sidebar(User.objects.get(pk=self.maria.pk))
-        self.assertIn(reverse("users:usuarios"), html)  # secciÃ³n AdministraciÃ³n visible
+        self.assertIn(reverse("users:usuarios"), html)  # sección Administración visible
         self.assertIn(reverse("users:roles"), html)
 
     def test_sin_capacidades_no_ve_administracion(self):  # TC-68-05
@@ -472,7 +472,7 @@ class SidebarAdministracionTests(TestCase):
 
 class UsuarioAutoProteccionTests(TestCase):
     def test_quitarse_el_ultimo_rol_admin_revierte(self):
-        admin = _admin("solo")  # Ãºnico administrador (no superusuario)
+        admin = _admin("solo")  # único administrador (no superusuario)
         form = CustomUserChangeForm(
             data={
                 "username": "solo",

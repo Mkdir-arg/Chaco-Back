@@ -617,7 +617,7 @@
         {% endif %}
 
         {# ── Administración (grupo colapsable) ────────────────── #}
-        {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" or request.user|puede:"becas.usuario.territorial" %}
+        {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.usuario.administrar" or request.user|puede:"programa.rol.administrar" or request.user|puede:"becas.programa.administrar" or request.user|puede:"becas.usuario.territorial" %}
         <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -646,7 +646,7 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
-                        {% if request.user|puede:"usuario.administrar" or request.user|puede:"programa.configurar" or request.user|puede:"becas.usuario.territorial" %}
+                        {% if request.user|puede:"usuario.administrar" or request.user|puede:"programa.usuario.administrar" or request.user|puede:"becas.programa.administrar" or request.user|puede:"becas.usuario.territorial" %}
                         <a href="{% url 'users:usuarios' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -662,7 +662,7 @@
                             Usuarios
                         </a>
                         {% endif %}
-                        {% if request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
+                        {% if request.user|puede:"rol.administrar" or request.user|puede:"programa.rol.administrar" or request.user|puede:"becas.programa.administrar" %}
                         <a href="{% url 'users:roles' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -683,7 +683,7 @@
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% if request.user|puede:'usuario.administrar' or request.user|puede:'programa.configurar' or request.user|puede:'becas.usuario.territorial' %}{% url 'users:usuarios' %}{% else %}{% url 'users:roles' %}{% endif %}"
+                <a href="{% if request.user|puede:'usuario.administrar' or request.user|puede:'programa.usuario.administrar' or request.user|puede:'becas.programa.administrar' or request.user|puede:'becas.usuario.territorial' %}{% url 'users:usuarios' %}{% else %}{% url 'users:roles' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"

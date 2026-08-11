@@ -20,8 +20,8 @@ def _perm(codigo):
 def render_sidebar(user):
     """Renderiza el sidebar del backoffice para ``user`` de forma aislada.
 
-    Evita falsos positivos: el cuerpo de las pÃ¡ginas (p. ej. ``core:inicio``)
-    puede contener enlaces/textos que en el menÃº estÃ¡n gateados por capacidad.
+    Evita falsos positivos: el cuerpo de las páginas (p. ej. ``core:inicio``)
+    puede contener enlaces/textos que en el menú están gateados por capacidad.
     """
     req = RequestFactory().get("/")
     req.user = user
@@ -197,7 +197,7 @@ class PortalCiudadanoSinLegajoTests(TestCase):
 
 
 class MotorPuedeProgramaTests(TestCase):
-    """#65 â€” puede()/puede_alguna() con alcance de Programa (retrocompatible)."""
+    """#65 — puede()/puede_alguna() con alcance de Programa (retrocompatible)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -272,27 +272,27 @@ class MotorPuedeProgramaTests(TestCase):
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_no_falso_positivo_por_rol_global_ajeno(self):
-        # RegresiÃ³n: un rol global (programa=null) con la cap, al que el usuario NO
-        # pertenece, no debe otorgÃ¡rsela en un programa donde no la tiene.
+        # Regresión: un rol global (programa=null) con la cap, al que el usuario NO
+        # pertenece, no debe otorgársela en un programa donde no la tiene.
         glob = Group.objects.create(name="Admin total ajeno")
         RolMeta.objects.create(grupo=glob, categoria="Sistema", activo=True, programa=None)
-        glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en glob
+        glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en glob
         u = self._u()
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
         self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_no_falso_positivo_por_cap_en_otro_programa(self):
-        # RegresiÃ³n: la cap del user estÃ¡ en Becas; que un rol AJENO de Vivienda tenga
-        # la misma cap no debe hacer que puede(..., programa=vivienda) dÃ© True.
+        # Regresión: la cap del user está en Becas; que un rol AJENO de Vivienda tenga
+        # la misma cap no debe hacer que puede(..., programa=vivienda) dé True.
         otro = Group.objects.create(name="Territorial Vivienda ajeno")
         RolMeta.objects.create(grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.vivienda, activo=True)
-        otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en otro
+        otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en otro
         u = self._u()
         self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
 
 class AutoProteccionProgramaTests(TestCase):
-    """#68 â€” asegurar_admin_restante(programa) (RN-8) + superusuario cuenta."""
+    """#68 — asegurar_admin_restante(programa) (RN-8) + superusuario cuenta."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -322,7 +322,7 @@ class AutoProteccionProgramaTests(TestCase):
         with self.assertRaises(rbac.SinAdministradorProgramaError):
             rbac.asegurar_admin_restante(programa=self.becas)
 
-    def test_superusuario_cuenta(self):  # decisiÃ³n PM: el superuser cuenta
+    def test_superusuario_cuenta(self):  # decisión PM: el superuser cuenta
         self.maria.delete()
         User.objects.create_superuser("root", "root@example.com", "x")
         rbac.asegurar_admin_restante(programa=self.becas)  # no lanza
@@ -331,13 +331,13 @@ class AutoProteccionProgramaTests(TestCase):
         self.assertTrue(issubclass(rbac.SinAdministradorProgramaError, rbac.SinAdministradorError))
 
     def test_check_global_retrocompatible_sin_programa(self):
-        # Sin programa sigue siendo el check global (no hay admin global â†’ lanza).
+        # Sin programa sigue siendo el check global (no hay admin global → lanza).
         with self.assertRaises(rbac.SinAdministradorError):
             rbac.asegurar_admin_restante()
 
 
 class CatalogoProgramaTests(TestCase):
-    """#64 â€” el catÃ¡logo distingue mÃ³dulos 'de programa' de los globales."""
+    """#64 — el catálogo distingue módulos 'de programa' de los globales."""
 
     def test_modulos_de_programa_cerrados(self):  # TC-64-05
         de_programa = {m["modulo"] for m in rbac.CATALOGO if m.get("alcance") == "programa"}

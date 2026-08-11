@@ -122,7 +122,8 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" name="orden" min="0" class="nodo-field">
+              <input type="number" name="orden" min="0" placeholder="Automático" class="nodo-field">
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
@@ -193,7 +194,8 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" name="orden" x-model="editOrden" min="0" class="nodo-field">
+              <input type="number" name="orden" x-model="editOrden" min="0" placeholder="Automático" class="nodo-field">
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
