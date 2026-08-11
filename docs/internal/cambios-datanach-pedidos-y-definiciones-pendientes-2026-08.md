@@ -11,7 +11,7 @@
 ## Referencias relacionadas
 
 - Análisis funcional completo: `docs/internal/analisis-funcional-cambios-datanach-2026-08.md`
-- Registro de cambios realizados: `docs/internal/registro-implementacion-cambios-datanach-2026-08.md`
+- Registro de cambios realizados: `docs/internal/requerimientos.md` (archivo vivo de requerimientos)
 
 ## Resumen de pedidos y definiciones
 

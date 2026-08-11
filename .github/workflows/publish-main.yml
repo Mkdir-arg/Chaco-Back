@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           fail=0
-          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py; do
+          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py; do
             if [ -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::El archivo prohibido $path aparece en el release"
               fail=1

@@ -5,7 +5,7 @@
 **Origen:** Documento “Cambios en DataÑach” enviado por el cliente  
 **Criterio de organización:** Los puntos conservan el orden del documento original. En cada uno se indica la parte del sistema responsable.
 
-**Registro técnico de implementación y reversión:** `docs/internal/registro-implementacion-cambios-datanach-2026-08.md`
+**Registro técnico de implementación y reversión:** `docs/internal/requerimientos.md` — archivo vivo de requerimientos, donde estos cambios quedaron registrados como Cambios 1 a 19.
 
 > Este documento es un borrador interno de análisis. Las definiciones pendientes deben resolverse antes de crear las tareas definitivas. La fuente de verdad final debe quedar en los Issues de GitHub.
 

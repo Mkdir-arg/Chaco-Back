@@ -15,9 +15,13 @@ Trabajar code-first.
 
 1. Leer este archivo.
 2. Entender el pedido actual del usuario.
-3. Inspeccionar el código real afectado.
-4. Diseñar o implementar con cambios mínimos y verificables.
-5. Validar con `manage.py check`, tests o revisión de templates según corresponda.
+3. **Consultar el archivo vivo de requerimientos** por etiqueta, para no rehacer ni
+   contradecir una decisión ya tomada (ver más abajo). Se consulta por índice, nunca
+   leyéndolo entero.
+4. Inspeccionar el código real afectado.
+5. Diseñar o implementar con cambios mínimos y verificables.
+6. Validar con `manage.py check`, tests o revisión de templates según corresponda.
+7. **Registrar el requerimiento en `docs/internal/requerimientos.md`** (ver más abajo). Sin ese paso el desarrollo no está terminado.
 
 ## Convenciones de implementación
 
@@ -30,6 +34,32 @@ Trabajar code-first.
 - Templates del portal: extender `portal/base.html`.
 - Confirmaciones destructivas: SweetAlert2 o modal equivalente, nunca `confirm()` nativo.
 - Mantener cambios pequeños, consistentes y fáciles de validar.
+
+## Regla de oro: el archivo vivo de requerimientos
+
+[`docs/internal/requerimientos.md`](docs/internal/requerimientos.md) **se consulta al
+iniciar un requerimiento y se escribe al terminarlo.** Las dos mitades son obligatorias.
+
+**Al iniciar** — el archivo crece sin parar, así que no se lee entero: se consulta con
+[`scripts/requerimientos.py`](scripts/requerimientos.py), que lo indexa por etiquetas y
+devuelve solo lo pedido.
+
+```powershell
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --tag rbac      # qué se decidió sobre el tema
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --buscar "cupo" # dónde se habló de algo
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --ver 24        # una entrada completa
+```
+
+Se leen las entradas del tema —sobre todo **Decisiones tomadas**, **Pendientes** e
+**Historial**— antes de diseñar. Si lo que se va a hacer contradice algo registrado, se
+dice antes de implementar.
+
+**Al terminar** — se agrega la entrada nueva y su fila en el índice. Es condición de
+cierre junto con `manage.py check` y la auditoría de diseño, y se verifica con
+`scripts\requerimientos.py --check` (tiene que dar OK).
+
+La regla completa, la plantilla obligatoria, el vocabulario de etiquetas y el índice
+viven **en ese archivo**; no se duplica su contenido acá.
 
 ## Diseño / UI (nuevo sistema de diseño)
 

@@ -133,6 +133,50 @@ vence el 01/08.
   (`convocatoria_reactivar`); desde el detalle, el form valida que no se active
   con fecha pasada.
 
+## Vigencia del programa SIIS
+
+Cada `Segmento` se vincula a un programa del catálogo de SIIS
+(`siis_programa_id`). Al vincularlo se **congela** su detalle en
+`siis_programa_datos` (nombre, jurisdicción, controles de elegibilidad, edad
+mínima): esa foto es la que muestra el botón "!" del listado y del detalle, y la
+referencia contra la que se compara después.
+
+- **Catálogo del selector**: `listar_programas()` pide `?estado=ACTIVO` y
+  **vuelve a filtrar por estado** sobre la respuesta, para que un programa dado
+  de baja no llegue al select aunque SIIS ignorara el parámetro.
+- **Detección de bajas**: `listar_programas_todos()` pide `?estado=TODOS`. Con
+  `ACTIVO` no sirve: el programa dado de baja simplemente desaparece de la
+  respuesta y no se distingue de una lista incompleta.
+- **Runner**: `python manage.py sincronizar_programas_siis` (idempotente, con
+  `--dry-run`). Actualiza `siis_programa_estado` y `siis_verificado_en`; **no**
+  pisa el snapshot.
+- **Cuándo corre**: solo por cron del host — snippet versionado en
+  [`docker/cron/sincronizar_programas_siis.cron`](../../docker/cron/sincronizar_programas_siis.cron).
+  A diferencia de `procesar_vencimientos`, **no** va en el bootstrap del
+  contenedor: depende de un servicio externo y el entrypoint no tolera fallos
+  (ver [processes.md](processes.md)).
+- **Efecto de una baja**: `Segmento.pausa_efectiva` devuelve un `BloqueoSiis`, que
+  viaja por la misma cadena que la pausa manual (segmento → subsegmento →
+  convocatoria → relevamiento, backoffice y app de campo). No se toca el campo
+  `pausado`: la pausa manual conserva su autor, motivo y precedencia.
+
+## Coordinador Regional (alcance de subsegmento)
+
+`Subsegmento.referente` apunta a un usuario con el rol `Becas — Coordinador
+Regional` (capacidad `becas.coordinador_regional`). Es **uno por subsegmento** y
+elegir otro reemplaza al anterior; un mismo referente puede tener varios
+subsegmentos, incluso de segmentos distintos.
+
+- Ve el segmento que los contiene solo como **contexto**: sin
+  `becas.segmento.editar` ni `becas.requisito.*`, las solapas "Información
+  general" y "Requisitos del segmento" ni se le muestran.
+- `subsegmentos_visibles` y `convocatorias_visibles` se acotan a lo suyo. Como el
+  resto de las pantallas ya filtra por esos dos querysets, el alcance se propaga
+  solo a convocatorias, relevamientos y revisión.
+- `puede_operar_subsegmento` valida contra el **subsegmento concreto**, no contra
+  el segmento padre: sin eso podría abrir por URL el de un par del mismo segmento.
+- Una convocatoria a nivel segmento (sin subsegmento) queda fuera de su alcance.
+
 ## Puesta en marcha
 
 ```powershell

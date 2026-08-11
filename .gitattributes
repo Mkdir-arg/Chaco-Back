@@ -14,3 +14,4 @@
 /mkdocs.yml export-ignore
 /scripts/design_audit.py export-ignore
 /scripts/compile_templates.py export-ignore
+/scripts/requerimientos.py export-ignore
