@@ -10,6 +10,7 @@ from core import rbac
 from programas.management.commands.seed_becas import (
     ROL_ADMIN,
     ROL_COORDINADOR,
+    ROL_COORDINADOR_REGIONAL,
     ROL_REFERENTE,
     ROL_TERRITORIAL,
 )
@@ -193,4 +194,7 @@ class AdminBecasAlcanceProgramaTests(TestCase):
 
         ofrecidos = {g.name for g in form.fields["groups"].queryset}
 
-        self.assertEqual(ofrecidos, {ROL_ADMIN, ROL_COORDINADOR, ROL_REFERENTE, ROL_TERRITORIAL})
+        self.assertEqual(
+            ofrecidos,
+            {ROL_ADMIN, ROL_COORDINADOR, ROL_COORDINADOR_REGIONAL, ROL_REFERENTE, ROL_TERRITORIAL},
+        )

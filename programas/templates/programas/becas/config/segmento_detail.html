@@ -7,7 +7,7 @@
 <style>[x-cloak]{display:none!important}</style>
 <div class="space-y-5"
      x-data="{
-       tab: 'info',
+       tab: '{% if solo_sus_subsegmentos %}subs{% else %}info{% endif %}',
        modalInfo: false,
        info: {},
        modalReq: false,
@@ -19,6 +19,7 @@
        subEditNombre: '',
        subEditDesc: '',
        subEditCupo: '',
+       subEditReferente: '',
        editReqUrl: '',
        editReqTexto: '',
        editReqTipo: '',
@@ -34,11 +35,12 @@
          this.editReqOpciones = (opciones || []).join('\n');
          this.modalReqEdit = true;
        },
-       openSubEdit(url, nombre, desc, cupo) {
+       openSubEdit(url, nombre, desc, cupo, referente) {
          this.subEditUrl = url;
          this.subEditNombre = nombre;
          this.subEditDesc = desc;
          this.subEditCupo = cupo;
+         this.subEditReferente = referente || '';
          this.modalSubEdit = true;
        },
        openInfo(datos) {
@@ -96,26 +98,31 @@
   {# Pestañas #}
   <div class="bg-white rounded-xl border border-base shadow-sm">
     <div class="border-b border-base flex gap-1 px-2">
+      {% if not solo_sus_subsegmentos %}
       <button @click="tab='info'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-id-card"></i> Información general
       </button>
+      {% endif %}
       <button @click="tab='subs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='subs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-list"></i> Subsegmentos
         <span class="badge badge-gray ml-0.5">{{ subsegmentos|length }}</span>
       </button>
+      {% if not solo_sus_subsegmentos %}
       <button @click="tab='reqs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='reqs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-clipboard-list"></i> Requisitos del segmento
         <span class="badge badge-gray ml-0.5">{{ requisitos|length }}</span>
       </button>
+      {% endif %}
     </div>
 
     {# ============ TAB: Información general ============ #}
+    {% if not solo_sus_subsegmentos %}
     <div x-show="tab==='info'" class="p-6 space-y-6">
 
       {# Stat cards de cupo #}
@@ -302,6 +309,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
     {# ============ TAB: Subsegmentos ============ #}
     <div x-show="tab==='subs'" x-cloak class="p-6 space-y-4">
@@ -319,6 +327,7 @@
     </div>
 
     {# ============ TAB: Requisitos del segmento ============ #}
+    {% if not solo_sus_subsegmentos %}
     <div x-show="tab==='reqs'" x-cloak class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle max-w-xl">Requisitos del segmento padre. Se heredan en los formularios de todos sus subsegmentos.</p>
@@ -333,6 +342,7 @@
         {% include "programas/becas/config/_requisitos_panel.html" %}
       </div>
     </div>
+    {% endif %}
   </div>
 
   {# ============ Modal: Nuevo subsegmento ============ #}
@@ -376,6 +386,16 @@
             </label>
             {{ form_subsegmento.descripcion }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="descripcion"></p>
+          </div>
+
+          {% comment %}Referente asignado — solo Coordinadores Regionales{% endcomment %}
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Referente asignado
+            </label>
+            {{ form_subsegmento.referente }}
+            <p class="mt-1 text-xs text-body-subtle">Solo verá y operará este subsegmento.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="referente"></p>
           </div>
 
           {% comment %}Cupo máximo{% endcomment %}
@@ -470,6 +490,20 @@
             </label>
             <textarea name="descripcion" rows="2" class="nodo-field" x-model="subEditDesc"></textarea>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="descripcion"></p>
+          </div>
+
+          {% comment %}Referente asignado{% endcomment %}
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">
+              Referente asignado
+            </label>
+            <select name="referente" class="nodo-field" x-model="subEditReferente">
+              {% for value, label in form_subsegmento.referente.field.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-body-subtle">Solo verá y operará este subsegmento.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="referente"></p>
           </div>
 
           {% comment %}Cupo máximo{% endcomment %}

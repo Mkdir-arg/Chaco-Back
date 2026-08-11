@@ -40,7 +40,9 @@ from programas.models import (
 )
 from programas.services.autorizacion import (
     SegmentoScopedMixin,
+    es_coordinador_regional_becas,
     puede_gestionar_segmento,
+    puede_operar_subsegmento,
     requisitos_visibles,
     segmentos_visibles,
     subsegmentos_visibles,
@@ -67,6 +69,12 @@ def _assert_scope(request, segmento):
     """403 si el usuario no puede gestionar el ``segmento`` (ver ``SegmentoScopedMixin``)."""
     if not puede_gestionar_segmento(request.user, segmento):
         raise PermissionDenied("No tiene acceso a este segmento.")
+
+
+def _assert_scope_subsegmento(request, subsegmento):
+    """403 si el usuario no puede operar **ese** subsegmento (alcance del Coordinador Regional)."""
+    if not puede_operar_subsegmento(request.user, subsegmento):
+        raise PermissionDenied("No tiene acceso a este subsegmento.")
 
 
 def _segmentos_qs(user):
@@ -237,7 +245,14 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         seg = self.object
-        subsegmentos = list(seg.subsegmentos.all().order_by("nombre"))
+        # El Coordinador Regional entra al segmento solo como contexto: ve
+        # únicamente sus subsegmentos y no la configuración del segmento.
+        solo_sus_subsegmentos = es_coordinador_regional_becas(self.request.user)
+        ctx["solo_sus_subsegmentos"] = solo_sus_subsegmentos
+        subsegmentos_qs = seg.subsegmentos.all()
+        if solo_sus_subsegmentos:
+            subsegmentos_qs = subsegmentos_qs.filter(pk__in=subsegmentos_visibles(self.request.user))
+        subsegmentos = list(subsegmentos_qs.select_related("referente").order_by("nombre"))
         ctx["subsegmentos"] = subsegmentos
         ctx["subsegmentos_cupo_total"] = sum(s.cupo_maximo for s in subsegmentos)
         # Cupo calculado UNA vez acá: las properties del modelo disparan un SUM
@@ -296,7 +311,7 @@ def subsegmento_crear(request, segmento_pk):
                     {"form": form, "segmento": segmento, "subsegmento": None},
                 )
             if is_ajax(request):
-                subs = list(segmento.subsegmentos.all().order_by("nombre"))
+                subs = list(segmento.subsegmentos.select_related("referente").order_by("nombre"))
                 return ajax_ok(
                     request,
                     target="#subs-panel",
@@ -324,7 +339,7 @@ def subsegmento_crear(request, segmento_pk):
 @requiere(CAP_SUBSEGMENTO_EDITAR)
 def subsegmento_editar(request, pk):
     sub = get_object_or_404(Subsegmento, pk=pk)
-    _assert_scope(request, sub.segmento)
+    _assert_scope_subsegmento(request, sub)
     if request.method == "POST":
         form = SubsegmentoForm(request.POST, instance=sub, segmento=sub.segmento)
         if form.is_valid():
@@ -343,7 +358,7 @@ def subsegmento_editar(request, pk):
             if is_ajax(request):
                 origin = request.POST.get("origin")
                 if origin == "panel":
-                    subs = list(sub.segmento.subsegmentos.all().order_by("nombre"))
+                    subs = list(sub.segmento.subsegmentos.select_related("referente").order_by("nombre"))
                     return ajax_ok(
                         request,
                         target="#subs-panel",
@@ -376,7 +391,7 @@ def subsegmento_editar(request, pk):
 @requiere(CAP_SUBSEGMENTO_EDITAR)
 def subsegmento_eliminar(request, pk):
     sub = get_object_or_404(Subsegmento, pk=pk)
-    _assert_scope(request, sub.segmento)
+    _assert_scope_subsegmento(request, sub)
     segmento_pk = sub.segmento_id
     if request.method == "POST":
         try:
@@ -538,7 +553,9 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        self.assert_puede_gestionar_segmento(obj.segmento)
+        # Sobre el subsegmento, no sobre el segmento: un Coordinador Regional
+        # entra al segmento pero solo puede abrir el subsegmento que tiene a cargo.
+        self.assert_puede_operar_subsegmento(obj)
         return obj
 
     def get_context_data(self, **kwargs):
