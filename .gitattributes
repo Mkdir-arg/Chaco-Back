@@ -1,5 +1,12 @@
 *.sh text eol=lf
 
+# El pipeline de GitLab lo mantiene ECOM: nuestra copia existe para que viaje en el
+# release, porque sin el archivo GitLab no crea pipeline y la rama se actualiza sin
+# construir imagen. Se fija en LF para que el blob quede idéntico al suyo: en un clon
+# con `core.autocrlf=true` el archivo aparece con CRLF, pero eso es del checkout y no
+# del contenido versionado.
+.gitlab-ci.yml text eol=lf
+
 # Exclusiones del snapshot de release para main.
 /.claude export-ignore
 /.amazonq export-ignore
