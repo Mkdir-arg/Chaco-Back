@@ -166,6 +166,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 23 | Orden de los requisitos: autonumerado y sin repetidos | Becas / requisitos | `#requisitos` `#ui` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
 | 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
+| 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
 
 **Notas del índice**
 
@@ -1001,6 +1002,8 @@ El rol vuelve, pero **anclado al subsegmento** en lugar de a una Región. Las Re
 
 **Pendiente detectado:** el campo Subsegmento sigue siendo opcional para este rol. Si el Coordinador Regional crea una convocatoria sin subsegmento, queda a nivel segmento y `convocatorias_visibles` la deja fuera de su alcance, con lo cual desaparece de su listado apenas la guarda. Se resuelve exigiendo el subsegmento cuando quien crea es Coordinador Regional; queda a definición.
 
+> **Resuelto el 11/08/2026 por el [Cambio 26](#cambio-26--el-subsegmento-es-obligatorio-para-el-coordinador-regional)**, con la definición que este párrafo proponía: se exige el subsegmento en vez de ampliarle la visibilidad.
+
 ## Historial: eliminación del 10/08/2026
 
 Se había eliminado completamente el módulo: el rol `Becas — Coordinador regional`, la entidad Región, su pantalla, las asignaciones regionales, la transferencia de responsabilidad y los filtros regionales.
@@ -1646,6 +1649,89 @@ Revertir los archivos listados. No hay migración que deshacer ni datos que se p
 ## Historial
 
 No aplica: entrada nueva. Se relaciona con el **Cambio 9**, que había dejado abierta la fuente oficial del catálogo de localidades, y con el **Cambio 19**, que expone la localidad del subsegmento a Mobile.
+
+# Cambio 26 — El subsegmento es obligatorio para el Coordinador Regional
+
+🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — convocatorias |
+| **Etiquetas** | `#convocatorias` `#rbac` `#ui` |
+| **Solicitante** | PM. Salió del análisis general de Becas pedido el 11/08/2026; el pendiente estaba anotado desde el Cambio 18 |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Perfecto el error detectado, vamos con el cambio: si sos Becas — Coordinador Regional, el campo Subsegmento [es obligatorio].»
+
+## El problema
+
+El alcance del Coordinador Regional se define **por subsegmento**: `convocatorias_visibles` le devuelve solo las de los subsegmentos que tiene a cargo. Pero el campo Subsegmento era opcional para todos, y el rol tiene `becas.convocatoria.crear`.
+
+La secuencia era: creaba una convocatoria sin subsegmento, el sistema la guardaba sin quejarse, redirigía al listado **y la convocatoria no estaba ahí**. Quedaba a nivel segmento, es decir fuera de su propio alcance. No se perdía —un Administrador la ve, porque su alcance es el segmento— pero para quien la creó desaparecía, que es la forma más confusa posible de fallar.
+
+## Alcance acordado
+
+- El subsegmento pasa a ser obligatorio **solo** cuando quien opera es Coordinador Regional.
+- Para el resto de los roles sigue siendo opcional: una convocatoria a nivel segmento es legítima y el Administrador la ve igual.
+- Queda afuera arreglar las convocatorias sin subsegmento que ya existan.
+
+## Decisiones tomadas
+
+- **Se exige el dato en vez de ampliarle la visibilidad.** La alternativa era que `convocatorias_visibles` le mostrara también las del segmento que contiene su subsegmento. Se descartó: le haría ver las convocatorias de sus pares del mismo segmento, que es exactamente lo que el rol separa (ver Cambio 18, «no puede operar el subsegmento de un par»).
+- **La obligatoriedad depende del operador, no del formulario.** El form recibe ahora `operador`, igual que `RelevamientoForm`, y decide con `es_coordinador_regional_becas`. Motivo: es la misma función que define el alcance, así que la regla y el alcance no pueden quedar desalineados.
+- **El mensaje explica la consecuencia, no la regla.** Dice «una convocatoria a nivel segmento queda fuera de tu alcance y no la verías en tu listado» en lugar de «este campo es obligatorio». Motivo: el operador no tiene por qué saber cómo está modelado su alcance, pero sí necesita entender por qué se lo piden.
+- **El asterisco se dibuja según `field.required`** en las tres pantallas, en vez de escribirlo a mano. Motivo: si mañana la regla cambia, no quedan asteriscos mintiendo.
+
+## Implementación
+
+- Al Coordinador Regional el campo Subsegmento le aparece con asterisco y no puede guardar sin elegirlo, en las tres entradas: el modal del listado, el modal del detalle y la pantalla completa de alta/edición.
+- Los otros roles no ven ningún cambio.
+- Combinado con la corrección del endpoint del 11/08 (Cambio 18), el desplegable solo le ofrece sus propios subsegmentos: ahora está obligado a elegir y solo puede elegir lo suyo.
+
+## Archivos
+
+- `programas/forms.py`
+- `programas/views/relevamientos.py`
+- `programas/templates/programas/becas/relevamientos/convocatoria_list.html`
+- `programas/templates/programas/becas/relevamientos/convocatoria_detail.html`
+- `programas/templates/programas/becas/relevamientos/convocatoria_form.html`
+- `programas/tests/test_coordinador_regional.py`
+
+## Base de datos
+
+No requiere migración.
+
+**Convocatorias ya existentes sin subsegmento:** no se tocan. En producción hay una (la del segmento «Chaco Olímpico ley 7353», que no tiene subsegmentos), creada por un Administrador y visible para él, así que no hay nada que reparar hoy. Si en algún momento aparece una creada por un Regional, un Administrador puede editarla y asignarle el subsegmento.
+
+## Validación
+
+- Cinco pruebas nuevas: el Regional no puede crear sin subsegmento y el error nombra la consecuencia; con su subsegmento crea y la convocatoria le queda visible; no puede usar el subsegmento de un par; para el Administrador el campo sigue siendo opcional; y `required` solo se activa para el Regional, que es de lo que depende el asterisco del template.
+- Módulo `test_coordinador_regional` completo: **20 pruebas, todas en verde.** Son de formulario y no de vista, por la limitación de entorno del Cambio 24.
+- `manage.py check` sin observaciones y sin migraciones detectadas. `scripts/design_audit.py --changed`: 0 errores (1 WARN preexistente de `outline:none` en un select que no se tocó). `scripts/compile_templates.py`: 302 plantillas, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Pendiente de despliegue. No necesita nada más que el deploy.
+
+Para verificarlo después: entrar con un Coordinador Regional, intentar crear una convocatoria sin subsegmento y confirmar que el formulario lo frena con el mensaje; después crearla con el subsegmento y confirmar que **aparece en su listado**, que es el síntoma que originó el cambio.
+
+## Pendientes / a definir
+
+- **El Referente y el Coordinador del segmento no se revisaron con esta lupa.** Su alcance es por segmento, así que el problema no se les aplica, pero nadie verificó si tienen un caso equivalente.
+- Sigue abierto lo del Cambio 18 sobre nombres: el rol se llama Coordinador Regional y la UI de subsegmentos lo llama «Referente».
+
+## Reversión
+
+Revertir los seis archivos. Sin migración y sin datos que se pierdan: las convocatorias creadas con la regla activa tienen subsegmento, que es válido para el formulario anterior.
+
+## Historial
+
+No aplica: entrada nueva. Cierra el «Pendiente detectado» que había quedado anotado en el **Cambio 18**.
 
 # Verificaciones generales pendientes antes de desplegar
 
