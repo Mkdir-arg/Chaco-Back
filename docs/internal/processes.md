@@ -47,10 +47,9 @@ Quién pone qué:
    petición y los formularios fallan por CSRF. Es la causa más común de
    «desplegué y no anda».
 2. **Una base vacía necesita el sembrado inicial y un superusuario.** El bootstrap
-   (`seed_rbac`, `crear_programas`, y `seed_becas` para Becas) crea roles,
-   capacidades y programas, pero **a propósito no crea ningún usuario**. El primer
-   superusuario se crea una vez, a mano, con las credenciales que defina el
-   ambiente:
+   —`seed_datos_base crear_programas`— crea roles, capacidades y programas, pero
+   **a propósito no crea ningún usuario**. El primer superusuario se crea una vez,
+   a mano, con las credenciales que defina el ambiente:
 
    ```bash
    docker exec -it chaco-web-1 python manage.py createsuperuser
@@ -60,6 +59,19 @@ Quién pone qué:
    `LOCAL_BOOTSTRAP_COMMANDS`; en Kubernetes hay que decidir si va en el arranque o
    se corre una vez a mano — teniendo en cuenta la advertencia de *Cron del host*
    sobre los comandos de bootstrap que pueden fallar.
+
+   !!! warning "No recortar la lista del bootstrap"
+       `seed_datos_base` es un paraguas: corre `seed_rbac` y `seed_becas`, crea los
+       roles de menú y carga los catálogos base —incluidas las **localidades**, que
+       necesita el selector de zona de los relevamientos— si están vacíos. Como
+       `seed_becas` reemplaza el conjunto de capacidades de cada rol, correrlo en
+       cada arranque es lo que mantiene los roles alineados con el código.
+
+       Un bootstrap que lo omita deja los roles **congelados en el estado en que se
+       sembró la base**: es lo que le pasó al entorno de testing de ECOM, que al
+       11/08/2026 mostraba 3 de los 5 roles de Becas porque le faltaban Coordinador
+       Regional y Referente. Se arregla corriendo `seed_datos_base` (o `seed_becas`)
+       una vez; se evita no recortando la lista.
 
    !!! danger "Por qué no hay un comando que lo cree solo"
        Existía `crear_superadmin`, con usuario y contraseña **escritos en el

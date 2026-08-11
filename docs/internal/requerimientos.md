@@ -170,6 +170,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟢 **Hecho** | No |
 | 27.1 | Plantilla de variables y guía de configuración de entornos | Transversal / infraestructura | `#infra` `#correo` `#siis` | PM — para responderle a ECOM qué configurar sin entregar secretos | 11/08/2026 | 🟢 **Hecho** | No |
 | 28 | Retirar el superusuario con credenciales en el código | Transversal / seguridad | `#infra` `#usuarios` `#sesion` | PM — surgió al revisar qué crea el bootstrap | 11/08/2026 | 🟡 **Hecho — falta cambiar la contraseña del `admin` ya creado** | No |
+| 29 | El bootstrap unificado en `seed_datos_base` | Transversal / infraestructura | `#infra` `#rbac` `#datos` | PM — vio que en el testing de ECOM faltaban roles de Becas | 11/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -1968,6 +1969,82 @@ Sin acción en el deploy. **Lo que hay que hacer aparte y no es opcional: cambia
 ## Reversión
 
 Restaurar el archivo del comando y las líneas de bootstrap. No se recomienda: la reversión reintroduce la credencial en el código.
+
+## Historial
+
+No aplica: entrada nueva.
+
+# Cambio 29 — El bootstrap unificado en `seed_datos_base`
+
+🟢 **HECHO — 11/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — infraestructura y RBAC |
+| **Etiquetas** | `#infra` `#rbac` `#datos` |
+| **Solicitante** | PM. Vio en `datanach.ecomdev.ar/roles` que faltaban roles de Becas y preguntó si el ambiente se había levantado incompleto |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice · Infra/ECOM |
+| **Migración** | No requiere |
+
+## El síntoma
+
+En el entorno de testing de ECOM la pantalla de Roles mostraba **tres de los cinco roles de Becas**: faltaban Coordinador Regional y Referente. El contador decía «3 de 12», mientras que nuestro productivo tiene 14 grupos — exactamente los dos que faltaban.
+
+No era un arranque incompleto: era que **el sembrado de Becas no se estaba ejecutando en ese ambiente**, así que sus roles quedaron congelados en el estado en que se sembró la base, cuando Coordinador Regional (Cambio 18) y Referente (Cambio 17) todavía no existían.
+
+## La causa
+
+`seed_datos_base` es un **paraguas**: corre `seed_rbac` y `seed_becas`, crea los roles de menú y carga los catálogos base —sexo, día, mes y **localidades**— si las tablas están vacías. Es el default del bootstrap del entrypoint, y por eso nuestro productivo se mantiene al día sin que nadie corra nada.
+
+Pero **las tres plantillas decían otra cosa**: `.env.local.example`, `.env.qa.example` y `docker-compose.yml` tenían `seed_rbac crear_programas`, sin `seed_becas`. Cualquier ambiente configurado siguiendo nuestra documentación quedaba con el desfasaje. Y `.env.qa.example` es el archivo que se le acababa de espejar a ECOM, así que el error se les estaba entregando servido.
+
+## Decisiones tomadas
+
+- **Los cuatro lugares dicen ahora `seed_datos_base crear_programas`.** Motivo: una sola forma de nombrar el sembrado. Tener el entrypoint diciendo una cosa y las plantillas otra es precisamente lo que produjo el desfasaje, y en silencio.
+- **Se documentó que la lista no se recorta**, con el motivo: `seed_becas` **reemplaza** el conjunto de capacidades de cada rol, así que correrlo en cada arranque es lo que mantiene los roles alineados con el código. Recortarlo no rompe nada visible el primer día; el costo aparece meses después, cuando un rol nuevo no existe en un ambiente y nadie sabe por qué.
+- **No se agrega `seed_becas` aparte.** Motivo: ya está adentro del paraguas, y listarlo dos veces invita a que alguien lo saque de un lado y lo deje en el otro.
+
+## Beneficio lateral que decide el caso
+
+`seed_datos_base` carga el catálogo de **localidades** si está vacío. Es la dependencia del selector Municipio/Localidad del Cambio 25: con esto, un ambiente nuevo la tiene sin intervención. Cierra el riesgo de puesta en marcha que esa entrada había dejado anotado.
+
+## Implementación
+
+- `.env.local.example`, `.env.qa.example` y `docker-compose.yml` pasaron a `seed_datos_base crear_programas`, con la explicación de qué incluye el paraguas.
+- El docstring de `seed_datos_base` decía que `seed_becas` crea «3 roles de programa»: son cinco desde el Cambio 18. Corregido, con la advertencia de por qué correrlo en cada arranque.
+- `processes.md` y la **guía pública** explican que la lista no se recorta y qué pasa si se recorta, con el caso de ECOM como ejemplo concreto.
+
+## Archivos
+
+- `.env.local.example`
+- `.env.qa.example`
+- `docker-compose.yml`
+- `users/management/commands/seed_datos_base.py`
+- `docs/internal/processes.md`
+- `docs/client/versiones/version-001.md`
+
+## Base de datos
+
+No requiere migración. El sembrado es idempotente: crea lo que falta y actualiza capacidades, sin tocar usuarios ni datos.
+
+## Validación
+
+- `manage.py check` sin observaciones y `mkdocs build --strict` sin advertencias.
+- Se verificó en el código que `seed_datos_base` llama a `seed_rbac` y `seed_becas` sin condición, y que `seed_becas` define los cinco roles.
+
+## Puesta en marcha en el servidor
+
+Sin acción en nuestro servidor: ya usaba el paraguas por el default del entrypoint. **En el entorno de ECOM hay que correr `seed_datos_base` (o `seed_becas`) una vez** para que aparezcan los dos roles que faltan; después, si su despliegue usa el bootstrap, se mantiene solo.
+
+## Pendientes / a definir
+
+- **Avisarle a ECOM** que corra el sembrado en testing, y que revise qué tiene configurado como bootstrap en Kubernetes: si lo recortaron, van a repetir el desfasaje.
+
+## Reversión
+
+Volver las tres líneas a `seed_rbac crear_programas`. No se recomienda: es reintroducir el desfasaje.
 
 ## Historial
 

@@ -144,9 +144,10 @@ REDIS_DB=1
 # ─── Arranque del contenedor ──────────────────────────────
 APP_RUNTIME=daphne
 RUN_MIGRATIONS=true
-# Siembra roles, capacidades y programas. No crea usuarios: el superusuario se
+# Siembra roles, capacidades, programas y catálogos base. Conviene dejarlo tal cual:
+# recortar esta lista deja los roles congelados. No crea usuarios: el superusuario se
 # crea a mano en el paso 5, con las credenciales que definan ustedes.
-LOCAL_BOOTSTRAP_COMMANDS=seed_rbac crear_programas
+LOCAL_BOOTSTRAP_COMMANDS=seed_datos_base crear_programas
 LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS=procesar_vencimientos
 
 # ─── SIIS: catálogo de programas (Becas) ──────────────────
@@ -196,7 +197,7 @@ Quién provee cada valor:
 !!! danger "Las dos causas de «desplegué y no anda»"
     **1. El dominio ausente.** Si el dominio o la IP del ambiente no figuran en `DJANGO_ALLOWED_HOSTS` **y** en `DJANGO_CSRF_TRUSTED_ORIGINS`, la aplicación responde **400 a toda petición** y los formularios fallan por CSRF. Si se entra por más de una dirección, van todas separadas por coma.
 
-    **2. La base vacía sin sembrar.** Una base nueva no tiene roles, permisos ni programas. Eso lo resuelve `LOCAL_BOOTSTRAP_COMMANDS` en el arranque. Para operar el programa Becas hay que sumar además el sembrado de sus roles (`seed_becas`). Y como el sistema **no crea ningún usuario por su cuenta**, hay que crear el primer superusuario a mano: es el paso 5.
+    **2. La base vacía sin sembrar.** Una base nueva no tiene roles, permisos, programas ni catálogos. Eso lo resuelve `LOCAL_BOOTSTRAP_COMMANDS` en el arranque, y por eso conviene no recortar esa lista: `seed_datos_base` es un paraguas que siembra el RBAC, los roles del programa Becas, los roles de menú y los catálogos base —incluidas las localidades que usa el selector de zona de los relevamientos—. **Si se recorta, los roles quedan congelados en el estado en que se sembró la base** y un rol nuevo del sistema no aparece nunca. Y como no se crea ningún usuario por su cuenta, hay que crear el primer superusuario a mano: es el paso 5.
 
 !!! warning "Los dos bloques de base de datos no son redundantes"
     `DATABASE_*` las lee **Django**; `MYSQL_*` las lee el **contenedor de MySQL** cuando crea la base por primera vez. Si no coinciden, MySQL levanta bien y la aplicación no puede entrar a su propia base. Es un error difícil de diagnosticar porque los contenedores quedan *healthy*.
