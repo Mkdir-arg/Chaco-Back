@@ -48,13 +48,16 @@
 
 ## :material-server-network: Despliegue de la versión
 
-Guía **punta a punta** para poner esta versión en el servidor: preparar la máquina, traer el código y levantar todo. El sistema corre con **Docker Compose** (contenedores: base de datos MySQL, Redis, la app web, el canal de websockets y nginx como puerta de entrada).
+Guía **punta a punta** para poner esta versión en un servidor propio: preparar la máquina, traer el código, configurar el ambiente y levantar todo. El sistema corre con **Docker Compose**, con cinco contenedores: base de datos MySQL, Redis, la app web, el canal de websockets y nginx como puerta de entrada.
 
 !!! info "Contexto del entorno"
-    El servidor de producción es una VM **Ubuntu 24.04** de acceso **solo por VPN**. El código de release vive en la rama **`main`** del repositorio (es una imagen depurada del proyecto: no incluye herramientas internas ni documentación). Se opera siempre con el usuario **`icore`** (que pertenece al grupo `docker`).
+    El servidor es una VM **Ubuntu 24.04**. El código de release vive en la rama **`main`** del repositorio: es una imagen depurada del proyecto, sin herramientas internas ni documentación. Se opera siempre con un usuario del grupo `docker` (en nuestro servidor, `icore`), que corre `docker` y `git` sin `sudo`.
 
 !!! warning "Credenciales"
-    Esta página es pública: **no contiene contraseñas ni claves**. Donde aparece `<...>` va un valor real que provee el equipo de desarrollo (clave secreta de Django, contraseñas de la base, usuario RENAPER, etc.). Esos valores se cargan en el archivo `.env.production`, que **nunca** se versiona.
+    Esta página es pública: **no contiene contraseñas ni claves**. Donde aparece `<...>` va un valor real. **Cada ambiente usa sus propios valores**: no se copian los de otro y menos los de producción — una clave secreta compartida hace que una sesión firmada en un ambiente valga en el otro, y unas credenciales de base compartidas ponen los datos reales al alcance de una prueba.
+
+!!! note "Ambientes con despliegue automático"
+    Los ambientes de **testing y QA de ECOM** no se despliegan con esta guía: corren en Kubernetes y se actualizan solos a partir de un push a las ramas `test` y `main`, con la imagen que construye su propio pipeline. Esta guía aplica a un servidor administrado a mano. La configuración de variables (paso 3) es la misma en los dos casos: cambia solo dónde se cargan.
 
 ### :material-numeric-1-circle: Requisitos del servidor
 
@@ -68,58 +71,140 @@ Guía **punta a punta** para poner esta versión en el servidor: preparar la má
     docker compose version
     ```
 
--   :material-account-key: **Usuario `icore`**
+-   :material-account-key: **Usuario de despliegue**
 
-    En el grupo `docker` (corre `docker` y `git` sin `sudo`). Con una **deploy key de solo lectura** de GitHub para clonar el repo.
+    En el grupo `docker` (corre `docker` y `git` sin `sudo`). Con una **deploy key de solo lectura** del repositorio para poder traer el código.
+
+-   :material-database: **MySQL 8.0.32**
+
+    El compose fija esa versión a propósito: las builds más nuevas no arrancan en CPUs sin `x86-64-v2`, que es el caso de nuestra VM. No cambiar el pin sin probarlo.
+
+-   :material-memory: **Recursos**
+
+    Los cinco contenedores conviven en una VM chica, pero la base y el build de la imagen son los que piden disco: prever holgura para `mysql_data` y para las capas de Docker.
 
 </div>
 
 ### :material-numeric-2-circle: Traer la versión
 
-Clonar la rama `main` (release) en `~/chaco`, usando la deploy key del servidor:
+Clonar la rama `main` (release) en `~/chaco`, con la deploy key del servidor:
 
 ```bash
-git clone -b main git@github.com:Mkdir-arg/Chaco.git ~/chaco
+git clone -b main git@github.com:Mkdir-arg/Chaco-Back.git ~/chaco
 cd ~/chaco
 ```
 
 !!! tip "Si el servidor ya tenía una versión anterior"
     No se vuelve a clonar: se actualiza con `git pull` (ver **Actualizar a una versión nueva**, al final de esta sección).
 
-### :material-numeric-3-circle: Configurar el entorno
+### :material-numeric-3-circle: Configurar el ambiente
+
+Es el paso donde se cae la mayoría de los despliegues nuevos. Todo se resuelve con un archivo de variables.
 
 **a. Variables de entorno** — crear `~/chaco/.env.production` (archivo privado, permisos restringidos):
 
 ```bash
-nano .env.production      # cargar las variables (ver plantilla)
+nano .env.production
 chmod 600 .env.production
 ```
 
-Plantilla de las variables clave (los valores reales los provee el equipo):
+!!! abstract "La plantilla completa está en el repositorio"
+    El archivo **`.env.qa.example`**, en la raíz del código, es la referencia viva: lista **todas** las variables que lee la aplicación, con una nota por variable indicando si es obligatoria y **quién provee el valor**. Viaja en el release, así que ya está en el servidor después del paso anterior. Lo que sigue es el mínimo para levantar.
 
 ```ini
-DJANGO_SECRET_KEY=<clave-secreta-nueva>
+# ─── Django ───────────────────────────────────────────────
+DJANGO_SECRET_KEY=<cadena-larga-y-aleatoria-nueva-para-este-ambiente>
 DJANGO_DEBUG=False
 ENVIRONMENT=prd
-DJANGO_ALLOWED_HOSTS=<ip-o-dominio-del-servidor>
-DJANGO_CSRF_TRUSTED_ORIGINS=https://<ip-o-dominio-del-servidor>
-# Base de datos (contenedor MySQL del propio compose)
+
+# ─── URL del ambiente ─────────────────────────────────────
+DJANGO_ALLOWED_HOSTS=<dominio-o-ip-del-servidor>
+DJANGO_CSRF_TRUSTED_ORIGINS=https://<dominio-o-ip-del-servidor>
+DOMINIO=<dominio-o-ip-del-servidor>
+
+# ─── Base de datos: las lee la APLICACIÓN ─────────────────
+DATABASE_NAME=chaco
+DATABASE_USER=chaco
+DATABASE_PASSWORD=<password-db>
+DATABASE_HOST=mysql
+DATABASE_PORT=3306
+
+# ─── Base de datos: las lee el CONTENEDOR MySQL ───────────
+# Tienen que coincidir con las de arriba, o la app no entra a su propia base.
 MYSQL_DATABASE=chaco
 MYSQL_USER=chaco
 MYSQL_PASSWORD=<password-db>
 MYSQL_ROOT_PASSWORD=<password-root-db>
-# Integración RENAPER (la provee el equipo)
+
+# ─── Redis (caché, sesiones y websockets) ─────────────────
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=1
+
+# ─── Arranque del contenedor ──────────────────────────────
+APP_RUNTIME=daphne
+RUN_MIGRATIONS=true
+LOCAL_BOOTSTRAP_COMMANDS=crear_superadmin seed_rbac crear_programas
+LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS=procesar_vencimientos
+
+# ─── SIIS: catálogo de programas (Becas) ──────────────────
+SIIS_API_URL=https://siisapi.ecomdev.ar
+SIIS_API_CLIENT_ID=<lo-provee-ECOM>
+SIIS_API_CLIENT_SECRET=<lo-provee-ECOM>
+
+# ─── Personas / Gran Base: prevalidación de ciudadanos ────
+PERSONAS_API_URL=https://personas.ecomdev.ar/api/v1
+PERSONAS_API_CLIENT_ID=<lo-provee-ECOM>
+PERSONAS_API_CLIENT_SECRET=<lo-provee-ECOM>
+PERSONAS_API_ENTIDAD_UUID=<lo-provee-ECOM>
+PERSONAS_API_FUENTE_ID=13
+
+# ─── RENAPER ──────────────────────────────────────────────
+# En True devuelve datos ficticios y el ambiente levanta sin credenciales.
+RENAPER_TEST_MODE=False
 RENAPER_API_URL=<url>
 RENAPER_API_USERNAME=<usuario>
 RENAPER_API_PASSWORD=<password>
+RENAPER_AUTH_MODE=credentials
+RENAPER_HTTP_METHOD=get
+
+# ─── Correo saliente ──────────────────────────────────────
+# Sin esto el alta de usuario funciona, pero la invitación no sale.
+EMAIL_HOST=<servidor-smtp>
+EMAIL_PORT=587
+EMAIL_HOST_USER=<usuario>
+EMAIL_HOST_PASSWORD=<password>
+EMAIL_USE_TLS=True
+DEFAULT_FROM_EMAIL=DATAÑACH <no-responder@chaco.gob.ar>
+
+# ─── Sesión ───────────────────────────────────────────────
+SESSION_IDLE_TIMEOUT_MINUTES=15
+SESSION_IDLE_WARNING_SECONDS=60
 ```
 
-**b. Certificado** — como el acceso es por IP sobre VPN, se usa un certificado autofirmado:
+Quién provee cada valor:
+
+| Grupo | Lo define |
+|---|---|
+| Clave secreta, base de datos, Redis, dominio | Quien monta el ambiente, con **valores nuevos** |
+| `SIIS_API_*` y `PERSONAS_API_*` | **ECOM**: son sus servicios y ellos emiten las credenciales |
+| `RENAPER_*` | El organismo, gestionado a través de ECOM |
+| `EMAIL_*` | El área de infraestructura que administra el correo institucional |
+
+!!! danger "Las dos causas de «desplegué y no anda»"
+    **1. El dominio ausente.** Si el dominio o la IP del ambiente no figuran en `DJANGO_ALLOWED_HOSTS` **y** en `DJANGO_CSRF_TRUSTED_ORIGINS`, la aplicación responde **400 a toda petición** y los formularios fallan por CSRF. Si se entra por más de una dirección, van todas separadas por coma.
+
+    **2. La base vacía sin sembrar.** Una base nueva no tiene roles, permisos ni programas, así que **nadie puede iniciar sesión**, ni el administrador. Eso lo resuelve `LOCAL_BOOTSTRAP_COMMANDS` en el arranque. Para operar el programa Becas hay que sumar además el sembrado de sus roles (`seed_becas`).
+
+!!! warning "Los dos bloques de base de datos no son redundantes"
+    `DATABASE_*` las lee **Django**; `MYSQL_*` las lee el **contenedor de MySQL** cuando crea la base por primera vez. Si no coinciden, MySQL levanta bien y la aplicación no puede entrar a su propia base. Es un error difícil de diagnosticar porque los contenedores quedan *healthy*.
+
+**b. Certificado** — si el acceso es por un dominio con certificado emitido, se usa ese. Para un acceso por IP o dentro de una red privada alcanza un autofirmado:
 
 ```bash
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
   -keyout nginx-selfsigned.key -out nginx-selfsigned.crt \
-  -subj "/CN=<ip-del-servidor>"
+  -subj "/CN=<dominio-o-ip-del-servidor>"
 ```
 
 ### :material-numeric-4-circle: Levantar todo
@@ -131,53 +216,72 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Al arrancar, el contenedor de la app hace **solo, sin intervención**:
 
-- [x] Espera a que la base esté lista y **aplica las migraciones** (crea/actualiza las tablas).
+- [x] Espera a que la base esté lista y **aplica las migraciones** (crea o actualiza las tablas).
 - [x] Recolecta los archivos estáticos.
 - [x] **Siembra los datos base**: superadmin, roles y permisos (RBAC), programas.
-- [x] **Cierra lo que esté vencido** en Becas (el proceso de vencimientos corre en cada arranque).
+- [x] **Cierra lo que esté vencido** en Becas.
 
-!!! warning "Reiniciar nginx después de levantar/reconstruir"
-    nginx memoriza la dirección interna de la app cuando arranca. Tras un `up --build` hay que reiniciarlo o puede quedar apuntando al contenedor viejo (síntoma: error 500):
+!!! warning "Reiniciar nginx después de levantar o reconstruir"
+    nginx memoriza la dirección interna de la app cuando arranca. Tras un `up --build` hay que reiniciarlo o puede quedar apuntando al contenedor viejo (síntoma: error 500 con mensajes de archivos estáticos). Conviene esperar a que la app esté *healthy* antes:
     ```bash
+    docker compose -f docker-compose.prod.yml ps   # esperar chaco-web-1 healthy
     docker restart chaco-nginx-1
     ```
 
-**Verificar que quedó sano:**
+### :material-numeric-5-circle: Verificar que quedó sano
 
 ```bash
-curl -f http://localhost/health/      # debe responder 200
-docker compose -f docker-compose.prod.yml ps   # todos "healthy"
+curl -f http://localhost/health/               # debe responder 200
+curl -sI http://localhost/ | head -1           # el ingreso, debe responder 200
+docker compose -f docker-compose.prod.yml ps   # los cinco contenedores en healthy
+docker exec chaco-web-1 python manage.py showmigrations | tail -20
 ```
 
-### :material-numeric-5-circle: Cierre automático de vencidos (cron diario)
+!!! tip "El acceso al sistema es la raíz"
+    El ingreso está en `/`. No existe `/login/`.
 
-El cierre de convocatorias vencidas **ya corre en cada arranque** del servidor (paso anterior). Para que además se ejecute **todos los días a la madrugada** sin depender de un reinicio, se agrega **una línea** al cron del usuario `icore` (una sola vez):
+### :material-numeric-6-circle: Tareas programadas
+
+Hay trabajo periódico que **no** corre dentro de la aplicación: lo dispara el cron del usuario de despliegue. Los snippets están versionados en `docker/cron/` dentro del código. **Se instalan una sola vez por servidor y no viajan con el despliegue**: un servidor nuevo los necesita de nuevo.
+
+| Tarea | Horario | Qué pasa si no corre |
+|---|:-:|---|
+| `generar_alertas` | cada hora | No se generan las alertas de legajos |
+| `procesar_vencimientos` | 03:10 | Las convocatorias vencidas quedan abiertas y sus relevamientos no pasan a revisión |
+| `limpiar_alertas_conversaciones` | 03:30 | Se acumulan alertas de conversaciones ya resueltas |
+| `sincronizar_programas_siis` | 04:00 | **Una baja de programa en SIIS no se detecta** y el segmento sigue operando como si el programa estuviera vigente |
 
 ```bash
-( crontab -l 2>/dev/null | grep -vF procesar_vencimientos; \
-  echo '10 3 * * * docker exec chaco-web-1 python manage.py procesar_vencimientos >> ~/cron-chaco.log 2>&1' ) | crontab -
-
-crontab -l      # verificar que la línea quedó
+crontab -e
+# pegar las líneas de los archivos de docker/cron/, con el patrón:
+#   <horario> docker exec chaco-web-1 python manage.py <comando> >> ~/cron-chaco.log 2>&1
+crontab -l      # verificar que quedaron
 ```
 
-!!! abstract "Qué hace"
-    Todos los días a las **03:00** cierra las convocatorias de Becas cuya fecha de fin ya pasó y manda sus relevamientos abiertos a **En revisión**. Es idempotente: si corre de más o se saltea un día, no genera problemas.
+!!! abstract "Por qué algunas van al cron y no al arranque"
+    `procesar_vencimientos` trabaja solo sobre la base propia, así que puede correr también en cada arranque sin riesgo. `sincronizar_programas_siis` depende de un servicio externo: si se pusiera en el arranque, una caída de ese servicio **dejaría el contenedor sin levantar**. Por eso va únicamente por cron.
 
 ### :material-update: Actualizar a una versión nueva
 
-Para desplegar una versión posterior sobre un servidor ya configurado:
+Sobre un servidor ya configurado:
 
 ```bash
 cd ~/chaco
-git pull --ff-only
+git pull --ff-only origin main
 docker compose -f docker-compose.prod.yml up -d --build web websocket
+docker compose -f docker-compose.prod.yml ps    # esperar chaco-web-1 healthy
 docker restart chaco-nginx-1
 curl -f http://localhost/health/
 ```
 
-Las migraciones y el cierre de vencidos vuelven a correr solos en el arranque. El archivo `.env.production` no se toca (no está versionado).
+Las migraciones vuelven a aplicarse solas en el arranque, antes de que la aplicación atienda pedidos. El archivo `.env.production` no se toca: no está versionado y el `git pull` no lo alcanza.
+
+!!! tip "Si la versión trae variables nuevas"
+    Al agregarse una integración pueden aparecer variables que el ambiente no tenía. Conviene comparar `.env.production` contra `.env.qa.example` después de cada actualización: una variable faltante no rompe el arranque, pero deja la funcionalidad que depende de ella silenciosamente apagada.
 
 !!! danger "Cosas a NO hacer"
-    - **No operar con `sudo su`**: la clave de acceso a GitHub y a Docker es del usuario `icore`; como root fallan `git pull` y el deploy.
+    - **No operar con `sudo su`**: la clave de acceso al repositorio y a Docker es del usuario de despliegue; como root fallan `git pull` y el deploy.
     - **No editar la base a mano**: el esquema lo manejan las migraciones.
     - **No subir `.env.production` al repositorio**: contiene secretos.
+    - **No reutilizar los valores de otro ambiente**, en especial la clave secreta y las credenciales de base.
+    - **No cambiar el pin de MySQL 8.0.32** sin verificar que la VM lo soporte.

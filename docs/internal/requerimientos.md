@@ -1854,11 +1854,15 @@ Al montar ECOM sus entornos, el PM preguntó si había que pasarles las variable
 
 - `.env.qa.example`: plantilla comentada por grupos —Django, URL del entorno, base, Redis, arranque, SIIS, Personas, RENAPER, correo, sesión, observabilidad—, con marca de obligatoriedad y de origen del valor.
 - `processes.md` suma dos secciones: **Entornos**, con la tabla de los cuatro y quién despliega cada uno, y **Variables de entorno**, con la regla de no compartir valores, la tabla de quién provee qué y las dos trampas del entorno nuevo.
+- **La guía pública de despliegue se rehízo** (`docs/client/versiones/version-001.md`, publicada en GitHub Pages). Estaba de julio y arrastraba **un error que impedía levantar el sistema**: su plantilla listaba solo las variables `MYSQL_*` —las del contenedor de base— y **omitía las `DATABASE_*`, que son las que lee la aplicación**. Quien la siguiera al pie levantaba MySQL y la app no podía conectarse, con los contenedores igualmente en *healthy*. Además le faltaban SIIS, Personas, correo, Redis, `DOMINIO` y el sembrado inicial; apuntaba al nombre viejo del repositorio; y listaba una sola tarea programada de las cuatro que existen.
+
+  Ahora incluye el juego completo de variables con quién provee cada valor, la advertencia de que los dos bloques de base tienen que coincidir, las dos causas de «desplegué y no anda», las cuatro tareas programadas con qué pasa si no corren, los pasos de verificación y una nota sobre los ambientes de ECOM, que no se despliegan con esa guía.
 
 ### Archivos
 
 - `.env.qa.example`
 - `docs/internal/processes.md`
+- `docs/client/versiones/version-001.md`
 
 ### Base de datos
 
@@ -1866,11 +1870,14 @@ No requiere migración.
 
 ### Validación
 
-`manage.py check` sin observaciones —no toca código— y la plantilla se contrastó contra las variables que `config/settings.py` lee realmente, no contra el ejemplo anterior.
+- `manage.py check` sin observaciones: no toca código.
+- La plantilla se contrastó contra las variables que `config/settings.py` lee realmente, no contra el ejemplo anterior, y se verificó que ningún campo sensible quedara con valor.
+- `mkdocs build --strict` sin advertencias, que es lo que corre el workflow que publica la página.
 
 ### Pendientes / a definir
 
-Los valores concretos siguen siendo de ECOM: credenciales de SIIS y Personas para sus entornos, el SMTP y las de RENAPER. La plantilla no los reemplaza, solo dice qué falta.
+- Los valores concretos siguen siendo de ECOM: credenciales de SIIS y Personas para sus entornos, el SMTP y las de RENAPER. La plantilla no los reemplaza, solo dice qué falta.
+- **La tabla de alcance y las horas de la página pública siguen al 10/07/2026.** No se tocaron: son datos de PM y se actualizan con su propia información.
 
 ### Reversión
 
