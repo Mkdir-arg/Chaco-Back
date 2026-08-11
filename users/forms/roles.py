@@ -66,7 +66,7 @@ class RolForm(forms.Form):
         ]
 
         # Modo del formulario según el operador (admin global vs admin de programa).
-        from users.selectors.roles import es_admin_global, programas_administrables
+        from users.selectors.roles import es_admin_global, programas_administrables_roles
 
         self.es_admin_global = operador is None or es_admin_global(operador)
         self.programa_fijo = None
@@ -75,7 +75,7 @@ class RolForm(forms.Form):
         )
         self.fields["dispositivos_alcance"].queryset = Dispositivo.objects.order_by("nombre")
         if not self.es_admin_global:
-            progs = programas_administrables(operador)
+            progs = programas_administrables_roles(operador)
             self.fields["programa"].queryset = progs
             self.fields["programa"].empty_label = None
             self.fields["categoria"].choices = [

@@ -3,31 +3,46 @@ from django.contrib.auth.models import Group
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_TERRITORIAL
+from programas.management.commands.seed_becas import (
+    ROL_COORDINADOR,
+    ROL_COORDINADOR_REGIONAL,
+    ROL_TERRITORIAL,
+)
 from programas.models import Segmento
 from programas.services.autorizacion import es_admin_becas, puede_gestionar_segmento
 from users.forms import UserCreationForm
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
 
+# Atajos de alta de los modales de Becas: tipo del botón → (rol que otorga, plural
+# para el mensaje de error). Son roles de backoffice y no llevan segmento: los da
+# de alta el admin del programa. ``referente`` es el Coordinador Regional que queda
+# a cargo de un subsegmento —así lo llama la UI de segmentos—, no el rol
+# "Becas — Referente".
+ROLES_BACKOFFICE = {
+    "coordinador": (ROL_COORDINADOR, "coordinadores"),
+    "referente": (ROL_COORDINADOR_REGIONAL, "referentes"),
+}
+
 
 @login_required
 @require_POST
 def usuario_alta_rapida(request):
     tipo = request.POST.get("tipo")
-    if tipo not in ("coordinador", "territorial"):
+    if tipo not in ROLES_BACKOFFICE and tipo != "territorial":
         return JsonResponse({"ok": False, "message": "Tipo de usuario inválido."}, status=400)
 
-    if tipo == "coordinador":
-        if not es_admin_becas(request.user):
-            return JsonResponse({"ok": False, "message": "No tiene permiso para crear coordinadores."}, status=403)
-        rol = Group.objects.filter(name=ROL_COORDINADOR).first()
-        segmento = None
-    else:
+    if tipo == "territorial":
         rol = Group.objects.filter(name=ROL_TERRITORIAL).first()
         segmento = Segmento.objects.filter(pk=request.POST.get("segmento_id"), activo=True).first()
         if not segmento or not puede_gestionar_segmento(request.user, segmento):
             return JsonResponse({"ok": False, "message": "Seleccioná un segmento permitido."}, status=403)
+    else:
+        nombre_rol, plural = ROLES_BACKOFFICE[tipo]
+        if not es_admin_becas(request.user):
+            return JsonResponse({"ok": False, "message": f"No tiene permiso para crear {plural}."}, status=403)
+        rol = Group.objects.filter(name=nombre_rol).first()
+        segmento = None
 
     if not rol:
         return JsonResponse({"ok": False, "message": "El rol requerido no está configurado."}, status=409)

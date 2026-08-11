@@ -293,6 +293,42 @@ class _OpcionesMixin(forms.ModelForm):
         return super().save(commit=commit)
 
 
+class _OrdenUnicoMixin:
+    """``orden`` opcional y sin repetidos dentro de su alcance.
+
+    Si el operador no lo escribe, se autonumera como el último + 1; si lo
+    escribe, no puede chocar con el de otro registro del mismo alcance (dos
+    requisitos no pueden compartir la misma posición en el formulario).
+    Las subclases definen el alcance en ``hermanos_orden()``.
+    """
+
+    # Texto del error de choque; las subclases lo ajustan al alcance real.
+    mensaje_orden_duplicado = "Ya hay otro registro con el orden {orden}. Elegí un número libre."
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        campo = self.fields["orden"]
+        campo.required = False
+        campo.help_text = "Si lo dejás vacío se numera automáticamente."
+        campo.widget.attrs.setdefault("placeholder", "Automático")
+
+    def hermanos_orden(self):
+        """Queryset de los registros que comparten la numeración."""
+        raise NotImplementedError
+
+    def clean_orden(self):
+        orden = self.cleaned_data.get("orden")
+        hermanos = self.hermanos_orden()
+        if self.instance.pk:
+            hermanos = hermanos.exclude(pk=self.instance.pk)
+        if orden in (None, ""):
+            ultimo = hermanos.aggregate(m=models.Max("orden"))["m"]
+            return (ultimo or 0) + 1
+        if hermanos.filter(orden=orden).exists():
+            raise forms.ValidationError(self.mensaje_orden_duplicado.format(orden=orden))
+        return orden
+
+
 class TipoDispositivoForm(forms.ModelForm):
     class Meta:
         model = TipoDispositivo
@@ -768,7 +804,11 @@ class PrestacionMensualForm(forms.Form):
         return cleaned_data
 
 
-class PreguntaGlobalForm(_OpcionesMixin):
+class PreguntaGlobalForm(_OrdenUnicoMixin, _OpcionesMixin):
+    """Requisitos generales: el orden es único entre todas las preguntas."""
+
+    mensaje_orden_duplicado = "Ya hay otra pregunta con el orden {orden}. Elegí un número libre."
+
     class Meta:
         model = PreguntaGlobal
         fields = ["texto", "tipo", "obligatorio", "orden", "activo"]
@@ -780,8 +820,11 @@ class PreguntaGlobalForm(_OpcionesMixin):
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
 
+    def hermanos_orden(self):
+        return PreguntaGlobal.objects.all()
 
-class RequisitoNativoForm(_OpcionesMixin):
+
+class RequisitoNativoForm(_OrdenUnicoMixin, _OpcionesMixin):
     """El segmento (y subsegmento opcional) se fijan desde la vista."""
 
     obligatorio = forms.TypedChoiceField(
@@ -807,19 +850,19 @@ class RequisitoNativoForm(_OpcionesMixin):
             self.instance.segmento = segmento
         # subsegmento puede ser None (requisito del segmento) o una instancia.
         self.instance.subsegmento = subsegmento
-        # ``orden`` es opcional: si no se indica, se autocalcula como el siguiente
-        # disponible (así el form inline que no lo renderiza sigue funcionando).
-        self.fields["orden"].required = False
-
-    def clean_orden(self):
-        orden = self.cleaned_data.get("orden")
-        if orden not in (None, ""):
-            return orden
-        hermanos = RequisitoNativo.objects.filter(
-            segmento=self.instance.segmento, subsegmento=self.instance.subsegmento
+        # El orden es único dentro del subsegmento, o del segmento cuando el
+        # requisito es propio del segmento (subsegmento nulo).
+        self.mensaje_orden_duplicado = (
+            "Ya hay otro requisito con el orden {orden} en este "
+            f"{'subsegmento' if subsegmento is not None else 'segmento'}. Elegí un número libre."
         )
-        ultimo = hermanos.aggregate(m=models.Max("orden"))["m"]
-        return (ultimo or 0) + 1
+
+    def hermanos_orden(self):
+        # Por ``_id`` para no explotar cuando el form se instancia sin segmento
+        # (la vista de listado lo usa solo para renderizar el modal).
+        return RequisitoNativo.objects.filter(
+            segmento_id=self.instance.segmento_id, subsegmento_id=self.instance.subsegmento_id
+        )
 
 
 class AsignacionCoordinadorForm(forms.ModelForm):

@@ -194,9 +194,11 @@ def _roles_asignables_queryset(operador=None):
         from programas.services.autorizacion import grupos_territoriales_becas
 
         return qs.filter(pk__in=grupos_territoriales_becas())
-    from users.selectors.roles import programas_administrables
+    # Es el combo de Roles del ABM de Usuarios: lo acota quién administra los
+    # USUARIOS del programa, no quién administra sus roles.
+    from users.selectors.roles import programas_administrables_usuarios
 
-    return qs.filter(meta__programa__in=programas_administrables(operador))
+    return qs.filter(meta__programa__in=programas_administrables_usuarios(operador))
 
 
 _SIN_CATEGORIA = "Sin categoría"

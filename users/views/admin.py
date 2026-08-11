@@ -34,11 +34,12 @@ class _ScopeDenied(Exception):
 class AdminRequiredMixin(CapacidadRequeridaMixin):
     """Acceso al ABM de usuarios.
 
-    Entra el admin global (``usuario.administrar``) y también el admin de programa
-    (``programa.configurar`` en algún programa). El alcance fino lo aplica cada vista.
+    Entra el admin global (``usuario.administrar``) y también quien administra los
+    usuarios de algún programa (``programa.usuario.administrar``). El alcance fino
+    lo aplica cada vista.
     """
 
-    capacidades_requeridas = ["usuario.administrar", "programa.configurar", "becas.usuario.territorial"]
+    capacidades_requeridas = list(rbac.CAPS_ENTRADA_ABM_USUARIOS)
 
 
 class UserListView(AdminRequiredMixin, ListView):
