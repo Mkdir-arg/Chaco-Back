@@ -57,7 +57,7 @@ Guía **punta a punta** para poner esta versión en un servidor propio: preparar
     Esta página es pública: **no contiene contraseñas ni claves**. Donde aparece `<...>` va un valor real. **Cada ambiente usa sus propios valores**: no se copian los de otro y menos los de producción — una clave secreta compartida hace que una sesión firmada en un ambiente valga en el otro, y unas credenciales de base compartidas ponen los datos reales al alcance de una prueba.
 
 !!! note "Ambientes con despliegue automático"
-    Los ambientes de **testing y QA de ECOM** no se despliegan con esta guía: corren en Kubernetes y se actualizan solos a partir de un push a las ramas `test` y `main`, con la imagen que construye su propio pipeline. Esta guía aplica a un servidor administrado a mano. La configuración de variables (paso 3) es la misma en los dos casos: cambia solo dónde se cargan.
+    Los ambientes de **testing y QA de ECOM** no se despliegan con esta guía: corren en Kubernetes y se actualizan solos a partir de un push a las ramas `test` y `main`, con la imagen que construye su propio pipeline. Esta guía aplica a un servidor administrado a mano. La configuración de variables (paso 3) es la misma en los dos casos; las diferencias específicas de Kubernetes están en la sección **Si el despliegue es en Kubernetes**, más abajo.
 
 ### :material-numeric-1-circle: Requisitos del servidor
 
@@ -287,6 +287,33 @@ crontab -l      # verificar que quedaron
 
 !!! abstract "Por qué algunas van al cron y no al arranque"
     `procesar_vencimientos` trabaja solo sobre la base propia, así que puede correr también en cada arranque sin riesgo. `sincronizar_programas_siis` depende de un servicio externo: si se pusiera en el arranque, una caída de ese servicio **dejaría el contenedor sin levantar**. Por eso va únicamente por cron.
+
+### :material-kubernetes: Si el despliegue es en Kubernetes
+
+La imagen es la misma, pero el `docker-compose.prod.yml` de la VM resuelve varias cosas que en Kubernetes hay que replicar explícitamente. Esta es la lista de diferencias; todo lo demás de la guía (variables, sembrado, superusuario, verificación) aplica igual.
+
+**1. El pod tiene que arrancar con el entrypoint de la imagen.** Es el punto más importante. Si el manifiesto define `command` o `args`, el entrypoint ejecuta eso directamente y **se saltea las migraciones, los estáticos y el sembrado**. El síntoma es silencioso: la aplicación levanta y funciona, pero con el esquema de base atrasado y con roles que faltan. En los logs del arranque del pod tienen que verse estas líneas:
+
+```
+Aplicando migraciones...
+Ejecutando python manage.py seed_datos_base
+```
+
+Si en cambio aparece `Comando personalizado detectado: ...`, el bootstrap no corrió: hay que quitar el `command`/`args` del manifiesto, o correr migraciones y sembrado por otra vía (init container o Job) de forma explícita.
+
+**2. Las variables van como variables de entorno del pod, no solo en un archivo.** Las del bloque *Arranque del contenedor* (`RUN_MIGRATIONS`, `RUN_COLLECTSTATIC`, `LOCAL_BOOTSTRAP_COMMANDS`, `APP_RUNTIME`) y `DJANGO_SETTINGS_MODULE` las lee el script de arranque, no la aplicación: un archivo `.env.production` montado no alcanza para ellas.
+
+**3. HTTPS detrás del ingress.** Con `DJANGO_SETTINGS_MODULE=config.settings_production` la aplicación exige `DJANGO_ALLOWED_HOSTS` (falla al arrancar si falta, a propósito) y redirige todo a HTTPS. El ingress **debe enviar el encabezado `X-Forwarded-Proto: https`** al pod; sin él, cada petición entra en un bucle de redirección infinito.
+
+**4. Estáticos y archivos subidos.** La imagen no trae un servidor de estáticos: con `RUN_COLLECTSTATIC=true` el arranque los deja en `/app/staticfiles`, y **algo tiene que servir `/static/` y `/media/`** (en la VM lo hace nginx). Además, `/media/` necesita **almacenamiento persistente**: ahí viven los archivos adjuntos que cargan los territoriales, y sin un volumen se pierden en cada reinicio del pod.
+
+**5. Websockets.** Con `APP_RUNTIME=daphne`, el mismo proceso atiende HTTP y websockets (ruta `/ws/`). El ingress tiene que dejar pasar los encabezados `Upgrade` y `Connection` hacia el pod.
+
+**6. Probes.** `/health/` responde 200 y sirve tal cual como liveness y readiness probe.
+
+**7. Tareas programadas = CronJob.** Cada comando de la tabla anterior es un `CronJob` de Kubernetes (`python manage.py <comando>` sobre la misma imagen). `sincronizar_programas_siis` **nunca va en el arranque del pod**: depende de un servicio externo, y una caída de ese servicio dejaría el pod sin levantar.
+
+**8. Base de datos propia.** El pin de `mysql:8.0.32` es una limitación de nuestra VM, no del sistema: en Kubernetes usan su MySQL 8 con los valores de conexión en `DATABASE_*`.
 
 ### :material-update: Actualizar a una versión nueva
 

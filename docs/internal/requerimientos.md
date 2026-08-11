@@ -171,6 +171,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 27.1 | Plantilla de variables y guía de configuración de entornos | Transversal / infraestructura | `#infra` `#correo` `#siis` | PM — para responderle a ECOM qué configurar sin entregar secretos | 11/08/2026 | 🟢 **Hecho** | No |
 | 28 | Retirar el superusuario con credenciales en el código | Transversal / seguridad | `#infra` `#usuarios` `#sesion` | PM — surgió al revisar qué crea el bootstrap | 11/08/2026 | 🟡 **Hecho — falta cambiar la contraseña del `admin` ya creado** | No |
 | 29 | El bootstrap unificado en `seed_datos_base` | Transversal / infraestructura | `#infra` `#rbac` `#datos` | PM — vio que en el testing de ECOM faltaban roles de Becas | 11/08/2026 | 🟢 **Hecho** | No |
+| 30 | La guía cubre el despliegue en Kubernetes desde cero | Transversal / infraestructura | `#infra` `#siis` | PM — pidió el repaso final de la guía para setear el sistema desde cero en Kubernetes | 11/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -2049,6 +2050,78 @@ Volver las tres líneas a `seed_rbac crear_programas`. No se recomienda: es rein
 ## Historial
 
 No aplica: entrada nueva.
+
+# Cambio 30 — La guía cubre el despliegue en Kubernetes desde cero
+
+🟢 **HECHO — 11/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — infraestructura y despliegue |
+| **Etiquetas** | `#infra` `#siis` |
+| **Solicitante** | PM. Pidió el repaso final: si con lo publicado alguien puede setear el sistema desde cero en Kubernetes |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Último repaso: analizá si está todo bien armado como para setear el sistema desde cero con Kubernetes, si está todo bien explicado en la guía publicada y si no nos falta nada.»
+
+## El análisis
+
+La guía estaba completa **para la VM con Docker Compose**, pero el compose resuelve en silencio varias cosas que en Kubernetes hay que replicar a mano, y ninguna estaba escrita. Se revisó contra el código (`Dockerfile`, `docker-entrypoint.sh`, `docker-compose.prod.yml`, `config/settings_production.py`, `nginx.conf`), no contra memoria. Los ocho huecos:
+
+1. **El entrypoint se saltea con `command`/`args`** (`exec "$@"` ante cualquier argumento): sin él no corren migraciones, estáticos ni sembrado, y el síntoma es silencioso. Es además la hipótesis más probable de los roles faltantes en el testing de ECOM (Cambio 29).
+2. **Las variables del arranque tienen que ser variables de entorno reales del pod**: `RUN_*`, `LOCAL_BOOTSTRAP_COMMANDS`, `APP_RUNTIME` y `DJANGO_SETTINGS_MODULE` las lee el script o el proceso, no Django — un `.env.production` montado no alcanza para ellas.
+3. **`DJANGO_SETTINGS_MODULE=config.settings_production` no estaba en la plantilla**, y es el modo endurecido: exige `ALLOWED_HOSTS` (falla al arrancar si falta), fuerza `DEBUG=False` y redirige a HTTPS.
+4. **La redirección a HTTPS necesita `X-Forwarded-Proto: https` del ingress** (`SECURE_PROXY_SSL_HEADER` ya está en settings); sin ese encabezado, bucle de redirección infinito.
+5. **`RUN_COLLECTSTATIC` no estaba en la plantilla** (el compose de producción lo setea aparte) y la imagen no trae servidor de estáticos: algo tiene que servir `/static/` y `/media/` — en la VM lo hace nginx desde un volumen compartido.
+6. **`/media/` necesita almacenamiento persistente**: ahí viven los adjuntos que cargan los territoriales; sin volumen se pierden al reiniciar el pod.
+7. **Websockets**: con `APP_RUNTIME=daphne` un solo proceso atiende HTTP y `/ws/`, pero el ingress tiene que dejar pasar `Upgrade`/`Connection`.
+8. **Las tareas programadas son CronJob** en Kubernetes, y `sincronizar_programas_siis` nunca va en el arranque del pod (servicio externo).
+
+Se verificó también desde afuera que el testing de ECOM **sí sirve los estáticos** (`/static/...css` responde 200), así que el punto 5 su plataforma ya lo resuelve; el punto 1 es el que les queda por confirmar en los logs del pod.
+
+## Implementación
+
+- La guía pública suma la sección **«Si el despliegue es en Kubernetes»** con los ocho puntos como checklist, incluido el diagnóstico por logs del punto 1 (qué líneas tienen que verse y cuál delata el salteo). La nota de ambientes automáticos apunta a esa sección.
+- `.env.qa.example` incorpora `DJANGO_SETTINGS_MODULE` y `RUN_COLLECTSTATIC`, con la advertencia de que ese bloque va como variables reales del contenedor.
+- `processes.md` suma la advertencia del entrypoint salteado, con el síntoma y el diagnóstico.
+
+## Archivos
+
+- `docs/client/versiones/version-001.md`
+- `.env.qa.example`
+- `docs/internal/processes.md`
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- `mkdocs build --strict` sin advertencias (es lo que corre el workflow que publica).
+- `scripts/requerimientos.py --check` en OK.
+- La lista de diferencias se derivó leyendo los archivos reales del despliegue, y el punto de estáticos se contrastó contra el entorno vivo de ECOM.
+
+## Puesta en marcha en el servidor
+
+No aplica a `icore-srv`. Para ECOM es documentación: el único pedido activo que sale de acá es que **confirmen en los logs del pod si el entrypoint corre completo** (punto 1), porque de eso depende que migraciones y sembrado los haga el arranque o los tengan que orquestar ellos.
+
+## Pendientes / a definir
+
+- La confirmación de ECOM sobre cómo arranca su pod (entrypoint completo vs. `command` propio).
+- Este release toca `.env.qa.example`, así que **conviene espejarlo a su GitLab** junto con el del Cambio 29, que tampoco se espejó todavía.
+
+## Reversión
+
+Revertir los tres archivos. Sin efecto sobre la aplicación.
+
+## Historial
+
+No aplica: entrada nueva. Completa la 27.1 (la guía) con lo específico de Kubernetes, y le da al Cambio 29 su hipótesis de causa raíz del lado de ECOM.
 
 # Verificaciones generales pendientes antes de desplegar
 

@@ -14,6 +14,18 @@ imagen que construye su pipeline. Un cambio de **código** llega solo con el pus
 cambio de **configuración** —una variable nueva, un secreto, una tarea programada—
 lo tiene que aplicar su equipo de infraestructura.
 
+!!! warning "El entrypoint es el que migra y siembra — y se puede saltear sin querer"
+    Si el manifiesto del pod define `command`/`args`, el entrypoint de la imagen
+    ejecuta eso directamente y **se saltea migraciones, estáticos y sembrado**
+    (`docker-entrypoint.sh` hace `exec "$@"` ante cualquier argumento). El síntoma
+    es silencioso: la app levanta con esquema atrasado y roles faltantes — es la
+    hipótesis más probable de por qué el testing de ECOM quedó con 3 de 5 roles de
+    Becas. Diagnóstico: en los logs del arranque del pod tienen que verse
+    `Aplicando migraciones...` y `Seed de datos base`; si aparece
+    `Comando personalizado detectado`, el bootstrap no corrió. El checklist
+    completo de Kubernetes está en la guía pública (versión 001, sección
+    *Si el despliegue es en Kubernetes*).
+
 ## Variables de entorno
 
 La plantilla comentada es [`.env.qa.example`](../../.env.qa.example): lista cada
