@@ -167,6 +167,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 24 | Alcance sobre Usuarios y Roles solo por capacidades transversales | Transversal / permisos | `#rbac` `#usuarios` `#ui` | PM — lo detectó revisando el rol Becas — Administrador | 11/08/2026 | 🟢 **Hecho** | `users.0020` |
 | 25 | Zona del relevamiento elegida del catálogo de localidades | Becas / relevamientos | `#relevamientos` `#ui` `#datos` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟢 **Hecho** | No |
+| 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟡 **Hecho — falta acordar la rama `test` con ECOM** | No |
 
 **Notas del índice**
 
@@ -1734,6 +1735,92 @@ Revertir los seis archivos. Sin migración y sin datos que se pierdan: las convo
 ## Historial
 
 No aplica: entrada nueva. Cierra el «Pendiente detectado» que había quedado anotado en el **Cambio 18**.
+
+# Cambio 27 — El release lleva el pipeline de ECOM
+
+🟡 **HECHO — 11/08/2026 · FALTA ACORDAR LA RAMA `test` CON ECOM**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — infraestructura y despliegue |
+| **Etiquetas** | `#infra` `#mobile` |
+| **Solicitante** | ECOM, por mensaje al PM sobre el entorno nuevo; el PM pidió incorporar el archivo |
+| **Fecha del pedido** | 11/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+ECOM informó que `https://datanach.ecomdev.ar/` es un entorno nuevo con CI/CD: al pushear a la rama `test` de su GitLab se despliega solo, sin coordinar con devops **mientras el cambio sea de código fuente y no de configuración**; los logs de los pods se ven en ArgoCD con usuario de dominio y VPN; el entorno es **testing, no QA**, y para armar QA piden que confirmemos si se puede usar la rama `main`; y la URL nueva está más expuesta a internet a propósito, **para que la app móvil pueda conectarse sin bloqueos**.
+
+Sobre eso, el PM: «copiemos el `.gitlab-ci.yml`».
+
+## Lo que se descubrió al revisar su GitLab
+
+- Su repositorio tiene **dos ramas**: `main`, que actualizamos ese mismo día hasta `96ca49b`, y `test`, en `888c121` del **21/07/2026**, con autor **`argocd`** y mensaje `[ci skip]`.
+- El pipeline construye la imagen del `Dockerfile` de la raíz y la sube al registry on-prem con **el nombre de la rama en la ruta** (`…/datanach/<rama>:latest`), y corre solo para `test` y `main`. Son dos imágenes distintas y las despliega ArgoCD.
+- **`main` no traía `.gitlab-ci.yml`.** GitLab lee ese archivo del commit que recibe, así que el espejo del 11/08 actualizó la rama **sin construir ninguna imagen**. Queda por confirmar en su pestaña *Pipelines*, pero es lo que explica el mecanismo.
+- **El entorno de testing corre código del 21 de julio**: la rama `test` no tiene `users.0020` ni `programas.0043`, o sea que le falta todo agosto —Coordinador Regional, vigencia de SIIS, permisos, y los cambios 25 y 26—. Es la razón por la que lo que se ve ahí no coincide con lo probado.
+- El `Dockerfile` de la raíz **es idéntico al nuestro** salvo un BOM y el salto de línea final, así que su build usa la misma receta.
+
+## Decisiones tomadas
+
+- **Se copia el archivo tal cual, sin agregarle ni un comentario.** Motivo: el dueño del pipeline es ECOM. Cualquier agregado nuestro genera un diff espurio la próxima vez que ellos lo cambien y deja en duda cuál de las dos versiones manda. Se verificó que el blob quede idéntico al suyo (`a9541b9`).
+- **Se fija `text eol=lf` en `.gitattributes`.** Motivo: al clonar su repo con `core.autocrlf=true` el archivo aparece con CRLF, pero eso es del checkout y no del contenido versionado. Sin fijarlo, la copia se guardaba con CRLF y el blob dejaba de coincidir con el suyo.
+- **`.gitlab-ci.yml` y el `Dockerfile` de la raíz entran en la lista de archivos requeridos del guard.** Motivo: el modo de falla que acabamos de ver es silencioso —la rama se actualiza, no hay error en ninguna parte y no se construye nada—. Con el guard, un release sin esos archivos falla en vez de publicarse.
+- **No se toca la rama `test` por ahora.** Motivo: tiene commits de su automatización que no están en nuestro historial, así que está divergida: un push normal se rechaza y forzarlo les borraría esos commits y su copia del pipeline, rompiendo el CI/CD que acaban de armar. Se acuerda con ellos quién la actualiza.
+
+## Implementación
+
+- El repositorio incorpora `.gitlab-ci.yml` en la raíz, idéntico al de ECOM, y por no estar excluido viaja en cada release.
+- El guard del workflow verifica que ese archivo y el `Dockerfile` de la raíz estén presentes en el árbol publicado.
+- `docs/internal/branching.md` documenta el mecanismo completo: qué construye el pipeline, qué rama alimenta cada entorno, por qué la rama `test` no es nuestra y qué diferencia hay entre un cambio de código y uno de configuración.
+
+## Archivos
+
+- `.gitlab-ci.yml`
+- `.gitattributes`
+- `.github/workflows/publish-main.yml`
+- `docs/internal/branching.md`
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- El blob de nuestro archivo coincide con el de ECOM (`a9541b9`), verificado con `git rev-parse` contra un clon superficial de su rama `test`.
+- `git ls-files --eol` confirma `i/lf w/lf` con el atributo aplicado.
+- `manage.py check` sin observaciones. No toca código de la aplicación.
+- La verificación de fondo —que el pipeline efectivamente construya al recibir la rama— **solo se puede hacer con el próximo espejo**, mirando *Pipelines* en su GitLab.
+
+## Puesta en marcha en el servidor
+
+No aplica a `icore-srv`: nuestro despliegue sigue siendo manual y no usa este pipeline. El efecto es del lado de ECOM y se activa con el próximo `/pushGitLabecom`, que a partir de ahora **va a disparar un build de la imagen `…/datanach/main:latest`**. Conviene avisarles antes del primero.
+
+## Pendientes / a definir
+
+Para ECOM:
+
+- ¿El pipeline corre para `main` aunque la rama no traiga el archivo, o hacía falta esto?
+- ¿Quién actualiza `test`: nos autorizan a sobrescribirla, o mergean `main` → `test` de su lado?
+- QA: ¿va a tomar `…/main:latest`? ¿Con qué URL?
+- ¿Las variables de entorno de testing están cargadas (base, SIIS, correo)?
+- Accesos a ArgoCD con usuario de dominio.
+- El sync periódico de SIIS en Kubernetes sería un CronJob, o sea configuración: ¿lo definen ellos?
+
+De nuestro lado:
+
+- **La app móvil apunta al entorno viejo.** Si la URL nueva existe para que la APK conecte sin bloqueos, hay que cambiar la URL base en el repositorio de la app y regenerar el APK. Vive en otro repo (`Chaco-mobile`), así que no entra en este cambio.
+
+## Reversión
+
+Borrar `.gitlab-ci.yml`, su línea en `.gitattributes` y los dos nombres agregados al guard. Sin efecto sobre la aplicación: se vuelve al estado en que el release no lleva pipeline y las ramas espejadas se actualizan sin construir imagen.
+
+## Historial
+
+No aplica: entrada nueva.
 
 # Verificaciones generales pendientes antes de desplegar
 

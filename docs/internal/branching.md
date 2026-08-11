@@ -39,3 +39,34 @@ rama por defecto.
 El árbol de `main` queda limpio, pero su historia anterior conserva los
 archivos de desarrollo. Esto es aceptado: limpiarla exigiría un force-push y
 rompería el pull del servidor.
+
+## Espejo al GitLab de ECOM y su CI/CD
+
+`main` se espeja al GitLab de ECOM (remoto `ecom`, comando `/pushGitLabecom`).
+Del otro lado **no** es un repo pasivo: tiene CI/CD propio.
+
+- El pipeline vive en **`.gitlab-ci.yml`**, lo mantiene ECOM y nosotros llevamos
+  una copia byte a byte igual para que **viaje en el release**. GitLab lee ese
+  archivo del commit que recibe: si la rama no lo trae, **no se crea pipeline** y
+  la rama se actualiza sin construir imagen. Eso es lo que pasó con el espejo del
+  11/08/2026, hecho antes de incorporarlo.
+- Qué hace: construye la imagen del `Dockerfile` de la raíz y la sube al registry
+  on-prem de ECOM con **el nombre de la rama en la ruta** —
+  `…/datanach/<rama>:latest`. Corre solo para `test` y `main`, así que son dos
+  imágenes distintas. **ArgoCD** las despliega.
+- Los entornos de ECOM son suyos y se despliegan solos: `test` alimenta
+  **testing** (`https://datanach.ecomdev.ar/`) y `main` está previsto para **QA**.
+  Nada que ver con `icore-srv`, que seguimos desplegando a mano.
+- **La rama `test` de ECOM no es nuestra.** Tiene commits propios de su
+  automatización (autor `argocd`, `[ci skip]`), así que está divergida de nuestra
+  `main`: un push normal se rechaza y forzarlo les borraría esos commits y su
+  copia del pipeline. Actualizarla se acuerda con ellos.
+- Un cambio de **código fuente** se despliega solo. Un cambio de **configuración**
+  —variables de entorno, secretos, un CronJob— lo hace su equipo de devops. Por
+  eso el SMTP y la sincronización periódica de SIIS dependen de ellos en esos
+  entornos.
+- Los logs de los pods se ven en **ArgoCD**, con usuario de dominio y VPN.
+
+El `.gitlab-ci.yml` y el `Dockerfile` de la raíz están en la lista de archivos
+**requeridos** del guard de `publish-main.yml`: si un release sale sin ellos, el
+workflow falla en lugar de publicar una rama que no construye nada.

@@ -35,7 +35,7 @@ jobs:
               fail=1
             fi
           done
-          for path in manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh; do
+          for path in manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh Dockerfile .gitlab-ci.yml; do
             if [ ! -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::Falta el archivo de runtime requerido $path en el release"
               fail=1
