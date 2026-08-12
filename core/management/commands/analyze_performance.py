@@ -2,6 +2,7 @@ import json
 
 from django.core.management.base import BaseCommand
 
+from config.middlewares.query_counter import QueryCountMiddleware
 from core.performance.performance_analyzer import PerformanceAnalyzer
 
 
@@ -14,11 +15,30 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         analyzer = PerformanceAnalyzer()
         report = analyzer.generate_report()
+        session_stats = QueryCountMiddleware.get_session_stats()
+        metrics_available = session_stats["metrics_source"] == "measured"
+        report.update(
+            {
+                "total_queries": session_stats["total_queries"] if metrics_available else None,
+                "performance_score": report["performance_score"] if metrics_available else None,
+                "metrics": {
+                    "queries": {
+                        "source": session_stats["metrics_source"],
+                        "scope": "process_since_start" if metrics_available else None,
+                        "value": session_stats["total_queries"] if metrics_available else None,
+                    }
+                },
+            }
+        )
 
         if options["output"] == "json":
             self.stdout.write(json.dumps(report, indent=2))
         else:
             self.stdout.write("=== PERFORMANCE ANALYSIS REPORT ===")
+            if not metrics_available:
+                self.stdout.write("Query metrics: unavailable (run against instrumented HTTP requests)")
+                return
+
             self.stdout.write(f"Total Queries: {report['total_queries']}")
             self.stdout.write(f"Performance Score: {report['performance_score']}/100")
 

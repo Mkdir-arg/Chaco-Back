@@ -135,6 +135,10 @@ MIDDLEWARE = [
     "core.middleware.RequestLoggingMiddleware",
 ]
 
+PERFORMANCE_QUERY_MONITORING_ENABLED = os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
+if PERFORMANCE_QUERY_MONITORING_ENABLED:
+    MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
+
 if PYTEST_RUNNING:
     MIDDLEWARE += ["zeal.middleware.zeal_middleware"]
     ZEAL_RAISE = True

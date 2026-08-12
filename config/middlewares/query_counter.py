@@ -1,6 +1,6 @@
 import logging
+import time
 
-from django.conf import settings
 from django.db import connection
 from django.utils import timezone
 
@@ -9,38 +9,72 @@ from core.performance.performance_analyzer import PerformanceAnalyzer
 logger = logging.getLogger(__name__)
 
 
+class QueryCollector:
+    """Captura consultas ejecutadas por una sola solicitud sin depender de DEBUG."""
+
+    def __init__(self):
+        self.count = 0
+        self.slow_queries_count = 0
+        self.queries = []
+
+    def __call__(self, execute, sql, params, many, context):
+        start = time.monotonic()
+        try:
+            return execute(sql, params, many, context)
+        finally:
+            duration = time.monotonic() - start
+            self.count += 1
+            if duration > 0.1:
+                self.slow_queries_count += 1
+            if len(self.queries) < 100:
+                self.queries.append({"sql": sql, "time": f"{duration:.6f}"})
+
+
 class QueryCountMiddleware:
     """Advanced middleware para monitorear queries N+1 y performance"""
+
+    session_stats = None
+
+    @classmethod
+    def _initial_session_stats(cls):
+        return {
+            "total_requests": 0,
+            "total_queries": 0,
+            "slow_requests": 0,
+            "slow_queries_count": 0,
+            "n1_detected_count": 0,
+            "metrics_source": "unavailable",
+            "last_reset": timezone.now(),
+        }
+
+    @classmethod
+    def _ensure_session_stats(cls):
+        if cls.session_stats is None:
+            cls.session_stats = cls._initial_session_stats()
+        return cls.session_stats
 
     def __init__(self, get_response):
         self.get_response = get_response
         self.analyzer = PerformanceAnalyzer()
-        # Global counters for production monitoring
-        if not hasattr(self.__class__, "session_stats"):
-            self.__class__.session_stats = {
-                "total_requests": 0,
-                "total_queries": 0,
-                "slow_requests": 0,
-                "n1_detected_count": 0,
-                "last_reset": timezone.now(),
-            }
+        self.__class__._ensure_session_stats()
 
     def __call__(self, request):
-        queries_before = len(connection.queries) if settings.DEBUG else 0
         start_time = timezone.now()
+        collector = QueryCollector()
 
-        response = self.get_response(request)
+        with connection.execute_wrapper(collector):
+            response = self.get_response(request)
 
         end_time = timezone.now()
-        queries_after = len(connection.queries) if settings.DEBUG else 0
-        query_count = queries_after - queries_before if settings.DEBUG else self._estimate_queries(request.path)
         response_time = (end_time - start_time).total_seconds()
+        session_stats = self.__class__._ensure_session_stats()
 
-        # Update session stats
-        self.__class__.session_stats["total_requests"] += 1
-        self.__class__.session_stats["total_queries"] += query_count
+        session_stats["total_requests"] += 1
+        session_stats["total_queries"] += collector.count
+        session_stats["slow_queries_count"] += collector.slow_queries_count
+        session_stats["metrics_source"] = "measured"
         if response_time > 1.0:
-            self.__class__.session_stats["slow_requests"] += 1
+            session_stats["slow_requests"] += 1
 
         # Thresholds por tipo de vista (Phase 6 optimized)
         thresholds = {
@@ -62,48 +96,24 @@ class QueryCountMiddleware:
                 threshold = limit
                 break
 
-        if query_count > threshold:
-            # Advanced analysis for high query counts
-            if settings.DEBUG:
-                recent_queries = connection.queries[queries_before:queries_after]
-                analysis = self.analyzer.analyze_queries(recent_queries)
-                if analysis["n1_detected"]:
-                    self.__class__.session_stats["n1_detected_count"] += 1
+        if collector.count > threshold:
+            analysis = self.analyzer.analyze_queries(collector.queries)
+            if analysis["n1_detected"]:
+                session_stats["n1_detected_count"] += 1
 
             alert_msg = (
-                f"Performance Alert: {request.path} executed {query_count} queries "
+                f"Performance Alert: {request.path} executed {collector.count} queries "
                 f"(threshold: {threshold}) in {response_time:.3f}s - User: {request.user}"
             )
 
             logger.warning(alert_msg)
 
-        # Enhanced headers for debugging
-        response["X-Query-Count"] = str(query_count)
-        response["X-Response-Time"] = f"{response_time:.3f}s"
-        response["X-Performance-Score"] = str(self._calculate_request_score(query_count, response_time))
-        response["X-Path"] = request.path
-
         return response
-
-    def _estimate_queries(self, path):
-        """Estimate query count based on path for production monitoring"""
-        estimates = {
-            "/legajos/": 8,
-            "/conversaciones/": 6,
-            "/dashboard/": 4,
-            "/admin/": 5,
-            "/performance-dashboard/": 2,
-        }
-
-        for pattern, count in estimates.items():
-            if path.startswith(pattern):
-                return count
-        return 3  # Default estimate
 
     @classmethod
     def get_session_stats(cls):
         """Get current session statistics"""
-        return cls.session_stats.copy()
+        return cls._ensure_session_stats().copy()
 
     def _calculate_request_score(self, query_count, response_time):
         """Calculate performance score for request (0-100)"""
