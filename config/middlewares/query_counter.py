@@ -38,6 +38,7 @@ class QueryCountMiddleware:
     session_stats_lock = Lock()
     excluded_paths = frozenset(
         {
+            "/health/",
             "/performance-dashboard/",
             "/performance-api/",
             "/query-analysis-api/",

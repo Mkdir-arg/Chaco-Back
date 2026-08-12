@@ -77,12 +77,16 @@ class QueryCountMiddlewareTests(TestCase):
         self.assertEqual(stats["total_requests"], 1)
         self.assertGreaterEqual(stats["total_queries"], 1)
 
-    def test_excludes_observability_routes_from_measurement(self):
+    def test_excludes_monitoring_and_health_routes_from_measurement(self):
         response = QueryCountMiddleware(lambda _request: HttpResponse("ok"))(
             RequestFactory().get(reverse("core:performance_api"))
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(QueryCountMiddleware.get_session_stats()["metrics_source"], "unavailable")
+
+        QueryCountMiddleware(lambda _request: HttpResponse("ok"))(RequestFactory().get("/health/"))
+
         self.assertEqual(QueryCountMiddleware.get_session_stats()["metrics_source"], "unavailable")
 
 
