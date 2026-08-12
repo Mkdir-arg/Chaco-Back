@@ -1,5 +1,6 @@
 import logging
 import time
+from threading import Lock
 
 from django.db import connection
 from django.utils import timezone
@@ -34,6 +35,20 @@ class QueryCountMiddleware:
     """Advanced middleware para monitorear queries N+1 y performance"""
 
     session_stats = None
+    session_stats_lock = Lock()
+    excluded_paths = frozenset(
+        {
+            "/performance-dashboard/",
+            "/performance-api/",
+            "/query-analysis-api/",
+            "/optimization-suggestions-api/",
+            "/system-metrics-api/",
+            "/alerts-api/",
+            "/realtime-metrics-api/",
+            "/phase2-metrics-api/",
+            "/run-phase2-tests-api/",
+        }
+    )
 
     @classmethod
     def _initial_session_stats(cls):
@@ -42,7 +57,7 @@ class QueryCountMiddleware:
             "total_queries": 0,
             "slow_requests": 0,
             "slow_queries_count": 0,
-            "n1_detected_count": 0,
+            "n1_affected_requests": 0,
             "metrics_source": "unavailable",
             "last_reset": timezone.now(),
         }
@@ -56,9 +71,13 @@ class QueryCountMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.analyzer = PerformanceAnalyzer()
-        self.__class__._ensure_session_stats()
+        with self.__class__.session_stats_lock:
+            self.__class__._ensure_session_stats()
 
     def __call__(self, request):
+        if request.path in self.excluded_paths:
+            return self.get_response(request)
+
         start_time = timezone.now()
         collector = QueryCollector()
 
@@ -68,13 +87,6 @@ class QueryCountMiddleware:
         end_time = timezone.now()
         response_time = (end_time - start_time).total_seconds()
         session_stats = self.__class__._ensure_session_stats()
-
-        session_stats["total_requests"] += 1
-        session_stats["total_queries"] += collector.count
-        session_stats["slow_queries_count"] += collector.slow_queries_count
-        session_stats["metrics_source"] = "measured"
-        if response_time > 1.0:
-            session_stats["slow_requests"] += 1
 
         # Thresholds por tipo de vista (Phase 6 optimized)
         thresholds = {
@@ -96,10 +108,10 @@ class QueryCountMiddleware:
                 threshold = limit
                 break
 
+        n1_detected = False
         if collector.count > threshold:
             analysis = self.analyzer.analyze_queries(collector.queries)
-            if analysis["n1_detected"]:
-                session_stats["n1_detected_count"] += 1
+            n1_detected = analysis["n1_detected"]
 
             alert_msg = (
                 f"Performance Alert: {request.path} executed {collector.count} queries "
@@ -108,12 +120,23 @@ class QueryCountMiddleware:
 
             logger.warning(alert_msg)
 
+        with self.__class__.session_stats_lock:
+            session_stats["total_requests"] += 1
+            session_stats["total_queries"] += collector.count
+            session_stats["slow_queries_count"] += collector.slow_queries_count
+            session_stats["metrics_source"] = "measured"
+            if response_time > 1.0:
+                session_stats["slow_requests"] += 1
+            if n1_detected:
+                session_stats["n1_affected_requests"] += 1
+
         return response
 
     @classmethod
     def get_session_stats(cls):
         """Get current session statistics"""
-        return cls._ensure_session_stats().copy()
+        with cls.session_stats_lock:
+            return cls._ensure_session_stats().copy()
 
     def _calculate_request_score(self, query_count, response_time):
         """Calculate performance score for request (0-100)"""

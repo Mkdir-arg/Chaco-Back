@@ -463,7 +463,7 @@ function updateQueryPatterns(data) {
     let html = `<p><strong>Total Queries:</strong> ${data.query_count}</p>`;
     
     if (data.patterns.n1_detected) {
-        html += '<div class="alert alert-danger">N+1 detectado: ' + data.patterns.similar_queries + ' queries similares</div>';
+        html += '<div class="alert alert-danger">N+1 detectado en ' + data.patterns.affected_requests + ' solicitudes instrumentadas</div>';
     } else {
         html += '<div class="alert alert-success">Sin patrones N+1</div>';
     }

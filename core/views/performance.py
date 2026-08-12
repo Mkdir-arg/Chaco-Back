@@ -6,8 +6,8 @@ from django.utils import timezone
 from core import rbac
 
 from ..performance.monitoring import system_monitor
-from ..performance.performance_analyzer import PerformanceAnalyzer
 from ..performance.phase2_manager import phase2_manager
+from ..performance.query_observability import query_observability_report
 
 
 def is_admin(user):
@@ -33,16 +33,6 @@ class IsPerformanceAdmin(BasePermission):
         return bool(request.user and request.user.is_authenticated and is_admin(request.user))
 
 
-def _query_metrics(session_stats):
-    source = session_stats["metrics_source"]
-    available = source == "measured"
-    return {
-        "source": source,
-        "scope": "process_since_start" if available else None,
-        "value": session_stats["total_queries"] if available else None,
-    }
-
-
 @extend_schema(
     description="API para obtener métricas de performance en tiempo real",
     responses={200: "Métricas de performance del sistema"},
@@ -54,47 +44,32 @@ def performance_api(request):
     from config.middlewares.query_counter import QueryCountMiddleware
 
     session_stats = QueryCountMiddleware.get_session_stats()
-    analyzer = PerformanceAnalyzer()
-    report = analyzer.generate_report()
-    query_metrics = _query_metrics(session_stats)
-    metrics_available = query_metrics["source"] == "measured"
+    report = query_observability_report(session_stats)
+    query_metric = report["metrics"]["queries"]
+    memory_usage = _get_memory_usage()
 
     report.update(
         {
-            "total_queries": session_stats["total_queries"] if metrics_available else None,
-            "total_requests": session_stats["total_requests"] if metrics_available else None,
-            "slow_requests": session_stats["slow_requests"] if metrics_available else None,
-            "slow_queries_count": session_stats["slow_queries_count"] if metrics_available else None,
-            "n1_detected": session_stats["n1_detected_count"] > 0 if metrics_available else None,
-            "similar_queries": session_stats["n1_detected_count"] if metrics_available else None,
-            "performance_score": (
-                max(
-                    20,
-                    100
-                    - min(50, session_stats["slow_requests"] * 5)
-                    - min(30, session_stats["n1_detected_count"] * 3),
-                )
-                if metrics_available
-                else None
-            ),
             "metrics": {
-                "queries": query_metrics,
+                "queries": query_metric,
                 "requests": {
-                    "source": query_metrics["source"],
-                    "scope": query_metrics["scope"],
-                    "value": session_stats["total_requests"] if metrics_available else None,
+                    "source": query_metric["source"],
+                    "scope": query_metric["scope"],
+                    "value": report["total_requests"],
                 },
                 "n_plus_one": {
-                    "source": query_metrics["source"] if metrics_available else "unavailable",
-                    "scope": query_metrics["scope"],
-                    "value": session_stats["n1_detected_count"] if metrics_available else None,
+                    "source": query_metric["source"],
+                    "scope": query_metric["scope"],
+                    "value": report["n1_affected_requests"],
                 },
+                "memory": {"source": "psutil", "scope": "current_process", "value": memory_usage},
+                "database_connections": {"source": "unavailable", "scope": None, "value": None},
             },
             "real_time": {
                 "active_connections": None,
-                "observed_requests": session_stats["total_requests"] if metrics_available else None,
+                "observed_requests": report["total_requests"],
                 "timestamp": timezone.now().isoformat(),
-                "memory_usage": _get_memory_usage(),
+                "memory_usage": memory_usage,
                 "session_start": session_stats["last_reset"].isoformat(),
             },
         }
@@ -114,52 +89,32 @@ def query_analysis_api(request):
     from config.middlewares.query_counter import QueryCountMiddleware
 
     session_stats = QueryCountMiddleware.get_session_stats()
-    query_metrics = _query_metrics(session_stats)
-    if query_metrics["source"] != "measured":
+    report = query_observability_report(session_stats)
+    query_metric = report["metrics"]["queries"]
+    if query_metric["source"] != "measured":
         return JsonResponse(
             {
                 "query_count": None,
-                "patterns": {"total_queries": None, "n1_detected": None, "similar_queries": None},
-                "slow_queries": [],
+                "patterns": {"total_queries": None, "n1_detected": None, "affected_requests": None},
+                "slow_queries": None,
                 "slow_queries_count": None,
                 "recommendations": [],
-                "metrics": {"queries": query_metrics},
+                "metrics": {"queries": query_metric},
             }
         )
 
-    n1_detected = session_stats["n1_detected_count"] > 0
     analysis = {
-        "query_count": session_stats["total_queries"],
+        "query_count": report["total_queries"],
         "patterns": {
-            "total_queries": session_stats["total_queries"],
-            "n1_detected": n1_detected,
-            "similar_queries": session_stats["n1_detected_count"],
+            "total_queries": report["total_queries"],
+            "n1_detected": report["n1_detected"],
+            "affected_requests": report["n1_affected_requests"],
         },
-        "slow_queries": [],
-        "slow_queries_count": session_stats["slow_queries_count"],
-        "recommendations": [],
-        "metrics": {"queries": query_metrics},
+        "slow_queries": None,
+        "slow_queries_count": report["slow_queries_count"],
+        "recommendations": report["recommendations"],
+        "metrics": {"queries": query_metric},
     }
-
-    if n1_detected:
-        analysis["recommendations"].append(
-            {
-                "priority": "high",
-                "type": "N+1 Detection",
-                "message": f"Detected N+1 patterns in {analysis['patterns']['similar_queries']} instrumented requests. Consider using select_related() or prefetch_related().",
-                "action": "Review recent code changes and add query optimizations",
-            }
-        )
-
-    if analysis["slow_queries_count"] > 0:
-        analysis["recommendations"].append(
-            {
-                "priority": "medium",
-                "type": "Slow Queries",
-                "message": f"Found {analysis['slow_queries_count']} slow queries in instrumented requests.",
-                "action": "Add database indexes or optimize query logic",
-            }
-        )
 
     return JsonResponse(analysis)
 
@@ -212,7 +167,16 @@ def optimization_suggestions_api(request):
 def system_metrics_api(request):
     """Comprehensive system metrics API"""
     metrics = system_monitor.get_comprehensive_metrics()
-    return JsonResponse(metrics)
+    return JsonResponse(
+        {
+            **metrics,
+            "sources": {
+                "cpu": {"source": "psutil", "scope": "current_host", "refresh_seconds": 30},
+                "memory": {"source": "psutil", "scope": "current_host", "refresh_seconds": 30},
+                "database_connections": {"source": "unavailable", "scope": None},
+            },
+        }
+    )
 
 
 @extend_schema(description="API para alertas activas del sistema", responses={200: "Alertas activas del sistema"})

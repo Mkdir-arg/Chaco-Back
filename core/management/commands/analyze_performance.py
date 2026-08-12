@@ -3,7 +3,7 @@ import json
 from django.core.management.base import BaseCommand
 
 from config.middlewares.query_counter import QueryCountMiddleware
-from core.performance.performance_analyzer import PerformanceAnalyzer
+from core.performance.query_observability import query_observability_report
 
 
 class Command(BaseCommand):
@@ -13,23 +13,9 @@ class Command(BaseCommand):
         parser.add_argument("--output", choices=["console", "json"], default="console")
 
     def handle(self, *args, **options):
-        analyzer = PerformanceAnalyzer()
-        report = analyzer.generate_report()
         session_stats = QueryCountMiddleware.get_session_stats()
-        metrics_available = session_stats["metrics_source"] == "measured"
-        report.update(
-            {
-                "total_queries": session_stats["total_queries"] if metrics_available else None,
-                "performance_score": report["performance_score"] if metrics_available else None,
-                "metrics": {
-                    "queries": {
-                        "source": session_stats["metrics_source"],
-                        "scope": "process_since_start" if metrics_available else None,
-                        "value": session_stats["total_queries"] if metrics_available else None,
-                    }
-                },
-            }
-        )
+        report = query_observability_report(session_stats)
+        metrics_available = report["metrics"]["queries"]["source"] == "measured"
 
         if options["output"] == "json":
             self.stdout.write(json.dumps(report, indent=2))
@@ -43,7 +29,9 @@ class Command(BaseCommand):
             self.stdout.write(f"Performance Score: {report['performance_score']}/100")
 
             if report["n1_detected"]:
-                self.stdout.write(self.style.ERROR(f"N+1 Detected: {report['similar_queries']} similar queries"))
+                self.stdout.write(
+                    self.style.ERROR(f"N+1 detected in {report['n1_affected_requests']} instrumented requests")
+                )
             else:
                 self.stdout.write(self.style.SUCCESS("No N+1 patterns detected"))
 

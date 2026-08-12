@@ -135,6 +135,9 @@ MIDDLEWARE = [
     "core.middleware.RequestLoggingMiddleware",
 ]
 
+# Desactivado por defecto en todos los entornos. Si se habilita, mide solo las
+# solicitudes del proceso actual: es útil para un relevamiento TEST/HML, no para
+# construir una métrica global de producción.
 PERFORMANCE_QUERY_MONITORING_ENABLED = os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
 if PERFORMANCE_QUERY_MONITORING_ENABLED:
     MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
