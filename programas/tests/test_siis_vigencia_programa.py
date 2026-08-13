@@ -95,9 +95,7 @@ class DetalleInformativoTests(TestCase):
         segmento = Segmento.objects.create(nombre="Sin SIIS", cupo_maximo=10)
 
         datos = json.loads(
-            Template("{% load becas_extras %}{{ s|siis_info }}")
-            .render(Context({"s": segmento}))
-            .replace("&quot;", '"')
+            Template("{% load becas_extras %}{{ s|siis_info }}").render(Context({"s": segmento})).replace("&quot;", '"')
         )
 
         self.assertIsNone(datos["id"])

@@ -38,7 +38,9 @@ class Command(BaseCommand):
 
         prefijo = "[dry-run] " if dry else ""
         for segmento, anterior, nuevo in cambios:
-            linea = f"{prefijo}{segmento.nombre} (programa SIIS #{segmento.siis_programa_id}): {anterior or '—'} → {nuevo}"
+            linea = (
+                f"{prefijo}{segmento.nombre} (programa SIIS #{segmento.siis_programa_id}): {anterior or '—'} → {nuevo}"
+            )
             if nuevo in Segmento.ESTADOS_SIIS_BLOQUEANTES:
                 self.stdout.write(self.style.WARNING(f"{linea} — el segmento queda bloqueado para operar."))
             else:

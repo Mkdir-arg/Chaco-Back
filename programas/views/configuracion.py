@@ -92,9 +92,7 @@ def _segmentos_qs(user):
 def _segmentos_bloqueados_siis(user):
     """Segmentos cuyo programa dejó de estar vigente en SIIS (aviso en pantalla)."""
     return (
-        segmentos_visibles(user)
-        .filter(siis_programa_estado__in=Segmento.ESTADOS_SIIS_BLOQUEANTES)
-        .order_by("nombre")
+        segmentos_visibles(user).filter(siis_programa_estado__in=Segmento.ESTADOS_SIIS_BLOQUEANTES).order_by("nombre")
     )
 
 
