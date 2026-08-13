@@ -307,28 +307,28 @@ def formulario_detalle(request, pk):
 @requiere(CAP_REVALIDAR_RENAPER)
 def formulario_validar_sis(request, pk):
     formulario = get_object_or_404(
-        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento"), pk=pk
+        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento__programa"), pk=pk
     )
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
 
     convocatoria = formulario.relevamiento.convocatoria
-    segmento = convocatoria.segmento
+    programa = convocatoria.segmento.programa
     ciudadano = formulario.ciudadano
-    if not segmento.siis_programa_id:
+    if programa is None:
         messages.error(request, "El segmento no tiene configurado el programa correspondiente de SIIS.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     if ciudadano is None or not ciudadano.dni:
         messages.error(request, "El formulario no tiene un ciudadano con DNI vinculado.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
 
-    # SIIS valida contra el programa (nuestro Segmento). El subsegmento es local
-    # y ya no participa; la fecha de nacimiento es opcional y solo se usa para
-    # evaluar edad mínima cuando la persona no figura en su padrón.
+    # SIIS valida contra el programa del segmento. El subsegmento es local y no
+    # participa; la fecha de nacimiento es opcional y solo se usa para evaluar
+    # edad mínima cuando la persona no figura en su padrón.
     resultado = validar_compatibilidad(
         ciudadano.dni,
-        segmento.siis_programa_id,
+        programa.siis_programa_id,
         ciudadano.fecha_nacimiento.isoformat() if ciudadano.fecha_nacimiento else None,
     )
     data = resultado.get("data") or {}
@@ -339,7 +339,7 @@ def formulario_validar_sis(request, pk):
     ValidacionSIS.objects.create(
         formulario=formulario,
         estado=estado,
-        id_programa=segmento.siis_programa_id,
+        id_programa=programa.siis_programa_id,
         documento=ciudadano.dni,
         id_consulta=data.get("id_consulta") or None,
         fecha_validacion=parse_datetime(str(data.get("fecha_hora") or "")),

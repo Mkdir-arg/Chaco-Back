@@ -13,6 +13,15 @@ app_name = "becas"
 
 urlpatterns = [
     path("pausas/<str:tipo>/<int:pk>/", pau.gestionar_pausa, name="gestionar_pausa"),
+    # --- Configuración: Programas (SIIS) ---
+    path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),
+    path("config/programas/nuevo/", cfg.ProgramaSiisCreateView.as_view(), name="programa_crear"),
+    path("config/programas/<int:pk>/", cfg.ProgramaSiisDetailView.as_view(), name="programa_detalle"),
+    path(
+        "config/programas/<int:programa_pk>/requisitos/nuevo/",
+        cfg.requisito_programa_crear,
+        name="requisito_programa_crear",
+    ),
     # --- Configuración: Segmentos ---
     path("config/segmentos/", cfg.SegmentoListView.as_view(), name="segmentos"),
     path("config/segmentos/nuevo/", cfg.SegmentoCreateView.as_view(), name="segmento_crear"),
