@@ -64,12 +64,12 @@
   </div>
 
   {% if conflicto_pendiente %}
-  <section class="rounded-xl border p-5" style="border-color:#f59e0b;background:#fffbeb;">
+  <section class="rounded-xl border border-warning-subtle bg-warning-soft p-5">
     <div class="flex items-start gap-3">
-      <i class="fas fa-triangle-exclamation mt-1" style="color:#b45309;"></i>
+      <i class="fas fa-triangle-exclamation mt-1 text-fg-warning"></i>
       <div class="flex-1">
-        <h2 class="font-bold" style="color:#92400e;">DNI cargado desde más de un dispositivo</h2>
-        <p class="mt-1 text-sm" style="color:#92400e;">
+        <h2 class="font-bold text-fg-warning">DNI cargado desde más de un dispositivo</h2>
+        <p class="mt-1 text-sm text-fg-warning">
           Los formularios {{ conflicto_pendiente.duplicado_de.numero }} y {{ conflicto_pendiente.numero }} corresponden al mismo DNI.
           Revisá ambas cargas y decidí cuál conservar.
         </p>
@@ -360,20 +360,114 @@
     </div>
     <div class="p-6">
     {% if validacion_sis %}
-    <div class="text-sm text-body-subtle space-y-1">
-      <p><strong>Estado:</strong> {{ validacion_sis.get_estado_display }}</p>
-      <p><strong>Fecha:</strong> {{ validacion_sis.fecha_validacion|default:validacion_sis.creado|date:"d/m/Y H:i" }}</p>
-      {% if validacion_sis.codigo_motivo %}<p><strong>Código:</strong> {{ validacion_sis.motivo_amigable }}</p>{% endif %}
-      {% if validacion_sis.motivo %}<p><strong>Detalle:</strong> {{ validacion_sis.motivo }}</p>{% endif %}
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <p class="text-xs uppercase tracking-wide font-semibold text-body-subtle mb-2">Resultado de elegibilidad</p>
+        {% if validacion_sis.estado == 'OK' %}
+          <span class="badge badge-success badge-dot">Compatible</span>
+        {% elif validacion_sis.estado == 'RECHAZADO' %}
+          <span class="badge badge-danger badge-dot">No compatible</span>
+        {% else %}
+          <span class="badge badge-warning badge-dot">Error técnico</span>
+        {% endif %}
+      </div>
+      <p class="text-xs text-body-subtle">{{ validacion_sis.fecha_validacion|default:validacion_sis.creado|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-5">
+      <div>
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Situación en SIIS</dt>
+        <dd class="text-heading text-sm font-medium">{{ detalle_siis.situacion }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Programa evaluado</dt>
+        <dd class="text-heading text-sm font-medium">{{ detalle_siis.programa_nombre|default:"No informado" }}{% if detalle_siis.programa_id %} (#{{ detalle_siis.programa_id }}){% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Solicitado por</dt>
+        <dd class="text-heading text-sm font-medium">{{ validacion_sis.solicitado_por.username|default:"No informado" }}</dd>
+      </div>
+    </dl>
+
+    {% if detalle_siis.controles %}
+    <div class="border-t border-light mt-5 pt-5">
+      <h3 class="text-heading font-semibold text-sm mb-3">Controles de compatibilidad</h3>
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Controles evaluados por SIIS">
+        {% for control in detalle_siis.controles %}
+        <li class="flex items-start justify-between gap-3 rounded-lg border border-light bg-secondary p-3">
+          <div>
+            <p class="text-heading text-sm font-medium">{{ control.etiqueta }}</p>
+            <p class="text-xs text-body-subtle mt-1">{{ control.detalle }}</p>
+          </div>
+          <span class="badge badge-{{ control.tono }}">
+            {% if control.tono == 'success' %}Cumple{% elif control.tono == 'danger' %}No cumple{% else %}A revisar{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if validacion_sis.motivo %}
+      <div class="mt-5 rounded-lg bg-danger-soft border border-danger-subtle p-3 text-sm text-fg-danger">
+        <strong>Motivo:</strong> {{ validacion_sis.motivo }}
+      </div>
+    {% endif %}
+
+    <div class="border-t border-light mt-5 pt-4 text-xs text-body-subtle space-y-1">
+      {% if validacion_sis.id_consulta %}<p><strong>ID de consulta:</strong> <span class="break-all">{{ validacion_sis.id_consulta }}</span></p>{% endif %}
+      <p>Compatible significa que SIIS no encontró incompatibilidades para postularse; no implica la aprobación automática del formulario.</p>
     </div>
     {% else %}
     <p class="text-sm text-body-subtle">Todavía no se consultó la compatibilidad de esta persona.</p>
     {% endif %}
-    {% if puede_revalidar_renaper %}
-    <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}" class="mt-4">
-      {% csrf_token %}
-      <button type="submit" class="btn-nodo btn-brand btn-base">{% if validacion_sis %}Reintentar validación SIIS{% else %}Validar con SIIS{% endif %}</button>
-    </form>
+    <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
+      {% if puede_revalidar_renaper %}
+      <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-nodo btn-brand btn-base">{% if validacion_sis %}Reintentar validación SIIS{% else %}Validar con SIIS{% endif %}</button>
+      </form>
+      {% endif %}
+      {% if historial_validaciones_sis %}
+      <button type="button"
+              id="btn-historial-siis"
+              class="btn-nodo btn-tertiary btn-base ml-auto"
+              aria-expanded="false"
+              aria-controls="historial-validaciones-siis">
+        <i class="fas fa-history" aria-hidden="true"></i>
+        Historial de validaciones ({{ historial_validaciones_sis|length }})
+      </button>
+      {% endif %}
+    </div>
+
+    {% if historial_validaciones_sis %}
+    <div id="historial-validaciones-siis" class="hidden mt-5 border-t border-light pt-5" aria-label="Historial de validaciones SIIS">
+      <div class="space-y-3">
+        {% for item in historial_validaciones_sis %}
+        <article class="rounded-lg border border-light bg-secondary p-4" aria-label="Validación SIIS del {{ item.validacion.fecha_validacion|default:item.validacion.creado|date:'d/m/Y H:i' }}">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
+              {% if item.validacion.estado == 'OK' %}
+                <span class="badge badge-success">Compatible</span>
+              {% elif item.validacion.estado == 'RECHAZADO' %}
+                <span class="badge badge-danger">No compatible</span>
+              {% else %}
+                <span class="badge badge-warning">Error técnico</span>
+              {% endif %}
+              <span class="text-sm text-heading font-medium">{{ item.detalle.programa_nombre|default:"Programa no informado" }}{% if item.detalle.programa_id %} (#{{ item.detalle.programa_id }}){% endif %}</span>
+            </div>
+            <time class="text-xs text-body-subtle">{{ item.validacion.fecha_validacion|default:item.validacion.creado|date:"d/m/Y H:i" }}</time>
+          </div>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-sm">
+            <div><dt class="text-body-subtle text-xs">Situación</dt><dd class="text-heading">{{ item.detalle.situacion }}</dd></div>
+            <div><dt class="text-body-subtle text-xs">Solicitado por</dt><dd class="text-heading">{{ item.validacion.solicitado_por.username|default:"No informado" }}</dd></div>
+          </dl>
+          {% if item.validacion.motivo %}<p class="mt-3 text-sm text-fg-danger"><strong>Motivo:</strong> {{ item.validacion.motivo }}</p>{% endif %}
+          {% if item.validacion.id_consulta %}<p class="mt-3 text-xs text-body-subtle break-all"><strong>ID de consulta:</strong> {{ item.validacion.id_consulta }}</p>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </div>
     {% endif %}
     </div>
   </section>
@@ -406,16 +500,23 @@
     <div class="px-5 py-4 border-b border-light">
       <h2 class="text-heading font-bold" style="font-size:16px;">Acciones de revisión</h2>
     </div>
-    <div class="p-6 flex justify-end gap-3">
+    <div class="p-6">
+      {% if motivo_bloqueo_aprobacion %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Aprobación bloqueada:</strong> {{ motivo_bloqueo_aprobacion }}
+      </div>
+      {% endif %}
+      <div class="flex justify-end gap-3">
       <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
         <i class="fas fa-times"></i> Rechazar
       </button>
       <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}" id="form-aprobar">
         {% csrf_token %}
-        <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base">
+        <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base"{% if motivo_bloqueo_aprobacion %} disabled aria-disabled="true" title="{{ motivo_bloqueo_aprobacion }}"{% endif %}>
           <i class="fas fa-check"></i> Aprobar
         </button>
       </form>
+      </div>
     </div>
   </section>
   <form method="post" action="{% url 'becas:formulario_rechazar' formulario.pk %}" id="form-rechazar" class="hidden">
@@ -477,6 +578,16 @@
 {% block customJS %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  const btnHistorialSiis = document.getElementById('btn-historial-siis');
+  const historialSiis = document.getElementById('historial-validaciones-siis');
+  if (btnHistorialSiis && historialSiis) {
+    btnHistorialSiis.addEventListener('click', function () {
+      const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
+      btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
+      historialSiis.classList.toggle('hidden', abierto);
+    });
+  }
+
   const imageOverlay = document.getElementById('image-preview-overlay');
   const imagePreview = document.getElementById('image-preview-img');
   const imageTitle = document.getElementById('image-preview-title');

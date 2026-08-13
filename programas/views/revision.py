@@ -2,7 +2,7 @@
 
 Acceso granular: ``becas.revision.ver`` para listar/consultar, ``becas.revision.editar``
 para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcance
-por segmento. La validación SIIS es un placeholder.
+por segmento. La validación SIIS conserva y presenta el detalle auditable de ECOM.
 """
 
 from pathlib import Path
@@ -31,7 +31,7 @@ from programas.models import (
 )
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
-from programas.services.cupo import aprobar_o_poner_en_espera
+from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.personas import consultar_persona
 from programas.services.siis import motivos_de_rechazo, validar_compatibilidad
 
@@ -39,6 +39,66 @@ CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
+
+SIIS_CONTROLES = (
+    ("vigencia_programa", "Vigencia del programa"),
+    ("edad_minima", "Edad mínima"),
+    ("empleo_publico", "Empleo público"),
+    ("horas_docentes", "Horas docentes"),
+    ("duplicidad_becas", "Otros beneficios o becas"),
+)
+SIIS_VALORES_FAVORABLES = {"VIGENTE", "CUMPLE_EDAD_MINIMA", "SIN_INCOMPATIBILIDAD"}
+SIIS_VALORES_INFORMATIVOS = {"NO_EVALUADO_SIN_FECHA"}
+SIIS_ETIQUETAS_VALOR = {
+    "VIGENTE": "Programa vigente",
+    "PROGRAMA_INACTIVO": "Programa inactivo",
+    "CUMPLE_EDAD_MINIMA": "Cumple la edad mínima",
+    "EDAD_INSUFICIENTE": "No cumple la edad mínima",
+    "NO_EVALUADO_SIN_FECHA": "No evaluado: falta la fecha de nacimiento",
+    "SIN_INCOMPATIBILIDAD": "Sin incompatibilidad",
+    "INCOMPATIBLE_PLANTA": "Incompatible por empleo público",
+    "INCOMPATIBLE_EXCEDE_HORAS": "Incompatible por exceso de horas docentes",
+    "BENEFICIO_ACTIVO_EXISTENTE": "Tiene un beneficio activo incompatible",
+    "SUSPENDIDO_TEMPORAL": "Tiene una suspensión temporal vigente",
+}
+
+
+def _detalle_validacion_siis(validacion):
+    if validacion is None:
+        return None
+    respuesta = validacion.respuesta if isinstance(validacion.respuesta, dict) else {}
+    valores = respuesta.get("validaciones") if isinstance(respuesta.get("validaciones"), dict) else {}
+    controles = []
+    for clave, etiqueta in SIIS_CONTROLES:
+        valor = str(valores.get(clave) or "").strip().upper()
+        if not valor:
+            continue
+        if valor in SIIS_VALORES_FAVORABLES:
+            tono = "success"
+        elif valor in SIIS_VALORES_INFORMATIVOS:
+            tono = "warning"
+        else:
+            tono = "danger"
+        controles.append(
+            {
+                "etiqueta": etiqueta,
+                "detalle": SIIS_ETIQUETAS_VALOR.get(valor, valor.replace("_", " ").capitalize()),
+                "tono": tono,
+            }
+        )
+    registrado = respuesta.get("persona_registrada_siis")
+    if registrado is True:
+        situacion = "Registrado en SIIS"
+    elif registrado is False:
+        situacion = "Nuevo solicitante"
+    else:
+        situacion = "No informado"
+    return {
+        "programa_nombre": respuesta.get("nombre_programa") or "",
+        "programa_id": respuesta.get("id_programa") or validacion.id_programa,
+        "situacion": situacion,
+        "controles": controles,
+    }
 
 
 def _con_conflicto_duplicado_pendiente(queryset):
@@ -278,6 +338,12 @@ def formulario_detalle(request, pk):
             "open_url": "https://www.openstreetmap.org/?"
             + urlencode({"mlat": f"{lat:.6f}", "mlon": f"{lng:.6f}", "zoom": 16}),
         }
+    validaciones_sis = list(formulario.validaciones_sis.select_related("solicitado_por"))
+    validacion_sis = validaciones_sis[0] if validaciones_sis else None
+    historial_validaciones_sis = [
+        {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)}
+        for validacion in validaciones_sis
+    ]
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
@@ -295,7 +361,10 @@ def formulario_detalle(request, pk):
             "mapa": mapa,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
-            "validacion_sis": formulario.validaciones_sis.first(),
+            "validacion_sis": validacion_sis,
+            "detalle_siis": _detalle_validacion_siis(validacion_sis),
+            "historial_validaciones_sis": historial_validaciones_sis,
+            "motivo_bloqueo_aprobacion": motivo_bloqueo_aprobacion(formulario),
             "tiene_conflicto_duplicado_pendiente": _tiene_conflicto_duplicado_pendiente(formulario),
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
