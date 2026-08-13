@@ -341,8 +341,7 @@ def formulario_detalle(request, pk):
     validaciones_sis = list(formulario.validaciones_sis.select_related("solicitado_por"))
     validacion_sis = validaciones_sis[0] if validaciones_sis else None
     historial_validaciones_sis = [
-        {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)}
-        for validacion in validaciones_sis
+        {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)} for validacion in validaciones_sis
     ]
     return render(
         request,
