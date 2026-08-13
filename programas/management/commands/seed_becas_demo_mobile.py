@@ -20,12 +20,21 @@ from programas.models import (
     Convocatoria,
     Formulario,
     PreguntaGlobal,
+    ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
     Subsegmento,
     TipoCampo,
 )
+
+# Programa SIIS de demo: cabeza de la estructura Programa → Segmento → Subsegmento.
+PROGRAMA_DEMO = {
+    "nombre": "Chaco Joven",
+    "siis_programa_id": 34,
+    "siis_programa_datos": {"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"},
+    "siis_programa_estado": "ACTIVO",
+}
 
 COMMON_QUESTIONS = [
     ("Apellido y nombre", TipoCampo.STRING, None),
@@ -244,12 +253,17 @@ def asegurar_requisito(segmento, subsegmento, orden, item):
 
 
 def asegurar_segmentos():
+    programa, _ = ProgramaSiis.objects.update_or_create(
+        siis_programa_id=PROGRAMA_DEMO["siis_programa_id"],
+        defaults={k: v for k, v in PROGRAMA_DEMO.items() if k != "siis_programa_id"},
+    )
     segmentos = {}
     subsegmentos = {}
     for cfg in SEGMENTOS:
         segmento, _ = Segmento.objects.update_or_create(
             nombre=cfg["nombre"],
             defaults={
+                "programa": programa,
                 "descripcion": cfg["descripcion"],
                 "cupo_maximo": cfg["cupo"],
                 "requiere_gps": cfg["requiere_gps"],

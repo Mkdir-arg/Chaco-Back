@@ -210,14 +210,20 @@ def segmentos_para_gestion_territoriales(user):
 
 
 def requisitos_visibles(user, programa=None):
-    """Queryset de ``RequisitoNativo`` cuyo segmento el usuario puede gestionar/revisar.
+    """Queryset de ``RequisitoNativo`` que el usuario puede gestionar/revisar.
 
-    ``RequisitoNativo.segmento`` nunca es nulo (incluso para requisitos de
-    subsegmento), así que un solo filtro por segmento alcanza.
+    Los anclados a un segmento (o subsegmento, que siempre lleva segmento) se
+    filtran por los segmentos visibles; los anclados a un programa SIIS se ven
+    si el usuario ve algún segmento de ese programa.
     """
+    from django.db.models import Q
+
     from programas.models import RequisitoNativo
 
-    return RequisitoNativo.objects.filter(segmento__in=segmentos_visibles(user, programa=programa))
+    visibles = segmentos_visibles(user, programa=programa)
+    return RequisitoNativo.objects.filter(
+        Q(segmento__in=visibles) | Q(segmento__isnull=True, programa__segmentos__in=visibles)
+    ).distinct()
 
 
 def _usuarios_con_capacidad_en_programa(codigos, programa=None):

@@ -9,26 +9,26 @@ register = template.Library()
 
 
 @register.filter
-def siis_info(segmento):
-    """Detalle del programa SIIS de un segmento, como literal JSON para Alpine.
+def siis_info(programa):
+    """Detalle de un ``ProgramaSiis``, como literal JSON para Alpine.
 
     Se emite sin ``mark_safe``: el autoescape convierte las comillas en
     ``&quot;`` dentro del atributo y el navegador las devuelve al parsear, así
     que la expresión ``@click="openInfo({...})"`` recibe un objeto válido.
     """
-    datos = segmento.siis_programa_datos or {}
+    datos = programa.siis_programa_datos or {}
     return json.dumps(
         {
-            "id": segmento.siis_programa_id,
-            "nombre": datos.get("nombre") or "",
+            "id": programa.siis_programa_id,
+            "nombre": datos.get("nombre") or programa.nombre,
             "descripcion": datos.get("descripcion") or "",
             "jurisdiccion": datos.get("jurisdiccion_id"),
             "estadoVinculado": datos.get("estado") or "",
-            "estadoActual": segmento.siis_programa_estado or "",
-            "bloqueado": segmento.siis_bloqueado,
-            "motivo": segmento.siis_motivo_bloqueo,
-            "vinculado": fecha_local(segmento.siis_vinculado_en, "d/m/Y H:i") or "",
-            "verificado": fecha_local(segmento.siis_verificado_en, "d/m/Y H:i") or "",
+            "estadoActual": programa.siis_programa_estado or "",
+            "bloqueado": programa.siis_bloqueado,
+            "motivo": programa.siis_motivo_bloqueo,
+            "vinculado": fecha_local(programa.siis_vinculado_en, "d/m/Y H:i") or "",
+            "verificado": fecha_local(programa.siis_verificado_en, "d/m/Y H:i") or "",
             "controles": [
                 ("Empleo público", datos.get("controla_empleo_publico")),
                 ("Horas cátedra docentes", datos.get("controla_horas_docentes")),
