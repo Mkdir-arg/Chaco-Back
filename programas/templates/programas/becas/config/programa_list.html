@@ -1,0 +1,94 @@
+{% extends "includes/base.html" %}
+{% load rbac %}
+{% block title %}Becas · Programas{% endblock %}
+
+{% block main-content %}
+<style>[x-cloak]{display:none!important}</style>
+<div class="mb-8"
+     x-data="{
+       modalCrear: false,
+       modalInfo: false,
+       info: {},
+       openInfo(datos) {
+         this.info = datos;
+         this.modalInfo = true;
+       }
+     }"
+     @becas-saved.window="modalCrear=false">
+
+  {# Breadcrumb + PageHeader #}
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Programas</h1>
+      <p class="text-sm text-body-subtle mt-1.5">Programas del catálogo de SIIS: cada uno agrupa sus segmentos y subsegmentos</p>
+    </div>
+    {% if request.user|puede:"becas.segmento.crear" %}
+    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
+      {# PlusIcon — Heroicons v2 outline #}
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Nuevo programa
+    </button>
+    {% endif %}
+  </div>
+
+  {# Table card #}
+  <div id="programas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% include "programas/becas/config/_programas_table.html" %}
+  </div>
+
+  {# Modal: Nuevo programa #}
+  <div x-show="modalCrear" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4"
+       role="dialog" aria-modal="true" aria-labelledby="modal-crear-titulo">
+    <div class="absolute inset-0 bg-black/50" style="backdrop-filter:blur(4px)" @click="modalCrear=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] overflow-hidden" @click.stop>
+      {# Header #}
+      <div class="flex items-center gap-3 px-6 py-5 border-b border-light">
+        <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0" style="background: var(--bg-brand-soft); color: var(--text-fg-brand)">
+          {# FolderIcon — Heroicons v2 outline #}
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+          </svg>
+        </div>
+        <h3 id="modal-crear-titulo" class="text-lg font-bold text-heading flex-1">Nuevo programa</h3>
+        <button type="button" @click="modalCrear=false" class="text-body-subtle hover:text-heading p-1 rounded-lg hover:bg-secondary" aria-label="Cerrar">
+          {# XMarkIcon — Heroicons v2 outline #}
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      {# Body + Footer inside form so submit works #}
+      <form method="post" action="{% url 'becas:programa_crear' %}" data-ajax>
+        {% csrf_token %}
+        {# Body #}
+        <div class="px-6 py-6 space-y-5">
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">Programa SIIS <span class="text-fg-danger">*</span></label>
+            {{ form_programa.siis_programa_id }}
+            {% if form_programa.siis_programa_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_programa.siis_programa_id.help_text }}</p>{% endif %}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_programa_id"></p>
+          </div>
+          {# Nota informativa #}
+          <div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)">
+            {# ExclamationCircleIcon — Heroicons v2 outline #}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+            <span style="font-size:12.5px; color:var(--text-body)">El nombre y el detalle se toman tal cual del catálogo de SIIS. Después de guardar vas a poder cargar los segmentos del programa.</span>
+          </div>
+        </div>
+        {# Footer #}
+        <div class="flex justify-end gap-3 px-6 py-4 border-t border-light" style="background: var(--bg-secondary)">
+          <button type="button" @click="modalCrear=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar y configurar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% include "programas/becas/config/_siis_programa_modal.html" %}
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

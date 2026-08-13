@@ -15,6 +15,7 @@ from .models import (
     ListaEspera,
     PreguntaGlobal,
     Programa,
+    ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -190,12 +191,20 @@ class SubsegmentoInline(admin.TabularInline):
 class RequisitoNativoInline(admin.TabularInline):
     model = RequisitoNativo
     extra = 0
+    fk_name = "segmento"
+
+
+@admin.register(ProgramaSiis)
+class ProgramaSiisAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "siis_programa_id", "siis_programa_estado", "pausado", "siis_verificado_en")
+    list_filter = ("siis_programa_estado", "pausado")
+    search_fields = ("nombre",)
 
 
 @admin.register(Segmento)
 class SegmentoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "cupo_maximo", "requiere_gps", "activo")
-    list_filter = ("activo", "requiere_gps")
+    list_display = ("nombre", "programa", "cupo_maximo", "requiere_gps", "activo")
+    list_filter = ("activo", "requiere_gps", "programa")
     search_fields = ("nombre",)
     inlines = (SubsegmentoInline, RequisitoNativoInline)
 
@@ -238,8 +247,8 @@ class PreguntaGlobalAdmin(admin.ModelAdmin):
 
 @admin.register(RequisitoNativo)
 class RequisitoNativoAdmin(admin.ModelAdmin):
-    list_display = ("texto", "segmento", "subsegmento", "tipo", "orden")
-    list_filter = ("segmento", "tipo")
+    list_display = ("texto", "programa", "segmento", "subsegmento", "tipo", "orden")
+    list_filter = ("programa", "segmento", "tipo")
     search_fields = ("texto",)
 
 
