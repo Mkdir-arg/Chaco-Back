@@ -265,7 +265,7 @@ Ejecutando python manage.py seed_datos_base
 
 Si aparece `Comando personalizado detectado`, el bootstrap no corrió. Salidas: quitar `command`/`args`, o un initContainer/Job con la misma imagen y `args: ["bootstrap"]` (one-shot: migra, recolecta, siembra y termina). Ejemplo: `docker/k8s/bootstrap-initcontainer.yaml`.
 
-**2. Las variables van como env del pod.** Las del bloque *Arranque del contenedor* y `DJANGO_SETTINGS_MODULE` las lee el script de inicio, no Django: un archivo montado no alcanza.
+**2. Las variables van como env del pod.** Las del bloque *Arranque del contenedor* y `DJANGO_SETTINGS_MODULE` las lee el script de inicio, no Django: un archivo montado no alcanza. Síntoma típico de que no llegaron: líneas de `django.utils.autoreload` en el log del pod — significa que el contenedor está corriendo el servidor de desarrollo porque le falta `APP_RUNTIME=daphne`.
 
 **3. HTTPS.** Con `settings_production` la app exige `DJANGO_ALLOWED_HOSTS` (falla al arrancar si falta) y redirige a HTTPS: el ingress **debe enviar `X-Forwarded-Proto: https`**, o toda petición entra en bucle de redirección.
 
@@ -273,11 +273,11 @@ Si aparece `Comando personalizado detectado`, el bootstrap no corrió. Salidas: 
 
 **5. Websockets.** Un solo proceso daphne atiende HTTP y `/ws/`; el ingress debe pasar los encabezados `Upgrade` y `Connection`.
 
-**6. Probes.** `/health/` sirve como liveness y readiness.
+**6. Probes.** `/health/` sirve como liveness y readiness — y hace falta además un **startupProbe** holgado (`periodSeconds: 10`, `failureThreshold: 60`): el primer arranque tarda minutos y sin él el liveness mata el bootstrap a mitad de camino, dejando el pod en loop de reinicios (exit 137, sin error en el log). Los puertos tienen que ser consistentes: `APP_PORT` = `containerPort` = `targetPort` del Service = puerto de las probes.
 
 **7. Tareas programadas = CronJob**, uno por comando de la tabla anterior. Plantillas: `docker/k8s/cronjobs.yaml`. `sincronizar_programas_siis` jamás en el arranque del pod.
 
-**8. Base propia.** El pin `mysql:8.0.32` es una limitación de la VM, no del sistema: en Kubernetes se usa su MySQL 8 vía `DATABASE_*`.
+**8. Base de datos y Redis propios.** El pin `mysql:8.0.32` es una limitación de la VM, no del sistema: en Kubernetes se usa su MySQL 8 vía `DATABASE_*` (MariaDB funciona; el warning `W036` de las constraints condicionales aparece igual con ambos motores y esas reglas las valida la aplicación). Y hace falta un **Redis** provisto por la plataforma —la app lo usa para caché y websockets, un `redis:7-alpine` alcanza—, apuntado con `REDIS_*`.
 
 ### :material-update: Actualizar a una versión nueva
 
