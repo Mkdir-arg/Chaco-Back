@@ -1,0 +1,41 @@
+{% extends "includes/base.html" %}
+{% block title %}Becas · {{ definicion.titulo }}{% endblock %}
+{% block main-content %}
+<div class="mb-8">
+  <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <a href="{% url 'becas:reportes' %}" class="text-sm text-fg-brand hover:underline"><i class="fas fa-arrow-left"></i> Reportes</a>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight mt-2">{{ definicion.titulo }}</h1>
+      <p class="text-sm text-body-subtle mt-1">{{ definicion.descripcion }}</p>
+    </div>
+    {% if puede_exportar and not error %}
+      <div class="flex gap-2">
+        <a href="{% url 'becas:reporte_exportar' codigo 'csv' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-file-csv"></i> CSV</a>
+        <a href="{% url 'becas:reporte_exportar' codigo 'xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn-nodo btn-primary btn-base"><i class="fas fa-file-excel"></i> XLSX</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <form method="get" class="flex items-end gap-3 mb-4 flex-wrap">
+    {% if codigo == 'cupos' or codigo == 'avance' or codigo == 'produccion' or codigo == 'beneficiarios' %}
+      <div><label class="block text-sm text-body-subtle font-medium mb-1" for="segmento">Segmento</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="segmento" name="segmento"><option value="">Todos</option>{% for item in segmentos %}<option value="{{ item.pk }}" {% if request.GET.segmento == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.nombre }}</option>{% endfor %}</select></div>
+    {% endif %}
+    {% if codigo == 'avance' or codigo == 'produccion' or codigo == 'embudo' or codigo == 'beneficiarios' %}
+      <div><label class="block text-sm text-body-subtle font-medium mb-1" for="desde">Desde</label><input class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" type="date" id="desde" name="desde" value="{{ request.GET.desde }}"></div>
+      <div><label class="block text-sm text-body-subtle font-medium mb-1" for="hasta">Hasta</label><input class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" type="date" id="hasta" name="hasta" value="{{ request.GET.hasta }}"></div>
+    {% endif %}
+    {% if codigo == 'avance' %}<div><label class="block text-sm text-body-subtle font-medium mb-1" for="estado">Estado</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="estado" name="estado"><option value="">Todas</option><option value="activas" {% if request.GET.estado == 'activas' %}selected{% endif %}>Activas</option><option value="cerradas" {% if request.GET.estado == 'cerradas' %}selected{% endif %}>Cerradas</option></select></div>{% endif %}
+    {% if codigo == 'produccion' %}<div><label class="block text-sm text-body-subtle font-medium mb-1" for="territorial">Territorial</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="territorial" name="territorial"><option value="">Todos</option>{% for item in territoriales %}<option value="{{ item.pk }}" {% if request.GET.territorial == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.get_full_name|default:item.username }}</option>{% endfor %}</select></div>{% endif %}
+    {% if codigo == 'embudo' or codigo == 'beneficiarios' %}<div><label class="block text-sm text-body-subtle font-medium mb-1" for="convocatoria">Convocatoria</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="convocatoria" name="convocatoria"><option value="">Todas</option>{% for item in convocatorias %}<option value="{{ item.pk }}" {% if request.GET.convocatoria == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.nombre }}</option>{% endfor %}</select></div>{% endif %}
+    {% if codigo == 'cupos' %}<label class="text-sm text-body flex items-center gap-2 pb-2"><input type="checkbox" name="solo_activos" value="1" {% if request.GET.solo_activos == '1' %}checked{% endif %}> Solo activos</label>{% endif %}
+    <button class="btn-nodo btn-primary btn-base" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+    <a class="btn-nodo btn-tertiary btn-base" href="{% url 'becas:reporte_detalle' codigo %}">Limpiar</a>
+  </form>
+
+  {% if error %}<div class="rounded-lg border border-danger bg-danger-subtle p-4 text-sm text-danger mb-4">{{ error }}</div>{% endif %}
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if reporte and reporte.filas %}<div class="overflow-x-auto"><table class="w-full border-collapse whitespace-nowrap"><thead><tr class="bg-secondary border-b border-base">{% for encabezado in reporte.encabezados %}<th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">{{ encabezado }}</th>{% endfor %}</tr></thead><tbody>{% for fila in reporte.filas %}<tr class="hover:bg-secondary">{% for valor in fila %}<td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ valor|default_if_none:"—" }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+    {% elif not error %}<div class="py-14 px-6 text-center"><i class="fas fa-chart-column text-5xl text-fg-brand"></i><p class="text-[17px] font-bold text-heading mt-3">Sin resultados</p><p class="text-sm text-body mt-1">No hay datos para los filtros aplicados.</p></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

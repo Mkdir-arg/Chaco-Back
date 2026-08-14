@@ -424,6 +424,8 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.assertEqual(resp.status_code, 302)
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertIsNotNone(self.form_a.fecha_aprobacion)
+        self.assertIsNone(self.form_a.fecha_rechazo)
 
     def test_rechazar_sin_motivo_falla(self):
         self.client.post(reverse("becas:formulario_rechazar", args=[self.form_a.pk]), {"motivo": ""})
@@ -438,6 +440,8 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
         self.assertEqual(self.form_a.motivo_rechazo, "Documentación incompleta")
+        self.assertIsNotNone(self.form_a.fecha_rechazo)
+        self.assertIsNone(self.form_a.fecha_aprobacion)
 
 
 class TransicionesRelevamientoTests(_BaseRevisionTest):

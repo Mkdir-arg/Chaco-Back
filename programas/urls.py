@@ -7,11 +7,15 @@ from programas.views import cupo as cpo
 from programas.views import pausas as pau
 from programas.views import relevamientos as rel
 from programas.views import revision as rev
+from programas.views import reportes_becas as rpt
 from programas.views import solapas_becas as sb
 
 app_name = "becas"
 
 urlpatterns = [
+    path("reportes/", rpt.ReportesHubView.as_view(), name="reportes"),
+    path("reportes/<str:reporte>/", rpt.ReporteBecasView.as_view(), name="reporte_detalle"),
+    path("reportes/<str:reporte>/export/<str:formato>/", rpt.ReporteBecasExportView.as_view(), name="reporte_exportar"),
     path("pausas/<str:tipo>/<int:pk>/", pau.gestionar_pausa, name="gestionar_pausa"),
     # --- Configuración: Programas (SIIS) ---
     path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),

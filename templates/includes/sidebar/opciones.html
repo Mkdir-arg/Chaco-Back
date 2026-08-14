@@ -408,7 +408,7 @@
         {% endif %}
 
         {# ── Programas (grupo colapsable) ─────────────────────── #}
-        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" %}
+        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or request.user|puede:"becas.reportes.ver" %}
         <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -532,12 +532,21 @@
                             Revisión
                         </a>
                         {% endif %}
+                        {% if request.user|puede:"becas.reportes.ver" %}
+                        <a href="{% url 'becas:reportes' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/reportes' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}">
+                            <i class="fas fa-chart-column" style="width:16px; text-align:center;"></i>
+                            Reportes
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% if request.user|puede:'becas.segmento.ver' %}{% url 'becas:segmentos' %}{% elif request.user|puede:'becas.convocatoria.ver' %}{% url 'becas:convocatorias' %}{% elif request.user|puede:'becas.relevamiento.ver' %}{% url 'becas:relevamientos' %}{% else %}{% url 'becas:revision' %}{% endif %}"
+                <a href="{% if request.user|puede:'becas.segmento.ver' %}{% url 'becas:segmentos' %}{% elif request.user|puede:'becas.convocatoria.ver' %}{% url 'becas:convocatorias' %}{% elif request.user|puede:'becas.relevamiento.ver' %}{% url 'becas:relevamientos' %}{% elif request.user|puede:'becas.revision.ver' %}{% url 'becas:revision' %}{% else %}{% url 'becas:reportes' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"

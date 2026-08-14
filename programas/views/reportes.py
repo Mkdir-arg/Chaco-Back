@@ -8,6 +8,7 @@ from openpyxl import Workbook
 
 from programas.models import Merendero
 from programas.services.dispositivos import dispositivos_visibles
+from programas.services.exportacion_reportes import respuesta_reporte
 from programas.services.reportes import (
     filtrar_dispositivos,
     filtrar_merenderos,
@@ -32,6 +33,7 @@ def _celda_segura(valor):
 
 
 def _respuesta(reporte, formato, nombre):
+    return respuesta_reporte(reporte, formato, nombre)
     filas = ([_celda_segura(valor) for valor in fila] for fila in reporte.filas)
     if formato == "csv":
         response = HttpResponse(content_type="text/csv; charset=utf-8")

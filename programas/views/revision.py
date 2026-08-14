@@ -15,6 +15,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views.generic import ListView
 
@@ -445,7 +446,10 @@ def formulario_resolver_duplicado(request, pk):
             formulario.estado = Formulario.Estado.RECHAZADO
             formulario.motivo_rechazo = f"Carga duplicada del Formulario {previo.numero}."
             formulario.conflicto_resuelto = True
-            formulario.save(update_fields=["estado", "motivo_rechazo", "conflicto_resuelto", "modificado"])
+            formulario.fecha_rechazo = timezone.now()
+            formulario.save(
+                update_fields=["estado", "motivo_rechazo", "conflicto_resuelto", "fecha_rechazo", "modificado"]
+            )
             registrar_traza(
                 formulario,
                 request.user,
@@ -458,7 +462,8 @@ def formulario_resolver_duplicado(request, pk):
                 return redirect("becas:formulario_detalle", pk=formulario.pk)
             previo.estado = Formulario.Estado.RECHAZADO
             previo.motivo_rechazo = f"Reemplazado por la carga duplicada del Formulario {formulario.numero}."
-            previo.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+            previo.fecha_rechazo = timezone.now()
+            previo.save(update_fields=["estado", "motivo_rechazo", "fecha_rechazo", "modificado"])
             formulario.conflicto_resuelto = True
             formulario.save(update_fields=["conflicto_resuelto", "modificado"])
             registrar_traza(
@@ -489,7 +494,8 @@ def formulario_rechazar(request, pk):
         estado_anterior = formulario.estado
         formulario.estado = Formulario.Estado.RECHAZADO
         formulario.motivo_rechazo = motivo
-        formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+        formulario.fecha_rechazo = timezone.now()
+        formulario.save(update_fields=["estado", "motivo_rechazo", "fecha_rechazo", "modificado"])
         registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
         messages.success(request, "Formulario rechazado.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)

@@ -8,6 +8,7 @@ como estructura base pero no se muta aquí.
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
+from django.utils import timezone
 
 from programas.models import Formulario, ListaEspera, Segmento
 from programas.services.becas import registrar_traza
@@ -85,7 +86,8 @@ def promover_lista_espera(lista_espera, user):
     formulario = lista_espera.formulario
     estado_anterior = formulario.estado
     formulario.estado = Formulario.Estado.APROBADO
-    formulario.save(update_fields=["estado", "modificado"])
+    formulario.fecha_aprobacion = timezone.now()
+    formulario.save(update_fields=["estado", "fecha_aprobacion", "modificado"])
 
     lista_espera.promovido = True
     lista_espera.save(update_fields=["promovido", "modificado"])
@@ -121,7 +123,8 @@ def aprobar_o_poner_en_espera(formulario, user):
         estado_anterior = formulario.estado
         formulario.estado = Formulario.Estado.APROBADO
         formulario.motivo_rechazo = ""
-        formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
+        formulario.fecha_aprobacion = timezone.now()
+        formulario.save(update_fields=["estado", "motivo_rechazo", "fecha_aprobacion", "modificado"])
         registrar_traza(formulario, user, [("estado", estado_anterior, Formulario.Estado.APROBADO)])
         return "aprobado"
 
