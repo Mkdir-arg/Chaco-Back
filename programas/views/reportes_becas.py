@@ -58,6 +58,9 @@ class ReporteBecasView(ReportesPermissionMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        ctx["error"] = ""
+        ctx["page_obj"] = None
+        ctx["paginator"] = None
         codigo = self.kwargs["reporte"]
         definicion = REPORTES.get(codigo)
         if not definicion:
@@ -83,6 +86,16 @@ class ReporteBecasView(ReportesPermissionMixin, TemplateView):
             ).distinct(),
             "puede_exportar": puede(self.request.user, "becas.reportes.exportar", programa=programa_becas()),
             "querystring": self.request.GET.urlencode(),
+            "filtro_segmento": self.request.GET.get("segmento", ""),
+            "filtro_desde": self.request.GET.get("desde", ""),
+            "filtro_hasta": self.request.GET.get("hasta", ""),
+            "filtro_estado": self.request.GET.get("estado", ""),
+            "filtro_territorial": self.request.GET.get("territorial", ""),
+            "filtro_convocatoria": self.request.GET.get("convocatoria", ""),
+            "filtro_solo_activos": self.request.GET.get("solo_activos", ""),
+            "advanced": False,
+            "allow_or": False,
+            "reset_url": self.request.path,
         })
         return ctx
 

@@ -1,12 +1,16 @@
 """Exportación común de datasets tabulares a CSV y XLSX."""
 
 import csv
+from datetime import datetime
 
 from django.http import HttpResponse, HttpResponseBadRequest
+from django.utils import timezone
 from openpyxl import Workbook
 
 
 def celda_segura(valor):
+    if isinstance(valor, datetime) and timezone.is_aware(valor):
+        return timezone.localtime(valor).replace(tzinfo=None)
     if isinstance(valor, str) and valor.lstrip().startswith(("=", "+", "-", "@")):
         return f"'{valor}"
     return valor

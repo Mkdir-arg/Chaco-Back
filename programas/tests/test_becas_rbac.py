@@ -58,8 +58,11 @@ class RbacBecasTests(TestCase):
         self.assertTrue(rbac.puede(self.admin, "becas.revision.editar", programa=self.becas))
         self.assertFalse(rbac.puede(self.coord, "becas.programa.administrar", programa=self.becas))
         self.assertTrue(rbac.puede(self.coord, "becas.revision.editar", programa=self.becas))
+        self.assertTrue(rbac.puede(self.coord, "becas.reportes.ver", programa=self.becas))
+        self.assertTrue(rbac.puede(self.coord, "becas.reportes.exportar", programa=self.becas))
         self.assertTrue(rbac.puede(self.territorial, "becas.campo", programa=self.becas))
         self.assertFalse(rbac.puede(self.territorial, "becas.revision.editar", programa=self.becas))
+        self.assertFalse(rbac.puede(self.territorial, "becas.reportes.ver", programa=self.becas))
 
     def test_admin_recibe_el_alcance_de_los_abm_del_programa(self):
         """El seed le da las dos capacidades transversales explícitamente.

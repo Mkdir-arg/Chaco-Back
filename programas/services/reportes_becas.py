@@ -6,7 +6,12 @@ from django.db.models import Count, OuterRef, Sum, Subquery
 from django.utils import timezone
 
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, Segmento, ValidacionSIS
-from programas.services.autorizacion import convocatorias_visibles, segmentos_visibles, subsegmentos_visibles
+from programas.services.autorizacion import (
+    convocatorias_visibles,
+    es_coordinador_regional_becas,
+    segmentos_visibles,
+    subsegmentos_visibles,
+)
 from programas.services.reportes import Reporte
 
 
@@ -18,8 +23,6 @@ def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
     segmentos = segmentos_visibles(user).select_related("programa")
     if segmento_id:
         segmentos = segmentos.filter(pk=segmento_id)
-    if solo_activos:
-        segmentos = segmentos.filter(activo=True, pausado=False)
     convs = convocatorias_visibles(user)
     distribuido_por_segmento = dict(
         subsegmentos_visibles(user).values("segmento_id").annotate(total=Sum("cupo_maximo")).values_list("segmento_id", "total")
@@ -34,6 +37,7 @@ def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
         .values("segmento_id").annotate(total=Count("pk")).values_list("segmento_id", "total")
     )
     filas = []
+    alcance_regional = es_coordinador_regional_becas(user)
     for segmento in segmentos:
         distribuido = distribuido_por_segmento.get(segmento.pk, 0)
         ocupado = ocupado_por_segmento.get(segmento.pk, 0)
@@ -45,7 +49,20 @@ def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
             estado = "Pausado"
         else:
             estado = "Activo"
-        filas.append((segmento.nombre, segmento.cupo_maximo, distribuido, ocupado, max(segmento.cupo_maximo - ocupado, 0), espera, estado))
+        if solo_activos and estado != "Activo":
+            continue
+        cupo_maximo = distribuido if alcance_regional else segmento.cupo_maximo
+        filas.append(
+            (
+                segmento.nombre,
+                cupo_maximo,
+                distribuido,
+                ocupado,
+                max(cupo_maximo - ocupado, 0),
+                espera,
+                estado,
+            )
+        )
     return Reporte(("Segmento", "Cupo máximo", "Distribuido", "Ocupado", "Disponible", "Lista de espera", "Estado"), tuple(filas))
 
 
