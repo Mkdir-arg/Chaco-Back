@@ -22,7 +22,7 @@
     {% endif %}
   </div>
 
-  <form method="get" class="flex items-end gap-3 mb-4 flex-wrap">
+  <form method="get" data-dynamic-list-filters role="search">
     {% if codigo == 'cupos' or codigo == 'avance' or codigo == 'produccion' or codigo == 'beneficiarios' %}
       <div><label class="block text-sm text-body-subtle font-medium mb-1" for="segmento">Segmento</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="segmento" name="segmento"><option value="">Todos</option>{% for item in segmentos %}<option value="{{ item.pk }}" {% if request.GET.segmento == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.nombre }}</option>{% endfor %}</select></div>
     {% endif %}
@@ -33,9 +33,7 @@
     {% if codigo == 'avance' %}<div><label class="block text-sm text-body-subtle font-medium mb-1" for="estado">Estado</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="estado" name="estado"><option value="">Todas</option><option value="activas" {% if request.GET.estado == 'activas' %}selected{% endif %}>Activas</option><option value="cerradas" {% if request.GET.estado == 'cerradas' %}selected{% endif %}>Cerradas</option></select></div>{% endif %}
     {% if codigo == 'produccion' %}<div><label class="block text-sm text-body-subtle font-medium mb-1" for="territorial">Territorial</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="territorial" name="territorial"><option value="">Todos</option>{% for item in territoriales %}<option value="{{ item.pk }}" {% if request.GET.territorial == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.get_full_name|default:item.username }}</option>{% endfor %}</select></div>{% endif %}
     {% if codigo == 'embudo' or codigo == 'beneficiarios' %}<div><label class="block text-sm text-body-subtle font-medium mb-1" for="convocatoria">Convocatoria</label><select class="rounded-full border border-base bg-white px-4 py-1.5 text-sm" id="convocatoria" name="convocatoria"><option value="">Todas</option>{% for item in convocatorias %}<option value="{{ item.pk }}" {% if request.GET.convocatoria == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.nombre }}</option>{% endfor %}</select></div>{% endif %}
-    {% if codigo == 'cupos' %}<label class="text-sm text-body flex items-center gap-2 pb-2"><input type="checkbox" name="solo_activos" value="1" {% if request.GET.solo_activos == '1' %}checked{% endif %}> Solo activos</label>{% endif %}
-    <button class="btn-nodo btn-primary btn-base" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
-    <a class="btn-nodo btn-tertiary btn-base" href="{% url 'becas:reporte_detalle' codigo %}">Limpiar</a>
+    {% if codigo == 'cupos' %}<input type="checkbox" name="solo_activos" value="1" aria-label="Solo activos" {% if request.GET.solo_activos == '1' %}checked{% endif %}>{% endif %}
   </form>
 
   {% if error %}<div class="rounded-lg border border-danger bg-danger-subtle p-4 text-sm text-danger mb-4">{{ error }}</div>{% endif %}
