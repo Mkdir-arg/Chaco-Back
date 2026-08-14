@@ -3,12 +3,14 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseBadRequest
+from django.core.paginator import Paginator
 from django.views.generic import TemplateView, View
 
 from core.rbac import puede
 from programas.services.autorizacion import convocatorias_visibles, programa_becas, segmentos_visibles, usuarios_territoriales_becas
 from programas.services.exportacion_reportes import respuesta_reporte
 from programas.services.reportes import parsear_periodo
+from programas.services.reportes import Reporte
 from programas.services import reportes_becas as datasets
 
 
@@ -65,6 +67,13 @@ class ReporteBecasView(ReportesPermissionMixin, TemplateView):
             reporte = definicion["funcion"](self.request.user, **_parametros(self.request, codigo))
         except ValueError as error:
             reporte, ctx["error"] = None, str(error)
+        if codigo == "beneficiarios" and reporte is not None:
+            paginator = Paginator(reporte.filas, 25)
+            page_obj = paginator.get_page(self.request.GET.get("page"))
+            reporte = Reporte(reporte.encabezados, tuple(page_obj.object_list))
+            query = self.request.GET.copy()
+            query.pop("page", None)
+            ctx.update({"page_obj": page_obj, "paginator": paginator, "pagination_query": query.urlencode()})
         ctx.update({
             "codigo": codigo, "definicion": definicion, "reporte": reporte,
             "segmentos": segmentos_visibles(self.request.user),

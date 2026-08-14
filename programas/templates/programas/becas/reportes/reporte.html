@@ -39,6 +39,15 @@
   {% if error %}<div class="rounded-lg border border-danger bg-danger-subtle p-4 text-sm text-danger mb-4">{{ error }}</div>{% endif %}
   <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% if reporte and reporte.filas %}<div class="overflow-x-auto"><table class="w-full border-collapse whitespace-nowrap"><thead><tr class="bg-secondary border-b border-base">{% for encabezado in reporte.encabezados %}<th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">{{ encabezado }}</th>{% endfor %}</tr></thead><tbody>{% for fila in reporte.filas %}<tr class="hover:bg-secondary">{% for valor in fila %}<td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ valor|default_if_none:"—" }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+    {% if page_obj and paginator.num_pages > 1 %}
+      <div class="flex items-center justify-between px-4 py-3 border-t border-light bg-secondary gap-3 flex-wrap">
+        <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ paginator.num_pages }} · {{ paginator.count }} beneficiarios</span>
+        <div class="flex gap-2">
+          {% if page_obj.has_previous %}<a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>{% endif %}
+          {% if page_obj.has_next %}<a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>{% endif %}
+        </div>
+      </div>
+    {% endif %}
     {% elif not error %}<div class="py-14 px-6 text-center"><i class="fas fa-chart-column text-5xl text-fg-brand"></i><p class="text-[17px] font-bold text-heading mt-3">Sin resultados</p><p class="text-sm text-body mt-1">No hay datos para los filtros aplicados.</p></div>{% endif %}
   </div>
 </div>
