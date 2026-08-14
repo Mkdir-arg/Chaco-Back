@@ -10,7 +10,7 @@ DNI; el pedido vigente del cliente es **ampliar qué datos se toman de acá**
 | | |
 |---|---|
 | **Responsable técnico (ECOM)** | Lucas Sebastián Ibañez |
-| **Vía / intermediario** | Federico Daniel Aguirre |
+| **Vía / intermediario** | Federico Daniel Aguirre (aclaró el 27/07/2026 que la Gran Base la arma ECOM internamente, con otro equipo — ver [siis-api.md](siis-api.md)) |
 | **Recibido** | Correo del **31/07/2026 10:36**, asunto *"Documentacion API BD Personas"* |
 | **Adjuntos del correo** | Colección Postman parametrizada ([copia acá](gran-base-personas.postman_collection.json)) + captura de respuesta de ejemplo |
 | **Entorno entregado** | `https://personas.ecomdev.ar/api/v1` (desarrollo) |

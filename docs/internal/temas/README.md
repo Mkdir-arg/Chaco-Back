@@ -17,3 +17,4 @@ referencian *dónde* están y *quién* las entregó.
 | Documento | Tema | Actualizado |
 |-----------|------|-------------|
 | [gran-base-personas.md](gran-base-personas.md) | Integración API Base de Personas / "Gran Base" (ECOM) | 2026-08-14 |
+| [siis-api.md](siis-api.md) | Integración API SIIS — convenio DATAÑACH v1 (ECOM) | 2026-08-14 |
