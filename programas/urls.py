@@ -6,8 +6,8 @@ from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
 from programas.views import pausas as pau
 from programas.views import relevamientos as rel
-from programas.views import revision as rev
 from programas.views import reportes_becas as rpt
+from programas.views import revision as rev
 from programas.views import solapas_becas as sb
 
 app_name = "becas"

@@ -99,7 +99,11 @@ class ReportesBecasTests(TestCase):
             "celular": "3624000000",
             "email_contacto": "reporte@example.com",
             "estado": estado,
-            "datos_identificacion": {"dni": str(40000000 + Formulario.objects.count()), "nombre": "Persona", "apellido": "Prueba"},
+            "datos_identificacion": {
+                "dni": str(40000000 + Formulario.objects.count()),
+                "nombre": "Persona",
+                "apellido": "Prueba",
+            },
         }
         valores.update(extra)
         return Formulario.objects.create(**valores)
@@ -108,9 +112,7 @@ class ReportesBecasTests(TestCase):
         grupo = Group.objects.create(name="Becas — Reportes consulta")
         RolMeta.objects.create(grupo=grupo, programa=programa_becas(), activo=True)
         content_type = ContentType.objects.get_for_model(Capacidad)
-        permiso = Permission.objects.get(
-            content_type=content_type, codename=rbac.codename_de("becas.reportes.ver")
-        )
+        permiso = Permission.objects.get(content_type=content_type, codename=rbac.codename_de("becas.reportes.ver"))
         grupo.permissions.add(permiso)
         usuario = User.objects.create_user("reportes-solo-ver", password="x")
         usuario.groups.add(grupo)
@@ -148,9 +150,7 @@ class ReportesBecasTests(TestCase):
         formulario = self._formulario(
             self.rel_propio, Formulario.Estado.RECHAZADO, validado_renaper=True, motivo_rechazo="Documentación"
         )
-        ValidacionSIS.objects.create(
-            formulario=formulario, estado=ValidacionSIS.Estado.ERROR, documento="40000001"
-        )
+        ValidacionSIS.objects.create(formulario=formulario, estado=ValidacionSIS.Estado.ERROR, documento="40000001")
         ValidacionSIS.objects.create(
             formulario=formulario,
             estado=ValidacionSIS.Estado.RECHAZADO,
@@ -186,9 +186,7 @@ class ReportesBecasTests(TestCase):
         self.client.force_login(usuario)
 
         self.assertEqual(self.client.get(reverse("becas:reportes")).status_code, 200)
-        self.assertEqual(
-            self.client.get(reverse("becas:reporte_exportar", args=["cupos", "csv"])).status_code, 403
-        )
+        self.assertEqual(self.client.get(reverse("becas:reporte_exportar", args=["cupos", "csv"])).status_code, 403)
 
     def test_sin_permiso_no_accede_por_url(self):
         self.client.force_login(self.territorial)

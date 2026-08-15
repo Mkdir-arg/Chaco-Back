@@ -408,7 +408,7 @@
         {% endif %}
 
         {# ── Programas (grupo colapsable) ─────────────────────── #}
-        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or request.user|puede:"becas.reportes.ver" %}
+        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or puede_reportes or request.user|puede:"becas.reportes.ver" %}
         <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -532,7 +532,7 @@
                             Revisión
                         </a>
                         {% endif %}
-                        {% if request.user|puede:"becas.reportes.ver" %}
+                        {% if puede_reportes or request.user|puede:"becas.reportes.ver" %}
                         <a href="{% url 'becas:reportes' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);

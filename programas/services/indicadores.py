@@ -53,7 +53,10 @@ def indicadores_dispositivo(dispositivo, hoy=None):
     if ultimo_registro is None:
         actualizacion = {"dias": None, "semaforo": "SIN_DATOS"}
     else:
-        dias = max((hoy - ultimo_registro.modificado.date()).days, 0)
+        # ``hoy`` es una fecha local; compararla con una fecha UTC vuelve el
+        # semáforo dependiente de la hora en que corre el proceso.
+        fecha_modificacion = timezone.localtime(ultimo_registro.modificado).date()
+        dias = max((hoy - fecha_modificacion).days, 0)
         actualizacion = {
             "dias": dias,
             "semaforo": _semaforo_actualizacion(
