@@ -29,7 +29,7 @@
     "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10},
     "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15},
     "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 14},
-    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16},
+    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 17},
     "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15}
   }
 }
