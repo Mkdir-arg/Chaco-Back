@@ -362,10 +362,22 @@ function metricValue(value) {
     return value === null || value === undefined ? 'No disponible' : value;
 }
 
-function updateQueryMetricsStatus(source) {
+function updateQueryMetricsStatus(queryMetric, window) {
     const status = document.getElementById('query-metrics-status');
-    if (source === 'measured') {
-        status.textContent = 'Métricas de consultas medidas en solicitudes instrumentadas de este proceso.';
+    if (queryMetric.source === 'measured') {
+        const scopes = {
+            shared_ci_run: 'compartidas entre workers para esta corrida de CI',
+            shared_fixed_window: 'compartidas entre workers en una ventana fija',
+            local_fixed_window: 'locales en una ventana fija',
+        };
+        const details = [scopes[queryMetric.scope] || 'con alcance no informado'];
+        if (window && window.kind === 'fixed' && window.seconds) {
+            details.push(`ventana de ${window.seconds} segundos`);
+        }
+        if (queryMetric.retention_seconds) {
+            details.push(`retención de ${queryMetric.retention_seconds} segundos`);
+        }
+        status.textContent = `Métricas de consultas medidas: ${details.join(', ')}.`;
         status.className = 'text-success mb-0';
         return;
     }
@@ -390,9 +402,12 @@ function updateDashboard() {
     fetch('/performance-api/')
         .then(response => response.json())
         .then(data => {
-            const querySource = data.metrics && data.metrics.queries ? data.metrics.queries.source : 'unavailable';
+            const queryMetric = data.metrics && data.metrics.queries
+                ? data.metrics.queries
+                : {source: 'unavailable', scope: null, retention_seconds: null};
+            const querySource = queryMetric.source;
             const metricsAvailable = querySource === 'measured';
-            updateQueryMetricsStatus(querySource);
+            updateQueryMetricsStatus(queryMetric, data.real_time ? data.real_time.window : null);
             document.getElementById('performance-score').textContent = metricValue(data.performance_score);
             document.getElementById('total-queries').textContent = metricValue(data.total_queries);
             

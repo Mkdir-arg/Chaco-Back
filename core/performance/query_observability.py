@@ -1,6 +1,7 @@
 """Métricas HTTP agregadas, sin SQL ni datos personales."""
 
 import hashlib
+import logging
 import time
 from collections import defaultdict
 from contextvars import ContextVar
@@ -10,9 +11,14 @@ from django.conf import settings
 from django.urls import Resolver404, resolve
 
 METRICS_VERSION = "v1"
+logger = logging.getLogger(__name__)
 _LOCAL_LOCK = Lock()
 _LOCAL_BUCKETS = defaultdict(lambda: defaultdict(int))
 _MEASUREMENT = ContextVar("performance_measurement", default=None)
+_REDIS_STATE_LOCK = Lock()
+_REDIS_DEGRADED = False
+_REDIS_LAST_WARNING = 0.0
+_REDIS_WARNING_INTERVAL_SECONDS = 60.0
 _UPDATE_MAXIMA_SCRIPT = """
 for index = 1, #ARGV, 2 do
     local field = ARGV[index]
@@ -28,8 +34,40 @@ return 1
 
 def reset_local_metrics_for_tests():
     """Aísla tests; nunca se invoca en un entorno servido."""
+    global _REDIS_DEGRADED, _REDIS_LAST_WARNING
     with _LOCAL_LOCK:
         _LOCAL_BUCKETS.clear()
+    with _REDIS_STATE_LOCK:
+        _REDIS_DEGRADED = False
+        _REDIS_LAST_WARNING = 0.0
+
+
+def _mark_redis_degraded(operation, error):
+    """Informa la degradación sin registrar endpoints, payloads ni credenciales."""
+    global _REDIS_DEGRADED, _REDIS_LAST_WARNING
+    now = time.monotonic()
+    with _REDIS_STATE_LOCK:
+        _REDIS_DEGRADED = True
+        should_warn = now - _REDIS_LAST_WARNING >= _REDIS_WARNING_INTERVAL_SECONDS
+        if should_warn:
+            _REDIS_LAST_WARNING = now
+    if should_warn:
+        logger.warning(
+            "Redis de métricas no disponible durante %s; se informarán métricas no disponibles hasta una escritura exitosa (%s).",
+            operation,
+            type(error).__name__,
+        )
+
+
+def _mark_redis_healthy():
+    global _REDIS_DEGRADED
+    with _REDIS_STATE_LOCK:
+        _REDIS_DEGRADED = False
+
+
+def _redis_is_degraded():
+    with _REDIS_STATE_LOCK:
+        return _REDIS_DEGRADED
 
 
 def route_name(path):
@@ -81,7 +119,7 @@ def instrument_external_call(dependency, call, *args, **kwargs):
             measurement.record_dependency(dependency, (time.monotonic() - started) * 1000, True)
         raise
     if measurement:
-        failed = getattr(result, "status_code", 200) >= 500
+        failed = getattr(result, "status_code", 200) >= 400
         measurement.record_dependency(dependency, (time.monotonic() - started) * 1000, failed)
     return result
 
@@ -108,7 +146,8 @@ class QueryObservabilityStore:
             from django_redis import get_redis_connection
 
             return get_redis_connection("performance")
-        except Exception:
+        except Exception as exc:
+            _mark_redis_degraded("conexión", exc)
             return None
 
     def _local_allowed(self):
@@ -154,8 +193,10 @@ class QueryObservabilityStore:
                 )
                 pipeline.expire(key, self.retention_seconds)
                 pipeline.execute()
-            except Exception:
+            except Exception as exc:
+                _mark_redis_degraded("escritura", exc)
                 return
+            _mark_redis_healthy()
             return
         if self._local_allowed():
             with _LOCAL_LOCK:
@@ -175,7 +216,10 @@ class QueryObservabilityStore:
         if redis:
             try:
                 raw = {k.decode() if isinstance(k, bytes) else k: v for k, v in redis.hgetall(key).items()}
-            except Exception:
+            except Exception as exc:
+                _mark_redis_degraded("lectura", exc)
+                raw = {}
+            if _redis_is_degraded():
                 raw = {}
         elif self._local_allowed():
             with _LOCAL_LOCK:

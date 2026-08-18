@@ -33,6 +33,9 @@ class BrokenRedis:
     def hsetnx(self, *_args):
         return self
 
+    def eval(self, *_args):
+        return self
+
     def expire(self, *_args):
         return self
 
@@ -41,6 +44,13 @@ class BrokenRedis:
 
     def hgetall(self, *_args):
         raise ConnectionError("redis down")
+
+
+class StaleRedis(BrokenRedis):
+    """Simula una escritura fallida seguida por una lectura de datos anteriores."""
+
+    def hgetall(self, *_args):
+        return {b"total_requests": b"1"}
 
 
 class PerformanceObservabilityTests(TestCase):
@@ -64,6 +74,12 @@ class PerformanceObservabilityTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Métricas de consultas no disponibles")
+
+    def test_dashboard_describes_shared_metric_scope(self):
+        response = self.client.get(reverse("core:performance_dashboard"))
+
+        self.assertContains(response, "compartidas entre workers")
+        self.assertNotContains(response, "de este proceso")
 
     def test_query_analysis_does_not_report_missing_telemetry_as_zero(self):
         response = self.client.get(reverse("core:query_analysis_api"))
@@ -139,6 +155,19 @@ class QueryCountMiddlewareTests(TestCase):
         self.assertEqual(snapshot["total_requests"], 1)
         self.assertEqual(snapshot["routes"][0]["dependencies"]["renaper"]["calls"], 1)
 
+    def test_records_http_4xx_as_external_dependency_error(self):
+        response = type("Response", (), {"status_code": 404})()
+
+        def get_response(_request):
+            instrument_external_call("personas", lambda: response)
+            return HttpResponse("ok")
+
+        QueryCountMiddleware(get_response)(RequestFactory().get("/inicio/"))
+        dependency = QueryObservabilityStore().snapshot()["routes"][0]["dependencies"]["personas"]
+
+        self.assertEqual(dependency["calls"], 1)
+        self.assertEqual(dependency["errors"], 1)
+
     def test_records_duplicate_query_count_without_persisting_sql(self):
         user = User.objects.create_user("duplicate-observability-user", password="test-password")
 
@@ -169,6 +198,17 @@ class QueryCountMiddlewareTests(TestCase):
         with patch.object(QueryObservabilityStore, "_redis", return_value=BrokenRedis()):
             response = middleware(RequestFactory().get("/inicio/"))
             report = QueryObservabilityStore().snapshot()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["metrics_source"], "unavailable")
+
+    def test_failed_redis_write_does_not_report_stale_metrics_as_measured(self):
+        middleware = QueryCountMiddleware(lambda _request: HttpResponse("ok"))
+
+        with self.assertLogs("core.performance.query_observability", level="WARNING"):
+            with patch.object(QueryObservabilityStore, "_redis", return_value=StaleRedis()):
+                response = middleware(RequestFactory().get("/inicio/"))
+                report = QueryObservabilityStore().snapshot()
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(report["metrics_source"], "unavailable")
