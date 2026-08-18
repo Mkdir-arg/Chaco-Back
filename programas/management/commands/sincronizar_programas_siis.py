@@ -1,6 +1,6 @@
-"""Sincroniza contra SIIS el estado de los programas vinculados a segmentos.
+"""Sincroniza contra SIIS el estado de los programas vinculados.
 
-Idempotente: solo escribe los segmentos cuyo estado cambió. Pensado para correr
+Idempotente: solo escribe los programas cuyo estado cambió. Pensado para correr
 a diario (cron del host) y también en el arranque del contenedor, igual que
 ``procesar_vencimientos``.
 
@@ -10,19 +10,19 @@ a diario (cron del host) y también en el arranque del contenedor, igual que
 
 from django.core.management.base import BaseCommand, CommandError
 
-from programas.models import Segmento
+from programas.models import ProgramaSiis
 from programas.services.siis import SiisCatalogError
 from programas.services.siis_sync import sincronizar_estado_programas
 
 
 class Command(BaseCommand):
-    help = "Actualiza el estado (ACTIVO/INACTIVO) de los programas SIIS vinculados a los segmentos."
+    help = "Actualiza el estado (ACTIVO/INACTIVO) de los programas SIIS vinculados."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="No modifica nada; solo informa qué segmentos cambiarían de estado.",
+            help="No modifica nada; solo informa qué programas cambiarían de estado.",
         )
 
     def handle(self, *args, **options):
@@ -37,14 +37,12 @@ class Command(BaseCommand):
             return
 
         prefijo = "[dry-run] " if dry else ""
-        for segmento, anterior, nuevo in cambios:
-            linea = (
-                f"{prefijo}{segmento.nombre} (programa SIIS #{segmento.siis_programa_id}): {anterior or '—'} → {nuevo}"
-            )
-            if nuevo in Segmento.ESTADOS_SIIS_BLOQUEANTES:
-                self.stdout.write(self.style.WARNING(f"{linea} — el segmento queda bloqueado para operar."))
+        for programa, anterior, nuevo in cambios:
+            linea = f"{prefijo}{programa.nombre} (programa SIIS #{programa.siis_programa_id}): {anterior or '—'} → {nuevo}"
+            if nuevo in ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES:
+                self.stdout.write(self.style.WARNING(f"{linea} — el programa y sus segmentos quedan bloqueados."))
             else:
                 self.stdout.write(self.style.SUCCESS(linea))
 
         verbo = "a actualizar" if dry else "actualizado(s)"
-        self.stdout.write(self.style.SUCCESS(f"Listo. {len(cambios)} segmento(s) {verbo}."))
+        self.stdout.write(self.style.SUCCESS(f"Listo. {len(cambios)} programa(s) {verbo}."))

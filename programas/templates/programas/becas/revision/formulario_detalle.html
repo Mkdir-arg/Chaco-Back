@@ -422,7 +422,7 @@
     <p class="text-sm text-body-subtle">Todavía no se consultó la compatibilidad de esta persona.</p>
     {% endif %}
     <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
-      {% if puede_revalidar_renaper %}
+      {% if puede_validar_siis %}
       <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}">
         {% csrf_token %}
         <button type="submit" class="btn-nodo btn-brand btn-base">{% if validacion_sis %}Reintentar validación SIIS{% else %}Validar con SIIS{% endif %}</button>

@@ -5,8 +5,7 @@
     "query_margin": "Baseline de Fase 1 + aproximadamente 20%, redondeado hacia arriba.",
     "maintenance": "Subir un max_queries requiere editar este archivo en el mismo PR que introduce la necesidad, con justificacion visible para review.",
     "adjustments": {
-      "becas_relevamiento_detalle": "14→15: consulta fija del control de sesión única de Backoffice; el N+1 detectado en legajo_detalle fue eliminado sin ampliar su presupuesto.",
-      "becas_relevamientos": "16→17: consulta fija del control de sesión única de Backoffice; la medición permanece constante con 200 registros y no presenta un N+1."
+      "becas_relevamiento_detalle": "14→15: consulta fija del control de sesión única de Backoffice; el N+1 detectado en legajo_detalle fue eliminado sin ampliar su presupuesto."
     },
     "timing": {
       "reference_total_ms": 220.92,
@@ -30,7 +29,7 @@
     "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10},
     "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15},
     "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 14},
-    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 17},
+    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16},
     "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15}
   }
 }

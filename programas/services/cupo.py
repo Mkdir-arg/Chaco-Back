@@ -39,7 +39,8 @@ def motivo_bloqueo_aprobacion(formulario):
         return "El formulario debe tener un ciudadano con DNI vinculado."
 
     segmento = formulario.relevamiento.convocatoria.segmento
-    if not segmento.siis_programa_id:
+    programa = segmento.programa
+    if programa is None:
         return "El segmento no tiene un programa SIIS configurado."
 
     validacion = formulario.validaciones_sis.order_by("-creado").first()
@@ -53,7 +54,7 @@ def motivo_bloqueo_aprobacion(formulario):
         return "La última validación SIIS no tiene un resultado válido para aprobar."
     if str(validacion.documento).strip() != str(formulario.ciudadano.dni).strip():
         return "La validación SIIS no corresponde al DNI actual del formulario."
-    if validacion.id_programa != segmento.siis_programa_id:
+    if validacion.id_programa != programa.siis_programa_id:
         return "La validación SIIS no corresponde al programa actual del formulario."
     return None
 

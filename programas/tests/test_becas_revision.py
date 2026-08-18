@@ -22,6 +22,7 @@ from programas.models import (
     Formulario,
     ListaEspera,
     PreguntaGlobal,
+    ProgramaSiis,
     Relevamiento,
     Segmento,
     TipoCampo,
@@ -476,11 +477,20 @@ class ReportesBecasTests(_BaseRevisionTest):
 class AprobarRechazarTests(_BaseRevisionTest):
     def setUp(self):
         super().setUp()
+        self.siis = patch("programas.services.validacion_siis.validar_compatibilidad")
+        self.validar_compatibilidad = self.siis.start()
+        self.addCleanup(self.siis.stop)
+        self.validar_compatibilidad.return_value = {
+            "success": True,
+            "compatible": True,
+            "data": {"id_programa": 41, "validaciones": {}},
+        }
         self.ciudadano = Ciudadano.objects.create(
             dni="24459123", nombre="Persona", apellido="Compatible", fecha_nacimiento=date(1975, 2, 20), genero="F"
         )
-        self.seg_a.siis_programa_id = 41
-        self.seg_a.save(update_fields=["siis_programa_id"])
+        self.programa = ProgramaSiis.objects.create(nombre="Programa SIIS", siis_programa_id=41)
+        self.seg_a.programa = self.programa
+        self.seg_a.save(update_fields=["programa"])
         self.form_a.ciudadano = self.ciudadano
         self.form_a.validado_renaper = True
         self.form_a.save(update_fields=["ciudadano", "validado_renaper"])
@@ -499,6 +509,7 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.assertEqual(resp.status_code, 302)
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.validar_compatibilidad.assert_called_once()
 
     def test_no_aprueba_identidad_sin_validar(self):
         self.form_a.validado_renaper = False
@@ -509,26 +520,30 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
 
-    def test_no_aprueba_sin_validacion_siis(self):
+    def test_aprobar_dispara_validacion_siis_aunque_no_haya_previa(self):
         self.validacion.delete()
 
         self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
 
         self.form_a.refresh_from_db()
-        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertTrue(self.form_a.validaciones_sis.filter(estado=ValidacionSIS.Estado.OK).exists())
 
     def test_no_aprueba_si_siis_rechazo(self):
-        self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
-        self.validacion.save(update_fields=["estado"])
+        self.validar_compatibilidad.return_value = {
+            "success": True,
+            "compatible": False,
+            "data": {"id_programa": 41, "validaciones": {"empleo_publico": "INCOMPATIBLE_PLANTA"}},
+        }
 
         self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
 
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
 
-    def test_no_aprueba_con_validacion_de_otro_programa(self):
-        self.validacion.id_programa = 99
-        self.validacion.save(update_fields=["id_programa"])
+    def test_no_aprueba_si_el_segmento_no_tiene_programa(self):
+        self.seg_a.programa = None
+        self.seg_a.save(update_fields=["programa"])
 
         self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
 
@@ -570,6 +585,30 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
         self.assertEqual(self.form_a.motivo_rechazo, "Documentación incompleta")
+        self.validar_compatibilidad.assert_called_once()
+
+    def test_rechazar_registra_error_si_siis_no_responde(self):
+        self.validar_compatibilidad.return_value = {"success": False, "error": "Timeout", "data": {}}
+
+        self.client.post(
+            reverse("becas:formulario_rechazar", args=[self.form_a.pk]),
+            {"motivo": "Documentación incompleta"},
+        )
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        self.assertEqual(self.form_a.validaciones_sis.first().estado, ValidacionSIS.Estado.ERROR)
+
+    def test_coordinador_puede_validar_siis_manualmente(self):
+        response = self.client.post(reverse("becas:formulario_validar_sis", args=[self.form_a.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.form_a.validaciones_sis.count(), 2)
+
+    def test_coordinador_ve_boton_validar_siis(self):
+        response = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(response, "Reintentar validación SIIS")
 
 
 class TransicionesRelevamientoTests(_BaseRevisionTest):

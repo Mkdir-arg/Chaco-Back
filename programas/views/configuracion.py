@@ -25,6 +25,7 @@ from core.rbac import CapacidadRequeridaMixin, puede_alguna, requiere
 from programas.forms import (
     AsignacionCoordinadorForm,
     PreguntaGlobalForm,
+    ProgramaSiisCreateForm,
     RequisitoNativoForm,
     SegmentoCreateForm,
     SegmentoForm,
@@ -33,6 +34,7 @@ from programas.forms import (
 from programas.models import (
     AsignacionCoordinador,
     PreguntaGlobal,
+    ProgramaSiis,
     RequisitoNativo,
     Segmento,
     Subsegmento,
@@ -40,6 +42,7 @@ from programas.models import (
 )
 from programas.services.autorizacion import (
     SegmentoScopedMixin,
+    es_admin_becas,
     es_coordinador_regional_becas,
     puede_gestionar_segmento,
     puede_operar_subsegmento,
@@ -80,6 +83,7 @@ def _assert_scope_subsegmento(request, subsegmento):
 def _segmentos_qs(user):
     return (
         segmentos_visibles(user)
+        .select_related("programa")
         .annotate(
             n_subsegmentos=Count("subsegmentos", distinct=True),
             n_coordinadores=Count("asignaciones_coordinador", distinct=True),
@@ -89,11 +93,19 @@ def _segmentos_qs(user):
     )
 
 
-def _segmentos_bloqueados_siis(user):
-    """Segmentos cuyo programa dejó de estar vigente en SIIS (aviso en pantalla)."""
-    return (
-        segmentos_visibles(user).filter(siis_programa_estado__in=Segmento.ESTADOS_SIIS_BLOQUEANTES).order_by("nombre")
-    )
+def _programas_qs(user):
+    """Programas SIIS que el usuario puede ver: todos para el admin; para el
+    resto, los que contienen alguno de sus segmentos visibles."""
+    if es_admin_becas(user):
+        base = ProgramaSiis.objects.all()
+    else:
+        base = ProgramaSiis.objects.filter(segmentos__in=segmentos_visibles(user)).distinct()
+    return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
+
+
+def _programas_bloqueados_siis(user):
+    """Programas que dejaron de estar vigentes en SIIS (aviso en pantalla)."""
+    return _programas_qs(user).filter(siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES)
 
 
 def _segmentos_ajax(request, message="Segmento guardado."):
@@ -101,10 +113,7 @@ def _segmentos_ajax(request, message="Segmento guardado."):
         request,
         target="#segmentos-table",
         partial="programas/becas/config/_segmentos_table.html",
-        context={
-            "segmentos": _segmentos_qs(request.user),
-            "segmentos_bloqueados_siis": _segmentos_bloqueados_siis(request.user),
-        },
+        context={"segmentos": _segmentos_qs(request.user)},
         message=message,
     )
 
@@ -117,6 +126,19 @@ def _requisitos_segmento_ajax(request, segmento, message="Requisito guardado."):
         context={
             "requisitos": segmento.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id"),
             "segmento": segmento,
+        },
+        message=message,
+    )
+
+
+def _requisitos_programa_ajax(request, programa, message="Requisito guardado."):
+    return ajax_ok(
+        request,
+        target="#reqs-programa-panel",
+        partial="programas/becas/config/_requisitos_programa_panel.html",
+        context={
+            "requisitos": programa.requisitos.order_by("orden", "id"),
+            "programa": programa,
         },
         message=message,
     )
@@ -137,7 +159,11 @@ def _requisitos_subsegmento_ajax(request, subsegmento, message="Requisito guarda
 
 
 def _requisitos_reqseg_qs(user, segmento_id=None, subsegmento_id=None):
-    qs = requisitos_visibles(user).select_related("segmento", "subsegmento").order_by("segmento__nombre", "orden", "id")
+    qs = (
+        requisitos_visibles(user)
+        .select_related("programa", "segmento", "subsegmento")
+        .order_by("segmento__nombre", "orden", "id")
+    )
     if segmento_id:
         qs = qs.filter(segmento_id=segmento_id)
     if subsegmento_id:
@@ -158,6 +184,76 @@ def _requisitos_reqseg_ajax(request, message="Guardado."):
 
 
 # ---------------------------------------------------------------------------
+# Programas (SIIS)
+# ---------------------------------------------------------------------------
+class ProgramaSiisListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
+    model = ProgramaSiis
+    capacidades_requeridas = CAP_SEGMENTO_VER
+    template_name = "programas/becas/config/programa_list.html"
+    context_object_name = "programas"
+
+    def get_queryset(self):
+        return _programas_qs(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_programa"] = ProgramaSiisCreateForm()
+        ctx["programas_bloqueados_siis"] = _programas_bloqueados_siis(self.request.user)
+        return ctx
+
+
+class ProgramaSiisCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, CreateView):
+    model = ProgramaSiis
+    capacidades_requeridas = CAP_SEGMENTO_CREAR
+    form_class = ProgramaSiisCreateForm
+    template_name = "programas/becas/config/programa_list.html"
+    success_url = reverse_lazy("becas:programas")
+
+    def form_valid(self, form):
+        self.object = form.save()
+        # "Guardar y configurar": ir al detalle a cargar los segmentos.
+        detalle = reverse("becas:programa_detalle", args=[self.object.pk])
+        if is_ajax(self.request):
+            return ajax_redirect(detalle, "Programa vinculado — agregá sus segmentos.")
+        messages.success(self.request, "Programa vinculado.")
+        return redirect(detalle)
+
+    def form_invalid(self, form):
+        if is_ajax(self.request):
+            return ajax_errors(form)
+        return super().form_invalid(form)
+
+
+class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
+    model = ProgramaSiis
+    capacidades_requeridas = CAP_SEGMENTO_VER
+    template_name = "programas/becas/config/programa_detail.html"
+    context_object_name = "programa"
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not _programas_qs(self.request.user).filter(pk=obj.pk).exists():
+            raise PermissionDenied("No tiene acceso a este programa.")
+        return obj
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        programa = self.object
+        segmentos = (
+            segmentos_visibles(self.request.user)
+            .filter(programa=programa)
+            .annotate(n_subsegmentos=Count("subsegmentos", distinct=True))
+            .prefetch_related("asignaciones_coordinador__coordinador")
+            .order_by("nombre")
+        )
+        ctx["segmentos"] = segmentos
+        ctx["requisitos"] = programa.requisitos.order_by("orden", "id")
+        ctx["form_segmento"] = SegmentoCreateForm(initial={"programa": programa.pk})
+        ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
+        return ctx
+
+
+# ---------------------------------------------------------------------------
 # Segmentos
 # ---------------------------------------------------------------------------
 class SegmentoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
@@ -172,7 +268,6 @@ class SegmentoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_segmento"] = SegmentoCreateForm()
-        ctx["segmentos_bloqueados_siis"] = _segmentos_bloqueados_siis(self.request.user)
         return ctx
 
 
@@ -265,6 +360,10 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
             "territorial__first_name", "territorial__last_name", "territorial__username"
         )
         ctx["requisitos"] = seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
+        # Heredados del programa: solo lectura acá, se editan en el detalle del programa.
+        ctx["requisitos_programa"] = (
+            seg.programa.requisitos.order_by("orden", "id") if seg.programa_id else RequisitoNativo.objects.none()
+        )
         ctx["form_segmento"] = SegmentoForm(instance=seg)
         ctx["form_subsegmento"] = SubsegmentoForm(segmento=seg)
         ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
@@ -432,8 +531,33 @@ def coordinador_desasignar(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Requisitos nativos (de segmento o de subsegmento)
+# Requisitos nativos (de programa, segmento o subsegmento)
 # ---------------------------------------------------------------------------
+@login_required
+@requiere(CAP_REQUISITO_CREAR)
+def requisito_programa_crear(request, programa_pk):
+    programa = get_object_or_404(ProgramaSiis, pk=programa_pk)
+    if not es_admin_becas(request.user):
+        raise PermissionDenied("Solo el Administrador del programa puede configurar sus requisitos.")
+    if request.method == "POST":
+        form = RequisitoNativoForm(request.POST, programa=programa)
+        if form.is_valid():
+            form.save()
+            if is_ajax(request):
+                return _requisitos_programa_ajax(request, programa, message="Requisito agregado.")
+            messages.success(request, "Requisito agregado.")
+            return redirect("becas:programa_detalle", pk=programa.pk)
+        elif is_ajax(request):
+            return ajax_errors(form)
+    else:
+        form = RequisitoNativoForm(programa=programa)
+    return render(
+        request,
+        "programas/becas/config/requisito_form.html",
+        {"form": form, "programa": programa},
+    )
+
+
 @login_required
 @requiere(CAP_REQUISITO_CREAR)
 def requisito_crear(request, segmento_pk):
@@ -468,11 +592,21 @@ def requisito_crear(request, segmento_pk):
     )
 
 
+def _assert_scope_requisito(request, req):
+    """Scope según el ancla: segmento/subsegmento → gestión del segmento;
+    programa → solo el Administrador del programa."""
+    if req.segmento_id:
+        _assert_scope(request, req.segmento)
+    elif not es_admin_becas(request.user):
+        raise PermissionDenied("Solo el Administrador del programa puede configurar sus requisitos.")
+
+
 @login_required
 @requiere(CAP_REQUISITO_EDITAR)
 def requisito_eliminar(request, pk):
     req = get_object_or_404(RequisitoNativo, pk=pk)
-    _assert_scope(request, req.segmento)
+    _assert_scope_requisito(request, req)
+    programa_pk = req.programa_id
     segmento_pk = req.segmento_id
     subsegmento_pk = req.subsegmento_id
     if request.method == "POST":
@@ -480,14 +614,17 @@ def requisito_eliminar(request, pk):
         messages.success(request, "Requisito eliminado.")
     if subsegmento_pk:
         return redirect("becas:subsegmento_detalle", pk=subsegmento_pk)
-    return redirect("becas:segmento_detalle", pk=segmento_pk)
+    if segmento_pk:
+        return redirect("becas:segmento_detalle", pk=segmento_pk)
+    return redirect("becas:programa_detalle", pk=programa_pk)
 
 
 @login_required
 @requiere(CAP_REQUISITO_EDITAR)
 def requisito_editar(request, pk):
     req = get_object_or_404(RequisitoNativo, pk=pk)
-    _assert_scope(request, req.segmento)
+    _assert_scope_requisito(request, req)
+    programa = req.programa
     segmento = req.segmento
     subsegmento = req.subsegmento
     if request.method == "POST":
@@ -499,11 +636,15 @@ def requisito_editar(request, pk):
                     return _requisitos_subsegmento_ajax(request, subsegmento, message="Requisito actualizado.")
                 if request.POST.get("scope") == "reqseg":
                     return _requisitos_reqseg_ajax(request, message="Requisito actualizado.")
-                return _requisitos_segmento_ajax(request, segmento, message="Requisito actualizado.")
+                if segmento:
+                    return _requisitos_segmento_ajax(request, segmento, message="Requisito actualizado.")
+                return _requisitos_programa_ajax(request, programa, message="Requisito actualizado.")
             messages.success(request, "Requisito actualizado.")
             if subsegmento:
                 return redirect("becas:subsegmento_detalle", pk=subsegmento.pk)
-            return redirect("becas:segmento_detalle", pk=segmento.pk)
+            if segmento:
+                return redirect("becas:segmento_detalle", pk=segmento.pk)
+            return redirect("becas:programa_detalle", pk=programa.pk)
         elif is_ajax(request):
             return ajax_errors(form)
     else:
@@ -511,7 +652,7 @@ def requisito_editar(request, pk):
     return render(
         request,
         "programas/becas/config/requisito_form.html",
-        {"form": form, "segmento": segmento, "subsegmento": subsegmento, "requisito": req},
+        {"form": form, "programa": programa, "segmento": segmento, "subsegmento": subsegmento, "requisito": req},
     )
 
 
@@ -559,10 +700,14 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         sub = self.object
-        ctx["segmento"] = sub.segmento
-        ctx["requisitos_heredados"] = sub.segmento.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
+        seg = sub.segmento
+        ctx["segmento"] = seg
+        # Herencia completa: primero los del programa, después los del segmento.
+        heredados = list(seg.programa.requisitos.order_by("orden", "id")) if seg.programa_id else []
+        heredados += list(seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id"))
+        ctx["requisitos_heredados"] = heredados
         ctx["requisitos_propios"] = sub.requisitos.order_by("orden", "id")
-        ctx["form_requisito"] = RequisitoNativoForm(segmento=sub.segmento, subsegmento=sub)
+        ctx["form_requisito"] = RequisitoNativoForm(segmento=seg, subsegmento=sub)
         return ctx
 
 

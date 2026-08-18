@@ -173,6 +173,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 29 | El bootstrap unificado en `seed_datos_base` | Transversal / infraestructura | `#infra` `#rbac` `#datos` | PM — vio que en el testing de ECOM faltaban roles de Becas | 11/08/2026 | 🟢 **Hecho** | No |
 | 30 | La guía cubre el despliegue en Kubernetes desde cero | Transversal / infraestructura | `#infra` `#siis` | PM — pidió el repaso final de la guía para setear el sistema desde cero en Kubernetes | 11/08/2026 | 🟢 **Hecho** | No |
 | 31 | La imagen autosuficiente para Kubernetes | Transversal / infraestructura | `#infra` `#relevamientos` `#ui` | PM — «que quede para levantarse en Kubernetes en todos los aspectos» | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
+| 32 | Programas (SIIS) por encima de los segmentos | Becas / estructura | `#siis` `#convocatorias` `#requisitos` `#pausas` `#ui` | PM — pedido directo en sesión de trabajo | 13/08/2026 | 🟢 **Hecho** | `programas.0045` |
+| 33 | Prevalidación SIIS al aprobar o rechazar formularios | Becas / revisión | `#siis` `#rbac` `#cupos` | Análisis #72 y revisión del PR #233 | 18/08/2026 | 🟢 **Hecho sobre el contrato vigente** | No |
 
 **Notas del índice**
 
@@ -2212,11 +2214,149 @@ Dos hallazgos operativos de la prueba, para quien la repita: `k3d image import` 
 
 El cluster quedó corriendo para inspección manual (`http://10.5.6.209:8090` por VPN, usuario `admin-k8s`); se borra entero con `~/bin/k3d cluster delete datanach-test`.
 
+**13/08/2026 — El testing de ECOM quedó corriendo sobre la nueva arquitectura.** Tras un día de idas y vueltas con su equipo (liveness matando el bootstrap → startupProbe; ingress apuntando al service viejo de nginx; `APP_RUNTIME` ausente que levantaba `runserver` — diagnosticado por las líneas de `autoreload` en su log), el ambiente quedó estable: **initContainer `bootstrap` en exit 0, un solo deployment con daphne** (en su caso en el puerto 8001, `APP_PORT` configurable, Service y probes alineados), sin nginx ni deployment de websocket, base sembrada completa. Confirmado por su log: `Bootstrap listo. Iniciando Daphne`. La arquitectura de este cambio quedó validada también en la plataforma de ECOM, no solo en nuestra prueba k3d. Diferencia conocida de su ambiente: **MariaDB** en lugar de MySQL 8 — sin impacto funcional; el warning `W036` (constraints condicionales de admisiones no creadas) aplica igual a MySQL 8, esas reglas las valida la capa de aplicación.
+
 **11/08/2026, más tarde — re-revisión a pedido del PM («¿en teoría no hay ningún error?»).** Se releyeron los manifiestos y los claims de la documentación buscando errores, y aparecieron tres, corregidos en el momento:
 
 1. **El ejemplo del initContainer tenía un hueco real:** con `command` propio en el contenedor web, el `collectstatic` del bootstrap escribía en el filesystem efímero del initContainer y los estáticos nunca llegaban al contenedor que sirve — whitenoise sin manifest responde 500 en toda pantalla. Se agregó el `emptyDir` de `/app/staticfiles` compartido entre ambos, con el motivo comentado.
 2. **El comentario de horarios de `cronjobs.yaml` era impreciso:** decía «horarios en UTC-3 según el timezone del cluster», pero Kubernetes interpreta `schedule` en el timezone del controlador (UTC salvo configuración). Ahora indica `timeZone: America/Argentina/Buenos_Aires` (K8s ≥ 1.27) o correr los horarios tres horas.
 3. **Trampa de correo sin documentar:** el backend SMTP solo se activa con `ENVIRONMENT=prd`; con `qa` el correo sale por la consola del pod aunque el SMTP esté configurado. Es deliberado del código (un QA no debe mandar mails reales), pero nadie lo decía: quedó anotado en la plantilla y en la guía, con la salida (correr el QA con `prd` si necesita probar invitaciones de punta a punta).
+
+# Cambio 32 — Programas (SIIS) por encima de los segmentos
+
+🟢 **HECHO — 13/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — estructura del programa |
+| **Etiquetas** | `#siis` `#convocatorias` `#requisitos` `#pausas` `#ui` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, con demo el mismo día |
+| **Fecha del pedido** | 13/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API (formulario del territorial) · Infra (mismo cron del Cambio 22) |
+| **Migración** | `programas.0045` |
+
+## Pedido original
+
+> «Hoy día tenemos Segmentos y subsegmentos, que segmentos lo traemos de SIIS. La idea ahora es que sea Programas (integración con SIIS) → Segmentos → Subsegmentos. Un programa puede tener N cantidad de segmentos los cuales nosotros le ponemos el nombre.»
+
+Definiciones cerradas en la misma sesión: no puede existir un segmento sin programa (los datos actuales son de prueba); el nombre del programa se toma tal cual de SIIS como hoy hacía el segmento; el cupo se mantiene a nivel segmento; la pausa de un padre alcanza a todo lo de abajo como regla general; el coordinador sigue por segmento; y también hay requisitos a nivel programa.
+
+## Alcance acordado
+
+- Entidad nueva **Programa** (modelo `ProgramaSiis`; en la UI se llama «Programa»): es quien se vincula al catálogo de SIIS. El segmento pasa a ser local, con nombre puesto por el operador, N por programa.
+- La vigencia SIIS del Cambio 22 sube un nivel: el bloqueo es del programa y cascadea a todos sus segmentos.
+- Requisitos en cuatro niveles: generales, **de programa** (nuevo), de segmento y de subsegmento.
+- Fuera de alcance: cupo a nivel programa (queda por segmento), coordinador a nivel programa (queda por segmento), mover un segmento de programa desde la UI.
+
+## Decisiones tomadas
+
+- **El modelo interno se llama `ProgramaSiis`**, no `Programa`: ya existe `Programa` para los programas del sistema (Becas, Dispositivos…). En la UI y en los textos es simplemente «Programa».
+- **El segmento actual se partió en dos**: su identidad SIIS (id, foto congelada, estado corriente, fechas) se mudó a `ProgramaSiis`; el cuerpo local (nombre, descripción, cupo, GPS, activo) quedó en `Segmento`, que gana la FK `programa`.
+- **La FK del segmento al programa queda `null=True` en la base pero obligatoria en los formularios.** Motivo: los segmentos históricos sin vínculo SIIS (datos de prueba) siguen operando sin bloquearse y sin migración destructiva; el alta nueva siempre exige programa. La depuración de esos registros de prueba es manual.
+- **La unicidad se movió con la identidad**: antes un programa SIIS podía estar en un solo segmento (`uniq_segmento_siis_programa`); ahora es único por programa (`ProgramaSiis.siis_programa_id unique`) y el nombre del segmento es único dentro de su programa (`uniq_segmento_programa_nombre`), espejo del subsegmento.
+- **La cadena de pausa gana un eslabón**: programa → segmento → subsegmento → convocatoria → relevamiento. El programa es pausable a mano (misma pantalla `gestionar_pausa`, tipo `programa`) y su `pausa_efectiva` respeta el criterio del Cambio 22: la pausa manual tiene precedencia y el bloqueo automático por SIIS nunca escribe el campo `pausado`.
+- **El nombre del segmento dejó de autocompletarse desde SIIS**: ahora es obligatorio y libre (era el pedido central). El que toma el nombre del catálogo es el programa, congelado al vincular.
+- **Los requisitos de programa los heredan todos sus segmentos** en el formulario del territorial (generales + programa + segmento + subsegmento). El autonumerado y la unicidad de orden **por lista** del Cambio 23 suman la lista del programa como un alcance más.
+- **Capacidades reutilizadas**: las pantallas de Programas usan `becas.segmento.ver/crear` — quien administra la estructura de segmentos administra sus programas. No se crearon capacidades nuevas para no tocar el seed de roles.
+- En la pantalla de revisión, los requisitos de programa se muestran junto a los del segmento (sin sección propia). Simplificación consciente para la demo.
+
+## Implementación
+
+- **Config de Becas gana la pantalla «Programas»** (`/becas/config/programas/`), primera entrada del menú del programa: listado con estado (Activo/Pausado + chip «SIIS inactivo»), franja de aviso por bajas de SIIS (la del Cambio 22, mudada acá), botón «!» con el detalle congelado, alta que es solo el selector del catálogo y detalle con dos pestañas: sus segmentos (con alta con programa fijo) y sus requisitos.
+- El alta global de segmento (pantalla Segmentos) cambia el selector SIIS por un selector de Programa + campo Nombre obligatorio; la tabla suma la columna Programa y su chip SIIS ahora refleja el estado del programa.
+- El detalle de segmento muestra el programa (solo lectura, con link) y los requisitos heredados del programa en su pestaña de requisitos; el detalle de subsegmento hereda programa + segmento.
+- `sincronizar_programas_siis` actualiza ahora una fila por programa (antes, por segmento). Mismo cron (`docker/cron/sincronizar_programas_siis.cron`), sin cambios de infra.
+- La validación SIS de revisión toma el `siis_programa_id` del programa del segmento.
+- El selector de convocatorias del alta de relevamiento excluye las de programas pausados o no vigentes (antes miraba el estado en el segmento); los segmentos históricos sin programa no se excluyen.
+- `seed_becas_demo_mobile` crea el programa demo («Chaco Joven» #34) y le cuelga los segmentos.
+
+## Archivos
+
+- `programas/models/__init__.py` — `ProgramaSiis`, `Segmento.programa`, `RequisitoNativo.programa`
+- `programas/migrations/0045_programa_siis.py`
+- `programas/forms.py` — `ProgramaSiisCreateForm`, `SegmentoForm`/`SegmentoCreateForm` sin SIIS, `RequisitoNativoForm` con ancla programa, exclusión en `RelevamientoForm`
+- `programas/views/configuracion.py` — vistas de Programas, requisito de programa, ajustes de contexto
+- `programas/views/pausas.py` — tipo `programa` en `gestionar_pausa`
+- `programas/views/revision.py` — validación SIS por el programa del segmento
+- `programas/services/siis_sync.py` + `programas/management/commands/sincronizar_programas_siis.py`
+- `programas/services/becas.py` — herencia de requisitos de programa en el formulario
+- `programas/services/autorizacion.py` — `requisitos_visibles` con el ancla programa
+- `programas/templatetags/becas_extras.py` — `siis_info` sobre `ProgramaSiis`
+- `programas/urls.py`, `programas/admin.py`
+- Templates: `programa_list.html`, `programa_detail.html`, `_programas_table.html`, `_requisitos_programa_panel.html` (nuevos); `segmento_list.html`, `_segmentos_table.html`, `segmento_detail.html`, `_siis_programa_modal.html`, `requisito_form.html`, `_requisitos_page_table.html` (ajustados); `templates/includes/sidebar/opciones.html` (entrada Programas)
+- `programas/management/commands/seed_becas_demo_mobile.py`
+- Tests: `test_siis_vigencia_programa.py` (reescrito al nuevo nivel), `test_becas_config.py`, `test_becas_models.py`
+
+## Base de datos
+
+`programas.0045`: crea `ProgramaSiis`, agrega `Segmento.programa` y `RequisitoNativo.programa` (nulos), copia los datos —un programa por cada segmento vinculado, desde su foto congelada, y cuelga el segmento— y recién después borra los cinco campos `siis_*` del segmento y cambia las constraints. Es segura sobre datos existentes: la unicidad previa garantizaba a lo sumo un segmento por programa SIIS, y los segmentos sin vínculo quedan con programa nulo sin bloquearse.
+
+## Validación
+
+- `programas.tests.test_siis_vigencia_programa`: 22 pruebas del ciclo completo en el nivel nuevo — snapshot al vincular, doble vínculo rechazado, alta de segmento con nombre local y unicidad por programa, sincronización (baja, ausencia, idempotencia, dry-run, snapshot intacto), bloqueo en cascada hasta el relevamiento, pausa manual del programa cascadeando, precedencia de la pausa del segmento, segmento histórico sin programa que no se bloquea, y la salida de la convocatoria del selector por ambas vías.
+- Suites de programas + usuarios/RBAC: 498 tests; los únicos fallos (110 errores de render + 1 falla de cache de Dispositivos) se verificaron **idénticos en `development`** corriendo la misma suite en un worktree limpio: son el baseline conocido de Python 3.14 + Django 4.2 (los tests de vista no renderizan en este entorno), no de este cambio.
+- `manage.py check` sin errores; `makemigrations --check` sin cambios pendientes; `scripts/design_audit.py --changed` 0/0; `scripts/compile_templates.py` 306 OK / 0 errores.
+
+## Puesta en marcha en el servidor
+
+Nada nuevo: el cron del Cambio 22 sigue siendo el mismo comando. Aplicar la migración con respaldo previo, como siempre.
+
+## Pendientes / a definir
+
+- Depurar a mano los segmentos de prueba sin programa (quedan visibles con «—» en la columna Programa).
+- La sección de revisión muestra los requisitos de programa dentro del bloque del segmento; si el cliente quiere verlos separados, es un ajuste de template.
+- Los E2E de Playwright que pasen por el alta de segmento van a necesitar actualizar el flujo (ahora se elige programa y se escribe el nombre).
+
+## Reversión
+
+Antes de revertir, **respaldar la base**: la reversión de `programas.0045` elimina la tabla de programas y los campos `programa` de segmentos y requisitos — se pierde el vínculo SIIS de los segmentos (la migración de datos no tiene reversa automática) y los requisitos de programa quedan huérfanos de ancla. Pasos: revertir el código, correr `migrate programas 0044` y re-vincular los programas SIIS desde el alta de segmentos de la versión anterior.
+
+## Historial
+
+No aplica: entrada nueva. Sube de nivel lo implementado en el **Cambio 22** (vigencia SIIS) y le da al **Cambio 8** (incorporar programas de ECOM) la estructura que le faltaba: cuando los cuatro programas entren al catálogo, cada uno podrá tener N segmentos propios.
+
+# Cambio 33 — Prevalidación SIIS al aprobar o rechazar formularios
+
+🟢 **Hecho sobre el contrato vigente**
+
+**Programa:** Becas / revisión
+
+**Etiquetas:** `#siis` `#rbac` `#cupos`
+
+**Solicitante:** Análisis #72 y revisión del PR #233
+
+**Fecha del pedido:** 18/08/2026
+
+## Pedido
+
+Consultar SIIS de forma automática y síncrona cuando un Coordinador aprueba o rechaza un formulario, además de permitir el reintento manual dentro de su segmento.
+
+## Decisiones tomadas
+
+- La consulta se realiza contra el programa SIIS asociado al segmento y se registra cada intento, incluido un timeout o error técnico.
+- Al aprobar, solo se continúa con una respuesta compatible para el DNI y programa actuales; recién entonces se asigna cupo o lista de espera.
+- Al rechazar, se registra la consulta antes de cambiar el estado local. Un error de SIIS queda visible para reintento, pero no impide documentar el rechazo decidido por Nodo.
+- El Coordinador usa `becas.revision.editar` para validar SIIS y conserva el alcance de sus segmentos. La revalidación de identidad continúa reservada a `becas.programa.administrar`.
+
+## Alcance pendiente del contrato externo
+
+La API vigente solo prevalida compatibilidad y no admite un parámetro que distinga aprobación de rechazo. La RN-25 del análisis #72 —enviar a SIIS el contexto de la decisión— queda pendiente hasta que ECOM defina ese contrato; no se inventan campos fuera del manual.
+
+## Archivos
+
+- `programas/services/validacion_siis.py`, `programas/services/cupo.py`
+- `programas/views/revision.py`
+- `programas/templates/programas/becas/revision/formulario_detalle.html`
+- `programas/tests/test_becas_revision.py`
+
+## Base de datos
+
+No requiere migración.
+
+## Historial
+
+Entrada nueva. Implementa el disparo posible con el contrato vigente y explicita el límite que mantiene parcialmente abierta la RN-25 de #72.
 
 # Verificaciones generales pendientes antes de desplegar
 

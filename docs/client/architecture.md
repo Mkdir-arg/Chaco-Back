@@ -422,18 +422,49 @@ Generada automáticamente por `drf-spectacular`:
 | `/api/docs/` | Swagger UI interactivo |
 | `/api/redoc/` | ReDoc (vista de lectura) |
 
-### 8.3 Integraciones salientes
+---
 
-| Integración | Cliente | Uso |
-|---|---|---|
-| RENAPER | `requests` con timeouts y reintentos configurables | Validación de identidad por DNI/CUIT |
-| OpenAI | SDK oficial `openai==1.3.0` | Asistencia IA en módulos puntuales |
+## 9. Integraciones activas
+
+El sistema se apoya en servicios externos para validar la identidad y la elegibilidad de las personas y para mantener sincronizados los catálogos provinciales. Todas las integraciones son **salientes** (DATAÑACH consume los servicios; no expone datos a terceros) y sus credenciales se gestionan fuera de esta documentación.
+
+```mermaid
+flowchart LR
+    DN["DATAÑACH"]
+    DN -->|"catálogo de programas +<br/>validación de compatibilidad"| SIIS["SIIS<br/>(ECOM)"]
+    DN -->|"consulta de personas<br/>por DNI"| GB["Base de Personas<br/>(Gran Base, ECOM)"]
+    DN -->|"validación de identidad"| REN["RENAPER"]
+```
+
+| Integración | Proveedor | Qué aporta al sistema | Estado |
+|---|---|---|---|
+| **SIIS** — Sistema Integrado de Información Social | ECOM | Catálogo maestro de programas sociales (el nivel «Programa» de Becas se vincula a él) y validación de compatibilidad de cada postulante antes de asignar el beneficio | :material-check-circle: Activa en entorno de prueba · producción en preparación (ECOM) |
+| **Base de Personas** («Gran Base») | ECOM | Consulta del padrón unificado provincial por DNI para validar los datos de las personas relevadas | :material-progress-check: Accesos de desarrollo entregados · fuente de datos predeterminada a confirmar |
+| **RENAPER** | Padrón nacional | Validación de identidad (DNI) durante el relevamiento en campo y revalidación en el backoffice | :material-check-circle: Activa |
+| **OpenAI** | — | Asistencia con IA en módulos puntuales | :material-check-circle: Activa |
+| **Correo saliente (SMTP)** | A definir con ECOM | Envío de credenciales de acceso al crear usuarios y restablecimiento de contraseña por correo | :material-clock-outline: En preparación |
+
+### 9.1 SIIS — Sistema Integrado de Información Social
+
+- **Autenticación máquina-a-máquina** con token de corta duración; ninguna persona opera la integración a mano.
+- **Sincronización automática y periódica** de la vigencia de los programas: si un programa deja de estar vigente en SIIS, el sistema lo bloquea en cascada (programa → segmentos → convocatorias → relevamientos).
+- **Validación de compatibilidad**: antes de asignar una beca, el sistema consulta la elegibilidad de la persona; cada consulta queda registrada de forma inmutable con su resultado y motivo (trazabilidad completa).
+
+### 9.2 Base de Personas («Gran Base»)
+
+- Consulta **por DNI** contra el padrón unificado provincial, con token de acceso renovado automáticamente.
+- La fuente de datos predeterminada está **a confirmar** con ECOM; está prevista la ampliación de los datos que el sistema toma de esta fuente.
+
+### 9.3 RENAPER
+
+- Validación de identidad en dos momentos: **en campo**, desde la app del territorial durante el relevamiento, y **en el backoffice**, como revalidación durante la revisión de formularios.
+- Cliente propio con tiempos de espera y reintentos controlados: si el servicio no responde, el sistema lo informa sin frenar la operación.
 
 ---
 
-## 9. Observabilidad y operación
+## 10. Observabilidad y operación
 
-### 9.1 Logging
+### 10.1 Logging
 
 Logging estructurado en archivos rotativos por nivel (`core.utils.DailyFileHandler`):
 
@@ -448,7 +479,7 @@ logs/
 
 `RequestLoggingMiddleware` agrega una línea por cada request con: método, ruta, usuario, IP (`X-Real-IP`), status code y duración en ms.
 
-### 9.2 Health checks
+### 10.2 Health checks
 
 ```
 GET /health/
@@ -459,7 +490,7 @@ Verifica DB, cache, uso de disco (`DISK_USAGE_MAX=90`) y memoria libre (`MEMORY_
 - `healthcheck` de Docker Compose (`interval: 30s`, `retries: 3`)
 - Nginx para confirmar disponibilidad antes de enrutar tráfico
 
-### 9.3 Profiling
+### 10.3 Profiling
 
 `django-silk` está instalado en `/silk/`:
 
@@ -472,7 +503,7 @@ Verifica DB, cache, uso de disco (`DISK_USAGE_MAX=90`) y memoria libre (`MEMORY_
 
 ---
 
-## 10. App móvil
+## 11. App móvil
 
 ```mermaid
 flowchart LR
@@ -487,7 +518,7 @@ flowchart LR
 
 ---
 
-## 11. CI/CD y documentación
+## 12. CI/CD y documentación
 
 - **Repositorio**: monorepo en GitHub (`Mkdir-arg/Chaco`)
 - **Pipelines**: GitHub Actions ejecuta tests, `manage.py check`, validación de migraciones
@@ -496,7 +527,7 @@ flowchart LR
 
 ---
 
-## 12. Decisiones arquitectónicas relevantes
+## 13. Decisiones arquitectónicas relevantes
 
 !!! quote "Monolito modular, no microservicios"
     El sistema se diseñó como **monolito Django con apps de dominio aisladas**. Mantenemos transaccionalidad fuerte (una sola DB), simplicidad operativa (un solo deploy) y posibilidad futura de extraer apps si una superficie justifica autonomía.
@@ -512,16 +543,16 @@ flowchart LR
 
 ---
 
-## 13. Arquitectura mínima recomendada para 50 usuarios
+## 14. Arquitectura mínima recomendada para 50 usuarios
 
-### 13.1 Premisas de dimensionamiento
+### 14.1 Premisas de dimensionamiento
 
 - **Usuarios concurrentes**: estimación de 50 operadores simultáneos en horario pico (8 a.m. - 6 p.m.)
 - **Carga esperada**: 10-15 requests HTTP/s promedio, picos de hasta 50 req/s, 5-10 conexiones WebSocket activas
 - **Volumen de datos inicial**: hasta 100.000 ciudadanos, 50.000 derivaciones, 1.000 conversaciones/mes
 - **Disponibilidad objetivo**: 99% mensual (máx. 7 h downtime/mes)
 
-### 13.2 Topología mínima
+### 14.2 Topología mínima
 
 ```mermaid
 flowchart TD
@@ -542,7 +573,7 @@ flowchart TD
     WS --> REDIS
 ```
 
-### 13.3 Especificación del servidor
+### 14.3 Especificación del servidor
 
 | Componente | Mínimo | Recomendado | Notas |
 |---|---|---|---|
@@ -552,7 +583,7 @@ flowchart TD
 | **Red** | 100 Mbps | 1 Gbps | Latencia < 10 ms a usuarios finales |
 | **SO** | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS | Kernel actualizado, `unattended-upgrades` activo |
 
-### 13.4 Asignación de recursos
+### 14.4 Asignación de recursos
 
 === "Gunicorn (HTTP)"
 
@@ -609,7 +640,7 @@ flowchart TD
     timeout 300
     ```
 
-### 13.5 Consideraciones de escalamiento horizontal
+### 14.5 Consideraciones de escalamiento horizontal
 
 Si el crecimiento supera los 50 usuarios:
 
@@ -620,7 +651,7 @@ Si el crecimiento supera los 50 usuarios:
 | **300 usuarios** | Cluster de 2 nodos web + load balancer (Nginx como balanceador) + MySQL dedicado + Redis Sentinel |
 | **500+ usuarios** | Considerar CDN para estáticos, MySQL replicado (read replicas), Redis Cluster, separación de servicios por dominio |
 
-### 13.6 Backup y recuperación
+### 14.6 Backup y recuperación
 
 - **MySQL**: dump diario comprimido (`mysqldump --single-transaction`) retenido por 7 días, semanal por 4 semanas
 - **Media files**: rsync diario a almacenamiento secundario (NAS, S3, Backblaze)
@@ -628,7 +659,7 @@ Si el crecimiento supera los 50 usuarios:
 - **RTO objetivo**: < 4 horas
 - **RPO objetivo**: < 24 horas
 
-### 13.7 Monitoreo básico
+### 14.7 Monitoreo básico
 
 - **Métricas de sistema**: CPU, RAM, disco, IOPS → agregar `node_exporter` + Prometheus + Grafana (o solución cloud: Datadog, New Relic)
 - **Aplicación**: logs estructurados parseados por `promtail` o `fluentd`, alertas en errores 5xx > 5/min
@@ -640,7 +671,7 @@ Si el crecimiento supera los 50 usuarios:
 
 ---
 
-## 14. Glosario técnico
+## 15. Glosario técnico
 
 `ASGI`
 :   Asynchronous Server Gateway Interface — protocolo Python para servidores asincrónicos (WebSocket, HTTP/2).

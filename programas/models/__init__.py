@@ -1165,27 +1165,25 @@ class CampoTipoDispositivo(TimeStamped):
         return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
 
 
-class Segmento(PausableMixin, TimeStamped):
-    """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2)."""
+class ProgramaSiis(PausableMixin, TimeStamped):
+    """Programa del catálogo SIIS: nivel superior de Becas.
+
+    Programa (SIIS) → Segmento → Subsegmento. El nombre se toma tal cual del
+    catálogo y el detalle se congela al vincular: es la referencia contra la
+    que se compara el estado que después informa SIIS. Un programa que deja de
+    estar vigente —o se pausa a mano— bloquea en cascada todos sus segmentos.
+    """
 
     class EstadoSiis(models.TextChoices):
         ACTIVO = "ACTIVO", "Activo"
         INACTIVO = "INACTIVO", "Inactivo"
         DESCONOCIDO = "DESCONOCIDO", "Desconocido"
 
-    # Estados de SIIS que dejan el segmento fuera de operación.
+    # Estados de SIIS que dejan el programa (y sus segmentos) fuera de operación.
     ESTADOS_SIIS_BLOQUEANTES = (EstadoSiis.INACTIVO, EstadoSiis.DESCONOCIDO)
 
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
-    descripcion = models.TextField(blank=True, verbose_name="Descripción")
-    cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
-    requiere_gps = models.BooleanField(
-        default=False,
-        verbose_name="Requiere geolocalización GPS",
-        help_text="Si está activo, el formulario del territorial pide lat/lng.",
-    )
-    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
-    siis_programa_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="ID de programa SIIS")
+    siis_programa_id = models.PositiveIntegerField(unique=True, verbose_name="ID de programa SIIS")
     # Foto del programa al momento de vincularlo: es la referencia contra la que
     # se compara después, y lo que muestra el detalle informativo.
     siis_programa_datos = models.JSONField(default=dict, blank=True, verbose_name="Detalle del programa SIIS")
@@ -1201,10 +1199,73 @@ class Segmento(PausableMixin, TimeStamped):
     siis_verificado_en = models.DateTimeField(null=True, blank=True, verbose_name="Última verificación con SIIS")
 
     class Meta:
+        verbose_name = "Programa SIIS"
+        verbose_name_plural = "Programas SIIS"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def siis_programa_nombre(self):
+        return (self.siis_programa_datos or {}).get("nombre") or self.nombre
+
+    @property
+    def siis_bloqueado(self):
+        """¿SIIS dejó de tener vigente el programa?"""
+        return self.siis_programa_estado in self.ESTADOS_SIIS_BLOQUEANTES
+
+    @property
+    def siis_motivo_bloqueo(self):
+        if not self.siis_bloqueado:
+            return ""
+        referencia = self.siis_programa_nombre or f"#{self.siis_programa_id}"
+        if self.siis_programa_estado == self.EstadoSiis.INACTIVO:
+            return f"El programa «{referencia}» pasó a INACTIVO en SIIS."
+        return f"SIIS ya no informa el programa «{referencia}»."
+
+    @property
+    def pausa_efectiva(self):
+        """Pausa manual o, si no, bloqueo automático por el estado en SIIS."""
+        if self.pausado:
+            return self
+        if self.siis_bloqueado:
+            return BloqueoSiis(self.siis_motivo_bloqueo)
+        return None
+
+
+class Segmento(PausableMixin, TimeStamped):
+    """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2).
+
+    Pertenece a un programa SIIS (Programa → Segmento → Subsegmento). El nombre
+    es local: lo pone el operador, ya no se toma del catálogo.
+    """
+
+    # Nulo solo por datos históricos anteriores al nivel Programa; el alta lo
+    # exige siempre (blank=False) y el vínculo con SIIS vive en el programa.
+    programa = models.ForeignKey(
+        ProgramaSiis,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=False,
+        related_name="segmentos",
+        verbose_name="Programa",
+    )
+    nombre = models.CharField(max_length=200, verbose_name="Nombre")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
+    requiere_gps = models.BooleanField(
+        default=False,
+        verbose_name="Requiere geolocalización GPS",
+        help_text="Si está activo, el formulario del territorial pide lat/lng.",
+    )
+    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+
+    class Meta:
         verbose_name = "Segmento"
         verbose_name_plural = "Segmentos"
         ordering = ["nombre"]
-        constraints = [models.UniqueConstraint(fields=["siis_programa_id"], name="uniq_segmento_siis_programa")]
+        constraints = [models.UniqueConstraint(fields=["programa", "nombre"], name="uniq_segmento_programa_nombre")]
 
     def __str__(self):
         return self.nombre
@@ -1226,31 +1287,11 @@ class Segmento(PausableMixin, TimeStamped):
             raise ValidationError({"cupo_maximo": f"El cupo no puede ser menor que los {ocupado} lugares ocupados."})
 
     @property
-    def siis_programa_nombre(self):
-        return (self.siis_programa_datos or {}).get("nombre") or ""
-
-    @property
-    def siis_bloqueado(self):
-        """¿SIIS dejó de tener vigente el programa vinculado?"""
-        return self.siis_programa_estado in self.ESTADOS_SIIS_BLOQUEANTES
-
-    @property
-    def siis_motivo_bloqueo(self):
-        if not self.siis_bloqueado:
-            return ""
-        referencia = self.siis_programa_nombre or f"#{self.siis_programa_id}"
-        if self.siis_programa_estado == self.EstadoSiis.INACTIVO:
-            return f"El programa «{referencia}» pasó a INACTIVO en SIIS."
-        return f"SIIS ya no informa el programa «{referencia}»."
-
-    @property
     def pausa_efectiva(self):
-        """Pausa manual o, si no, bloqueo automático por el estado en SIIS."""
+        """Pausa manual propia o, si no, la que baja del programa (manual o SIIS)."""
         if self.pausado:
             return self
-        if self.siis_bloqueado:
-            return BloqueoSiis(self.siis_motivo_bloqueo)
-        return None
+        return self.programa.pausa_efectiva if self.programa_id else None
 
     @property
     def tiene_subsegmentos(self):
@@ -1639,8 +1680,12 @@ class PreguntaGlobal(TimeStamped):
 
 
 class RequisitoNativo(TimeStamped):
-    """Requisito configurable de un segmento (o subsegmento). Genera un campo
-    obligatorio en el formulario del territorial (RN-32)."""
+    """Requisito configurable de un programa, segmento o subsegmento. Genera un
+    campo obligatorio en el formulario del territorial (RN-32).
+
+    Ancla en exactamente un nivel: ``programa`` (lo heredan todos sus
+    segmentos), ``segmento`` (con ``subsegmento`` nulo) o ``subsegmento``.
+    """
 
     texto = models.CharField(max_length=500, verbose_name="Texto")
     tipo = models.CharField(max_length=20, choices=TipoCampo.choices, verbose_name="Tipo de campo")
@@ -1650,9 +1695,20 @@ class RequisitoNativo(TimeStamped):
         verbose_name="Opciones",
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
     )
+    programa = models.ForeignKey(
+        ProgramaSiis,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="requisitos",
+        verbose_name="Programa",
+        help_text="Si se indica, el requisito es del programa y lo heredan todos sus segmentos.",
+    )
     segmento = models.ForeignKey(
         Segmento,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="requisitos",
         verbose_name="Segmento",
     )
@@ -1674,12 +1730,21 @@ class RequisitoNativo(TimeStamped):
         ordering = ["orden", "id"]
 
     def __str__(self):
-        destino = self.subsegmento.nombre if self.subsegmento_id else self.segmento.nombre
+        if self.subsegmento_id:
+            destino = self.subsegmento.nombre
+        elif self.segmento_id:
+            destino = self.segmento.nombre
+        else:
+            destino = self.programa.nombre if self.programa_id else "—"
         return f"{destino}: {self.texto}"
 
     def clean(self):
-        """El subsegmento (si se indica) debe pertenecer al segmento."""
+        """Un solo ancla: programa, segmento o subsegmento (dentro de su segmento)."""
         super().clean()
+        if self.programa_id and (self.segmento_id or self.subsegmento_id):
+            raise ValidationError("Un requisito de programa no puede apuntar además a un segmento o subsegmento.")
+        if not self.programa_id and not self.segmento_id:
+            raise ValidationError("El requisito debe pertenecer a un programa o a un segmento.")
         if self.subsegmento_id and self.segmento_id:
             if self.subsegmento.segmento_id != self.segmento_id:
                 raise ValidationError({"subsegmento": "El subsegmento debe pertenecer al segmento seleccionado."})
