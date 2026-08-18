@@ -65,9 +65,7 @@ class Fila:
 
 
 def _sin_tildes(texto: str) -> str:
-    return "".join(
-        c for c in unicodedata.normalize("NFD", texto.lower()) if not unicodedata.combining(c)
-    )
+    return "".join(c for c in unicodedata.normalize("NFD", texto.lower()) if not unicodedata.combining(c))
 
 
 def _limpiar(celda: str) -> str:
@@ -141,7 +139,9 @@ def leer_documento() -> tuple[list[str], list[Fila], list[Entrada], set[str]]:
         if not coincidencia:
             subentrada = SUBENTRADA_RE.match(linea)
             siguientes = lineas[numero_linea : numero_linea + 3]
-            if subentrada and any(s in l for l in siguientes for s in SEMAFOROS):
+            if subentrada and any(
+                semaforo in linea_siguiente for linea_siguiente in siguientes for semaforo in SEMAFOROS
+            ):
                 coincidencia = subentrada
         if coincidencia:
             if entradas:
@@ -286,8 +286,7 @@ def main() -> int:
         etiqueta = args.tag if args.tag.startswith("#") else f"#{args.tag}"
         if etiqueta not in vocabulario:
             print(
-                f"La etiqueta {etiqueta} no está en el vocabulario. "
-                f"Hay: {' '.join(sorted(vocabulario))}",
+                f"La etiqueta {etiqueta} no está en el vocabulario. Hay: {' '.join(sorted(vocabulario))}",
                 file=sys.stderr,
             )
             return 1
