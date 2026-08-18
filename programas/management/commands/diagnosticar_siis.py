@@ -14,6 +14,8 @@ Devuelve código de salida distinto de 0 si algún paso falla, para poder usarlo
 como chequeo de despliegue.
 """
 
+import json
+
 from django.conf import settings
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
@@ -105,6 +107,20 @@ class Command(BaseCommand):
                 f"ENVIRONMENT=prd pero SIIS_API_URL apunta a {cliente.base_url}, "
                 "que es el entorno de test de ECOM."
             )
+
+        # Dónde se cachean el token y el catálogo. Importa para SIIS: el endpoint
+        # de token es lento, y con caché en memoria cada worker paga su propio
+        # pedido en vez de compartir uno. Además delata el caso en que
+        # ``settings_production`` fijó ENVIRONMENT="prd" pero la variable de
+        # entorno faltaba, con lo cual los bloques derivados quedaron en modo dev.
+        backend = settings.CACHES["default"]["BACKEND"].rsplit(".", 1)[-1]
+        self.stdout.write(f"       caché del token y del catálogo: {backend}")
+        if settings.ENVIRONMENT == "prd" and "LocMem" in backend:
+            self._aviso(
+                "ENVIRONMENT=prd pero la caché es local al proceso: falta la variable de entorno "
+                "ENVIRONMENT (settings_production la fija tarde, cuando los bloques que dependen "
+                "de ella ya se evaluaron). Cada worker va a pedir su propio token a SIIS."
+            )
         return True
 
     def _paso_token(self, cliente):
@@ -148,10 +164,19 @@ class Command(BaseCommand):
                 self.stdout.write(f"       que llegan al select    : {len(usables)}")
 
             if not crudos:
+                # Con la lista vacía hay dos explicaciones que se ven iguales: SIIS
+                # no publica programas, o los publica bajo una clave que ``_items``
+                # no reconoce. Se muestra el cuerpo para poder distinguirlas sin
+                # tener que volver a consultar el servicio a mano.
                 self._aviso(
-                    f"SIIS respondió sin programas para estado={estado}. No es un error de integración: "
-                    "el catálogo del entorno está vacío o no publica programas para este cliente."
+                    f"SIIS respondió sin programas para estado={estado}. Puede ser que el catálogo del "
+                    "entorno esté vacío, o que los publique bajo una clave que la app no reconoce; "
+                    "el cuerpo de la respuesta lo dice."
                 )
+                self.stdout.write(f"       cuerpo recibido: {self._resumir(cuerpo)}")
+                if isinstance(cuerpo, dict):
+                    self.stdout.write(f"       claves de primer nivel: {sorted(cuerpo.keys())}")
+                    self.stdout.write("       claves que la app busca: ['programas', 'results'] (o dentro de 'data')")
             elif not normalizados:
                 # Único caso que es culpa nuestra: los datos llegaron y el
                 # normalizador los tiró. Se muestran las claves recibidas para
@@ -200,6 +225,12 @@ class Command(BaseCommand):
             self.stdout.write(f"         {bandera}: {texto}")
 
     # -- Salida ---------------------------------------------------------------
+
+    @staticmethod
+    def _resumir(cuerpo, limite=400):
+        """Cuerpo de la respuesta en una línea, recortado: es para leer, no para parsear."""
+        texto = json.dumps(cuerpo, ensure_ascii=False, default=str)
+        return texto if len(texto) <= limite else f"{texto[:limite]}… ({len(texto)} caracteres)"
 
     def _titulo(self, texto):
         self.stdout.write(f"\n{texto}")

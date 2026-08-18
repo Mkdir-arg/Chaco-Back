@@ -65,13 +65,44 @@ class DiagnosticarSiisTests(SimpleTestCase):
     def test_catalogo_vacio_avisa_pero_no_es_falla_de_integracion(self, post, get):
         """El entorno de test de ECOM puede no publicar programas: eso no es un error nuestro."""
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
-        get.return_value = _respuesta({"programas": []})
+        get.return_value = _respuesta({"total": 0, "programas": []})
 
         salida, codigo = _correr()
 
         self.assertEqual(codigo, 0)
         self.assertIn("respondió sin programas", salida)
         self.assertNotIn("FALLA", salida)
+        # Con la lista vacía hay que poder ver el cuerpo, porque "vacío" y "clave
+        # que no reconocemos" se ven iguales en el conteo.
+        self.assertIn('"programas": []', salida)
+        self.assertIn("claves de primer nivel: ['programas', 'total']", salida)
+
+    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.requests.post")
+    def test_lista_bajo_una_clave_desconocida_queda_visible_en_el_cuerpo(self, post, get):
+        """Si ECOM renombra el contenedor, el conteo da 0 igual que un catálogo vacío."""
+        post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
+        get.return_value = _respuesta({"items": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]})
+
+        salida, codigo = _correr()
+
+        self.assertEqual(codigo, 0)
+        self.assertIn("items en la respuesta   : 0", salida)
+        # El cuerpo delata que el programa vino, pero bajo otra clave.
+        self.assertIn("Chaco Joven", salida)
+        self.assertIn("claves de primer nivel: ['items']", salida)
+        self.assertIn("claves que la app busca", salida)
+
+    @patch("programas.services.siis.requests.get")
+    @patch("programas.services.siis.requests.post")
+    def test_cuerpo_largo_se_recorta(self, post, get):
+        post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
+        get.return_value = _respuesta({"items": [{"relleno": "x" * 900}]})
+
+        salida, _ = _correr()
+
+        self.assertIn("caracteres)", salida)
+        self.assertNotIn("x" * 500, salida)
 
     @patch("programas.services.siis.requests.get")
     @patch("programas.services.siis.requests.post")

@@ -2386,6 +2386,21 @@ Nada propio: viaja en la imagen y se corre a mano cuando hace falta. Las variabl
 
 Borrar los dos archivos nuevos. Sin efecto sobre la aplicación: nada del producto los importa.
 
+## Historial
+
+**18/08/2026, más tarde — la integración quedó verificada contra el servicio real y el comando se completó con lo que faltaba.** Infra cargó las credenciales en el Secret del ambiente y corrió el diagnóstico en el pod. Resultado: **autentica bien** (token de 297 caracteres) y **el catálogo responde HTTP 200 con cero programas**, tanto para `estado=ACTIVO` como para `estado=TODOS`.
+
+Lo que eso cambia respecto de lo cerrado más arriba:
+
+- **La causa registrada era correcta y quedó resuelta**: faltaban las credenciales. Con ellas, el cliente llega al servicio sin ningún error.
+- **Pero el select sigue vacío**, y ahora por un motivo distinto: SIIS no publica programas para el cliente `datanach_test`. Eso vuelve a caer del lado del **Cambio 8** (que ECOM incorpore los programas al catálogo), que sigue pendiente de ellos. Deja de ser un problema de configuración nuestro.
+- **El diagnóstico tenía un hueco que esta corrida destapó**: con la lista vacía informaba «0 items» sin mostrar el cuerpo, y «el catálogo está vacío» es indistinguible de «los programas vienen bajo una clave que `_items` no reconoce». Ahora, cuando no hay items, imprime el cuerpo recibido (recortado a 400 caracteres), sus claves de primer nivel y las que la aplicación busca. La respuesta pesaba 26 bytes, así que no cabía ningún programa; pero la conclusión no se podía sacar de la salida del comando, que es justamente para lo que existe.
+- **Se agregó el backend de caché al paso 1**, con un aviso para un caso que se verificó corriendo el arranque: `config/settings_production` fija `ENVIRONMENT = "prd"` **después** de que `settings.py` evaluó los bloques que dependen de él, así que sin la variable de entorno `ENVIRONMENT` la caché queda local al proceso, el correo en backend de consola y los websockets en memoria, mientras `settings.ENVIRONMENT` informa `prd`. Para SIIS importa porque el endpoint de token tardó **7,6 segundos**: cacheado en Redis se paga una vez por hora, en memoria lo paga cada worker.
+
+Nuevos tests: lista bajo clave desconocida, cuerpo recortado y claves de primer nivel en el catálogo vacío. Suite: **19 tests OK**. `manage.py check` limpio y `design_audit --changed` en 0/0.
+
+Lo que decía antes y ya no vale: en *Pendientes* figuraba «verificar los pasos 3 y 4 contra el servicio real». El paso 3 quedó verificado. El **paso 4 (compatibilidad) sigue sin ejercitarse**: necesita un DNI real y un `id_programa` del catálogo, y el catálogo está vacío.
+
 # Verificaciones generales pendientes antes de desplegar
 
 - Ejecutar la suite relevante sin una base de test reutilizada contaminada.
