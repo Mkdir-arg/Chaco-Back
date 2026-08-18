@@ -41,6 +41,20 @@ spec:
                 name: <SECRET-ENV>
           ports:
             - containerPort: 8000
+          # Regla de consistencia de puertos: APP_PORT (env) = containerPort =
+          # targetPort del Service = puerto de las tres probes. Si se cambia uno
+          # (p. ej. a 8001), se cambian los cuatro.
+          #
+          # El startupProbe es imprescindible: el primer arranque corre migraciones,
+          # estáticos y sembrado y puede tardar minutos. Sin él, el liveness mata el
+          # bootstrap a mitad de camino y el pod entra en loop de reinicios
+          # (exit code 137, sin ningún error en el log).
+          startupProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /health/

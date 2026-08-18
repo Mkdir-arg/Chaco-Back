@@ -8,28 +8,20 @@
      x-data="{
        modalCrear: false,
        modalEditar: false,
-       modalInfo: false,
-       info: {},
        editNombre: '',
        editDescripcion: '',
        editCupo: 0,
        editGps: false,
        editActivo: true,
-       editSiis: '',
        editUrl: '',
-       openEditar(nombre, descripcion, cupo, gps, activo, url, siis) {
+       openEditar(nombre, descripcion, cupo, gps, activo, url) {
          this.editNombre = nombre;
          this.editDescripcion = descripcion;
          this.editCupo = cupo;
          this.editGps = gps;
          this.editActivo = activo;
-         this.editSiis = siis;
          this.editUrl = url;
          this.modalEditar = true;
-       },
-       openInfo(datos) {
-         this.info = datos;
-         this.modalInfo = true;
        }
      }"
      @becas-saved.window="modalCrear=false; modalEditar=false">
@@ -83,10 +75,14 @@
         {# Body #}
         <div class="px-6 py-6 space-y-5">
           <div>
-            <label class="block text-[13px] font-semibold text-heading mb-1.5">Programa SIIS <span class="text-fg-danger">*</span></label>
-            {{ form_segmento.siis_programa_id }}
-            {% if form_segmento.siis_programa_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_segmento.siis_programa_id.help_text }}</p>{% endif %}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="siis_programa_id"></p>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">Programa <span class="text-fg-danger">*</span></label>
+            {{ form_segmento.programa }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="programa"></p>
+          </div>
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">Nombre <span class="text-fg-danger" style="margin-left:3px">*</span></label>
+            {{ form_segmento.nombre }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
           </div>
           <div>
             <label class="block text-[13px] font-semibold text-heading mb-1.5">Descripción <span class="text-fg-danger" style="margin-left:3px">*</span></label>
@@ -149,8 +145,6 @@
       <form method="post" :action="editUrl" data-ajax data-reset="false">
         {% csrf_token %}
         <input type="hidden" name="activo" :value="editActivo ? 'on' : ''">
-        {# El programa SIIS no se edita en el modal rápido, pero es obligatorio en el form: viaja tal cual. #}
-        <input type="hidden" name="siis_programa_id" :value="editSiis">
         {# Body #}
         <div class="px-6 py-6 space-y-5">
           <div>
@@ -186,7 +180,6 @@
       </form>
     </div>
   </div>
-  {% include "programas/becas/config/_siis_programa_modal.html" %}
 </div>
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}

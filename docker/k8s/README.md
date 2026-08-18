@@ -17,7 +17,19 @@ en la documentación del proyecto, sección *Si el despliegue es en Kubernetes*.
 - **Archivos subidos**: con `SERVE_MEDIA=True` la app también sirve `/media/`.
   `MEDIA_ROOT` (`/app/media`) **tiene que ser un volumen persistente**: ahí viven
   los adjuntos que cargan los territoriales.
-- **Probes**: `/health/` responde 200.
+- **Probes**: `/health/` responde 200. Usar **startupProbe** además de
+  liveness/readiness: el primer arranque tarda minutos y sin él el liveness mata
+  el bootstrap (loop de reinicios con exit 137 y sin error en el log).
+
+## Lo que pone la plataforma
+
+- **Base de datos** (MySQL 8 recomendado; MariaDB funciona, mismo warning `W036`
+  en ambos motores) y **Redis** — la app lo usa para caché y websockets, un
+  `redis:7-alpine` alcanza; se apunta con `REDIS_HOST`.
+- **Puertos consistentes**: `APP_PORT` (env) = `containerPort` = `targetPort`
+  del Service = puerto de las probes. Se cambia uno, se cambian los cuatro.
+- **PVC para `/app/media`** y el ingress con `X-Forwarded-Proto: https` y
+  `Upgrade`/`Connection` en `/ws/`.
 
 ## Las dos formas de correr el bootstrap
 

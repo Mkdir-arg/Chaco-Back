@@ -81,14 +81,18 @@ class SegmentoCupoTests(TestCase):
             self.segmento.full_clean()
         self.assertIn("120", str(ctx.exception))
 
-    def test_permite_cambiar_programa_siis_con_subsegmentos(self):
-        """El subsegmento es local: ya no espeja un segmento del programa SIIS,
-        así que cambiar el programa del segmento no lo invalida."""
-        self.segmento.siis_programa_id = 41
-        self.segmento.save(update_fields=["siis_programa_id"])
+    def test_permite_cambiar_de_programa_con_subsegmentos(self):
+        """El subsegmento es local: no espeja nada de SIIS, así que mover el
+        segmento de programa no lo invalida a nivel modelo."""
+        from programas.models import ProgramaSiis
+
+        p1 = ProgramaSiis.objects.create(nombre="P1", siis_programa_id=41)
+        p2 = ProgramaSiis.objects.create(nombre="P2", siis_programa_id=42)
+        self.segmento.programa = p1
+        self.segmento.save(update_fields=["programa"])
         Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
 
-        self.segmento.siis_programa_id = 42
+        self.segmento.programa = p2
         self.segmento.full_clean()  # no debe levantar
 
     def test_no_permite_repetir_nombre_en_el_mismo_segmento(self):

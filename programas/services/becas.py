@@ -21,19 +21,18 @@ def get_campos_formulario(convocatoria):
     """Devuelve ``(globales, requisitos)`` para renderizar el formulario.
 
     - ``globales``: ``PreguntaGlobal`` activas, ordenadas (RN-31).
-    - ``requisitos``: ``RequisitoNativo`` del segmento (subsegmento=None) y, si la
-      convocatoria tiene subsegmento, también los del subsegmento (herencia; RN-32).
+    - ``requisitos``: ``RequisitoNativo`` del programa del segmento (los heredan
+      todos sus segmentos), del segmento (subsegmento=None) y, si la convocatoria
+      tiene subsegmento, también los del subsegmento (herencia; RN-32).
     """
     globales = PreguntaGlobal.objects.filter(activo=True).order_by("orden", "id")
+    filtros = models.Q(segmento_id=convocatoria.segmento_id, subsegmento__isnull=True)
     if convocatoria.subsegmento_id:
-        requisitos = RequisitoNativo.objects.filter(
-            models.Q(segmento_id=convocatoria.segmento_id, subsegmento__isnull=True)
-            | models.Q(subsegmento_id=convocatoria.subsegmento_id)
-        ).order_by("orden", "id")
-    else:
-        requisitos = RequisitoNativo.objects.filter(
-            segmento_id=convocatoria.segmento_id, subsegmento__isnull=True
-        ).order_by("orden", "id")
+        filtros |= models.Q(subsegmento_id=convocatoria.subsegmento_id)
+    programa_id = convocatoria.segmento.programa_id
+    if programa_id:
+        filtros |= models.Q(programa_id=programa_id)
+    requisitos = RequisitoNativo.objects.filter(filtros).order_by("orden", "id")
     return globales, requisitos
 
 
@@ -61,8 +60,14 @@ def definicion_formulario(relevamiento):
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
         "globales": [_campo_dict(p, "global") for p in globales],
-        "requisitos": [_campo_dict(r, "subsegmento" if r.subsegmento_id else "segmento") for r in requisitos],
+        "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }
+
+
+def _alcance_requisito(requisito):
+    if requisito.subsegmento_id:
+        return "subsegmento"
+    return "segmento" if requisito.segmento_id else "programa"
 
 
 def get_segmentos_coordinador(user):

@@ -437,6 +437,22 @@
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
                         {% if request.user|puede:"becas.segmento.ver" %}
+                        <a href="{% url 'becas:programas' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas\config\programas' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'becas/config/programas' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# folder icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/config/programas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/>
+                            </svg>
+                            Programas
+                        </a>
+                        {% endif %}
+                        {% if request.user|puede:"becas.segmento.ver" %}
                         <a href="{% url 'becas:segmentos' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);

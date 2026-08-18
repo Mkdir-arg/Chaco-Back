@@ -19,6 +19,7 @@ from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
     PreguntaGlobal,
+    ProgramaSiis,
     RequisitoNativo,
     Segmento,
     Subsegmento,
@@ -109,35 +110,88 @@ class AccesoConfigTests(_BaseConfigTest):
         self.assertEqual(resp.status_code, 302)  # comportamiento histórico con mensaje
 
 
-class SegmentoCrudTests(_BaseConfigTest):
+class ProgramaSiisConfigTests(_BaseConfigTest):
+    """CRUD del nivel Programa (SIIS): la cabeza de Programa → Segmento → Subsegmento."""
+
     def setUp(self):
         super().setUp()
         self.programas_siis = patch(
-            "programas.forms.listar_programas", return_value=[{"id": 38, "nombre": "Producción"}]
+            "programas.forms.listar_programas", return_value=[{"id": 38, "nombre": "Producción", "estado": "ACTIVO"}]
         )
         self.programas_siis.start()
         self.addCleanup(self.programas_siis.stop)
+        self.client.force_login(self.admin)
+
+    def test_listado_accesible(self):
+        resp = self.client.get(reverse("becas:programas"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_crear_programa_desde_el_catalogo(self):
+        resp = self.client.post(reverse("becas:programa_crear"), {"siis_programa_id": 38})
+        self.assertEqual(resp.status_code, 302)
+        programa = ProgramaSiis.objects.get(siis_programa_id=38)
+        # El nombre se toma tal cual del catálogo.
+        self.assertEqual(programa.nombre, "Producción")
+
+    def test_detalle_del_programa(self):
+        programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
+        Segmento.objects.create(programa=programa, nombre="Seg A", cupo_maximo=10)
+        resp = self.client.get(reverse("becas:programa_detalle", args=[programa.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual([s.nombre for s in resp.context["segmentos"]], ["Seg A"])
+
+    def test_crear_requisito_de_programa(self):
+        programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
+        resp = self.client.post(
+            reverse("becas:requisito_programa_crear", args=[programa.pk]),
+            {"texto": "Constancia", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "True"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        req = RequisitoNativo.objects.get(texto="Constancia")
+        self.assertEqual(req.programa, programa)
+        self.assertIsNone(req.segmento)
+
+
+class SegmentoCrudTests(_BaseConfigTest):
+    def setUp(self):
+        super().setUp()
+        self.programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
         self.client.force_login(self.admin)
 
     def test_crear_segmento(self):
         resp = self.client.post(
             reverse("becas:segmento_crear"),
             {
-                "nombre": "Producción",
+                "programa": self.programa.pk,
+                "nombre": "Producción Territorial",
                 "descripcion": "Población objetivo del segmento productivo",
                 "cupo_maximo": 200,
                 "coordinador": self.coord.pk,
-                "siis_programa_id": 38,
             },
         )
         self.assertEqual(resp.status_code, 302)
-        self.assertTrue(Segmento.objects.filter(nombre="Producción", cupo_maximo=200).exists())
+        seg = Segmento.objects.get(nombre="Producción Territorial")
+        self.assertEqual(seg.cupo_maximo, 200)
+        self.assertEqual(seg.programa, self.programa)
+
+    def test_crear_segmento_sin_programa_falla(self):
+        resp = self.client.post(
+            reverse("becas:segmento_crear"),
+            {
+                "nombre": "Suelto",
+                "descripcion": "Sin programa",
+                "cupo_maximo": 200,
+                "coordinador": self.coord.pk,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)  # re-render con error
+        self.assertFalse(Segmento.objects.filter(nombre="Suelto").exists())
 
     def test_editar_segmento(self):
-        seg = Segmento.objects.create(nombre="S1", cupo_maximo=100)
+        seg = Segmento.objects.create(programa=self.programa, nombre="S1", cupo_maximo=100)
         resp = self.client.post(
             reverse("becas:segmento_editar", args=[seg.pk]),
-            {"nombre": "S1 editado", "descripcion": "", "cupo_maximo": 150, "activo": "on", "siis_programa_id": 38},
+            {"nombre": "S1 editado", "descripcion": "", "cupo_maximo": 150, "activo": "on"},
         )
         self.assertEqual(resp.status_code, 302)
         seg.refresh_from_db()
@@ -155,7 +209,7 @@ class SubsegmentoCupoTests(_BaseConfigTest):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.admin)
-        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200, siis_programa_id=38)
+        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200)
 
     def test_crear_subsegmento_ok(self):
         """El nombre lo escribe el operador: el subsegmento no consulta a SIIS."""
