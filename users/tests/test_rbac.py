@@ -361,6 +361,7 @@ class CatalogoProgramaTests(TestCase):
                 "becas_revision",
                 "becas_cupo",
                 "becas_beneficiarios",
+                "becas_reportes",
                 "becas_campo",
             },
         )

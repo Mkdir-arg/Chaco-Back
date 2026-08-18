@@ -73,6 +73,8 @@ ROLES_BECAS = {
             "becas.cupo.ver",
             "becas.beneficiario.ver",
             "becas.beneficiario.editar",
+            "becas.reportes.ver",
+            "becas.reportes.exportar",
         ],
     },
     ROL_COORDINADOR_REGIONAL: {
@@ -92,6 +94,8 @@ ROLES_BECAS = {
             "becas.relevamiento.crear",
             "becas.relevamiento.editar",
             "becas.cupo.ver",
+            "becas.reportes.ver",
+            "becas.reportes.exportar",
         ],
     },
     ROL_REFERENTE: {
@@ -105,6 +109,8 @@ ROLES_BECAS = {
             "becas.relevamiento.ver",
             "becas.revision.ver",
             "becas.cupo.ver",
+            "becas.reportes.ver",
+            "becas.reportes.exportar",
         ],
     },
     ROL_TERRITORIAL: {
