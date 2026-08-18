@@ -178,11 +178,18 @@ STATICFILES_FINDERS = [
 # En ambientes servidos: manifest (URLs con hash, cacheables) + precompresión de
 # whitenoise. Antes solo "prd" usaba manifest, con lo cual un QA quedaba con
 # estáticos sin hash y distinto de producción.
-STATICFILES_STORAGE = (
-    "whitenoise.storage.CompressedManifestStaticFilesStorage"
-    if ENVIRONMENT in ("prd", "qa")
-    else "django.contrib.staticfiles.storage.StaticFilesStorage"
-)
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if ENVIRONMENT in ("prd", "qa")
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
 
 # Servir /media/ desde la app (django.views.static.serve). Pensado para ambientes
 # servidos sin nginx adelante (Kubernetes): alcanza para la escala de QA. Los
