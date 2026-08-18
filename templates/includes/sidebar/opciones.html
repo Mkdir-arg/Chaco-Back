@@ -408,7 +408,7 @@
         {% endif %}
 
         {# ── Programas (grupo colapsable) ─────────────────────── #}
-        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or puede_reportes or request.user|puede:"becas.reportes.ver" %}
+        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or request.user|puede:"becas.reportes.ver" %}
         <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -532,7 +532,7 @@
                             Revisión
                         </a>
                         {% endif %}
-                        {% if puede_reportes or request.user|puede:"becas.reportes.ver" %}
+                        {% if request.user|puede:"becas.reportes.ver" %}
                         <a href="{% url 'becas:reportes' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -545,8 +545,9 @@
                 </div>
             </template>
 
+            {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" %}
             <template x-if="sidebarCollapsed">
-                <a href="{% if request.user|puede:'becas.segmento.ver' %}{% url 'becas:segmentos' %}{% elif request.user|puede:'becas.convocatoria.ver' %}{% url 'becas:convocatorias' %}{% elif request.user|puede:'becas.relevamiento.ver' %}{% url 'becas:relevamientos' %}{% elif request.user|puede:'becas.revision.ver' %}{% url 'becas:revision' %}{% else %}{% url 'becas:reportes' %}{% endif %}"
+                <a href="{% if request.user|puede:'becas.segmento.ver' %}{% url 'becas:segmentos' %}{% elif request.user|puede:'becas.convocatoria.ver' %}{% url 'becas:convocatorias' %}{% elif request.user|puede:'becas.relevamiento.ver' %}{% url 'becas:relevamientos' %}{% else %}{% url 'becas:revision' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
@@ -560,6 +561,22 @@
                     </svg>
                 </a>
             </template>
+            {% endif %}
+
+            {% if request.user|puede:"becas.reportes.ver" %}
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'becas:reportes' %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'becas/reportes' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   title="Reportes"
+                   aria-label="Reportes"
+                   {% if 'becas/reportes' in pagina_actual %}aria-current="page"{% endif %}>
+                    <i class="fas fa-chart-column" aria-hidden="true"
+                       style="width:20px; text-align:center; color: {% if 'becas/reportes' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};"></i>
+                </a>
+            </template>
+            {% endif %}
         </div>
         {% endif %}
 

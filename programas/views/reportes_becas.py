@@ -7,15 +7,12 @@ from django.http import HttpResponseBadRequest
 from django.views.generic import TemplateView, View
 
 from core.rbac import puede
+from programas.forms_reportes import ReporteBecasFiltroForm
 from programas.services import reportes_becas as datasets
 from programas.services.autorizacion import (
-    convocatorias_visibles,
     programa_becas,
-    segmentos_visibles,
-    usuarios_territoriales_becas,
 )
 from programas.services.exportacion_reportes import respuesta_reporte
-from programas.services.reportes import Reporte, parsear_periodo
 
 REPORTES = {
     "cupos": {
@@ -60,33 +57,11 @@ class ReportesHubView(ReportesPermissionMixin, TemplateView):
         return {**super().get_context_data(**kwargs), "reportes": REPORTES.items()}
 
 
-def _parametros(request, reporte):
-    desde, hasta = parsear_periodo(request.GET.get("desde"), request.GET.get("hasta"))
-    comunes = {"desde": desde, "hasta": hasta}
-    if reporte == "cupos":
-        return {
-            "segmento_id": request.GET.get("segmento") or None,
-            "solo_activos": request.GET.get("solo_activos") == "1",
-        }
-    if reporte == "avance":
-        return {
-            **comunes,
-            "segmento_id": request.GET.get("segmento") or None,
-            "estado": request.GET.get("estado") or None,
-        }
-    if reporte == "produccion":
-        return {
-            **comunes,
-            "segmento_id": request.GET.get("segmento") or None,
-            "territorial_id": request.GET.get("territorial") or None,
-        }
-    if reporte == "embudo":
-        return {**comunes, "convocatoria_id": request.GET.get("convocatoria") or None}
-    return {
-        **comunes,
-        "segmento_id": request.GET.get("segmento") or None,
-        "convocatoria_id": request.GET.get("convocatoria") or None,
-    }
+def _filtros(request, codigo):
+    form = ReporteBecasFiltroForm(request.GET, user=request.user)
+    if not form.is_valid():
+        raise ValueError(" ".join(form.non_field_errors() or ["Revisá los filtros ingresados."]))
+    return form, form.parametros(codigo)
 
 
 class ReporteBecasView(ReportesPermissionMixin, TemplateView):
@@ -103,26 +78,29 @@ class ReporteBecasView(ReportesPermissionMixin, TemplateView):
             ctx["error"] = "Reporte no válido."
             return ctx
         try:
-            reporte = definicion["funcion"](self.request.user, **_parametros(self.request, codigo))
+            form, parametros = _filtros(self.request, codigo)
+            if codigo == "beneficiarios":
+                queryset = datasets.beneficiarios_queryset(self.request.user, **parametros)
+                paginator = Paginator(queryset, 25)
+                page_obj = paginator.get_page(self.request.GET.get("page"))
+                reporte = datasets.reporte_beneficiarios_desde_queryset(page_obj.object_list)
+                query = self.request.GET.copy()
+                query.pop("page", None)
+                ctx.update({"page_obj": page_obj, "paginator": paginator, "pagination_query": query.urlencode()})
+            else:
+                reporte = definicion["funcion"](self.request.user, **parametros)
         except ValueError as error:
+            form = ReporteBecasFiltroForm(self.request.GET, user=self.request.user)
             reporte, ctx["error"] = None, str(error)
-        if codigo == "beneficiarios" and reporte is not None:
-            paginator = Paginator(reporte.filas, 25)
-            page_obj = paginator.get_page(self.request.GET.get("page"))
-            reporte = Reporte(reporte.encabezados, tuple(page_obj.object_list))
-            query = self.request.GET.copy()
-            query.pop("page", None)
-            ctx.update({"page_obj": page_obj, "paginator": paginator, "pagination_query": query.urlencode()})
         ctx.update(
             {
                 "codigo": codigo,
                 "definicion": definicion,
                 "reporte": reporte,
-                "segmentos": segmentos_visibles(self.request.user),
-                "convocatorias": convocatorias_visibles(self.request.user),
-                "territoriales": usuarios_territoriales_becas()
-                .filter(relevamientos_asignados__convocatoria__in=convocatorias_visibles(self.request.user))
-                .distinct(),
+                "filtros_form": form,
+                "segmentos": form.fields["segmento"].queryset,
+                "convocatorias": form.fields["convocatoria"].queryset,
+                "territoriales": form.fields["territorial"].queryset,
                 "puede_exportar": puede(self.request.user, "becas.reportes.exportar", programa=programa_becas()),
                 "querystring": self.request.GET.urlencode(),
                 "filtro_segmento": self.request.GET.get("segmento", ""),
@@ -153,7 +131,8 @@ class ReporteBecasExportView(ReportesPermissionMixin, View):
         if not definicion:
             return HttpResponseBadRequest("Reporte no válido.")
         try:
-            resultado = definicion["funcion"](request.user, **_parametros(request, reporte))
+            _, parametros = _filtros(request, reporte)
+            resultado = definicion["funcion"](request.user, **parametros)
         except ValueError as error:
             return HttpResponseBadRequest(str(error))
         return respuesta_reporte(resultado, formato, f"becas_{reporte}")

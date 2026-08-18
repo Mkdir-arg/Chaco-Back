@@ -1,16 +1,17 @@
 """Cobertura funcional del módulo transversal de reportes de Becas."""
 
 import csv
-from datetime import date, timedelta
+from datetime import date
 from io import BytesIO, StringIO
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from django.utils import timezone
 from openpyxl import load_workbook
 
 from core import rbac
@@ -27,6 +28,7 @@ from programas.models import (
 )
 from programas.services.autorizacion import programa_becas
 from programas.services.reportes_becas import (
+    beneficiarios_queryset,
     reporte_avance,
     reporte_beneficiarios,
     reporte_cupos,
@@ -127,12 +129,9 @@ class ReportesBecasTests(TestCase):
         self.assertNotIn(self.segmento_bloqueado.nombre, nombres)
 
     def test_regional_no_contabiliza_cupo_ni_personas_del_subsegmento_ajeno(self):
-        propios = [
-            self._formulario(self.rel_propio, Formulario.Estado.APROBADO, fecha_aprobacion=timezone.now())
-            for _ in range(2)
-        ]
+        propios = [self._formulario(self.rel_propio, Formulario.Estado.APROBADO) for _ in range(2)]
         for _ in range(3):
-            self._formulario(self.rel_ajeno, Formulario.Estado.APROBADO, fecha_aprobacion=timezone.now())
+            self._formulario(self.rel_ajeno, Formulario.Estado.APROBADO)
         ListaEspera.objects.create(formulario=self._formulario(self.rel_propio), segmento=self.segmento, posicion=1)
         ListaEspera.objects.create(formulario=self._formulario(self.rel_ajeno), segmento=self.segmento, posicion=2)
 
@@ -168,7 +167,7 @@ class ReportesBecasTests(TestCase):
         self.assertEqual(cantidades["Rechazo SIIS: Rechazado. La persona ya posee un beneficio"], 1)
 
     def test_avance_y_produccion_calculan_conteos_y_periodo_solapado(self):
-        self._formulario(self.rel_propio, Formulario.Estado.APROBADO, fecha_aprobacion=timezone.now())
+        self._formulario(self.rel_propio, Formulario.Estado.APROBADO)
         self._formulario(self.rel_propio, Formulario.Estado.RECHAZADO)
 
         avance = reporte_avance(self.admin, segmento_id=self.segmento.pk)
@@ -180,6 +179,17 @@ class ReportesBecasTests(TestCase):
         self.assertEqual(fila_avance[14:17], (0, "100.0%", "1/300"))
         fila_produccion = produccion.filas[0]
         self.assertEqual(fila_produccion[5:9], (2, 1, 1, "50.0%"))
+
+    def test_avance_mantiene_query_count_con_muchos_formularios(self):
+        reporte_avance(self.admin)
+        with CaptureQueriesContext(connection) as consultas_vacio:
+            reporte_avance(self.admin)
+        for _ in range(30):
+            self._formulario(self.rel_propio, Formulario.Estado.ENVIADO)
+        with CaptureQueriesContext(connection) as consultas_cargado:
+            reporte_avance(self.admin)
+
+        self.assertEqual(len(consultas_cargado), len(consultas_vacio))
 
     def test_ver_sin_exportar_muestra_pantalla_y_export_devuelve_403(self):
         usuario = self._rol_solo_ver()
@@ -194,13 +204,8 @@ class ReportesBecasTests(TestCase):
         self.assertEqual(self.client.get(reverse("becas:reporte_detalle", args=["cupos"])).status_code, 403)
 
     def test_padron_pagina_pantalla_pero_exporta_todo(self):
-        ahora = timezone.now()
         for indice in range(26):
-            self._formulario(
-                self.rel_propio,
-                Formulario.Estado.APROBADO,
-                fecha_aprobacion=ahora - timedelta(minutes=indice),
-            )
+            self._formulario(self.rel_propio, Formulario.Estado.APROBADO)
         self.client.force_login(self.admin)
 
         primera = self.client.get(reverse("becas:reporte_detalle", args=["beneficiarios"]))
@@ -209,6 +214,7 @@ class ReportesBecasTests(TestCase):
 
         self.assertEqual(len(primera.context["reporte"].filas), 25)
         self.assertEqual(len(segunda.context["reporte"].filas), 1)
+        self.assertIn("LIMIT 25", str(beneficiarios_queryset(self.admin)[:25].query).upper())
         filas_csv = list(csv.reader(StringIO(exportado.content.decode("utf-8-sig"))))
         self.assertEqual(len(filas_csv), 27)
 
@@ -223,7 +229,7 @@ class ReportesBecasTests(TestCase):
         self.assertEqual(archivo.status_code, 400)
 
     def test_cinco_reportes_renderizan_y_exportan_csv_xlsx(self):
-        self._formulario(self.rel_propio, Formulario.Estado.APROBADO, fecha_aprobacion=timezone.now())
+        self._formulario(self.rel_propio, Formulario.Estado.APROBADO)
         self.client.force_login(self.admin)
 
         for codigo in ("cupos", "avance", "produccion", "embudo", "beneficiarios"):
@@ -243,8 +249,8 @@ class ReportesBecasTests(TestCase):
                 self.assertEqual(len(filas_csv), len(filas_xlsx))
 
     def test_regional_no_fuerza_convocatoria_ajena_manipulando_url(self):
-        self._formulario(self.rel_propio, Formulario.Estado.APROBADO, fecha_aprobacion=timezone.now())
-        self._formulario(self.rel_ajeno, Formulario.Estado.APROBADO, fecha_aprobacion=timezone.now())
+        self._formulario(self.rel_propio, Formulario.Estado.APROBADO)
+        self._formulario(self.rel_ajeno, Formulario.Estado.APROBADO)
         self.client.force_login(self.regional)
 
         response = self.client.get(

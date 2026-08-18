@@ -1,10 +1,7 @@
 """Descargas CSV/XLSX de los datos visibles en Dispositivos y Merenderos."""
 
-import csv
-
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponseBadRequest
 from django.views import View
-from openpyxl import Workbook
 
 from programas.models import Merendero
 from programas.services.dispositivos import dispositivos_visibles
@@ -26,34 +23,8 @@ def _periodo(request):
     return parsear_periodo(request.GET.get("desde"), request.GET.get("hasta"))
 
 
-def _celda_segura(valor):
-    if isinstance(valor, str) and valor.lstrip().startswith(("=", "+", "-", "@")):
-        return f"'{valor}"
-    return valor
-
-
 def _respuesta(reporte, formato, nombre):
     return respuesta_reporte(reporte, formato, nombre)
-    filas = ([_celda_segura(valor) for valor in fila] for fila in reporte.filas)
-    if formato == "csv":
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = f'attachment; filename="{nombre}.csv"'
-        response.write("\ufeff")
-        writer = csv.writer(response)
-        writer.writerow(reporte.encabezados)
-        writer.writerows(filas)
-        return response
-    if formato == "xlsx":
-        libro = Workbook(write_only=True)
-        hoja = libro.create_sheet("Reporte")
-        hoja.append(list(reporte.encabezados))
-        for fila in filas:
-            hoja.append(fila)
-        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        response["Content-Disposition"] = f'attachment; filename="{nombre}.xlsx"'
-        libro.save(response)
-        return response
-    return HttpResponseBadRequest("Formato de exportación no válido.")
 
 
 class DispositivoExportView(DispositivoProgramaPermissionMixin, View):

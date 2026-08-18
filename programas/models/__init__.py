@@ -1877,8 +1877,6 @@ class Formulario(TimeStamped):
         verbose_name="Fecha de captura en el dispositivo",
     )
     motivo_rechazo = models.TextField(blank=True, verbose_name="Motivo de rechazo")
-    fecha_aprobacion = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name="Fecha de aprobación")
-    fecha_rechazo = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name="Fecha de rechazo")
     conflicto_duplicado = models.BooleanField(
         default=False,
         db_index=True,
