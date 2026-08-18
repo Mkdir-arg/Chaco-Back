@@ -50,9 +50,7 @@ class DiagnosticarSiisTests(SimpleTestCase):
     @patch("programas.services.siis.requests.post")
     def test_catalogo_con_programas_cierra_sin_fallas(self, post, get):
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
-        get.return_value = _respuesta(
-            {"programas": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]}
-        )
+        get.return_value = _respuesta({"programas": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]})
 
         salida, codigo = _correr()
 
@@ -124,9 +122,7 @@ class DiagnosticarSiisTests(SimpleTestCase):
     @patch("programas.services.siis.requests.post")
     def test_programa_inactivo_no_llega_al_select(self, post, get):
         post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
-        get.return_value = _respuesta(
-            {"programas": [{"id": 15, "nombre": "Chaco Olímpico", "estado": "INACTIVO"}]}
-        )
+        get.return_value = _respuesta({"programas": [{"id": 15, "nombre": "Chaco Olímpico", "estado": "INACTIVO"}]})
 
         salida, codigo = _correr()
 

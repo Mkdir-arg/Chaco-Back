@@ -443,7 +443,6 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["segmentos"] = segmentos
-        ctx["territoriales"] = territoriales
         ctx["filtros"] = {
             "q": self.request.GET.get("q", ""),
             "estado": self.request.GET.get("estado", ""),
@@ -456,14 +455,22 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         query_params.pop("page", None)
         ctx["querystring"] = query_params.urlencode()
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
-        ctx["form_crear"] = RelevamientoForm(
+        form_crear = RelevamientoForm(
             segmentos_permitidos=segmentos,
             convocatorias_permitidas=convocatorias_visibles(self.request.user),
-            territoriales_permitidos=usuarios_territoriales_becas().filter(
-                asignacion_territorial__segmento__in=segmentos
-            ),
+            territoriales_permitidos=territoriales,
             operador=self.request.user,
         )
+        # El filtro y el modal usan los mismos territoriales. Congelar las
+        # opciones evita consultar dos veces el mismo queryset al renderizar.
+        # La comprensión evita el ``COUNT`` que ``list(ModelChoiceIterator)``
+        # solicita como length hint antes de traer las opciones.
+        opciones_territoriales = [opcion for opcion in form_crear.fields["territorial"].choices]
+        ctx["territoriales"] = [
+            valor.instance for valor, _etiqueta in opciones_territoriales if getattr(valor, "instance", None)
+        ]
+        form_crear.fields["territorial"].choices = opciones_territoriales
+        ctx["form_crear"] = form_crear
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         return ctx
 

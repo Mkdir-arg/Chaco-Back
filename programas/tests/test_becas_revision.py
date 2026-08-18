@@ -22,10 +22,12 @@ from programas.models import (
     Formulario,
     ListaEspera,
     PreguntaGlobal,
+    ProgramaSiis,
     Relevamiento,
     Segmento,
     TipoCampo,
     TracaFormulario,
+    ValidacionSIS,
 )
 
 
@@ -173,6 +175,64 @@ class EdicionTrazaTests(_BaseRevisionTest):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Este formulario no tiene coordenadas GPS registradas.")
         self.assertNotContains(resp, "Mapa del lugar donde se realizó la toma")
+
+    def test_detalle_muestra_respuesta_completa_de_siis(self):
+        ValidacionSIS.objects.create(
+            formulario=self.form_a,
+            estado=ValidacionSIS.Estado.OK,
+            id_programa=41,
+            documento="24459123",
+            id_consulta="8ef13bfb-529a-4438-a8b4-dca8b238039a",
+            respuesta={
+                "nombre_programa": "Chaco Subsidia",
+                "id_programa": 41,
+                "persona_registrada_siis": False,
+                "validaciones": {
+                    "padron_siis": "NUEVO_SOLICITANTE",
+                    "vigencia_programa": "VIGENTE",
+                    "edad_minima": "CUMPLE_EDAD_MINIMA",
+                    "empleo_publico": "SIN_INCOMPATIBILIDAD",
+                    "horas_docentes": "SIN_INCOMPATIBILIDAD",
+                    "duplicidad_becas": "SIN_INCOMPATIBILIDAD",
+                },
+            },
+            solicitado_por=self.admin,
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Compatible")
+        self.assertContains(resp, "Nuevo solicitante")
+        self.assertContains(resp, "Chaco Subsidia (#41)")
+        self.assertContains(resp, "Empleo público")
+        self.assertContains(resp, "Sin incompatibilidad")
+        self.assertContains(resp, "8ef13bfb-529a-4438-a8b4-dca8b238039a")
+        self.assertContains(resp, "no implica la aprobación automática")
+        self.assertContains(resp, "Historial de validaciones (1)")
+
+    def test_historial_siis_muestra_todos_los_intentos(self):
+        for estado, consulta in (
+            (ValidacionSIS.Estado.RECHAZADO, "11111111-1111-4111-8111-111111111111"),
+            (ValidacionSIS.Estado.OK, "22222222-2222-4222-8222-222222222222"),
+        ):
+            ValidacionSIS.objects.create(
+                formulario=self.form_a,
+                estado=estado,
+                id_programa=41,
+                documento="24459123",
+                id_consulta=consulta,
+                respuesta={"nombre_programa": "Chaco Subsidia", "persona_registrada_siis": False},
+                solicitado_por=self.admin,
+            )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Historial de validaciones (2)")
+        self.assertContains(resp, "11111111-1111-4111-8111-111111111111")
+        self.assertContains(resp, "22222222-2222-4222-8222-222222222222")
+        self.assertContains(resp, 'id="btn-historial-siis"', html=False)
+        self.assertContains(resp, 'aria-expanded="false"', html=False)
+        self.assertContains(resp, 'id="historial-validaciones-siis" class="hidden', html=False)
 
     def test_editar_sin_cambios_no_traza(self):
         self.client.post(
@@ -417,6 +477,31 @@ class ReportesBecasTests(_BaseRevisionTest):
 class AprobarRechazarTests(_BaseRevisionTest):
     def setUp(self):
         super().setUp()
+        self.siis = patch("programas.services.validacion_siis.validar_compatibilidad")
+        self.validar_compatibilidad = self.siis.start()
+        self.addCleanup(self.siis.stop)
+        self.validar_compatibilidad.return_value = {
+            "success": True,
+            "compatible": True,
+            "data": {"id_programa": 41, "validaciones": {}},
+        }
+        self.ciudadano = Ciudadano.objects.create(
+            dni="24459123", nombre="Persona", apellido="Compatible", fecha_nacimiento=date(1975, 2, 20), genero="F"
+        )
+        self.programa = ProgramaSiis.objects.create(nombre="Programa SIIS", siis_programa_id=41)
+        self.seg_a.programa = self.programa
+        self.seg_a.save(update_fields=["programa"])
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.validado_renaper = True
+        self.form_a.save(update_fields=["ciudadano", "validado_renaper"])
+        self.validacion = ValidacionSIS.objects.create(
+            formulario=self.form_a,
+            estado=ValidacionSIS.Estado.OK,
+            id_programa=41,
+            documento=self.ciudadano.dni,
+            respuesta={"resultado": "OK", "apto": True},
+            solicitado_por=self.admin,
+        )
         self.client.force_login(self.coord_a)
 
     def test_aprobar(self):
@@ -424,6 +509,68 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.assertEqual(resp.status_code, 302)
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.validar_compatibilidad.assert_called_once()
+
+    def test_no_aprueba_identidad_sin_validar(self):
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["validado_renaper"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_aprobar_dispara_validacion_siis_aunque_no_haya_previa(self):
+        self.validacion.delete()
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertTrue(self.form_a.validaciones_sis.filter(estado=ValidacionSIS.Estado.OK).exists())
+
+    def test_no_aprueba_si_siis_rechazo(self):
+        self.validar_compatibilidad.return_value = {
+            "success": True,
+            "compatible": False,
+            "data": {"id_programa": 41, "validaciones": {"empleo_publico": "INCOMPATIBLE_PLANTA"}},
+        }
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_no_aprueba_si_el_segmento_no_tiene_programa(self):
+        self.seg_a.programa = None
+        self.seg_a.save(update_fields=["programa"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_no_promueve_desde_lista_de_espera_si_siis_rechazo(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+        self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
+        self.validacion.save(update_fields=["estado"])
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[entrada.pk]))
+
+        entrada.refresh_from_db()
+        self.form_a.refresh_from_db()
+        self.assertFalse(entrada.promovido)
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_detalle_explica_por_que_la_aprobacion_esta_bloqueada(self):
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["validado_renaper"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Aprobación bloqueada")
+        self.assertContains(resp, "La identidad debe estar validada antes de aprobar")
+        self.assertContains(resp, 'disabled aria-disabled="true"', html=False)
 
     def test_rechazar_sin_motivo_falla(self):
         self.client.post(reverse("becas:formulario_rechazar", args=[self.form_a.pk]), {"motivo": ""})
@@ -438,6 +585,30 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
         self.assertEqual(self.form_a.motivo_rechazo, "Documentación incompleta")
+        self.validar_compatibilidad.assert_called_once()
+
+    def test_rechazar_registra_error_si_siis_no_responde(self):
+        self.validar_compatibilidad.return_value = {"success": False, "error": "Timeout", "data": {}}
+
+        self.client.post(
+            reverse("becas:formulario_rechazar", args=[self.form_a.pk]),
+            {"motivo": "Documentación incompleta"},
+        )
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        self.assertEqual(self.form_a.validaciones_sis.first().estado, ValidacionSIS.Estado.ERROR)
+
+    def test_coordinador_puede_validar_siis_manualmente(self):
+        response = self.client.post(reverse("becas:formulario_validar_sis", args=[self.form_a.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.form_a.validaciones_sis.count(), 2)
+
+    def test_coordinador_ve_boton_validar_siis(self):
+        response = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(response, "Reintentar validación SIIS")
 
 
 class TransicionesRelevamientoTests(_BaseRevisionTest):
