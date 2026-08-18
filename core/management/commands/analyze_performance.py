@@ -2,7 +2,6 @@ import json
 
 from django.core.management.base import BaseCommand
 
-from config.middlewares.query_counter import QueryCountMiddleware
 from core.performance.query_observability import query_observability_report
 
 
@@ -13,8 +12,7 @@ class Command(BaseCommand):
         parser.add_argument("--output", choices=["console", "json"], default="console")
 
     def handle(self, *args, **options):
-        session_stats = QueryCountMiddleware.get_session_stats()
-        report = query_observability_report(session_stats)
+        report = query_observability_report()
         metrics_available = report["metrics"]["queries"]["source"] == "measured"
 
         if options["output"] == "json":

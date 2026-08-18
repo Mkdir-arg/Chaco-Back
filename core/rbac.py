@@ -19,7 +19,7 @@ Reglas:
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
-from django.db.models import Q
+from django.db.models import Prefetch, Q, prefetch_related_objects
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
 APP_LABEL = "users"
@@ -576,8 +576,11 @@ def nombres_de_grupos(user):
         prefetched = getattr(user, "_prefetched_objects_cache", {})
         groups = prefetched.get("groups")
         if groups is None:
-            groups = list(user.groups.order_by("pk"))
-            user._prefetched_objects_cache = {**prefetched, "groups": groups}
+            prefetch_related_objects(
+                [user],
+                Prefetch("groups", queryset=user.groups.model.objects.order_by("pk")),
+            )
+            groups = user._prefetched_objects_cache["groups"]
         cache = tuple(group.name for group in groups)
         user._group_names_cache = cache
     return cache

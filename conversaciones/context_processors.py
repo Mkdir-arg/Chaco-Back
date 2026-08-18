@@ -11,10 +11,11 @@ def user_groups(request):
     """Context processor: datos de grupos (para JS) y flags de capacidad del usuario."""
     if request.user.is_authenticated:
         try:
-            prefetch_related_objects(
-                [request.user],
-                Prefetch("groups", queryset=Group.objects.order_by("pk")),
-            )
+            if getattr(request.user, "_group_names_cache", None) is None:
+                prefetch_related_objects(
+                    [request.user],
+                    Prefetch("groups", queryset=Group.objects.order_by("pk")),
+                )
             groups = list(rbac.nombres_de_grupos(request.user))
         except Exception:
             groups = []

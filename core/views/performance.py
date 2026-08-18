@@ -41,10 +41,7 @@ class IsPerformanceAdmin(BasePermission):
 @permission_classes([IsPerformanceAdmin])
 def performance_api(request):
     """API endpoint for performance data"""
-    from config.middlewares.query_counter import QueryCountMiddleware
-
-    session_stats = QueryCountMiddleware.get_session_stats()
-    report = query_observability_report(session_stats)
+    report = query_observability_report()
     query_metric = report["metrics"]["queries"]
     memory_usage = _get_memory_usage()
 
@@ -70,7 +67,7 @@ def performance_api(request):
                 "observed_requests": report["total_requests"],
                 "timestamp": timezone.now().isoformat(),
                 "memory_usage": memory_usage,
-                "session_start": session_stats["last_reset"].isoformat(),
+                "window": report["window"],
             },
         }
     )
@@ -86,10 +83,7 @@ def performance_api(request):
 @permission_classes([IsPerformanceAdmin])
 def query_analysis_api(request):
     """Detailed query analysis API"""
-    from config.middlewares.query_counter import QueryCountMiddleware
-
-    session_stats = QueryCountMiddleware.get_session_stats()
-    report = query_observability_report(session_stats)
+    report = query_observability_report()
     query_metric = report["metrics"]["queries"]
     if query_metric["source"] != "measured":
         return JsonResponse(
@@ -170,6 +164,14 @@ def system_metrics_api(request):
     return JsonResponse(
         {
             **metrics,
+            "django": {
+                **metrics.get("django", {}),
+                "database": {
+                    "queries_count": None,
+                    "slow_queries": None,
+                    "connection_pool": None,
+                },
+            },
             "sources": {
                 "cpu": {"source": "psutil", "scope": "current_host", "refresh_seconds": 30},
                 "memory": {"source": "psutil", "scope": "current_host", "refresh_seconds": 30},
@@ -201,7 +203,7 @@ def realtime_metrics_api(request):
         "timestamp": timezone.now().isoformat(),
         "cpu_percent": system_metrics.get("cpu", {}).get("percent", 0),
         "memory_percent": system_metrics.get("memory", {}).get("percent", 0),
-        "active_connections": django_metrics.get("database", {}).get("queries_count", 0),
+        "active_connections": None,
         "cache_hits": django_metrics.get("cache", {}).get("hits", 0),
         "active_sessions": django_metrics.get("sessions", {}).get("active", 0),
         "response_time": _get_memory_usage().get("memory_mb", 0),
