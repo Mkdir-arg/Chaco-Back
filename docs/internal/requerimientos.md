@@ -175,6 +175,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 31 | La imagen autosuficiente para Kubernetes | Transversal / infraestructura | `#infra` `#relevamientos` `#ui` | PM — «que quede para levantarse en Kubernetes en todos los aspectos» | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
 | 32 | Programas (SIIS) por encima de los segmentos | Becas / estructura | `#siis` `#convocatorias` `#requisitos` `#pausas` `#ui` | PM — pedido directo en sesión de trabajo | 13/08/2026 | 🟢 **Hecho** | `programas.0045` |
 | 33 | Probar por qué SIIS no trae datos | Becas / SIIS | `#siis` `#infra` | PM — «quiero que pruebes la integración con SIIS, porque no me está trayendo datos» | 18/08/2026 | 🟢 **Hecho — diagnóstico y comando de verificación** | No |
+| 34 | Prevalidación SIIS al aprobar o rechazar formularios | Becas / revisión | `#siis` `#rbac` `#cupos` | Análisis #72 y revisión del PR #233 | 18/08/2026 | 🟢 **Hecho sobre el contrato vigente** | No |
 
 **Notas del índice**
 
@@ -2385,6 +2386,44 @@ Nada propio: viaja en la imagen y se corre a mano cuando hace falta. Las variabl
 ## Reversión
 
 Borrar los dos archivos nuevos. Sin efecto sobre la aplicación: nada del producto los importa.
+
+# Cambio 34 — Prevalidación SIIS al aprobar o rechazar formularios
+
+🟢 **Hecho sobre el contrato vigente**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas / revisión |
+| **Etiquetas** | `#siis` `#rbac` `#cupos` |
+| **Solicitante** | Análisis #72 y revisión del PR #233 |
+| **Fecha del pedido** | 18/08/2026 |
+| **Migración** | No requiere |
+
+## Pedido
+
+Consultar SIIS de forma automática y síncrona cuando un Coordinador aprueba o rechaza un formulario, y permitir el reintento manual dentro de su segmento.
+
+## Decisiones tomadas
+
+- Cada acción consulta el programa SIIS del segmento y registra el intento, incluidos timeout y errores técnicos.
+- La aprobación solo continúa con compatibilidad vigente para el DNI y programa actuales; después asigna cupo o lista de espera.
+- El rechazo registra primero la consulta. Un error queda visible para reintento, pero no impide documentar la decisión local.
+- El Coordinador valida SIIS mediante `becas.revision.editar` y conserva el alcance de sus segmentos. La revalidación de identidad sigue reservada a `becas.programa.administrar`.
+
+## Alcance pendiente del contrato externo
+
+La API vigente solo prevalida compatibilidad y no admite un parámetro que distinga aprobación de rechazo. La RN-25 del análisis #72 queda pendiente hasta que ECOM defina ese contrato; no se inventan campos fuera del manual.
+
+## Archivos
+
+- `programas/services/validacion_siis.py`, `programas/services/cupo.py`
+- `programas/views/revision.py`
+- `programas/templates/programas/becas/revision/formulario_detalle.html`
+- `programas/tests/test_becas_revision.py`
+
+## Historial
+
+Entrada nueva. Implementa el disparo posible con el contrato vigente y explicita el límite externo de la RN-25.
 
 # Verificaciones generales pendientes antes de desplegar
 
