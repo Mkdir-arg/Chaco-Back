@@ -83,7 +83,7 @@ class Command(BaseCommand):
                     )
                 results.append({"key": target["key"], "route": target["route"], "status_code": response.status_code})
 
-        self._record_stubbed_dependency()
+        self._record_stubbed_dependencies()
         _write_json(
             output,
             {
@@ -151,11 +151,12 @@ class Command(BaseCommand):
         return clients
 
     @staticmethod
-    def _record_stubbed_dependency():
+    def _record_stubbed_dependencies():
         response = type("StubResponse", (), {"status_code": 200})()
 
         def get_response(_request):
-            instrument_external_call("ci_stub", lambda: response)
+            for dependency in ("ci_stub", "siis", "personas", "renaper"):
+                instrument_external_call(dependency, lambda: response)
             return HttpResponse("ok")
 
         QueryCountMiddleware(get_response)(RequestFactory().get("/performance-ci-dependency-probe/"))
@@ -199,12 +200,18 @@ class Command(BaseCommand):
                     breaches.append(f"{target['key']}: {measurement[metric]} {label} vs máximo {maximum}")
         if breaches:
             raise CommandError("Presupuesto MySQL excedido: " + "; ".join(breaches))
-        dependency = routes.get("unresolved", {}).get("dependencies", {}).get("ci_stub", {})
-        if dependency.get("calls", 0) < worker_count or dependency.get("errors", 0) != 0:
-            raise CommandError("La dependencia stubbed no quedó agregada correctamente entre workers.")
-        siis_calls = sum(route.get("dependencies", {}).get("siis", {}).get("calls", 0) for route in report["routes"])
-        if siis_calls < worker_count:
-            raise CommandError("La sonda no registró el stub SIIS en cada worker.")
+        dependencies = routes.get("unresolved", {}).get("dependencies", {})
+        missing_dependencies = [
+            dependency
+            for dependency in ("ci_stub", "siis", "personas", "renaper")
+            if dependencies.get(dependency, {}).get("calls", 0) < worker_count
+            or dependencies.get(dependency, {}).get("errors", 0) != 0
+        ]
+        if missing_dependencies:
+            raise CommandError(
+                "Las dependencias stubbed no quedaron agregadas correctamente entre workers: "
+                + ", ".join(missing_dependencies)
+            )
         artifact = {
             "schema_version": 1,
             "workers": worker_count,

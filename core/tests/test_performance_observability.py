@@ -229,6 +229,19 @@ class EphemeralPerformanceCiCommandTests(TestCase):
         with self.assertRaisesMessage(CommandError, "campos sensibles"):
             Command._assert_redacted({"route": "core:inicio", "sql": "SELECT secret"})
 
+    def test_ci_dependency_probe_records_only_named_stub_aggregates(self):
+        from core.management.commands.perf_ci_probe import Command
+
+        reset_local_metrics_for_tests()
+        Command._record_stubbed_dependencies()
+
+        dependencies = QueryObservabilityStore().snapshot()["routes"][0]["dependencies"]
+        self.assertEqual(set(dependencies), {"ci_stub", "siis", "personas", "renaper"})
+        for item in dependencies.values():
+            self.assertEqual(item["calls"], 1)
+            self.assertEqual(item["errors"], 0)
+            self.assertGreaterEqual(item["duration_ms"], 0)
+
     def test_ci_workers_use_distinct_identities_for_single_session_policy(self):
         from core.management.commands.perf_ci_probe import Command
         from legajos.models import Ciudadano
