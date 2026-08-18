@@ -1120,9 +1120,7 @@ class RelevamientoForm(forms.ModelForm):
                 models.Q(segmento__programa__isnull=True)
                 | (
                     models.Q(segmento__programa__pausado=False)
-                    & ~models.Q(
-                        segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES
-                    )
+                    & ~models.Q(segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES)
                 )
             )
             .filter(models.Q(subsegmento__isnull=True) | models.Q(subsegmento__pausado=False))
