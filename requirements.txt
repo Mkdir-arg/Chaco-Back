@@ -1,13 +1,10 @@
-# Requerido por django-silk 5.0.4 (usa pkg_resources); setuptools>=81 lo eliminó
-setuptools<81
-
 # Django Core
-Django==4.2.30
-djangorestframework==3.15.2
+Django==5.2.17
+djangorestframework==3.16.1
 
 # Database
 mysqlclient==2.1.1
-cryptography==48.0.1
+cryptography==50.0.0
 
 # Cache
 django-redis==5.4.0
@@ -44,11 +41,11 @@ openai==1.3.0
 httpx==0.27.2
 
 # WebSockets
-channels==4.0.0
+channels==4.2.2
 channels-redis==4.1.0
 
 # Performance Profiling
-django-silk==5.0.4
+django-silk==5.1.0
 django-zeal==2.2.1
 
 # System Monitoring
