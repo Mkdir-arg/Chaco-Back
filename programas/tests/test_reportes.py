@@ -33,15 +33,13 @@ def permiso(codigo):
 
 class ReportesExportablesTests(TestCase):
     def setUp(self):
-        self.dispositivos_programa = Programa.objects.create(
+        self.dispositivos_programa, _ = Programa.objects.get_or_create(
             codigo=Programa.TipoPrograma.DISPOSITIVOS,
-            nombre="Dispositivos",
-            tipo=Programa.TipoPrograma.DISPOSITIVOS,
+            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
         )
-        self.merenderos_programa = Programa.objects.create(
+        self.merenderos_programa, _ = Programa.objects.get_or_create(
             codigo=Programa.TipoPrograma.MERENDEROS,
-            nombre="Merenderos",
-            tipo=Programa.TipoPrograma.MERENDEROS,
+            defaults={"nombre": "Merenderos", "tipo": Programa.TipoPrograma.MERENDEROS},
         )
         self.tipo_hogar = TipoDispositivo.objects.create(codigo="HOG", nombre="Hogar", maneja_camas=True)
         self.tipo_refugio = TipoDispositivo.objects.create(codigo="REF", nombre="Refugio", maneja_camas=True)

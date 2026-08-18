@@ -174,6 +174,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 30 | La guía cubre el despliegue en Kubernetes desde cero | Transversal / infraestructura | `#infra` `#siis` | PM — pidió el repaso final de la guía para setear el sistema desde cero en Kubernetes | 11/08/2026 | 🟢 **Hecho** | No |
 | 31 | La imagen autosuficiente para Kubernetes | Transversal / infraestructura | `#infra` `#relevamientos` `#ui` | PM — «que quede para levantarse en Kubernetes en todos los aspectos» | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
 | 32 | Programas (SIIS) por encima de los segmentos | Becas / estructura | `#siis` `#convocatorias` `#requisitos` `#pausas` `#ui` | PM — pedido directo en sesión de trabajo | 13/08/2026 | 🟢 **Hecho** | `programas.0045` |
+| 33 | Probar por qué SIIS no trae datos | Becas / SIIS | `#siis` `#infra` | PM — «quiero que pruebes la integración con SIIS, porque no me está trayendo datos» | 18/08/2026 | 🟢 **Hecho — diagnóstico y comando de verificación** | No |
 
 **Notas del índice**
 
@@ -2314,6 +2315,76 @@ Antes de revertir, **respaldar la base**: la reversión de `programas.0045` elim
 ## Historial
 
 No aplica: entrada nueva. Sube de nivel lo implementado en el **Cambio 22** (vigencia SIIS) y le da al **Cambio 8** (incorporar programas de ECOM) la estructura que le faltaba: cuando los cuatro programas entren al catálogo, cada uno podrá tener N segmentos propios.
+
+# Cambio 33 — Probar por qué SIIS no trae datos
+
+🟢 **HECHO — 18/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#siis` `#infra` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, con captura del select «Programa SIIS» vacío |
+| **Fecha del pedido** | 18/08/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Quiero que pruebes la integración con SIIS, porque no me está trayendo datos.» El select **Programa SIIS** del alta de programa aparecía con la sola opción «Seleccioná un programa…».
+
+## Alcance acordado
+
+Entra: diagnosticar la causa y dejar una forma de verificar la integración en cualquier entorno. **No** entra cargar las credenciales —las emite ECOM y no están en el repo— ni cambiar el cliente de SIIS, que resultó estar bien.
+
+## Decisiones tomadas
+
+- **La causa no era el código.** Se probó el servicio de ECOM de punta a punta: `siisapi.ecomdev.ar` resuelve, y los cuatro endpoints del convenio responden `401` con cuerpo propio (`CREDENCIALES_INVALIDAS` / `Token inválido o vencido`). El servicio está arriba y el contrato no cambió. Lo que faltaba eran `SIIS_API_CLIENT_ID` y `SIIS_API_CLIENT_SECRET` en el entorno: sin ellas `SiisAPIClient._token()` corta **antes de salir a la red** y el formulario deja el select vacío. Era el pendiente que el Cambio 27.1 ya había anotado («cargar las credenciales de test en el gestor de claves y en el entorno»).
+- **Se dejó un comando de diagnóstico en vez de un informe.** El síntoma —select vacío— tiene tres causas que se ven idénticas desde el backoffice: falta de configuración, rechazo del servicio, y catálogo que llega pero que el normalizador descarta por un cambio de contrato de ECOM. Sin una herramienta, cada vez que ECOM toque algo hay que rehacer la investigación a mano.
+- **El comando recorre el camino real del cliente, no una copia.** Usa `SiisAPIClient` —incluidos `_items` y `_normalizar_catalogo`— para que lo que valida sea exactamente lo que corre en la aplicación. Un diagnóstico con su propio cliente HTTP podría dar verde con la app rota.
+- **Descarta las cachés antes de probar.** El token se cachea 1 h y el catálogo 300 s: un diagnóstico que lea la caché puede dar verde con credenciales que ya no sirven. Con `--usar-cache` se puede pedir lo contrario, para ver qué está viendo la app en este momento.
+- **Catálogo vacío es AVISO, no falla.** El entorno de test de ECOM puede no publicar programas y eso no es un problema de integración. La única falla de catálogo es que lleguen datos y el normalizador los tire: ahí el comando imprime las claves recibidas para compararlas contra las que el cliente espera.
+- **Programa interpretado pero no vigente también es AVISO.** Se corrigió durante el desarrollo: la primera versión reportaba un programa `INACTIVO` como cambio de contrato. Un test lo detectó. El select vacío en ese caso es correcto y el motivo es la vigencia en SIIS.
+- **Sale con código ≠ 0 si algo falla**, para poder usarlo como gate de despliegue o desde un CronJob.
+
+## Implementación
+
+`python manage.py diagnosticar_siis` informa, paso a paso y sin escribir nada:
+
+1. **Configuración** — las tres variables (el secret solo por longitud, nunca su valor) y los timeouts. Avisa si `ENVIRONMENT=prd` pero la URL sigue apuntando al entorno de test de ECOM.
+2. **Autenticación** — pide el token y, si falla, muestra el HTTP y el cuerpo textual de ECOM.
+3. **Catálogo** — para `estado=ACTIVO` y `estado=TODOS`, cuántos items trajo la respuesta, cuántos interpretó la aplicación y cuántos llegan al select, con los programas listados.
+4. **Compatibilidad** (opcional, con `--dni` y `--programa`) — la prevalidación, con los motivos de rechazo redactados.
+
+## Archivos
+
+- `programas/management/commands/diagnosticar_siis.py` (nuevo)
+- `programas/tests/test_diagnosticar_siis.py` (nuevo)
+
+## Base de datos
+
+No requiere migración. El comando es de solo lectura y no toca la base.
+
+## Validación
+
+- `manage.py check` sin observaciones.
+- `manage.py test programas.tests.test_diagnosticar_siis programas.tests.test_siis_service` → **17 tests OK**. Los seis nuevos cubren catálogo con datos, catálogo vacío, cambio de contrato, programa no vigente, token rechazado y falta de credenciales; los tres últimos verifican además el código de salida y que sin credenciales no se salga a la red.
+- Contra el servicio real: los pasos 1 y 2 se ejercitaron de verdad —sin credenciales corta en el paso 1; con un secret inválido el paso 2 devuelve el `401 CREDENCIALES_INVALIDAS` de ECOM—. **Los pasos 3 y 4 solo están cubiertos por tests**: sin el secret válido no se pueden ejercitar contra el servicio.
+- `scripts/design_audit.py --changed` → 0 errores, 0 warnings. No tocó UI.
+
+## Puesta en marcha en el servidor
+
+Nada propio: viaja en la imagen y se corre a mano cuando hace falta. Las variables las carga infra en el Secret del ambiente; los manifiestos de `docker/k8s/` las toman con `envFrom: secretRef`, así que una clave agregada al Secret llega al contenedor sin tocar YAML.
+
+## Pendientes / a definir
+
+- **Verificar los pasos 3 y 4 contra el servicio real** en cuanto el pod reinicie con las credenciales cargadas. Es lo único que puede destapar un cambio de contrato en el catálogo.
+- Credenciales de **producción** de SIIS: siguen dependiendo del deploy prod de ECOM (pendiente heredado del Cambio 8 y de `docs/internal/temas/siis-api.md`).
+
+## Reversión
+
+Borrar los dos archivos nuevos. Sin efecto sobre la aplicación: nada del producto los importa.
 
 # Verificaciones generales pendientes antes de desplegar
 
