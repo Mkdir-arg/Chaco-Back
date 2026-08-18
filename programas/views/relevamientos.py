@@ -440,6 +440,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         segmentos = segmentos_visibles(self.request.user).order_by("nombre")
+        territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["segmentos"] = segmentos
         ctx["filtros"] = {
@@ -457,16 +458,18 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         form_crear = RelevamientoForm(
             segmentos_permitidos=segmentos,
             convocatorias_permitidas=convocatorias_visibles(self.request.user),
-            territoriales_permitidos=usuarios_territoriales_becas().filter(
-                asignacion_territorial__segmento__in=segmentos
-            ),
+            territoriales_permitidos=territoriales,
             operador=self.request.user,
         )
-        # El filtro y el modal muestran los mismos territoriales. Materializar
-        # las opciones evita ejecutar dos veces el mismo queryset al renderizar.
-        territorial_choices = [choice for choice in form_crear.fields["territorial"].choices]
-        form_crear.fields["territorial"].choices = territorial_choices
-        ctx["territoriales"] = [choice for choice in territorial_choices if choice[0]]
+        # El filtro y el modal usan los mismos territoriales. Congelar las
+        # opciones evita consultar dos veces el mismo queryset al renderizar.
+        # La comprensión evita el ``COUNT`` que ``list(ModelChoiceIterator)``
+        # solicita como length hint antes de traer las opciones.
+        opciones_territoriales = [opcion for opcion in form_crear.fields["territorial"].choices]
+        ctx["territoriales"] = [
+            valor.instance for valor, _etiqueta in opciones_territoriales if getattr(valor, "instance", None)
+        ]
+        form_crear.fields["territorial"].choices = opciones_territoriales
         ctx["form_crear"] = form_crear
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         return ctx

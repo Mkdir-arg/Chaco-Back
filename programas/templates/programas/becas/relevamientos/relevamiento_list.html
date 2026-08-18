@@ -49,8 +49,8 @@
         <label for="filtro-territorial" class="block text-xs font-semibold text-body-subtle mb-1">Territorial</label>
         <select id="filtro-territorial" name="territorial" class="nodo-field w-full">
           <option value="">Todos</option>
-          {% for value, label in territoriales %}
-            <option value="{{ value }}" {% if value|stringformat:"s" == filtros.territorial %}selected{% endif %}>{{ label }}</option>
+          {% for territorial in territoriales %}
+            <option value="{{ territorial.pk }}" {% if territorial.pk|stringformat:"s" == filtros.territorial %}selected{% endif %}>{{ territorial.get_full_name|default:territorial.username }}</option>
           {% endfor %}
         </select>
       </div>
