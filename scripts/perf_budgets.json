@@ -7,7 +7,6 @@
     "maintenance": "Subir un max_queries requiere editar este archivo en el mismo PR que introduce la necesidad, con justificacion visible para review.",
     "adjustments": {
       "becas_relevamiento_detalle": "14→15: consulta fija del control de sesión única de Backoffice; el N+1 detectado en legajo_detalle fue eliminado sin ampliar su presupuesto.",
-      "becas_relevamientos": "16→17: el baseline versionado quedó un punto por debajo de la ejecución determinista actual (17 tanto antes como después de esta etapa); se alinea la guarda sin ocultar incrementos futuros.",
       "becas_consulta_duplicada": "El baseline determinista actual tiene dos consultas normalizadas repetidas en cuatro rutas Becas; la nueva guarda bloquea cualquier incremento hasta que exista una optimización medida."
     },
     "timing": {
@@ -32,7 +31,7 @@
     "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10, "max_duplicate_queries": 0},
     "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15, "max_duplicate_queries": 2},
     "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 14, "max_duplicate_queries": 2},
-    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 17, "max_duplicate_queries": 2},
+    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16, "max_duplicate_queries": 2},
     "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15, "max_duplicate_queries": 2}
   }
 }
