@@ -2,12 +2,12 @@
 setuptools<81
 
 # Django Core
-Django==4.2.30
+Django==5.2.17
 djangorestframework==3.15.2
 
 # Database
 mysqlclient==2.1.1
-cryptography==48.0.1
+cryptography==50.0.0
 
 # Cache
 django-redis==5.4.0
@@ -48,7 +48,7 @@ channels==4.0.0
 channels-redis==4.1.0
 
 # Performance Profiling
-django-silk==5.0.4
+django-silk==5.1.0
 django-zeal==2.2.1
 
 # System Monitoring

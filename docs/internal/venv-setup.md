@@ -59,22 +59,20 @@ nada globalmente.
 ## Versión de Python
 
 - **Ideal:** Python 3.12 (stack documentado en `CLAUDE.md`).
-- **Aceptable:** Python 3.10 / 3.11. Django 4.2 LTS los soporta.
-- En la máquina de referencia donde se generó este doc solo había Python
-  3.10.11, así que el venv se creó con `py -3.10`. El `manage.py check`
-  pasa sin errores en esa configuración.
+- **Aceptable:** Python 3.10 / 3.11. Django 5.2 LTS los soporta.
+- La validación de la actualización a Django 5.2 se realiza con Python 3.12,
+  igual que los workflows y la imagen Docker del repo.
 
 Si necesitás 3.12 explícitamente (por una dependencia futura o para acercarte
 al runtime de Docker), instalalo con `py install 3.12` o desde python.org y
 recreá el venv borrando `.venv/` primero.
 
-## Version-pin overrides aplicados
+## Pines de compatibilidad aplicados
 
-**Ninguno por ahora.** El `requirements.txt` actual instala limpio en un venv
-3.10 y `manage.py check` pasa con:
+El `requirements.txt` actual usa:
 
-- `Django==4.2.20`
-- `django-silk==5.0.4`
+- `Django==5.2.17`
+- `django-silk==5.1.0`
 
 El error global que motivó este doc:
 
@@ -84,12 +82,8 @@ ImportError: cannot import name 'get_storage_class' from
 ```
 
 se produce cuando se mezcla `django-silk < 5.1` con `Django >= 5.1` (Django
-5.1 eliminó `get_storage_class`). Mientras el venv quede pinneado a Django
-4.2.x, `django-silk 5.0.4` sigue siendo compatible y no hace falta tocar el
-pin.
-
-**Si en el futuro bumpeamos a Django 5.x**, hay que subir también
-`django-silk>=5.1` en el mismo cambio. Documentarlo acá cuando pase.
+5.1 eliminó `get_storage_class`). El pin `django-silk==5.1.0` acompaña la
+actualización a Django 5.2 y reemplaza ese uso por la API `storages` vigente.
 
 ## Follow-ups conocidos (no bloqueantes)
 
