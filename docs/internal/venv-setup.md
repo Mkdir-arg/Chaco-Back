@@ -2,8 +2,8 @@
 
 Receta para correr el repo fuera de Docker usando un virtualenv aislado. Útil
 para `manage.py check`, tests rápidos, o cuando el Python global de la máquina
-tiene paquetes en versiones que rompen `Django 4.2` (p. ej. `django-silk`
-viejo importando `get_storage_class` de un Django ya purgado).
+tiene paquetes incompatibles con `Django 5.2` (p. ej. `django-silk` viejo
+importando la función eliminada `get_storage_class`).
 
 ## Crear el venv
 
@@ -14,8 +14,8 @@ py -3.12 -m venv .venv
 ```
 
 Si `py -3.12` no está instalado, se acepta caer a `py -3.10` (ver
-"Versión de Python" abajo). Django 4.2 LTS soporta oficialmente Python
-3.8 → 3.12.
+"Versión de Python" abajo). Django 5.2 LTS soporta oficialmente Python
+3.10 → 3.14.
 
 ## Activar / usar el venv
 
@@ -72,6 +72,8 @@ recreá el venv borrando `.venv/` primero.
 El `requirements.txt` actual usa:
 
 - `Django==5.2.17`
+- `djangorestframework==3.16.1`
+- `channels==4.2.2`
 - `django-silk==5.1.0`
 
 El error global que motivó este doc:
@@ -84,6 +86,9 @@ ImportError: cannot import name 'get_storage_class' from
 se produce cuando se mezcla `django-silk < 5.1` con `Django >= 5.1` (Django
 5.1 eliminó `get_storage_class`). El pin `django-silk==5.1.0` acompaña la
 actualización a Django 5.2 y reemplaza ese uso por la API `storages` vigente.
+DRF 3.16 y Channels 4.2 son las primeras ramas del stack fijado que declaran
+soporte para Django 5.2. El parche Channels 4.2.2 conserva además la API interna
+que usa `channels-redis==4.1.0`.
 
 ## Follow-ups conocidos (no bloqueantes)
 

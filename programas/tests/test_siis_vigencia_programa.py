@@ -144,7 +144,9 @@ class DetalleInformativoTests(TestCase):
         programa = ProgramaSiis.objects.create(nombre="Sin datos", siis_programa_id=77)
 
         datos = json.loads(
-            Template("{% load becas_extras %}{{ p|siis_info }}").render(Context({"p": programa})).replace("&quot;", '"')
+            Template("{% load becas_extras %}{{ p|siis_info }}")
+            .render(Context({"p": programa}))
+            .replace("&quot;", '"')
         )
 
         self.assertEqual(datos["id"], 77)

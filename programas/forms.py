@@ -1120,7 +1120,9 @@ class RelevamientoForm(forms.ModelForm):
                 models.Q(segmento__programa__isnull=True)
                 | (
                     models.Q(segmento__programa__pausado=False)
-                    & ~models.Q(segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES)
+                    & ~models.Q(
+                        segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES
+                    )
                 )
             )
             .filter(models.Q(subsegmento__isnull=True) | models.Q(subsegmento__pausado=False))
@@ -1168,7 +1170,9 @@ class RelevamientoForm(forms.ModelForm):
         municipio_id = self.data.get(self.add_prefix("municipio")) if self.is_bound else None
         opciones = []
         if municipio_id:
-            opciones = [(loc.pk, loc.nombre) for loc in self.fields["zona"].queryset.filter(municipio_id=municipio_id)]
+            opciones = [
+                (loc.pk, loc.nombre) for loc in self.fields["zona"].queryset.filter(municipio_id=municipio_id)
+            ]
         vacia = "Elegí una localidad" if opciones else "Elegí primero el municipio"
         self.fields["zona"].widget.choices = [("", vacia), *opciones]
 
