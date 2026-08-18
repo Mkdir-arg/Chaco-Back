@@ -211,6 +211,16 @@ CATALOGO = [
         ],
     },
     {
+        "modulo": "becas_reportes",
+        "label": "Becas — Reportes",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.reportes.ver", "Ver reportes de Becas"),
+            ("becas.reportes.exportar", "Exportar reportes de Becas"),
+        ],
+    },
+    {
         "modulo": "becas_campo",
         "label": "Becas — Campo",
         "tab": "becas",
