@@ -92,9 +92,9 @@ jobs:
       DATABASE_USER: chaco_perf_ci
       DATABASE_PASSWORD: chaco_perf_ci
       DATABASE_HOST: 127.0.0.1
-      DATABASE_PORT: ${{ job.services.mysql.ports[3306] }}
+      DATABASE_PORT: "3306"
       REDIS_HOST: 127.0.0.1
-      REDIS_PORT: ${{ job.services.redis.ports[6379] }}
+      REDIS_PORT: "6379"
       REDIS_DB: "14"
 
     steps:
