@@ -102,8 +102,7 @@ class Command(BaseCommand):
         # quedó con ese valor, el catálogo trae datos desactualizados sin fallar.
         if "ecomdev.ar" in cliente.base_url and settings.ENVIRONMENT == "prd":
             self._aviso(
-                f"ENVIRONMENT=prd pero SIIS_API_URL apunta a {cliente.base_url}, "
-                "que es el entorno de test de ECOM."
+                f"ENVIRONMENT=prd pero SIIS_API_URL apunta a {cliente.base_url}, que es el entorno de test de ECOM."
             )
         return True
 
@@ -126,9 +125,7 @@ class Command(BaseCommand):
         activos = []
         for estado in (ESTADO_ACTIVO, "TODOS"):
             try:
-                cuerpo = cliente._cargar_catalogo(
-                    f"/api/v1/programas?estado={estado}", "Catálogo no encontrado."
-                )
+                cuerpo = cliente._cargar_catalogo(f"/api/v1/programas?estado={estado}", "Catálogo no encontrado.")
             except SiisCatalogError as exc:
                 self._error(f"estado={estado}: {exc}")
                 continue
@@ -218,9 +215,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         if self._fallas:
             self.stdout.write(
-                self.style.ERROR(
-                    f"Diagnóstico con {len(self._fallas)} falla(s). La integración no está operativa."
-                )
+                self.style.ERROR(f"Diagnóstico con {len(self._fallas)} falla(s). La integración no está operativa.")
             )
             # Código de salida != 0 para poder usarlo como gate de despliegue.
             raise SystemExit(1)

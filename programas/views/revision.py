@@ -2,7 +2,7 @@
 
 Acceso granular: ``becas.revision.ver`` para listar/consultar, ``becas.revision.editar``
 para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcance
-por segmento. La validación SIIS es un placeholder.
+por segmento. La validación SIIS conserva y presenta el detalle auditable de ECOM.
 """
 
 from pathlib import Path
@@ -15,7 +15,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
@@ -31,14 +31,74 @@ from programas.models import (
 )
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
-from programas.services.cupo import aprobar_o_poner_en_espera
+from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.personas import consultar_persona
-from programas.services.siis import motivos_de_rechazo, validar_compatibilidad
+from programas.services.validacion_siis import validar_formulario_en_siis
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
+
+SIIS_CONTROLES = (
+    ("vigencia_programa", "Vigencia del programa"),
+    ("edad_minima", "Edad mínima"),
+    ("empleo_publico", "Empleo público"),
+    ("horas_docentes", "Horas docentes"),
+    ("duplicidad_becas", "Otros beneficios o becas"),
+)
+SIIS_VALORES_FAVORABLES = {"VIGENTE", "CUMPLE_EDAD_MINIMA", "SIN_INCOMPATIBILIDAD"}
+SIIS_VALORES_INFORMATIVOS = {"NO_EVALUADO_SIN_FECHA"}
+SIIS_ETIQUETAS_VALOR = {
+    "VIGENTE": "Programa vigente",
+    "PROGRAMA_INACTIVO": "Programa inactivo",
+    "CUMPLE_EDAD_MINIMA": "Cumple la edad mínima",
+    "EDAD_INSUFICIENTE": "No cumple la edad mínima",
+    "NO_EVALUADO_SIN_FECHA": "No evaluado: falta la fecha de nacimiento",
+    "SIN_INCOMPATIBILIDAD": "Sin incompatibilidad",
+    "INCOMPATIBLE_PLANTA": "Incompatible por empleo público",
+    "INCOMPATIBLE_EXCEDE_HORAS": "Incompatible por exceso de horas docentes",
+    "BENEFICIO_ACTIVO_EXISTENTE": "Tiene un beneficio activo incompatible",
+    "SUSPENDIDO_TEMPORAL": "Tiene una suspensión temporal vigente",
+}
+
+
+def _detalle_validacion_siis(validacion):
+    if validacion is None:
+        return None
+    respuesta = validacion.respuesta if isinstance(validacion.respuesta, dict) else {}
+    valores = respuesta.get("validaciones") if isinstance(respuesta.get("validaciones"), dict) else {}
+    controles = []
+    for clave, etiqueta in SIIS_CONTROLES:
+        valor = str(valores.get(clave) or "").strip().upper()
+        if not valor:
+            continue
+        if valor in SIIS_VALORES_FAVORABLES:
+            tono = "success"
+        elif valor in SIIS_VALORES_INFORMATIVOS:
+            tono = "warning"
+        else:
+            tono = "danger"
+        controles.append(
+            {
+                "etiqueta": etiqueta,
+                "detalle": SIIS_ETIQUETAS_VALOR.get(valor, valor.replace("_", " ").capitalize()),
+                "tono": tono,
+            }
+        )
+    registrado = respuesta.get("persona_registrada_siis")
+    if registrado is True:
+        situacion = "Registrado en SIIS"
+    elif registrado is False:
+        situacion = "Nuevo solicitante"
+    else:
+        situacion = "No informado"
+    return {
+        "programa_nombre": respuesta.get("nombre_programa") or "",
+        "programa_id": respuesta.get("id_programa") or validacion.id_programa,
+        "situacion": situacion,
+        "controles": controles,
+    }
 
 
 def _con_conflicto_duplicado_pendiente(queryset):
@@ -278,6 +338,11 @@ def formulario_detalle(request, pk):
             "open_url": "https://www.openstreetmap.org/?"
             + urlencode({"mlat": f"{lat:.6f}", "mlon": f"{lng:.6f}", "zoom": 16}),
         }
+    validaciones_sis = list(formulario.validaciones_sis.select_related("solicitado_por"))
+    validacion_sis = validaciones_sis[0] if validaciones_sis else None
+    historial_validaciones_sis = [
+        {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)} for validacion in validaciones_sis
+    ]
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
@@ -295,7 +360,11 @@ def formulario_detalle(request, pk):
             "mapa": mapa,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
-            "validacion_sis": formulario.validaciones_sis.first(),
+            "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
+            "validacion_sis": validacion_sis,
+            "detalle_siis": _detalle_validacion_siis(validacion_sis),
+            "historial_validaciones_sis": historial_validaciones_sis,
+            "motivo_bloqueo_aprobacion": motivo_bloqueo_aprobacion(formulario),
             "tiene_conflicto_duplicado_pendiente": _tiene_conflicto_duplicado_pendiente(formulario),
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
@@ -304,7 +373,7 @@ def formulario_detalle(request, pk):
 
 
 @login_required
-@requiere(CAP_REVALIDAR_RENAPER)
+@requiere(CAP_REVISION_EDITAR)
 def formulario_validar_sis(request, pk):
     formulario = get_object_or_404(
         Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento__programa"), pk=pk
@@ -313,48 +382,17 @@ def formulario_validar_sis(request, pk):
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
 
-    convocatoria = formulario.relevamiento.convocatoria
-    programa = convocatoria.segmento.programa
-    ciudadano = formulario.ciudadano
-    if programa is None:
-        messages.error(request, "El segmento no tiene configurado el programa correspondiente de SIIS.")
+    try:
+        validacion = validar_formulario_en_siis(formulario, request.user)
+    except ValueError as error:
+        messages.error(request, str(error))
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    if ciudadano is None or not ciudadano.dni:
-        messages.error(request, "El formulario no tiene un ciudadano con DNI vinculado.")
-        return redirect("becas:formulario_detalle", pk=formulario.pk)
-
-    # SIIS valida contra el programa del segmento. El subsegmento es local y no
-    # participa; la fecha de nacimiento es opcional y solo se usa para evaluar
-    # edad mínima cuando la persona no figura en su padrón.
-    resultado = validar_compatibilidad(
-        ciudadano.dni,
-        programa.siis_programa_id,
-        ciudadano.fecha_nacimiento.isoformat() if ciudadano.fecha_nacimiento else None,
-    )
-    data = resultado.get("data") or {}
-    estado = ValidacionSIS.Estado.ERROR
-    if resultado.get("success"):
-        estado = ValidacionSIS.Estado.OK if resultado.get("compatible") else ValidacionSIS.Estado.RECHAZADO
-    motivos = motivos_de_rechazo(data.get("validaciones"))
-    ValidacionSIS.objects.create(
-        formulario=formulario,
-        estado=estado,
-        id_programa=programa.siis_programa_id,
-        documento=ciudadano.dni,
-        id_consulta=data.get("id_consulta") or None,
-        fecha_validacion=parse_datetime(str(data.get("fecha_hora") or "")),
-        codigo_motivo=", ".join(bandera for bandera, _ in motivos)[:100],
-        motivo=" ".join(texto for _, texto in motivos) or str(resultado.get("error") or ""),
-        respuesta=data,
-        solicitado_por=request.user,
-    )
-    if estado == ValidacionSIS.Estado.OK:
+    if validacion.estado == ValidacionSIS.Estado.OK:
         messages.success(request, "SIIS informo que la persona es compatible.")
-    elif estado == ValidacionSIS.Estado.RECHAZADO:
-        detalle = " ".join(texto for _, texto in motivos) or "sin motivo informado"
-        messages.warning(request, f"SIIS rechazo la compatibilidad: {detalle}")
+    elif validacion.estado == ValidacionSIS.Estado.RECHAZADO:
+        messages.warning(request, f"SIIS rechazo la compatibilidad: {validacion.motivo or 'sin motivo informado'}")
     else:
-        messages.error(request, resultado.get("error") or "No se pudo validar contra SIIS.")
+        messages.error(request, validacion.motivo or "No se pudo validar contra SIIS.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
@@ -409,9 +447,10 @@ def formulario_aprobar(request, pk):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         try:
+            validar_formulario_en_siis(formulario, request.user)
             resultado = aprobar_o_poner_en_espera(formulario, request.user)
-        except ValidationError as e:
-            messages.error(request, e.message)
+        except (ValidationError, ValueError) as error:
+            messages.error(request, getattr(error, "message", str(error)))
         else:
             if resultado == "aprobado":
                 messages.success(request, "Formulario aprobado.")
@@ -486,11 +525,18 @@ def formulario_rechazar(request, pk):
         if not motivo:
             messages.error(request, "Debés indicar el motivo del rechazo.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
+        try:
+            validacion = validar_formulario_en_siis(formulario, request.user)
+        except ValueError as error:
+            messages.error(request, str(error))
+            return redirect("becas:formulario_detalle", pk=formulario.pk)
         estado_anterior = formulario.estado
         formulario.estado = Formulario.Estado.RECHAZADO
         formulario.motivo_rechazo = motivo
         formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
         registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
+        if validacion.estado == ValidacionSIS.Estado.ERROR:
+            messages.warning(request, "SIIS no respondió correctamente; quedó registrado para reintentar.")
         messages.success(request, "Formulario rechazado.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
