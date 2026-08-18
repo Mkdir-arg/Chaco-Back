@@ -27,8 +27,8 @@
                         </p>
                         <p style="font-size: 11px; color: var(--text-body-subtle);
                                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            {% if request.user.groups.all %}
-                                {{ request.user.groups.first.name }}
+                            {% if user_primary_group %}
+                                {{ user_primary_group }}
                             {% else %}
                                 Sin grupo
                             {% endif %}

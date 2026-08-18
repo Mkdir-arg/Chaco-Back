@@ -14,6 +14,7 @@ from requests.exceptions import ConnectionError, RequestException
 from urllib3.util.retry import Retry
 
 from core.models import Provincia
+from core.performance.query_observability import instrument_external_call
 
 # Suprimir warnings de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -186,8 +187,12 @@ class APIClient:
             return
 
         try:
-            response = self.session.post(
-                self.login_url, json={"username": self.username, "password": self.password}, timeout=self.timeout
+            response = instrument_external_call(
+                "renaper",
+                self.session.post,
+                self.login_url,
+                json={"username": self.username, "password": self.password},
+                timeout=self.timeout,
             )
         except ConnectionError:
             raise Exception("Error de conexion con el servicio.")
@@ -253,7 +258,9 @@ class APIClient:
 
         try:
             if method == "post":
-                response = self.session.post(
+                response = instrument_external_call(
+                    "renaper",
+                    self.session.post,
                     self.consulta_url,
                     headers=headers,
                     json=payload,
@@ -261,7 +268,9 @@ class APIClient:
                     verify=False,
                 )
             else:
-                response = self.session.get(
+                response = instrument_external_call(
+                    "renaper",
+                    self.session.get,
                     self.consulta_url,
                     headers=headers,
                     params=payload,

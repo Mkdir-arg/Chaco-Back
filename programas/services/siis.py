@@ -6,6 +6,8 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from core.performance.query_observability import instrument_external_call
+
 logger = logging.getLogger(__name__)
 TOKEN_CACHE_KEY = "siis_api:access_token"  # nosec B105
 PROGRAMAS_CACHE_KEY = "siis_api:programas:activos"
@@ -63,7 +65,9 @@ class SiisAPIClient:
             return token
         if not all((self.base_url, self.client_id, self.client_secret)):
             raise _SiisConfigurationError("Configuración SIIS incompleta.")
-        response = requests.post(
+        response = instrument_external_call(
+            "siis",
+            requests.post,
             f"{self.base_url}/api/v1/auth/token",
             json={"client_id": self.client_id, "client_secret": self.client_secret},
             timeout=self.timeout,
@@ -78,7 +82,9 @@ class SiisAPIClient:
         return token
 
     def _get(self, path):
-        response = requests.get(
+        response = instrument_external_call(
+            "siis",
+            requests.get,
             f"{self.base_url}{path}",
             headers={"Authorization": f"Bearer {self._token()}"},
             timeout=self.timeout,
@@ -207,7 +213,9 @@ class SiisAPIClient:
         if fecha_nacimiento:
             payload["fecha_nacimiento"] = str(fecha_nacimiento)
         try:
-            response = requests.post(
+            response = instrument_external_call(
+                "siis",
+                requests.post,
                 f"{self.base_url}/api/v1/validaciones/compatibilidad",
                 json=payload,
                 headers={"Authorization": f"Bearer {self._token()}"},

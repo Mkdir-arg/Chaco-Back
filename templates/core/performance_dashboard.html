@@ -194,6 +194,9 @@ code {
         <div class="row mb-2">
             <div class="col-sm-6">
                 <h1>Performance Dashboard</h1>
+                <p id="query-metrics-status" class="text-muted mb-0" role="status">
+                    Métricas de consultas no disponibles hasta registrar actividad instrumentada.
+                </p>
             </div>
             <div class="col-sm-6"></div>
         </div>
@@ -355,6 +358,22 @@ code {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+function metricValue(value) {
+    return value === null || value === undefined ? 'No disponible' : value;
+}
+
+function updateQueryMetricsStatus(source) {
+    const status = document.getElementById('query-metrics-status');
+    if (source === 'measured') {
+        status.textContent = 'Métricas de consultas medidas en solicitudes instrumentadas de este proceso.';
+        status.className = 'text-success mb-0';
+        return;
+    }
+
+    status.textContent = 'Métricas de consultas no disponibles hasta registrar actividad instrumentada.';
+    status.className = 'text-muted mb-0';
+}
+
 function updateDashboard() {
     // System metrics
     fetch('/system-metrics-api/')
@@ -371,22 +390,25 @@ function updateDashboard() {
     fetch('/performance-api/')
         .then(response => response.json())
         .then(data => {
-            document.getElementById('performance-score').textContent = data.performance_score;
-            document.getElementById('total-queries').textContent = data.total_queries;
+            const querySource = data.metrics && data.metrics.queries ? data.metrics.queries.source : 'unavailable';
+            const metricsAvailable = querySource === 'measured';
+            updateQueryMetricsStatus(querySource);
+            document.getElementById('performance-score').textContent = metricValue(data.performance_score);
+            document.getElementById('total-queries').textContent = metricValue(data.total_queries);
             
             // N+1 status
-            const n1Status = data.n1_detected ? 'SÍ' : 'NO';
-            const n1IconClass = data.n1_detected ? 'bg-warning' : 'bg-success';
+            const n1Status = metricsAvailable ? (data.n1_detected ? 'SÍ' : 'NO') : 'No disponible';
+            const n1IconClass = metricsAvailable ? (data.n1_detected ? 'bg-warning' : 'bg-success') : 'bg-warning';
             document.getElementById('n1-status').textContent = n1Status;
             document.getElementById('n1-icon').className = `info-box-icon ${n1IconClass}`;
             
             // Slow queries
-            const slowCount = data.slow_queries_count;
-            const slowIconClass = slowCount > 0 ? 'bg-danger' : 'bg-success';
-            document.getElementById('slow-queries').textContent = slowCount;
+            const slowCount = metricsAvailable ? data.slow_queries_count : null;
+            const slowIconClass = !metricsAvailable ? 'bg-warning' : (slowCount > 0 ? 'bg-danger' : 'bg-success');
+            document.getElementById('slow-queries').textContent = metricValue(slowCount);
             document.getElementById('slow-icon').className = `info-box-icon ${slowIconClass}`;
             
-            updateRecommendations(data.recommendations);
+            updateRecommendations(data.recommendations, metricsAvailable);
         })
         .catch(error => console.error('Performance API error:', error));
     
@@ -407,8 +429,12 @@ function updateDashboard() {
         .catch(error => console.error('Optimization suggestions error:', error));
 }
 
-function updateRecommendations(recommendations) {
+function updateRecommendations(recommendations, metricsAvailable) {
     const container = document.getElementById('recommendations-list');
+    if (!metricsAvailable) {
+        container.innerHTML = '<div class="alert alert-info">No hay métricas medidas para generar recomendaciones.</div>';
+        return;
+    }
     
     if (recommendations.length === 0) {
         container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check"></i> Sin problemas detectados</div>';
@@ -429,10 +455,15 @@ function updateRecommendations(recommendations) {
 
 function updateQueryPatterns(data) {
     const container = document.getElementById('query-patterns');
+    const querySource = data.metrics && data.metrics.queries ? data.metrics.queries.source : 'unavailable';
+    if (querySource !== 'measured') {
+        container.innerHTML = '<div class="alert alert-info">No hay consultas instrumentadas para analizar todavía.</div>';
+        return;
+    }
     let html = `<p><strong>Total Queries:</strong> ${data.query_count}</p>`;
     
     if (data.patterns.n1_detected) {
-        html += '<div class="alert alert-danger">N+1 detectado: ' + data.patterns.similar_queries + ' queries similares</div>';
+        html += '<div class="alert alert-danger">N+1 detectado en ' + data.patterns.affected_requests + ' solicitudes instrumentadas</div>';
     } else {
         html += '<div class="alert alert-success">Sin patrones N+1</div>';
     }

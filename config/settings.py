@@ -135,6 +135,16 @@ MIDDLEWARE = [
     "core.middleware.RequestLoggingMiddleware",
 ]
 
+# Desactivado por defecto. CI lo habilita sólo dentro de un stack efímero
+# MySQL+Redis; fuera de ese contrato no se usa como indicador de producción.
+PERFORMANCE_QUERY_MONITORING_ENABLED = os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
+PERFORMANCE_METRICS_WINDOW_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_WINDOW_SECONDS", "3600"))
+PERFORMANCE_METRICS_RETENTION_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_RETENTION_SECONDS", "86400"))
+PERFORMANCE_METRICS_NAMESPACE = os.environ.get("PERFORMANCE_METRICS_NAMESPACE", "")
+PERFORMANCE_CI = os.environ.get("PERFORMANCE_CI") == "1"
+if PERFORMANCE_QUERY_MONITORING_ENABLED:
+    MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
+
 if PYTEST_RUNNING:
     MIDDLEWARE += ["zeal.middleware.zeal_middleware"]
     ZEAL_RAISE = True
@@ -248,7 +258,7 @@ REDIS_URL = os.environ.get(
     f"{'rediss' if REDIS_SSL else 'redis'}://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
 )
 
-if ENVIRONMENT == "prd":
+if ENVIRONMENT == "prd" or PERFORMANCE_CI:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
@@ -277,6 +287,20 @@ else:
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "sistemso-dev-sessions",
         },
+    }
+
+if PERFORMANCE_QUERY_MONITORING_ENABLED:
+    # La agregación debe ser compartida entre workers también en QA, donde el
+    # cache default sigue siendo local por compatibilidad con el entorno.
+    CACHES["performance"] = {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+        },
+        "TIMEOUT": PERFORMANCE_METRICS_RETENTION_SECONDS,
     }
 
 SESSION_ENGINE = (

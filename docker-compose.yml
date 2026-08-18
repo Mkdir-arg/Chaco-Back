@@ -44,6 +44,8 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-change-me}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
       ENVIRONMENT: ${ENVIRONMENT:-dev}
+      # TEST only: habilitar explícitamente durante un relevamiento medido.
+      PERFORMANCE_QUERY_MONITORING_ENABLED: ${PERFORMANCE_QUERY_MONITORING_ENABLED:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,app}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
       DATABASE_NAME: ${DATABASE_NAME:-chaco_db}
