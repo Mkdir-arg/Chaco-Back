@@ -79,13 +79,29 @@ class Command(BaseCommand):
         scale = options["scale"]
         if scale < 1:
             raise CommandError("--scale debe ser mayor que cero")
-        if (
-            os.environ.get("PYTEST_RUNNING") != "1"
-            or connection.vendor != "sqlite"
-            or connection.settings_dict.get("NAME")
-            not in (":memory:", "file:memorydb_default?mode=memory&cache=shared")
-        ):
-            raise CommandError("seed_perf solo puede ejecutarse con PYTEST_RUNNING=1 y SQLite in-memory")
+        database_name = str(connection.settings_dict.get("NAME") or "")
+        sqlite_test_database = (
+            os.environ.get("PYTEST_RUNNING") == "1"
+            and connection.vendor == "sqlite"
+            and database_name in (":memory:", "file:memorydb_default?mode=memory&cache=shared")
+        )
+        ephemeral_ci_config = (
+            os.environ.get("PERFORMANCE_CI") == "1"
+            and os.environ.get("ENVIRONMENT") == "ci"
+            and connection.vendor == "mysql"
+            and database_name == "chaco_perf_ci"
+        )
+        actual_database_name = None
+        if ephemeral_ci_config:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT DATABASE()")
+                actual_database_name = cursor.fetchone()[0]
+        ephemeral_ci_database = ephemeral_ci_config and actual_database_name == "chaco_perf_ci"
+        if not (sqlite_test_database or ephemeral_ci_database):
+            raise CommandError(
+                "seed_perf sólo puede ejecutarse en SQLite in-memory de tests o MySQL efímero de CI "
+                "(PERFORMANCE_CI=1, ENVIRONMENT=ci y DATABASE_NAME=chaco_perf_ci)."
+            )
 
         if "auth_user" not in connection.introspection.table_names():
             call_command("migrate", interactive=False, run_syncdb=True, verbosity=0)

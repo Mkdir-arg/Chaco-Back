@@ -37,6 +37,7 @@ class PerformanceBudgetTests(TestCase):
             cache.clear()
             measurement = _capture_request(clients[target["actor"]], target["url"])
             query_count = measurement["query_count"]
+            duplicate_query_count = measurement["duplicate_query_count"]
             total_duration_ms += measurement["duration_ms"]
             expected_status = target.get("expected_status", 200)
             self.assertEqual(measurement["response"].status_code, expected_status, f"Status inesperado en {key}")
@@ -44,6 +45,11 @@ class PerformanceBudgetTests(TestCase):
                 failures.append(
                     f"{key} ({target['url']}): {query_count} queries actuales vs presupuesto "
                     f"{budget['max_queries']}. Probable N+1, falta select_related/prefetch_related o cache."
+                )
+            if duplicate_query_count > budget["max_duplicate_queries"]:
+                failures.append(
+                    f"{key} ({target['url']}): {duplicate_query_count} queries duplicadas actuales vs presupuesto "
+                    f"{budget['max_duplicate_queries']}. Probable N+1 o consulta redundante."
                 )
 
         timing_output = os.environ.get("PERF_TIMING_OUTPUT")

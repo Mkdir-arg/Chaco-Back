@@ -11,6 +11,8 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from core.performance.query_observability import instrument_external_call
+
 logger = logging.getLogger(__name__)
 
 TOKEN_CACHE_KEY = "personas_api:token"  # nosec B105
@@ -75,7 +77,9 @@ class PersonasAPIClient:
         token = cache.get(TOKEN_CACHE_KEY)
         if token:
             return token
-        response = requests.post(
+        response = instrument_external_call(
+            "personas",
+            requests.post,
             f"{self.base_url}/aplicaciones/token/",
             json={
                 "grant_type": "client_credentials",
@@ -98,7 +102,9 @@ class PersonasAPIClient:
         if not self._configurada():
             return {"success": False, "error": "Configuracion de Base de Personas incompleta."}
         try:
-            response = requests.get(
+            response = instrument_external_call(
+                "personas",
+                requests.get,
                 f"{self.base_url}/personas/consulta/",
                 params={"dni": dni, "sexo": sexo, "fuente_id": self.fuente_id},
                 headers={"Authorization": f"Bearer {self._token()}"},

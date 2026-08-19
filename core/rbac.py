@@ -19,7 +19,7 @@ Reglas:
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
-from django.db.models import Q
+from django.db.models import Prefetch, Q, prefetch_related_objects
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
 APP_LABEL = "users"
@@ -579,6 +579,23 @@ def puede_alguna(user, codigos, programa=None):
     return any(puede(user, c, programa=programa) for c in codigos)
 
 
+def nombres_de_grupos(user):
+    """Nombres de grupos del usuario, cacheados durante la solicitud actual."""
+    cache = getattr(user, "_group_names_cache", None)
+    if cache is None:
+        prefetched = getattr(user, "_prefetched_objects_cache", {})
+        groups = prefetched.get("groups")
+        if groups is None:
+            prefetch_related_objects(
+                [user],
+                Prefetch("groups", queryset=user.groups.model.objects.order_by("pk")),
+            )
+            groups = user._prefetched_objects_cache["groups"]
+        cache = tuple(group.name for group in groups)
+        user._group_names_cache = cache
+    return cache
+
+
 def es_ciudadano_portal(user):
     """¿El usuario es un ciudadano del portal? (marcador de identidad, no capacidad).
 
@@ -589,7 +606,7 @@ def es_ciudadano_portal(user):
         return False
     cache = getattr(user, "_es_ciudadano_portal", None)
     if cache is None:
-        cache = user.groups.filter(name=GRUPO_CIUDADANO_PORTAL).exists()
+        cache = GRUPO_CIUDADANO_PORTAL in nombres_de_grupos(user)
         user._es_ciudadano_portal = cache
     return cache
 
