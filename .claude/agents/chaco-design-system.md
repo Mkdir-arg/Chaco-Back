@@ -60,6 +60,7 @@ pantallas ajenas.
 | Tokens semánticos y tipografía | Canónico reutilizable | `static/custom/css/chaco-tokens.css`; usar `--bg-*`, `--text-*`, `--border-*` y `--font-*`, no valores visuales ad hoc. |
 | Shell backoffice | Canónico reutilizable | `templates/includes/base.html`, `templates/includes/navbar.html`, `templates/includes/sidebar/base.html`; heredar/incluir, no recrear sidebar ni offsets. |
 | Shell portal ciudadano | Canónico reutilizable | `portal/templates/portal/base.html`, `portal/templates/portal/ciudadano/base_ciudadano.html`; superficie separada del backoffice. |
+| Shell público de autenticación | Canónico reutilizable | `users/templates/user/base_public_auth.html`; superficie sin sesión, menú ni alertas internas para recuperación y establecimiento de contraseña. Consumido por `users/templates/user/recuperar_contrasena.html`, `users/templates/user/recuperar_contrasena_enviada.html` y `users/templates/user/establecer_contrasena.html`. |
 | Botones NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css`; reutilizar `btn-nodo` con las variantes y tamaños existentes. |
 | Badges NODO | Canónico reutilizable | `static/custom/css/nodo-badges.css`; reutilizar `badge` y sus variantes, siempre con texto además del color. |
 | Campos NODO | Canónico reutilizable | `static/custom/css/nodo-forms.css`; usar `nodo-field` en controles que correspondan. |
