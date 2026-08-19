@@ -5,52 +5,42 @@
 {% block main-content %}
 {% puede_operar_dispositivo request.user dispositivo "dispositivo.editar" as puede_editar %}
 {% puede_operar_dispositivo request.user dispositivo "dispositivo.validar" as puede_validar %}
-<div class="mb-8">
-  <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <a href="{% url 'dispositivos:lista' %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver a dispositivos</a>
-      <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mt-4 mb-1">{{ dispositivo.get_estado_display }}</p>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ dispositivo.nombre }}</h1>
-      <p class="font-mono text-sm text-body-subtle mt-1">{{ dispositivo.codigo }}</p>
-    </div>
-    <div class="flex flex-wrap gap-2">
-      {% if puede_editar and dispositivo.estado != 'CERRADO' %}<a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Editar</a>{% endif %}
-      {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
-        <form method="post" action="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Enviar a validación?" data-confirm-text="Se verificará que estén completos los datos requeridos." data-confirm-ok="Sí, enviar">Enviar a validación</button></form>
-      {% endif %}
-      {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
-        <form method="post" action="{% url 'dispositivos:validar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Validar dispositivo?" data-confirm-text="Quedará habilitado para admitir personas." data-confirm-ok="Sí, validar">Validar</button></form>
-        <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-requires-motivo data-confirm-title="Observar dispositivo" data-confirm-text="Indicá qué debe corregirse antes de reenviar." data-confirm-ok="Guardar observación">Observar</button></form>
-        <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base text-fg-danger" data-confirm data-requires-motivo data-confirm-title="Rechazar dispositivo" data-confirm-text="Indicá el motivo del rechazo." data-confirm-ok="Sí, rechazar">Rechazar</button></form>
-      {% endif %}
-      {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
-        <form method="post" action="{% url 'dispositivos:inactivar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-confirm-title="¿Inactivar dispositivo?" data-confirm-text="Dejará de estar operativo, sin borrar su historial." data-confirm-ok="Sí, inactivar">Inactivar</button></form>
-      {% endif %}
-      {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
-        <form method="post" action="{% url 'dispositivos:cerrar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base" data-confirm data-confirm-title="¿Cerrar dispositivo?" data-confirm-text="La acción conserva el legajo e impide nuevas operaciones." data-confirm-ok="Sí, cerrar">Cerrar</button></form>
-      {% endif %}{% endif %}
+<style>[x-cloak]{display:none!important}</style>
+<div class="space-y-5" x-data="{ tab: 'datos' }">
+
+  <div>
+    <a href="{% url 'dispositivos:lista' %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver a dispositivos</a>
+    <div class="flex items-start justify-between gap-4 flex-wrap mt-3">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ dispositivo.nombre }}</h1>
+          {% include "programas/dispositivos/_estado_badge.html" %}
+        </div>
+        <p class="font-mono text-sm text-body-subtle mt-1">{{ dispositivo.codigo }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if puede_registrar_parte %}<a href="{% url 'dispositivos:parte_diario' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base"><i class="fas fa-clipboard-list"></i> Parte diario</a>{% endif %}
+        {% if puede_editar and dispositivo.estado != 'CERRADO' %}<a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Editar</a>{% endif %}
+        {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
+          <form method="post" action="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Enviar a validación?" data-confirm-text="Se verificará que estén completos los datos requeridos." data-confirm-ok="Sí, enviar">Enviar a validación</button></form>
+        {% endif %}
+        {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+          <form method="post" action="{% url 'dispositivos:validar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Validar dispositivo?" data-confirm-text="Quedará habilitado para admitir personas." data-confirm-ok="Sí, validar">Validar</button></form>
+          <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-requires-motivo data-confirm-title="Observar dispositivo" data-confirm-text="Indicá qué debe corregirse antes de reenviar." data-confirm-ok="Guardar observación">Observar</button></form>
+          <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base text-fg-danger" data-confirm data-requires-motivo data-confirm-title="Rechazar dispositivo" data-confirm-text="Indicá el motivo del rechazo." data-confirm-ok="Sí, rechazar">Rechazar</button></form>
+        {% endif %}
+        {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
+          <form method="post" action="{% url 'dispositivos:inactivar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-confirm-title="¿Inactivar dispositivo?" data-confirm-text="Dejará de estar operativo, sin borrar su historial." data-confirm-ok="Sí, inactivar">Inactivar</button></form>
+        {% endif %}
+        {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
+          <form method="post" action="{% url 'dispositivos:cerrar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-tertiary btn-base" data-confirm data-confirm-title="¿Cerrar dispositivo?" data-confirm-text="La acción conserva el legajo e impide nuevas operaciones." data-confirm-ok="Sí, cerrar">Cerrar</button></form>
+        {% endif %}{% endif %}
+      </div>
     </div>
   </div>
 
-  <nav class="mb-5 flex gap-2 border-b border-light" aria-label="Secciones del dispositivo">
-    <a class="border-b-2 border-fg-brand px-3 py-2 font-semibold text-fg-brand" href="#datos">Datos</a>
-    <a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="#camas">Camas ({{ resumen_camas.totales }})</a>
-    <a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="#admisiones">Admisiones ({{ admisiones_activas|length }})</a>
-    {% if puede_registrar_parte %}<a class="px-3 py-2 text-body-subtle hover:text-fg-brand" href="{% url 'dispositivos:parte_diario' dispositivo.pk %}">Parte diario</a>{% endif %}
-    <a class="px-3 py-2 text-body-subtle" href="#historial">Historial</a>
-  </nav>
-  <section id="datos" class="rounded-xl border border-base p-6" style="background:var(--bg-primary)">
-    <dl class="grid gap-5 sm:grid-cols-2">
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Camas/plazas</dt><dd class="mt-1 text-body">{{ resumen_camas.totales }}</dd></div>
-      {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
-    </dl>
-  </section>
-  <section class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
+  {# Indicadores operativos: franja de salud del dispositivo, siempre visible sobre las solapas #}
+  <section class="rounded-xl border border-base p-6" style="background:var(--bg-primary)">
     <div>
       <h2 class="text-lg font-bold text-heading">Indicadores operativos</h2>
       <p class="mt-1 text-sm text-body-subtle">Derivados de camas, admisiones y partes diarios; no admiten carga manual.</p>
@@ -62,37 +52,84 @@
       <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Completitud F-00</dt><dd class="mt-1 text-2xl font-bold {% if indicadores.completitud.semaforo == 'VERDE' %}text-fg-success{% elif indicadores.completitud.semaforo == 'AMARILLO' %}text-fg-warning{% else %}text-fg-danger{% endif %}">{% if indicadores.completitud.semaforo == 'SIN_DATOS' %}Sin datos{% else %}{{ indicadores.completitud.porcentaje }}% · {{ indicadores.completitud.semaforo|title }}{% endif %}</dd></div>
     </dl>
   </section>
-  <section id="camas" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h2 class="text-lg font-bold text-heading">Camas</h2>
-        <p class="mt-1 text-sm text-body-subtle">La ocupación se calcula desde las estadías alojadas; no admite carga manual.</p>
+
+  <div class="rounded-xl border border-base shadow-sm" style="background:var(--bg-primary)">
+    {# Solapas #}
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del dispositivo">
+      <button @click="tab='datos'" type="button" role="tab" :aria-selected="tab==='datos'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-id-card"></i> Datos
+      </button>
+      <button @click="tab='camas'" type="button" role="tab" :aria-selected="tab==='camas'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='camas' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-bed"></i> Camas
+        <span class="badge ml-0.5" :class="tab==='camas' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ resumen_camas.totales }}</span>
+      </button>
+      <button @click="tab='admisiones'" type="button" role="tab" :aria-selected="tab==='admisiones'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='admisiones' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-users"></i> Admisiones
+        <span class="badge ml-0.5" :class="tab==='admisiones' ? 'bg-brand-soft text-fg-brand' : 'badge-gray'">{{ admisiones_activas|length }}</span>
+      </button>
+      <button @click="tab='historial'" type="button" role="tab" :aria-selected="tab==='historial'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-clock-rotate-left"></i> Historial
+      </button>
+    </div>
+
+    {# ===== SOLAPA: Datos ===== #}
+    <div x-show="tab==='datos'" class="p-6">
+      <dl class="grid gap-5 sm:grid-cols-2">
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Camas/plazas</dt><dd class="mt-1 text-body">{{ resumen_camas.totales }}</dd></div>
+        {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
+      </dl>
+    </div>
+
+    {# ===== SOLAPA: Camas ===== #}
+    <div x-show="tab==='camas'" x-cloak class="p-6">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-lg font-bold text-heading">Camas</h2>
+          <p class="mt-1 text-sm text-body-subtle">La ocupación se calcula desde las estadías alojadas; no admite carga manual.</p>
+        </div>
+        {% if puede_gestionar_camas %}<a href="{% url 'dispositivos:camas_agregar' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Agregar camas</a>{% endif %}
       </div>
-      {% if puede_gestionar_camas %}<a href="{% url 'dispositivos:camas_agregar' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Agregar camas</a>{% endif %}
+      <dl class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupadas</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.ocupadas }}</dd></div>
+        <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Libres</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.libres }}</dd></div>
+        <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Fuera de servicio</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.fuera_servicio }}</dd></div>
+        <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupación</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.porcentaje }}% · {{ resumen_camas.semaforo|title }}</dd></div>
+      </dl>
+      {% if camas %}
+        <div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Código</th><th class="px-3 py-2">Estado</th>{% if puede_gestionar_camas %}<th class="px-3 py-2 text-right">Acción</th>{% endif %}</tr></thead><tbody>{% for cama in camas %}<tr class="border-b border-light"><td class="px-3 py-3 font-medium text-heading">{{ cama.codigo }}</td><td class="px-3 py-3">{% include "programas/dispositivos/_cama_estado_badge.html" %}</td>{% if puede_gestionar_camas %}<td class="px-3 py-3 text-right"><a href="{% url 'dispositivos:cama_editar' cama.pk %}" class="text-fg-brand hover:underline">Editar</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+      {% else %}
+        <p class="mt-5 text-sm text-body-subtle">Todavía no hay camas configuradas.</p>
+      {% endif %}
     </div>
-    <dl class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupadas</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.ocupadas }}</dd></div>
-      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Libres</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.libres }}</dd></div>
-      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Fuera de servicio</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.fuera_servicio }}</dd></div>
-      <div class="rounded-lg border border-light p-4"><dt class="text-xs font-semibold uppercase text-body-subtle">Ocupación</dt><dd class="mt-1 text-2xl font-bold text-heading">{{ resumen_camas.porcentaje }}% · {{ resumen_camas.semaforo|title }}</dd></div>
-    </dl>
-    {% if camas %}
-      <div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Código</th><th class="px-3 py-2">Estado</th>{% if puede_gestionar_camas %}<th class="px-3 py-2 text-right">Acción</th>{% endif %}</tr></thead><tbody>{% for cama in camas %}<tr class="border-b border-light"><td class="px-3 py-3 font-medium text-heading">{{ cama.codigo }}</td><td class="px-3 py-3 text-body">{{ cama.get_estado_display }}</td>{% if puede_gestionar_camas %}<td class="px-3 py-3 text-right"><a href="{% url 'dispositivos:cama_editar' cama.pk %}" class="text-fg-brand hover:underline">Editar</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
-    {% else %}
-      <p class="mt-5 text-sm text-body-subtle">Todavía no hay camas configuradas.</p>
-    {% endif %}
-  </section>
-  <section id="admisiones" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div><h2 class="text-lg font-bold text-heading">Admisiones</h2><p class="mt-1 text-sm text-body-subtle">Estadías activas y lista de espera del dispositivo.</p></div>
-      <div class="flex gap-2">{% if puede_admitir %}<a href="{% url 'dispositivos:admitir' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Admitir persona</a>{% endif %}{% if puede_registrar_parte %}<a href="{% url 'dispositivos:parte_diario' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Parte diario</a>{% endif %}<a href="{% url 'dispositivos:espera' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Espera ({{ esperas_activas|length }})</a></div>
+
+    {# ===== SOLAPA: Admisiones ===== #}
+    <div x-show="tab==='admisiones'" x-cloak class="p-6">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div><h2 class="text-lg font-bold text-heading">Admisiones</h2><p class="mt-1 text-sm text-body-subtle">Estadías activas y lista de espera del dispositivo.</p></div>
+        <div class="flex gap-2 flex-wrap">{% if puede_admitir %}<a href="{% url 'dispositivos:admitir' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Admitir persona</a>{% endif %}{% if puede_registrar_parte %}<a href="{% url 'dispositivos:parte_diario' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Parte diario</a>{% endif %}<a href="{% url 'dispositivos:espera' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Espera <span class="badge badge-gray ml-1">{{ esperas_activas|length }}</span></a></div>
+      </div>
+      {% if admisiones_activas %}<div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Persona</th><th class="px-3 py-2">Cama</th><th class="px-3 py-2">Ingreso</th><th class="px-3 py-2 text-right">Acciones</th></tr></thead><tbody>{% for admision in admisiones_activas %}<tr class="border-b border-light"><td class="px-3 py-3 font-medium text-heading">{{ admision.ciudadano.nombre_completo }}{% if admision.es_reingreso %}<span class="badge badge-gray ml-2">Reingreso</span>{% endif %}</td><td class="px-3 py-3">{{ admision.cama.codigo|default:'—' }}</td><td class="px-3 py-3">{{ admision.fecha_ingreso|date:'d/m/Y H:i' }}</td><td class="px-3 py-3 text-right">{% if puede_egresar %}<a class="text-fg-brand hover:underline" href="{% url 'dispositivos:egresar' dispositivo.pk admision.pk %}">Egreso</a>{% endif %}{% if puede_admitir and puede_egresar %}<a class="ml-3 text-fg-brand hover:underline" href="{% url 'dispositivos:trasladar' dispositivo.pk admision.pk %}">Traslado</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="mt-5 text-sm text-body-subtle">No hay personas alojadas actualmente.</p>{% endif %}
     </div>
-    {% if admisiones_activas %}<div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b border-light text-body-subtle"><tr><th class="px-3 py-2">Persona</th><th class="px-3 py-2">Cama</th><th class="px-3 py-2">Ingreso</th><th class="px-3 py-2 text-right">Acciones</th></tr></thead><tbody>{% for admision in admisiones_activas %}<tr class="border-b border-light"><td class="px-3 py-3 font-medium text-heading">{{ admision.ciudadano.nombre_completo }}{% if admision.es_reingreso %}<span class="ml-1 text-xs text-body-subtle">Reingreso</span>{% endif %}</td><td class="px-3 py-3">{{ admision.cama.codigo|default:'—' }}</td><td class="px-3 py-3">{{ admision.fecha_ingreso|date:'d/m/Y H:i' }}</td><td class="px-3 py-3 text-right">{% if puede_egresar %}<a class="text-fg-brand hover:underline" href="{% url 'dispositivos:egresar' dispositivo.pk admision.pk %}">Egreso</a>{% endif %}{% if puede_admitir and puede_egresar %}<a class="ml-3 text-fg-brand hover:underline" href="{% url 'dispositivos:trasladar' dispositivo.pk admision.pk %}">Traslado</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="mt-5 text-sm text-body-subtle">No hay personas alojadas actualmente.</p>{% endif %}
-  </section>
-  <section id="historial" class="mt-6 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
-    <h2 class="text-lg font-bold text-heading">Historial de validación</h2>
-    {% if trazas %}<ol class="mt-4 space-y-3">{% for traza in trazas %}<li class="border-l-2 border-fg-brand pl-4"><p class="font-semibold text-heading">{{ traza.accion }}</p><p class="text-sm text-body-subtle">{{ traza.creado_en|date:'d/m/Y H:i' }} · {{ traza.usuario|default:'Sistema' }}</p><p class="text-sm text-body-subtle">{{ traza.estado_anterior_legible }} → {{ traza.estado_nuevo_legible }}</p>{% if traza.detalle_legible %}<p class="mt-1 text-sm text-body">{{ traza.detalle_legible }}</p>{% endif %}</li>{% endfor %}</ol>{% else %}<p class="mt-2 text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>{% endif %}
-  </section>
+
+    {# ===== SOLAPA: Historial ===== #}
+    <div x-show="tab==='historial'" x-cloak class="p-6">
+      <h2 class="text-lg font-bold text-heading">Historial de validación</h2>
+      {% if trazas %}<ol class="mt-4 space-y-3">{% for traza in trazas %}<li class="border-l-2 border-fg-brand pl-4"><p class="font-semibold text-heading">{{ traza.accion }}</p><p class="text-sm text-body-subtle">{{ traza.creado_en|date:'d/m/Y H:i' }} · {{ traza.usuario|default:'Sistema' }}</p><p class="text-sm text-body-subtle">{{ traza.estado_anterior_legible }} → {{ traza.estado_nuevo_legible }}</p>{% if traza.detalle_legible %}<p class="mt-1 text-sm text-body">{{ traza.detalle_legible }}</p>{% endif %}</li>{% endfor %}</ol>{% else %}<p class="mt-2 text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>{% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %}
 

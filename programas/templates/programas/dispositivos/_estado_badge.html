@@ -1,0 +1,16 @@
+{% comment %}
+Badge de estado del legajo de dispositivo. Espera `dispositivo` en el contexto.
+Mapa de los 7 estados de Dispositivo.Estado a las variantes canónicas de
+`nodo-badges.css`, siguiendo el patrón de becas/relevamientos/_estado_badge.html.
+{% endcomment %}
+{% with e=dispositivo.estado %}
+<span class="badge badge-dot
+  {% if e == 'BORRADOR' %}badge-white
+  {% elif e == 'PENDIENTE_VALIDACION' %}badge-info
+  {% elif e == 'ACTIVO' %}badge-success
+  {% elif e == 'OBSERVADO' %}badge-warning
+  {% elif e == 'RECHAZADO' %}badge-danger
+  {% elif e == 'INACTIVO' %}badge-gray
+  {% elif e == 'CERRADO' %}badge-gray
+  {% else %}badge-gray{% endif %}">{{ dispositivo.get_estado_display }}</span>
+{% endwith %}
