@@ -1646,6 +1646,10 @@ class Relevamiento(PausableMixin, TimeStamped):
         return self.cupo_utilizado >= self.cupo_maximo
 
     def habilitado_en(self, momento):
+        if isinstance(momento, date) and not isinstance(momento, datetime):
+            momento = timezone.make_aware(
+                datetime.combine(momento, time.min), timezone.get_current_timezone()
+            )
         return bool(
             not self.pausa_efectiva
             and self.fecha_asignada

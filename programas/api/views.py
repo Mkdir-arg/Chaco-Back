@@ -239,7 +239,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         rel = self.get_object()
         if respuesta := _respuesta_pausa(rel):
             return respuesta
-        if not rel.habilitado_en(timezone.localdate()):
+        if not rel.habilitado_en(timezone.now()):
             return Response(
                 {"detail": "Solo se puede relevar dentro del período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,

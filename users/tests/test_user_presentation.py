@@ -8,7 +8,7 @@ from users.presentation import etiqueta_usuario
 class EtiquetaUsuarioTests(TestCase):
     def test_nombre_apellido_y_dni(self):
         user = User.objects.create_user("jperez", first_name="Juan", last_name="Pérez")
-        Profile.objects.create(user=user, dni="30123456")
+        Profile.objects.update_or_create(user=user, defaults={"dni": "30123456"})
 
         self.assertEqual(etiqueta_usuario(user), "Juan Pérez (30123456)")
 
@@ -27,7 +27,7 @@ class EtiquetaUsuarioTests(TestCase):
     def test_queryset_con_profile_no_genera_n_mas_uno(self):
         for numero in range(3):
             user = User.objects.create_user(f"user-{numero}")
-            Profile.objects.create(user=user, dni=f"3000000{numero}")
+            Profile.objects.update_or_create(user=user, defaults={"dni": f"3000000{numero}"})
 
         with self.assertNumQueries(1):
             etiquetas = [etiqueta_usuario(user) for user in User.objects.select_related("profile").order_by("pk")]

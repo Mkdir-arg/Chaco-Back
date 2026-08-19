@@ -725,7 +725,7 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 201)
         formulario = Formulario.objects.get(client_uuid=client_uuid)
         self.assertEqual(formulario.relevamiento, self.rel)
-        self.assertEqual(timezone.localdate(formulario.capturado_en), self.rel.fecha_asignada)
+        self.assertEqual(timezone.localdate(formulario.capturado_en), timezone.localdate(self.rel.fecha_asignada))
 
     def test_reintento_con_mismo_uuid_no_duplica_formulario(self):
         client_uuid = uuid4()
