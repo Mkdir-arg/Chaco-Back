@@ -34,7 +34,7 @@ hide:
 
     ---
 
-    **Agosto 2026 (en curso):** 404h consumidas de 700h al 18/08 (58%)
+    **Agosto 2026 (en curso):** 440h consumidas de 700h al 19/08 (63%)
 
     **Julio 2026 (cerrado):** 500h de 500h (100%) — presupuesto completo
 
@@ -46,7 +46,7 @@ hide:
 
     ---
 
-    **19 de agosto 2026**
+    **20 de agosto 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 
