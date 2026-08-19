@@ -117,7 +117,7 @@ class RelevamientoApiTests(_BaseApiTest):
         propio = next(item for item in resp.data["results"] if item["id"] == self.rel.id)
         self.assertEqual(propio["localidad"], "Localidad Norte")
 
-    def test_lista_incluye_relevamientos_de_hoy_y_proximos(self):
+    def test_lista_incluye_solo_relevamientos_vigentes_ahora(self):
         vencido = Relevamiento.objects.create(
             convocatoria=self.conv,
             territorial=self.terri,
@@ -138,7 +138,11 @@ class RelevamientoApiTests(_BaseApiTest):
         ids = [r["id"] for r in resp.data["results"]]
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(vencido.id, ids)
-        self.assertIn(futuro.id, ids)
+        self.assertNotIn(futuro.id, ids)
+
+        propio = next(item for item in resp.data["results"] if item["id"] == self.rel.id)
+        self.assertIn("T", propio["fecha_asignada"])
+        self.assertRegex(propio["fecha_asignada"], r"(Z|[+-]\d{2}:\d{2})$")
 
     def test_detalle_incluye_definicion(self):
         PreguntaGlobal.objects.create(texto="Tenencia", tipo=TipoCampo.STRING, activo=True, orden=1)
@@ -721,7 +725,7 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 201)
         formulario = Formulario.objects.get(client_uuid=client_uuid)
         self.assertEqual(formulario.relevamiento, self.rel)
-        self.assertEqual(timezone.localdate(formulario.capturado_en), self.rel.fecha_asignada)
+        self.assertEqual(timezone.localdate(formulario.capturado_en), timezone.localdate(self.rel.fecha_asignada))
 
     def test_reintento_con_mismo_uuid_no_duplica_formulario(self):
         client_uuid = uuid4()

@@ -162,6 +162,12 @@ def _agregar_campos_jerarquia_becas(form):
         empty_label="Seleccioná…",
         widget=forms.Select(attrs={"class": _INPUT_ABM}),
     )
+    from users.presentation import etiqueta_usuario
+
+    form.fields["coordinador_referente"].queryset = form.fields["coordinador_referente"].queryset.select_related(
+        "profile"
+    )
+    form.fields["coordinador_referente"].label_from_instance = etiqueta_usuario
     form.grupos_referentes_ids = set(grupos_referentes_becas().values_list("id", flat=True))
 
 

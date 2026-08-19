@@ -44,7 +44,7 @@ BANNED_AUTHORITY_CLAIMS = (
     "inviolable laws",
     "take precedence over personal",
 )
-EVIDENCE_PREFIXES = ("static/", "templates/", "portal/", "docs/", ".claude/")
+EVIDENCE_PREFIXES = ("static/", "templates/", "portal/", "users/", "docs/", ".claude/")
 
 
 def relative_path(path: str | Path) -> Path:

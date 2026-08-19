@@ -1,4 +1,4 @@
-from django.contrib.auth.views import LogoutView, PasswordResetConfirmView
+from django.contrib.auth.views import LogoutView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
 from django.urls import path, reverse_lazy
 
 from users.views import (
@@ -22,6 +22,21 @@ urlpatterns = [
     path("", UsuariosLoginView.as_view(), name="login"),
     path("login/", UsuariosLoginView.as_view(), name="login_compat"),
     path("logout", (LogoutView.as_view()), name="logout"),
+    path(
+        "recuperar-contrasena/",
+        PasswordResetView.as_view(
+            template_name="user/recuperar_contrasena.html",
+            email_template_name="user/recuperar_contrasena_email.txt",
+            subject_template_name="user/recuperar_contrasena_asunto.txt",
+            success_url=reverse_lazy("users:recuperar_contrasena_enviada"),
+        ),
+        name="recuperar_contrasena",
+    ),
+    path(
+        "recuperar-contrasena/enviada/",
+        PasswordResetDoneView.as_view(template_name="user/recuperar_contrasena_enviada.html"),
+        name="recuperar_contrasena_enviada",
+    ),
     path(
         "establecer-contrasena/<uidb64>/<token>/",
         PasswordResetConfirmView.as_view(

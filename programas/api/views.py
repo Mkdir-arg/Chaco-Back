@@ -56,10 +56,10 @@ def _formulario_dni_existe(relevamiento, dni):
 def _captura_habilitada(relevamiento, capturado_en=None):
     """Permite operar hoy o sincronizar después una captura hecha en fecha."""
     if capturado_en is None:
-        return relevamiento.habilitado_en(timezone.localdate())
+        return relevamiento.habilitado_en(timezone.now())
     if capturado_en > timezone.now() + timedelta(minutes=5):
         return False
-    return relevamiento.habilitado_en(timezone.localdate(capturado_en))
+    return relevamiento.habilitado_en(capturado_en)
 
 
 def _mensaje_pausa(relevamiento):
@@ -169,8 +169,10 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             .order_by("-fecha_asignada")
         )
         if self.action == "list":
+            ahora = timezone.now()
             queryset = queryset.filter(
-                fecha_hasta__gte=timezone.localdate(),
+                fecha_asignada__lte=ahora,
+                fecha_hasta__gte=ahora,
             ).order_by("fecha_asignada", "nombre")
         return queryset
 
@@ -237,7 +239,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         rel = self.get_object()
         if respuesta := _respuesta_pausa(rel):
             return respuesta
-        if not rel.habilitado_en(timezone.localdate()):
+        if not rel.habilitado_en(timezone.now()):
             return Response(
                 {"detail": "Solo se puede relevar dentro del período asignado."},
                 status=status.HTTP_400_BAD_REQUEST,

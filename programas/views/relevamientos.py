@@ -102,7 +102,7 @@ def _rechazar_si_pausado(request, relevamiento):
 
 def _mensaje_solapamiento(territorial, fecha_desde, fecha_hasta, solapamiento):
     nombre = territorial.get_full_name() or territorial.username
-    fecha_legible = f"{fecha_desde:%d/%m/%Y} al {fecha_hasta:%d/%m/%Y}"
+    fecha_legible = f"{fecha_desde:%d/%m/%Y %H:%M} al {fecha_hasta:%d/%m/%Y %H:%M}"
     return (
         f"El territorial {nombre} ya tiene una asignación que se superpone con {fecha_legible} "
         f"en {solapamiento.zona}. ¿Confirmás la asignación?"
@@ -352,8 +352,8 @@ def convocatoria_export_relevamientos(request, pk):
             [
                 r.nombre,
                 terr,
-                r.fecha_asignada.strftime("%d/%m/%Y"),
-                r.fecha_hasta.strftime("%d/%m/%Y"),
+                timezone.localtime(r.fecha_asignada).strftime("%d/%m/%Y %H:%M"),
+                timezone.localtime(r.fecha_hasta).strftime("%d/%m/%Y %H:%M"),
                 r.zona,
                 r.get_estado_display(),
                 r.n_enviados,

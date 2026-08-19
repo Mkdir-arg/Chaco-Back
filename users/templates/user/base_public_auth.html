@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DATAÑACH{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'custom/chaco/favicon.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: var(--font-sans); color: var(--text-body); background: linear-gradient(180deg, var(--bg-secondary), var(--bg-white)); }
+    .public-auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .public-auth__panel { width: 100%; max-width: 440px; }
+    .public-auth__brand { display: flex; justify-content: center; margin-bottom: 24px; }
+    .public-auth__brand img { width: 190px; max-width: 70vw; height: auto; }
+    .public-auth__card { border: 1px solid var(--border-base); border-radius: 16px; padding: 28px; background: var(--bg-white); box-shadow: var(--shadow-sm); }
+    .public-auth__title { margin: 0; color: var(--text-heading); font-size: 28px; line-height: 1.2; font-weight: 800; }
+    .public-auth__help { margin: 10px 0 24px; color: var(--text-body-subtle); font-size: 14px; line-height: 1.55; }
+    .public-auth__field { margin-bottom: 18px; }
+    .public-auth__field label { display: block; margin-bottom: 8px; color: var(--text-heading); font-size: 13px; font-weight: 600; }
+    .public-auth__field input { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--border-base); border-radius: 10px; background: var(--bg-white); color: var(--text-heading); font: inherit; }
+    .public-auth__field input:focus { border-color: var(--border-brand); box-shadow: var(--ring-brand); }
+    .public-auth__error { margin: 6px 0 0; color: var(--text-fg-danger); font-size: 12px; }
+    .public-auth__button { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: var(--gradient-brand); color: var(--text-white); font: 700 15px var(--font-sans); cursor: pointer; box-shadow: var(--shadow-brand); }
+    .public-auth__link { display: inline-block; margin-top: 18px; color: var(--text-fg-brand); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .public-auth__link:hover { text-decoration: underline; }
+    @media (max-width: 480px) { .public-auth { align-items: flex-start; padding: 32px 18px; } .public-auth__card { padding: 22px 18px; } .public-auth__title { font-size: 24px; } }
+  </style>
+</head>
+<body>
+  <main class="public-auth">
+    <div class="public-auth__panel">
+      <div class="public-auth__brand"><img src="{% static 'custom/chaco/login-logo.png' %}" alt="Gobierno del Chaco"></div>
+      <section class="public-auth__card">{% block auth_content %}{% endblock %}</section>
+    </div>
+  </main>
+</body>
+</html>
