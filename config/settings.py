@@ -135,6 +135,7 @@ MIDDLEWARE = [
     "core.middleware.RequestLoggingMiddleware",
 ]
 
+
 def _performance_query_monitoring_enabled():
     return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "True") == "True"
 
@@ -149,9 +150,7 @@ PERFORMANCE_QUERY_SAMPLE_RATE = float(
 )
 PERFORMANCE_REDIS_TIMEOUT_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_TIMEOUT_SECONDS", "0.25"))
 PERFORMANCE_REDIS_RECOVERY_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_RECOVERY_SECONDS", "60"))
-PERFORMANCE_N1_WARNING_INTERVAL_SECONDS = float(
-    os.environ.get("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS", "60")
-)
+PERFORMANCE_N1_WARNING_INTERVAL_SECONDS = float(os.environ.get("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS", "60"))
 if not 0 <= PERFORMANCE_QUERY_SAMPLE_RATE <= 1:
     raise ValueError("PERFORMANCE_QUERY_SAMPLE_RATE debe estar entre 0 y 1")
 if PERFORMANCE_REDIS_TIMEOUT_SECONDS <= 0:
