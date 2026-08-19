@@ -9,6 +9,7 @@ import os
 import re
 import statistics
 import sys
+import tempfile
 import time
 from collections import Counter
 from contextlib import redirect_stderr, redirect_stdout
@@ -17,7 +18,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT = REPO / "scripts" / "perf_baseline.json"
+DEFAULT_OUTPUT = Path(tempfile.gettempdir()) / "chaco_perf_baseline.json"
 WARM_SAMPLE_COUNT = 3
 
 HEX_BLOB_RE = re.compile(r"\b(?:0x[0-9a-f]+|x'[0-9a-f]+')\b", re.IGNORECASE)
