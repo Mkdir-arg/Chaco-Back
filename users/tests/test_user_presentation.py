@@ -9,6 +9,7 @@ class EtiquetaUsuarioTests(TestCase):
     def test_nombre_apellido_y_dni(self):
         user = User.objects.create_user("jperez", first_name="Juan", last_name="Pérez")
         Profile.objects.update_or_create(user=user, defaults={"dni": "30123456"})
+        user.refresh_from_db()
 
         self.assertEqual(etiqueta_usuario(user), "Juan Pérez (30123456)")
 
