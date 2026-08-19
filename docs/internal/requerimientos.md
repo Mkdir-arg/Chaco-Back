@@ -176,6 +176,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 32 | Programas (SIIS) por encima de los segmentos | Becas / estructura | `#siis` `#convocatorias` `#requisitos` `#pausas` `#ui` | PM — pedido directo en sesión de trabajo | 13/08/2026 | 🟢 **Hecho** | `programas.0045` |
 | 33 | Probar por qué SIIS no trae datos | Becas / SIIS | `#siis` `#infra` | PM — «quiero que pruebes la integración con SIIS, porque no me está trayendo datos» | 18/08/2026 | 🟢 **Hecho — diagnóstico y comando de verificación** | No |
 | 34 | Prevalidación SIIS al aprobar o rechazar formularios | Becas / revisión | `#siis` `#rbac` `#cupos` | Análisis #72 y revisión del PR #233 | 18/08/2026 | 🟢 **Hecho sobre el contrato vigente** | No |
+| 35 | El login del backoffice muestra la contraseña con un botón ojo | Transversal / sesión | `#sesion` `#ui` | PM — mejora transversal aprobada el 14/08/2026, sin análisis | 14/08/2026 | 🟢 **Hecho** | No |
+| 36 | El diseño de Dispositivos es todo lo contrario a lo que tiene que ser | Dispositivos | `#ui` | PM — pedido directo en sesión de trabajo | 19/08/2026 | 🟡 **Parcial — badges y solapas hechos; 4 hallazgos abiertos** | No |
 
 **Notas del índice**
 
@@ -2440,6 +2442,124 @@ Nuevos tests: lista bajo clave desconocida, cuerpo recortado y claves de primer 
 
 Lo que decía antes y ya no vale: en *Pendientes* figuraba «verificar los pasos 3 y 4 contra el servicio real». El paso 3 quedó verificado. El **paso 4 (compatibilidad) sigue sin ejercitarse**: necesita un DNI real y un `id_programa` del catálogo, y el catálogo está vacío.
 
+# Cambio 35 — El login del backoffice muestra la contraseña con un botón ojo
+
+🟢 **HECHO — 19/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / sesión |
+| **Etiquetas** | `#sesion` `#ui` |
+| **Solicitante** | PM — mejora transversal sin análisis, aprobada por el PM el 14/08/2026 |
+| **Fecha del pedido** | 14/08/2026 |
+| **Issue / épica** | #250, dentro de la épica #252 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Botón "ojo" en el campo de contraseña del **login del backoffice** para alternar
+entre oculto y visible», accesible (`aria-label`, operable por teclado) y siguiendo
+el sistema de diseño.
+
+## Alcance acordado
+
+Entra el login del backoffice (`users/templates/user/login.html`). **Queda afuera**
+el portal ciudadano: su login y sus pantallas de contraseña siguen sin toggle, y no
+se tocaron porque el pedido acota la superficie al backoffice.
+
+## Decisiones tomadas
+
+- **El botón ya existía.** Al inspeccionar el código antes de desarrollar se encontró
+  el toggle ya implementado en el login, con su ícono y su función `togglePassword()`.
+  Lo que faltaba era exactamente lo que el pedido pide además del toggle: el estado
+  accesible y el foco visible. El desarrollo se reencuadró sobre esa base en lugar de
+  volver a escribir la funcionalidad.
+- **El `aria-label` anuncia el estado, no la acción genérica.** Decía «Mostrar u
+  ocultar contraseña» de forma fija, que no le dice al lector de pantalla en qué
+  estado está el campo. Ahora alterna entre «Mostrar contraseña» y «Ocultar
+  contraseña», y se sumó `aria-pressed` para que el botón se anuncie como conmutador.
+- **El swap de ícono dejó de hacerse con `innerHTML`.** Antes se reescribía el `path`
+  del SVG con dos strings duplicados dentro del JS. Ahora hay dos SVG en el markup y
+  se conmuta cuál está oculto: se elimina la duplicación del `path` y el ícono no
+  depende de inyectar markup en runtime.
+- **`toggleAttribute` y no la propiedad `.hidden`.** `SVGElement` no expone la
+  propiedad `hidden` (solo la expone `HTMLElement`), así que `svg.hidden = true`
+  escribe una propiedad muerta y el ícono nunca cambia. Es un error que pasó los
+  chequeos estáticos y solo apareció al probar en el navegador.
+- **El `[hidden]` necesita ayuda del CSS en esta pantalla.** El login carga Tailwind
+  por CDN, cuyo preflight declara `svg { display: block }`; siendo autor, le gana al
+  `[hidden] { display: none }` del navegador. Por eso hay una regla explícita
+  `.login-eye svg[hidden] { display: none }`.
+- **El foco visible se define local a la pantalla.** El login no extiende
+  `includes/base.html`: es un documento HTML propio y no recibe los estilos de foco
+  del shell. El anillo se declaró en su `<style>` con `var(--ring-brand)`, igual que
+  el `:focus` del campo de texto que ya estaba.
+- **El campo no recuerda que estaba visible.** No se persiste el estado: el `type`
+  lo renderiza el servidor siempre como `password`, así que cualquier recarga —un
+  login fallido, por ejemplo— vuelve a ocultar la contraseña. Es la conducta buscada.
+- **El foco se queda en el botón al alternar.** No se lo devuelve al campo, para que
+  quien navega con teclado pueda mostrar y volver a ocultar sin volver a tabular.
+- **Colateral:** el aviso de `messages` del login tenía tres colores hex escritos a
+  mano (`#fffbeb`, `#fde68a`, `#92400e`). Se pasaron a los tokens `--bg-warning-soft`,
+  `--border-warning-subtle` y `--text-fg-warning`, en espejo del bloque de error que
+  ya usaba los tokens de `danger` diez líneas más abajo. Era el único ERROR que
+  `design_audit.py` reportaba en el archivo y bloqueaba el cierre.
+
+## Implementación
+
+En el login del backoffice, el campo de contraseña tiene a la derecha un botón ojo.
+Al activarlo, la contraseña se ve en texto plano y el ícono pasa a ojo tachado con el
+color de marca; al activarlo de nuevo, vuelve a ocultarse. Funciona con mouse y con
+teclado (Tab llega al botón, Enter y Espacio lo accionan) y muestra un anillo de foco
+de marca cuando se lo alcanza por teclado. Un lector de pantalla lo anuncia como
+botón conmutador y con la acción que corresponde al estado actual. El campo siempre
+nace oculto: nada queda visible después de recargar.
+
+## Archivos
+
+- `users/templates/user/login.html` — clase `.login-eye` con `:focus-visible`, los dos
+  SVG conmutables, `aria-pressed`/`aria-controls`/`aria-label` dinámico, el listener
+  sin handler inline, y los tokens del aviso de `messages`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` → sin issues.
+- `scripts/design_audit.py --changed` → **0 errores**, 2 WARN de `outline:none`, ambos
+  justificados: cada uno tiene su `box-shadow: var(--ring-brand)` de reemplazo en el
+  mismo bloque (`.login-input:focus` y `.login-eye:focus-visible`).
+- `scripts/check_design_agent.py --changed` → `design-agent contract: OK`.
+- `scripts/compile_templates.py` → 308 templates, 0 errores.
+- **Prueba real en navegador (Chromium vía Playwright, login servido por el sistema
+  levantado contra el MySQL local):** 22 verificaciones sobre los tres casos de QA del
+  issue #250 —TC-250-01 toggle, TC-250-02 teclado y accesibilidad, TC-250-03 el default
+  siempre oculto— todas en verde. Esta prueba es la que encontró el bug de
+  `SVGElement.hidden`, que los chequeos estáticos no ven.
+
+## Puesta en marcha en el servidor
+
+No requiere: solo template. Alcanza el deploy.
+
+## Pendientes / a definir
+
+- El **portal ciudadano** no tiene el toggle en su login ni en sus pantallas de cambio
+  y reseteo de contraseña (`portal/templates/portal/ciudadano/login.html`,
+  `cambio_password.html`, `password_reset_confirm.html`, `registro_step2.html`). Quedó
+  afuera por alcance; si se pide, conviene extraer el patrón a una pieza reutilizable
+  en vez de repetir el bloque, y registrarla en el inventario del agente de diseño.
+- El login carga **Tailwind por CDN** (`cdn.tailwindcss.com`) y su preflight compite
+  con los estilos de la pantalla —este cambio necesitó una regla para sortearlo—.
+  Sacarlo o reemplazarlo por el build del sistema es deuda anterior a este cambio.
+
+## Reversión
+
+Revertir el commit del template. No hay datos involucrados: el cambio es de
+presentación y no persiste nada.
+
 # Verificaciones generales pendientes antes de desplegar
 
 - Ejecutar la suite relevante sin una base de test reutilizada contaminada.
@@ -2452,6 +2572,226 @@ Lo que decía antes y ya no vale: en *Pendientes* figuraba «verificar los pasos
 - Confirmar que los administradores de programa conservan su alcance.
 - Probar login recordado en el dominio real de test.
 - Crear commits identificables antes de continuar con un despliegue.
+
+# Cambio 36 — El diseño de Dispositivos es todo lo contrario a lo que tiene que ser
+
+🟡 **PARCIAL — 19/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo: «tomá el agente de diseño y vé el programa Dispositivos, que el diseño es todo lo contrario a lo que tiene que ser» |
+| **Fecha del pedido** | 19/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Quiero que tomes el agente de diseño y veas el programa Dispositivos ya que el
+diseño es todo lo contrario a lo que tiene que ser.»
+
+## Alcance acordado
+
+El diagnóstico cubrió **todo** el programa: los 15 templates de
+`programas/templates/programas/dispositivos/`, los 5 de `admisiones/` y la solapa
+`legajos/templates/legajos/solapas/dispositivos.html`, contrastados contra el
+frontend productivo de Becas —el módulo más maduro y la referencia de facto— y
+contra `.claude/agents/chaco-design-system.md`.
+
+De los seis hallazgos priorizados, el PM autorizó ejecutar **los dos primeros**:
+badges de estado y solapas reales. Entran también los badges de estado de cama y
+el contador de la lista de espera, porque son el mismo componente en las mismas
+pantallas tocadas.
+
+Queda **explícitamente afuera** de este cambio, con su motivo en *Pendientes*:
+el motor de modal AJAX ad-hoc de la configuración, el restyle de las stat cards,
+la unificación de los dos handlers de confirmación duplicados y la decisión sobre
+si la solapa de Dispositivos debe embeberse en el legajo.
+
+## Decisiones tomadas
+
+- **El problema no era mecánico.** `scripts/design_audit.py` daba **0 errores y 0
+  warnings** sobre todo el módulo antes de tocar nada: no había hex sueltos,
+  fuentes legacy ni `confirm()` nativo. La divergencia era estructural —patrones
+  de página, componentes y jerarquía—, que es justamente lo que la auditoría
+  mecánica no puede ver. Se deja asentado porque explica por qué el módulo pasaba
+  el gate de cierre y aun así se veía mal.
+
+- **Las «solapas» del detalle eran anclas disfrazadas.** El `<nav>` imitaba la
+  barra de tabs de Becas —con el ítem activo subrayado en `border-fg-brand`— pero
+  eran `<a href="#id">` sin Alpine: las cinco secciones estaban **siempre**
+  renderizadas y apiladas, y el indicador de «activo» nunca cambiaba al scrollear.
+  Era un estado de foco falso y el mayor responsable de la sensación de desorden.
+  Se convirtió en solapas Alpine reales (`x-data` / `x-show`) siguiendo
+  `becas/relevamientos/convocatoria_detail.html`, que es el patrón canónico.
+
+- **Los Indicadores operativos quedan fuera de las solapas, siempre visibles.**
+  La sección nunca tuvo entrada en la barra de navegación: era contenido huérfano.
+  Al pasar a solapas había que ubicarla en alguna, y esconder la salud operativa
+  del dispositivo detrás de un clic habría sido una regresión. Se dejó como franja
+  fija sobre las solapas, que es además la forma en que Becas trata sus métricas.
+
+- **«Parte diario» sale de la barra de solapas.** Era un enlace a otra página
+  metido entre tabs: dentro de un `role="tablist"` eso es semánticamente inválido
+  y engaña al usuario, que espera cambiar de panel y termina navegando. Se movió a
+  los botones de acción del encabezado, donde viven el resto de las acciones de
+  página. Sigue disponible además desde la solapa de Admisiones, como antes.
+
+- **Dispositivos no usaba el componente `badge` en ningún lado.** Cero apariciones
+  en todo el módulo, contra más de 40 en Becas. El estado del dispositivo —que
+  tiene **siete** valores posibles— se mostraba como texto plano sin color en el
+  listado y en el detalle, y donde sí había badge estaba reimplementado a mano con
+  `<span>` y clases sueltas. Un listado de siete estados sin código de color es el
+  peor golpe a la escaneabilidad de toda la superficie, y por eso este fue el
+  cambio de mayor relación impacto/esfuerzo.
+
+- **El mapa de los siete estados se fijó así**, para que cada uno tenga lectura
+  propia sin abusar del color de marca:
+
+  | Estado | Variante | Por qué |
+  |---|---|---|
+  | `BORRADOR` | `badge-white` | Todavía no es un legajo real; el más liviano |
+  | `PENDIENTE_VALIDACION` | `badge-info` | En vuelo, esperando a otro; mismo criterio que `EN_REVISION` en Becas |
+  | `ACTIVO` | `badge-success` | Único estado plenamente operativo |
+  | `OBSERVADO` | `badge-warning` | Requiere acción del solicitante |
+  | `RECHAZADO` | `badge-danger` | Terminal negativo |
+  | `INACTIVO` | `badge-gray` | No operativo, reversible |
+  | `CERRADO` | `badge-gray` | No operativo, terminal |
+
+  `INACTIVO` y `CERRADO` comparten variante a propósito: son los dos estados «no
+  operativos» y la etiqueta de texto alcanza para distinguirlos. La alternativa era
+  darle `badge-brand` a uno de los dos, y el rosa de marca atrae la vista, que es
+  exactamente lo contrario de lo que se quiere para una fila muerta.
+
+- **Se creó un parcial por entidad en vez de un filtro de template.** El mapa vive
+  en `programas/templates/programas/dispositivos/_estado_badge.html` y
+  `_cama_estado_badge.html`, calcado del patrón que ya usa
+  `becas/relevamientos/_estado_badge.html`. Se prefirió el parcial al templatetag
+  porque es el precedente del repo y porque mantiene el mapa de color donde se lee,
+  no escondido en Python.
+
+- **Los estados de cama entran en el mismo cambio.** Estaban en la tabla que ya se
+  estaba tocando, también como texto plano, y son el mismo componente:
+  `DISPONIBLE`→`badge-success`, `RESERVADA`→`badge-warning`, `OCUPADA`→`badge-info`,
+  `FUERA_SERVICIO`→`badge-danger`. `OCUPADA` es `info` y no `warning` porque una
+  cama ocupada es la operación normal, no una alerta.
+
+- **La barra de solapas lleva `flex-wrap`**, que la de anclas no tenía. Con cinco
+  ítems y contadores desbordaba en mobile sin ninguna señal de scroll.
+
+## Implementación
+
+En el **listado de dispositivos**, la columna Estado dejó de ser texto plano y
+ahora muestra el badge de color correspondiente a cada uno de los siete estados.
+
+En el **detalle del dispositivo**:
+
+- El estado aparece como badge al lado del título, no como una línea de texto en
+  mayúsculas sobre el nombre.
+- La franja de Indicadores operativos quedó fija debajo del encabezado.
+- El resto del contenido se agrupó en cuatro solapas reales —Datos, Camas,
+  Admisiones, Historial— dentro de una sola tarjeta. Se muestra una por vez; Camas
+  y Admisiones llevan su contador en un badge dentro de la propia solapa.
+- «Parte diario» pasó a los botones del encabezado.
+- La tabla de camas muestra el estado de cada cama como badge de color.
+- El contador de la lista de espera y la marca «Reingreso» pasaron a badge.
+
+En la **configuración de tipos de dispositivo**, los badges Activo/Inactivo de la
+lista y del detalle, y la marca «Obligatorio» de cada campo, dejaron de ser spans
+armados a mano y usan el componente del sistema. «Obligatorio» pasó de
+`bg-info-soft` a `badge-brand`, que es lo que usa Becas para el mismo concepto en
+sus preguntas.
+
+No cambió ningún comportamiento, permiso, URL ni contrato de vista.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/_estado_badge.html` — **nuevo**
+- `programas/templates/programas/dispositivos/_cama_estado_badge.html` — **nuevo**
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/templates/programas/dispositivos/legajo/list.html`
+- `programas/templates/programas/dispositivos/config/tipo_list.html`
+- `programas/templates/programas/dispositivos/config/_tipo_detail_content.html`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `scripts/design_audit.py --changed` → **0 errores**. Los 2 warnings que reporta
+  son `outline:none` en `users/templates/user/login.html`, ajenos a este cambio y
+  preexistentes en el árbol de trabajo.
+- `scripts/compile_templates.py` → **310 templates compilados, 0 errores**.
+- `manage.py check` → **sin issues**.
+- **Las suites de Dispositivos no se pudieron correr:** Docker estaba apagado y
+  `manage.py test` falla al resolver el host `sedronar-mysql`. Quedan pendientes de
+  ejecución `programas.tests.test_dispositivos_legajo`, `test_dispositivos_config`,
+  `test_dispositivos_camas`, `test_admisiones` y `test_solapa_dispositivos`. El
+  riesgo real es bajo —no se tocó Python ni contratos de contexto— pero
+  `test_dispositivos_legajo` y `test_dispositivos_config` sí podrían assertear
+  sobre texto del HTML del estado, que es justamente lo que cambió.
+- Prueba en navegador: **pendiente**, por la misma razón.
+
+## Puesta en marcha en el servidor
+
+No requiere: son templates, entran con el deploy.
+
+## Pendientes / a definir
+
+Los cuatro hallazgos del diagnóstico que quedaron sin ejecutar, en el orden en que
+conviene abordarlos:
+
+1. **Motor de modal AJAX propio en la configuración.**
+   `config/tipo_detail.html` implementa desde cero fetch, inyección, focus trap y
+   submit AJAX. Los atributos `data-edit-url` / `data-edit-modal` **no existen en
+   ningún otro archivo del repo**: es un cuarto patrón de modal que compite con
+   `ModernModal`, con los modales Alpine de Becas y con el confirm de SweetAlert
+   crudo. Su submit handler es una copia casi calcada de `becas/_ajax_js.html` y ya
+   divergió del original —no soporta `data-reset`, no emite el evento equivalente a
+   `becas-saved`, maneja un 401 que Becas no contempla—. Ojo con el antecedente:
+   el plan del 23/07/2026
+   ([`docs/plans/2026-07-23-dispositivos-sidebar-modales-design.md`](../plans/2026-07-23-dispositivos-sidebar-modales-design.md))
+   aprobó «repetir el patrón AJAX existente en Becas»; se aprobó el comportamiento
+   y se terminó implementando un motor paralelo. Tamaño mediano-grande: toca
+   también `programas/views/dispositivos_config.py`.
+2. **Stat cards achatadas.** Las ocho tarjetas del detalle usan
+   `rounded-lg border-light` sin sombra ni ícono, contra
+   `rounded-xl border-base shadow-sm` más ícono de color en Becas. Al repetirse
+   ocho veces en la misma pantalla, el achatamiento se lee como sistema. Chico.
+3. **Dos handlers de confirmación duplicados dentro del propio módulo.**
+   `legajo/detail.html` y `config/tipo_detail.html` tienen cada uno su copia del
+   `Swal.fire` para `data-confirm`, y ya divergieron: uno soporta
+   `data-requires-motivo` y el otro no. Debería ser un include único, como
+   `becas/_confirm_js.html`. Chico.
+4. **La solapa de Dispositivos no se embebe en el legajo.**
+   `programas/services/solapas.py` marca a Dispositivos como el **único** programa
+   con `contenido_embebido: False`: al abrirla, el usuario sale por completo de la
+   vista de legajo en vez de ver el contenido dentro de la solapa, como pasa con
+   Becas. Es una decisión a nivel de servicio, no de template, y **requiere
+   definición de producto** antes de tocarse.
+
+Fuera de la lista, dos observaciones del diagnóstico que **no** son deuda de
+Dispositivos y se registran para que no se le imputen:
+
+- La carga de SweetAlert2 por CDN dentro de cada página la hacen 17 archivos de
+  todo el sistema, pese a que `nodo-swal-theme.js` ya asume Swal global. Es una
+  práctica extendida, no una divergencia del módulo.
+- La convención del `<h1>` está partida en el propio canon: conviven
+  `style="font-size:28px"` y `text-3xl font-extrabold`, y Becas usa las dos.
+  Dispositivos las mezcla dentro de sí mismo, pero no inventó el problema.
+
+## Reversión
+
+`git revert` del commit. No hay datos involucrados: son seis templates, dos de
+ellos nuevos. Revertir devuelve el detalle a secciones apiladas con anclas y los
+estados a texto plano.
+
+## Historial
+
+No aplica: entrada nueva.
 
 # Cómo continuar este registro
 

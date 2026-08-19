@@ -267,6 +267,9 @@
 
 ## :material-calendar-month: Consumo de agosto 2026 — detalle día por día
 
+!!! note "Cambio de método desde el 17 de agosto (19/08/2026)"
+    Del 01 al 14 de agosto el consumo se registró **día por día y por persona**. Desde el **17 de agosto** se registra **por entregable**, con el detalle en la sección siguiente: cada fila nombra lo que se entregó y las horas se cuantifican leyendo los cambios efectivamente implementados en el repositorio. El motivo del cambio es que el registro diario repetía la misma descripción durante días consecutivos sin informar qué se había hecho.
+
 | Día | Persona | Programa | Motivo | Qué hice | Consumo |
 |---|---|---|---|---|---:|
 | 2026-08-01 | Pablo Cao | Becas | Integración SIIS | Desarrollo de la base de la integración SIIS de Becas | 480 min |
@@ -347,14 +350,37 @@
 | 2026-08-14 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-14 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 
+### :material-package-variant-closed: Consumo del 17 al 18 de agosto — por entregable
+
+!!! info "Cómo se leen estas horas"
+    **Horas** es el consumo imputado, cuantificado a partir de los cambios implementados en el repositorio, con un techo de 9 h por persona y por día (11 h cuando hay evidencia de trabajo fuera de horario). **Equivalente convencional** es lo que costaría el mismo entregable a paso de desarrollo tradicional: se informa como referencia de alcance y **no se factura**. Las reuniones, el análisis y las pruebas manuales no llevan equivalente, porque su duración no depende de las herramientas.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 17–18/08 | Juani Portilla | Transversal | Observabilidad de performance en el CI | Sonda de performance determinista para el pipeline, reescritura del alcance de métricas y de la detección de degradación, instrumentación de los servicios externos, pruebas y calibración de los presupuestos. | 13 h | 32 h |
+| 18/08 | Juani Portilla | Transversal | Actualización del ecosistema Django y controles de calidad | Actualización de Django y cryptography con alineación de dependencias, y restauración de los controles de calidad y performance del pipeline. | 4 h | 9 h |
+| 17/08 | Pablo Cao | Becas | Módulo de reportes de Becas — cierre de revisión | Formularios de filtro del módulo, refactor del servicio de reportes, reorganización de las vistas y accesos desde el menú lateral. | 8 h | 12 h |
+| 18/08 | Pablo Cao | Becas | Franja horaria del relevamiento | Campo de franja horaria en el modelo con su migración, formularios, API de la app de campo, vistas y pruebas. | 5 h | 9 h |
+| 18/08 | Pablo Cao | Becas | Recuperación de contraseña del backoffice | Flujo completo de recuperación, plantillas de correo y de pantalla, rutas, presentación del usuario y pruebas. | 4 h | 8 h |
+| 18/08 | Pablo Cao | Becas | Validación SIIS al aprobar o rechazar — cierre de revisión | Ajustes pedidos en la revisión sobre la validación obligatoria de SIIS en la aprobación de formularios. | 2 h | 4 h |
+| 18/08 | Matías Fariña | Becas | Diagnóstico de la integración SIIS | Diagnóstico de por qué la integración no devolvía datos, comando de verificación reutilizable con sus pruebas, y registro funcional del hallazgo. | 8 h | 15 h |
+| 17/08 | Matías Fariña | Becas | Análisis del círculo de credenciales por correo | Definición del alcance del alta con clave provisoria, del restablecimiento autogestionado y de las tasks derivadas; coordinación del trabajo de la semana. | 6 h | — |
+| 17–18/08 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 2 h | — |
+| 17–18/08 | Matías Abate | Becas | Pruebas de regresión de Becas | Pruebas de los cinco roles sobre el módulo de reportes, la franja horaria del relevamiento y la validación SIIS en la aprobación. | 8 h | — |
+| 17/08 | Equipo (4 personas) | Transversal | Reunión de equipo | Cierre del módulo de reportes, plan de observabilidad de performance y prioridades de la semana. | 4 h | — |
+| | | | **Total 17 al 18/08** | | **64 h** | **89 h** |
+
+!!! warning "Pendiente de imputación"
+    El desarrollo del **frontend del Programa Dispositivos** no tiene actividad registrada en este repositorio durante el 17 y el 18 de agosto, por lo que no se imputaron horas por ese concepto. Queda pendiente de confirmación.
+
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 190 h 00 min |
-| Dispositivos | 98 h 30 min |
-| Transversal | 51 h 30 min |
-| **Total agosto 2026 (al 14/08)** | **340 h 00 min** |
+| Becas | 231 h 00 min |
+| Dispositivos | 100 h 30 min |
+| Transversal | 72 h 30 min |
+| **Total agosto 2026 (al 18/08)** | **404 h 00 min** |
 
 ---
 
@@ -384,7 +410,12 @@
 
 
 
-    **80.262 minutos** (1.337 h 42 min)
+    **84.192 minutos** (1.403 h 12 min)
+
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 404 h 00 min (al 18/08). El
+    contador declaraba 80.262 minutos (1.337 h 42 min), 90 minutos menos que la suma
+    de las tres tablas; se corrigió al valor de las tablas el 19/08/2026, y se
+    actualizó con la carga del 17 y 18 de agosto.
 
 
 
