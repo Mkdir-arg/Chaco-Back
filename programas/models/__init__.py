@@ -1647,9 +1647,7 @@ class Relevamiento(PausableMixin, TimeStamped):
 
     def habilitado_en(self, momento):
         if isinstance(momento, date) and not isinstance(momento, datetime):
-            momento = timezone.make_aware(
-                datetime.combine(momento, time.min), timezone.get_current_timezone()
-            )
+            momento = timezone.make_aware(datetime.combine(momento, time.min), timezone.get_current_timezone())
         return bool(
             not self.pausa_efectiva
             and self.fecha_asignada
