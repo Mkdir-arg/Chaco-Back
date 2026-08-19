@@ -6,7 +6,6 @@ from datetime import datetime, time
 
 from django import forms
 from django.contrib.auth.models import User
-from users.presentation import etiqueta_usuario
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Q
@@ -38,6 +37,7 @@ from programas.models import (
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
 from programas.services.siis import SiisCatalogError, listar_programas
+from users.presentation import etiqueta_usuario
 
 # Clase reutilizable del design system para inputs/selects/textareas.
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
