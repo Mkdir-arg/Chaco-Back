@@ -372,11 +372,21 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.client.force_login(self.coord_a)
         resp = self.client.post(
             reverse("becas:relevamiento_reprogramar", args=[self.rel_a.pk]),
-            {"fecha_asignada": "2026-09-15"},
+            {"fecha_asignada": "2026-09-15T14:00", "fecha_hasta": "2026-09-15T18:00"},
         )
         self.assertEqual(resp.status_code, 302)
         self.rel_a.refresh_from_db()
-        self.assertEqual(self.rel_a.fecha_asignada, date(2026, 9, 15))
+        self.assertEqual(timezone.localtime(self.rel_a.fecha_asignada).strftime("%Y-%m-%dT%H:%M"), "2026-09-15T14:00")
+        self.assertEqual(timezone.localtime(self.rel_a.fecha_hasta).strftime("%Y-%m-%dT%H:%M"), "2026-09-15T18:00")
+
+    def test_reprogramar_rechaza_horas_invertidas(self):
+        form = ReprogramarForm(
+            {"fecha_asignada": "2026-09-15T18:00", "fecha_hasta": "2026-09-15T14:00"},
+            convocatoria=self.conv_a,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("anterior", form.errors["fecha_hasta"][0])
 
     def test_reprogramar_rechaza_fecha_fuera_de_convocatoria(self):
         form = ReprogramarForm(
@@ -386,8 +396,8 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
 
         self.assertFalse(form.is_valid())
         self.assertIn("período de la convocatoria", form.errors["fecha_asignada"][0])
-        self.assertEqual(form.fields["fecha_asignada"].widget.attrs["min"], "2026-01-01")
-        self.assertEqual(form.fields["fecha_asignada"].widget.attrs["max"], "2026-12-31")
+        self.assertEqual(form.fields["fecha_asignada"].widget.attrs["min"], "2026-01-01T00:00")
+        self.assertEqual(form.fields["fecha_asignada"].widget.attrs["max"], "2026-12-31T23:59")
 
     def test_cupo_se_puede_aumentar(self):
         self.client.force_login(self.coord_a)
@@ -495,6 +505,19 @@ class FinalizarReabrirTests(_BaseRelevTest):
 
 
 class VencidoTests(_BaseRelevTest):
+    def test_vence_por_hora(self):
+        ahora = timezone.now()
+        rel = Relevamiento.objects.create(
+            convocatoria=self.conv_a,
+            territorial=self.territorial,
+            fecha_asignada=ahora - timedelta(hours=2),
+            fecha_hasta=ahora - timedelta(minutes=1),
+            zona="Turno mañana",
+            estado=Relevamiento.Estado.ASIGNADO,
+        )
+
+        self.assertTrue(rel.esta_vencido)
+
     def test_esta_vencido(self):
         ayer = timezone.localdate() - timedelta(days=1)
         rel = Relevamiento.objects.create(

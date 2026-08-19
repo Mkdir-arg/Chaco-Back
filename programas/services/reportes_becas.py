@@ -203,11 +203,11 @@ def reporte_produccion(user, *, segmento_id=None, territorial_id=None, desde=Non
         grupos[clave]["rels"].append(rel)
         grupos[clave]["forms"].extend(rel.formularios.all())
     filas = []
-    hoy = timezone.localdate()
+    ahora = timezone.now()
     for datos in grupos.values():
         rels, forms = datos["rels"], datos["forms"]
         estados = Counter(f.estado for f in forms)
-        vencidos = sum(r.estado in ("ASIGNADO", "EN_CURSO") and r.fecha_hasta < hoy for r in rels)
+        vencidos = sum(r.estado in ("ASIGNADO", "EN_CURSO") and r.fecha_hasta < ahora for r in rels)
         porcentaje = round(estados["APROBADO"] * 100 / len(forms), 1) if forms else 0
         usuario = datos["territorial"]
         filas.append(
