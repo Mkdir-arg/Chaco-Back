@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 from io import StringIO
 from unittest.mock import patch
 
@@ -7,16 +10,18 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from config import settings as project_settings
 from config.middlewares.query_counter import QueryCollector, QueryCountMiddleware
 from conversaciones.context_processors import user_groups
 from core import rbac
 from core.performance.query_observability import (
     QueryObservabilityStore,
     instrument_external_call,
+    query_observability_report,
     reset_local_metrics_for_tests,
 )
 
@@ -51,6 +56,48 @@ class StaleRedis(BrokenRedis):
 
     def hgetall(self, *_args):
         return {b"total_requests": b"1"}
+
+
+class PerformanceSettingsTests(SimpleTestCase):
+    def test_monitoring_is_enabled_by_default(self):
+        with patch.dict(project_settings.os.environ, {}, clear=True):
+            self.assertTrue(project_settings._performance_query_monitoring_enabled())
+
+    def test_monitoring_can_be_disabled_explicitly(self):
+        with patch.dict(
+            project_settings.os.environ,
+            {"PERFORMANCE_QUERY_MONITORING_ENABLED": "False"},
+            clear=True,
+        ):
+            self.assertFalse(project_settings._performance_query_monitoring_enabled())
+
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "DJANGO_DEBUG": "False",
+                "DJANGO_SECRET_KEY": "test-key",
+                "ENVIRONMENT": "dev",
+                "PERFORMANCE_QUERY_MONITORING_ENABLED": "False",
+                "PYTEST_RUNNING": "1",
+            }
+        )
+        probe = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "from config import settings; "
+                    "assert not settings.PERFORMANCE_QUERY_MONITORING_ENABLED; "
+                    "assert 'config.middlewares.query_counter.QueryCountMiddleware' not in settings.MIDDLEWARE"
+                ),
+            ],
+            cwd=project_settings.BASE_DIR,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(probe.returncode, 0, probe.stderr)
 
 
 class PerformanceObservabilityTests(TestCase):
@@ -134,6 +181,28 @@ class QueryCountMiddlewareTests(TestCase):
 
         self.assertEqual(QueryObservabilityStore().snapshot()["metrics_source"], "unavailable")
 
+    @override_settings(PERFORMANCE_QUERY_SAMPLE_RATE=0)
+    def test_sampling_zero_skips_collection_and_redis_write(self):
+        middleware = QueryCountMiddleware(lambda _request: HttpResponse("ok"))
+
+        with patch("config.middlewares.query_counter.QueryCollector") as collector:
+            with patch.object(middleware.store, "record") as record:
+                response = middleware(RequestFactory().get("/inicio/"))
+
+        self.assertEqual(response.status_code, 200)
+        collector.assert_not_called()
+        record.assert_not_called()
+
+    @override_settings(PERFORMANCE_QUERY_SAMPLE_RATE=1)
+    def test_sampling_one_collects_and_records_request(self):
+        middleware = QueryCountMiddleware(lambda _request: HttpResponse("ok"))
+
+        with patch.object(middleware.store, "record") as record:
+            response = middleware(RequestFactory().get("/inicio/"))
+
+        self.assertEqual(response.status_code, 200)
+        record.assert_called_once()
+
     def test_collector_keeps_only_normalized_fingerprints(self):
         collector = QueryCollector()
         collector(lambda *_args: None, "SELECT * FROM person WHERE dni = 30111222 AND nombre = 'Ana'", [], False, {})
@@ -212,6 +281,42 @@ class QueryCountMiddlewareTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(report["metrics_source"], "unavailable")
+
+    @override_settings(PERFORMANCE_REDIS_RECOVERY_SECONDS=60)
+    def test_failed_redis_write_opens_circuit_until_recovery_window(self):
+        store = QueryObservabilityStore()
+
+        with patch.object(store, "_redis", return_value=BrokenRedis()) as redis_connection:
+            store.record("core:inicio", 1, 0, False, 10, {})
+            store.record("core:inicio", 1, 0, False, 10, {})
+
+        self.assertEqual(redis_connection.call_count, 1)
+
+    @override_settings(PERFORMANCE_QUERY_SAMPLE_RATE=1, PERFORMANCE_N1_WARNING_INTERVAL_SECONDS=60)
+    def test_n1_warning_is_throttled_without_losing_affected_request_count(self):
+        user = User.objects.create_user("n1-observability-user", password="test-password")
+
+        def get_response(_request):
+            for _index in range(4):
+                User.objects.get(pk=user.pk)
+            return HttpResponse("ok")
+
+        middleware = QueryCountMiddleware(get_response)
+        with patch("config.middlewares.query_counter.logger.warning") as warning:
+            middleware(RequestFactory().get("/inicio/"))
+            middleware(RequestFactory().get("/inicio/"))
+
+        self.assertEqual(warning.call_count, 1)
+        self.assertEqual(QueryObservabilityStore().snapshot()["n1_affected_requests"], 2)
+
+    @override_settings(PERFORMANCE_QUERY_SAMPLE_RATE=0.2)
+    def test_report_declares_effective_sampling_rate(self):
+        QueryObservabilityStore().record("core:inicio", 1, 0, False, 10, {})
+
+        report = query_observability_report()
+
+        self.assertEqual(report["sampling_rate"], 0.2)
+        self.assertEqual(report["metrics"]["queries"]["sampling_rate"], 0.2)
 
 
 class GroupLookupReuseTests(TestCase):
