@@ -1,0 +1,19 @@
+{% extends "includes/base.html" %}
+{% block title %}Recuperar contraseña — DATAÑACH{% endblock %}
+{% block main-content %}
+<div class="mx-auto max-w-lg py-10">
+  <div class="rounded-2xl border border-light bg-primary p-6 shadow-sm">
+    <h1 class="text-2xl font-bold text-heading">Recuperar contraseña</h1>
+    <p class="mt-2 text-sm text-body">Ingresá el correo asociado a tu usuario.</p>
+    <form method="post" class="mt-6 space-y-4">
+      {% csrf_token %}
+      <div>
+        <label for="id_email" class="mb-1 block text-sm font-semibold text-heading">Correo electrónico</label>
+        <input id="id_email" name="email" type="email" autocomplete="email" required class="nodo-field w-full">
+        {% for error in form.email.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+      </div>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Enviar enlace</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

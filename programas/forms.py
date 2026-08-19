@@ -2,9 +2,11 @@
 
 from calendar import monthrange
 from collections import OrderedDict
+from datetime import datetime, time
 
 from django import forms
 from django.contrib.auth.models import User
+from users.presentation import etiqueta_usuario
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Q
@@ -193,8 +195,8 @@ class SegmentoCreateForm(forms.ModelForm):
         self.fields["programa"].empty_label = "Seleccioná un programa…"
         from programas.services.autorizacion import usuarios_coordinadores_becas
 
-        self.fields["coordinador"].queryset = usuarios_coordinadores_becas()
-        self.fields["coordinador"].label_from_instance = lambda u: u.get_full_name() or u.username
+        self.fields["coordinador"].queryset = usuarios_coordinadores_becas().select_related("profile")
+        self.fields["coordinador"].label_from_instance = etiqueta_usuario
 
     def clean(self):
         cleaned = super().clean()
@@ -240,8 +242,8 @@ class SubsegmentoForm(forms.ModelForm):
 
         self.fields["referente"].required = False
         self.fields["referente"].empty_label = "Sin referente asignado"
-        self.fields["referente"].queryset = usuarios_coordinadores_regionales_becas()
-        self.fields["referente"].label_from_instance = lambda u: u.get_full_name() or u.username
+        self.fields["referente"].queryset = usuarios_coordinadores_regionales_becas().select_related("profile")
+        self.fields["referente"].label_from_instance = etiqueta_usuario
 
     def clean_nombre(self):
         nombre = (self.cleaned_data.get("nombre") or "").strip()
@@ -884,7 +886,7 @@ class AsignacionCoordinadorForm(forms.ModelForm):
         # Solo usuarios con el rol Coordinador de Becas (#74).
         from programas.services.autorizacion import usuarios_coordinadores_becas
 
-        coordinadores = usuarios_coordinadores_becas()
+        coordinadores = usuarios_coordinadores_becas().select_related("profile")
         # En el selector solo se ofrecen coordinadores todavía disponibles para
         # este segmento. En un POST conservamos el queryset completo para que
         # ``clean()`` pueda informar explícitamente una asignación duplicada en
@@ -896,7 +898,7 @@ class AsignacionCoordinadorForm(forms.ModelForm):
                 ).values("coordinador_id"),
             )
         self.fields["coordinador"].queryset = coordinadores
-        self.fields["coordinador"].label_from_instance = lambda u: u.get_full_name() or u.username
+        self.fields["coordinador"].label_from_instance = etiqueta_usuario
 
     def clean(self):
         cleaned = super().clean()
@@ -1085,8 +1087,12 @@ class RelevamientoForm(forms.ModelForm):
         widgets = {
             "convocatoria": forms.Select(attrs={"class": INPUT_CLASS}),
             "territorial": forms.Select(attrs={"class": INPUT_CLASS}),
-            "fecha_asignada": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-            "fecha_hasta": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+            "fecha_asignada": forms.DateTimeInput(
+                format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}
+            ),
+            "fecha_hasta": forms.DateTimeInput(
+                format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}
+            ),
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
             "observaciones": forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
         }
@@ -1104,7 +1110,7 @@ class RelevamientoForm(forms.ModelForm):
         self.operador = operador
         from programas.services.autorizacion import usuarios_territoriales_becas
 
-        terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial")
+        terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial", "profile")
         conv_qs = (
             Convocatoria.objects.select_related("segmento", "subsegmento")
             .filter(
@@ -1137,7 +1143,7 @@ class RelevamientoForm(forms.ModelForm):
         self.fields["convocatoria"].widget = _SelectConSegmento(attrs={"class": INPUT_CLASS})
         self.fields["territorial"].widget = _SelectConSegmento(attrs={"class": INPUT_CLASS})
         self.fields["territorial"].queryset = terr_qs
-        self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
+        self.fields["territorial"].label_from_instance = etiqueta_usuario
         self.fields[
             "territorial"
         ].help_text = "Solo se listan los territoriales del segmento de la convocatoria elegida."
@@ -1198,7 +1204,11 @@ class RelevamientoForm(forms.ModelForm):
             if asignacion is None or asignacion.segmento_id != convocatoria.segmento_id:
                 self.add_error("territorial", "El territorial no pertenece al segmento de la convocatoria.")
         fecha_desde = cleaned.get("fecha_asignada")
-        fecha_hasta = cleaned.get("fecha_hasta") or fecha_desde
+        fecha_hasta = cleaned.get("fecha_hasta")
+        if fecha_desde and fecha_hasta is None:
+            fecha_hasta = timezone.make_aware(
+                datetime.combine(fecha_desde.date(), time(23, 59, 59)), timezone.get_current_timezone()
+            )
         if fecha_hasta:
             cleaned["fecha_hasta"] = fecha_hasta
         if not cleaned.get("cupo_maximo"):
@@ -1239,17 +1249,17 @@ class ReasignarTerritorialForm(forms.Form):
         from programas.services.autorizacion import usuarios_territoriales_becas
 
         # Con segmento (el del relevamiento) solo ofrece territoriales asignados a él.
-        self.fields["territorial"].queryset = usuarios_territoriales_becas(segmento=segmento)
-        self.fields["territorial"].label_from_instance = lambda u: u.get_full_name() or u.username
+        self.fields["territorial"].queryset = usuarios_territoriales_becas(segmento=segmento).select_related("profile")
+        self.fields["territorial"].label_from_instance = etiqueta_usuario
 
 
 class ReprogramarForm(forms.Form):
-    fecha_asignada = forms.DateField(
-        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+    fecha_asignada = forms.DateTimeField(
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
         label="Nueva fecha desde",
     )
-    fecha_hasta = forms.DateField(
-        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+    fecha_hasta = forms.DateTimeField(
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
         label="Nueva fecha hasta",
     )
 
@@ -1260,14 +1270,18 @@ class ReprogramarForm(forms.Form):
         if convocatoria is not None:
             for campo in ("fecha_asignada", "fecha_hasta"):
                 self.fields[campo].widget.attrs.update(
-                    min=convocatoria.fecha_inicio.isoformat(),
-                    max=convocatoria.fecha_fin.isoformat(),
+                    min=f"{convocatoria.fecha_inicio.isoformat()}T00:00",
+                    max=f"{convocatoria.fecha_fin.isoformat()}T23:59",
                 )
 
     def clean(self):
         cleaned = super().clean()
         fecha_desde = cleaned.get("fecha_asignada")
-        fecha_hasta = cleaned.get("fecha_hasta") or fecha_desde
+        fecha_hasta = cleaned.get("fecha_hasta")
+        if fecha_desde and fecha_hasta is None:
+            fecha_hasta = timezone.make_aware(
+                datetime.combine(fecha_desde.date(), time(23, 59, 59)), timezone.get_current_timezone()
+            )
         if fecha_hasta:
             cleaned["fecha_hasta"] = fecha_hasta
         if fecha_desde and fecha_hasta and fecha_hasta < fecha_desde:
@@ -1275,7 +1289,7 @@ class ReprogramarForm(forms.Form):
         if (
             self.convocatoria
             and fecha_desde
-            and not self.convocatoria.fecha_inicio <= fecha_desde <= self.convocatoria.fecha_fin
+            and not self.convocatoria.fecha_inicio <= fecha_desde.date() <= self.convocatoria.fecha_fin
         ):
             inicio = self.convocatoria.fecha_inicio.strftime("%d/%m/%Y")
             fin = self.convocatoria.fecha_fin.strftime("%d/%m/%Y")
@@ -1286,7 +1300,7 @@ class ReprogramarForm(forms.Form):
         if (
             self.convocatoria
             and fecha_hasta
-            and not self.convocatoria.fecha_inicio <= fecha_hasta <= self.convocatoria.fecha_fin
+            and not self.convocatoria.fecha_inicio <= fecha_hasta.date() <= self.convocatoria.fecha_fin
         ):
             inicio = self.convocatoria.fecha_inicio.strftime("%d/%m/%Y")
             fin = self.convocatoria.fecha_fin.strftime("%d/%m/%Y")

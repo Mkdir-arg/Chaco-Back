@@ -1,9 +1,11 @@
 import json
+from datetime import date, datetime, time
 
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
+from django.utils import timezone
 
 from core.models import TimeStamped
 from legajos.models import Ciudadano
@@ -1476,6 +1478,13 @@ class Convocatoria(PausableMixin, TimeStamped):
 class Relevamiento(PausableMixin, TimeStamped):
     """Campaña de campo asignada a un territorial. Nombre auto-generado."""
 
+    def _normalizar_franja(self):
+        zona = timezone.get_current_timezone()
+        if isinstance(self.fecha_asignada, date) and not isinstance(self.fecha_asignada, datetime):
+            self.fecha_asignada = timezone.make_aware(datetime.combine(self.fecha_asignada, time.min), zona)
+        if isinstance(self.fecha_hasta, date) and not isinstance(self.fecha_hasta, datetime):
+            self.fecha_hasta = timezone.make_aware(datetime.combine(self.fecha_hasta, time(23, 59, 59)), zona)
+
     class Estado(models.TextChoices):
         ASIGNADO = "ASIGNADO", "Asignado"
         EN_CURSO = "EN_CURSO", "En curso"
@@ -1500,8 +1509,8 @@ class Relevamiento(PausableMixin, TimeStamped):
     )
     # Se conserva el nombre técnico histórico para evitar romper integraciones;
     # funcionalmente representa el inicio del período.
-    fecha_asignada = models.DateField(verbose_name="Fecha desde")
-    fecha_hasta = models.DateField(verbose_name="Fecha hasta")
+    fecha_asignada = models.DateTimeField(verbose_name="Fecha y hora desde")
+    fecha_hasta = models.DateTimeField(verbose_name="Fecha y hora hasta")
     zona = models.CharField(max_length=200, verbose_name="Zona")
     cupo_maximo = models.PositiveIntegerField(
         default=100,
@@ -1539,6 +1548,7 @@ class Relevamiento(PausableMixin, TimeStamped):
 
     def clean(self):
         super().clean()
+        self._normalizar_franja()
         if self.pk and self.cupo_maximo is not None:
             utilizados = self.formularios.count()
             if self.cupo_maximo < utilizados:
@@ -1551,13 +1561,15 @@ class Relevamiento(PausableMixin, TimeStamped):
         errores = {}
         if self.fecha_hasta < self.fecha_asignada:
             errores["fecha_hasta"] = "La fecha hasta no puede ser anterior a la fecha desde."
-        if not convocatoria.fecha_inicio <= self.fecha_asignada <= convocatoria.fecha_fin:
+        fecha_desde = timezone.localtime(self.fecha_asignada).date()
+        fecha_hasta = timezone.localtime(self.fecha_hasta).date()
+        if not convocatoria.fecha_inicio <= fecha_desde <= convocatoria.fecha_fin:
             inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
             fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
             errores["fecha_asignada"] = (
                 f"La fecha desde debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin})."
             )
-        if not convocatoria.fecha_inicio <= self.fecha_hasta <= convocatoria.fecha_fin:
+        if not convocatoria.fecha_inicio <= fecha_hasta <= convocatoria.fecha_fin:
             inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
             fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
             errores["fecha_hasta"] = (
@@ -1582,8 +1594,12 @@ class Relevamiento(PausableMixin, TimeStamped):
         return (qs.aggregate(m=models.Max("numero"))["m"] or 0) + 1
 
     def save(self, *args, **kwargs):
+        self._normalizar_franja()
         if self.fecha_asignada and self.fecha_hasta is None:
-            self.fecha_hasta = self.fecha_asignada
+            dia = timezone.localtime(self.fecha_asignada).date()
+            self.fecha_hasta = timezone.make_aware(
+                datetime.combine(dia, time(23, 59, 59)), timezone.get_current_timezone()
+            )
         if self._state.adding and not self.numero:
             with transaction.atomic():
                 Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)
@@ -1629,12 +1645,12 @@ class Relevamiento(PausableMixin, TimeStamped):
     def cupo_completo(self):
         return self.cupo_utilizado >= self.cupo_maximo
 
-    def habilitado_en(self, fecha):
+    def habilitado_en(self, momento):
         return bool(
             not self.pausa_efectiva
             and self.fecha_asignada
             and self.fecha_hasta
-            and self.fecha_asignada <= fecha <= self.fecha_hasta
+            and self.fecha_asignada <= momento <= self.fecha_hasta
         )
 
     @property
@@ -1645,7 +1661,7 @@ class Relevamiento(PausableMixin, TimeStamped):
         return (
             self.estado in (self.Estado.ASIGNADO, self.Estado.EN_CURSO)
             and self.fecha_hasta is not None
-            and self.fecha_hasta < timezone.localdate()
+            and self.fecha_hasta < timezone.now()
         )
 
 

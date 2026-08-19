@@ -1,0 +1,6 @@
+Solicitaste restablecer la contraseña de tu usuario en DATAÑACH.
+
+Abrí este enlace para definir una contraseña nueva:
+{{ protocol }}://{{ domain }}{% url 'users:establecer_contrasena' uidb64=uid token=token %}
+
+Si no hiciste esta solicitud, ignorá este mensaje.
