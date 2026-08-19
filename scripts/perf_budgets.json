@@ -3,9 +3,11 @@
     "schema_version": 1,
     "scale": 200,
     "query_margin": "Baseline de Fase 1 + aproximadamente 20%, redondeado hacia arriba.",
+    "duplicate_query_margin": "La guarda toma la ejecución determinista de seed_perf como baseline. Todo incremento requiere justificación visible.",
     "maintenance": "Subir un max_queries requiere editar este archivo en el mismo PR que introduce la necesidad, con justificacion visible para review.",
     "adjustments": {
-      "becas_relevamiento_detalle": "14→15: consulta fija del control de sesión única de Backoffice; el N+1 detectado en legajo_detalle fue eliminado sin ampliar su presupuesto."
+      "becas_relevamiento_detalle": "14→15: consulta fija del control de sesión única de Backoffice; el N+1 detectado en legajo_detalle fue eliminado sin ampliar su presupuesto.",
+      "becas_consulta_duplicada": "El baseline determinista actual tiene dos consultas normalizadas repetidas en cuatro rutas Becas; la nueva guarda bloquea cualquier incremento hasta que exista una optimización medida."
     },
     "timing": {
       "reference_total_ms": 220.92,
@@ -15,21 +17,21 @@
     }
   },
   "budgets": {
-    "login": {"route": "users:login", "max_queries": 0},
-    "inicio": {"route": "core:inicio", "max_queries": 21},
-    "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4},
-    "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10},
-    "legajos_lista": {"route": "legajos:ciudadanos", "max_queries": 16},
-    "legajo_detalle": {"route": "legajos:ciudadano_detalle", "max_queries": 27},
-    "conversaciones_lista": {"route": "conversaciones:lista", "max_queries": 16},
-    "conversacion_detalle": {"route": "conversaciones:detalle", "max_queries": 14},
-    "portal_home": {"route": "portal:home", "max_queries": 4},
-    "portal_perfil": {"route": "portal:ciudadano_mi_perfil", "max_queries": 12},
-    "portal_programas": {"route": "portal:ciudadano_mis_programas", "max_queries": 11},
-    "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10},
-    "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15},
-    "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 14},
-    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 17},
-    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15}
+    "login": {"route": "users:login", "max_queries": 0, "max_duplicate_queries": 0},
+    "inicio": {"route": "core:inicio", "max_queries": 21, "max_duplicate_queries": 0},
+    "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4, "max_duplicate_queries": 0},
+    "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10, "max_duplicate_queries": 0},
+    "legajos_lista": {"route": "legajos:ciudadanos", "max_queries": 16, "max_duplicate_queries": 0},
+    "legajo_detalle": {"route": "legajos:ciudadano_detalle", "max_queries": 27, "max_duplicate_queries": 0},
+    "conversaciones_lista": {"route": "conversaciones:lista", "max_queries": 16, "max_duplicate_queries": 1},
+    "conversacion_detalle": {"route": "conversaciones:detalle", "max_queries": 14, "max_duplicate_queries": 0},
+    "portal_home": {"route": "portal:home", "max_queries": 4, "max_duplicate_queries": 0},
+    "portal_perfil": {"route": "portal:ciudadano_mi_perfil", "max_queries": 12, "max_duplicate_queries": 0},
+    "portal_programas": {"route": "portal:ciudadano_mis_programas", "max_queries": 11, "max_duplicate_queries": 0},
+    "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10, "max_duplicate_queries": 0},
+    "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15, "max_duplicate_queries": 2},
+    "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 14, "max_duplicate_queries": 2},
+    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16, "max_duplicate_queries": 2},
+    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15, "max_duplicate_queries": 2}
   }
 }

@@ -43,3 +43,93 @@ jobs:
         env:
           PERF_TIMING_OUTPUT: ${{ runner.temp }}/perf-timing.json
         run: python scripts/check_perf_timing.py --result "$PERF_TIMING_OUTPUT"
+
+      - name: Upload deterministic performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-sqlite-report
+          path: ${{ runner.temp }}/perf-timing.json
+          if-no-files-found: warn
+
+  ephemeral-stack-contract:
+    name: Ephemeral MySQL Redis Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: chaco_perf_ci
+          MYSQL_USER: chaco_perf_ci
+          MYSQL_PASSWORD: chaco_perf_ci
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uchaco_perf_ci -pchaco_perf_ci --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,testserver
+      ENVIRONMENT: ci
+      PERFORMANCE_CI: "1"
+      PERFORMANCE_QUERY_MONITORING_ENABLED: "True"
+      PERFORMANCE_METRICS_WINDOW_SECONDS: "300"
+      PERFORMANCE_METRICS_RETENTION_SECONDS: "900"
+      PERFORMANCE_METRICS_NAMESPACE: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
+      DATABASE_NAME: chaco_perf_ci
+      DATABASE_USER: chaco_perf_ci
+      DATABASE_PASSWORD: chaco_perf_ci
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: "3306"
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      REDIS_DB: "14"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Migrate and seed isolated data
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_perf --scale 200
+
+      - name: Measure from worker one
+        run: python manage.py perf_ci_probe --worker worker-1 --output "$RUNNER_TEMP/performance-worker-1.json"
+
+      - name: Measure from worker two
+        run: python manage.py perf_ci_probe --worker worker-2 --output "$RUNNER_TEMP/performance-worker-2.json"
+
+      - name: Verify shared aggregation and redacted contract
+        run: python manage.py perf_ci_probe --verify --workers 2 --output "$RUNNER_TEMP/performance-ci-report.json"
+
+      - name: Upload ephemeral performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-ephemeral-stack-report
+          path: ${{ runner.temp }}/performance-*.json
+          if-no-files-found: warn
