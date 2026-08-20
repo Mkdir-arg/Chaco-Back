@@ -74,3 +74,15 @@ class PerformanceBudgetTests(TestCase):
         self.assertEqual(target["expected_status"], 302)
         self.assertIsNotNone(target.get("request"))
         self.assertEqual(measurement["response"].status_code, 302)
+
+    def test_ci_worker_uses_an_isolated_login_identity(self):
+        from core.management.commands.perf_ci_probe import Command
+
+        worker_id = "login-contract-worker"
+        manifest = build_targets(worker_id=worker_id)
+        clients = Command._build_worker_clients(worker_id, manifest["actors"])
+        target = next(item for item in manifest["targets"] if item["key"] == "login")
+
+        response = target["request"](clients["login"], target["url"])
+
+        self.assertEqual(response.status_code, 302)

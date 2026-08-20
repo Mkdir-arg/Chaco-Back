@@ -158,6 +158,8 @@ class Command(BaseCommand):
 
         backoffice = worker_user("backoffice")
         citizen = worker_user("citizen")
+        if "login" in actor_usernames:
+            worker_user("login")
         if not Ciudadano.objects.filter(usuario=citizen).exists():
             ciudadano = Ciudadano.objects.filter(usuario__isnull=True, dni__startswith="8").order_by("dni").first()
             if ciudadano is None:

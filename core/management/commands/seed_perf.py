@@ -36,7 +36,8 @@ PERF_PREFIX = "PERF"
 PERF_ADMIN_USERNAME = "perf_admin"
 PERF_CITIZEN_USERNAME = "perf_ciudadano"
 PERF_LOGIN_USERNAME = "perf_login"
-PERF_LOGIN_PASSWORD = "perf-login-only"
+# Contraseña de un usuario sintético, creado sólo por seed_perf en test/CI efímera.
+PERF_LOGIN_PASSWORD = "perf-login-only"  # nosec B105
 PERF_FIRST_DNI = "80000000"
 
 
