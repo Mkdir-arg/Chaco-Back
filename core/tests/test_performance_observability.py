@@ -364,6 +364,10 @@ class AnalyzePerformanceCommandTests(TestCase):
 
 
 class EphemeralPerformanceCiCommandTests(TestCase):
+    def test_http_probe_preparation_refuses_non_ephemeral_database(self):
+        with self.assertRaisesMessage(CommandError, "sólo puede correr"):
+            call_command("prepare_perf_http_probe", "--password", "local-only")
+
     def test_ci_probe_refuses_non_ephemeral_database(self):
         with self.assertRaisesMessage(CommandError, "sólo puede correr"):
             call_command("perf_ci_probe", "--worker", "worker-1", "--output", "ignored.json")

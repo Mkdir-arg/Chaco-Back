@@ -432,6 +432,54 @@ correcto y no un defecto.
 Por estas brechas, este PR no cierra #262 ni #264. Ambas tasks permanecen abiertas
 hasta completar sus criterios de aprobación o redefinirlos explícitamente.
 
+## 13.1 Campaña complementaria #264 — 2026-08-20
+
+**Hecho medido.** Se repitió la campaña en Docker Compose `chaco_perf262`, con MySQL y Redis
+descartables y puertos aislados (8012/3312/6384). El override habilitó el monitoreo sólo durante
+la ventana; al finalizar se ejecutó `down -v` y se verificó desde configuración limpia
+`PERFORMANCE_QUERY_MONITORING_ENABLED=False`. No se conservaron datos ni artefactos crudos.
+
+La sonda ahora recorre el equivalente HTTP de las **16 rutas** de `build_targets`: un
+calentamiento descartado y cinco repeticiones por ruta. Además falla si `/performance-api/` no
+devuelve, para cada ruta, `requests`, `queries`, `duplicate_queries`, `max_queries`,
+`max_duplicate_queries`, `latency_histogram`, `p95_upper_bound_ms` y `dependencies`.
+
+| Ruta | Requests | Queries | Duplicadas | Máx. queries | Máx. duplicadas | p95 (cota) |
+|---|---:|---:|---:|---:|---:|---:|
+| `becas:convocatorias` | 19 | 95 | 19 | 5 | 1 | <=250 ms |
+| `becas:relevamiento_detalle` | 19 | 152 | 19 | 8 | 1 | <=50 ms |
+| `becas:relevamientos` | 19 | 171 | 19 | 9 | 1 | <=100 ms |
+| `becas:segmentos` | 19 | 154 | 19 | 9 | 1 | <=250 ms |
+| `conversaciones:detalle` | 19 | 133 | 0 | 7 | 0 | <=50 ms |
+| `conversaciones:lista` | 19 | 120 | 0 | 9 | 0 | <=100 ms |
+| `core:dashboard` | 19 | 0 | 0 | 0 | 0 | <=50 ms |
+| `core:inicio` | 19 | 128 | 0 | 15 | 0 | <=100 ms |
+| `dashboard:api_metricas` | 19 | 10 | 0 | 5 | 0 | <=50 ms |
+| `legajos:ciudadano_detalle` | 19 | 285 | 0 | 15 | 0 | <=250 ms |
+| `legajos:ciudadanos` | 19 | 82 | 0 | 7 | 0 | <=50 ms |
+| `portal:ciudadano_mi_perfil` | 17 | 49 | 0 | 7 | 0 | <=100 ms |
+| `portal:ciudadano_mis_consultas` | 19 | 35 | 0 | 5 | 0 | <=50 ms |
+| `portal:ciudadano_mis_programas` | 19 | 42 | 0 | 6 | 0 | <=50 ms |
+| `portal:home` | 19 | 5 | 0 | 5 | 0 | <=50 ms |
+| `users:login` | 31 | 60 | 0 | 10 | 0 | <=250 ms |
+
+`metrics_source=measured`, `scope=shared_ci_run`, muestreo `1.0`. Los tiempos son límites
+superiores del bucket, no percentiles exactos. La diferencia entre `requests` y cinco es el
+calentamiento y los cortes repetidos de la misma ventana; cada ruta supera el mínimo requerido.
+
+### Dependencias externas simuladas
+
+La fixture existente `perf_ci_probe --worker dependency-simulation` atravesó
+`instrument_external_call` sin clientes ni credenciales externas. El agregado de la ruta técnica
+`unresolved` registró una llamada, cero errores y 0 ms para **SIIS**, **Personas** y **RENAPER**.
+Son datos de simulación, no latencia de los servicios: el costo propio queda en las filas por ruta
+y el costo externo simulado se informa aparte. No hubo tráfico real.
+
+### Criterios que siguen abiertos
+
+Esta campaña completa la evidencia de #264 y el cierre seguro de la ventana. No cierra aún #262:
+los hallazgos de §12 siguen requiriendo tasks independientes por fix antes de afirmar completitud.
+
 ## 14. Qué NO es este informe
 
 - No es una medición de producción ni una prueba de carga de producción.

@@ -138,10 +138,10 @@ MIDDLEWARE = [
 
 
 def _performance_query_monitoring_enabled():
-    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "True") == "True"
+    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
 
 
-# Encendido por defecto; cada entorno conserva un interruptor explícito.
+# Apagado por defecto; los relevamientos efímeros lo habilitan explícitamente.
 PERFORMANCE_QUERY_MONITORING_ENABLED = _performance_query_monitoring_enabled()
 PERFORMANCE_METRICS_WINDOW_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_WINDOW_SECONDS", "3600"))
 PERFORMANCE_METRICS_RETENTION_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_RETENTION_SECONDS", "86400"))

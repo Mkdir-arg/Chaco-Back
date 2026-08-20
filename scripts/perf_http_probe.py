@@ -16,16 +16,36 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Equivalente HTTP del manifiesto de scripts/perf_audit.py::build_targets.
+# Los placeholders sólo se expanden desde fixtures sintéticas del stack efímero.
 LECTURAS = (
-    ("inicio", "/inicio/"),
-    ("legajos_ciudadanos", "/legajos/ciudadanos/"),
-    ("legajos_reportes", "/legajos/reportes/"),
-    ("legajos_ciudadano_nuevo", "/legajos/ciudadanos/nuevo/"),
-    ("configuracion_programas", "/configuracion/programas/"),
+    ("login", "users:login", "/", "anonymous", 200),
+    ("inicio", "core:inicio", "/inicio/", "backoffice", 200),
+    ("dashboard_redirect", "core:dashboard", "/dashboard/", "backoffice", 302),
+    ("dashboard_metricas", "dashboard:api_metricas", "/api/metricas/", "backoffice", 200),
+    ("legajos_lista", "legajos:ciudadanos", "/legajos/ciudadanos/", "backoffice", 200),
+    ("legajo_detalle", "legajos:ciudadano_detalle", "/legajos/ciudadanos/{ciudadano_pk}/", "backoffice", 200),
+    ("conversaciones_lista", "conversaciones:lista", "/conversaciones/", "backoffice", 200),
+    ("conversacion_detalle", "conversaciones:detalle", "/conversaciones/{conversacion_pk}/", "backoffice", 200),
+    ("portal_home", "portal:home", "/portal/", "anonymous", 200),
+    ("portal_perfil", "portal:ciudadano_mi_perfil", "/portal/mi-perfil/", "citizen", 200),
+    ("portal_programas", "portal:ciudadano_mis_programas", "/portal/mi-perfil/programas/", "citizen", 200),
+    ("portal_consultas", "portal:ciudadano_mis_consultas", "/portal/mi-perfil/consultas/", "citizen", 200),
+    ("becas_segmentos", "becas:segmentos", "/becas/config/segmentos/", "backoffice", 200),
+    ("becas_convocatorias", "becas:convocatorias", "/becas/convocatorias/", "backoffice", 200),
+    ("becas_relevamientos", "becas:relevamientos", "/becas/relevamientos/", "backoffice", 200),
+    (
+        "becas_relevamiento_detalle",
+        "becas:relevamiento_detalle",
+        "/becas/relevamientos/{relevamiento_pk}/",
+        "backoffice",
+        200,
+    ),
 )
+CONCURRENT_READS = tuple(item for item in LECTURAS if item[3] == "backoffice" and item[4] == 200)
 FASES_CON_ESCRITURAS = {"escrituras", "concurrencia", "todas"}
 CSRF_RE = re.compile(r'name=["\']csrfmiddlewaretoken["\']\s+value=["\']([^"\']+)', re.IGNORECASE)
-SENSITIVE_KEYS = ("password", "token", "secret", "credential", "username", "user", "payload", "param", "query", "sql")
+SENSITIVE_KEYS = ("password", "token", "secret", "credential", "username", "user", "payload", "param", "sql")
 
 
 class ProbeError(RuntimeError):
@@ -117,6 +137,20 @@ class Session:
             raise ProbeError(f"login de {username!r} redirigió nuevamente al login")
         return response
 
+    def portal_login(self, username, password):
+        path = "/portal/mi-perfil/login/"
+        token, page = self.csrf(path)
+        if token is None:
+            raise ProbeError(f"no se obtuvo CSRF del portal (status {page['status']})")
+        response = self.request(
+            path,
+            data={"csrfmiddlewaretoken": token, "username": username, "password": password},
+            referer=self.base_url + path,
+        )
+        if response["status"] != 302 or is_login_redirect(response):
+            raise ProbeError("el login de ciudadano no completó una sesión válida")
+        return response
+
 
 def is_login_redirect(sample):
     """Un 302 a `/` indica sesión caída, no una escritura exitosa."""
@@ -156,20 +190,27 @@ def json_success(sample):
     return isinstance(payload, dict) and payload.get("success") is True
 
 
-def summarize(samples, require_json_success=False):
+def summarize(samples, require_json_success=False, expected_statuses=None):
     """Resume solo respuestas medibles y marca cualquier fallo de sesión."""
+    expected_statuses = set(expected_statuses or ())
+
+    def status_is_valid(sample):
+        if expected_statuses:
+            return sample.get("status") in expected_statuses
+        return sample.get("status", 500) < 400
+
     valid = [
         sample
         for sample in samples
         if sample.get("status") is not None
-        and sample.get("status", 500) < 400
+        and status_is_valid(sample)
         and (not require_json_success or json_success(sample))
     ]
     failures = [
         sample
         for sample in samples
         if sample.get("status") is None
-        or sample.get("status", 500) >= 400
+        or not status_is_valid(sample)
         or is_login_redirect(sample)
         or (require_json_success and not json_success(sample))
     ]
@@ -197,7 +238,7 @@ def rounded(value):
     return round(value, 2) if value is not None else None
 
 
-def measure_flow(session, key, path, reps, request_factory=None, require_json_success=False):
+def measure_flow(session, key, path, reps, request_factory=None, require_json_success=False, expected_statuses=None):
     samples = []
     for index in range(reps):
         if request_factory is None:
@@ -205,14 +246,22 @@ def measure_flow(session, key, path, reps, request_factory=None, require_json_su
         else:
             sample = request_factory(session, index)
         samples.append(sample)
-    return {"flujo": key, **summarize(samples, require_json_success=require_json_success)}
+    return {
+        "flujo": key,
+        **summarize(samples, require_json_success=require_json_success, expected_statuses=expected_statuses),
+    }
 
 
-def fase_lecturas(session, reps):
+def fase_lecturas(sessions, reps, fixtures):
     results = {}
-    for key, path in LECTURAS:
+    for key, route, path, actor, expected_status in LECTURAS:
+        path = path.format(**fixtures)
+        session = sessions[actor]
         session.request(path)  # Calentamiento descartado del informe.
-        results[key] = {"ruta": path, **measure_flow(session, key, path, reps)}
+        results[key] = {
+            "ruta": route,
+            **measure_flow(session, key, path, reps, expected_statuses={expected_status}),
+        }
     return results
 
 
@@ -310,8 +359,8 @@ def fase_escrituras(session, reps, fixtures):
     return results
 
 
-def fase_concurrencia(base_url, timeout, password, prefix, workers, rounds):
-    results = {key: [] for key, _ in LECTURAS}
+def fase_concurrencia(base_url, timeout, password, prefix, workers, rounds, fixtures):
+    results = {key: [] for key, *_rest in CONCURRENT_READS}
     errors = []
     lock = threading.Lock()
 
@@ -320,7 +369,8 @@ def fase_concurrencia(base_url, timeout, password, prefix, workers, rounds):
             session = Session(base_url, timeout)
             session.login(f"{prefix}{index}", password)
             for _ in range(rounds):
-                for key, path in LECTURAS:
+                for key, _route, path, _actor, _expected in CONCURRENT_READS:
+                    path = path.format(**fixtures)
                     sample = session.request(path)
                     with lock:
                         results[key].append(sample)
@@ -343,7 +393,7 @@ def fase_concurrencia(base_url, timeout, password, prefix, workers, rounds):
         "wall_clock_s": rounded(elapsed),
         "throughput_rps": rounded(total / elapsed if elapsed else None),
         "errores": errors,
-        "por_flujo": {key: summarize(samples) for key, samples in results.items()},
+        "por_flujo": {key: summarize(samples, expected_statuses={200}) for key, samples in results.items()},
     }
 
 
@@ -377,6 +427,33 @@ def api_snapshot(base_url, timeout, username, password, session=None):
     return {"http_status": response["status"], "estado": "ok", "snapshot": sanitize_snapshot(payload)}
 
 
+def verify_manifest_metrics(api_metrics, reps):
+    """Evita declarar cubierta una ruta HTTP si /performance-api/ no la agregó."""
+    if api_metrics.get("estado") != "ok":
+        raise ProbeError("/performance-api/ no entregó un corte válido para el manifiesto")
+    snapshot = api_metrics.get("snapshot", {})
+    if snapshot.get("metrics", {}).get("queries", {}).get("source") != "measured":
+        raise ProbeError("/performance-api/ no declaró métricas medidas")
+    routes = {item.get("route"): item for item in snapshot.get("routes", [])}
+    missing = []
+    fields = {
+        "requests",
+        "queries",
+        "duplicate_queries",
+        "max_queries",
+        "max_duplicate_queries",
+        "latency_histogram",
+        "p95_upper_bound_ms",
+        "dependencies",
+    }
+    for _key, route, _path, _actor, _expected in LECTURAS:
+        item = routes.get(route, {})
+        if item.get("requests", 0) < reps or not fields.issubset(item):
+            missing.append(route)
+    if missing:
+        raise ProbeError("/performance-api/ no agregó todas las rutas del manifiesto: " + ", ".join(missing))
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Mide TTFB y tiempo total de flujos HTTP en un stack local dedicado.")
     parser.add_argument("--base-url", default="http://localhost:8001", help="URL base; solo localhost, 127.0.0.1 o ::1")
@@ -397,6 +474,8 @@ def parse_args():
     parser.add_argument("--localidad-pk", type=int, default=8047)
     parser.add_argument("--segmento-pk", type=int, default=1)
     parser.add_argument("--conversacion-pk", type=int, default=1)
+    parser.add_argument("--ciudadano-pk", type=int, default=1)
+    parser.add_argument("--relevamiento-pk", type=int, default=1)
     return parser.parse_args()
 
 
@@ -426,16 +505,22 @@ def run(args):
         "localidad_pk": args.localidad_pk,
         "segmento_pk": args.segmento_pk,
         "conversacion_pk": args.conversacion_pk,
+        "ciudadano_pk": args.ciudadano_pk,
+        "relevamiento_pk": args.relevamiento_pk,
     }
     output = {"herramienta": "perf_http_probe", "fase_solicitada": args.fase, "fases": {}}
     admin = Session(args.base_url, args.timeout)
     admin.login(args.usuario, args.password)
+    citizen = Session(args.base_url, args.timeout)
+    citizen.portal_login("perf_ciudadano", args.password)
+    anonymous = Session(args.base_url, args.timeout)
+    sessions = {"anonymous": anonymous, "backoffice": admin, "citizen": citizen}
     api = Session(args.base_url, args.timeout)
 
     phases = ("lecturas", "escrituras", "concurrencia") if args.fase == "todas" else (args.fase,)
     for phase in phases:
         if phase == "lecturas":
-            flows = fase_lecturas(admin, args.reps)
+            flows = fase_lecturas(sessions, args.reps, fixtures)
         elif phase == "escrituras":
             flows = fase_escrituras(admin, args.reps, fixtures)
         else:
@@ -446,10 +531,14 @@ def run(args):
                 args.usuario_prefijo,
                 args.concurrencia,
                 args.rondas_concurrencia,
+                fixtures,
             )
+        metrics = api_snapshot(args.base_url, args.timeout, args.usuario_api, args.password, api)
+        if phase == "lecturas":
+            verify_manifest_metrics(metrics, args.reps)
         output["fases"][phase] = {
             "flujos": flows,
-            "metricas": api_snapshot(args.base_url, args.timeout, args.usuario_api, args.password, api),
+            "metricas": metrics,
         }
     with open(args.output, "w", encoding="utf-8", newline="") as file:
         json.dump(output, file, ensure_ascii=False, indent=2)
