@@ -155,7 +155,7 @@ class Command(BaseCommand):
             self._ok("ENVIRONMENT=prd: los asuntos van sin prefijo.")
         else:
             self._ok(
-                f'ENVIRONMENT={settings.ENVIRONMENT}: los asuntos van prefijados con '
+                f"ENVIRONMENT={settings.ENVIRONMENT}: los asuntos van prefijados con "
                 f'"{settings.EMAIL_ASUNTO_PREFIJO.strip()}" para no confundirse con los reales.'
             )
 
@@ -210,7 +210,7 @@ class Command(BaseCommand):
         protocolo = "http" if dominio.startswith("localhost") or dominio.startswith("127.") else "https"
         contexto = {
             "user": self._usuario_de_prueba(),
-            "password_provisoria": "PRUEBA-NO-VALIDA",
+            "password_provisoria": "PRUEBA-NO-VALIDA",  # nosec B105 - texto ficticio para renderizar una plantilla
             "rol": "Rol de prueba",
             "protocol": protocolo,
             "domain": dominio,
@@ -218,7 +218,7 @@ class Command(BaseCommand):
             # De muestra: el enlace del correo de recupero se arma con un token real
             # recién cuando alguien lo pide desde la pantalla de ingreso.
             "uid": "MQ",
-            "token": "prueba-000000",
+            "token": "prueba-000000",  # nosec B105 - token ficticio, no se usa para autenticación
             **contexto_pie(),
         }
 
@@ -247,17 +247,14 @@ class Command(BaseCommand):
         protocolo = "http" if dominio.startswith("localhost") or dominio.startswith("127.") else "https"
         contexto = {
             "user": self._usuario_de_prueba(),
-            "password_provisoria": "PRUEBA-NO-VALIDA",
+            "password_provisoria": "PRUEBA-NO-VALIDA",  # nosec B105 - texto ficticio para renderizar una plantilla
             "rol": "Rol de prueba",
             "protocol": protocolo,
             "domain": dominio,
             "enlace_login": f"{protocolo}://{dominio}{reverse('users:login')}",
             **contexto_pie(),
         }
-        asunto = (
-            f"{settings.EMAIL_ASUNTO_PREFIJO}[PRUEBA] "
-            "Tu usuario de DATAÑACH fue creado"
-        )
+        asunto = f"{settings.EMAIL_ASUNTO_PREFIJO}[PRUEBA] Tu usuario de DATAÑACH fue creado"
         cuerpo = render_to_string("user/email/credenciales_usuario.txt", contexto)
         html = render_to_string("user/email/credenciales_usuario.html", contexto)
 

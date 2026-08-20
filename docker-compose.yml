@@ -2,9 +2,9 @@ services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_DATABASE: ${DATABASE_NAME:-chaco}
-      MYSQL_USER: ${DATABASE_USER:-chaco}
-      MYSQL_PASSWORD: ${DATABASE_PASSWORD:-chaco123}
+      MYSQL_DATABASE: ${DATABASE_NAME:-chaco_db}
+      MYSQL_USER: ${DATABASE_USER:-chaco_user}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD:-chaco_secure_pass}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
     ports:
       - "3307:3306"

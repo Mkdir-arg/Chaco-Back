@@ -374,7 +374,9 @@ def consultar_datos_renaper(dni, sexo):
 
 def _consultar_datos_renaper(dni, sexo):
     if getattr(settings, "RENAPER_TEST_MODE", False):
-        time.sleep(2)
+        latency_seconds = getattr(settings, "RENAPER_TEST_LATENCY_SECONDS", 0)
+        if latency_seconds > 0:
+            time.sleep(latency_seconds)
 
         nombres = [
             "Juan Carlos",
