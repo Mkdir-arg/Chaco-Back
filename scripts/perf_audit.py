@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -11,7 +12,8 @@ import statistics
 import sys
 import tempfile
 import time
-from collections import Counter
+import traceback
+from collections import Counter, defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -59,18 +61,55 @@ def normalize_sql(sql: str) -> str:
     return WHITESPACE_RE.sub(" ", normalized).strip()
 
 
-def duplicate_query_groups(captured_queries):
-    groups = Counter(normalize_sql(query.get("sql", "")) for query in captured_queries)
+def sql_fingerprint(sql: str) -> str:
+    """Identificador irreversible de una forma de SQL normalizada."""
+    return hashlib.sha256(normalize_sql(sql).encode("utf-8")).hexdigest()[:16]
+
+
+def query_call_site():
+    """Devuelve el primer punto de llamada del repositorio, sin rutas locales."""
+    for frame in reversed(traceback.extract_stack()[:-1]):
+        try:
+            relative_path = Path(frame.filename).resolve().relative_to(REPO).as_posix()
+        except ValueError:
+            continue
+        if relative_path != "scripts/perf_audit.py" and not relative_path.startswith(".venv/"):
+            return f"{relative_path}:{frame.lineno}:{frame.name}"
+    return "origen_no_clasificado"
+
+
+class QueryDiagnosticCollector:
+    """Conserva SQL sólo durante la request para emitir huellas y call-sites seguros."""
+
+    def __init__(self):
+        self.records = []
+
+    def __call__(self, execute, sql, params, many, context):
+        self.records.append({"sql": sql, "call_site": query_call_site()})
+        return execute(sql, params, many, context)
+
+
+def duplicate_query_groups(query_records):
+    groups = defaultdict(lambda: {"occurrences": 0, "call_sites": Counter()})
+    for query in query_records:
+        fingerprint = sql_fingerprint(query.get("sql", ""))
+        groups[fingerprint]["occurrences"] += 1
+        groups[fingerprint]["call_sites"][query.get("call_site", "origen_no_clasificado")] += 1
+
     repeated = [
         {
-            "occurrences": occurrences,
-            "duplicates": occurrences - 1,
-            "sql": sql[:500],
+            "fingerprint": fingerprint,
+            "occurrences": group["occurrences"],
+            "duplicates": group["occurrences"] - 1,
+            "call_sites": [
+                {"call_site": call_site, "occurrences": occurrences}
+                for call_site, occurrences in sorted(group["call_sites"].items(), key=lambda item: (-item[1], item[0]))
+            ],
         }
-        for sql, occurrences in groups.items()
-        if occurrences > 1
+        for fingerprint, group in groups.items()
+        if group["occurrences"] > 1
     ]
-    repeated.sort(key=lambda item: (-item["occurrences"], item["sql"]))
+    repeated.sort(key=lambda item: (-item["occurrences"], item["fingerprint"]))
     return repeated
 
 
@@ -213,13 +252,15 @@ def _capture_request(client, url):
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
-    with CaptureQueriesContext(connection) as captured:
-        started = time.perf_counter_ns()
-        response = client.get(url, follow=False)
-        body = response.content
-        duration_ms = (time.perf_counter_ns() - started) / 1_000_000
+    collector = QueryDiagnosticCollector()
+    with connection.execute_wrapper(collector):
+        with CaptureQueriesContext(connection) as captured:
+            started = time.perf_counter_ns()
+            response = client.get(url, follow=False)
+            body = response.content
+            duration_ms = (time.perf_counter_ns() - started) / 1_000_000
 
-    duplicate_groups = duplicate_query_groups(captured.captured_queries)
+    duplicate_groups = duplicate_query_groups(collector.records)
     return {
         "response": response,
         "body": body,
