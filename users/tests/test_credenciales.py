@@ -71,6 +71,13 @@ class LoginBrandAssetTests(TestCase):
         self.assertNotIn("/static/custom/chaco/login-logo.png", html)
 
 
+class UserProfileSignalTests(TestCase):
+    def test_crear_usuario_crea_su_profile(self):
+        user = User.objects.create_user(username="usuario-con-profile")
+
+        self.assertEqual(user.profile.user, user)
+
+
 class CambioObligatorioPrimerLoginTests(TestCase):
     """RN-C2: con la clave provisoria sin cambiar no se puede operar."""
 
