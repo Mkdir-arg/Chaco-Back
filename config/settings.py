@@ -131,16 +131,35 @@ MIDDLEWARE = [
     "core.middleware.PortalCiudadanoMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "users.middleware.BackofficeSingleSessionMiddleware",
+    "users.middleware.CambioContrasenaObligatorioMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.RequestLoggingMiddleware",
 ]
 
-# Desactivado por defecto. CI lo habilita sólo dentro de un stack efímero
-# MySQL+Redis; fuera de ese contrato no se usa como indicador de producción.
-PERFORMANCE_QUERY_MONITORING_ENABLED = os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
+
+def _performance_query_monitoring_enabled():
+    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "True") == "True"
+
+
+# Encendido por defecto; cada entorno conserva un interruptor explícito.
+PERFORMANCE_QUERY_MONITORING_ENABLED = _performance_query_monitoring_enabled()
 PERFORMANCE_METRICS_WINDOW_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_WINDOW_SECONDS", "3600"))
 PERFORMANCE_METRICS_RETENTION_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_RETENTION_SECONDS", "86400"))
 PERFORMANCE_METRICS_NAMESPACE = os.environ.get("PERFORMANCE_METRICS_NAMESPACE", "")
+PERFORMANCE_QUERY_SAMPLE_RATE = float(
+    os.environ.get("PERFORMANCE_QUERY_SAMPLE_RATE", "0.2" if ENVIRONMENT == "prd" else "1.0")
+)
+PERFORMANCE_REDIS_TIMEOUT_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_TIMEOUT_SECONDS", "0.25"))
+PERFORMANCE_REDIS_RECOVERY_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_RECOVERY_SECONDS", "60"))
+PERFORMANCE_N1_WARNING_INTERVAL_SECONDS = float(os.environ.get("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS", "60"))
+if not 0 <= PERFORMANCE_QUERY_SAMPLE_RATE <= 1:
+    raise ValueError("PERFORMANCE_QUERY_SAMPLE_RATE debe estar entre 0 y 1")
+if PERFORMANCE_REDIS_TIMEOUT_SECONDS <= 0:
+    raise ValueError("PERFORMANCE_REDIS_TIMEOUT_SECONDS debe ser mayor que 0")
+if PERFORMANCE_REDIS_RECOVERY_SECONDS < 0:
+    raise ValueError("PERFORMANCE_REDIS_RECOVERY_SECONDS no puede ser negativo")
+if PERFORMANCE_N1_WARNING_INTERVAL_SECONDS < 0:
+    raise ValueError("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS no puede ser negativo")
 PERFORMANCE_CI = os.environ.get("PERFORMANCE_CI") == "1"
 if PERFORMANCE_QUERY_MONITORING_ENABLED:
     MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
@@ -211,17 +230,33 @@ LOGIN_REDIRECT_URL = "core:inicio"
 LOGOUT_REDIRECT_URL = "users:login"
 ACCOUNT_FORMS = {"login": "users.forms.UserLoginForm"}
 
-EMAIL_BACKEND = (
-    "django.core.mail.backends.smtp.EmailBackend"
-    if ENVIRONMENT == "prd"
-    else "django.core.mail.backends.console.EmailBackend"
-)
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+# STARTTLS en el 587 es exactamente EMAIL_USE_TLS (EMAIL_USE_SSL es el 465 implícito).
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+# El envío es sincrónico (no hay cola): sin timeout un SMTP lento cuelga el
+# request del alta de usuario hasta que corte el gateway.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+# El backend lo decide la presencia de EMAIL_HOST, no el ENVIRONMENT: qa usa el
+# mismo SMTP que prd, y el dev local sigue en consola sin configurar nada.
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_HOST
+    else "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
+# QA y producción comparten casilla y plantilla: el prefijo en el asunto es lo
+# único que distingue un correo de prueba de uno real en la bandeja del usuario.
+EMAIL_ASUNTO_PREFIJO = "" if ENVIRONMENT == "prd" else f"[{ENVIRONMENT.upper()}] "
+# Pie de los correos. Vacío = la línea no se renderiza (a definir con el cliente).
+EMAIL_SOPORTE = os.getenv("EMAIL_SOPORTE", "")
+EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
+
+# Vencimiento del enlace de recupero. Los correos (backoffice y portal) prometen
+# 24 h; el default de Django son 3 días.
+PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "86400"))
 
 MESSAGE_TAGS = {
     messages.DEBUG: "bg-gray-800 text-white",
@@ -304,8 +339,8 @@ if PERFORMANCE_QUERY_MONITORING_ENABLED:
         "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "SOCKET_TIMEOUT": 5,
+            "SOCKET_CONNECT_TIMEOUT": PERFORMANCE_REDIS_TIMEOUT_SECONDS,
+            "SOCKET_TIMEOUT": PERFORMANCE_REDIS_TIMEOUT_SECONDS,
         },
         "TIMEOUT": PERFORMANCE_METRICS_RETENTION_SECONDS,
     }

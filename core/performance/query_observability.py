@@ -17,6 +17,8 @@ _LOCAL_BUCKETS = defaultdict(lambda: defaultdict(int))
 _MEASUREMENT = ContextVar("performance_measurement", default=None)
 _REDIS_STATE_LOCK = Lock()
 _REDIS_DEGRADED = False
+_REDIS_DEGRADED_UNTIL = 0.0
+_REDIS_RECOVERY_PROBE_IN_PROGRESS = False
 _REDIS_LAST_WARNING = 0.0
 _REDIS_WARNING_INTERVAL_SECONDS = 60.0
 _UPDATE_MAXIMA_SCRIPT = """
@@ -34,40 +36,60 @@ return 1
 
 def reset_local_metrics_for_tests():
     """Aísla tests; nunca se invoca en un entorno servido."""
-    global _REDIS_DEGRADED, _REDIS_LAST_WARNING
+    global _REDIS_DEGRADED, _REDIS_DEGRADED_UNTIL, _REDIS_LAST_WARNING, _REDIS_RECOVERY_PROBE_IN_PROGRESS
     with _LOCAL_LOCK:
         _LOCAL_BUCKETS.clear()
     with _REDIS_STATE_LOCK:
         _REDIS_DEGRADED = False
+        _REDIS_DEGRADED_UNTIL = 0.0
+        _REDIS_RECOVERY_PROBE_IN_PROGRESS = False
         _REDIS_LAST_WARNING = 0.0
 
 
 def _mark_redis_degraded(operation, error):
     """Informa la degradación sin registrar endpoints, payloads ni credenciales."""
-    global _REDIS_DEGRADED, _REDIS_LAST_WARNING
+    global _REDIS_DEGRADED, _REDIS_DEGRADED_UNTIL, _REDIS_LAST_WARNING, _REDIS_RECOVERY_PROBE_IN_PROGRESS
     now = time.monotonic()
+    recovery_seconds = float(getattr(settings, "PERFORMANCE_REDIS_RECOVERY_SECONDS", 60))
     with _REDIS_STATE_LOCK:
         _REDIS_DEGRADED = True
+        _REDIS_DEGRADED_UNTIL = now + recovery_seconds
+        _REDIS_RECOVERY_PROBE_IN_PROGRESS = False
         should_warn = now - _REDIS_LAST_WARNING >= _REDIS_WARNING_INTERVAL_SECONDS
         if should_warn:
             _REDIS_LAST_WARNING = now
     if should_warn:
         logger.warning(
-            "Redis de métricas no disponible durante %s; se informarán métricas no disponibles hasta una escritura exitosa (%s).",
+            "Redis de métricas no disponible durante %s; se omitirán escrituras durante la ventana de recuperación (%s).",
             operation,
             type(error).__name__,
         )
 
 
 def _mark_redis_healthy():
-    global _REDIS_DEGRADED
+    global _REDIS_DEGRADED, _REDIS_DEGRADED_UNTIL, _REDIS_RECOVERY_PROBE_IN_PROGRESS
     with _REDIS_STATE_LOCK:
         _REDIS_DEGRADED = False
+        _REDIS_DEGRADED_UNTIL = 0.0
+        _REDIS_RECOVERY_PROBE_IN_PROGRESS = False
 
 
 def _redis_is_degraded():
     with _REDIS_STATE_LOCK:
         return _REDIS_DEGRADED
+
+
+def _redis_write_permitted():
+    """Permite una sola sonda de recuperación y evita reintentos concurrentes."""
+    global _REDIS_RECOVERY_PROBE_IN_PROGRESS
+    now = time.monotonic()
+    with _REDIS_STATE_LOCK:
+        if not _REDIS_DEGRADED:
+            return True
+        if now < _REDIS_DEGRADED_UNTIL or _REDIS_RECOVERY_PROBE_IN_PROGRESS:
+            return False
+        _REDIS_RECOVERY_PROBE_IN_PROGRESS = True
+        return True
 
 
 def route_name(path):
@@ -140,6 +162,8 @@ class QueryObservabilityStore:
         return f"performance:observability:{METRICS_VERSION}:{settings.ENVIRONMENT}:{bucket}", bucket
 
     def _redis(self):
+        if getattr(settings, "PYTEST_RUNNING", False) and not getattr(settings, "PERFORMANCE_CI", False):
+            return None
         if "performance" not in settings.CACHES:
             return None
         try:
@@ -154,6 +178,8 @@ class QueryObservabilityStore:
         return bool(getattr(settings, "PYTEST_RUNNING", False) or settings.ENVIRONMENT == "dev")
 
     def record(self, route, query_count, slow_queries, n1_detected, duration_ms, dependencies, duplicate_query_count=0):
+        if not _redis_write_permitted():
+            return
         key, _bucket = self._bucket_key()
         route_id = hashlib.sha256(route.encode()).hexdigest()[:16]
         increments = {
@@ -211,6 +237,7 @@ class QueryObservabilityStore:
 
     def snapshot(self):
         key, bucket = self._bucket_key()
+        sampling_rate = float(getattr(settings, "PERFORMANCE_QUERY_SAMPLE_RATE", 1.0))
         redis = self._redis()
         shared = redis is not None
         if redis:
@@ -227,7 +254,13 @@ class QueryObservabilityStore:
         else:
             raw = {}
         if not raw:
-            return {"metrics_source": "unavailable", "scope": None, "window": None, "routes": []}
+            return {
+                "metrics_source": "unavailable",
+                "scope": None,
+                "window": None,
+                "sampling_rate": sampling_rate,
+                "routes": [],
+            }
 
         def number(name):
             value = raw.get(name, 0)
@@ -289,6 +322,7 @@ class QueryObservabilityStore:
                 "bucket": bucket,
                 "seconds": None if self.namespace else self.window_seconds,
             },
+            "sampling_rate": sampling_rate,
             "total_requests": number("total_requests"),
             "total_queries": number("total_queries"),
             "total_duplicate_queries": number("total_duplicate_queries"),
@@ -306,6 +340,8 @@ def query_observability_report(session_stats=None):
     query_metric = {
         "source": source,
         "scope": snapshot["scope"],
+        "window": snapshot["window"],
+        "sampling_rate": snapshot["sampling_rate"],
         "value": snapshot.get("total_queries") if source == "measured" else None,
         "details_source": "aggregated_only" if source == "measured" else "unavailable",
         "retention_seconds": int(getattr(settings, "PERFORMANCE_METRICS_RETENTION_SECONDS", 86400)),
@@ -324,6 +360,7 @@ def query_observability_report(session_stats=None):
             "recommendations": [],
             "routes": [],
             "window": None,
+            "sampling_rate": snapshot["sampling_rate"],
             "metrics": {"queries": query_metric},
         }
     n1 = snapshot["n1_affected_requests"]
@@ -352,6 +389,7 @@ def query_observability_report(session_stats=None):
                 "n1_affected_requests",
                 "routes",
                 "window",
+                "sampling_rate",
             )
         },
         "slow_queries": None,

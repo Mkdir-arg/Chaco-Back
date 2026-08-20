@@ -14,8 +14,9 @@ Sin argumentos audita las superficies de UI del repo (templates/ + static/custom
 + templates de apps). Exit code 1 si hay violaciones ERROR; las WARN no cortan.
 
 Reglas mecánicas complementarias del agente canónico de diseño:
-  HEX        Cero hex hardcodeado (salvo #fff/#ffffff). Excluye chaco-tokens.css
-             y líneas con template tags dinámicos ({{ ... }}).
+  HEX        Cero hex hardcodeado (salvo #fff/#ffffff). Excluye chaco-tokens.css,
+             los templates de correo (**/email/) y líneas con template tags
+             dinámicos ({{ ... }}).
   FONT       Manrope única: Fredoka/Gellat/Geliat/Satoshi/Inter/Roboto/Montserrat.
   CONFIRM    window.confirm()/window.alert() prohibidos (SweetAlert2/DS Modal).
   SWALHEX    confirmButtonColor/cancelButtonColor prohibidos (usar buttonsStyling:false
@@ -53,7 +54,11 @@ DEFAULT_TARGETS = [
     "tramites/templates",
 ]
 
-EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb"}
+# "email": los templates de correo (`**/templates/**/email/`) necesitan estilos
+# inline y hex literal — ningún cliente de correo soporta CSS variables, y Outlook
+# ni siquiera <style> confiable. Los colores igual salen del kit (--gradient-brand
+# = #5059bc → #f98dff), pero escritos a mano: no hay forma de tokenizarlos.
+EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb", "email"}
 EXCLUDE_FILES = {"chaco-tokens.css"}  # fuente de tokens: los hex son legítimos
 UI_SUFFIXES = {".html", ".css", ".js"}
 
@@ -124,7 +129,13 @@ DJCOMMENT_RE = re.compile(r"\{#[^#]*?\n")  # apertura {# sin cierre en la misma 
 def iter_files(paths: list[Path]):
     for p in paths:
         if p.is_file():
-            if p.suffix in UI_SUFFIXES and p.name not in EXCLUDE_FILES:
+            # Mismo filtro que la rama de directorios y que el modo --hook: una
+            # ruta explícita (--changed) no puede saltearse las exclusiones.
+            if (
+                p.suffix in UI_SUFFIXES
+                and p.name not in EXCLUDE_FILES
+                and not (EXCLUDE_PARTS & set(p.parts))
+            ):
                 yield p
         elif p.is_dir():
             for f in sorted(p.rglob("*")):

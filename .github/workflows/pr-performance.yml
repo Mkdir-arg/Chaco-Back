@@ -36,6 +36,11 @@ jobs:
           PYTEST_RUNNING: "1"
           DJANGO_SYNCDB_PROJECT_APPS: "True"
           DJANGO_DEBUG: "False"
+          # La guarda determinista mide el costo del código de negocio. La
+          # instrumentación queda apagada acá para que su propio overhead no
+          # entre en la comparación contra reference_total_ms, que se midió sin
+          # ella. El contrato efímero MySQL+Redis la habilita explícitamente.
+          PERFORMANCE_QUERY_MONITORING_ENABLED: "False"
           PERF_TIMING_OUTPUT: ${{ runner.temp }}/perf-timing.json
         run: python manage.py test --tag performance --verbosity=2
 

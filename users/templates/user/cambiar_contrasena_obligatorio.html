@@ -1,0 +1,22 @@
+{% extends "user/base_public_auth.html" %}
+{% block title %}Cambiá tu contraseña — DATAÑACH{% endblock %}
+{% block auth_content %}
+<h1 class="public-auth__title">Cambiá tu contraseña</h1>
+<p class="public-auth__help">Ingresaste con la clave provisoria que te llegó por correo. Definí una contraseña propia para seguir.</p>
+<form method="post">
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<p class="public-auth__error">{{ error }}</p>{% endfor %}
+  <div class="public-auth__field">
+    <label for="{{ form.new_password1.id_for_label }}">Contraseña nueva</label>
+    <input id="{{ form.new_password1.id_for_label }}" name="{{ form.new_password1.name }}" type="password" autocomplete="new-password" required>
+    {% for error in form.new_password1.errors %}<p class="public-auth__error">{{ error }}</p>{% endfor %}
+  </div>
+  <div class="public-auth__field">
+    <label for="{{ form.new_password2.id_for_label }}">Repetí la contraseña nueva</label>
+    <input id="{{ form.new_password2.id_for_label }}" name="{{ form.new_password2.name }}" type="password" autocomplete="new-password" required>
+    {% for error in form.new_password2.errors %}<p class="public-auth__error">{{ error }}</p>{% endfor %}
+  </div>
+  <button type="submit" class="public-auth__button">Guardar y continuar</button>
+</form>
+<a class="public-auth__link" href="{% url 'users:logout' %}">Salir</a>
+{% endblock %}
