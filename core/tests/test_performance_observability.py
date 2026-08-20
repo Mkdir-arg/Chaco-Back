@@ -59,9 +59,9 @@ class StaleRedis(BrokenRedis):
 
 
 class PerformanceSettingsTests(SimpleTestCase):
-    def test_monitoring_is_enabled_by_default(self):
+    def test_monitoring_is_disabled_by_default(self):
         with patch.dict(project_settings.os.environ, {}, clear=True):
-            self.assertTrue(project_settings._performance_query_monitoring_enabled())
+            self.assertFalse(project_settings._performance_query_monitoring_enabled())
 
     def test_monitoring_can_be_disabled_explicitly(self):
         with patch.dict(
@@ -89,6 +89,32 @@ class PerformanceSettingsTests(SimpleTestCase):
                     "from config import settings; "
                     "assert not settings.PERFORMANCE_QUERY_MONITORING_ENABLED; "
                     "assert 'config.middlewares.query_counter.QueryCountMiddleware' not in settings.MIDDLEWARE"
+                ),
+            ],
+            cwd=project_settings.BASE_DIR,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+
+    def test_enabled_monitoring_wraps_the_full_middleware_chain(self):
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "DJANGO_SECRET_KEY": "test-key",
+                "PERFORMANCE_QUERY_MONITORING_ENABLED": "True",
+                "PYTEST_RUNNING": "1",
+            }
+        )
+        probe = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "from config import settings; "
+                    "assert settings.MIDDLEWARE[0] == 'config.middlewares.query_counter.QueryCountMiddleware'"
                 ),
             ],
             cwd=project_settings.BASE_DIR,
@@ -364,6 +390,10 @@ class AnalyzePerformanceCommandTests(TestCase):
 
 
 class EphemeralPerformanceCiCommandTests(TestCase):
+    def test_http_probe_preparation_refuses_non_ephemeral_database(self):
+        with self.assertRaisesMessage(CommandError, "sólo puede correr"):
+            call_command("prepare_perf_http_probe", "--password", "local-only")
+
     def test_ci_probe_refuses_non_ephemeral_database(self):
         with self.assertRaisesMessage(CommandError, "sólo puede correr"):
             call_command("perf_ci_probe", "--worker", "worker-1", "--output", "ignored.json")

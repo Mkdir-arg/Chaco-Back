@@ -320,8 +320,7 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         label="Contraseña",
         required=False,
         help_text=(
-            "Con correo informado no hace falta: el sistema genera una clave "
-            "provisoria y se la envía al usuario."
+            "Con correo informado no hace falta: el sistema genera una clave provisoria y se la envía al usuario."
         ),
     )
     groups = forms.ModelMultipleChoiceField(

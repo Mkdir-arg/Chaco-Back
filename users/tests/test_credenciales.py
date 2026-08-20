@@ -21,9 +21,7 @@ class CredencialesPorCorreoTests(TestCase):
         )
 
     def test_el_correo_lleva_usuario_y_clave_provisoria(self):
-        enviar_credenciales_usuario(
-            self.user, "Clave-Provisoria-9", protocol="https", domain="datanach.example"
-        )
+        enviar_credenciales_usuario(self.user, "Clave-Provisoria-9", protocol="https", domain="datanach.example")
 
         self.assertEqual(len(mail.outbox), 1)
         enviado = mail.outbox[0]
@@ -32,9 +30,7 @@ class CredencialesPorCorreoTests(TestCase):
         self.assertIn("https://datanach.example", enviado.body)
 
     def test_adjunta_la_version_html_con_la_marca(self):
-        enviar_credenciales_usuario(
-            self.user, "Clave-Provisoria-9", protocol="https", domain="datanach.example"
-        )
+        enviar_credenciales_usuario(self.user, "Clave-Provisoria-9", protocol="https", domain="datanach.example")
 
         alternativas = mail.outbox[0].alternatives
         self.assertEqual(len(alternativas), 1)
