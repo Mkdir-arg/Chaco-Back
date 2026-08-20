@@ -1,11 +1,11 @@
-# Relevamiento profundo de performance — 2026-08-19 (task #262)
+# Relevamiento profundo de performance — 2026-08-19 (tasks #262 y #264)
 
 > **Clasificación: medición en entorno DEDICADO local con datos sintéticos.**
 > No representa rendimiento de producción, no es una prueba de carga de producción
 > y no habilita conclusiones de capacidad. Es la segunda línea de base de la épica
 > #222, posterior a la optimización de #261.
 
-Task: #262 · Épica: #222 · Análisis de origen: #259 · Relevamiento previo: #219
+Tasks: #262 (relevamiento profundo) · #264 (línea de base con métricas reales) · Épica: #222 · Análisis de origen: #259 · Relevamiento previo: #219
 
 ## 1. Contexto de validez
 
@@ -405,7 +405,28 @@ Cada hallazgo indica si es **hecho medido** o **hipótesis**.
   Es comportamiento correcto del producto, no un defecto; se documenta como requisito de método.
   Ya está resuelto en el harness usado acá.
 
-## 13. Qué NO es este informe
+## 13. Cobertura adicional de la task #264
+
+Este mismo corte completa la línea de base verificable solicitada por #264. La
+relación no cambia la naturaleza del entregable: sigue siendo un relevamiento,
+sin optimizaciones ni cambios de presupuesto.
+
+| Criterio de #264 | Evidencia en este informe |
+|---|---|
+| Contexto de la ventana y procedencia de las métricas | §1 y §2: SHA, ambiente, volumen, `shared_fixed_window`, ventana, retención y tasa de muestreo |
+| Flujos del manifiesto con calentamiento y repeticiones | §5 y §8: lecturas del manifiesto, 1 calentamiento y 5 repeticiones por flujo |
+| Máximos, duplicadas, latencia y dependencias por ruta | §6, §8 y §9, tomados de `/performance-api/` y de la sonda HTTP |
+| Contraste contra presupuestos y rutas sin margen | §11, sin modificar `scripts/perf_budgets.json` |
+| Sin carga ni servicios externos reales | §1 y §9: Docker dedicado, datos sintéticos y sin credenciales externas |
+| Artefacto sin datos sensibles | §2: no conserva SQL, parámetros, URLs, usuarios, payloads, tokens ni credenciales |
+| Continuidad de los hallazgos | Task derivada #268: alcance, requisitos y criterios verificables para H-1 a H-9 |
+
+H-8 no es una optimización pendiente: es un resultado informativo que pide repetir
+la medición bajo Daphne antes de concluir sobre capacidad. O-1 queda incorporado
+como requisito del método de concurrencia, porque describe un control funcional
+correcto y no un defecto.
+
+## 14. Qué NO es este informe
 
 - No es una medición de producción ni una prueba de carga de producción.
 - No permite concluir mejora ni empeoramiento de TTFB contra #219 (§4.2).
