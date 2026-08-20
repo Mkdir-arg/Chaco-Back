@@ -27,7 +27,7 @@ class SolapasService:
     ]
 
     @classmethod
-    def obtener_solapas_ciudadano(cls, ciudadano):
+    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None):
         solapas = [dict(s) for s in cls.SOLAPAS_ESTATICAS]
 
         inscripciones_activas = (
@@ -79,7 +79,7 @@ class SolapasService:
                 s = {**s, "badge": badges[s["id"]]}
             solapas_final.append(s)
 
-        solapa_becas = cls._obtener_solapa_becas(ciudadano)
+        solapa_becas = cls._obtener_solapa_becas(ciudadano, resumen_becas=resumen_becas)
         if solapa_becas:
             solapas_final.append(solapa_becas)
 
@@ -213,23 +213,28 @@ class SolapasService:
         return ascii_valor or "PROGRAMA"
 
     @classmethod
-    def _obtener_solapa_becas(cls, ciudadano):
+    def _obtener_solapa_becas(cls, ciudadano, resumen_becas=None):
         """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
 
         Sin 'url': se renderiza embebida en el legajo (tab-becas), igual que Resumen
         o Conversaciones, en vez de redirigir a la página standalone.
         """
-        from programas.models import Formulario, ListaEspera
-        from programas.services.cupo import estado_relevante_becas
+        if resumen_becas is None:
+            from programas.models import Formulario, ListaEspera
+            from programas.services.cupo import estado_relevante_becas
 
-        formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
-        estados = set(formularios_qs.values_list("estado", flat=True))
-        if not estados:
-            return None
+            formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
+            estados = set(formularios_qs.values_list("estado", flat=True))
+            if not estados:
+                return None
 
-        en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
-
-        texto, color = estado_relevante_becas(estados, en_espera)
+            en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
+            texto, color = estado_relevante_becas(estados, en_espera)
+        else:
+            if not resumen_becas["formularios"]:
+                return None
+            texto = resumen_becas["estado_texto"]
+            color = resumen_becas["estado_color"]
         color_hex = {
             "success": "var(--text-fg-success)",
             "warning": "var(--text-fg-warning)",
