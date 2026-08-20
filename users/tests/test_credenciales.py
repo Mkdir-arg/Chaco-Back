@@ -61,6 +61,16 @@ class CredencialesPorCorreoTests(TestCase):
             self.assertFalse(set(clave) & set("0O1lI"))
 
 
+class LoginBrandAssetTests(TestCase):
+    def test_login_web_usa_el_logo_svg_liviano(self):
+        response = self.client.get(reverse("users:login"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("/static/custom/chaco/login-logo.svg", html)
+        self.assertNotIn("/static/custom/chaco/login-logo.png", html)
+
+
 class CambioObligatorioPrimerLoginTests(TestCase):
     """RN-C2: con la clave provisoria sin cambiar no se puede operar."""
 

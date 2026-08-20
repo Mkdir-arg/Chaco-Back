@@ -808,8 +808,24 @@
 {% endblock %}
 
 {% block customJS %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+let chartJsPromise;
+
+function cargarChartJs() {
+    if (window.Chart) return Promise.resolve();
+    if (chartJsPromise) return chartJsPromise;
+
+    chartJsPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('No se pudo cargar Chart.js'));
+        document.head.appendChild(script);
+    });
+    return chartJsPromise;
+}
+
 function dashboardInicio() {
     return {
         busqueda: '',
@@ -825,9 +841,35 @@ function dashboardInicio() {
         init() {
             this.actualizarSaludo();
             this.$nextTick(() => {
-                this.inicializarGraficos();
-                this.cargarTendencias();
+                this.observarTendencias();
             });
+        },
+
+        observarTendencias() {
+            const canvas = document.getElementById('chartTendencias');
+            if (!canvas) return;
+
+            const inicializar = async () => {
+                try {
+                    await cargarChartJs();
+                    this.inicializarGraficos();
+                    this.cargarTendencias();
+                } catch (error) {
+                    console.error('Error cargando el gráfico de tendencias:', error);
+                }
+            };
+
+            if (!('IntersectionObserver' in window)) {
+                inicializar();
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                if (!entries.some(entry => entry.isIntersecting)) return;
+                observer.disconnect();
+                inicializar();
+            }, {rootMargin: '200px'});
+            observer.observe(canvas);
         },
 
         actualizarSaludo() {
@@ -857,7 +899,9 @@ function dashboardInicio() {
 
         cambiarPeriodo(p) {
             this.periodo = p;
-            this.cargarTendencias();
+            if (document.getElementById('chartTendencias')?._chartTendencias) {
+                this.cargarTendencias();
+            }
         },
 
         cargarTendencias() {
