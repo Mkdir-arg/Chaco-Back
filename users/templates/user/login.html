@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NODO Chaco - Acceso al Sistema</title>
+    <title>DATAÑACH - Acceso al Sistema</title>
     <link rel="icon" type="image/png" href="{% static 'custom/chaco/favicon.png' %}">
 
     <!-- Google Fonts — Manrope (única familia del sistema) -->
@@ -54,6 +54,28 @@
             transition: filter .15s ease;
         }
         .login-submit:hover { filter: brightness(0.96); }
+        .login-eye {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            padding: 4px;
+            border: none;
+            border-radius: 8px;
+            background: none;
+            color: var(--text-body-subtle);
+            cursor: pointer;
+            transition: color .15s ease, box-shadow .15s ease;
+        }
+        .login-eye:hover { color: var(--text-fg-brand); }
+        .login-eye:focus-visible {
+            outline: none;
+            box-shadow: var(--ring-brand);
+            color: var(--text-fg-brand);
+        }
+        /* Tailwind preflight fuerza svg{display:block} y le gana al [hidden] del UA */
+        .login-eye svg[hidden] { display: none; }
         .login-link {
             background: none; border: none; cursor: pointer;
             font-family: var(--font-sans);
@@ -86,7 +108,7 @@
                         </svg>
                         Acceso al sistema
                     </div>
-                    <h1 style="margin:0; font-size:33px; line-height:1.1; font-weight:800; color:var(--text-heading); font-family:var(--font-display); letter-spacing:-0.6px;">Bienvenido Ñandé</h1>
+                    <h1 style="margin:0; font-size:33px; line-height:1.1; font-weight:800; color:var(--text-heading); font-family:var(--font-display); letter-spacing:-0.6px;">Bienvenido DATAÑACH</h1>
                     <h2 style="margin:4px 0 0; font-size:33px; line-height:1.1; font-weight:800; font-family:var(--font-display); letter-spacing:-0.6px; background:var(--gradient-brand); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">Sistema Social de Chaco</h2>
                     <p style="margin:14px 0 0; font-size:14px; color:var(--text-body-subtle); line-height:1.5;">Ingresá con tu cuenta institucional para gestionar legajos, programas y relevamientos.</p>
                 </div>
@@ -94,12 +116,27 @@
                 <!-- Tarjeta del formulario -->
                 <div style="border:1px solid var(--border-base); border-radius:16px; padding:28px; background:#fff; box-shadow:var(--shadow-sm);">
 
-                    {% if form.errors %}
+                    {% if messages %}
+                        {% for message in messages %}
+                        <div role="alert" style="display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:12px; margin-bottom:18px; background:var(--bg-warning-soft); border:1px solid var(--border-warning-subtle); color:var(--text-fg-warning);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                            </svg>
+                            <p style="margin:0; font-size:13px; font-weight:600;">{{ message }}</p>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if form.non_field_errors %}
                     <div style="display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:12px; margin-bottom:18px; background:var(--bg-danger-soft); border:1px solid var(--border-danger-subtle);">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; color:var(--text-fg-danger);">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
                         </svg>
-                        <p style="margin:0; font-size:13px; font-weight:600; color:var(--text-fg-danger);">Credenciales inválidas. Verificá tu correo y contraseña.</p>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            {% for error in form.non_field_errors %}
+                            <p style="margin:0; font-size:13px; font-weight:600; color:var(--text-fg-danger);">{{ error }}</p>
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
 
@@ -133,32 +170,31 @@
                                 <input type="password" id="password" name="password" required
                                        class="login-input" style="padding:0 44px 0 44px;"
                                        placeholder="••••••••••">
-                                <button type="button" onclick="togglePassword()" aria-label="Mostrar u ocultar contraseña"
-                                        style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-body-subtle); padding:4px; display:flex;">
-                                    <svg id="toggleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <button type="button" id="togglePassword" class="login-eye"
+                                        aria-controls="password" aria-pressed="false" aria-label="Mostrar contraseña">
+                                    <svg data-eye="show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"></path>
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+                                    </svg>
+                                    <svg data-eye="hide" hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.243 4.243L9.88 9.88"></path>
                                     </svg>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Recordarme / Olvidaste -->
-                        <div style="display:flex; align-items:center; justify-content:space-between; font-size:13px;">
+                        <!-- Recordarme + recupero -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px;">
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-body);">
-                                <input type="checkbox" name="remember" style="width:15px; height:15px; accent-color:var(--bg-brand);"> Recordarme
+                                <input type="checkbox" id="id_remember" name="remember"{% if form.remember.value %} checked{% endif %}
+                                       style="width:15px; height:15px; accent-color:var(--bg-brand);"> Recordarme
                             </label>
-                            <button type="button" class="login-link" style="font-size:13px; font-weight:600;">¿Olvidaste tu contraseña?</button>
+                            <a class="login-link" href="{% url 'users:recuperar_contrasena' %}" style="font-size:13px; font-weight:600;">¿Olvidaste tu contraseña?</a>
                         </div>
 
                         <!-- Submit -->
                         <button type="submit" class="login-submit">Iniciar Sesión</button>
                     </form>
-
-                    <!-- Registro -->
-                    <div style="text-align:center; margin-top:20px; font-size:13px; color:var(--text-body-subtle);">
-                        ¿No estás registrado? <a href="#" class="login-link" style="font-weight:700;">Crear cuenta</a>
-                    </div>
                 </div>
 
                 <!-- Logo -->
@@ -170,17 +206,24 @@
     </div>
 
     <script>
-        function togglePassword() {
-            const password = document.getElementById('password');
-            const icon = document.getElementById('toggleIcon');
-            if (password.type === 'password') {
-                password.type = 'text';
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.243 4.243L9.88 9.88"></path>';
-            } else {
-                password.type = 'password';
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>';
-            }
-        }
+        (function () {
+            const input = document.getElementById('password');
+            const button = document.getElementById('togglePassword');
+            if (!input || !button) { return; }
+            const iconShow = button.querySelector('[data-eye="show"]');
+            const iconHide = button.querySelector('[data-eye="hide"]');
+
+            // El campo nace siempre oculto: cada recarga vuelve a type=password.
+            button.addEventListener('click', function () {
+                const visible = input.type === 'text';
+                input.type = visible ? 'password' : 'text';
+                // toggleAttribute y no .hidden: SVGElement no expone la propiedad hidden.
+                iconShow.toggleAttribute('hidden', !visible);
+                iconHide.toggleAttribute('hidden', visible);
+                button.setAttribute('aria-pressed', visible ? 'false' : 'true');
+                button.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+            });
+        })();
     </script>
 </body>
 </html>

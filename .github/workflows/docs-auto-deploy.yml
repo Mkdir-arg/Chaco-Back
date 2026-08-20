@@ -3,7 +3,7 @@ name: Docs Auto Deploy
 on:
   push:
     branches:
-      - main
+      - development
     paths:
       - 'docs/client/**'
       - 'mkdocs.yml'

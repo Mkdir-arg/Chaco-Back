@@ -10,7 +10,6 @@ from datetime import timedelta
 
 import psutil
 from django.core.cache import cache
-from django.db import connection
 from django.utils import timezone
 
 
@@ -25,7 +24,8 @@ class SystemMonitor:
     def collect_system_metrics(self):
         """Recolecta métricas del sistema"""
         try:
-            cpu_percent = psutil.cpu_percent(interval=1)
+            # interval=None: lectura no bloqueante (interval=1 dormía 1 s el worker)
+            cpu_percent = psutil.cpu_percent(interval=None)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage("/")
 
@@ -69,9 +69,6 @@ class SystemMonitor:
     def collect_django_metrics(self):
         """Recolecta métricas específicas de Django"""
         try:
-            # Conexiones de base de datos
-            db_connections = len(connection.queries)
-
             # Cache stats
             cache_stats = self._get_cache_stats()
 
@@ -81,9 +78,9 @@ class SystemMonitor:
             metrics = {
                 "timestamp": timezone.now().isoformat(),
                 "database": {
-                    "queries_count": db_connections,
-                    "slow_queries": self._count_slow_queries(),
-                    "connection_pool": self._get_db_pool_stats(),
+                    "queries_count": None,
+                    "slow_queries": None,
+                    "connection_pool": None,
                 },
                 "cache": cache_stats,
                 "sessions": {"active": active_sessions, "total": self._get_total_sessions()},
@@ -158,13 +155,17 @@ class SystemMonitor:
             return {"error": "collection_failed", "timestamp": timezone.now().isoformat()}
 
     def get_comprehensive_metrics(self):
-        """Obtiene todas las métricas en un solo objeto"""
-        return {
-            "system": self.collect_system_metrics(),
-            "django": self.collect_django_metrics(),
-            "application": self.collect_application_metrics(),
-            "alerts": self.get_active_alerts(),
-        }
+        """Obtiene todas las métricas en un solo objeto (cacheado 30 s)"""
+        return cache.get_or_set(
+            "performance:comprehensive_metrics",
+            lambda: {
+                "system": self.collect_system_metrics(),
+                "django": self.collect_django_metrics(),
+                "application": self.collect_application_metrics(),
+                "alerts": self.get_active_alerts(),
+            },
+            30,
+        )
 
     def get_active_alerts(self):
         """Obtiene alertas activas"""
@@ -239,21 +240,6 @@ class SystemMonitor:
             return Session.objects.count()
         except:
             return 0
-
-    def _count_slow_queries(self):
-        """Cuenta queries lentas"""
-        slow_count = 0
-        for query in connection.queries[-50:]:  # Últimas 50 queries
-            if float(query.get("time", 0)) > 0.1:  # > 100ms
-                slow_count += 1
-        return slow_count
-
-    def _get_db_pool_stats(self):
-        """Estadísticas del pool de conexiones"""
-        return {
-            "active": len(connection.queries),
-            "max_connections": 100,  # Configurado en settings
-        }
 
     def _get_online_users(self):
         """Usuarios online (últimos 5 minutos)"""

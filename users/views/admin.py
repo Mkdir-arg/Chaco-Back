@@ -19,6 +19,7 @@ from ..selectors.usuarios import (
 )
 from ..services import UsuariosService
 from ..services.admin import UsuariosAdminService
+from ..services.correo import entregar_credenciales_provisorias
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +31,19 @@ class _ScopeDenied(Exception):
 class AdminRequiredMixin(CapacidadRequeridaMixin):
     """Acceso al ABM de usuarios.
 
-    Entra el admin global (``usuario.administrar``) y también el admin de programa
-    (``programa.configurar`` en algún programa). El alcance fino lo aplica cada vista.
+    Entra el admin global (``usuario.administrar``) y también quien administra los
+    usuarios de algún programa (``programa.usuario.administrar``). El alcance fino
+    lo aplica cada vista.
     """
 
-    capacidades_requeridas = ["usuario.administrar", "programa.configurar"]
+    capacidades_requeridas = list(rbac.CAPS_ENTRADA_ABM_USUARIOS)
 
 
 class UserListView(AdminRequiredMixin, ListView):
     model = User
     template_name = "user/user_list.html"
     context_object_name = "users"
+    paginate_by = 25
 
     def get_queryset(self):
         return UsuariosService.get_filtered_usuarios(self.request, operador=self.request.user)
@@ -48,6 +51,10 @@ class UserListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(UsuariosService.get_usuarios_list_context())
+        context["hay_filtros_activos"] = bool(self.request.GET.get("filters"))
+        querystring = self.request.GET.copy()
+        querystring.pop("page", None)
+        context["filtros_qs"] = querystring.urlencode()
         return context
 
 
@@ -71,6 +78,26 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
             logger.exception("Error al crear usuario")
             form.add_error(None, f"Error al guardar el usuario: {exc}")
             return self.form_invalid(form)
+
+        if self.object.email:
+            # Con correo, la clave la genera el sistema y viaja en el mensaje: la
+            # que tipeó el operador en el formulario no se usa (RN-C1). El primer
+            # ingreso obliga a cambiarla (RN-C2).
+            try:
+                entregar_credenciales_provisorias(self.object, self.request)
+                messages.success(self.request, "Usuario creado. Se envió el correo con la clave provisoria.")
+            except Exception:
+                logger.exception("El usuario fue creado, pero no se pudo enviar la clave provisoria")
+                messages.warning(
+                    self.request,
+                    "El usuario fue creado, pero no se pudo enviar el correo. Revisá la configuración "
+                    'de correo; mientras tanto el usuario puede entrar con "Olvidé mi contraseña".',
+                )
+        else:
+            messages.warning(
+                self.request,
+                "Usuario creado sin correo; no se pudo enviar la clave provisoria.",
+            )
 
         return self.redirect_with_timestamp()
 

@@ -1,15 +1,9 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} segmento{% endblock %}
 
 {% block main-content %}
 <div class="">
-  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
-    <span>Programa Becas</span>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <a href="{% url 'becas:segmentos' %}" class="hover:underline">Segmentos</a>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <span class="font-semibold text-body">{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %}</span>
-  </nav>
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
     {% if form.instance.pk %}Editar segmento{% else %}Nuevo segmento{% endif %}
   </h1>
@@ -18,11 +12,12 @@
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    {% for field in form %}{% include "programas/becas/_field.html" %}{% if field.name == "coordinador" and request.user|puede:"becas.programa.administrar" %}<button type="button" data-quick-user="coordinador" data-user-select="#{{ field.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus"></i> Crear coordinador</button>{% endif %}{% endfor %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:segmentos' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar segmento</button>
     </div>
   </form>
 </div>
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}

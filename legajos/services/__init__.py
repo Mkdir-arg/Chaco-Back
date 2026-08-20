@@ -13,10 +13,4 @@ from .contactos import (  # noqa: F401
 )
 from .derivaciones_programa import DerivacionProgramaResult, DerivacionProgramaService  # noqa: F401
 from .filtros_usuario import FiltrosUsuarioService  # noqa: F401
-from .nachec import (  # noqa: F401
-    ServicioDeteccionDuplicados,
-    ServicioOperacionNachec,
-    ServicioSLA,
-    ServicioTransicionNachec,
-)
 from .programas import BajaProgramaService  # noqa: F401

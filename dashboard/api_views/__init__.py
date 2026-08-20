@@ -18,37 +18,44 @@ logger = logging.getLogger(__name__)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def metricas_dashboard(request):
-    """Obtiene metricas principales del dashboard."""
+    """Obtiene metricas principales del dashboard (datos globales, cacheados 60 s)."""
+    from django.core.cache import cache
+
+    data = cache.get_or_set("dashboard:metricas_api", _calcular_metricas_dashboard, 60)
+    return Response(data)
+
+
+def _calcular_metricas_dashboard():
     total_ciudadanos = Ciudadano.objects.count()
-    legajos_activos = InscripcionPrograma.objects.filter(estado__in=["ACTIVO", "EN_SEGUIMIENTO"]).count()
     alertas_activas = AlertaCiudadano.objects.filter(activa=True).count()
 
     hoy = timezone.now().date()
-    seguimientos_hoy = InscripcionPrograma.objects.filter(fecha_inscripcion=hoy).count()
-
-    estados = InscripcionPrograma.objects.values("estado").annotate(count=Count("id"))
-    estados_dict = {estado["estado"]: estado["count"] for estado in estados}
+    inscripciones = InscripcionPrograma.objects.aggregate(
+        legajos_activos=Count("id", filter=Q(estado__in=["ACTIVO", "EN_SEGUIMIENTO"])),
+        seguimientos_hoy=Count("id", filter=Q(fecha_inscripcion=hoy)),
+        abiertos=Count("id", filter=Q(estado="ACTIVO")),
+        seguimiento=Count("id", filter=Q(estado="EN_SEGUIMIENTO")),
+        cerrados=Count("id", filter=Q(estado="CERRADO")),
+    )
 
     hace_24h = timezone.now() - timedelta(hours=24)
     usuarios_activos = User.objects.filter(last_login__gte=hace_24h).count()
 
-    return Response(
-        {
-            "metricas": {
-                "ciudadanos": total_ciudadanos,
-                "legajos": legajos_activos,
-                "seguimientos": seguimientos_hoy,
-                "alertas": alertas_activas,
-            },
-            "estados_legajos": {
-                "abiertos": estados_dict.get("ACTIVO", 0),
-                "seguimiento": estados_dict.get("EN_SEGUIMIENTO", 0),
-                "derivados": DerivacionPrograma.objects.filter(estado="PENDIENTE").count(),
-                "cerrados": estados_dict.get("CERRADO", 0),
-            },
-            "usuarios_conectados": usuarios_activos,
-        }
-    )
+    return {
+        "metricas": {
+            "ciudadanos": total_ciudadanos,
+            "legajos": inscripciones["legajos_activos"],
+            "seguimientos": inscripciones["seguimientos_hoy"],
+            "alertas": alertas_activas,
+        },
+        "estados_legajos": {
+            "abiertos": inscripciones["abiertos"],
+            "seguimiento": inscripciones["seguimiento"],
+            "derivados": DerivacionPrograma.objects.filter(estado="PENDIENTE").count(),
+            "cerrados": inscripciones["cerrados"],
+        },
+        "usuarios_conectados": usuarios_activos,
+    }
 
 
 @api_view(["GET"])
@@ -61,12 +68,18 @@ def buscar_ciudadanos(request):
         return Response({"results": []})
 
     try:
-        ciudadanos = Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(
-            Q(nombre__icontains=query) | Q(apellido__icontains=query) | Q(dni__icontains=query)
-        )[:8]
+        # Filtros sargables: LIKE 'q%' usa índice; LIKE '%q%' fuerza full scan
+        # del padrón por cada tecla del typeahead.
+        if query.isdigit():
+            filtro = Q(dni__startswith=query)
+        else:
+            filtro = Q(nombre__istartswith=query) | Q(apellido__istartswith=query)
+        coincidencias = list(Ciudadano.objects.only("id", "nombre", "apellido", "dni").filter(filtro)[:21])
+        hay_mas = len(coincidencias) > 20
+        ciudadanos = coincidencias[:20]
 
         resultados = [{"id": c.id, "nombre": f"{c.apellido}, {c.nombre}", "dni": c.dni} for c in ciudadanos]
-        return Response({"results": resultados})
+        return Response({"results": resultados, "has_more": hay_mas})
     except Exception as e:
         logger.error(f"Error en busqueda de ciudadanos: {e}", exc_info=True)
         return Response({"results": [], "error": "Error en la busqueda"}, status=500)

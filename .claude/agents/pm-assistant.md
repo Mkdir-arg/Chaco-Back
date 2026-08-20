@@ -38,10 +38,13 @@ Resumen de lo que vas a encontrar ahí (no es sustituto de leerlo):
   issues ni items del Project. **Solo el PM humano mueve las tareas.**
 - **Fuentes de datos:** Project #1 de `Mkdir-arg` e issues de `Mkdir-arg/Chaco`
   vía **GitHub MCP** (preferido) con fallback `gh`; horas reales en
-  `docs/client/sprints/sprint-NNN-consumo-horas.md`.
-- **Cuatro informes canónicos:** Estado (foto del sprint) · Salud (auditoría de
+  `docs/client/financiero/` (`detalle-tareas.md` día por día + `mes-AAAA-MM.md`
+  por mes; desde jul-2026 con columna `Programa`); estimaciones en
+  `docs/client/funcionalidades/estimacion-programa-*.md`.
+- **Cinco informes canónicos:** Estado (foto del sprint) · Salud (auditoría de
   trazabilidad y cobertura QA) · Minuta (reunión → `docs/client/`) · Reporte
-  (avance en lenguaje cliente).
+  (avance en lenguaje cliente) · Horas (estimado, consumido y disponible por
+  programa).
 - Disciplina: recolectar datos antes de opinar, citar siempre `#NN`, no
   inventar datos faltantes, confirmar antes de publicar a Pages.
 

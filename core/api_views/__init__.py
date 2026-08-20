@@ -42,7 +42,7 @@ class ProvinciaViewSet(viewsets.ModelViewSet):
     def municipios(self, request, pk=None):
         """Obtiene los municipios de una provincia específica"""
         provincia = self.get_object()
-        municipios = provincia.municipio_set.all()
+        municipios = provincia.municipio_set.select_related("provincia")
         serializer = MunicipioSerializer(municipios, many=True)
         return Response(serializer.data)
 
@@ -73,7 +73,7 @@ class MunicipioViewSet(viewsets.ModelViewSet):
     def localidades(self, request, pk=None):
         """Obtiene las localidades de un municipio específico"""
         municipio = self.get_object()
-        localidades = municipio.localidad_set.all()
+        localidades = municipio.localidad_set.select_related("municipio__provincia")
         serializer = LocalidadSerializer(localidades, many=True)
         return Response(serializer.data)
 

@@ -93,8 +93,21 @@ class Conversacion(models.Model):
         self.operador_asignado = operador
         self.fecha_asignacion = timezone.now()
         self.estado = "activa"
-        self.save()  # Guardar cambios primero
-        self.calcular_metricas()
+        # Métricas calculadas antes de persistir: un solo UPDATE (y una sola
+        # ronda de señales) en vez de save() + calcular_metricas() → save().
+        if self.fecha_asignacion:
+            self.tiempo_espera_segundos = int((self.fecha_asignacion - self.fecha_inicio).total_seconds())
+        if self.fecha_primera_respuesta and self.fecha_inicio:
+            self.tiempo_respuesta_segundos = int((self.fecha_primera_respuesta - self.fecha_inicio).total_seconds())
+        self.save(
+            update_fields=[
+                "operador_asignado",
+                "fecha_asignacion",
+                "estado",
+                "tiempo_espera_segundos",
+                "tiempo_respuesta_segundos",
+            ]
+        )
 
         # Crear historial solo si el modelo existe
         try:

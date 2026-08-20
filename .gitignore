@@ -49,6 +49,11 @@ htmlcov/
 .claude/worktrees/
 .github/worklog/
 awslabs-mcp/
+# Salida local de perf_audit.py; no se versiona
+scripts/perf_baseline.json
+
+# Repositorio independiente de la aplicación móvil
+/mobile/
 
 # Scratch / notas de trabajo temporales
 .tmp_*
@@ -60,6 +65,8 @@ awslabs-mcp/
 *.pem
 nginx-selfsigned.crt
 nginx-selfsigned.key
+# Excepción: CAs públicas que la imagen necesita confiar (sin claves privadas)
+!certs/*.crt
 
 # MkDocs
 site/

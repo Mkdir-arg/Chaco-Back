@@ -3,13 +3,6 @@
 
 {% block main-content %}
 <div class="">
-  <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
-    <span>Programa Becas</span>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <a href="{% url 'becas:convocatorias' %}" class="hover:underline">Convocatorias</a>
-    <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-    <span class="font-semibold text-body">{% if convocatoria %}Editar{% else %}Nueva{% endif %}</span>
-  </nav>
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-6">
     {% if convocatoria %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}
   </h1>
@@ -43,11 +36,12 @@
     {# subsegmento — se repuebla dinámicamente, deshabilitado sin segmento #}
     <div class="mb-4">
       <label class="block text-sm font-medium text-heading mb-1" for="{{ form.subsegmento.id_for_label }}">
-        {{ form.subsegmento.label }}
+        {{ form.subsegmento.label }}{% if form.subsegmento.field.required %} <span class="text-fg-danger">*</span>{% endif %}
       </label>
       <select name="subsegmento"
               id="{{ form.subsegmento.id_for_label }}"
               class="nodo-field"
+              :aria-busy="loadingSubsegmentos.toString()"
               :disabled="!segmentoId">
         <option value="">---------</option>
         <template x-for="sub in subsegmentos" :key="sub.id">
@@ -57,6 +51,14 @@
       <template x-if="!segmentoId">
         <p class="mt-1 text-xs text-body-subtle">Seleccioná un segmento primero.</p>
       </template>
+      <p x-show="loadingSubsegmentos"
+         class="mt-1 text-xs text-body-subtle"
+         role="status"
+         aria-live="polite">Cargando subsegmentos…</p>
+      <p x-show="subsegmentosError"
+         x-text="subsegmentosError"
+         class="mt-1 text-xs text-fg-danger"
+         role="alert"></p>
       {% for error in form.subsegmento.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
     </div>
 
@@ -64,10 +66,10 @@
     {% with field=form.fecha_inicio %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% with field=form.fecha_fin %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% with field=form.descripcion %}{% include "programas/becas/_field.html" %}{% endwith %}
-    {% with field=form.activo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.activo }} Activa</label>
 
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-secondary btn-base">← Cancelar</a>
+      <a href="{% url 'becas:convocatorias' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar convocatoria</button>
     </div>
   </form>
@@ -79,6 +81,8 @@ function convocatoriaForm(segmentoIdRaw, subsegmentoIdRaw) {
     segmentoId: segmentoIdRaw ? parseInt(segmentoIdRaw) : null,
     subsegmentoId: subsegmentoIdRaw ? parseInt(subsegmentoIdRaw) : null,
     subsegmentos: [],
+    loadingSubsegmentos: false,
+    subsegmentosError: '',
 
     async init() {
       if (this.segmentoId) {
@@ -96,13 +100,17 @@ function convocatoriaForm(segmentoIdRaw, subsegmentoIdRaw) {
     },
 
     async fetchSubsegmentos(segmentoId) {
+      this.loadingSubsegmentos = true;
+      this.subsegmentosError = '';
       try {
         const resp = await fetch(`{% url 'becas:segmento_subsegmentos_json' pk=0 %}`.replace('/0/', `/${segmentoId}/`));
-        if (resp.ok) {
-          this.subsegmentos = await resp.json();
-        }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        this.subsegmentos = await resp.json();
       } catch (_) {
         this.subsegmentos = [];
+        this.subsegmentosError = 'No se pudieron cargar los subsegmentos. Intentá nuevamente.';
+      } finally {
+        this.loadingSubsegmentos = false;
       }
     },
   };

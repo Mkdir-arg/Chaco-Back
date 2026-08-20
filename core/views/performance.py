@@ -1,5 +1,4 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -7,8 +6,8 @@ from django.utils import timezone
 from core import rbac
 
 from ..performance.monitoring import system_monitor
-from ..performance.performance_analyzer import PerformanceAnalyzer
 from ..performance.phase2_manager import phase2_manager
+from ..performance.query_observability import query_observability_report
 
 
 def is_admin(user):
@@ -24,7 +23,14 @@ def performance_dashboard(request):
 
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAdminUser
+
+
+class IsPerformanceAdmin(BasePermission):
+    message = "No tiene permiso para consultar métricas de performance."
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and is_admin(request.user))
 
 
 @extend_schema(
@@ -32,33 +38,36 @@ from rest_framework.permissions import IsAuthenticated
     responses={200: "Métricas de performance del sistema"},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def performance_api(request):
     """API endpoint for performance data"""
-    from config.middlewares.query_counter import QueryCountMiddleware
+    report = query_observability_report()
+    query_metric = report["metrics"]["queries"]
+    memory_usage = _get_memory_usage()
 
-    # Get session stats from middleware
-    session_stats = QueryCountMiddleware.get_session_stats()
-
-    analyzer = PerformanceAnalyzer()
-    report = analyzer.generate_report()
-
-    # Override with session data
     report.update(
         {
-            "total_queries": session_stats["total_queries"],
-            "total_requests": session_stats["total_requests"],
-            "slow_requests": session_stats["slow_requests"],
-            "n1_detected": session_stats["n1_detected_count"] > 0,
-            "similar_queries": session_stats["n1_detected_count"],
-            "performance_score": max(
-                20, 100 - min(50, session_stats["slow_requests"] * 5) - min(30, session_stats["n1_detected_count"] * 3)
-            ),
+            "metrics": {
+                "queries": query_metric,
+                "requests": {
+                    "source": query_metric["source"],
+                    "scope": query_metric["scope"],
+                    "value": report["total_requests"],
+                },
+                "n_plus_one": {
+                    "source": query_metric["source"],
+                    "scope": query_metric["scope"],
+                    "value": report["n1_affected_requests"],
+                },
+                "memory": {"source": "psutil", "scope": "current_process", "value": memory_usage},
+                "database_connections": {"source": "unavailable", "scope": None, "value": None},
+            },
             "real_time": {
-                "active_connections": session_stats["total_requests"],
+                "active_connections": None,
+                "observed_requests": report["total_requests"],
                 "timestamp": timezone.now().isoformat(),
-                "memory_usage": _get_memory_usage(),
-                "session_start": session_stats["last_reset"].isoformat(),
+                "memory_usage": memory_usage,
+                "window": report["window"],
             },
         }
     )
@@ -71,39 +80,35 @@ def performance_api(request):
     responses={200: "Análisis de patrones de queries"},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def query_analysis_api(request):
     """Detailed query analysis API"""
-    queries = connection.queries[-100:]  # Last 100 queries
-    analyzer = PerformanceAnalyzer()
+    report = query_observability_report()
+    query_metric = report["metrics"]["queries"]
+    if query_metric["source"] != "measured":
+        return JsonResponse(
+            {
+                "query_count": None,
+                "patterns": {"total_queries": None, "n1_detected": None, "affected_requests": None},
+                "slow_queries": None,
+                "slow_queries_count": None,
+                "recommendations": [],
+                "metrics": {"queries": query_metric},
+            }
+        )
 
     analysis = {
-        "query_count": len(queries),
-        "patterns": analyzer.analyze_queries(queries),
-        "slow_queries": analyzer.get_slow_queries(queries),
-        "recommendations": [],
+        "query_count": report["total_queries"],
+        "patterns": {
+            "total_queries": report["total_queries"],
+            "n1_detected": report["n1_detected"],
+            "affected_requests": report["n1_affected_requests"],
+        },
+        "slow_queries": None,
+        "slow_queries_count": report["slow_queries_count"],
+        "recommendations": report["recommendations"],
+        "metrics": {"queries": query_metric},
     }
-
-    # Generate specific recommendations
-    if analysis["patterns"]["n1_detected"]:
-        analysis["recommendations"].append(
-            {
-                "priority": "high",
-                "type": "N+1 Detection",
-                "message": f"Detected {analysis['patterns']['similar_queries']} similar queries. Consider using select_related() or prefetch_related().",
-                "action": "Review recent code changes and add query optimizations",
-            }
-        )
-
-    if len(analysis["slow_queries"]) > 0:
-        analysis["recommendations"].append(
-            {
-                "priority": "medium",
-                "type": "Slow Queries",
-                "message": f"Found {len(analysis['slow_queries'])} slow queries.",
-                "action": "Add database indexes or optimize query logic",
-            }
-        )
 
     return JsonResponse(analysis)
 
@@ -113,7 +118,7 @@ def query_analysis_api(request):
     responses={200: "Sugerencias de optimización de performance"},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def optimization_suggestions_api(request):
     """API for optimization suggestions"""
     model_name = request.GET.get("model", "")
@@ -152,16 +157,33 @@ def optimization_suggestions_api(request):
     responses={200: "Métricas completas del sistema"},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def system_metrics_api(request):
     """Comprehensive system metrics API"""
     metrics = system_monitor.get_comprehensive_metrics()
-    return JsonResponse(metrics)
+    return JsonResponse(
+        {
+            **metrics,
+            "django": {
+                **metrics.get("django", {}),
+                "database": {
+                    "queries_count": None,
+                    "slow_queries": None,
+                    "connection_pool": None,
+                },
+            },
+            "sources": {
+                "cpu": {"source": "psutil", "scope": "current_host", "refresh_seconds": 30},
+                "memory": {"source": "psutil", "scope": "current_host", "refresh_seconds": 30},
+                "database_connections": {"source": "unavailable", "scope": None},
+            },
+        }
+    )
 
 
 @extend_schema(description="API para alertas activas del sistema", responses={200: "Alertas activas del sistema"})
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def alerts_api(request):
     """System alerts API"""
     alerts = system_monitor.get_active_alerts()
@@ -170,7 +192,7 @@ def alerts_api(request):
 
 @extend_schema(description="API para métricas en tiempo real", responses={200: "Métricas en tiempo real"})
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def realtime_metrics_api(request):
     """Real-time metrics API"""
     # Recolectar métricas frescas
@@ -181,7 +203,7 @@ def realtime_metrics_api(request):
         "timestamp": timezone.now().isoformat(),
         "cpu_percent": system_metrics.get("cpu", {}).get("percent", 0),
         "memory_percent": system_metrics.get("memory", {}).get("percent", 0),
-        "active_connections": django_metrics.get("database", {}).get("queries_count", 0),
+        "active_connections": None,
         "cache_hits": django_metrics.get("cache", {}).get("hits", 0),
         "active_sessions": django_metrics.get("sessions", {}).get("active", 0),
         "response_time": _get_memory_usage().get("memory_mb", 0),
@@ -195,7 +217,7 @@ def realtime_metrics_api(request):
     responses={200: "Métricas avanzadas de Fase 2"},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPerformanceAdmin])
 def phase2_metrics_api(request):
     """Phase 2 advanced optimization metrics API"""
     try:
@@ -269,7 +291,7 @@ def phase2_metrics_api(request):
     responses={200: "Resultados de pruebas automáticas"},
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def run_phase2_tests_api(request):
     """Ejecuta todas las pruebas de Fase 2 automáticamente"""
     try:

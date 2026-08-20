@@ -4,13 +4,28 @@ from django.urls import path
 
 from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
+from programas.views import pausas as pau
 from programas.views import relevamientos as rel
+from programas.views import reportes_becas as rpt
 from programas.views import revision as rev
 from programas.views import solapas_becas as sb
 
 app_name = "becas"
 
 urlpatterns = [
+    path("reportes/", rpt.ReportesHubView.as_view(), name="reportes"),
+    path("reportes/<str:reporte>/", rpt.ReporteBecasView.as_view(), name="reporte_detalle"),
+    path("reportes/<str:reporte>/export/<str:formato>/", rpt.ReporteBecasExportView.as_view(), name="reporte_exportar"),
+    path("pausas/<str:tipo>/<int:pk>/", pau.gestionar_pausa, name="gestionar_pausa"),
+    # --- Configuración: Programas (SIIS) ---
+    path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),
+    path("config/programas/nuevo/", cfg.ProgramaSiisCreateView.as_view(), name="programa_crear"),
+    path("config/programas/<int:pk>/", cfg.ProgramaSiisDetailView.as_view(), name="programa_detalle"),
+    path(
+        "config/programas/<int:programa_pk>/requisitos/nuevo/",
+        cfg.requisito_programa_crear,
+        name="requisito_programa_crear",
+    ),
     # --- Configuración: Segmentos ---
     path("config/segmentos/", cfg.SegmentoListView.as_view(), name="segmentos"),
     path("config/segmentos/nuevo/", cfg.SegmentoCreateView.as_view(), name="segmento_crear"),
@@ -49,6 +64,7 @@ urlpatterns = [
     path("convocatorias/<int:pk>/", rel.ConvocatoriaDetailView.as_view(), name="convocatoria_detalle"),
     path("convocatorias/<int:pk>/editar/", rel.ConvocatoriaUpdateView.as_view(), name="convocatoria_editar"),
     path("convocatorias/<int:pk>/toggle/", rel.convocatoria_toggle_activo, name="convocatoria_toggle"),
+    path("convocatorias/<int:pk>/reactivar/", rel.convocatoria_reactivar, name="convocatoria_reactivar"),
     path(
         "convocatorias/<int:pk>/export/beneficiarios/",
         rel.convocatoria_export_beneficiarios,
@@ -59,20 +75,45 @@ urlpatterns = [
         rel.convocatoria_export_relevamientos,
         name="convocatoria_export_relevamientos",
     ),
+    path(
+        "convocatorias/<int:pk>/export/lista-espera/",
+        rel.convocatoria_export_lista_espera,
+        name="convocatoria_export_lista_espera",
+    ),
     # --- Relevamientos ---
     path("relevamientos/", rel.RelevamientoListView.as_view(), name="relevamientos"),
     path("relevamientos/nuevo/", rel.RelevamientoCreateView.as_view(), name="relevamiento_crear"),
     path("relevamientos/<int:pk>/", rel.RelevamientoDetailView.as_view(), name="relevamiento_detalle"),
+    path("relevamientos/<int:pk>/finalizar/", rel.relevamiento_finalizar, name="relevamiento_finalizar"),
+    path("relevamientos/<int:pk>/reabrir/", rel.relevamiento_reabrir, name="relevamiento_reabrir"),
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
+    path("relevamientos/<int:pk>/cupo/", rel.relevamiento_modificar_cupo, name="relevamiento_modificar_cupo"),
     # --- Revisión de formularios ---
-    path("revision/", rev.RevisionRelevamientoListView.as_view(), name="revision"),
+    path("revision/", rev.RevisionPersonasListView.as_view(), name="revision"),
+    path("revision/renaper/pendientes/", rev.RenaperPendientesListView.as_view(), name="renaper_pendientes"),
     path("revision/relevamiento/<int:relevamiento_pk>/", rev.revision_formularios, name="revision_formularios"),
     path("revision/relevamiento/<int:pk>/iniciar/", rev.relevamiento_iniciar_revision, name="revision_iniciar"),
     path("revision/relevamiento/<int:pk>/terminar/", rev.relevamiento_terminar, name="revision_terminar"),
     path("revision/formulario/<int:pk>/", rev.formulario_detalle, name="formulario_detalle"),
+    path("revision/formulario/<int:pk>/validar-sis/", rev.formulario_validar_sis, name="formulario_validar_sis"),
     path("revision/formulario/<int:pk>/aprobar/", rev.formulario_aprobar, name="formulario_aprobar"),
+    path(
+        "revision/formulario/<int:pk>/resolver-duplicado/",
+        rev.formulario_resolver_duplicado,
+        name="formulario_resolver_duplicado",
+    ),
     path("revision/formulario/<int:pk>/rechazar/", rev.formulario_rechazar, name="formulario_rechazar"),
+    path(
+        "revision/formulario/<int:pk>/actualizar-genero/",
+        rev.formulario_actualizar_genero,
+        name="formulario_actualizar_genero",
+    ),
+    path(
+        "revision/formulario/<int:pk>/revalidar-renaper/",
+        rev.formulario_revalidar_renaper,
+        name="formulario_revalidar_renaper",
+    ),
     # --- Cupo y lista de espera (#78) ---
     path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),
     path("cupo/beneficiario/<int:pk>/baja/", cpo.dar_baja_beneficiario_view, name="beneficiario_dar_baja"),

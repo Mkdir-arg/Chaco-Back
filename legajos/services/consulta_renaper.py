@@ -1,22 +1,29 @@
 import datetime
 import logging
 import random
+import threading
 import time
 import unicodedata
 
 import requests
 import urllib3
 from django.conf import settings
+from django.core.cache import cache
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError, RequestException
 from urllib3.util.retry import Retry
 
 from core.models import Provincia
+from core.performance.query_observability import instrument_external_call
 
 # Suprimir warnings de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
+
+# Clave interna de cache; no contiene una credencial.
+TOKEN_CACHE_KEY = "renaper:token"  # nosec B105
+CONSULTA_CACHE_TTL = 600  # 10 min por (dni, sexo)
 
 MOJIBAKE_MARKERS = ("Ã", "Â", "â€", "â€“", "â€”", "â€œ", "â€", "â€™")
 
@@ -180,8 +187,12 @@ class APIClient:
             return
 
         try:
-            response = self.session.post(
-                self.login_url, json={"username": self.username, "password": self.password}, timeout=self.timeout
+            response = instrument_external_call(
+                "renaper",
+                self.session.post,
+                self.login_url,
+                json={"username": self.username, "password": self.password},
+                timeout=self.timeout,
             )
         except ConnectionError:
             raise Exception("Error de conexion con el servicio.")
@@ -194,13 +205,36 @@ class APIClient:
         data = response.json()
         self.token = data.get("token")
         self.token_expiration = datetime.datetime.fromisoformat(data["expiration"].replace("Z", "+00:00"))
+        # Compartir el token entre workers/procesos: sin esto cada request
+        # pagaba un round-trip extra de login contra RENAPER.
+        ttl = (self.token_expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds() - 60
+        if ttl > 0:
+            cache.set(
+                TOKEN_CACHE_KEY,
+                {"token": self.token, "expiration": self.token_expiration.isoformat()},
+                ttl,
+            )
 
     def get_token(self):
         if self._use_api_key_mode():
             return None
 
-        if not self.token or datetime.datetime.now(datetime.timezone.utc) >= self.token_expiration:
-            self.login()
+        ahora = datetime.datetime.now(datetime.timezone.utc)
+        if self.token and self.token_expiration and ahora < self.token_expiration:
+            return self.token
+
+        cached = cache.get(TOKEN_CACHE_KEY)
+        if cached:
+            try:
+                expiration = datetime.datetime.fromisoformat(cached["expiration"])
+                if ahora < expiration:
+                    self.token = cached["token"]
+                    self.token_expiration = expiration
+                    return self.token
+            except (KeyError, TypeError, ValueError):
+                pass
+
+        self.login()
         return self.token
 
     def consultar_ciudadano(self, dni, sexo):
@@ -224,7 +258,9 @@ class APIClient:
 
         try:
             if method == "post":
-                response = self.session.post(
+                response = instrument_external_call(
+                    "renaper",
+                    self.session.post,
                     self.consulta_url,
                     headers=headers,
                     json=payload,
@@ -232,7 +268,9 @@ class APIClient:
                     verify=False,
                 )
             else:
-                response = self.session.get(
+                response = instrument_external_call(
+                    "renaper",
+                    self.session.get,
                     self.consulta_url,
                     headers=headers,
                     params=payload,
@@ -304,7 +342,37 @@ def normalizar(texto):
     return texto.strip()
 
 
+_client = None
+_client_lock = threading.Lock()
+
+
+def _get_client():
+    """Cliente compartido a nivel módulo: reutiliza la Session (keep-alive) y el
+    token entre requests, en vez de instanciar y loguearse por cada consulta."""
+    global _client
+    if _client is None:
+        with _client_lock:
+            if _client is None:
+                _client = APIClient()
+    return _client
+
+
 def consultar_datos_renaper(dni, sexo):
+    """Consulta RENAPER con cache de resultados por (dni, sexo)."""
+    cache_key = f"renaper:consulta:{dni}:{_normalizar_sexo(sexo)}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    resultado = _consultar_datos_renaper(dni, sexo)
+
+    # Solo se cachean respuestas deterministas (éxito o fallecido), nunca errores.
+    if resultado.get("success") or resultado.get("fallecido"):
+        cache.set(cache_key, resultado, CONSULTA_CACHE_TTL)
+    return resultado
+
+
+def _consultar_datos_renaper(dni, sexo):
     if getattr(settings, "RENAPER_TEST_MODE", False):
         latency_seconds = getattr(settings, "RENAPER_TEST_LATENCY_SECONDS", 0)
         if latency_seconds > 0:
@@ -372,7 +440,7 @@ def consultar_datos_renaper(dni, sexo):
         }
 
     try:
-        client = APIClient()
+        client = _get_client()
         response = client.consultar_ciudadano(dni, sexo)
 
         if not response["success"]:

@@ -1,5 +1,7 @@
-{% load static custom_filters rbac %}
-{% with pagina_actual=request.resolver_match.route %}
+{% load static custom_filters rbac dispositivos %}
+{% puede_configurar_dispositivos request.user as puede_configurar_dispositivos %}
+{% puede_en_programa_dispositivos request.user "dispositivo.ver" as puede_ver_dispositivos %}
+{% with pagina_actual=request.resolver_match|getattr:"route" %}
 <div class="flex flex-1 flex-col" style="gap: 0;">
 
     {# ── User card ──────────────────────────────────────────── #}
@@ -25,8 +27,8 @@
                         </p>
                         <p style="font-size: 11px; color: var(--text-body-subtle);
                                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            {% if request.user.groups.all %}
-                                {{ request.user.groups.first.name }}
+                            {% if user_primary_group %}
+                                {{ user_primary_group }}
                             {% else %}
                                 Sin grupo
                             {% endif %}
@@ -405,8 +407,8 @@
         </div>
         {% endif %}
 
-        {# ── Becas (grupo colapsable) ─────────────────────────── #}
-        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" %}
+        {# ── Programas (grupo colapsable) ─────────────────────── #}
+        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or request.user|puede:"becas.reportes.ver" %}
         <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -424,7 +426,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round"
                                   d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"/>
                         </svg>
-                        <span class="flex-1">Becas</span>
+                        <span class="flex-1">Programas</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                              width="14" height="14" aria-hidden="true"
                              style="color: var(--text-body-subtle); transition: transform 150ms;"
@@ -434,6 +436,22 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        {% if request.user|puede:"becas.segmento.ver" %}
+                        <a href="{% url 'becas:programas' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas\config\programas' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'becas/config/programas' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# folder icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'becas/config/programas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/>
+                            </svg>
+                            Programas
+                        </a>
+                        {% endif %}
                         {% if request.user|puede:"becas.segmento.ver" %}
                         <a href="{% url 'becas:segmentos' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
@@ -463,7 +481,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                       d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/>
                             </svg>
-                            Cuestionario social
+                            Requisitos generales
                         </a>
                         {% endif %}
                         {% if request.user|puede:"becas.convocatoria.ver" %}
@@ -514,17 +532,27 @@
                             Revisión
                         </a>
                         {% endif %}
+                        {% if request.user|puede:"becas.reportes.ver" %}
+                        <a href="{% url 'becas:reportes' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'becas/reportes' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}">
+                            <i class="fas fa-chart-column" style="width:16px; text-align:center;"></i>
+                            Reportes
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </template>
 
+            {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" %}
             <template x-if="sidebarCollapsed">
                 <a href="{% if request.user|puede:'becas.segmento.ver' %}{% url 'becas:segmentos' %}{% elif request.user|puede:'becas.convocatoria.ver' %}{% url 'becas:convocatorias' %}{% elif request.user|puede:'becas.relevamiento.ver' %}{% url 'becas:relevamientos' %}{% else %}{% url 'becas:revision' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'becas' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
-                   title="Becas"
-                   aria-label="Becas">
+                   title="Programas"
+                   aria-label="Programas">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                          width="20" height="20" aria-hidden="true"
                          style="color: {% if 'becas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
@@ -533,11 +561,105 @@
                     </svg>
                 </a>
             </template>
+            {% endif %}
+
+            {% if request.user|puede:"becas.reportes.ver" %}
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'becas:reportes' %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'becas/reportes' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   title="Reportes"
+                   aria-label="Reportes"
+                   {% if 'becas/reportes' in pagina_actual %}aria-current="page"{% endif %}>
+                    <i class="fas fa-chart-column" aria-hidden="true"
+                       style="width:20px; text-align:center; color: {% if 'becas/reportes' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};"></i>
+                </a>
+            </template>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── Dispositivos (grupo colapsable) ─────────────────── #}
+        {% if puede_configurar_dispositivos or puede_ver_dispositivos %}
+        <div x-data="{ open: {% if 'dispositivos' in pagina_actual %}true{% else %}false{% endif %} }"
+             class="relative" style="margin-bottom: 2px;">
+
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-3 transition-colors duration-150"
+                            style="padding: 10px 14px; border-radius: 9999px; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: 500;
+                                   font-size: 13.5px; font-family: var(--font-sans); text-align: left;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="20" height="20" aria-hidden="true" class="flex-shrink-0"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
+                        </svg>
+                        <span class="flex-1">Dispositivos</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                             width="14" height="14" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform 150ms;"
+                             :style="open ? 'transform: rotate(180deg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        {% if puede_ver_dispositivos %}
+                        <a href="{% url 'dispositivos:lista' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}aria-current="page"{% endif %}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
+                            </svg>
+                            Legajos
+                        </a>
+                        {% endif %}
+                        {% if puede_configurar_dispositivos %}
+                        <a href="{% url 'dispositivos:tipos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150"
+                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
+                                  {% if 'dispositivos/config' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'dispositivos/config' in pagina_actual %}aria-current="page"{% endif %}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
+                                 style="color: {% if 'dispositivos/config' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M8.25 6.75h7.5m-7.5 3h7.5m-7.5 3h4.5M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z"/>
+                            </svg>
+                            Configuración
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="sidebarCollapsed">
+                <a href="{% if puede_ver_dispositivos %}{% url 'dispositivos:lista' %}{% else %}{% url 'dispositivos:tipos' %}{% endif %}"
+                   class="group flex items-center justify-center transition-colors duration-150"
+                   style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
+                          {% if 'dispositivos' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"
+                   title="Dispositivos"
+                   aria-label="Dispositivos">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                         width="20" height="20" aria-hidden="true"
+                         style="color: {% if 'dispositivos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
+                    </svg>
+                </a>
+            </template>
         </div>
         {% endif %}
 
         {# ── Administración (grupo colapsable) ────────────────── #}
-        {% if request.user|puede:"usuario.administrar" or request.user|puede:"rol.administrar" or request.user|puede:"programa.configurar" %}
+        {% if request.user|puede_abm_usuarios or request.user|puede_abm_roles %}
         <div x-data="{ open: {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -566,6 +688,7 @@
                     </button>
 
                     <div x-show="open" x-transition style="margin-top: 2px; margin-left: 20px; display: flex; flex-direction: column; gap: 2px;">
+                        {% if request.user|puede_abm_usuarios %}
                         <a href="{% url 'users:usuarios' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -580,6 +703,8 @@
                             </svg>
                             Usuarios
                         </a>
+                        {% endif %}
+                        {% if request.user|puede_abm_roles %}
                         <a href="{% url 'users:roles' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
@@ -594,12 +719,13 @@
                             </svg>
                             Roles
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% url 'users:usuarios' %}"
+                <a href="{% if request.user|puede_abm_usuarios %}{% url 'users:usuarios' %}{% else %}{% url 'users:roles' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'usuarios' in pagina_actual or 'roles' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"

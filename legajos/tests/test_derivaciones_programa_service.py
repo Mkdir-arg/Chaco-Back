@@ -1,10 +1,8 @@
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from core.models import Localidad, Municipio, Provincia
 from legajos.models import Ciudadano
-from legajos.models.nachec import CasoNachec, EstadoCaso, HistorialEstadoCaso, TareaNachec
 from legajos.services import DerivacionProgramaService
 from programas.models import DerivacionPrograma, Programa
 
@@ -34,9 +32,9 @@ class DerivacionProgramaServiceTests(TestCase):
             localidad=self.localidad,
         )
         self.programa = Programa.objects.create(
-            codigo="NAC-001",
-            nombre="Programa Ñachec",
-            tipo=Programa.TipoPrograma.NACHEC,
+            codigo="ACOMP-001",
+            nombre="Programa de Acompañamiento",
+            tipo=Programa.TipoPrograma.ACOMPANAMIENTO_SOCIAL,
             descripcion="Programa de asistencia",
             estado=Programa.Estado.ACTIVO,
         )
@@ -48,58 +46,16 @@ class DerivacionProgramaServiceTests(TestCase):
             derivado_por=self.user,
         )
 
-    def test_build_nachec_acceptance_context_detects_validations_and_duplicates(self):
-        CasoNachec.objects.create(
-            ciudadano_titular=self.ciudadano,
-            estado=EstadoCaso.EN_REVISION,
-            municipio="Resistencia",
-            localidad="Centro",
-            direccion="Calle 123",
-            fecha_derivacion="2026-03-13",
-            motivo_derivacion="Ingreso previo",
-        )
-
-        context = DerivacionProgramaService.build_nachec_acceptance_context(self.derivacion)
-
-        self.assertTrue(context["datos_completos"])
-        self.assertEqual(context["duplicados"].count(), 1)
-        self.assertTrue(context["validaciones"]["tiene_contacto"])
-
-    def test_accept_nachec_derivacion_creates_task_and_historial(self):
-        # El CasoNachec lo crea automáticamente el signal al generar la derivación
-        # (en setUp). El test debe operar sobre ese caso, no crear uno duplicado.
-        caso = CasoNachec.objects.get(ciudadano_titular=self.ciudadano)
-
-        result = DerivacionProgramaService.accept_nachec_derivacion(
+    def test_accept_derivacion_marks_derivacion_as_accepted(self):
+        result = DerivacionProgramaService.accept_derivacion(
             derivacion_id=self.derivacion.id,
             usuario=self.user,
-            payload={
-                "urgencia": "ALTA",
-                "tipo_atencion": "Territorial",
-                "comentario": "Priorizar revisión",
-            },
         )
 
         self.derivacion.refresh_from_db()
-        caso.refresh_from_db()
 
         self.assertEqual(result.status, "success")
         self.assertEqual(self.derivacion.estado, DerivacionPrograma.Estado.ACEPTADA)
-        self.assertEqual(caso.prioridad, "ALTA")
-        self.assertEqual(TareaNachec.objects.filter(caso=caso, tipo="VALIDACION").count(), 1)
-        self.assertEqual(HistorialEstadoCaso.objects.filter(caso=caso).count(), 1)
-
-    def test_accept_nachec_derivacion_requires_duplicate_justification(self):
-        with self.assertRaises(ValidationError):
-            DerivacionProgramaService.accept_nachec_derivacion(
-                derivacion_id=self.derivacion.id,
-                usuario=self.user,
-                payload={
-                    "tiene_duplicado": "true",
-                    "resolucion_duplicado": "justificar",
-                    "justificacion_duplicado": "",
-                },
-            )
 
     def test_reject_derivacion_marks_derivacion_as_rejected(self):
         result = DerivacionProgramaService.reject_derivacion(

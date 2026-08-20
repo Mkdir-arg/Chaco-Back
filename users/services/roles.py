@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
 from core import rbac
+from programas.models import AsignacionDispositivo
 from users.models import Capacidad, RolMeta
 
 
@@ -24,18 +25,34 @@ def _meta(group):
     return meta
 
 
+def _sincronizar_alcance_dispositivos(group, dispositivos):
+    """Mantiene las asignaciones activas del rol sin borrar su historial."""
+
+    ids = [dispositivo.pk for dispositivo in dispositivos]
+    asignaciones = AsignacionDispositivo.objects.filter(rol=group)
+    asignaciones.exclude(dispositivo_id__in=ids).update(activo=False)
+    for dispositivo_id in ids:
+        asignacion, _ = AsignacionDispositivo.objects.get_or_create(
+            rol=group,
+            dispositivo_id=dispositivo_id,
+        )
+        if not asignacion.activo:
+            asignacion.activo = True
+            asignacion.save(update_fields=["activo", "modificado"])
+
+
 def _programa_que_administra(group):
     """Programa que este rol administra hoy, o ``None``.
 
     Un rol "administra" un programa si es de categoría 'Programa', tiene
-    ``programa`` y la capacidad ``programa.configurar`` tildada. Se usa para el
-    check scoped de "programa sin administrador" (RN-8)."""
+    ``programa`` y alguna capacidad de ``rbac.CAPS_ADMIN_PROGRAMA`` tildada. Se
+    usa para el check scoped de "programa sin administrador" (RN-8)."""
     meta = getattr(group, "meta", None)
     if (
         meta
         and meta.categoria == rbac.CATEGORIA_PROGRAMA
         and meta.programa_id
-        and "programa.configurar" in rbac.capacidades_de_grupo(group)
+        and not set(rbac.CAPS_ADMIN_PROGRAMA).isdisjoint(rbac.capacidades_de_grupo(group))
     ):
         return meta.programa
     return None
@@ -56,6 +73,7 @@ class RolesAdminService:
             protegido=False,
         )
         _set_capacidades(group, cd.get("capacidades", []))
+        _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         return group
 
     @staticmethod
@@ -64,7 +82,7 @@ class RolesAdminService:
         if _meta(group).protegido:
             raise RolProtegidoError("El rol está protegido y no puede editarse.")
         # Programa que este rol administraba ANTES del cambio (puede quedar
-        # huérfano si la edición le saca programa.configurar o le cambia el programa).
+        # huérfano si la edición le saca la capacidad de administración o le cambia el programa).
         programa_previo = _programa_que_administra(group)
         cd = form.cleaned_data
         group.name = cd["name"]
@@ -75,6 +93,7 @@ class RolesAdminService:
         meta.programa = cd.get("programa")
         meta.save()
         _set_capacidades(group, cd.get("capacidades", []))
+        _sincronizar_alcance_dispositivos(group, cd.get("dispositivos_alcance", []))
         # Si la edición quitó usuario.administrar/rol.administrar y dejaría al
         # sistema sin admins, revierte la transacción.
         rbac.asegurar_admin_restante()
@@ -106,7 +125,7 @@ class RolesAdminService:
         programa_admin = _programa_que_administra(group)
         meta.activo = not meta.activo
         meta.save(update_fields=["activo"])
-        # Desactivar un rol de programa SÍ deja de otorgar programa.configurar:
+        # Desactivar un rol de programa SÍ deja de otorgar su capacidad de administración:
         # si era el último admin de ese programa, revierte.
         if not meta.activo and programa_admin is not None:
             rbac.asegurar_admin_restante(programa=programa_admin)

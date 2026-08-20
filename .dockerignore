@@ -22,3 +22,4 @@ Dockerfile*
 docker-compose*.yml
 nginx-selfsigned.crt
 nginx-selfsigned.key
+.tmp_*

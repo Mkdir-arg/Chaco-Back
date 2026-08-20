@@ -1,0 +1,24 @@
+# Cierre de vencidos de Becas — corrida diaria en icore-srv.
+# ---------------------------------------------------------------------------
+# El comando `procesar_vencimientos` es idempotente: cierra convocatorias cuya
+# fecha de fin ya pasó y manda a EN_REVISION los relevamientos abiertos de esas
+# convocatorias. Que corra dos veces o se saltee un día no rompe nada.
+#
+# Además corre en el arranque del contenedor `web` (LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS
+# en docker-compose.prod.yml), así que un deploy ya pone al día lo vencido; este
+# cron es la corrida periódica.
+#
+# INSTALACIÓN (una sola vez, en el host icore-srv, usuario `icore`):
+#   crontab -e     # y pegar la línea de abajo, junto a los crons ya existentes
+#                  # (generar_alertas / limpiar_alertas_conversaciones).
+#
+# Sigue el mismo patrón que esos crons: `docker exec chaco-web-1` + log en
+# ~/cron-chaco.log. NO usar `sudo su` (la sesión de docker/git es del usuario icore).
+#
+# ZONA HORARIA: el corte usa la hora Argentina de la app (localdate()), pero el
+# cron dispara en hora del HOST. Programalo bien pasada la medianoche ART.
+#
+# Requiere que el contenedor `chaco-web-1` esté arriba (lo está: restart: unless-stopped).
+
+# m h  dom mon dow   command
+10 3 * * * docker exec chaco-web-1 python manage.py procesar_vencimientos >> ~/cron-chaco.log 2>&1

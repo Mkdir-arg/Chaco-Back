@@ -69,14 +69,19 @@ def cerrar_alerta_ajax(request, alerta_id):
 
 @login_required
 def alertas_count_ajax(request):
-    """Obtiene el contador de alertas para el navbar"""
-    # Filtrar alertas por usuario
-    alertas_usuario = FiltrosUsuarioService.obtener_alertas_usuario(request.user)
+    """Obtiene el contador de alertas para el navbar (polled: cacheado 30 s)."""
+    from django.core.cache import cache
+    from django.db.models import Count, Q
 
-    count = alertas_usuario.count()
-    criticas = alertas_usuario.filter(prioridad="CRITICA").count()
+    def calcular():
+        alertas_usuario = FiltrosUsuarioService.obtener_alertas_usuario(request.user)
+        return alertas_usuario.aggregate(
+            count=Count("id"),
+            criticas=Count("id", filter=Q(prioridad="CRITICA")),
+        )
 
-    return JsonResponse({"count": count, "criticas": criticas})
+    data = cache.get_or_set(f"alertas_count:{request.user.id}", calcular, 30)
+    return JsonResponse(data)
 
 
 @login_required

@@ -10,7 +10,7 @@ from ..models import (
     Ciudadano,
     LegajoAtencion,
 )
-from ..models.contactos import HistorialContacto, VinculoFamiliar
+from ..models.contactos import HistorialContacto
 from .linking import get_legajos_queryset_for_ciudadano
 
 logger = logging.getLogger(__name__)
@@ -21,14 +21,16 @@ class AlertasService:
 
     @staticmethod
     def generar_alertas_ciudadano(ciudadano_id):
-        """Genera todas las alertas para un ciudadano específico."""
+        """Genera todas las alertas para un ciudadano específico.
+
+        Pensado para la señal de guardado y el comando periódico ``generar_alertas``,
+        NO para el request path de vistas de lectura.
+        """
         try:
             ciudadano = Ciudadano.objects.get(id=ciudadano_id)
             legajos = get_legajos_queryset_for_ciudadano(
                 ciudadano,
-                LegajoAtencion.objects.select_related("responsable").prefetch_related(
-                    "historial_contactos",
-                ),
+                LegajoAtencion.objects.select_related("responsable"),
             )
 
             AlertaCiudadano.objects.filter(
@@ -42,12 +44,19 @@ class AlertasService:
             for legajo in legajos:
                 alertas_generadas.extend(AlertasService._generar_alertas_legajo(legajo))
 
-            alertas_generadas.extend(AlertasService._generar_alertas_generales(ciudadano))
-
             return alertas_generadas
 
         except Exception as exc:
             logger.exception("Error generando alertas: %s", exc)
+            return []
+
+    @staticmethod
+    def generar_alertas_legajo(legajo):
+        """Regenera solo las alertas del legajo dado (para la señal post_save)."""
+        try:
+            return AlertasService._generar_alertas_legajo(legajo)
+        except Exception as exc:
+            logger.exception("Error generando alertas del legajo: %s", exc)
             return []
 
     @staticmethod
@@ -124,29 +133,6 @@ class AlertasService:
                     "CONTACTOS_FALLIDOS",
                     "MEDIA",
                     f"{contactos_fallidos} contactos fallidos en el último mes",
-                )
-            )
-
-        return alertas
-
-    @staticmethod
-    def _generar_alertas_generales(ciudadano):
-        """Genera alertas generales del ciudadano."""
-        alertas = []
-
-        vinculos = VinculoFamiliar.objects.filter(
-            ciudadano_principal=ciudadano,
-            activo=True,
-        ).count()
-
-        if vinculos == 0:
-            alertas.append(
-                AlertasService._crear_alerta(
-                    ciudadano,
-                    None,
-                    "SIN_RED_FAMILIAR",
-                    "BAJA",
-                    "Sin vínculos familiares registrados",
                 )
             )
 

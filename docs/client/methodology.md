@@ -96,7 +96,7 @@ El equipo utiliza **dos plataformas** como eje de gestión y documentación del 
 
 === ":material-github: GitHub Pages — documentación pública"
 
-    **URL:** [mkdir-arg.github.io/Chaco](https://mkdir-arg.github.io/Chaco/)
+    **URL:** [mkdir-arg.github.io/Chaco-Back](https://mkdir-arg.github.io/Chaco-Back/)
 
     Punto de acceso centralizado para toda la documentación del equipo. Accesible para todos los integrantes del proyecto (equipo y cliente con acceso).
 

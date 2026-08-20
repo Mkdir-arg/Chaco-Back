@@ -29,9 +29,11 @@ urlpatterns = [
     path("conversaciones/", include("conversaciones.urls")),
     path("portal/", include("portal.urls")),
     path("becas/", include("programas.urls")),
+    path("dispositivos/", include("programas.dispositivos_urls")),
+    path("merenderos/", include("programas.merenderos_urls")),
     # Root paths last
-    path("", include("django.contrib.auth.urls")),
     path("", include(("users.urls", "users"), namespace="users")),
+    path("", include("django.contrib.auth.urls")),
     path("", include(("core.urls", "core"), namespace="core")),
     path("", include("dashboard.urls")),
     path("", include(("healthcheck.urls", "healthcheck"), namespace="healthcheck")),
@@ -59,5 +61,15 @@ if settings.DEBUG:
 
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Las dos líneas de arriba solo actúan con DEBUG. En un ambiente servido sin nginx
+# adelante (Kubernetes), SERVE_MEDIA=True hace que la app sirva los archivos
+# subidos; los estáticos ya los sirve whitenoise sin ruta extra.
+if settings.SERVE_MEDIA:
+    from django.views.static import serve as _media_serve
+
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", _media_serve, {"document_root": settings.MEDIA_ROOT}),
+    ]
 
 handler500 = "config.views.server_error"

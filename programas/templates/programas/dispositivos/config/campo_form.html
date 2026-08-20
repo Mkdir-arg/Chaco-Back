@@ -1,0 +1,39 @@
+{% extends "includes/base.html" %}
+{% block title %}Dispositivos · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} campo{% endblock %}
+
+{% block main-content %}
+<div class="max-w-3xl mx-auto">
+  <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver a {{ tipo.nombre }}</a>
+  <div class="mt-4 mb-6">
+    <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">{{ tipo.nombre }}</p>
+    <h1 class="text-3xl font-extrabold text-heading tracking-tight">
+      {% if form.instance.pk %}Editar campo{% else %}Agregar campo{% endif %}
+    </h1>
+  </div>
+
+  <form method="post" class="rounded-xl border border-base shadow-sm p-6 space-y-5" style="background:var(--bg-primary)" data-campo-form>
+    {% csrf_token %}
+    {% include "programas/dispositivos/config/_campo_form_fields.html" %}
+    <div class="flex justify-end gap-3 pt-4 border-t border-light">
+      <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar campo</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block customJS %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.querySelector('[data-campo-form]');
+  if (!form) return;
+  const tipo = form.querySelector('[name=tipo_campo]');
+  const opciones = form.querySelector('[data-opciones]');
+  const actualizar = () => {
+    opciones.hidden = !['SELECTOR', 'SELECTOR_MULTIPLE'].includes(tipo.value);
+  };
+  tipo.addEventListener('change', actualizar);
+  actualizar();
+});
+</script>
+{% endblock %}

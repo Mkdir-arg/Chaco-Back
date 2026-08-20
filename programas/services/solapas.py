@@ -1,9 +1,10 @@
 import re
 import unicodedata
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
+from django.urls import reverse
 
-from ..models import DerivacionPrograma, InscripcionPrograma, Programa
+from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
 
 
 class SolapasService:
@@ -26,7 +27,7 @@ class SolapasService:
     ]
 
     @classmethod
-    def obtener_solapas_ciudadano(cls, ciudadano):
+    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None):
         solapas = [dict(s) for s in cls.SOLAPAS_ESTATICAS]
 
         inscripciones_activas = (
@@ -34,29 +35,40 @@ class SolapasService:
                 ciudadano=ciudadano,
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"],
             )
-            .select_related("programa")
+            .select_related("programa", "responsable")
+            .annotate(
+                tiene_admision_alojada=Exists(
+                    Admision.objects.filter(
+                        inscripcion_programa_id=OuterRef("pk"),
+                        estado=Admision.Estado.ALOJADO,
+                    )
+                )
+            )
             .order_by("programa__orden")
         )
 
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
+            if tipo_normalizado == "DISPOSITIVOS" and not inscripcion.tiene_admision_alojada:
+                continue
+            url_name = cls._obtener_url_programa(tipo_normalizado)
+            url_params = {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id}
             solapas.append(
                 {
                     "id": f"programa_{tipo_normalizado}",
                     "nombre": programa.nombre,
                     "icono": programa.icono or "star",
                     "color": programa.color,
-                    "url_name": cls._obtener_url_programa(tipo_normalizado),
-                    "url_params": {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id},
+                    "url_name": url_name,
+                    "url_params": url_params,
+                    "url": reverse(url_name, kwargs=url_params) if tipo_normalizado == "DISPOSITIVOS" else None,
                     "orden": 100 + programa.orden,
                     "estatica": False,
                     "programa": programa,
                     "inscripcion": inscripcion,
                     "badge": cls._obtener_badge_programa(inscripcion),
-                    # NACHEC tiene contenido dedicado (ciudadano_nachec_detail.html) en vez
-                    # del bloque genérico de programa: el template la excluye de ese loop.
-                    "contenido_embebido": tipo_normalizado == "NACHEC",
+                    "contenido_embebido": False,
                 }
             )
 
@@ -67,7 +79,7 @@ class SolapasService:
                 s = {**s, "badge": badges[s["id"]]}
             solapas_final.append(s)
 
-        solapa_becas = cls._obtener_solapa_becas(ciudadano)
+        solapa_becas = cls._obtener_solapa_becas(ciudadano, resumen_becas=resumen_becas)
         if solapa_becas:
             solapas_final.append(solapa_becas)
 
@@ -186,8 +198,8 @@ class SolapasService:
     @classmethod
     def _obtener_url_programa(cls, tipo_programa):
         url_map = {
+            "DISPOSITIVOS": "legajos:dispositivos_ciudadano",
             "ACOMPANAMIENTO_SOCIAL": "legajos:programa_detalle",
-            "NACHEC": "nachec:detalle_caso_ciudadano",
             "ECONOMICO": "programas:economico_detalle",
             "FAMILIAR": "programas:familiar_detalle",
         }
@@ -196,30 +208,33 @@ class SolapasService:
     @classmethod
     def _normalizar_tipo_programa(cls, tipo_programa):
         valor = (tipo_programa or "").upper().strip()
-        if "NACHEC" in valor or "ÑACHEC" in valor or "ACHEC" in valor:
-            return "NACHEC"
         ascii_valor = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
         ascii_valor = re.sub(r"[^A-Z0-9]+", "_", ascii_valor).strip("_")
         return ascii_valor or "PROGRAMA"
 
     @classmethod
-    def _obtener_solapa_becas(cls, ciudadano):
+    def _obtener_solapa_becas(cls, ciudadano, resumen_becas=None):
         """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
 
         Sin 'url': se renderiza embebida en el legajo (tab-becas), igual que Resumen
         o Conversaciones, en vez de redirigir a la página standalone.
         """
-        from programas.models import Formulario, ListaEspera
-        from programas.services.cupo import estado_relevante_becas
+        if resumen_becas is None:
+            from programas.models import Formulario, ListaEspera
+            from programas.services.cupo import estado_relevante_becas
 
-        formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
-        estados = set(formularios_qs.values_list("estado", flat=True))
-        if not estados:
-            return None
+            formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
+            estados = set(formularios_qs.values_list("estado", flat=True))
+            if not estados:
+                return None
 
-        en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
-
-        texto, color = estado_relevante_becas(estados, en_espera)
+            en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
+            texto, color = estado_relevante_becas(estados, en_espera)
+        else:
+            if not resumen_becas["formularios"]:
+                return None
+            texto = resumen_becas["estado_texto"]
+            color = resumen_becas["estado_color"]
         color_hex = {
             "success": "var(--text-fg-success)",
             "warning": "var(--text-fg-warning)",

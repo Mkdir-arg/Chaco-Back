@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -38,10 +39,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["actividad_hoy"] = context["seguimientos_hoy"]
 
         hace_24h = timezone.now() - timedelta(hours=24)
-        context["usuarios_activos"] = User.objects.filter(last_login__gte=hace_24h).count()
+        # Mismas claves que inicio_view (core/views/public.py): cache compartido.
+        context["usuarios_activos"] = cache.get_or_set(
+            "home:usuarios_activos_24h",
+            lambda: User.objects.filter(last_login__gte=hace_24h).count(),
+            300,
+        )
 
         hoy = timezone.now().date()
         inicio_mes = hoy.replace(day=1)
-        context["registros_mes"] = InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count()
+        context["registros_mes"] = cache.get_or_set(
+            "home:inscripciones_mes",
+            lambda: InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
+            300,
+        )
 
         return context

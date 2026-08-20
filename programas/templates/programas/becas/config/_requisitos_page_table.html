@@ -1,3 +1,4 @@
+{% load rbac %}
 {% if requisitos %}
 <div class="overflow-x-auto">
   <table class="w-full border-collapse">
@@ -15,7 +16,8 @@
         <td class="px-4 py-[13px] text-sm border-t border-light">
           <p class="text-heading font-medium">{{ req.texto }}</p>
           <p class="text-xs text-body-subtle mt-0.5">
-            {{ req.segmento.nombre }}{% if req.subsegmento %} / {{ req.subsegmento.nombre }}{% endif %}
+            {% if req.segmento %}{{ req.segmento.nombre }}{% if req.subsegmento %} / {{ req.subsegmento.nombre }}{% endif %}
+            {% else %}Programa: {{ req.programa.nombre }}{% endif %}
           </p>
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light">
@@ -30,6 +32,7 @@
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light text-right">
           <div class="flex items-center justify-end gap-2">
+            {% if request.user|puede:"becas.requisito.editar" %}
             <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
               @click="openEdit(
                 '{% url 'becas:requisito_editar' req.pk %}',
@@ -46,6 +49,7 @@
                     data-confirm-title="¿Eliminar requisito?" data-confirm-text="{{ req.texto }}" data-confirm-ok="Sí, eliminar">
               <i class="fas fa-trash"></i>
             </button>
+            {% endif %}
           </div>
         </td>
       </tr>

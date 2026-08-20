@@ -1,0 +1,27 @@
+stages:
+  - build
+
+build:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_BASE: $ONPREM_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_COMMIT_REF_NAME
+  services:
+    - name: docker:dind
+      alias: docker
+      command: ["--tls=false"]
+  before_script:
+    - docker login -u ${ONPREM_ACCOUNT} -p ${ONPREM_PASSWORD} ${ONPREM_REGISTRY}
+  script:
+    - DOCKER_BUILDKIT=1 docker build -t ${IMAGE_BASE}:latest .
+    - docker push ${IMAGE_BASE}:latest
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "test" || $CI_COMMIT_REF_NAME == "main"'
+      when: always
+
+default:
+  tags:
+    - global_runner

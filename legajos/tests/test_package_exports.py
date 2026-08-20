@@ -13,10 +13,6 @@ class LegajosPackageExportsTests(SimpleTestCase):
             ContactosFilesError,
             DerivacionProgramaService,
             FiltrosUsuarioService,
-            ServicioDeteccionDuplicados,
-            ServicioOperacionNachec,
-            ServicioSLA,
-            ServicioTransicionNachec,
             SolapasService,
         )
 
@@ -29,10 +25,6 @@ class LegajosPackageExportsTests(SimpleTestCase):
             DerivacionProgramaService,
             FiltrosUsuarioService,
             HistorialContactoViewSet,
-            ServicioOperacionNachec,
-            ServicioDeteccionDuplicados,
-            ServicioSLA,
-            ServicioTransicionNachec,
             SolapasService,
             ContactosFilesError,
         ):

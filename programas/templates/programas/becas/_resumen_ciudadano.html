@@ -1,4 +1,4 @@
-{# Resumen de Becas de un ciudadano: stat cards + tabla de formularios + card Resultado SIS. #}
+{# Resumen de Becas de un ciudadano: stat cards + tabla de formularios + card Resultado SIIS. #}
 {# Reusado por la página standalone (ciudadano_detalle.html) y por la tab embebida del legajo. #}
 {# Espera en contexto: formularios, estado_texto, estado_color, segmento_nombre, fecha_envio. #}
 
@@ -107,7 +107,7 @@
           </td>
           <td style="padding:13px 16px;">
             <a href="{% url 'becas:formulario_detalle' formulario.pk %}"
-               aria-label="Ver formulario #{{ formulario.pk }}"
+               aria-label="Ver formulario {{ formulario.numero }}"
                style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--radius-full); color:var(--text-fg-brand); transition:background 150ms;"
                onmouseover="this.style.background='var(--bg-brand-tint)'"
                onmouseout="this.style.background=''">
@@ -138,13 +138,13 @@
   </div>
 </div>
 
-{# Card placeholder Resultado SIS #}
+{# Card placeholder Resultado SIIS #}
 <div style="background:var(--bg-secondary); border:1px solid var(--border-base); border-radius:var(--radius-xl); padding:16px; margin-top:24px;">
-  <h3 style="font-size:14px; font-weight:700; color:var(--text-heading); margin-bottom:8px;">Resultado SIS</h3>
+  <h3 style="font-size:14px; font-weight:700; color:var(--text-heading); margin-bottom:8px;">Resultado SIIS</h3>
   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-    <span class="badge badge-gray">Pendiente de integración SIS</span>
+    <span class="badge badge-gray">Pendiente de integración SIIS</span>
     <p style="font-size:12px; color:var(--text-body-subtle); margin:0;">
-      La validación contra el padrón SIS estará disponible en la próxima iteración.
+      La validación contra el padrón SIIS estará disponible en la próxima iteración.
     </p>
   </div>
 </div>

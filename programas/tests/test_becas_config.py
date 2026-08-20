@@ -1,16 +1,25 @@
 """Tests del backoffice de Configuración de Becas (#74)."""
 
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
+from django.db.models import Max
 from django.test import TestCase
 from django.urls import reverse
 
+from programas.forms import (
+    AsignacionCoordinadorForm,
+    PreguntaGlobalForm,
+    RequisitoNativoForm,
+    SubsegmentoForm,
+)
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     AsignacionCoordinador,
     PreguntaGlobal,
+    ProgramaSiis,
     RequisitoNativo,
     Segmento,
     Subsegmento,
@@ -73,27 +82,113 @@ class AccesoConfigTests(_BaseConfigTest):
         resp = self.client.get(reverse("becas:segmentos"))
         self.assertEqual(resp.status_code, 302)
 
+    def test_sin_permiso_via_ajax_devuelve_403_json(self):
+        # Los modales postean por fetch: sin capacidad, la respuesta debe ser
+        # JSON 403 con el motivo real (no el redirect que el toast muestra como
+        # "Ocurrió un error").
+        seg = Segmento.objects.create(nombre="S-ajax", cupo_maximo=100)
+        AsignacionCoordinador.objects.create(segmento=seg, coordinador=self.coord)
+        self.client.force_login(self.coord)
+        resp = self.client.post(
+            reverse("becas:subsegmento_crear", args=[seg.pk]),
+            {"nombre": "Sub", "cupo_maximo": 10},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 403)
+        data = resp.json()
+        self.assertFalse(data["ok"])
+        self.assertIn("permisos", data["message"])
+
+    def test_sin_permiso_sin_ajax_sigue_redirigiendo(self):
+        seg = Segmento.objects.create(nombre="S-redir", cupo_maximo=100)
+        AsignacionCoordinador.objects.create(segmento=seg, coordinador=self.coord)
+        self.client.force_login(self.coord)
+        resp = self.client.post(
+            reverse("becas:subsegmento_crear", args=[seg.pk]),
+            {"nombre": "Sub", "cupo_maximo": 10},
+        )
+        self.assertEqual(resp.status_code, 302)  # comportamiento histórico con mensaje
+
+
+class ProgramaSiisConfigTests(_BaseConfigTest):
+    """CRUD del nivel Programa (SIIS): la cabeza de Programa → Segmento → Subsegmento."""
+
+    def setUp(self):
+        super().setUp()
+        self.programas_siis = patch(
+            "programas.forms.listar_programas", return_value=[{"id": 38, "nombre": "Producción", "estado": "ACTIVO"}]
+        )
+        self.programas_siis.start()
+        self.addCleanup(self.programas_siis.stop)
+        self.client.force_login(self.admin)
+
+    def test_listado_accesible(self):
+        resp = self.client.get(reverse("becas:programas"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_crear_programa_desde_el_catalogo(self):
+        resp = self.client.post(reverse("becas:programa_crear"), {"siis_programa_id": 38})
+        self.assertEqual(resp.status_code, 302)
+        programa = ProgramaSiis.objects.get(siis_programa_id=38)
+        # El nombre se toma tal cual del catálogo.
+        self.assertEqual(programa.nombre, "Producción")
+
+    def test_detalle_del_programa(self):
+        programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
+        Segmento.objects.create(programa=programa, nombre="Seg A", cupo_maximo=10)
+        resp = self.client.get(reverse("becas:programa_detalle", args=[programa.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual([s.nombre for s in resp.context["segmentos"]], ["Seg A"])
+
+    def test_crear_requisito_de_programa(self):
+        programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
+        resp = self.client.post(
+            reverse("becas:requisito_programa_crear", args=[programa.pk]),
+            {"texto": "Constancia", "tipo": TipoCampo.STRING, "orden": 1, "obligatorio": "True"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        req = RequisitoNativo.objects.get(texto="Constancia")
+        self.assertEqual(req.programa, programa)
+        self.assertIsNone(req.segmento)
+
 
 class SegmentoCrudTests(_BaseConfigTest):
     def setUp(self):
         super().setUp()
+        self.programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
         self.client.force_login(self.admin)
 
     def test_crear_segmento(self):
         resp = self.client.post(
             reverse("becas:segmento_crear"),
             {
-                "nombre": "Producción",
+                "programa": self.programa.pk,
+                "nombre": "Producción Territorial",
                 "descripcion": "Población objetivo del segmento productivo",
                 "cupo_maximo": 200,
                 "coordinador": self.coord.pk,
             },
         )
         self.assertEqual(resp.status_code, 302)
-        self.assertTrue(Segmento.objects.filter(nombre="Producción", cupo_maximo=200).exists())
+        seg = Segmento.objects.get(nombre="Producción Territorial")
+        self.assertEqual(seg.cupo_maximo, 200)
+        self.assertEqual(seg.programa, self.programa)
+
+    def test_crear_segmento_sin_programa_falla(self):
+        resp = self.client.post(
+            reverse("becas:segmento_crear"),
+            {
+                "nombre": "Suelto",
+                "descripcion": "Sin programa",
+                "cupo_maximo": 200,
+                "coordinador": self.coord.pk,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)  # re-render con error
+        self.assertFalse(Segmento.objects.filter(nombre="Suelto").exists())
 
     def test_editar_segmento(self):
-        seg = Segmento.objects.create(nombre="S1", cupo_maximo=100)
+        seg = Segmento.objects.create(programa=self.programa, nombre="S1", cupo_maximo=100)
         resp = self.client.post(
             reverse("becas:segmento_editar", args=[seg.pk]),
             {"nombre": "S1 editado", "descripcion": "", "cupo_maximo": 150, "activo": "on"},
@@ -117,12 +212,22 @@ class SubsegmentoCupoTests(_BaseConfigTest):
         self.seg = Segmento.objects.create(nombre="S", cupo_maximo=200)
 
     def test_crear_subsegmento_ok(self):
+        """El nombre lo escribe el operador: el subsegmento no consulta a SIIS."""
         resp = self.client.post(
             reverse("becas:subsegmento_crear", args=[self.seg.pk]),
             {"nombre": "Ladrillo", "cupo_maximo": 120},
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Subsegmento.objects.filter(segmento=self.seg, nombre="Ladrillo").exists())
+
+    def test_no_permite_dos_subsegmentos_con_el_mismo_nombre(self):
+        """Se valida sobre el form (no vía HTTP) para no depender del render."""
+        Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=50)
+
+        form = SubsegmentoForm({"nombre": "ladrillo", "cupo_maximo": 50}, segmento=self.seg)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("nombre", form.errors)
 
     def test_subsegmento_excede_cupo_rn40(self):
         Subsegmento.objects.create(segmento=self.seg, nombre="Ladrillo", cupo_maximo=120)
@@ -148,6 +253,32 @@ class CoordinadorTests(_BaseConfigTest):
         )
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(AsignacionCoordinador.objects.filter(segmento=self.seg, coordinador=self.coord).exists())
+
+    def test_selector_excluye_coordinadores_ya_asignados(self):
+        disponible = User.objects.create_user("coord_disponible", password="x")
+        disponible.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        AsignacionCoordinador.objects.create(segmento=self.seg, coordinador=self.coord)
+
+        form = AsignacionCoordinadorForm(segmento=self.seg)
+        opciones = form.fields["coordinador"].queryset
+
+        self.assertNotIn(self.coord, opciones)
+        self.assertIn(disponible, opciones)
+
+        form_duplicado = AsignacionCoordinadorForm(
+            {"coordinador": self.coord.pk},
+            segmento=self.seg,
+        )
+
+        self.assertFalse(form_duplicado.is_valid())
+        self.assertIn(
+            "Ese coordinador ya está asignado a este segmento.",
+            form_duplicado.errors["coordinador"],
+        )
+        self.assertEqual(
+            AsignacionCoordinador.objects.filter(segmento=self.seg, coordinador=self.coord).count(),
+            1,
+        )
 
     def test_no_asignar_usuario_sin_rol_coordinador(self):
         otro = User.objects.create_user("otro", password="x")  # sin rol coordinador
@@ -243,3 +374,141 @@ class PreguntaGlobalTests(_BaseConfigTest):
         p = PreguntaGlobal.objects.create(texto="X", tipo=TipoCampo.STRING)
         self.client.post(reverse("becas:pregunta_eliminar", args=[p.pk]))
         self.assertFalse(PreguntaGlobal.objects.filter(pk=p.pk).exists())
+
+    def test_filtra_preguntas_con_componente_dinamico(self):
+        esperada = PreguntaGlobal.objects.create(
+            texto="Fecha de inscripción", tipo=TipoCampo.DATE, obligatorio=True, activo=True
+        )
+        PreguntaGlobal.objects.create(texto="Observaciones", tipo=TipoCampo.STRING, obligatorio=False, activo=True)
+        respuesta = self.client.get(
+            reverse("becas:preguntas"),
+            {"q": "Fecha", "tipo": TipoCampo.DATE, "obligatorio": "1", "activo": "1"},
+        )
+        self.assertEqual(list(respuesta.context["preguntas"]), [esperada])
+        self.assertContains(respuesta, "data-dynamic-list-filters")
+        self.assertTrue(respuesta.context["hay_filtros_activos"])
+
+
+class OrdenRequisitosTests(_BaseConfigTest):
+    """El orden se puede escribir o dejar vacío (autonumera), pero no se repite
+    entre requisitos del mismo alcance."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.seg = Segmento.objects.create(nombre="S", cupo_maximo=100)
+        self.sub = Subsegmento.objects.create(segmento=self.seg, nombre="Sub", cupo_maximo=40)
+
+    def _crear_requisito(self, texto, orden="", subsegmento=None):
+        url = reverse("becas:requisito_crear", args=[self.seg.pk])
+        datos = {"texto": texto, "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": orden}
+        if subsegmento is not None:
+            url += f"?subsegmento={subsegmento.pk}"
+            datos["subsegmento"] = subsegmento.pk
+        return self.client.post(url, datos)
+
+    def test_autonumera_correlativo_cuando_el_orden_viene_vacio(self):
+        self._crear_requisito("Primero")
+        self._crear_requisito("Segundo")
+        self.assertEqual(RequisitoNativo.objects.get(texto="Primero").orden, 1)
+        self.assertEqual(RequisitoNativo.objects.get(texto="Segundo").orden, 2)
+
+    def test_autonumera_despues_del_orden_mas_alto_cargado_a_mano(self):
+        self._crear_requisito("Manual", orden=7)
+        self._crear_requisito("Automatico")
+        self.assertEqual(RequisitoNativo.objects.get(texto="Automatico").orden, 8)
+
+    def test_rechaza_dos_requisitos_con_el_mismo_orden_en_el_segmento(self):
+        self._crear_requisito("Primero", orden=3)
+        form = RequisitoNativoForm(
+            {"texto": "Repetido", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 3},
+            segmento=self.seg,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("orden 3", form.errors["orden"][0])
+        self.assertIn("segmento", form.errors["orden"][0])
+
+    def test_rechaza_dos_requisitos_con_el_mismo_orden_en_el_subsegmento(self):
+        self._crear_requisito("Propio", orden=2, subsegmento=self.sub)
+        form = RequisitoNativoForm(
+            {"texto": "Repetido", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 2},
+            segmento=self.seg,
+            subsegmento=self.sub,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("subsegmento", form.errors["orden"][0])
+
+    def test_el_orden_del_subsegmento_es_independiente_del_segmento(self):
+        # Cada alcance numera por su cuenta: el requisito propio del
+        # subsegmento puede repetir el orden de uno heredado del segmento.
+        self._crear_requisito("Del segmento", orden=1)
+        self._crear_requisito("Del subsegmento", orden=1, subsegmento=self.sub)
+        propio = RequisitoNativo.objects.get(texto="Del subsegmento")
+        self.assertEqual(propio.orden, 1)
+        self.assertEqual(propio.subsegmento, self.sub)
+
+    def test_autonumera_el_subsegmento_desde_su_propia_numeracion(self):
+        self._crear_requisito("Del segmento", orden=9)
+        self._crear_requisito("Del subsegmento", subsegmento=self.sub)
+        self.assertEqual(RequisitoNativo.objects.get(texto="Del subsegmento").orden, 1)
+
+    def test_editar_sin_tocar_el_orden_no_choca_consigo_mismo(self):
+        self._crear_requisito("Original", orden=4)
+        req = RequisitoNativo.objects.get(texto="Original")
+        resp = self.client.post(
+            reverse("becas:requisito_editar", args=[req.pk]),
+            {"texto": "Renombrado", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 4},
+        )
+        self.assertEqual(resp.status_code, 302)
+        req.refresh_from_db()
+        self.assertEqual((req.texto, req.orden), ("Renombrado", 4))
+
+    def test_editar_hacia_un_orden_ocupado_se_rechaza(self):
+        self._crear_requisito("Primero", orden=1)
+        self._crear_requisito("Segundo", orden=2)
+        segundo = RequisitoNativo.objects.get(texto="Segundo")
+        form = RequisitoNativoForm(
+            {"texto": "Segundo", "tipo": TipoCampo.STRING, "obligatorio": "True", "orden": 1},
+            instance=segundo,
+            segmento=self.seg,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("orden 1", form.errors["orden"][0])
+
+
+class OrdenPreguntasGlobalesTests(_BaseConfigTest):
+    """Mismo contrato de orden para los requisitos generales."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+
+    def _crear_pregunta(self, texto, orden=""):
+        return self.client.post(
+            reverse("becas:pregunta_crear"),
+            {"texto": texto, "tipo": TipoCampo.STRING, "orden": orden, "obligatorio": "on", "activo": "on"},
+        )
+
+    def test_autonumera_cuando_el_orden_viene_vacio(self):
+        tope = PreguntaGlobal.objects.aggregate(m=Max("orden"))["m"]
+        self._crear_pregunta("Nueva")
+        self.assertEqual(PreguntaGlobal.objects.get(texto="Nueva").orden, tope + 1)
+
+    def test_rechaza_dos_preguntas_con_el_mismo_orden(self):
+        self._crear_pregunta("Primera", orden=3)
+        form = PreguntaGlobalForm(
+            {"texto": "Repetida", "tipo": TipoCampo.STRING, "orden": 3, "obligatorio": "on", "activo": "on"}
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("orden 3", form.errors["orden"][0])
+
+    def test_editar_sin_tocar_el_orden_no_choca_consigo_mismo(self):
+        self._crear_pregunta("Original", orden=3)
+        pregunta = PreguntaGlobal.objects.get(texto="Original")
+        resp = self.client.post(
+            reverse("becas:pregunta_editar", args=[pregunta.pk]),
+            {"texto": "Renombrada", "tipo": TipoCampo.STRING, "orden": 3, "obligatorio": "on", "activo": "on"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        pregunta.refresh_from_db()
+        self.assertEqual((pregunta.texto, pregunta.orden), ("Renombrada", 3))

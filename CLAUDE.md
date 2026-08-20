@@ -15,9 +15,13 @@ Trabajar code-first.
 
 1. Leer este archivo.
 2. Entender el pedido actual del usuario.
-3. Inspeccionar el código real afectado.
-4. Diseñar o implementar con cambios mínimos y verificables.
-5. Validar con `manage.py check`, tests o revisión de templates según corresponda.
+3. **Consultar el archivo vivo de requerimientos** por etiqueta, para no rehacer ni
+   contradecir una decisión ya tomada (ver más abajo). Se consulta por índice, nunca
+   leyéndolo entero.
+4. Inspeccionar el código real afectado.
+5. Diseñar o implementar con cambios mínimos y verificables.
+6. Validar con `manage.py check`, tests o revisión de templates según corresponda.
+7. **Registrar el requerimiento en `docs/internal/requerimientos.md`** (ver más abajo). Sin ese paso el desarrollo no está terminado.
 
 ## Convenciones de implementación
 
@@ -31,24 +35,50 @@ Trabajar code-first.
 - Confirmaciones destructivas: SweetAlert2 o modal equivalente, nunca `confirm()` nativo.
 - Mantener cambios pequeños, consistentes y fáciles de validar.
 
+## Regla de oro: el archivo vivo de requerimientos
+
+[`docs/internal/requerimientos.md`](docs/internal/requerimientos.md) **se consulta al
+iniciar un requerimiento y se escribe al terminarlo.** Las dos mitades son obligatorias.
+
+**Al iniciar** — el archivo crece sin parar, así que no se lee entero: se consulta con
+[`scripts/requerimientos.py`](scripts/requerimientos.py), que lo indexa por etiquetas y
+devuelve solo lo pedido.
+
+```powershell
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --tag rbac      # qué se decidió sobre el tema
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --buscar "cupo" # dónde se habló de algo
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --ver 24        # una entrada completa
+```
+
+Se leen las entradas del tema —sobre todo **Decisiones tomadas**, **Pendientes** e
+**Historial**— antes de diseñar. Si lo que se va a hacer contradice algo registrado, se
+dice antes de implementar.
+
+**Al terminar** — se agrega la entrada nueva y su fila en el índice. Es condición de
+cierre junto con `manage.py check` y la auditoría de diseño, y se verifica con
+`scripts\requerimientos.py --check` (tiene que dar OK).
+
+La regla completa, la plantilla obligatoria, el vocabulario de etiquetas y el índice
+viven **en ese archivo**; no se duplica su contenido acá.
+
 ## Diseño / UI (nuevo sistema de diseño)
 
-El proyecto migra su UI a un sistema de diseño nuevo, **calcado del kit** en
-[`docs/design-kb/`](docs/design-kb/) (la app de referencia `Programa Becas - Chaco NODO.html`,
-los `tokens/*.css` y los `components/**/*.jsx`). Tokens reales del proyecto en
-`static/custom/css/chaco-tokens.css`; clases en `nodo-buttons.css` / `nodo-badges.css`.
+El frontend productivo es la evidencia que prevalece para toda decisión de UI.
+`docs/design-kb/` conserva assets, prototipos y antecedentes; no autoriza a cambiar
+el producto para calcarlo. Los tokens y componentes cargados se relevan desde el
+código y se inventarían en el agente canónico.
 
-Para cualquier trabajo de UI usá los **dos agentes** (en `.claude/agents/`):
+Para cualquier trabajo de UI, leé `AGENTS.md` y usá los agentes de
+`.claude/agents/`:
 
-- **`chaco-design-reviewer`** — el **canon** del diseño (valores exactos de tokens,
-  componentes, patrones de pantalla, login, sidebar, dark mode, contenido es-AR).
-  Usalo para **auditar/corregir** un template contra el sistema. Es la fuente de verdad.
+- **`.claude/agents/chaco-design-system.md`** — fuente operativa única de diseño e
+  inventario. Se contrasta contra el código antes de cada cambio.
 - **`chaco-frontend`** — **desarrollo y migración** (con `Write`): construir una pantalla
-  nueva o migrar/ajustar una vieja al diseño nuevo. Hereda el canon del revisor y suma la
-  arquitectura Django del repo + metodología + auto-revisión + "gotchas" del repo.
+  nueva o ajustar una existente, preservando contratos Django.
+- **`chaco-design-reviewer`** — revisión de UI contra el código y el agente canónico.
 
-Regla de oro: **cero hex hardcodeado** (todo por token), **Manrope** única, accesibilidad
-primero. Al tocar UI, dejá que el agente lea su canon (no repitas las reglas a mano).
+Al tocar UI, no repitas reglas visuales ni adoptes valores desde materiales históricos:
+seguí el inventario y la reconciliación de `.claude/agents/chaco-design-system.md`.
 
 **Auditoría mecánica compartida:** `scripts/design_audit.py` es la fuente única de los
 chequeos de adherencia (hex, fuentes legacy, `confirm()`, gradientes legacy, etc.).
@@ -107,3 +137,9 @@ Todos los agentes (Analista, QA, PM Assistant) usan el **MCP de GitHub**
 Project #1 de `Mkdir-arg` (https://github.com/users/Mkdir-arg/projects/1/),
 con fallback a la CLI `gh`. Las escrituras estructuradas al Project usan la
 receta `gh` de `AGENTS.md`.
+
+## Ramas y releases
+
+`development` es la rama de trabajo y la rama por defecto. `main` es una release
+generada automáticamente y no se toca a mano. Las exclusiones están en
+`.gitattributes`; el detalle operativo vive en `docs/internal/branching.md`.

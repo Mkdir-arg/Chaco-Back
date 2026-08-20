@@ -16,18 +16,9 @@ class AsignadorAutomatico:
     def obtener_operador_disponible():
         """Obtiene el operador más adecuado para asignar una conversación (solo operadores logueados)"""
         try:
-            from django.contrib.sessions.models import Session
-            from django.utils import timezone
+            from ..presencia import usuarios_logueados as get_usuarios_logueados
 
-            # Obtener usuarios actualmente logueados
-            sesiones_activas = Session.objects.filter(expire_date__gte=timezone.now())
-            usuarios_logueados = []
-
-            for sesion in sesiones_activas:
-                data = sesion.get_decoded()
-                user_id = data.get("_auth_user_id")
-                if user_id:
-                    usuarios_logueados.append(int(user_id))
+            usuarios_logueados = get_usuarios_logueados()
 
             # Buscar operadores disponibles que estén logueados
             cola_disponible = (
@@ -67,13 +58,15 @@ class AsignadorAutomatico:
             if operador:
                 conversacion.asignar_operador(operador)
 
-                # Actualizar cola del operador
+                # Incremento atómico: mantiene el orden de reparto entre
+                # asignaciones consecutivas sin un COUNT + save por ítem.
                 cola, created = ColaAsignacion.objects.get_or_create(
                     operador=operador, defaults={"max_conversaciones": 5}
                 )
-                cola.actualizar_contador()
-                cola.ultima_asignacion = timezone.now()
-                cola.save()
+                ColaAsignacion.objects.filter(pk=cola.pk).update(
+                    conversaciones_actuales=models.F("conversaciones_actuales") + 1,
+                    ultima_asignacion=timezone.now(),
+                )
 
                 logger.info(f"Conversación {conversacion.id} asignada automáticamente a {operador.username}")
                 return True
@@ -102,9 +95,19 @@ class AsignadorAutomatico:
 
     @staticmethod
     def actualizar_todas_las_colas():
-        """Actualiza los contadores de todas las colas"""
-        for cola in ColaAsignacion.objects.select_related("operador"):
-            cola.actualizar_contador()
+        """Actualiza los contadores de todas las colas (1 agregado + 1 bulk_update)."""
+        from django.db.models import Count
+
+        conteos = dict(
+            Conversacion.objects.filter(estado="activa", operador_asignado__isnull=False)
+            .values("operador_asignado")
+            .annotate(n=Count("id"))
+            .values_list("operador_asignado", "n")
+        )
+        colas = list(ColaAsignacion.objects.all())
+        for cola in colas:
+            cola.conversaciones_actuales = conteos.get(cola.operador_id, 0)
+        ColaAsignacion.objects.bulk_update(colas, ["conversaciones_actuales"])
 
 
 class MetricasService:
@@ -112,7 +115,18 @@ class MetricasService:
 
     @staticmethod
     def calcular_metricas_globales():
-        """Calcula métricas globales del sistema de conversaciones"""
+        """Métricas globales, cacheadas: la página de métricas se refresca sola
+        y varios usuarios pueden mirarla a la vez; los agregados corren 1 vez/min."""
+        from django.core.cache import cache
+
+        return cache.get_or_set(
+            "conversaciones:metricas_globales",
+            MetricasService._calcular_metricas_globales,
+            60,
+        )
+
+    @staticmethod
+    def _calcular_metricas_globales():
         from datetime import timedelta
 
         from django.db.models import Avg, Count, Q

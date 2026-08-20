@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "schema_version": 1,
+    "scale": 200,
+    "query_margin": "Baseline de Fase 1 + aproximadamente 20%, redondeado hacia arriba.",
+    "duplicate_query_margin": "La guarda toma la ejecución determinista de seed_perf como baseline. Todo incremento requiere justificación visible.",
+    "maintenance": "Subir un max_queries requiere editar este archivo en el mismo PR que introduce la necesidad, con justificacion visible para review.",
+    "adjustments": {
+      "becas_relevamiento_detalle": "14→15: consulta fija del control de sesión única de Backoffice; el N+1 detectado en legajo_detalle fue eliminado sin ampliar su presupuesto.",
+      "becas_consulta_duplicada": "2→1 (#261): la repetición medida es 1, no 2. Las dos consultas no son redundantes: programa_becas() lee Programa codigo=BECAS y programa_dispositivos() lee codigo=DISPOSITIVOS desde el tag de sidebar. normalize_sql y sql_fingerprint reemplazan el literal por ?, así que agrupan dos lecturas distintas. Se baja el techo al valor medido; llegar a 0 exigiría eliminar una lectura de negocio diferente.",
+      "conversaciones_consulta_duplicada": "Se mantiene en 1 (#261): chats_no_atendidos cuenta estado=activa y el badge del sidebar cuenta estado=pendiente. Misma forma de SQL, parámetros distintos. Unificarlas exigiría fusionar dos caches de clave y TTL distintos, fuera del cuello medido.",
+      "optimizacion_261": "Medido con seed_perf scale 200 + perf_audit (SQLite, request fría): legajos_lista 14→12 unificando tres COUNT de InscripcionPrograma en un aggregate; legajo_detalle 23→20 calculando el resumen de Becas una sola vez por request y reutilizando las derivaciones ya leídas en la línea de tiempo. inicio queda en 19 medidas: sus lecturas restantes viven en módulos con cache e invalidación propias (dashboard.utils) y unificarlas excede el cuello medido.",
+      "presupuestos_261": "Cada ruta tocada queda en el valor medido + 1. Ese margen absorbe el UPDATE del control de sesión única de Backoffice, que la guarda le cobra a la primera ruta autenticada del recorrido y por lo tanto depende del orden de este archivo."
+    },
+    "timing": {
+      "reference_total_ms": 220.92,
+      "warning_multiplier": 1.5,
+      "failure_multiplier": 3.0,
+      "note": "El tiempo SQLite es una alarma gruesa; los presupuestos de queries son la guarda dura."
+    }
+  },
+  "budgets": {
+    "login": {"route": "users:login", "max_queries": 0, "max_duplicate_queries": 0},
+    "inicio": {"route": "core:inicio", "max_queries": 20, "max_duplicate_queries": 0},
+    "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4, "max_duplicate_queries": 0},
+    "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10, "max_duplicate_queries": 0},
+    "legajos_lista": {"route": "legajos:ciudadanos", "max_queries": 13, "max_duplicate_queries": 0},
+    "legajo_detalle": {"route": "legajos:ciudadano_detalle", "max_queries": 21, "max_duplicate_queries": 0},
+    "conversaciones_lista": {"route": "conversaciones:lista", "max_queries": 15, "max_duplicate_queries": 1},
+    "conversacion_detalle": {"route": "conversaciones:detalle", "max_queries": 14, "max_duplicate_queries": 0},
+    "portal_home": {"route": "portal:home", "max_queries": 4, "max_duplicate_queries": 0},
+    "portal_perfil": {"route": "portal:ciudadano_mi_perfil", "max_queries": 12, "max_duplicate_queries": 0},
+    "portal_programas": {"route": "portal:ciudadano_mis_programas", "max_queries": 11, "max_duplicate_queries": 0},
+    "portal_consultas": {"route": "portal:ciudadano_mis_consultas", "max_queries": 10, "max_duplicate_queries": 0},
+    "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15, "max_duplicate_queries": 1},
+    "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 12, "max_duplicate_queries": 1},
+    "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16, "max_duplicate_queries": 1},
+    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15, "max_duplicate_queries": 1}
+  }
+}

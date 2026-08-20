@@ -1,7 +1,7 @@
 """Lógica de dominio para gestión de cupo y lista de espera (RN-04/05, issue #78).
 
 El cupo ocupado se calcula dinámicamente (COUNT de formularios APROBADO) para
-evitar desincronización con la integración SIS futura (#72). CupoSegmento queda
+evitar desincronización con la integración SIIS futura (#72). CupoSegmento queda
 como estructura base pero no se muta aquí.
 """
 
@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
 
-from programas.models import Formulario, ListaEspera, Segmento
+from programas.models import Formulario, ListaEspera, Segmento, ValidacionSIS
 from programas.services.becas import registrar_traza
 
 
@@ -25,6 +25,44 @@ def get_cupo_stats(segmento):
         "cupo_ocupado": cupo_ocupado,
         "cupo_disponible": max(cupo_maximo - cupo_ocupado, 0),
     }
+
+
+def motivo_bloqueo_aprobacion(formulario):
+    """Explica por qué un formulario todavía no puede aprobarse.
+
+    La aprobación exige identidad validada y la última consulta SIIS compatible
+    para el DNI y programa actuales. Devuelve ``None`` cuando supera el gate.
+    """
+    if not formulario.validado_renaper:
+        return "La identidad debe estar validada antes de aprobar."
+    if not formulario.ciudadano_id or not formulario.ciudadano.dni:
+        return "El formulario debe tener un ciudadano con DNI vinculado."
+
+    segmento = formulario.relevamiento.convocatoria.segmento
+    programa = segmento.programa
+    if programa is None:
+        return "El segmento no tiene un programa SIIS configurado."
+
+    validacion = formulario.validaciones_sis.order_by("-creado").first()
+    if validacion is None:
+        return "Debe realizarse la validación SIIS antes de aprobar."
+    if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
+        return "La última validación SIIS indicó que la persona no es compatible."
+    if validacion.estado == ValidacionSIS.Estado.ERROR:
+        return "La última validación SIIS tuvo un error técnico; debe reintentarse."
+    if validacion.estado != ValidacionSIS.Estado.OK:
+        return "La última validación SIIS no tiene un resultado válido para aprobar."
+    if str(validacion.documento).strip() != str(formulario.ciudadano.dni).strip():
+        return "La validación SIIS no corresponde al DNI actual del formulario."
+    if validacion.id_programa != programa.siis_programa_id:
+        return "La validación SIIS no corresponde al programa actual del formulario."
+    return None
+
+
+def validar_aprobacion(formulario):
+    motivo = motivo_bloqueo_aprobacion(formulario)
+    if motivo:
+        raise ValidationError(motivo)
 
 
 def estado_relevante_becas(estados, en_espera):
@@ -83,6 +121,7 @@ def promover_lista_espera(lista_espera, user):
         raise ValidationError(f"No hay cupo disponible en el segmento '{segmento.nombre}'.")
 
     formulario = lista_espera.formulario
+    validar_aprobacion(formulario)
     estado_anterior = formulario.estado
     formulario.estado = Formulario.Estado.APROBADO
     formulario.save(update_fields=["estado", "modificado"])
@@ -113,6 +152,8 @@ def aprobar_o_poner_en_espera(formulario, user):
     """
     if formulario.estado != Formulario.Estado.ENVIADO:
         raise ValidationError("Solo se pueden aprobar formularios en estado ENVIADO.")
+
+    validar_aprobacion(formulario)
 
     segmento = formulario.relevamiento.convocatoria.segmento
     Segmento.objects.select_for_update().get(pk=segmento.pk)

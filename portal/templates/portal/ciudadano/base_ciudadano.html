@@ -1,4 +1,5 @@
 {% extends 'portal/base.html' %}
+{% load static %}
 
 {% block content %}
 <style>
@@ -76,4 +77,17 @@
     {% block ciudadano_content %}{% endblock %}
 
 </div>
+
+<!-- Cierre de sesión por inactividad (idle logout) -->
+{% if session_idle_timeout_minutes %}
+<script>
+    window.idleLogoutConfig = {
+        timeoutMinutes: {{ session_idle_timeout_minutes }},
+        warningSeconds: {{ session_idle_warning_seconds }},
+        logoutUrl: "{% url 'portal:ciudadano_logout' %}",
+        csrfToken: "{{ csrf_token }}"
+    };
+</script>
+<script src="{% static 'custom/js/idle-logout.js' %}"></script>
+{% endif %}
 {% endblock %}

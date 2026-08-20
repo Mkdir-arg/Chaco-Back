@@ -5,17 +5,50 @@
 
 ---
 
+## :material-progress-clock: Mes en curso
+
+<div class="grid cards" markdown>
+
+-   :material-calendar-clock: **Agosto 2026**
+
+    ---
+
+    :material-wallet-outline: Presupuesto: **700 horas**<br>
+    :material-clock-check-outline: Consumido: **440 h 0 min** (63%) — al 19/08<br>
+    :material-check-circle-outline: Saldo: **260 h 0 min** disponibles<br>
+    :material-briefcase-outline: Becas: **243 h**
+
+    **Estado:** :material-circle:{ style="color: #3b82f6" } En curso
+
+    [:octicons-arrow-right-16: Ver detalle del mes](mes-2026-08.md)
+
+</div>
+
+---
+
 ## :material-archive-check-outline: Meses cerrados
 
 <div class="grid cards" markdown>
+
+-   :material-calendar-check: **Julio 2026**
+
+    ---
+
+    :material-wallet-outline: Presupuesto: **500 horas**  
+    :material-clock-check-outline: Consumido: **500 horas** (100%)  
+    :material-check-circle-outline: Saldo: **0 horas**
+
+    **Estado:** :material-circle:{ style="color: #10b981" } Cerrado al 100% del presupuesto
+
+    [:octicons-arrow-right-16: Ver resumen del mes](mes-2026-07.md)
 
 -   :material-calendar-check: **Junio 2026**
 
     ---
 
-    :material-wallet-outline: Presupuesto: **714 horas**  
-    :material-clock-check-outline: Consumido: **499 horas** (70%)  
-    :material-check-circle-outline: Saldo: **215 horas** sin consumir
+    :material-wallet-outline: Presupuesto: **500 horas**  
+    :material-clock-check-outline: Consumido: **499 horas** (100%)  
+    :material-check-circle-outline: Saldo: **1 hora** sin consumir
 
     **Estado:** :material-circle:{ style="color: #10b981" } Cerrado dentro del presupuesto
 

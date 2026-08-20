@@ -1,0 +1,51 @@
+<div class="fixed inset-0 z-50 overflow-y-auto bg-black/55 backdrop-blur-sm"
+     data-edit-modal
+     data-edit-url="{{ modal_action }}"
+     data-cancel-url="{% url 'dispositivos:tipo_detalle' tipo.pk %}">
+  <div class="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-6">
+    <section role="dialog"
+             aria-modal="true"
+             aria-labelledby="dispositivos-edit-title"
+             class="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-base shadow-xl sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl"
+             style="background:var(--bg-primary)"
+             data-edit-modal-panel>
+      <header class="flex items-start justify-between gap-4 border-b border-light px-5 py-4 sm:px-6">
+        <div>
+          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-brand">{{ tipo.nombre }}</p>
+          <h2 id="dispositivos-edit-title" class="text-xl font-extrabold text-heading">
+            {% if modal_edicion == "tipo" %}Editar tipo de dispositivo{% else %}Editar campo{% endif %}
+          </h2>
+        </div>
+        <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
+           class="btn-nodo btn-tertiary btn-sm"
+           data-modal-close
+           aria-label="Cerrar edición">Cerrar</a>
+      </header>
+
+      <form method="post"
+            action="{{ modal_action }}"
+            class="flex min-h-0 flex-1 flex-col"
+            data-ajax
+            data-reset="false"
+            {% if modal_edicion == "campo" %}data-campo-form{% endif %}>
+        {% csrf_token %}
+        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+          {% if modal_edicion == "tipo" %}
+            {% include "programas/dispositivos/config/_tipo_form_fields.html" %}
+          {% else %}
+            {% include "programas/dispositivos/config/_campo_form_fields.html" %}
+          {% endif %}
+        </div>
+        <footer class="flex flex-col-reverse gap-3 border-t border-light px-5 py-4 sm:flex-row sm:justify-end sm:px-6"
+                style="background:var(--bg-secondary)">
+          <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
+             class="btn-nodo btn-tertiary btn-base"
+             data-modal-close>Cancelar</a>
+          <button type="submit" class="btn-nodo btn-brand btn-base">
+            {% if modal_edicion == "tipo" %}Guardar tipo{% else %}Guardar campo{% endif %}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+</div>

@@ -22,7 +22,8 @@ tareas entre estados (**solo el PM humano mueve las tareas**) y no define alcanc
 |--------|--------|----------------|
 | **Project #1** (`Mkdir-arg`, "Proyect Chaco") | Items, Status, Prioridad, Modulo, EstimacionHoras | GitHub MCP (lectura) o `gh project item-list 1 --owner Mkdir-arg --format json` |
 | **Issues del repo** (`Mkdir-arg/Chaco`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view` |
-| **Consumo de horas** | Horas reales por persona/día del sprint | `docs/client/sprints/sprint-NNN-consumo-horas.md` (lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) |
+| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
+| **Estimaciones por programa** | Horas estimadas por programa (resumen ejecutivo, desglose por concepto, estado de aprobación) | `docs/client/funcionalidades/estimacion-programa-*.md` |
 
 ### GitHub MCP y fallback `gh`
 
@@ -35,7 +36,7 @@ EstimacionHoras) la receta canónica sigue siendo `gh project item-edit` de
 `AGENTS.md` — pero el PM Assistant no escribe al Project, así que esto le aplica
 al Analista y a QA.
 
-## Los cuatro informes (estructuras canónicas)
+## Los seis informes (estructuras canónicas)
 
 ### 1. Estado (`/pm:estado`) — la foto del sprint
 
@@ -107,6 +108,55 @@ Para enviar o publicar. **Sin jerga técnica ni interna** (regla de
 4. **Próximos pasos** — qué sigue, en lenguaje cliente.
 5. **Temas que necesitamos de ustedes** — definiciones pendientes del cliente
    (de las "Asunciones a confirmar" de los análisis, reformuladas en claro).
+
+### 5. Horas (`/pm:horas`) — horas por programa: estimado, consumido y disponible
+
+Informe **conciso**: una tabla y una línea de contexto, nada más. Fuentes: los
+documentos de estimación (`docs/client/funcionalidades/estimacion-programa-*.md`
+— total del resumen ejecutivo y estado de aprobación) y el registro de consumo
+(`docs/client/financiero/` — `mes-AAAA-MM.md` + `detalle-tareas.md`).
+Imputación del consumo: **junio 2026 se imputa íntegramente a Becas y cuenta
+como consumo real contra su estimación** (decisión del PM, 08/07/2026, anotada
+en el registro); **desde julio 2026** cada fila lleva columna `Programa`. Lo
+`Transversal` va aparte y no descuenta disponible de ningún programa.
+Estructura:
+1. **Tabla de horas** — por programa: Estimado | Consumido | **Disponible**
+   (Estimado − Consumido). Fila `Transversal` (solo consumido) y fila `Total`.
+   Estimaciones pendientes de aprobación se marcan en la misma tabla.
+2. **Mes en curso** — una línea: presupuesto mensual, consumido al día de la
+   fecha y saldo del mes.
+3. **Notas** — solo si hace falta: datos faltantes (se marcan, no se rellenan)
+   o algo grave en una línea (p. ej. consumo sin estimación aprobada).
+
+### 6. Informe de mes (`/pm:informemes`) — cierre mensual para enviar al cliente
+
+Texto de **correo listo para pegar** (formato carta: empieza con "Estimados," y
+sigue en prosa). **Lenguaje cliente puro** (regla de `docs/client/`: sin jerga
+técnica, sin estado del código ni riesgos internos) y **solo hechos del mes
+cerrado**. Fuentes: `docs/client/financiero/` (página del mes + detalle de
+tareas), las minutas del mes (`docs/client/minutas/`), las funcionalidades y
+estimaciones presentadas o aprobadas en el período, y los releases/issues del
+mes para contar el desarrollo. Estructura (calcada del informe de junio 2026):
+1. **Apertura** — un párrafo: qué fue el mes en una frase (puesta en marcha,
+   consolidación, entrega…) y el cierre de horas: X de Y consumidas (Z%),
+   dentro de lo acordado o con la aclaración que corresponda.
+2. **Resultados concretos** — un párrafo con los 2-4 logros del mes, una
+   oración cada uno.
+3. **Secciones numeradas** (adaptar al contenido real del mes; fusionar u
+   omitir las que no apliquen):
+   1) *Definición del alcance junto al Ministerio* — las reuniones del mes con
+      fecha y qué se acordó en cada una (desde las minutas).
+   2) *Análisis funcional* — qué se definió y por qué, en términos de valor
+      para el usuario final.
+   3) *Propuestas y estimaciones* — estimaciones presentadas/aprobadas,
+      aclarando qué es trabajo comprometido a futuro vs consumo del mes.
+   4) *Desarrollo* — qué se construyó, explicado por el valor que aporta
+      (nunca "se mergearon N PRs"); distinguir base transversal de programas.
+   5) *Números del mes* — tabla `Frente | Horas | Participación` desde el
+      consumo por persona/foco del `mes-AAAA-MM.md`, con fila Total.
+4. **Cierre** — el texto queda en pantalla para enviar por correo; solo se
+   publica en `docs/client/` si el usuario lo pide (reglas de `AGENTS.md`,
+   confirmando antes del deploy).
 
 ## Forma de trabajar (siempre igual)
 

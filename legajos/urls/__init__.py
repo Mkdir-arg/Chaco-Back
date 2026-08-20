@@ -1,4 +1,4 @@
-from django.urls import include, path
+from django.urls import path
 
 from ..views import alertas as views_alertas
 from ..views import ciudadanos as views_ciudadanos
@@ -8,6 +8,7 @@ from ..views import contactos_panel as views_contactos_panel
 from ..views import dashboard_simple as views_simple
 from ..views import derivacion as views_derivacion
 from ..views import derivacion_programa as views_derivacion_programa
+from ..views import dispositivos as views_dispositivos
 from ..views import programas as views_programas
 
 app_name = "legajos"
@@ -16,15 +17,20 @@ urlpatterns = [
     path("", views_ciudadanos.CiudadanoListView.as_view(), name="lista"),
     path("nuevo/", views_ciudadanos.CiudadanoCreateView.as_view(), name="nuevo"),
     path("ciudadanos/", views_ciudadanos.CiudadanoListView.as_view(), name="ciudadanos"),
+    path("ciudadanos/exportar-csv/", views_ciudadanos.ciudadanos_exportar_csv, name="ciudadanos_exportar_csv"),
     path("ciudadanos/buscar/", views_ciudadanos_api.ciudadano_buscar_api, name="ciudadano_buscar_api"),
     path("ciudadanos/nuevo/", views_ciudadanos.CiudadanoCreateView.as_view(), name="ciudadano_nuevo"),
     path("ciudadanos/confirmar/", views_ciudadanos.CiudadanoConfirmarView.as_view(), name="ciudadano_confirmar"),
     path("ciudadanos/manual/", views_ciudadanos.CiudadanoManualView.as_view(), name="ciudadano_manual"),
     path("ciudadanos/<int:pk>/", views_ciudadanos.CiudadanoDetailView.as_view(), name="ciudadano_detalle"),
     path("ciudadanos/<int:pk>/editar/", views_ciudadanos.CiudadanoUpdateView.as_view(), name="ciudadano_editar"),
+    path(
+        "ciudadanos/<int:ciudadano_id>/dispositivos/<int:inscripcion_id>/",
+        views_dispositivos.CiudadanoDispositivosView.as_view(),
+        name="dispositivos_ciudadano",
+    ),
     path("programas/", views_programas.ProgramaListView.as_view(), name="programas"),
     path("programas/<int:pk>/", views_programas.ProgramaDetailView.as_view(), name="programa_detalle"),
-    path("nachec/", include("legajos.urls.nachec")),
     path(
         "ciudadanos/<int:ciudadano_id>/derivar-programa/",
         views_derivacion.derivar_programa_view,

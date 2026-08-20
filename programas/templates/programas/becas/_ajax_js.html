@@ -10,10 +10,18 @@
   }
   function toast(msg, isErr) {
     var el = document.createElement('div');
-    el.className = 'fixed bottom-5 right-5 z-[200] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
+    el.className = 'fixed bottom-5 right-5 z-[200] flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ' +
       (isErr ? 'bg-danger-soft text-fg-danger border border-[color:var(--border-danger-subtle)]'
              : 'bg-success-soft text-fg-success border border-[color:var(--border-success-subtle)]');
-    el.textContent = msg;
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'polite');
+    var icon = document.createElement('i');
+    icon.className = 'fas ' + (isErr ? 'fa-circle-xmark' : 'fa-circle-check');
+    icon.setAttribute('aria-hidden', 'true');
+    var text = document.createElement('span');
+    text.textContent = msg;
+    el.appendChild(icon);
+    el.appendChild(text);
     document.body.appendChild(el);
     setTimeout(function () {
       el.style.transition = 'opacity .3s'; el.style.opacity = '0';
@@ -65,8 +73,22 @@
         });
         if (data.errors.__all__) toast(data.errors.__all__.join(' '), true);
         else toast('Revisá los datos del formulario.', true);
+      } else if (r.status === 409 && data.confirm_required) {
+        if (window.confirm(data.message || 'Ya existe otra asignación para esa fecha. ¿Confirmás la asignación?')) {
+          var confirmacion = form.querySelector('input[name="confirmar_solapamiento"]');
+          if (!confirmacion) {
+            confirmacion = document.createElement('input');
+            confirmacion.type = 'hidden';
+            confirmacion.name = 'confirmar_solapamiento';
+            form.appendChild(confirmacion);
+          }
+          confirmacion.value = '1';
+          form.requestSubmit();
+        }
+      } else if (r.status === 403) {
+        toast((data && data.message) || 'No tiene permisos para realizar esta acción.', true);
       } else {
-        toast((data && data.message) || 'Ocurrió un error.', true);
+        toast((data && data.message) || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.', true);
       }
     }).catch(function () {
       toast('Error de red.', true);

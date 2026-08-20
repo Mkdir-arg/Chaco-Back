@@ -7,7 +7,8 @@ from .admin import (  # noqa: F401
     UserToggleActivoView,
     UserUpdateView,
 )
-from .auth import UsuariosLoginView  # noqa: F401
+from .auth import CambioContrasenaObligatorioView, UsuariosLoginView  # noqa: F401
+from .quick_create import usuario_alta_rapida  # noqa: F401
 from .roles import (  # noqa: F401
     RolCreateView,
     RolDeleteView,

@@ -162,6 +162,9 @@ class GroupViewSet(viewsets.ModelViewSet):
         """Obtiene los usuarios de un rol específico"""
         group = self.get_object()
         users = group.user_set.select_related("profile").prefetch_related("groups")
+        page = self.paginate_queryset(users)
+        if page is not None:
+            return self.get_paginated_response(UserSerializer(page, many=True).data)
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 

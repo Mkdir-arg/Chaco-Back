@@ -1,22 +1,55 @@
 {% extends "includes/base.html" %}
-{% block title %}Becas · Formulario #{{ formulario.pk }}{% endblock %}
+{% load rbac %}
+{% block title %}Becas · Formulario {{ formulario.numero }}{% endblock %}
 
 {% block main-content %}
-<div class="space-y-6">
+<style>
+  .sexo-pill input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sexo-pill span {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-base);
+    border-radius: 9999px;
+    background: var(--bg-primary);
+    color: var(--text-body);
+    font-size: 13px;
+    font-weight: 700;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .sexo-pill:hover span {
+    border-color: var(--border-brand);
+    color: var(--text-fg-brand);
+  }
+  .sexo-pill input:checked + span {
+    border-color: var(--bg-brand);
+    background: var(--bg-brand);
+    color: #fff;
+  }
+  .sexo-pill input:focus-visible + span {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+</style>
+<div class="max-w-[1180px] mx-auto space-y-6">
 
   {# Header #}
   <div>
-    <nav class="flex items-center gap-1.5 text-xs text-body-subtle mb-2">
-      <span>Programa Becas</span>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <a href="{% url 'becas:revision' %}" class="hover:underline">Revisión</a>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <a href="{% url 'becas:revision_formularios' relevamiento.pk %}" class="hover:underline">{{ relevamiento.nombre }}</a>
-      <i class="fas fa-chevron-right text-[8px] opacity-50"></i>
-      <span class="font-semibold text-body">Formulario #{{ formulario.pk }}</span>
-    </nav>
     <div class="flex items-center gap-3 flex-wrap">
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario #{{ formulario.pk }}</h1>
+      <a href="{% url 'becas:revision_formularios' relevamiento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver a formularios del relevamiento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario {{ formulario.numero }}</h1>
       {% if formulario.estado == 'APROBADO' %}
         <span class="badge badge-success badge-dot">Aprobado</span>
       {% elif formulario.estado == 'RECHAZADO' %}
@@ -24,8 +57,39 @@
       {% else %}
         <span class="badge badge-warning badge-dot">Enviado</span>
       {% endif %}
+      {% if tiene_conflicto_duplicado_pendiente %}
+        <span class="badge badge-warning"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
+      {% endif %}
     </div>
   </div>
+
+  {% if conflicto_pendiente %}
+  <section class="rounded-xl border border-warning-subtle bg-warning-soft p-5">
+    <div class="flex items-start gap-3">
+      <i class="fas fa-triangle-exclamation mt-1 text-fg-warning"></i>
+      <div class="flex-1">
+        <h2 class="font-bold text-fg-warning">DNI cargado desde más de un dispositivo</h2>
+        <p class="mt-1 text-sm text-fg-warning">
+          Los formularios {{ conflicto_pendiente.duplicado_de.numero }} y {{ conflicto_pendiente.numero }} corresponden al mismo DNI.
+          Revisá ambas cargas y decidí cuál conservar.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}" class="btn-nodo btn-tertiary btn-base">Comparar con formulario {{ formulario_comparacion.numero }}</a>
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_previo{% else %}conservar_actual{% endif %}">
+            <button class="btn-nodo btn-tertiary btn-base" type="submit">Conservar el otro</button>
+          </form>
+          <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_actual{% else %}conservar_previo{% endif %}">
+            <button class="btn-nodo btn-brand btn-base" type="submit">Conservar este</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
 
   {# Rechazo alert #}
   {% if formulario.estado == 'RECHAZADO' and formulario.motivo_rechazo %}
@@ -34,97 +98,427 @@
   </div>
   {% endif %}
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    {# Identidad + SIS #}
-    <div class="space-y-4">
-      <div class="bg-white rounded-xl border border-base shadow-sm p-5 text-sm space-y-2">
-        <h3 class="font-bold text-heading mb-3">Identidad</h3>
-        {% if formulario.ciudadano %}
-          <p class="text-heading font-medium">{{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}</p>
-          <p class="text-body-subtle">DNI {{ formulario.ciudadano.dni }}</p>
-        {% elif formulario.datos_identificacion %}
-          <p class="text-heading font-medium">{{ formulario.datos_identificacion.nombre }} {{ formulario.datos_identificacion.apellido }}</p>
-          <p class="text-body-subtle">DNI {{ formulario.datos_identificacion.dni }} · capturado offline</p>
-        {% else %}
-          <p class="text-body-subtle">Sin identificar</p>
-        {% endif %}
-        <div class="pt-2 border-t border-light flex items-center gap-2">
-          <span class="text-body-subtle">RENAPER:</span>
-          {% if formulario.validado_renaper %}
-            <span class="badge badge-success">Validado</span>
-          {% else %}
-            <span class="badge badge-gray">Pendiente</span>
+  {# 1. Identidad #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Identidad</h2>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Nombre completo</dt>
+          <dd class="text-heading font-medium text-sm">
+            {% if formulario.ciudadano %}
+              {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}
+            {% elif formulario.datos_identificacion %}
+              {{ formulario.datos_identificacion.nombre }} {{ formulario.datos_identificacion.apellido }}
+            {% else %}
+              <span class="text-body-subtle font-normal">Sin identificar</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">DNI</dt>
+          <dd class="text-heading text-sm">
+            {% if formulario.ciudadano %}
+              {{ formulario.ciudadano.dni }}
+            {% elif formulario.datos_identificacion %}
+              {{ formulario.datos_identificacion.dni }} <span class="text-body-subtle">· capturado offline</span>
+            {% else %}
+              <span class="text-body-subtle">—</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Sexo</dt>
+          <dd class="text-sm">
+            {% if formulario.ciudadano %}
+              {% if formulario.validado_renaper and formulario.ciudadano.genero %}
+                <span class="text-heading font-medium">
+                  {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
+                </span>
+              {% elif puede_revalidar_renaper %}
+                <form method="post"
+                      action="{% url 'becas:formulario_actualizar_genero' formulario.pk %}"
+                      class="flex items-center gap-2">
+                  {% csrf_token %}
+                  <div class="flex items-center gap-1.5" role="radiogroup" aria-label="Sexo">
+                    {% for opcion in genero_form.genero %}
+                      {% if opcion.data.value %}
+                        <label class="sexo-pill cursor-pointer">
+                          {{ opcion.tag }}
+                          <span>{{ opcion.choice_label }}</span>
+                        </label>
+                      {% endif %}
+                    {% endfor %}
+                    {% for error in genero_form.genero.errors %}
+                      <p class="mt-1 text-xs text-fg-danger">{{ error }}</p>
+                    {% endfor %}
+                  </div>
+                  <button type="submit"
+                          class="btn-nodo btn-tertiary btn-sm"
+                          style="width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;"
+                          aria-label="Guardar sexo"
+                          title="Guardar sexo">
+                    <i class="fas fa-save" aria-hidden="true"></i>
+                    <span class="sr-only">Guardar sexo</span>
+                  </button>
+                </form>
+              {% else %}
+                {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
+              {% endif %}
+            {% else %}
+              <span class="text-body-subtle">Sin ciudadano vinculado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Validación de identidad</dt>
+          <dd class="text-sm">
+            {% if formulario.validado_renaper %}
+              <span class="badge badge-success">Validado</span>
+            {% else %}
+              <span class="badge badge-warning">Pendiente</span>
+              {% if puede_revalidar_renaper %}<form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}" class="inline-block ml-2">
+                {% csrf_token %}
+                <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
+              </form>{% endif %}
+            {% endif %}
+          </dd>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# 2. Trazabilidad temporal y ubicación #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">
+        <i class="fas fa-clock mr-1 text-fg-brand" aria-hidden="true"></i>
+        Trazabilidad de la toma
+      </h2>
+    </div>
+    <div class="p-6 space-y-6">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Fecha asignada</dt>
+          <dd class="text-heading text-sm">{{ relevamiento.fecha_asignada|date:"d/m/Y H:i" }} al {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Capturado en el dispositivo</dt>
+          <dd class="text-heading text-sm">
+            {% if formulario.capturado_en %}
+              {{ formulario.capturado_en|date:"d/m/Y H:i:s" }}
+            {% else %}
+              <span class="text-body-subtle">No informado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Recibido en el servidor</dt>
+          <dd class="text-heading text-sm">{{ formulario.creado|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Última actualización</dt>
+          <dd class="text-heading text-sm">{{ formulario.modificado|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+      </dl>
+
+      <div class="border-t border-light pt-5">
+        <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div>
+            <h3 class="text-heading font-semibold text-sm">
+              <i class="fas fa-map-marker-alt mr-1 text-fg-brand" aria-hidden="true"></i>
+              Lugar de la toma
+            </h3>
+            {% if mapa %}
+              <p class="text-xs text-body-subtle mt-1">{{ mapa.latitud }}, {{ mapa.longitud }}</p>
+            {% endif %}
+          </div>
+          {% if mapa %}
+            <a href="{{ mapa.open_url }}" target="_blank" rel="noopener noreferrer"
+               class="btn-nodo btn-tertiary btn-sm">
+              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa
+            </a>
           {% endif %}
         </div>
-      </div>
-      <div class="bg-white rounded-xl border border-dashed border-base p-5 text-sm">
-        <h3 class="font-bold text-heading mb-1"><i class="fas fa-plug mr-1 text-fg-brand"></i> Resultado SIS</h3>
-        <p class="text-body-subtle text-sm mt-1">Integración pendiente. La validación socioeconómica y la asignación de cupo se resolverán cuando el SIS esté disponible.</p>
-      </div>
-    </div>
-
-    {# Edición contacto/apoderado #}
-    <div class="lg:col-span-2">
-      <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
-        {% csrf_token %}
-        <h3 class="font-bold text-heading mb-4">Datos de contacto y apoderado</h3>
-        {% if form.non_field_errors %}
-          <div class="mb-3 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+        {% if mapa %}
+          <iframe
+            title="Mapa del lugar donde se realizó la toma"
+            src="{{ mapa.embed_url }}"
+            class="w-full rounded-xl border border-base"
+            style="height:320px;"
+            loading="lazy">
+          </iframe>
+        {% else %}
+          <div class="rounded-xl bg-secondary border border-light p-5 text-sm text-body-subtle">
+            Este formulario no tiene coordenadas GPS registradas.
+          </div>
         {% endif %}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {% for field in form %}<div>{% include "programas/becas/_field.html" %}</div>{% endfor %}
-        </div>
-        <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
-        <div class="flex justify-end mt-4 pt-3 border-t border-light">
-          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar cambios</button>
-        </div>
-      </form>
+      </div>
     </div>
-  </div>
+  </section>
 
-  {# Respuestas #}
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-    <div class="bg-white rounded-xl border border-base shadow-sm p-5">
-      <h3 class="font-bold text-heading mb-3">Cuestionario social</h3>
+  {# 3. Datos de contacto y apoderado (editable) #}
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% csrf_token %}
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Datos de contacto</h2>
+    </div>
+    <div class="p-6">
+      {% if form.non_field_errors %}
+        <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>{% with field=form.celular %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+        <div>{% with field=form.email_contacto %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+      </div>
+      {% if mostrar_apoderado %}
+        <div class="border-t border-light mt-2 pt-5">
+          <h3 class="text-heading font-semibold text-sm mb-4">Datos del apoderado</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>{% with field=form.apoderado_nombre %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_apellido %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_dni %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_genero %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_fecha_nacimiento %}{% include "programas/becas/_field.html" %}{% endwith %}</div>
+          </div>
+          {% if formulario.apoderado_ciudadano %}
+            <p class="text-xs text-body-subtle mt-3">Vinculado al ciudadano #{{ formulario.apoderado_ciudadano_id }}.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+      <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
+    </div>
+    <div class="flex justify-end px-6 py-4 border-t border-light bg-secondary">
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar cambios</button>
+    </div>
+  </form>
+
+  {# 3. Requisitos generales #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Requisitos generales</h2>
+    </div>
+    <div class="p-6">
       {% if globales_list %}
-      <dl class="space-y-3 text-sm">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
         {% for item in globales_list %}
-        <div class="border-b border-light pb-2 last:border-0">
-          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ item.label }}</dt>
-          <dd class="text-heading">{% include "programas/becas/_respuesta_valor.html" %}</dd>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">{{ item.label }}</dt>
+          <dd class="text-heading text-sm">{% include "programas/becas/_respuesta_valor.html" %}</dd>
         </div>
         {% endfor %}
       </dl>
       {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
     </div>
-    <div class="bg-white rounded-xl border border-base shadow-sm p-5">
-      <h3 class="font-bold text-heading mb-3">Requisitos del segmento</h3>
-      {% if requisitos_list %}
-      <dl class="space-y-3 text-sm">
-        {% for item in requisitos_list %}
-        <div class="border-b border-light pb-2 last:border-0">
-          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-0.5">{{ item.label }}</dt>
-          <dd class="text-heading">{% include "programas/becas/_respuesta_valor.html" %}</dd>
-        </div>
-        {% endfor %}
-      </dl>
-      {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
-    </div>
-  </div>
+  </section>
 
-  {# Acciones de revisión #}
-  {% if formulario.estado == 'ENVIADO' %}
-  <div class="flex justify-end gap-3">
-    <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
-      <i class="fas fa-times"></i> Rechazar
-    </button>
-    <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}" id="form-aprobar">
-      {% csrf_token %}
-      <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base">
-        <i class="fas fa-check"></i> Aprobar
+  {# 4. Requisitos del segmento #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Requisitos del segmento</h2>
+    </div>
+    <div class="p-6">
+      {% if requisitos_segmento %}
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+        {% for item in requisitos_segmento %}
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">{{ item.label }}</dt>
+          <dd class="text-heading text-sm">{% include "programas/becas/_respuesta_valor.html" %}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
+    </div>
+  </section>
+
+  {# 5. Requisitos del subsegmento #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Requisitos del subsegmento</h2>
+    </div>
+    <div class="p-6">
+      {% if requisitos_subsegmento %}
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+        {% for item in requisitos_subsegmento %}
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">{{ item.label }}</dt>
+          <dd class="text-heading text-sm">{% include "programas/becas/_respuesta_valor.html" %}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
+    </div>
+  </section>
+
+  {# 6. Resultado SIIS #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light flex items-center gap-2">
+      <i class="fas fa-plug text-fg-brand"></i>
+      <h2 class="text-heading font-bold" style="font-size:16px;">Resultado SIIS</h2>
+    </div>
+    <div class="p-6">
+    {% if validacion_sis %}
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <p class="text-xs uppercase tracking-wide font-semibold text-body-subtle mb-2">Resultado de elegibilidad</p>
+        {% if validacion_sis.estado == 'OK' %}
+          <span class="badge badge-success badge-dot">Compatible</span>
+        {% elif validacion_sis.estado == 'RECHAZADO' %}
+          <span class="badge badge-danger badge-dot">No compatible</span>
+        {% else %}
+          <span class="badge badge-warning badge-dot">Error técnico</span>
+        {% endif %}
+      </div>
+      <p class="text-xs text-body-subtle">{{ validacion_sis.fecha_validacion|default:validacion_sis.creado|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-5">
+      <div>
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Situación en SIIS</dt>
+        <dd class="text-heading text-sm font-medium">{{ detalle_siis.situacion }}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Programa evaluado</dt>
+        <dd class="text-heading text-sm font-medium">{{ detalle_siis.programa_nombre|default:"No informado" }}{% if detalle_siis.programa_id %} (#{{ detalle_siis.programa_id }}){% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Solicitado por</dt>
+        <dd class="text-heading text-sm font-medium">{{ validacion_sis.solicitado_por.username|default:"No informado" }}</dd>
+      </div>
+    </dl>
+
+    {% if detalle_siis.controles %}
+    <div class="border-t border-light mt-5 pt-5">
+      <h3 class="text-heading font-semibold text-sm mb-3">Controles de compatibilidad</h3>
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Controles evaluados por SIIS">
+        {% for control in detalle_siis.controles %}
+        <li class="flex items-start justify-between gap-3 rounded-lg border border-light bg-secondary p-3">
+          <div>
+            <p class="text-heading text-sm font-medium">{{ control.etiqueta }}</p>
+            <p class="text-xs text-body-subtle mt-1">{{ control.detalle }}</p>
+          </div>
+          <span class="badge badge-{{ control.tono }}">
+            {% if control.tono == 'success' %}Cumple{% elif control.tono == 'danger' %}No cumple{% else %}A revisar{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if validacion_sis.motivo %}
+      <div class="mt-5 rounded-lg bg-danger-soft border border-danger-subtle p-3 text-sm text-fg-danger">
+        <strong>Motivo:</strong> {{ validacion_sis.motivo }}
+      </div>
+    {% endif %}
+
+    <div class="border-t border-light mt-5 pt-4 text-xs text-body-subtle space-y-1">
+      {% if validacion_sis.id_consulta %}<p><strong>ID de consulta:</strong> <span class="break-all">{{ validacion_sis.id_consulta }}</span></p>{% endif %}
+      <p>Compatible significa que SIIS no encontró incompatibilidades para postularse; no implica la aprobación automática del formulario.</p>
+    </div>
+    {% else %}
+    <p class="text-sm text-body-subtle">Todavía no se consultó la compatibilidad de esta persona.</p>
+    {% endif %}
+    <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
+      {% if puede_validar_siis %}
+      <form method="post" action="{% url 'becas:formulario_validar_sis' formulario.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-nodo btn-brand btn-base">{% if validacion_sis %}Reintentar validación SIIS{% else %}Validar con SIIS{% endif %}</button>
+      </form>
+      {% endif %}
+      {% if historial_validaciones_sis %}
+      <button type="button"
+              id="btn-historial-siis"
+              class="btn-nodo btn-tertiary btn-base ml-auto"
+              aria-expanded="false"
+              aria-controls="historial-validaciones-siis">
+        <i class="fas fa-history" aria-hidden="true"></i>
+        Historial de validaciones ({{ historial_validaciones_sis|length }})
       </button>
-    </form>
-  </div>
+      {% endif %}
+    </div>
+
+    {% if historial_validaciones_sis %}
+    <div id="historial-validaciones-siis" class="hidden mt-5 border-t border-light pt-5" aria-label="Historial de validaciones SIIS">
+      <div class="space-y-3">
+        {% for item in historial_validaciones_sis %}
+        <article class="rounded-lg border border-light bg-secondary p-4" aria-label="Validación SIIS del {{ item.validacion.fecha_validacion|default:item.validacion.creado|date:'d/m/Y H:i' }}">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
+              {% if item.validacion.estado == 'OK' %}
+                <span class="badge badge-success">Compatible</span>
+              {% elif item.validacion.estado == 'RECHAZADO' %}
+                <span class="badge badge-danger">No compatible</span>
+              {% else %}
+                <span class="badge badge-warning">Error técnico</span>
+              {% endif %}
+              <span class="text-sm text-heading font-medium">{{ item.detalle.programa_nombre|default:"Programa no informado" }}{% if item.detalle.programa_id %} (#{{ item.detalle.programa_id }}){% endif %}</span>
+            </div>
+            <time class="text-xs text-body-subtle">{{ item.validacion.fecha_validacion|default:item.validacion.creado|date:"d/m/Y H:i" }}</time>
+          </div>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-sm">
+            <div><dt class="text-body-subtle text-xs">Situación</dt><dd class="text-heading">{{ item.detalle.situacion }}</dd></div>
+            <div><dt class="text-body-subtle text-xs">Solicitado por</dt><dd class="text-heading">{{ item.validacion.solicitado_por.username|default:"No informado" }}</dd></div>
+          </dl>
+          {% if item.validacion.motivo %}<p class="mt-3 text-sm text-fg-danger"><strong>Motivo:</strong> {{ item.validacion.motivo }}</p>{% endif %}
+          {% if item.validacion.id_consulta %}<p class="mt-3 text-xs text-body-subtle break-all"><strong>ID de consulta:</strong> {{ item.validacion.id_consulta }}</p>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    </div>
+  </section>
+
+  {# 6. Traza de cambios #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;"><i class="fas fa-history mr-1 text-fg-brand"></i> Traza de cambios</h2>
+    </div>
+    <div class="p-6">
+      {% if trazas %}
+      <ul class="space-y-2 text-sm">
+        {% for t in trazas %}
+        <li class="flex items-start gap-3 border-b border-light pb-2 last:border-0">
+          <span class="text-body-subtle whitespace-nowrap text-xs">{{ t.created_at|date:"d/m/Y H:i" }}</span>
+          <span class="text-heading flex-1"><strong>{{ t.campo }}</strong>:
+            <span class="text-body-subtle line-through">{{ t.valor_anterior|default:"—" }}</span>
+            → {{ t.valor_nuevo|default:"—" }}</span>
+          <span class="text-body-subtle text-xs">{{ t.editado_por.username|default:"—" }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="text-sm text-body-subtle">Sin cambios registrados.</p>{% endif %}
+    </div>
+  </section>
+
+  {# 7. Acciones de revisión #}
+  {% if formulario.estado == 'ENVIADO' and request.user|puede:"becas.revision.editar" %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Acciones de revisión</h2>
+    </div>
+    <div class="p-6">
+      {% if motivo_bloqueo_aprobacion %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Aprobación bloqueada:</strong> {{ motivo_bloqueo_aprobacion }}
+      </div>
+      {% endif %}
+      <div class="flex justify-end gap-3">
+      <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
+        <i class="fas fa-times"></i> Rechazar
+      </button>
+      <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}" id="form-aprobar">
+        {% csrf_token %}
+        <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base"{% if motivo_bloqueo_aprobacion %} disabled aria-disabled="true" title="{{ motivo_bloqueo_aprobacion }}"{% endif %}>
+          <i class="fas fa-check"></i> Aprobar
+        </button>
+      </form>
+      </div>
+    </div>
+  </section>
   <form method="post" action="{% url 'becas:formulario_rechazar' formulario.pk %}" id="form-rechazar" class="hidden">
     {% csrf_token %}<input type="hidden" name="motivo" id="motivo-rechazo">
   </form>
@@ -158,22 +552,25 @@
     </div>
   </div>
 
-  {# Traza #}
-  <div class="bg-white rounded-xl border border-base shadow-sm p-5">
-    <h3 class="font-bold text-heading mb-3"><i class="fas fa-history mr-1 text-fg-brand"></i> Traza de cambios</h3>
-    {% if trazas %}
-    <ul class="space-y-2 text-sm">
-      {% for t in trazas %}
-      <li class="flex items-start gap-3 border-b border-light pb-2 last:border-0">
-        <span class="text-body-subtle whitespace-nowrap text-xs">{{ t.created_at|date:"d/m/Y H:i" }}</span>
-        <span class="text-heading flex-1"><strong>{{ t.campo }}</strong>:
-          <span class="text-body-subtle line-through">{{ t.valor_anterior|default:"—" }}</span>
-          → {{ t.valor_nuevo|default:"—" }}</span>
-        <span class="text-body-subtle text-xs">{{ t.editado_por.username|default:"—" }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}<p class="text-sm text-body-subtle">Sin cambios registrados.</p>{% endif %}
+  <div id="image-preview-overlay"
+       class="fixed inset-0 z-[1002] hidden items-center justify-center p-4 sm:p-8"
+       style="background:rgba(0,0,0,.86);"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="image-preview-title">
+    <button type="button" id="image-preview-close"
+            aria-label="Cerrar imagen ampliada"
+            class="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-white"
+            style="background:rgba(255,255,255,.16);">
+      <i class="fas fa-times text-xl" aria-hidden="true"></i>
+    </button>
+    <figure class="flex h-full w-full flex-col items-center justify-center gap-3">
+      <img id="image-preview-img"
+           src=""
+           alt=""
+           class="max-h-[82vh] max-w-full rounded-xl object-contain shadow-2xl">
+      <figcaption id="image-preview-title" class="text-center text-sm font-semibold text-white"></figcaption>
+    </figure>
   </div>
 </div>
 {% endblock %}
@@ -181,6 +578,45 @@
 {% block customJS %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  const btnHistorialSiis = document.getElementById('btn-historial-siis');
+  const historialSiis = document.getElementById('historial-validaciones-siis');
+  if (btnHistorialSiis && historialSiis) {
+    btnHistorialSiis.addEventListener('click', function () {
+      const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
+      btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
+      historialSiis.classList.toggle('hidden', abierto);
+    });
+  }
+
+  const imageOverlay = document.getElementById('image-preview-overlay');
+  const imagePreview = document.getElementById('image-preview-img');
+  const imageTitle = document.getElementById('image-preview-title');
+  const imageClose = document.getElementById('image-preview-close');
+  let imagePreviouslyFocused = null;
+
+  function closeImagePreview() {
+    imageOverlay.classList.add('hidden');
+    imageOverlay.style.display = 'none';
+    imagePreview.src = '';
+    if (imagePreviouslyFocused) imagePreviouslyFocused.focus();
+  }
+
+  document.querySelectorAll('[data-image-preview]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      imagePreviouslyFocused = trigger;
+      imagePreview.src = trigger.dataset.imageUrl;
+      imagePreview.alt = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageTitle.textContent = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageOverlay.classList.remove('hidden');
+      imageOverlay.style.display = 'flex';
+      imageClose.focus();
+    });
+  });
+  imageClose.addEventListener('click', closeImagePreview);
+  imageOverlay.addEventListener('click', function (event) {
+    if (event.target === imageOverlay) closeImagePreview();
+  });
+
   const btnAprobar = document.getElementById('btn-aprobar');
   if (btnAprobar) {
     btnAprobar.addEventListener('click', function () {
@@ -229,6 +665,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target === rechazoOverlay) cerrarModalRechazo();
   });
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !imageOverlay.classList.contains('hidden')) {
+      closeImagePreview();
+      return;
+    }
     if (e.key === 'Escape' && !rechazoOverlay.classList.contains('hidden')) cerrarModalRechazo();
   });
 

@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · {{ subsegmento.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -26,16 +27,15 @@
      }"
      @becas-saved.window="modalReqNuevo=false; modalReqEdit=false; modalSubEdit=false">
 
-  {# Volver #}
-  <div>
-    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
-      <i class="fas fa-arrow-left"></i> Volver al segmento
-    </a>
-  </div>
-
   {# Header card #}
   <div class="bg-white rounded-xl border border-base shadow-sm p-5">
     <div class="flex items-center gap-4 flex-wrap">
+
+      <a href="{% url 'becas:segmento_detalle' segmento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver al segmento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
 
       {# Tile ícono #}
       <div class="w-[46px] h-[46px] rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
@@ -61,9 +61,17 @@
       <div class="text-right flex-shrink-0">
         <p class="text-[11px] font-bold uppercase tracking-wide text-body-subtle mb-0.5">Cupo máximo</p>
         <p class="text-xl font-extrabold text-heading mb-2">{{ subsegmento.cupo_maximo }}</p>
+        {% if request.user|puede:"becas.subsegmento.editar" %}
         <button type="button" @click="modalSubEdit=true" class="btn-nodo btn-secondary btn-sm" aria-label="Editar subsegmento">
           <i class="fas fa-edit"></i> Editar
         </button>
+        {% endif %}
+        {% if subsegmento.pausa_efectiva %}<span class="badge badge-warning badge-dot ml-2">Pausado</span>{% endif %}
+        {% if request.user|puede:"becas.programa.administrar" %}
+        <a href="{% url 'becas:gestionar_pausa' 'subsegmento' subsegmento.pk %}" class="btn-nodo {% if subsegmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm ml-2">
+          {% if subsegmento.pausado %}Reanudar{% else %}Pausar{% endif %}
+        </a>
+        {% endif %}
       </div>
 
     </div>
@@ -101,9 +109,11 @@
         <h2 class="text-lg font-bold text-heading">Requisitos del subsegmento</h2>
         <p class="text-sm text-body-subtle mt-0.5">Requisitos propios de este subsegmento (se suman a los heredados del segmento padre).</p>
       </div>
+      {% if request.user|puede:"becas.requisito.crear" %}
       <button type="button" @click="modalReqNuevo=true" class="btn-nodo btn-brand btn-base" aria-label="Agregar nuevo requisito">
         <i class="fas fa-plus"></i> Nuevo requisito
       </button>
+      {% endif %}
     </div>
 
     <div id="reqs-propios-panel">
@@ -167,6 +177,7 @@
             <div>
               <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
               {{ form_requisito.orden }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
 
@@ -252,7 +263,8 @@
             </div>
             <div>
               <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
-              <input type="number" name="orden" x-model="editReqOrden" min="0" class="nodo-field w-full">
+              <input type="number" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field w-full">
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
 

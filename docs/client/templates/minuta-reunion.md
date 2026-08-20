@@ -71,4 +71,4 @@
 ---
 
 !!! success "Minuta aprobada"
-    Publicada en [mkdir-arg.github.io/Chaco](https://mkdir-arg.github.io/Chaco/) y validada por los participantes.
+    Publicada en [mkdir-arg.github.io/Chaco-Back](https://mkdir-arg.github.io/Chaco-Back/) y validada por los participantes.

@@ -21,6 +21,7 @@ elif (BASE_DIR / ".env.production").exists() and os.environ.get("ENVIRONMENT") =
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")  # dev|qa|prd
+PYTEST_RUNNING = "pytest" in sys.argv or os.environ.get("PYTEST_RUNNING") == "1"
 
 websockets_enabled_env = os.environ.get("WEBSOCKETS_ENABLED")
 if websockets_enabled_env is None:
@@ -101,6 +102,9 @@ INSTALLED_APPS = [
 if DEBUG:
     INSTALLED_APPS += ["silk"]
 
+if PYTEST_RUNNING:
+    INSTALLED_APPS += ["zeal"]
+
 if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
     MIGRATION_MODULES = {
         "users": None,
@@ -115,6 +119,9 @@ if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Sirve /static/ desde la propia app. En la VM nginx responde esas rutas antes
+    # de llegar acá; en Kubernetes es lo que evita depender de un sidecar.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "core.middleware.ApiCorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -123,9 +130,45 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "core.middleware.PortalCiudadanoMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "users.middleware.BackofficeSingleSessionMiddleware",
+    "users.middleware.CambioContrasenaObligatorioMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.RequestLoggingMiddleware",
 ]
+
+
+def _performance_query_monitoring_enabled():
+    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
+
+
+# Apagado por defecto; los relevamientos efímeros lo habilitan explícitamente.
+PERFORMANCE_QUERY_MONITORING_ENABLED = _performance_query_monitoring_enabled()
+PERFORMANCE_METRICS_WINDOW_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_WINDOW_SECONDS", "3600"))
+PERFORMANCE_METRICS_RETENTION_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_RETENTION_SECONDS", "86400"))
+PERFORMANCE_METRICS_NAMESPACE = os.environ.get("PERFORMANCE_METRICS_NAMESPACE", "")
+PERFORMANCE_QUERY_SAMPLE_RATE = float(
+    os.environ.get("PERFORMANCE_QUERY_SAMPLE_RATE", "0.2" if ENVIRONMENT == "prd" else "1.0")
+)
+PERFORMANCE_REDIS_TIMEOUT_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_TIMEOUT_SECONDS", "0.25"))
+PERFORMANCE_REDIS_RECOVERY_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_RECOVERY_SECONDS", "60"))
+PERFORMANCE_N1_WARNING_INTERVAL_SECONDS = float(os.environ.get("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS", "60"))
+if not 0 <= PERFORMANCE_QUERY_SAMPLE_RATE <= 1:
+    raise ValueError("PERFORMANCE_QUERY_SAMPLE_RATE debe estar entre 0 y 1")
+if PERFORMANCE_REDIS_TIMEOUT_SECONDS <= 0:
+    raise ValueError("PERFORMANCE_REDIS_TIMEOUT_SECONDS debe ser mayor que 0")
+if PERFORMANCE_REDIS_RECOVERY_SECONDS < 0:
+    raise ValueError("PERFORMANCE_REDIS_RECOVERY_SECONDS no puede ser negativo")
+if PERFORMANCE_N1_WARNING_INTERVAL_SECONDS < 0:
+    raise ValueError("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS no puede ser negativo")
+PERFORMANCE_CI = os.environ.get("PERFORMANCE_CI") == "1"
+if PERFORMANCE_QUERY_MONITORING_ENABLED:
+    # Debe envolver sesión y autenticación: agregado al final subcontaba el costo real.
+    MIDDLEWARE.insert(0, "config.middlewares.query_counter.QueryCountMiddleware")
+
+if PYTEST_RUNNING:
+    MIDDLEWARE += ["zeal.middleware.zeal_middleware"]
+    ZEAL_RAISE = True
+    ZEAL_ALLOWLIST = []
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -142,9 +185,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "legajos.context_processors.alertas_eventos_criticos",
                 "conversaciones.context_processors.user_groups",
                 "core.context_processors.sidebar_badges",
+                "core.context_processors.session_idle_config",
             ],
         },
     },
@@ -162,22 +205,57 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-STATICFILES_STORAGE = (
-    "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
-    if ENVIRONMENT == "prd"
-    else "django.contrib.staticfiles.storage.StaticFilesStorage"
-)
+# En ambientes servidos: manifest (URLs con hash, cacheables) + precompresión de
+# whitenoise. Antes solo "prd" usaba manifest, con lo cual un QA quedaba con
+# estáticos sin hash y distinto de producción.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if ENVIRONMENT in ("prd", "qa")
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
+
+# Servir /media/ desde la app (django.views.static.serve). Pensado para ambientes
+# servidos sin nginx adelante (Kubernetes): alcanza para la escala de QA. Los
+# archivos viven en MEDIA_ROOT, que ahí debe ser un volumen persistente.
+SERVE_MEDIA = os.environ.get("SERVE_MEDIA", "False") == "True"
 
 LOGIN_URL = "users:login"
 LOGIN_REDIRECT_URL = "core:inicio"
 LOGOUT_REDIRECT_URL = "users:login"
 ACCOUNT_FORMS = {"login": "users.forms.UserLoginForm"}
 
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+# STARTTLS en el 587 es exactamente EMAIL_USE_TLS (EMAIL_USE_SSL es el 465 implícito).
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+# El envío es sincrónico (no hay cola): sin timeout un SMTP lento cuelga el
+# request del alta de usuario hasta que corte el gateway.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+# El backend lo decide la presencia de EMAIL_HOST, no el ENVIRONMENT: qa usa el
+# mismo SMTP que prd, y el dev local sigue en consola sin configurar nada.
 EMAIL_BACKEND = (
-    "django.core.mail.backends.smtp.EmailBackend"
-    if ENVIRONMENT == "prd"
-    else "django.core.mail.backends.console.EmailBackend"
+    "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend"
 )
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
+# QA y producción comparten casilla y plantilla: el prefijo en el asunto es lo
+# único que distingue un correo de prueba de uno real en la bandeja del usuario.
+EMAIL_ASUNTO_PREFIJO = "" if ENVIRONMENT == "prd" else f"[{ENVIRONMENT.upper()}] "
+# Pie de los correos. Vacío = la línea no se renderiza (a definir con el cliente).
+EMAIL_SOPORTE = os.getenv("EMAIL_SOPORTE", "")
+EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
+
+# Vencimiento del enlace de recupero. Los correos (backoffice y portal) prometen
+# 24 h; el default de Django son 3 días.
+PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "86400"))
 
 MESSAGE_TAGS = {
     messages.DEBUG: "bg-gray-800 text-white",
@@ -209,7 +287,7 @@ DATABASES = {
     }
 }
 
-if "pytest" in sys.argv or os.environ.get("PYTEST_RUNNING") == "1":
+if PYTEST_RUNNING:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
@@ -221,7 +299,7 @@ REDIS_URL = os.environ.get(
     f"{'rediss' if REDIS_SSL else 'redis'}://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
 )
 
-if ENVIRONMENT == "prd":
+if ENVIRONMENT == "prd" or PERFORMANCE_CI:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
@@ -252,11 +330,34 @@ else:
         },
     }
 
+if PERFORMANCE_QUERY_MONITORING_ENABLED:
+    # La agregación debe ser compartida entre workers también en QA, donde el
+    # cache default sigue siendo local por compatibilidad con el entorno.
+    CACHES["performance"] = {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": PERFORMANCE_REDIS_TIMEOUT_SECONDS,
+            "SOCKET_TIMEOUT": PERFORMANCE_REDIS_TIMEOUT_SECONDS,
+        },
+        "TIMEOUT": PERFORMANCE_METRICS_RETENTION_SECONDS,
+    }
+
 SESSION_ENGINE = (
     "django.contrib.sessions.backends.cache" if ENVIRONMENT == "prd" else "django.contrib.sessions.backends.db"
 )
 SESSION_CACHE_ALIAS = "sessions"
 SESSION_COOKIE_AGE = 86400
+
+# Cierre de sesión automático por inactividad (idle logout, lado cliente).
+# Minutos sin actividad del usuario (mouse/teclado/scroll/touch) tras los cuales
+# se cierra la sesión. Configurable por entorno para ajustar a 10, 15, 20, etc.
+# 0 desactiva la funcionalidad.
+SESSION_IDLE_TIMEOUT_MINUTES = int(os.environ.get("SESSION_IDLE_TIMEOUT_MINUTES", "15"))
+# Segundos de aviso previo (modal con cuenta regresiva) antes de cerrar la
+# sesión. 0 = cerrar sin aviso.
+SESSION_IDLE_WARNING_SECONDS = int(os.environ.get("SESSION_IDLE_WARNING_SECONDS", "60"))
 
 if ENVIRONMENT == "prd":
     CHANNEL_LAYERS = {
@@ -280,11 +381,17 @@ HEALTH_CHECK = {
 DEFAULT_CACHE_TIMEOUT = 600
 DASHBOARD_CACHE_TIMEOUT = 600
 CIUDADANO_CACHE_TIMEOUT = 600
+SLOW_REQUEST_MS = int(os.environ.get("SLOW_REQUEST_MS", "3000"))
 
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_RATES": {
+        # Endpoints que llaman a RENAPER (servicio externo lento): límite por
+        # cliente para no agotar el pool de workers ni abusar del upstream.
+        "renaper": "30/min",
+    },
 }
 
 DOMINIO = os.environ.get("DOMINIO", "localhost:8000")
@@ -303,6 +410,18 @@ RENAPER_TEST_LATENCY_SECONDS = max(0, float(os.getenv("RENAPER_TEST_LATENCY_SECO
 RENAPER_CONNECT_TIMEOUT = int(os.getenv("RENAPER_CONNECT_TIMEOUT", "10"))
 RENAPER_TIMEOUT = int(os.getenv("RENAPER_TIMEOUT", "20"))
 RENAPER_RETRIES = int(os.getenv("RENAPER_RETRIES", "0"))
+PERSONAS_API_URL = os.getenv("PERSONAS_API_URL", "https://personas.ecomdev.ar/api/v1").strip().rstrip("/")
+PERSONAS_API_CLIENT_ID = os.getenv("PERSONAS_API_CLIENT_ID", "")
+PERSONAS_API_CLIENT_SECRET = os.getenv("PERSONAS_API_CLIENT_SECRET", "")
+PERSONAS_API_ENTIDAD_UUID = os.getenv("PERSONAS_API_ENTIDAD_UUID", "")
+PERSONAS_API_FUENTE_ID = int(os.getenv("PERSONAS_API_FUENTE_ID", "13"))
+PERSONAS_API_CONNECT_TIMEOUT = int(os.getenv("PERSONAS_API_CONNECT_TIMEOUT", "10"))
+PERSONAS_API_TIMEOUT = int(os.getenv("PERSONAS_API_TIMEOUT", "20"))
+SIIS_API_URL = os.getenv("SIIS_API_URL", "https://siisapi.ecomdev.ar").strip().rstrip("/")
+SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
+SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
+SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "10"))
+SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "30"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 LOG_DIR = BASE_DIR / "logs"

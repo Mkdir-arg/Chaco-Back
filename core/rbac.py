@@ -19,7 +19,7 @@ Reglas:
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
-from django.db.models import Q
+from django.db.models import Prefetch, Q, prefetch_related_objects
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
 APP_LABEL = "users"
@@ -48,9 +48,38 @@ CATALOGO = [
         "tab": "backoffice",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
-            ("programa.ver", "Ver programas"),
-            ("programa.operar", "Operar programas"),
             ("programa.configurar", "Configurar programas"),
+            ("programa.usuario.administrar", "Administrar los usuarios de su programa"),
+            ("programa.rol.administrar", "Administrar los roles de su programa"),
+        ],
+    },
+    {
+        "modulo": "dispositivos",
+        "label": "Dispositivos",
+        "tab": "backoffice",
+        "alcance": "programa",
+        "programas": ("DISPOSITIVOS",),
+        "capacidades": [
+            ("dispositivo.ver", "Ver dispositivos"),
+            ("dispositivo.crear", "Crear dispositivos"),
+            ("dispositivo.editar", "Editar dispositivos"),
+            ("dispositivo.validar", "Validar dispositivos"),
+            ("dispositivo.admitir", "Admitir personas en dispositivos"),
+            ("dispositivo.egresar", "Registrar egresos de dispositivos"),
+        ],
+    },
+    {
+        "modulo": "merenderos",
+        "label": "Merenderos",
+        "tab": "backoffice",
+        "alcance": "programa",
+        "programas": ("MERENDEROS",),
+        "capacidades": [
+            ("merendero.ver", "Ver merenderos"),
+            ("merendero.crear", "Crear merenderos"),
+            ("merendero.editar", "Editar merenderos"),
+            ("merendero.validar", "Validar merenderos"),
+            ("merendero.entregar", "Registrar entregas a merenderos"),
         ],
     },
     {
@@ -70,6 +99,9 @@ CATALOGO = [
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
+            ("becas.usuario.territorial", "Crear y administrar territoriales de los segmentos coordinados"),
+            ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
+            ("becas.coordinador_regional", "Operar como Coordinador Regional dentro de su subsegmento asignado"),
         ],
     },
     {
@@ -111,7 +143,7 @@ CATALOGO = [
         "tab": "becas",
         "alcance": "programa",
         "capacidades": [
-            ("becas.pregunta.ver", "Ver preguntas globales (cuestionario social)"),
+            ("becas.pregunta.ver", "Ver preguntas globales (requisitos generales)"),
             ("becas.pregunta.crear", "Crear preguntas globales"),
             ("becas.pregunta.editar", "Editar preguntas globales (incluye activar/desactivar/eliminar)"),
         ],
@@ -176,6 +208,16 @@ CATALOGO = [
         "capacidades": [
             ("becas.beneficiario.ver", "Ver beneficiarios, lista de espera y pendientes"),
             ("becas.beneficiario.editar", "Dar de baja, promover y agregar a lista de espera beneficiarios"),
+        ],
+    },
+    {
+        "modulo": "becas_reportes",
+        "label": "Becas — Reportes",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.reportes.ver", "Ver reportes de Becas"),
+            ("becas.reportes.exportar", "Exportar reportes de Becas"),
         ],
     },
     {
@@ -247,17 +289,16 @@ CATEGORIA_BACKOFFICE = "Backoffice"
 CATEGORIA_INSTITUCION = "Institución"
 CATEGORIA_PORTAL = "Portal"
 CATEGORIA_SISTEMA = "Sistema"
-CATEGORIA_NACHEC = "ÑACHEC"
 CATEGORIA_BECAS = "Becas"
-# Valor legacy: usado en datos históricos y tests. No aparece en el selector de UI.
+# Categoría programática: agrupa roles acotados por ``RolMeta.programa``.
 CATEGORIA_PROGRAMA = "Programa"
 CATEGORIAS_ROL = [
     CATEGORIA_BACKOFFICE,
     CATEGORIA_INSTITUCION,
     CATEGORIA_PORTAL,
     CATEGORIA_SISTEMA,
-    CATEGORIA_NACHEC,
     CATEGORIA_BECAS,
+    CATEGORIA_PROGRAMA,
 ]
 CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
 
@@ -267,12 +308,39 @@ TABS_CAPACIDADES = [
     {"id": "institucion", "label": "Institución", "icon": "fa-building-columns"},
     {"id": "portal", "label": "Portal", "icon": "fa-globe"},
     {"id": "sistema", "label": "Sistema", "icon": "fa-gear"},
-    {"id": "nachec", "label": "ÑACHEC", "icon": "fa-seedling"},
     {"id": "becas", "label": "Becas", "icon": "fa-graduation-cap"},
 ]
 
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
 CAPS_ADMINISTRACION = ("usuario.administrar", "rol.administrar")
+
+# Capacidades que, en un rol con ``RolMeta.programa`` seteado, acotan a su portador
+# a administrar ESE programa. Van separadas por ABM: se puede dar la gestión de
+# usuarios del programa sin la de sus roles, y viceversa.
+#
+# Acá solo van capacidades **transversales**: ningún programa confiere este alcance
+# con su propia capacidad paraguas. Así un programa nuevo delega la gestión de sus
+# usuarios y roles tildando estas dos, sin inventar una capacidad propia, y se le
+# puede quitar sin desarmarle el rol.
+#
+# Quedaron afuera a propósito:
+# - ``programa.configurar``: habilita el wizard global de programas (crear/editar
+#   cualquiera), que es potestad de sistema y no un alcance acotado.
+# - ``becas.programa.administrar``: es la paraguas del dominio Becas (reportes,
+#   RENAPER, pausas, alta de coordinadores). Confería además este alcance, lo que
+#   hacía imposible quitarle los ABM al Administrador de Becas sin vaciarle el rol.
+#   La migración ``users.0020`` le pasó estas dos a los roles que la tenían.
+CAPS_ADMIN_PROGRAMA_USUARIOS = ("programa.usuario.administrar",)
+CAPS_ADMIN_PROGRAMA_ROLES = ("programa.rol.administrar",)
+
+# Unión de ambas: "administra algo de este programa". La usa el check de "no dejar
+# un programa sin administrador", que no distingue de qué ABM se trata.
+CAPS_ADMIN_PROGRAMA = tuple(dict.fromkeys(CAPS_ADMIN_PROGRAMA_USUARIOS + CAPS_ADMIN_PROGRAMA_ROLES))
+
+# Capacidades que abren cada ABM. Se derivan del alcance para que la puerta y el
+# alcance no puedan quedar desalineados (entrar y no ver nada, o al revés).
+CAPS_ENTRADA_ABM_USUARIOS = ("usuario.administrar", *CAPS_ADMIN_PROGRAMA_USUARIOS, "becas.usuario.territorial")
+CAPS_ENTRADA_ABM_ROLES = ("rol.administrar", *CAPS_ADMIN_PROGRAMA_ROLES)
 
 # Nombre del rol protegido y del marcador de identidad del portal.
 ROL_ADMINISTRADOR = "Administrador"
@@ -339,7 +407,19 @@ def capacidades_de_grupo(group):
     return [c for c in codigos_de_capacidad() if codename_de(c) in codenames]
 
 
-def arbol_capacidades(codigos_activos=(), solo_programa=False):
+def _modulo_asignable_en_programa(modulo, programa):
+    """Indica si un módulo de programa puede asignarse en ``programa``.
+
+    Los módulos sin una lista ``programas`` conservan la compatibilidad: están
+    disponibles en todos los programas. Los módulos especializados evitan que
+    un administrador de Becas otorgue capacidades de Dispositivos por error.
+    """
+
+    codigos_programa = modulo.get("programas")
+    return not codigos_programa or programa is None or getattr(programa, "codigo", programa) in codigos_programa
+
+
+def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
@@ -347,8 +427,9 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False):
         [{"modulo", "label", "capacidades": [{"codigo", "label", "checked"}]}]
 
     Con ``solo_programa=True`` se limita a los módulos "de programa"
-    (``alcance == "programa"``). El default es retrocompatible: devuelve el
-    catálogo completo.
+    (``alcance == "programa"``). Si también se informa ``programa``, excluye
+    los módulos especializados para otros programas. El default es
+    retrocompatible: devuelve el catálogo completo.
     """
     activos = set(codigos_activos)
     return [
@@ -362,11 +443,12 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False):
             ],
         }
         for modulo in CATALOGO
-        if not solo_programa or modulo.get("alcance") == "programa"
+        if (not solo_programa or modulo.get("alcance") == "programa")
+        and _modulo_asignable_en_programa(modulo, programa)
     ]
 
 
-def arbol_por_tabs(codigos_activos=(), solo_programa=False):
+def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
     """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
@@ -374,11 +456,15 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False):
     ``codigos_activos``. Los tabs vacíos se incluyen (permiten futura expansión).
 
     Con ``solo_programa=True`` solo incluye módulos con ``alcance == "programa"``.
+    ``programa`` aplica la misma restricción de módulos especializados que
+    :func:`arbol_capacidades`.
     """
     activos = set(codigos_activos)
     tabs = {t["id"]: {"id": t["id"], "label": t["label"], "icon": t["icon"], "modulos": []} for t in TABS_CAPACIDADES}
     for modulo in CATALOGO:
         if solo_programa and modulo.get("alcance") != "programa":
+            continue
+        if not _modulo_asignable_en_programa(modulo, programa):
             continue
         tab_id = modulo.get("tab", "backoffice")
         if tab_id not in tabs:
@@ -493,6 +579,23 @@ def puede_alguna(user, codigos, programa=None):
     return any(puede(user, c, programa=programa) for c in codigos)
 
 
+def nombres_de_grupos(user):
+    """Nombres de grupos del usuario, cacheados durante la solicitud actual."""
+    cache = getattr(user, "_group_names_cache", None)
+    if cache is None:
+        prefetched = getattr(user, "_prefetched_objects_cache", {})
+        groups = prefetched.get("groups")
+        if groups is None:
+            prefetch_related_objects(
+                [user],
+                Prefetch("groups", queryset=user.groups.model.objects.order_by("pk")),
+            )
+            groups = user._prefetched_objects_cache["groups"]
+        cache = tuple(group.name for group in groups)
+        user._group_names_cache = cache
+    return cache
+
+
 def es_ciudadano_portal(user):
     """¿El usuario es un ciudadano del portal? (marcador de identidad, no capacidad).
 
@@ -503,7 +606,7 @@ def es_ciudadano_portal(user):
         return False
     cache = getattr(user, "_es_ciudadano_portal", None)
     if cache is None:
-        cache = user.groups.filter(name=GRUPO_CIUDADANO_PORTAL).exists()
+        cache = GRUPO_CIUDADANO_PORTAL in nombres_de_grupos(user)
         user._es_ciudadano_portal = cache
     return cache
 
@@ -511,10 +614,34 @@ def es_ciudadano_portal(user):
 # ---------------------------------------------------------------------------
 # Enforcement: decorador (FBV) y mixin (CBV)
 # ---------------------------------------------------------------------------
+MENSAJE_SIN_PERMISOS = "No tiene permisos para realizar esta acción."
+
+
+def _respuesta_sin_permiso(request, redirect_to):
+    """Respuesta para un usuario autenticado sin la capacidad requerida.
+
+    En una petición AJAX (modales con fetch) el redirect tradicional termina
+    devolviendo el HTML del inicio y el front lo muestra como "Ocurrió un
+    error": acá se responde JSON 403 con el motivo real para que el toast
+    distinga un problema de permisos de un error del sistema. En navegación
+    normal se mantiene el redirect con mensaje.
+    """
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        from django.http import JsonResponse
+
+        return JsonResponse({"ok": False, "message": MENSAJE_SIN_PERMISOS}, status=403)
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    messages.error(request, "No tiene permisos para acceder a esta sección.")
+    return redirect(redirect_to)
+
+
 def requiere(*codigos, redirect_to="core:inicio"):
     """Decorador para FBV: exige al menos una de las capacidades indicadas.
 
-    No autenticado -> login. Autenticado sin capacidad -> redirect con mensaje.
+    No autenticado -> login. Autenticado sin capacidad -> redirect con mensaje
+    (o JSON 403 si la petición es AJAX).
     Reemplaza a ``core.decorators.group_required`` (por nombre de grupo).
     """
 
@@ -528,11 +655,7 @@ def requiere(*codigos, redirect_to="core:inicio"):
                 return redirect_to_login(request.get_full_path())
             if puede_alguna(user, codigos):
                 return view_func(request, *args, **kwargs)
-            from django.contrib import messages
-            from django.shortcuts import redirect
-
-            messages.error(request, "No tiene permisos para acceder a esta sección.")
-            return redirect(redirect_to)
+            return _respuesta_sin_permiso(request, redirect_to)
 
         return _wrapped
 
@@ -561,11 +684,7 @@ class CapacidadRequeridaMixin:
             return redirect_to_login(request.get_full_path())
         if puede_alguna(user, self.get_capacidades_requeridas()):
             return super().dispatch(request, *args, **kwargs)
-        from django.contrib import messages
-        from django.shortcuts import redirect
-
-        messages.error(request, "No tiene permisos para acceder a esta sección.")
-        return redirect(self.redirect_sin_permiso)
+        return _respuesta_sin_permiso(request, self.redirect_sin_permiso)
 
 
 # ---------------------------------------------------------------------------
@@ -590,11 +709,11 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
     """Usuarios **activos** que administran un programa concreto.
 
     Cuenta a quien tiene un rol **activo** con ``RolMeta.programa = programa`` y
-    la capacidad ``programa.configurar``, más los **superusuarios** activos
-    (acceso de emergencia, igual que el check global).
+    alguna capacidad de :data:`CAPS_ADMIN_PROGRAMA`, más los **superusuarios**
+    activos (acceso de emergencia, igual que el check global).
     """
     programa_pk = getattr(programa, "pk", programa)
-    codename = codename_de("programa.configurar")
+    codenames = [codename_de(c) for c in CAPS_ADMIN_PROGRAMA]
     return (
         User.objects.filter(is_active=True)
         .exclude(id__in=list(excluir_ids))
@@ -603,7 +722,7 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
             | Q(
                 groups__meta__activo=True,
                 groups__meta__programa=programa_pk,
-                groups__permissions__codename=codename,
+                groups__permissions__codename__in=codenames,
             )
         )
         .distinct()

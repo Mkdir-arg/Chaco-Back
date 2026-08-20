@@ -144,6 +144,7 @@
     var consultaDetalleApp = document.getElementById('portal-consulta-detalle-app');
     var conversacionId = {{ conversacion.id }};
     var mensajesCargados = new Set();
+    var ultimoMensajeId = 0;
 
     function buildConversationUrl(template, conversationId) {
         return template.replace('/0/', `/${conversationId}/`);
@@ -152,6 +153,8 @@
     // Registrar IDs ya renderizados por el servidor
     document.querySelectorAll('[data-msg-id]').forEach(function (el) {
         mensajesCargados.add(el.dataset.msgId + '-' + el.dataset.remitente);
+        var idNum = parseInt(el.dataset.msgId, 10);
+        if (!isNaN(idNum) && idNum > ultimoMensajeId) ultimoMensajeId = idNum;
     });
 
     function agregarMensaje(contenido, remitente, fecha) {
@@ -198,7 +201,8 @@
 
     async function cargarMensajesNuevos() {
         try {
-            var response = await fetch(buildConversationUrl(consultaDetalleApp.dataset.messagesUrlTemplate, conversacionId));
+            var url = buildConversationUrl(consultaDetalleApp.dataset.messagesUrlTemplate, conversacionId) + '?since=' + ultimoMensajeId;
+            var response = await fetch(url);
             var data = await response.json();
             data.mensajes.forEach(function (msg) {
                 var key = msg.id + '-' + msg.remitente;
@@ -206,6 +210,7 @@
                     agregarMensaje(msg.contenido, msg.remitente, msg.fecha);
                     mensajesCargados.add(key);
                 }
+                if (msg.id > ultimoMensajeId) ultimoMensajeId = msg.id;
             });
         } catch (e) {
             // Ignorar errores de red silenciosamente

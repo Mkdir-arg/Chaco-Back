@@ -16,30 +16,22 @@
 <div class="max-w-6xl mx-auto space-y-5"
      x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'beneficiarios' }">
 
-  {# Volver #}
-  <div>
-    <a href="{% url 'becas:segmento_detalle' segmento.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-      Volver al segmento
-    </a>
-  </div>
-
   {# ===== PageHeader ===== #}
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <nav class="flex items-center gap-1.5 mb-2" style="font-size:12.5px; color:var(--text-body-subtle);">
-        <span>Programa Becas</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="opacity:.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
-        <a href="{% url 'becas:segmentos' %}" style="color:var(--text-body); font-weight:600;">Segmentos</a>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="opacity:.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
-        <span style="color:var(--text-body); font-weight:600;">Cupo</span>
-      </nav>
-      <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
-        {{ segmento.nombre }}
-      </h1>
-      <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
-        Gestión de cupo, lista de espera y pendientes del segmento.
-      </p>
+    <div class="flex items-start gap-3 min-w-0">
+      <a href="{% url 'becas:segmento_detalle' segmento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver al segmento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <div class="min-w-0">
+        <h1 style="font-size:28px; font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; line-height:1.15;">
+          {{ segmento.nombre }}
+        </h1>
+        <p style="font-size:14px; color:var(--text-body-subtle); margin-top:4px;">
+          Gestión de cupo, lista de espera y pendientes del segmento.
+        </p>
+      </div>
     </div>
     <div class="flex items-center gap-3">
       <button type="button" disabled class="btn-nodo btn-tertiary btn-sm" style="background:var(--bg-disabled);color:var(--text-disabled);cursor:not-allowed;border-color:var(--border-base);" aria-disabled="true">
@@ -49,34 +41,7 @@
     </div>
   </div>
 
-  {# ===== Mensajes Django ===== #}
-  {% if messages %}
-  <div class="space-y-2">
-    {% for message in messages %}
-    {% if message.tags == 'warning' or message.level == 30 %}
-    <div role="alert" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:12px;background:var(--bg-warning-soft,#FFF8F1);border:1px solid var(--border-warning-subtle,#FCD9BD);font-size:14px;font-weight:600;color:var(--text-fg-warning,#771D1D);">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-        <span>{{ message }}</span>
-      </div>
-      <button type="button" @click="tab='lista_espera'" class="btn-nodo btn-tertiary btn-sm" style="white-space:nowrap;">
-        Ir a lista de espera
-      </button>
-    </div>
-    {% elif message.tags == 'error' or message.level == 40 %}
-    <div role="alert" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:var(--bg-danger-soft,#FEF0F2);border:1px solid var(--border-danger-subtle,#FFCCD3);font-size:14px;font-weight:600;color:var(--text-fg-danger,#C70036);">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <span>{{ message }}</span>
-    </div>
-    {% else %}
-    <div role="alert" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:var(--bg-success-soft,#ECFDF5);border:1px solid var(--border-success-subtle,#A4F4CF);font-size:14px;font-weight:600;color:var(--text-fg-success,#007A55);">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <span>{{ message }}</span>
-    </div>
-    {% endif %}
-    {% endfor %}
-  </div>
-  {% endif %}
+  {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js). El atajo "Ir a lista de espera" que vivía en el mensaje de warning se removió con la migración a toast.{% endcomment %}
 
   {# ===== Stat Cards ===== #}
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -189,7 +154,7 @@
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.ciudadano.dni }}</td>
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
                 <a href="{% url 'becas:formulario_detalle' formulario.pk %}" style="color:var(--text-fg-brand);font-weight:600;">
-                  #{{ formulario.pk }}
+                  Formulario {{ formulario.numero }}
                 </a>
                 <span style="font-size:12px;color:var(--text-body-subtle);display:block;margin-top:1px;">{{ formulario.relevamiento.convocatoria.nombre }}</span>
               </td>

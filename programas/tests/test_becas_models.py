@@ -74,6 +74,33 @@ class SegmentoCupoTests(TestCase):
         self.assertEqual(self.segmento.cupo_distribuido, 200)
         self.assertEqual(self.segmento.cupo_disponible, 0)
 
+    def test_no_permite_bajar_cupo_por_debajo_de_lo_distribuido(self):
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Ladrillo", cupo_maximo=120)
+        self.segmento.cupo_maximo = 100
+        with self.assertRaises(ValidationError) as ctx:
+            self.segmento.full_clean()
+        self.assertIn("120", str(ctx.exception))
+
+    def test_permite_cambiar_de_programa_con_subsegmentos(self):
+        """El subsegmento es local: no espeja nada de SIIS, así que mover el
+        segmento de programa no lo invalida a nivel modelo."""
+        from programas.models import ProgramaSiis
+
+        p1 = ProgramaSiis.objects.create(nombre="P1", siis_programa_id=41)
+        p2 = ProgramaSiis.objects.create(nombre="P2", siis_programa_id=42)
+        self.segmento.programa = p1
+        self.segmento.save(update_fields=["programa"])
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
+
+        self.segmento.programa = p2
+        self.segmento.full_clean()  # no debe levantar
+
+    def test_no_permite_repetir_nombre_en_el_mismo_segmento(self):
+        Subsegmento.objects.create(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
+        repetido = Subsegmento(segmento=self.segmento, nombre="Función 1", cupo_maximo=20)
+        with self.assertRaises(ValidationError):
+            repetido.full_clean()
+
 
 class ConvocatoriaTests(TestCase):
     def setUp(self):
@@ -131,7 +158,26 @@ class RelevamientoTests(TestCase):
             zona="Centro",
         )
         self.assertEqual(rel.nombre, "Relevamiento 001")
+        self.assertEqual(rel.numero, 1)
         self.assertEqual(rel.estado, Relevamiento.Estado.ASIGNADO)
+
+    def test_numeracion_es_independiente_por_convocatoria(self):
+        otra_conv = Convocatoria.objects.create(
+            nombre="Otra",
+            segmento=self.segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        primero = Relevamiento.objects.create(
+            convocatoria=self.conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 1), zona="A"
+        )
+        segundo = Relevamiento.objects.create(
+            convocatoria=self.conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 2), zona="B"
+        )
+        primero_otra = Relevamiento.objects.create(
+            convocatoria=otra_conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 1), zona="C"
+        )
+        self.assertEqual((primero.numero, segundo.numero, primero_otra.numero), (1, 2, 1))
 
 
 class CamposFormularioTests(TestCase):
@@ -254,6 +300,7 @@ class FormularioTests(TestCase):
                 "nombre": "Juan",
                 "apellido": "Pérez",
                 "fecha_nacimiento": "1990-01-15",
+                "sexo": "M",
                 "origen": "manual",
             },
         )
@@ -261,6 +308,7 @@ class FormularioTests(TestCase):
         form.refresh_from_db()
         self.assertIsNotNone(form.ciudadano)
         self.assertEqual(form.ciudadano.dni, "99887766")
+        self.assertEqual(form.ciudadano.genero, "M")
         self.assertIsNone(form.datos_identificacion)
         self.assertTrue(Ciudadano.objects.filter(dni="99887766").exists())
 
@@ -280,6 +328,29 @@ class FormularioTests(TestCase):
         # No se modifican los datos del ciudadano existente
         self.assertEqual(existente.nombre, "Ana")
         self.assertEqual(existente.apellido, "López")
+
+    def test_sync_offline_completa_sexo_faltante_sin_pisar_uno_existente(self):
+        sin_genero = Ciudadano.objects.create(dni="55554445", nombre="Ana", apellido="López")
+        form = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="3624100200",
+            email_contacto="a@b.com",
+            datos_identificacion={"dni": sin_genero.dni, "sexo": "F"},
+        )
+        resolver_ciudadano_offline(form)
+        sin_genero.refresh_from_db()
+        self.assertEqual(sin_genero.genero, "F")
+
+        con_genero = Ciudadano.objects.create(dni="55554446", nombre="Luis", apellido="Pérez", genero="M")
+        otro_form = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="3624100201",
+            email_contacto="c@d.com",
+            datos_identificacion={"dni": con_genero.dni, "sexo": "F"},
+        )
+        resolver_ciudadano_offline(otro_form)
+        con_genero.refresh_from_db()
+        self.assertEqual(con_genero.genero, "M")
 
 
 class HelpersTests(TestCase):

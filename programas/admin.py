@@ -4,6 +4,9 @@ from django.utils.html import format_html
 
 from .models import (
     AsignacionCoordinador,
+    AsignacionDispositivo,
+    AsignacionReferente,
+    AsignacionTerritorial,
     Convocatoria,
     CupoSegmento,
     DerivacionPrograma,
@@ -12,6 +15,7 @@ from .models import (
     ListaEspera,
     PreguntaGlobal,
     Programa,
+    ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
@@ -44,6 +48,18 @@ class ProgramaAdmin(admin.ModelAdmin):
             "Opciones",
             {
                 "fields": ("naturaleza", "tiene_turnos", "cupo_maximo", "tiene_lista_espera", "subsecretaria"),
+            },
+        ),
+        (
+            "Indicadores operativos",
+            {
+                "fields": (
+                    "umbral_disponibilidad_verde",
+                    "dias_actualizacion_verde",
+                    "dias_actualizacion_amarillo",
+                    "umbral_completitud_amarillo",
+                    "umbral_completitud_verde",
+                ),
             },
         ),
         (
@@ -175,12 +191,20 @@ class SubsegmentoInline(admin.TabularInline):
 class RequisitoNativoInline(admin.TabularInline):
     model = RequisitoNativo
     extra = 0
+    fk_name = "segmento"
+
+
+@admin.register(ProgramaSiis)
+class ProgramaSiisAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "siis_programa_id", "siis_programa_estado", "pausado", "siis_verificado_en")
+    list_filter = ("siis_programa_estado", "pausado")
+    search_fields = ("nombre",)
 
 
 @admin.register(Segmento)
 class SegmentoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "cupo_maximo", "requiere_gps", "activo")
-    list_filter = ("activo", "requiere_gps")
+    list_display = ("nombre", "programa", "cupo_maximo", "requiere_gps", "activo")
+    list_filter = ("activo", "requiere_gps", "programa")
     search_fields = ("nombre",)
     inlines = (SubsegmentoInline, RequisitoNativoInline)
 
@@ -207,7 +231,7 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
 
 @admin.register(Relevamiento)
 class RelevamientoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "convocatoria", "territorial", "fecha_asignada", "zona", "estado")
+    list_display = ("nombre", "convocatoria", "territorial", "fecha_asignada", "fecha_hasta", "zona", "estado")
     list_filter = ("estado", "convocatoria")
     search_fields = ("nombre", "zona", "territorial__username")
     readonly_fields = ("nombre",)
@@ -223,8 +247,8 @@ class PreguntaGlobalAdmin(admin.ModelAdmin):
 
 @admin.register(RequisitoNativo)
 class RequisitoNativoAdmin(admin.ModelAdmin):
-    list_display = ("texto", "segmento", "subsegmento", "tipo", "orden")
-    list_filter = ("segmento", "tipo")
+    list_display = ("texto", "programa", "segmento", "subsegmento", "tipo", "orden")
+    list_filter = ("programa", "segmento", "tipo")
     search_fields = ("texto",)
 
 
@@ -233,6 +257,26 @@ class AsignacionCoordinadorAdmin(admin.ModelAdmin):
     list_display = ("coordinador", "segmento", "activo", "fecha_asignacion")
     list_filter = ("activo", "segmento")
     search_fields = ("coordinador__username", "segmento__nombre")
+
+
+@admin.register(AsignacionReferente)
+class AsignacionReferenteAdmin(admin.ModelAdmin):
+    list_display = ("referente", "coordinador", "fecha_asignacion")
+    search_fields = ("referente__username", "coordinador__username")
+
+
+@admin.register(AsignacionDispositivo)
+class AsignacionDispositivoAdmin(admin.ModelAdmin):
+    list_display = ("rol", "dispositivo", "activo", "creado")
+    list_filter = ("activo", "dispositivo__tipo")
+    search_fields = ("rol__name", "dispositivo__codigo", "dispositivo__nombre")
+
+
+@admin.register(AsignacionTerritorial)
+class AsignacionTerritorialAdmin(admin.ModelAdmin):
+    list_display = ("territorial", "segmento", "fecha_asignacion")
+    list_filter = ("segmento",)
+    search_fields = ("territorial__username", "segmento__nombre")
 
 
 class TracaFormularioInline(admin.TabularInline):

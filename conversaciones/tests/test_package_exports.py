@@ -15,7 +15,7 @@ class ConversacionesPackageExportsTests(SimpleTestCase):
         from conversaciones.forms import IniciarConversacionForm, MensajeConversacionForm
         from conversaciones.selectors import get_alertas_conversaciones_count
         from conversaciones.services import AsignadorAutomatico, iniciar_conversacion_publica
-        from conversaciones.signals import invalidate_conversacion_cache
+        from conversaciones.signals.alertas import alerta_nueva_conversacion
 
         self.assertTrue(callable(alertas_conversaciones_count))
         self.assertTrue(callable(conversacion_detalle))
@@ -24,4 +24,4 @@ class ConversacionesPackageExportsTests(SimpleTestCase):
         self.assertIsNotNone(AsignadorAutomatico)
         self.assertTrue(callable(iniciar_conversacion_publica))
         self.assertTrue(callable(get_alertas_conversaciones_count))
-        self.assertTrue(callable(invalidate_conversacion_cache))
+        self.assertTrue(callable(alerta_nueva_conversacion))

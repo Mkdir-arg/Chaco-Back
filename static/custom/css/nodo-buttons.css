@@ -167,6 +167,22 @@
 
 .btn-tertiary i, .btn-tertiary span { color: var(--text-fg-brand, #5059bc) !important; }
 
+/* Back navigation used beside detail-page titles. */
+.btn-tertiary.btn-back-circle {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 9999px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
+    box-shadow: var(--shadow-sm);
+}
+
 @media (max-width: 640px) {
     .btn-nodo {
         max-width: 100%;

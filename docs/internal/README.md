@@ -7,6 +7,7 @@ Esta carpeta **no se publica** en GitHub Pages.
 
 | Archivo | Descripción |
 |---|---|
+| [requerimientos.md](requerimientos.md) | **Archivo vivo de requerimientos.** Todo desarrollo se registra acá al cerrarse: pedido, solicitante, decisiones, historial y reversión |
 | [architecture.md](architecture.md) | Diagrama de componentes y decisiones de diseño |
 | [setup.md](setup.md) | Cómo levantar el proyecto localmente |
 | [onboarding.md](onboarding.md) | Guía para desarrolladores nuevos |

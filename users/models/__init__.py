@@ -2,11 +2,13 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 from core.rbac import (
     CATEGORIA_BACKOFFICE,
+    CATEGORIA_PROGRAMA,
     CATEGORIAS_ROL_CHOICES,
     todas_las_capacidades,
 )
@@ -15,6 +17,24 @@ from core.rbac import (
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     dark_mode = models.BooleanField(default=True)
+    dni = models.CharField(max_length=8, unique=True, null=True, blank=True, verbose_name="DNI")
+    telefono = models.CharField(max_length=30, blank=True, default="", verbose_name="Teléfono")
+    institucion = models.CharField(max_length=255, blank=True, default="", verbose_name="Institución")
+    observacion = models.TextField(blank=True, default="", verbose_name="Observación")
+    backoffice_session_key = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Sesión activa de Backoffice",
+    )
+    # El alta manda una clave provisoria por correo: hasta que el usuario la
+    # cambie, el middleware no lo deja operar (RN-C2 del análisis #236).
+    debe_cambiar_contrasena = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name="Debe cambiar la contraseña",
+    )
 
     def __str__(self):
         return f"Perfil de {self.user.username}"
@@ -52,6 +72,15 @@ class RolMeta(models.Model):
     class Meta:
         verbose_name = "Metadato de rol"
         verbose_name_plural = "Metadatos de roles"
+
+    def clean(self):
+        super().clean()
+        if self.categoria == CATEGORIA_PROGRAMA and self.programa_id is None:
+            raise ValidationError({"programa": "Debés seleccionar un programa para los roles de categoría Programa."})
+        if self.categoria != CATEGORIA_PROGRAMA and self.programa_id is not None:
+            raise ValidationError(
+                {"programa": "Solo los roles de categoría Programa pueden tener un programa asociado."}
+            )
 
     def __str__(self):
         return self.grupo.name

@@ -11,7 +11,6 @@ from users.tests.test_rbac import _perm, render_sidebar
 
 _CAPS_OPERADOR = [
     "ciudadano.ver",
-    "programa.ver",
     "reporte.ver",
     "config.administrar",
     "usuario.administrar",
@@ -64,6 +63,15 @@ class MenuRestringidoTests(TestCase):
         self.assertIn(reverse("legajos:dashboard_contactos"), html)
         # Usamos href= para evitar falso positivo por substring de /becas/relevamientos/
         self.assertNotIn(f'href="{reverse("core:relevamientos")}"', html)
+
+    def test_modulo_becas_se_muestra_como_programas(self):
+        su = User.objects.create_superuser("root-programas", "root-programas@example.com", "x")
+
+        html = render_sidebar(su)
+
+        self.assertIn('<span class="flex-1">Programas</span>', html)
+        self.assertIn('title="Programas"', html)
+        self.assertNotIn('<span class="flex-1">Becas</span>', html)
 
     def test_rol_inactivo_solo_inicio(self):  # TC-59-08
         self.rol.meta.activo = False

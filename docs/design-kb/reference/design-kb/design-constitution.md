@@ -1,12 +1,15 @@
 # Design Constitution
 **NODO — Gobierno del Chaco**
-**Highest-Level Principles Governing Every UI Decision**
+**Historical design reference — not operational authority**
+
+> For production, current code prevails. Validate this document against the
+> frontend and `.claude/agents/chaco-design-system.md` before reusing a rule.
 
 ---
 
-> These are the inviolable laws of the NODO design system.
-> When in doubt about any UI decision, return to these principles.
-> They take precedence over personal preference, legacy patterns, and convenience.
+> These are historical NODO principles. They can inform an investigation, but do
+> not decide a production UI change without matching current code and the
+> operational inventory.
 
 ---
 
@@ -108,13 +111,12 @@ NODO is a backoffice for government workers at desks. The sidebar, data tables, 
 
 ---
 
-## Article X: The System Is the Single Source of Truth
+## Article X: Production Evidence Precedes Documentation
 
-**Documentation, tokens, and code are only valid when they agree.**
-
-When a token file (`chaco-tokens.json`), a CSS file (`chaco-tokens.css`), a documentation file (`CHACO_NODO_Design_Manual.md`), and the component code disagree — the most recently updated token file wins.
-
-When documentation conflicts with code, fix the code to match the documented tokens. Exceptions must be documented with a rationale.
+When documentation, token files, prototypes and component code disagree, the
+loaded production code and its consumers prevail. Stop the UI change, cite the
+evidence and reconcile `.claude/agents/chaco-design-system.md`; never change code
+solely to make it match this historical document.
 
 ---
 

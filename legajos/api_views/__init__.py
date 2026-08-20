@@ -2,9 +2,10 @@ from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from ..models import (
     AlertaCiudadano,
@@ -16,6 +17,12 @@ from ..serializers import (
 )
 from ..services import AlertasService, FiltrosUsuarioService
 from ..services.consulta_renaper import consultar_datos_renaper
+
+
+class RenaperRateThrottle(AnonRateThrottle):
+    """Límite por IP para el endpoint público que consulta RENAPER."""
+
+    scope = "renaper"
 
 
 @extend_schema_view(
@@ -88,6 +95,7 @@ class AlertasViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([RenaperRateThrottle])
 def consultar_renaper_api(request):
     dni = str(request.data.get("dni") or "").strip()
     sexo = str(request.data.get("sexo") or "").strip().upper()

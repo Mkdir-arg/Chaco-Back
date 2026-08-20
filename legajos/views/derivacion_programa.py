@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 
 from programas.models import DerivacionPrograma
 
@@ -16,32 +16,6 @@ def aceptar_derivacion_programa(request, derivacion_id):
         messages.warning(request, "Esta derivación ya fue procesada.")
         return redirect("legajos:programa_detalle", pk=derivacion.programa_destino.id)
 
-    # Si es Ñachec, mostrar modal de validación
-    if derivacion.programa_destino.tipo in ["NACHEC", "ÑACHEC"]:
-        if request.method == "GET":
-            return render(
-                request,
-                "legajos/nachec/modal_aceptar_derivacion.html",
-                DerivacionProgramaService.build_nachec_acceptance_context(derivacion),
-            )
-
-        if request.method == "POST":
-            try:
-                result = DerivacionProgramaService.accept_nachec_derivacion(
-                    derivacion_id=derivacion.id,
-                    usuario=request.user,
-                    payload=request.POST,
-                )
-                getattr(messages, result.status)(request, result.message)
-            except ValidationError as exc:
-                messages.error(request, exc.messages[0])
-                return redirect("legajos:derivacion_aceptar", derivacion_id=derivacion_id)
-            except Exception as exc:
-                messages.error(request, f"Error al aceptar derivación: {exc}")
-
-            return redirect("legajos:programa_detalle", pk=derivacion.programa_destino.id)
-
-    # Flujo normal legacy
     try:
         result = DerivacionProgramaService.accept_derivacion(
             derivacion_id=derivacion.id,

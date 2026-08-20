@@ -1,26 +1,41 @@
 """Tests de la revisión de formularios de Becas (#77)."""
 
+import csv
 from datetime import date
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from legajos.models import Ciudadano
+from programas.forms import FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
+    AdjuntoFormulario,
     AsignacionCoordinador,
     Convocatoria,
     Formulario,
+    ListaEspera,
+    PreguntaGlobal,
+    ProgramaSiis,
     Relevamiento,
     Segmento,
+    TipoCampo,
     TracaFormulario,
+    ValidacionSIS,
 )
 
 
 class _BaseRevisionTest(TestCase):
     def setUp(self):
+        # programa_becas() cachea una instancia de Programa. Cada TestCase
+        # revierte la base, por lo que no debe reutilizarse la PK del caso anterior.
+        cache.clear()
         call_command("seed_becas", stdout=StringIO())
         self.seg_a = Segmento.objects.create(nombre="Seg A", cupo_maximo=100)
         self.seg_b = Segmento.objects.create(nombre="Seg B", cupo_maximo=100)
@@ -99,6 +114,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
                 "email_contacto": "a@b.com",  # igual
                 "apoderado_nombre": "",
                 "apoderado_apellido": "",
+                "apoderado_dni": "",
+                "apoderado_genero": "",
                 "apoderado_fecha_nacimiento": "",
             },
         )
@@ -110,6 +127,113 @@ class EdicionTrazaTests(_BaseRevisionTest):
         self.assertEqual(traza.first().valor_anterior, "3624100100")
         self.assertEqual(traza.first().valor_nuevo, "3624999999")
 
+    def test_adjunto_imagen_muestra_thumbnail_y_preview(self):
+        pregunta = PreguntaGlobal.objects.create(
+            texto="Foto DNI",
+            tipo=TipoCampo.ARCHIVO,
+            activo=True,
+        )
+        self.form_a.data = {
+            "globales": {str(pregunta.pk): {"archivo_adjunto": True}},
+            "requisitos": {},
+        }
+        self.form_a.save(update_fields=["data"])
+        AdjuntoFormulario.objects.create(
+            formulario=self.form_a,
+            pregunta_global=pregunta,
+            archivo=SimpleUploadedFile("dni.jpg", b"imagen", content_type="image/jpeg"),
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "data-image-preview")
+        self.assertContains(resp, "<img", html=False)
+        self.assertContains(resp, "Ampliar imagen")
+
+    def test_detalle_muestra_fechas_y_mapa_de_la_toma(self):
+        self.form_a.gps_lat = "-34.577067"
+        self.form_a.gps_lng = "-58.486240"
+        self.form_a.save(update_fields=["gps_lat", "gps_lng"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Trazabilidad de la toma")
+        self.assertContains(resp, "Fecha asignada")
+        self.assertContains(resp, "Capturado en el dispositivo")
+        self.assertContains(resp, "Recibido en el servidor")
+        self.assertContains(resp, "Última actualización")
+        self.assertContains(resp, "Mapa del lugar donde se realizó la toma")
+        self.assertContains(resp, "-34.577067")
+        self.assertContains(resp, "-58.486240")
+        self.assertContains(resp, "openstreetmap.org")
+
+    def test_detalle_sin_gps_informa_que_no_hay_coordenadas(self):
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Este formulario no tiene coordenadas GPS registradas.")
+        self.assertNotContains(resp, "Mapa del lugar donde se realizó la toma")
+
+    def test_detalle_muestra_respuesta_completa_de_siis(self):
+        ValidacionSIS.objects.create(
+            formulario=self.form_a,
+            estado=ValidacionSIS.Estado.OK,
+            id_programa=41,
+            documento="24459123",
+            id_consulta="8ef13bfb-529a-4438-a8b4-dca8b238039a",
+            respuesta={
+                "nombre_programa": "Chaco Subsidia",
+                "id_programa": 41,
+                "persona_registrada_siis": False,
+                "validaciones": {
+                    "padron_siis": "NUEVO_SOLICITANTE",
+                    "vigencia_programa": "VIGENTE",
+                    "edad_minima": "CUMPLE_EDAD_MINIMA",
+                    "empleo_publico": "SIN_INCOMPATIBILIDAD",
+                    "horas_docentes": "SIN_INCOMPATIBILIDAD",
+                    "duplicidad_becas": "SIN_INCOMPATIBILIDAD",
+                },
+            },
+            solicitado_por=self.admin,
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Compatible")
+        self.assertContains(resp, "Nuevo solicitante")
+        self.assertContains(resp, "Chaco Subsidia (#41)")
+        self.assertContains(resp, "Empleo público")
+        self.assertContains(resp, "Sin incompatibilidad")
+        self.assertContains(resp, "8ef13bfb-529a-4438-a8b4-dca8b238039a")
+        self.assertContains(resp, "no implica la aprobación automática")
+        self.assertContains(resp, "Historial de validaciones (1)")
+
+    def test_historial_siis_muestra_todos_los_intentos(self):
+        for estado, consulta in (
+            (ValidacionSIS.Estado.RECHAZADO, "11111111-1111-4111-8111-111111111111"),
+            (ValidacionSIS.Estado.OK, "22222222-2222-4222-8222-222222222222"),
+        ):
+            ValidacionSIS.objects.create(
+                formulario=self.form_a,
+                estado=estado,
+                id_programa=41,
+                documento="24459123",
+                id_consulta=consulta,
+                respuesta={"nombre_programa": "Chaco Subsidia", "persona_registrada_siis": False},
+                solicitado_por=self.admin,
+            )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Historial de validaciones (2)")
+        self.assertContains(resp, "11111111-1111-4111-8111-111111111111")
+        self.assertContains(resp, "22222222-2222-4222-8222-222222222222")
+        self.assertContains(resp, 'id="btn-historial-siis"', html=False)
+        self.assertContains(resp, 'aria-expanded="false"', html=False)
+        self.assertContains(resp, 'id="historial-validaciones-siis" class="hidden', html=False)
+
     def test_editar_sin_cambios_no_traza(self):
         self.client.post(
             reverse("becas:formulario_detalle", args=[self.form_a.pk]),
@@ -118,15 +242,266 @@ class EdicionTrazaTests(_BaseRevisionTest):
                 "email_contacto": "a@b.com",
                 "apoderado_nombre": "",
                 "apoderado_apellido": "",
+                "apoderado_dni": "",
+                "apoderado_genero": "",
                 "apoderado_fecha_nacimiento": "",
             },
         )
         self.assertEqual(TracaFormulario.objects.filter(formulario=self.form_a).count(), 0)
 
+    def test_editar_menor_sin_apoderado_muestra_errores(self):
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="60600600",
+            nombre="Persona",
+            apellido="Menor",
+            fecha_nacimiento=date(date.today().year - 10, 1, 1),
+        )
+        self.form_a.save(update_fields=["ciudadano"])
+
+        form = FormularioRevisionForm(
+            data={
+                "celular": "3624100100",
+                "email_contacto": "a@b.com",
+                "apoderado_nombre": "",
+                "apoderado_apellido": "",
+                "apoderado_dni": "",
+                "apoderado_genero": "",
+                "apoderado_fecha_nacimiento": "",
+            },
+            instance=self.form_a,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            set(form.errors),
+            {
+                "apoderado_nombre",
+                "apoderado_apellido",
+                "apoderado_dni",
+                "apoderado_genero",
+                "apoderado_fecha_nacimiento",
+            },
+        )
+
+    def test_detalle_adulto_sin_apoderado_oculta_sus_campos(self):
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="60600601",
+            nombre="Persona",
+            apellido="Adulta",
+            fecha_nacimiento=date(1990, 1, 1),
+        )
+        self.form_a.save(update_fields=["ciudadano"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Datos de contacto")
+        self.assertNotContains(resp, "Datos del apoderado")
+        self.assertNotContains(resp, 'name="apoderado_fecha_nacimiento"')
+
+    def test_detalle_menor_muestra_fecha_apoderado_en_formato_html(self):
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="60600602",
+            nombre="Persona",
+            apellido="Menor",
+            fecha_nacimiento=date(2020, 1, 1),
+        )
+        self.form_a.apoderado_nombre = "Ana"
+        self.form_a.apoderado_apellido = "Pérez"
+        self.form_a.apoderado_dni = "27111444"
+        self.form_a.apoderado_genero = "F"
+        self.form_a.apoderado_fecha_nacimiento = date(1993, 7, 13)
+        self.form_a.save(
+            update_fields=[
+                "ciudadano",
+                "apoderado_nombre",
+                "apoderado_apellido",
+                "apoderado_dni",
+                "apoderado_genero",
+                "apoderado_fecha_nacimiento",
+            ]
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Datos del apoderado")
+        self.assertContains(resp, 'value="1993-07-13"')
+
+
+class RevalidacionRenaperTests(_BaseRevisionTest):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.ciudadano = Ciudadano.objects.create(
+            dni="60600600",
+            nombre="Nomvre",
+            apellido="Anterior",
+            fecha_nacimiento=date(1990, 1, 1),
+            genero="F",
+        )
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["ciudadano", "validado_renaper"])
+
+    def test_admin_puede_completar_genero_desde_el_detalle(self):
+        self.ciudadano.genero = ""
+        self.ciudadano.save(update_fields=["genero"])
+        self.client.force_login(self.admin)
+
+        resp = self.client.post(
+            reverse("becas:formulario_actualizar_genero", args=[self.form_a.pk]),
+            {"genero": "F"},
+        )
+
+        self.assertRedirects(resp, reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+        self.ciudadano.refresh_from_db()
+        self.assertEqual(self.ciudadano.genero, "F")
+        self.assertTrue(
+            TracaFormulario.objects.filter(
+                formulario=self.form_a,
+                campo="Ciudadano · sexo",
+                valor_nuevo="Femenino",
+            ).exists()
+        )
+
+    @patch("programas.views.revision.consultar_persona")
+    def test_admin_revalida_corrige_ciudadano_y_registra_traza(self, consultar):
+        consultar.return_value = {
+            "success": True,
+            "data": {
+                "nombre": "Nombre",
+                "apellido": "Correcto",
+                "fecha_nacimiento": "1990-02-03",
+                "sexo": "F",
+            },
+        }
+        self.client.force_login(self.admin)
+
+        resp = self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.ciudadano.refresh_from_db()
+        self.assertTrue(self.form_a.validado_renaper)
+        self.assertEqual(self.ciudadano.nombre, "Nombre")
+        self.assertEqual(self.ciudadano.apellido, "Correcto")
+        self.assertTrue(TracaFormulario.objects.filter(formulario=self.form_a, campo="Base de Personas").exists())
+
+    @patch("programas.views.revision.consultar_persona")
+    def test_error_renaper_no_modifica_formulario(self, consultar):
+        consultar.return_value = {"success": False, "error": "Servicio no disponible"}
+        self.client.force_login(self.admin)
+
+        self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.ciudadano.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+        self.assertEqual(self.ciudadano.nombre, "Nomvre")
+        self.assertFalse(TracaFormulario.objects.filter(formulario=self.form_a).exists())
+
+    @patch("programas.views.revision.consultar_persona")
+    def test_coordinador_no_puede_revalidar(self, consultar):
+        self.client.force_login(self.coord_a)
+
+        resp = self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        consultar.assert_not_called()
+        self.form_a.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+
+
+class ReportesBecasTests(_BaseRevisionTest):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.ciudadano = Ciudadano.objects.create(
+            dni="70700700", nombre="Ana", apellido="Pérez", fecha_nacimiento=date(1990, 1, 1), genero="F"
+        )
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["ciudadano", "estado"])
+
+    def _csv(self, response):
+        return list(csv.reader(StringIO(response.content.decode("utf-8-sig"))))
+
+    def test_beneficiarios_exporta_columnas_y_solo_aprobados(self):
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="1",
+            email_contacto="pendiente@example.com",
+            estado=Formulario.Estado.ENVIADO,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
+        rows = self._csv(response)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(rows[0], ["Nombre", "DNI", "Segmento", "Convocatoria", "Fecha de aprobación"])
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][1], "70700700")
+
+    def test_avance_exporta_conteos_por_estado(self):
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="1",
+            email_contacto="rechazado@example.com",
+            estado=Formulario.Estado.RECHAZADO,
+        )
+        self.client.force_login(self.admin)
+
+        rows = self._csv(self.client.get(reverse("becas:convocatoria_export_relevamientos", args=[self.conv_a.pk])))
+
+        self.assertEqual(rows[0][-3:], ["Enviados", "Aprobados", "Rechazados"])
+        self.assertEqual(rows[1][-3:], ["0", "1", "1"])
+
+    def test_lista_espera_exporta_solo_no_promovidos(self):
+        ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+        self.client.force_login(self.admin)
+
+        rows = self._csv(self.client.get(reverse("becas:convocatoria_export_lista_espera", args=[self.conv_a.pk])))
+
+        self.assertEqual(rows[0], ["Posición", "Nombre", "DNI", "Segmento", "Fecha de ingreso"])
+        self.assertEqual(rows[1][0:3], ["1", "Ana Pérez", "70700700"])
+
+    def test_coordinador_no_puede_exportar(self):
+        self.client.force_login(self.coord_a)
+
+        response = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("attachment", response.headers.get("Content-Disposition", ""))
+
 
 class AprobarRechazarTests(_BaseRevisionTest):
     def setUp(self):
         super().setUp()
+        self.siis = patch("programas.services.validacion_siis.validar_compatibilidad")
+        self.validar_compatibilidad = self.siis.start()
+        self.addCleanup(self.siis.stop)
+        self.validar_compatibilidad.return_value = {
+            "success": True,
+            "compatible": True,
+            "data": {"id_programa": 41, "validaciones": {}},
+        }
+        self.ciudadano = Ciudadano.objects.create(
+            dni="24459123", nombre="Persona", apellido="Compatible", fecha_nacimiento=date(1975, 2, 20), genero="F"
+        )
+        self.programa = ProgramaSiis.objects.create(nombre="Programa SIIS", siis_programa_id=41)
+        self.seg_a.programa = self.programa
+        self.seg_a.save(update_fields=["programa"])
+        self.form_a.ciudadano = self.ciudadano
+        self.form_a.validado_renaper = True
+        self.form_a.save(update_fields=["ciudadano", "validado_renaper"])
+        self.validacion = ValidacionSIS.objects.create(
+            formulario=self.form_a,
+            estado=ValidacionSIS.Estado.OK,
+            id_programa=41,
+            documento=self.ciudadano.dni,
+            respuesta={"resultado": "OK", "apto": True},
+            solicitado_por=self.admin,
+        )
         self.client.force_login(self.coord_a)
 
     def test_aprobar(self):
@@ -134,6 +509,68 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.assertEqual(resp.status_code, 302)
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.validar_compatibilidad.assert_called_once()
+
+    def test_no_aprueba_identidad_sin_validar(self):
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["validado_renaper"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_aprobar_dispara_validacion_siis_aunque_no_haya_previa(self):
+        self.validacion.delete()
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertTrue(self.form_a.validaciones_sis.filter(estado=ValidacionSIS.Estado.OK).exists())
+
+    def test_no_aprueba_si_siis_rechazo(self):
+        self.validar_compatibilidad.return_value = {
+            "success": True,
+            "compatible": False,
+            "data": {"id_programa": 41, "validaciones": {"empleo_publico": "INCOMPATIBLE_PLANTA"}},
+        }
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_no_aprueba_si_el_segmento_no_tiene_programa(self):
+        self.seg_a.programa = None
+        self.seg_a.save(update_fields=["programa"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_no_promueve_desde_lista_de_espera_si_siis_rechazo(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+        self.validacion.estado = ValidacionSIS.Estado.RECHAZADO
+        self.validacion.save(update_fields=["estado"])
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[entrada.pk]))
+
+        entrada.refresh_from_db()
+        self.form_a.refresh_from_db()
+        self.assertFalse(entrada.promovido)
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+
+    def test_detalle_explica_por_que_la_aprobacion_esta_bloqueada(self):
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["validado_renaper"])
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Aprobación bloqueada")
+        self.assertContains(resp, "La identidad debe estar validada antes de aprobar")
+        self.assertContains(resp, 'disabled aria-disabled="true"', html=False)
 
     def test_rechazar_sin_motivo_falla(self):
         self.client.post(reverse("becas:formulario_rechazar", args=[self.form_a.pk]), {"motivo": ""})
@@ -148,6 +585,30 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
         self.assertEqual(self.form_a.motivo_rechazo, "Documentación incompleta")
+        self.validar_compatibilidad.assert_called_once()
+
+    def test_rechazar_registra_error_si_siis_no_responde(self):
+        self.validar_compatibilidad.return_value = {"success": False, "error": "Timeout", "data": {}}
+
+        self.client.post(
+            reverse("becas:formulario_rechazar", args=[self.form_a.pk]),
+            {"motivo": "Documentación incompleta"},
+        )
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        self.assertEqual(self.form_a.validaciones_sis.first().estado, ValidacionSIS.Estado.ERROR)
+
+    def test_coordinador_puede_validar_siis_manualmente(self):
+        response = self.client.post(reverse("becas:formulario_validar_sis", args=[self.form_a.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.form_a.validaciones_sis.count(), 2)
+
+    def test_coordinador_ve_boton_validar_siis(self):
+        response = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(response, "Reintentar validación SIIS")
 
 
 class TransicionesRelevamientoTests(_BaseRevisionTest):

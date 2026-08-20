@@ -30,12 +30,23 @@ PROGRAMA_BECAS_CODIGO = "BECAS"
 # Coordinador lo aporta AsignacionCoordinador (ver services/autorizacion.py).
 ROL_ADMIN = "Becas — Administrador"
 ROL_COORDINADOR = "Becas — Coordinador"
+ROL_COORDINADOR_REGIONAL = "Becas — Coordinador Regional"
+ROL_REFERENTE = "Becas — Referente"
 ROL_TERRITORIAL = "Becas — Territorial"
 
+
 def _capacidades_admin_becas():
-    """Todas las capacidades finas de Becas salvo ``becas.campo`` (el Admin no
-    opera la app de territorial, es un rol de backoffice)."""
-    return [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c != "becas.campo"]
+    """Capacidades del Administrador: todas las finas de Becas salvo ``becas.campo``
+    (no opera la app del territorial, es un rol de backoffice), más el alcance
+    transversal sobre los ABM de Usuarios y Roles del programa.
+
+    Las transversales van explícitas porque ``becas.programa.administrar`` ya no las
+    confiere (ver ``rbac.CAPS_ADMIN_PROGRAMA_*``). Sin ellas el Administrador no vería
+    los usuarios ni los roles de Becas, y como ``asegurar_roles_becas`` usa
+    ``permissions.set()``, una corrida del seed revertiría el traspaso de ``users.0020``.
+    """
+    finas = [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c != "becas.campo"]
+    return finas + list(rbac.CAPS_ADMIN_PROGRAMA)
 
 
 ROLES_BECAS = {
@@ -46,9 +57,11 @@ ROLES_BECAS = {
     ROL_COORDINADOR: {
         "descripcion": "Gestiona relevamientos y revisa formularios solo de sus segmentos asignados.",
         "capacidades": [
+            "becas.usuario.territorial",
             "becas.segmento.ver",
             "becas.subsegmento.ver",
             "becas.requisito.ver",
+            "becas.requisito.crear",
             "becas.convocatoria.ver",
             "becas.convocatoria.crear",
             "becas.convocatoria.editar",
@@ -60,6 +73,44 @@ ROLES_BECAS = {
             "becas.cupo.ver",
             "becas.beneficiario.ver",
             "becas.beneficiario.editar",
+            "becas.reportes.ver",
+            "becas.reportes.exportar",
+        ],
+    },
+    ROL_COORDINADOR_REGIONAL: {
+        "descripcion": (
+            "Opera únicamente los subsegmentos que tiene a cargo: convocatorias, relevamientos y "
+            "territoriales. Ve el segmento como contexto, pero no lo configura."
+        ),
+        "capacidades": [
+            "becas.coordinador_regional",
+            "becas.usuario.territorial",
+            "becas.segmento.ver",
+            "becas.subsegmento.ver",
+            "becas.convocatoria.ver",
+            "becas.convocatoria.crear",
+            "becas.convocatoria.editar",
+            "becas.relevamiento.ver",
+            "becas.relevamiento.crear",
+            "becas.relevamiento.editar",
+            "becas.cupo.ver",
+            "becas.reportes.ver",
+            "becas.reportes.exportar",
+        ],
+    },
+    ROL_REFERENTE: {
+        "descripcion": "Asiste a un Coordinador y administra Territoriales de sus segmentos, sin pausar ni crear roles.",
+        "capacidades": [
+            "becas.referente",
+            "becas.usuario.territorial",
+            "becas.segmento.ver",
+            "becas.subsegmento.ver",
+            "becas.convocatoria.ver",
+            "becas.relevamiento.ver",
+            "becas.revision.ver",
+            "becas.cupo.ver",
+            "becas.reportes.ver",
+            "becas.reportes.exportar",
         ],
     },
     ROL_TERRITORIAL: {
@@ -93,6 +144,11 @@ def asegurar_programa_becas():
             "color": "#0ea5e9",
         },
     )
+    # Evita conservar una instancia con PK obsoleta entre recreaciones de la
+    # base de test o ejecuciones idempotentes del seed.
+    from django.core.cache import cache
+
+    cache.delete("programas:becas")
     return programa
 
 

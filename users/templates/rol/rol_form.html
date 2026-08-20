@@ -18,34 +18,18 @@
 
         <div class="bg-white rounded-lg shadow p-6 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <div class="md:col-span-2">
                     <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Nombre del rol</label>
                     {{ form.name }}
                     {% if form.name.errors %}<div class="text-red-600 text-sm mt-1">{{ form.name.errors }}</div>{% endif %}
                 </div>
-                {% if form.es_admin_global %}
                 <div>
                     <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
                     {{ form.categoria }}
                     {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
                 </div>
-                {% else %}
-                <div>
-                    <label for="{{ form.categoria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                    {{ form.categoria }}
-                    {% if form.categoria.errors %}<div class="text-red-600 text-sm mt-1">{{ form.categoria.errors }}</div>{% endif %}
-                </div>
-                {% endif %}
-
-                <div class="md:col-span-2">
-                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                    {{ form.descripcion }}
-                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
-                </div>
-
-                {% if not form.es_admin_global %}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa (opcional)</label>
+                <div id="campo-programa"{% if form.categoria.value != 'Programa' %} class="hidden"{% endif %}>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
                     {% if form.programa_fijo %}
                         <input type="hidden" name="programa" value="{{ form.programa_fijo.pk }}">
                         <div class="px-3 py-2 bg-gray-100 rounded-md text-gray-700"><i class="fas fa-folder mr-1"></i>{{ form.programa_fijo.nombre }}</div>
@@ -54,7 +38,18 @@
                     {% endif %}
                     {% if form.programa.errors %}<div class="text-red-600 text-sm mt-1">{{ form.programa.errors }}</div>{% endif %}
                 </div>
-                {% endif %}
+
+                <div class="md:col-span-2">
+                    <label for="{{ form.descripcion.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}<div class="text-red-600 text-sm mt-1">{{ form.descripcion.errors }}</div>{% endif %}
+                </div>
+                <div id="dispositivos-alcance" class="md:col-span-2{% if not form.muestra_alcance_dispositivos %} hidden{% endif %}" data-programa-dispositivos="{{ form.programa_dispositivos_id }}">
+                    <label for="{{ form.dispositivos_alcance.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Alcance por dispositivo</label>
+                    {{ form.dispositivos_alcance }}
+                    <p class="text-sm text-gray-500 mt-1">Seleccioná los dispositivos sobre los que este rol puede operar.</p>
+                    {% if form.dispositivos_alcance.errors %}<div class="text-red-600 text-sm mt-1">{{ form.dispositivos_alcance.errors }}</div>{% endif %}
+                </div>
             </div>
         </div>
 
@@ -111,24 +106,25 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
                     {% for modulo in tab.modulos %}
                     <div class="border border-gray-200 rounded-lg" x-data="{ open: true }" data-modulo="{{ modulo.modulo }}">
-                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-lg">
-                            <label class="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
-                                <input type="checkbox" class="select-all rounded border-gray-300" data-modulo="{{ modulo.modulo }}">
-                                {{ modulo.label }}
-                                <span class="text-xs font-normal text-gray-500">(<span class="contador-modulo" data-modulo="{{ modulo.modulo }}">0</span>/{{ modulo.capacidades|length }})</span>
+                        <div class="flex items-start justify-between gap-2 px-4 py-3 bg-gray-50 rounded-t-lg">
+                            <label class="flex items-start gap-2 text-sm font-medium text-gray-800 cursor-pointer min-w-0">
+                                <input type="checkbox" class="select-all rounded border-gray-300 shrink-0 mt-0.5" data-modulo="{{ modulo.modulo }}">
+                                <span class="min-w-0">{{ modulo.label }}
+                                    <span class="text-xs font-normal text-gray-500">(<span class="contador-modulo" data-modulo="{{ modulo.modulo }}">0</span>/{{ modulo.capacidades|length }})</span>
+                                </span>
                             </label>
-                            <button type="button" @click="open = !open" class="text-gray-400 hover:text-gray-600">
+                            <button type="button" @click="open = !open" class="text-gray-400 hover:text-gray-600 shrink-0">
                                 <i class="fas fa-chevron-down text-xs transition-transform" :class="{ 'rotate-180': open }"></i>
                             </button>
                         </div>
-                        <div x-show="open" x-transition class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div x-show="open" x-transition class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
                             {% for cap in modulo.capacidades %}
-                            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer cap-item" data-label="{{ cap.label|lower }} {{ cap.codigo|lower }}">
+                            <label class="flex items-start gap-2 text-sm text-gray-700 cursor-pointer cap-item" data-label="{{ cap.label|lower }} {{ cap.codigo|lower }}">
                                 <input type="checkbox" name="capacidades" value="{{ cap.codigo }}"
-                                       class="cap-check rounded border-gray-300" data-modulo="{{ modulo.modulo }}"
+                                       class="cap-check rounded border-gray-300 shrink-0 mt-0.5" data-modulo="{{ modulo.modulo }}"
                                        data-tab="{{ tab.id }}"
                                        {% if cap.checked %}checked{% endif %}>
-                                <span>{{ cap.label }} <span class="text-xs text-gray-400 font-mono">{{ cap.codigo }}</span></span>
+                                <span class="min-w-0">{{ cap.label }}<span class="block text-xs text-gray-400 font-mono break-all">{{ cap.codigo }}</span></span>
                             </label>
                             {% endfor %}
                         </div>
@@ -153,6 +149,28 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var alcanceDispositivos = document.getElementById('dispositivos-alcance');
+    var campoPrograma = document.getElementById('campo-programa');
+    var programaInput = document.querySelector('[name="programa"]');
+    var categoriaInput = document.getElementById('{{ form.categoria.id_for_label }}');
+    function actualizarAlcanceDispositivos() {
+        if (!alcanceDispositivos || !programaInput || !categoriaInput) return;
+        var mostrar = programaInput.value === alcanceDispositivos.dataset.programaDispositivos
+            && categoriaInput.value === 'Programa';
+        alcanceDispositivos.classList.toggle('hidden', !mostrar);
+    }
+    function actualizarCampoPrograma() {
+        if (!campoPrograma || !categoriaInput) return;
+        var esPrograma = categoriaInput.value === 'Programa';
+        campoPrograma.classList.toggle('hidden', !esPrograma);
+        // Al ocultarlo se vacía el select: un programa arrastrado en el POST es error del form.
+        if (!esPrograma && programaInput && programaInput.tagName === 'SELECT') programaInput.value = '';
+        actualizarAlcanceDispositivos();
+    }
+    if (programaInput) programaInput.addEventListener('change', actualizarAlcanceDispositivos);
+    if (categoriaInput) categoriaInput.addEventListener('change', actualizarCampoPrograma);
+    actualizarCampoPrograma();
+
     var totalEl = document.getElementById('total-seleccionadas');
 
     // ---- Tabs ----

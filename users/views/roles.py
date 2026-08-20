@@ -13,18 +13,19 @@ from core import rbac
 from core.rbac import CapacidadRequeridaMixin
 from users.forms.roles import RolForm
 from users.selectors.roles import (
-    programas_administrables,
+    programas_administrables_roles,
     puede_gestionar_rol,
     roles_filtrados_para,
     roles_lista_para,
+    roles_visibles_para,
 )
 from users.services.roles import RolesAdminService, RolProtegidoError
 
 
 class _RolesPermMixin(CapacidadRequeridaMixin):
-    # Entra el admin global (rol.administrar) y también el admin de programa
-    # (programa.configurar en algún programa). El alcance fino lo aplica cada vista.
-    capacidades_requeridas = ["rol.administrar", "programa.configurar"]
+    # Entra el admin global (rol.administrar) y también quien administra los roles
+    # de algún programa (programa.rol.administrar). El alcance lo aplica cada vista.
+    capacidades_requeridas = list(rbac.CAPS_ENTRADA_ABM_ROLES)
 
 
 def _fuera_de_alcance(request):
@@ -40,20 +41,22 @@ class RolListView(_RolesPermMixin, TemplateView):
         user = self.request.user
         get = self.request.GET
 
-        context["items"] = roles_filtrados_para(user, get)
-        context["total_roles"] = len(roles_lista_para(user))
+        # El pipeline (JOINs + COUNT DISTINCT) se ejecuta UNA vez y las tres
+        # formas (agrupados / filtrados / total) se derivan de ese resultado.
+        roles = roles_visibles_para(user)
+        lista = roles_lista_para(user, visibles=roles)
+        context["roles"] = roles
+        context["items"] = roles_filtrados_para(user, get, lista=lista)
+        context["total_roles"] = len(lista)
         context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
-        context["programas_admin"] = programas_administrables(user)
+        context["programas_admin"] = programas_administrables_roles(user)
 
         context["filtro_q"] = get.get("q", "")
         context["filtro_categoria"] = get.get("categoria", "")
         context["filtro_programa"] = get.get("programa", "")
         context["filtro_estado"] = get.get("estado", "")
         context["hay_filtros_activos"] = bool(
-            context["filtro_q"]
-            or context["filtro_categoria"]
-            or context["filtro_programa"]
-            or context["filtro_estado"]
+            context["filtro_q"] or context["filtro_categoria"] or context["filtro_programa"] or context["filtro_estado"]
         )
         return context
 

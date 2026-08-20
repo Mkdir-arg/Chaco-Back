@@ -17,19 +17,17 @@ class FiltrosUsuarioService:
         if usuario.is_superuser:
             return AlertaCiudadano.objects.filter(activa=True)
 
-        filtros = Q()
-
-        legajos_responsable = LegajoAtencion.objects.filter(responsable=usuario)
-        legajo_ids_responsable = list(legajos_responsable.values_list("id", flat=True))
-        if legajo_ids_responsable:
-            filtros |= Q(legajo_id__in=legajo_ids_responsable)
-
-        programas_usuario = FiltrosUsuarioService._obtener_programas_usuario(usuario)
-        if programas_usuario:
-            filtros |= Q(legajo_id__in=get_legajo_ids_for_programas(programas_usuario))
-
         if puede(usuario, "config.administrar"):
             return AlertaCiudadano.objects.filter(activa=True)
+
+        # Subqueries lazy (un solo SQL al evaluar), en vez de materializar
+        # listas de IDs para cláusulas IN gigantes en cada poll del navbar.
+        filtros = Q()
+        legajos_propios = LegajoAtencion.objects.filter(responsable=usuario).values_list("id", flat=True)
+        if legajos_propios.exists():
+            filtros |= Q(legajo__responsable=usuario)
+            programas_usuario = FiltrosUsuarioService._obtener_programas_usuario(usuario)
+            filtros |= Q(legajo_id__in=get_legajo_ids_for_programas(programas_usuario))
 
         if not filtros:
             filtros = Q(prioridad="CRITICA")
@@ -39,7 +37,7 @@ class FiltrosUsuarioService:
     @staticmethod
     def _obtener_programas_usuario(usuario):
         legajo_ids = LegajoAtencion.objects.filter(responsable=usuario).values_list("id", flat=True)
-        return list(get_programa_ids_for_legajo_ids(legajo_ids))
+        return get_programa_ids_for_legajo_ids(legajo_ids)
 
     @staticmethod
     def puede_ver_alerta(usuario, alerta):

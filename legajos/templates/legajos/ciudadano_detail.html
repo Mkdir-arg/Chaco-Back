@@ -115,20 +115,13 @@
     <section class="mb-8 overflow-hidden rounded-xl border shadow-sm" style="border-color: var(--border-base); background: var(--bg-primary);">
         <div class="border-b px-5 py-4 lg:px-6" style="border-color: var(--border-base); background: var(--bg-secondary);">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <nav aria-label="Breadcrumb">
-                    <ol class="flex flex-wrap items-center gap-2 text-sm" style="color: var(--text-body-subtle);">
-                        <li>
-                            <a href="{% url 'legajos:ciudadanos' %}" class="inline-flex items-center gap-2 font-semibold transition" style="color: var(--text-body); hover:color: var(--text-fg-brand);">
-                                <i class="fas fa-users text-xs" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
-                                <span>Ciudadanos</span>
-                            </a>
-                        </li>
-                        <li><i class="fas fa-chevron-right text-[10px]" aria-hidden="true" style="color: var(--border-base-strong);"></i></li>
-                        <li class="max-w-full truncate font-semibold" style="color: var(--text-heading);">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</li>
-                    </ol>
-                </nav>
 
                 <div class="flex flex-wrap items-center gap-2">
+                    <a href="{% url 'legajos:ciudadanos' %}"
+                       class="btn-tertiary btn-back-circle"
+                       aria-label="Volver a ciudadanos">
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    </a>
                     <span class="badge badge-info badge-dot">Ficha integral</span>
                     {% if linea_tiempo %}
                     <span class="badge badge-gray">
@@ -161,7 +154,7 @@
 
                     <div class="min-w-0">
                         <p class="mb-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .08em;">Ciudadano</p>
-                        <h1 class="break-words" style="font-size: 32px; font-weight: 800; color: var(--text-heading); letter-spacing: -0.6px;">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</h1>
+                        <h1 class="break-words min-w-0" style="font-size: 32px; font-weight: 800; color: var(--text-heading); letter-spacing: -0.6px;">{{ ciudadano.apellido }}, {{ ciudadano.nombre }}</h1>
                         <div class="mt-4 flex flex-wrap gap-2 text-sm">
                             <span class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 font-semibold" style="background: var(--bg-tertiary); color: var(--text-body);">
                                 <i class="fas fa-id-card" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
@@ -234,7 +227,7 @@
                 <div class="px-4 py-3" style="background: var(--bg-primary);">
                     <dt class="flex items-center gap-2 text-xs font-bold uppercase" style="color: var(--text-body-subtle); letter-spacing: .05em;">
                         <i class="fas fa-location-dot" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
-                        Domicilio
+                        Domicilio actual
                     </dt>
                     <dd class="mt-1 text-sm font-bold" style="color: var(--text-heading);">{{ ciudadano.domicilio }}</dd>
                 </div>
@@ -733,15 +726,6 @@
                 </div>
             </div>
         </div>
-    </div>
-    {% endif %}
-    {% endfor %}
-
-    <!-- Tab: NACHEC (contenido dedicado) -->
-    {% for solapa in solapas_programas %}
-    {% if 'NACHEC' in solapa.id %}
-    <div id="tab-programa_NACHEC" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-programa_NACHEC">
-        {% include 'legajos/ciudadano_nachec_detail.html' %}
     </div>
     {% endif %}
     {% endfor %}

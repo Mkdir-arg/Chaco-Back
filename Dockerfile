@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
     pkg-config \
     curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -16,6 +17,12 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+# La API de RENAPER (wsv2.secretarianaf.gob.ar) no envía su certificado
+# intermedio (Sectigo CA DV R36): se agrega al trust del sistema y se apunta
+# `requests` a ese bundle (por defecto usaría el de certifi, que no lo incluye).
+RUN cp certs/*.crt /usr/local/share/ca-certificates/ && update-ca-certificates
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN mkdir -p logs
 

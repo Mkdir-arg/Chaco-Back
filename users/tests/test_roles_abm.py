@@ -1,10 +1,11 @@
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
-from programas.models import Programa
+from programas.models import AsignacionDispositivo, Dispositivo, Programa, TipoDispositivo
 from users.forms.roles import RolForm
 from users.models import Capacidad, RolMeta
 from users.selectors.roles import roles_filtrados_para, roles_lista_para, roles_visibles_para
@@ -17,7 +18,7 @@ def _perm(codigo):
 
 
 def _rol_admin(nombre="Admins"):
-    """Crea un rol activo con capacidades de administraciÃ³n + un usuario activo."""
+    """Crea un rol activo con capacidades de administración + un usuario activo."""
     g = Group.objects.create(name=nombre)
     RolMeta.objects.create(grupo=g, categoria="Sistema", activo=True)
     g.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
@@ -84,7 +85,7 @@ class RolesServiceTests(TestCase):
             RolesAdminService.actualizar(form, g)
 
     def test_eliminar_rol_desvincula_usuarios(self):
-        _rol_admin()  # otro admin para no disparar la auto-protecciÃ³n
+        _rol_admin()  # otro admin para no disparar la auto-protección
         g = Group.objects.create(name="Temporal")
         RolMeta.objects.create(grupo=g, categoria="Backoffice")
         u = User.objects.create_user("user-temp", password="x")
@@ -110,7 +111,7 @@ class RolesServiceTests(TestCase):
         self.assertTrue(RolesAdminService.toggle_activo(g))
 
     def test_auto_bloqueo_al_quitar_capacidad_del_unico_rol_admin(self):
-        g, _u = _rol_admin()  # Ãºnico rol con administraciÃ³n
+        g, _u = _rol_admin()  # único rol con administración
         form = RolForm(
             data={"name": g.name, "categoria": "Sistema", "capacidades": ["ciudadano.ver"]},
             instance=g,
@@ -118,30 +119,57 @@ class RolesServiceTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         with self.assertRaises(rbac.SinAdministradorError):
             RolesAdminService.actualizar(form, g)
-        # La transacciÃ³n se revierte: el rol conserva la capacidad de administraciÃ³n
+        # La transacción se revierte: el rol conserva la capacidad de administración
         g.refresh_from_db()
         self.assertIn("usuario.administrar", rbac.capacidades_de_grupo(g))
 
 
 class RolCategoriaFormTests(TestCase):
-    """Categoria del rol: sin restriccion de FK programa (RN-1 eliminada)."""
+    """Validación del alcance entre la categoría del rol y su programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+
+    def test_categoria_programa_en_selector_global(self):
+        choices = {value for value, _label in RolForm().fields["categoria"].choices}
+        self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
+        self.assertNotIn(rbac.CATEGORIA_BECAS, choices)
 
     def test_alta_rol_becas_con_programa(self):  # TC-64-01
         form = RolForm(
             data={
                 "name": "Coordinador Becas",
-                "categoria": rbac.CATEGORIA_BECAS,
+                "categoria": rbac.CATEGORIA_PROGRAMA,
                 "programa": self.becas.pk,
                 "capacidades": ["relevamiento.gestionar"],
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
         group = RolesAdminService.crear(form)
-        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_BECAS)
+        self.assertEqual(group.meta.categoria, rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(group.meta.programa_id, self.becas.pk)
+
+    def test_alta_rol_dispositivos_guarda_su_alcance_fino(self):
+        dispositivos = Programa.objects.create(
+            codigo="DISPOSITIVOS",
+            nombre="Dispositivos",
+            tipo=Programa.TipoPrograma.DISPOSITIVOS,
+        )
+        tipo = TipoDispositivo.objects.create(codigo="ALC", nombre="Alcance")
+        dispositivo = Dispositivo.objects.create(codigo="ALC-01", nombre="Dispositivo alcance", tipo=tipo)
+        form = RolForm(
+            data={
+                "name": "Operador alcance",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": dispositivos.pk,
+                "capacidades": ["dispositivo.ver"],
+                "dispositivos_alcance": [dispositivo.pk],
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        group = RolesAdminService.crear(form)
+        self.assertTrue(AsignacionDispositivo.objects.filter(rol=group, dispositivo=dispositivo, activo=True).exists())
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
         form = RolForm(
@@ -155,11 +183,13 @@ class RolCategoriaFormTests(TestCase):
         group = RolesAdminService.crear(form)
         self.assertIsNone(group.meta.programa_id)
 
-    def test_categoria_becas_sin_programa_valida(self):  # RN-1 eliminada: ya no requiere FK
-        form = RolForm(data={"name": "Rol Becas", "categoria": rbac.CATEGORIA_BECAS})
-        self.assertTrue(form.is_valid(), form.errors)
+    def test_categoria_programa_sin_programa_invalida(self):  # TC-64-03 / #186
+        form = RolForm(data={"name": "Rol Programa", "categoria": rbac.CATEGORIA_PROGRAMA})
 
-    def test_categoria_backoffice_con_programa_valida(self):  # RN-1 eliminada: FK es libre
+        self.assertFalse(form.is_valid())
+        self.assertIn("programa", form.errors)
+
+    def test_categoria_backoffice_con_programa_invalida(self):  # TC-64-04 / #187
         form = RolForm(
             data={
                 "name": "Rol Backoffice",
@@ -167,22 +197,39 @@ class RolCategoriaFormTests(TestCase):
                 "programa": self.becas.pk,
             }
         )
-        self.assertTrue(form.is_valid(), form.errors)
+        self.assertFalse(form.is_valid())
+        self.assertIn("programa", form.errors)
 
-    def test_modelo_sin_constraint_programa(self):
+    def test_modelo_rechaza_categoria_no_programa_con_programa(self):
+        g = Group.objects.create(name="Rol Backoffice")
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_BACKOFFICE, programa=self.becas)
+
+        with self.assertRaisesMessage(ValidationError, "Solo los roles de categoría Programa"):
+            meta.full_clean()
+
+    def test_modelo_rechaza_categoria_programa_sin_programa(self):
         g = Group.objects.create(name="Rol Z")
-        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_NACHEC, programa=None)
-        meta.full_clean()  # no debe levantar excepción
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_PROGRAMA, programa=None)
+
+        with self.assertRaisesMessage(ValidationError, "Debés seleccionar un programa"):
+            meta.full_clean()
+
+    def test_modelo_acepta_categoria_programa(self):
+        g = Group.objects.create(name="Rol Programa")
+        meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas)
+        meta.full_clean()
 
 
 class RolAlcanceTests(TestCase):
-    """#66 â€" ABM de Roles con alcance de Programa."""
+    """#66 — ABM de Roles con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
+        self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
 
-        # Rol administrador de Becas (programa.configurar) + su usuario.
+        # Rol administrador de los roles de Becas + su usuario. El alcance sobre el
+        # ABM de Roles lo da `programa.rol.administrar`: ni `programa.configurar` ni
+        # la paraguas del programa lo confieren (ver rbac.CAPS_ADMIN_PROGRAMA_ROLES).
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_admin_becas,
@@ -190,11 +237,11 @@ class RolAlcanceTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_admin_becas.permissions.add(_perm("programa.rol.administrar"))
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
-        # Otro rol de Becas, un rol de Ã‘achec y un rol global.
+        # Otro rol de Becas, un rol de Vivienda y un rol global.
         self.rol_becas = Group.objects.create(name="Territorial Becas")
         RolMeta.objects.create(
             grupo=self.rol_becas,
@@ -202,11 +249,11 @@ class RolAlcanceTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_nachec = Group.objects.create(name="Territorial Ã‘achec")
+        self.rol_vivienda = Group.objects.create(name="Territorial Vivienda")
         RolMeta.objects.create(
-            grupo=self.rol_nachec,
+            grupo=self.rol_vivienda,
             categoria=rbac.CATEGORIA_PROGRAMA,
-            programa=self.nachec,
+            programa=self.vivienda,
             activo=True,
         )
         self.rol_global = Group.objects.create(name="Backoffice X")
@@ -214,13 +261,13 @@ class RolAlcanceTests(TestCase):
 
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
-    # --- Listado / agrupaciÃ³n ---
+    # --- Listado / agrupación ---
     def test_listado_global_ve_todo(self):  # TC-66-01 / TC-66-10
         data = roles_visibles_para(self.su)
         cats = {c for c, _ in data["categorias"]}
         self.assertIn("Backoffice", cats)
         progs = {p.nombre for p, _ in data["programas"]}
-        self.assertEqual(progs, {"Becas", "Ã‘achec"})
+        self.assertEqual(progs, {"Becas", "Vivienda"})
 
     def test_listado_admin_programa_solo_su_subseccion(self):  # TC-66-02
         data = roles_visibles_para(self.admin_becas)
@@ -230,10 +277,23 @@ class RolAlcanceTests(TestCase):
         nombres = {it["group"].name for _, items in data["programas"] for it in items}
         self.assertEqual(nombres, {"Admin Becas", "Territorial Becas"})
 
+    def test_listado_admin_programa_incluye_categorias_programaticas(self):
+        rol_becas_categoria = Group.objects.create(name="Coordinador Becas")
+        RolMeta.objects.create(
+            grupo=rol_becas_categoria,
+            categoria=rbac.CATEGORIA_BECAS,
+            programa=self.becas,
+            activo=True,
+        )
+
+        data = roles_visibles_para(self.admin_becas)
+        nombres = {it["group"].name for _, items in data["programas"] for it in items}
+        self.assertIn("Coordinador Becas", nombres)
+
     def test_programa_sin_roles_no_subseccion(self):  # TC-66-11
-        Programa.objects.create(codigo="VACIO", nombre="VacÃ­o")
+        Programa.objects.create(codigo="VACIO", nombre="Vacío")
         progs = {p.nombre for p, _ in roles_visibles_para(self.su)["programas"]}
-        self.assertNotIn("VacÃ­o", progs)
+        self.assertNotIn("Vacío", progs)
 
     # --- Formulario ---
     def test_form_admin_programa_fija_programa_y_arbol(self):  # TC-66-03
@@ -257,18 +317,82 @@ class RolAlcanceTests(TestCase):
                 "becas_revision",
                 "becas_cupo",
                 "becas_beneficiarios",
+                "becas_reportes",
                 "becas_campo",
             },
         )
 
+    def test_form_admin_dispositivos_incluye_su_catalogo_especializado(self):
+        dispositivos, _ = Programa.objects.get_or_create(
+            codigo="DISPOSITIVOS",
+            defaults={
+                "nombre": "Dispositivos",
+                "tipo": Programa.TipoPrograma.DISPOSITIVOS,
+            },
+        )
+        rol = Group.objects.create(name="Admin Dispositivos")
+        RolMeta.objects.create(
+            grupo=rol,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=dispositivos,
+            activo=True,
+        )
+        rol.permissions.add(_perm("programa.rol.administrar"))
+        admin_dispositivos = User.objects.create_user("adm-dispositivos", password="x")
+        admin_dispositivos.groups.add(rol)
+
+        form = RolForm(operador=admin_dispositivos)
+        modulos = {modulo["modulo"] for modulo in form.arbol_capacidades()}
+        codigos = {codigo for codigo, _ in form.fields["capacidades"].choices}
+
+        self.assertIn("dispositivos", modulos)
+        self.assertNotIn("merenderos", modulos)
+        self.assertIn("dispositivo.validar", codigos)
+
+    def test_edicion_rol_dispositivos_muestra_selector_de_alcance(self):
+        dispositivos = Programa.objects.create(
+            codigo="DISPOSITIVOS",
+            nombre="Dispositivos",
+            tipo=Programa.TipoPrograma.DISPOSITIVOS,
+        )
+        rol = Group.objects.create(name="Operador dispositivos")
+        RolMeta.objects.create(
+            grupo=rol,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=dispositivos,
+            activo=True,
+        )
+        tipo = TipoDispositivo.objects.create(codigo="UI-ALC", nombre="UI alcance")
+        dispositivo = Dispositivo.objects.create(codigo="UI-ALC-01", nombre="Dispositivo UI", tipo=tipo)
+        AsignacionDispositivo.objects.create(rol=rol, dispositivo=dispositivo)
+
+        self.client.force_login(self.su)
+        response = self.client.get(reverse("users:rol_editar", args=[rol.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].muestra_alcance_dispositivos)
+        self.assertContains(response, 'id="dispositivos-alcance" class="md:col-span-2"')
+        self.assertContains(response, "Dispositivo UI")
+
+    def test_form_admin_programa_incluye_categoria_programa(self):
+        form = RolForm(operador=self.admin_becas)
+        choices = {value for value, _label in form.fields["categoria"].choices}
+        self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
+        self.assertNotIn(rbac.CATEGORIA_BECAS, choices)
+        self.assertEqual(form.fields["categoria"].initial, rbac.CATEGORIA_PROGRAMA)
+
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
         form = RolForm(
-            data={"name": "Coord Becas", "categoria": rbac.CATEGORIA_BECAS, "capacidades": ["relevamiento.gestionar"]},
+            data={
+                "name": "Coord Becas",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "capacidades": ["relevamiento.gestionar"],
+            },
             operador=self.admin_becas,
         )
         self.assertTrue(form.is_valid(), form.errors)
         g = RolesAdminService.crear(form)
-        self.assertEqual(g.meta.categoria, rbac.CATEGORIA_BECAS)
+        self.assertEqual(g.meta.categoria, rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(g.meta.programa_id, self.becas.pk)
 
     def test_form_admin_programa_descarta_caps_globales(self):  # seguridad
@@ -276,21 +400,21 @@ class RolAlcanceTests(TestCase):
             data={"name": "Coord Becas 2", "capacidades": ["relevamiento.gestionar", "ciudadano.ver"]},
             operador=self.admin_becas,
         )
-        self.assertFalse(form.is_valid())  # ciudadano.ver no estÃ¡ en las choices acotadas
+        self.assertFalse(form.is_valid())  # ciudadano.ver no está en las choices acotadas
 
     def test_form_global_programa_combo(self):  # TC-66-04
         form = RolForm(
             data={
-                "name": "Rol Ñachec",
-                "categoria": rbac.CATEGORIA_NACHEC,
-                "programa": self.nachec.pk,
+                "name": "Rol Vivienda",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": self.vivienda.pk,
                 "capacidades": ["relevamiento.gestionar"],
             },
             operador=self.su,
         )
         self.assertTrue(form.is_valid(), form.errors)
         g = RolesAdminService.crear(form)
-        self.assertEqual(g.meta.programa_id, self.nachec.pk)
+        self.assertEqual(g.meta.programa_id, self.vivienda.pk)
 
     def test_form_global_no_programa_arbol_completo(self):  # TC-66-05
         form = RolForm(operador=self.su)
@@ -302,7 +426,7 @@ class RolAlcanceTests(TestCase):
     # --- Acceso por objeto ---
     def test_acceso_directo_a_rol_de_otro_programa_redirige(self):  # TC-66-06
         self.client.force_login(self.admin_becas)
-        resp = self.client.get(reverse("users:rol_editar", args=[self.rol_nachec.pk]))
+        resp = self.client.get(reverse("users:rol_editar", args=[self.rol_vivienda.pk]))
         self.assertEqual(resp.status_code, 302)
 
     def test_acceso_directo_a_rol_global_redirige(self):  # TC-66-07
@@ -352,7 +476,7 @@ class RolesFiltrosTests(TestCase):
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ñachec")
+        self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
 
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
@@ -361,9 +485,18 @@ class RolesFiltrosTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_admin_becas.permissions.add(_perm("programa.rol.administrar"))
         self.admin_becas = User.objects.create_user("adm-becas-filtros", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
+
+        self.rol_becas = Group.objects.create(name="Territorial Becas")
+        RolMeta.objects.create(
+            grupo=self.rol_becas,
+            categoria=rbac.CATEGORIA_PROGRAMA,
+            programa=self.becas,
+            activo=True,
+            descripcion="Rol territorial de campo",
+        )
 
         self.rol_becas_inactivo = Group.objects.create(name="Territorial Becas Inactivo")
         RolMeta.objects.create(
@@ -371,14 +504,14 @@ class RolesFiltrosTests(TestCase):
             categoria=rbac.CATEGORIA_PROGRAMA,
             programa=self.becas,
             activo=False,
-            descripcion="Rol territorial de campo",
+            descripcion="Rol territorial inactivo",
         )
 
-        self.rol_nachec = Group.objects.create(name="Territorial Ñachec")
+        self.rol_vivienda = Group.objects.create(name="Territorial Vivienda")
         RolMeta.objects.create(
-            grupo=self.rol_nachec,
+            grupo=self.rol_vivienda,
             categoria=rbac.CATEGORIA_PROGRAMA,
-            programa=self.nachec,
+            programa=self.vivienda,
             activo=True,
         )
 
@@ -389,16 +522,35 @@ class RolesFiltrosTests(TestCase):
             activo=True,
             descripcion="Rol de backoffice global",
         )
+        self.rol_global.permissions.add(_perm("dashboard.ver"))
 
         self.su = User.objects.create_superuser("root-filtros", "root-filtros@example.com", "x")
 
     def test_filtros_combinados(self):  # (1) filtros combinados funcionan
         items = roles_filtrados_para(
             self.su,
-            {"q": "territorial", "categoria": rbac.CATEGORIA_PROGRAMA, "estado": "activo"},
+            {
+                "q": "territorial",
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "programa": str(self.becas.pk),
+                "estado": "activo",
+            },
         )
         nombres = {it["group"].name for it in items}
-        self.assertEqual(nombres, {"Territorial Ñachec"})
+        self.assertEqual(nombres, {"Territorial Becas"})
+
+    def test_filtro_categoria_becas(self):
+        rol_becas_categoria = Group.objects.create(name="Coordinador Becas")
+        RolMeta.objects.create(
+            grupo=rol_becas_categoria,
+            categoria=rbac.CATEGORIA_BECAS,
+            programa=self.becas,
+            activo=True,
+        )
+
+        items = roles_filtrados_para(self.su, {"categoria": rbac.CATEGORIA_BECAS})
+        nombres = {it["group"].name for it in items}
+        self.assertEqual(nombres, {"Coordinador Becas"})
 
     def test_filtro_estado_inactivo(self):
         items = roles_filtrados_para(self.su, {"estado": "inactivo"})
@@ -409,15 +561,15 @@ class RolesFiltrosTests(TestCase):
     def test_filtro_programa_valido(self):
         items = roles_filtrados_para(self.su, {"programa": str(self.becas.pk)})
         nombres = {it["group"].name for it in items}
-        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas Inactivo"})
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
 
     def test_admin_programa_no_ve_roles_ajenos_forzando_programa(self):  # (2)
-        items = roles_filtrados_para(self.admin_becas, {"programa": str(self.nachec.pk)})
+        items = roles_filtrados_para(self.admin_becas, {"programa": str(self.vivienda.pk)})
         nombres = {it["group"].name for it in items}
         # El filtro de un programa que el operador no administra se ignora
         # (no amplía su alcance ni lo vacía): sigue viendo solo sus propios roles.
-        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas Inactivo"})
-        self.assertNotIn("Territorial Ñachec", nombres)
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
+        self.assertNotIn("Territorial Vivienda", nombres)
 
     def test_valores_invalidos_se_ignoran(self):  # (3)
         items = roles_filtrados_para(
@@ -429,14 +581,34 @@ class RolesFiltrosTests(TestCase):
 
     def test_vista_aplica_filtros_de_la_querystring(self):
         self.client.force_login(self.su)
-        resp = self.client.get(reverse("users:roles"), {"q": "territorial", "estado": "activo"})
+        resp = self.client.get(
+            reverse("users:roles"),
+            {"q": "territorial", "categoria": rbac.CATEGORIA_PROGRAMA, "estado": "activo"},
+        )
         self.assertEqual(resp.status_code, 200)
         nombres = {it["group"].name for it in resp.context["items"]}
-        self.assertEqual(nombres, {"Territorial Ñachec"})
+        self.assertEqual(nombres, {"Territorial Becas", "Territorial Vivienda"})
+        self.assertIn("roles", resp.context)
+        self.assertEqual(resp.context["filtro_q"], "territorial")
+        self.assertEqual(resp.context["filtro_categoria"], rbac.CATEGORIA_PROGRAMA)
+        self.assertEqual(resp.context["filtro_estado"], "activo")
+        self.assertTrue(resp.context["hay_filtros_activos"])
+        self.assertIn(rbac.CATEGORIA_PROGRAMA, resp.context["categorias_rol"])
 
     def test_vista_ignora_programa_ajeno_del_admin_de_programa(self):
         self.client.force_login(self.admin_becas)
-        resp = self.client.get(reverse("users:roles"), {"programa": str(self.nachec.pk)})
+        resp = self.client.get(reverse("users:roles"), {"programa": str(self.vivienda.pk)})
         self.assertEqual(resp.status_code, 200)
         nombres = {it["group"].name for it in resp.context["items"]}
-        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas Inactivo"})
+        self.assertEqual(nombres, {"Admin Becas", "Territorial Becas", "Territorial Becas Inactivo"})
+
+    def test_items_exponen_labels_humanos_de_capacidades(self):
+        self.client.force_login(self.su)
+        resp = self.client.get(reverse("users:roles"))
+        self.assertEqual(resp.status_code, 200)
+
+        item = next(it for it in resp.context["items"] if it["group"] == self.rol_global)
+        self.assertEqual(
+            item["capacidades_tabla"],
+            [{"codigo": "dashboard.ver", "label": "Ver dashboard"}],
+        )

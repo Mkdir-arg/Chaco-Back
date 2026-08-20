@@ -6,7 +6,21 @@ gateado por permiso y es tolerante a fallos (si algo no está disponible,
 no rompe el render: simplemente no muestra el badge).
 """
 
+from django.conf import settings
+
 from core import rbac
+
+
+def session_idle_config(request):
+    """Expone la config de idle-logout a todos los templates.
+
+    Los valores vienen de settings (a su vez de variables de entorno), así el
+    frontend arma `window.idleLogoutConfig` sin hardcodear tiempos.
+    """
+    return {
+        "session_idle_timeout_minutes": settings.SESSION_IDLE_TIMEOUT_MINUTES,
+        "session_idle_warning_seconds": settings.SESSION_IDLE_WARNING_SECONDS,
+    }
 
 
 def sidebar_badges(request):
@@ -19,11 +33,11 @@ def sidebar_badges(request):
     # Conversaciones sin asignar (pendientes y sin operador)
     if rbac.puede(user, "conversacion.operar"):
         try:
-            from conversaciones.models import Conversacion
+            from conversaciones.selectors import get_conversaciones_pendientes_count
 
-            badges["badge_conversaciones"] = Conversacion.objects.filter(
-                estado="pendiente", operador_asignado__isnull=True
-            ).count()
+            # Corre en todos los requests del backoffice: cache corto por usuario,
+            # reutilizado también por la vista de inicio.
+            badges["badge_conversaciones"] = get_conversaciones_pendientes_count(user)
         except Exception:
             badges["badge_conversaciones"] = 0
 

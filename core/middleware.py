@@ -79,11 +79,12 @@ class PortalCiudadanoMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Los checks de path van primero: cortan sin pagar la query de grupos.
         if (
-            rbac.es_ciudadano_portal(request.user)
-            and not request.path.startswith("/portal/")
+            not request.path.startswith("/portal/")
             and not request.path.startswith("/static/")
             and not request.path.startswith("/media/")
+            and rbac.es_ciudadano_portal(request.user)
         ):
             return redirect("portal:ciudadano_mi_perfil")
         return self.get_response(request)
@@ -104,7 +105,8 @@ class RequestLoggingMiddleware:
         username = user.username if user and user.is_authenticated else "anon"
         ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR", "-")
 
-        logger.info(
+        log_request = logger.warning if duration_ms > settings.SLOW_REQUEST_MS else logger.info
+        log_request(
             "%s %s user=%s ip=%s status=%s duration=%dms",
             request.method,
             request.path,

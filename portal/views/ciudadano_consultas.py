@@ -31,7 +31,8 @@ def ciudadano_consulta_detalle(request, pk):
     context = {
         "ciudadano": ciudadano,
         "conversacion": conversacion,
-        "mensajes": conversacion.mensajes.order_by("fecha_envio"),
+        # .all() reusa el prefetch del selector (Meta.ordering ya es fecha_envio)
+        "mensajes": conversacion.mensajes.all(),
         "puede_enviar": conversacion.estado != "cerrada",
         "mensaje_form": CiudadanoEnviarMensajeForm(),
     }

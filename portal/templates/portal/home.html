@@ -163,7 +163,7 @@
         </div>
         <div class="text-center px-6 py-2 stat-divider">
             <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.instituciones }}</div>
-            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Instituciones NODO</div>
+            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Instituciones DATAÑACH</div>
         </div>
         <div class="text-center px-6 py-2 stat-divider">
             <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.inscripciones_activas }}</div>
@@ -230,7 +230,7 @@
                         <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
                             <i class="fas fa-building"></i> Instituciones
                         </div>
-                        <h2 class="text-2xl font-extrabold mb-2">Red NODO</h2>
+                        <h2 class="text-2xl font-extrabold mb-2">Red DATAÑACH</h2>
                         <p class="text-white text-opacity-80 text-sm leading-relaxed">
                             Registrá tu institución y articulá con el municipio en el territorio
                         </p>
@@ -296,10 +296,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <h3 class="font-bold text-[var(--text-heading)] leading-tight">{{ programa.nombre }}</h3>
-                        <div class="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                             style="background: {{ programa.color|default:'var(--bg-brand)' }}1A; color: {{ programa.color|default:'var(--bg-brand)' }};">
+                        <span class="badge badge-success badge-dot mt-1">
                             Activo
-                        </div>
+                        </span>
                     </div>
                 </div>
                 {% if programa.descripcion %}
@@ -321,7 +320,7 @@
     {% endif %}
 
     <!-- ══════════════════════════════════════════════════════
-         INSTITUCIONES NODO
+         INSTITUCIONES DATAÑACH
     ══════════════════════════════════════════════════════ -->
     {% if instituciones %}
     <section class="section">

@@ -12,6 +12,7 @@ Uso:
 Exit 0 = todos compilan · Exit 1 = hay templates rotos (los lista).
 Complementa a scripts/design_audit.py: ese valida DISEÑO, este valida SINTAXIS.
 """
+
 import os
 import sys
 from pathlib import Path

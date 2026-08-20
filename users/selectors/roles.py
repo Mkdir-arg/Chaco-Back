@@ -13,6 +13,30 @@ def _capacidades_desde_prefetch(group):
     return [c for c in rbac.codigos_de_capacidad() if rbac.codename_de(c) in codenames]
 
 
+_CAPACIDAD_LABELS = {codigo: etiqueta for modulo in rbac.CATALOGO for codigo, etiqueta in modulo["capacidades"]}
+_CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_BECAS}
+
+
+def _codenames(capacidades):
+    return [rbac.codename_de(c) for c in capacidades]
+
+
+def _capacidades_para_tabla(codigos):
+    """Capacidades renderizables sin perder el código estable del catálogo."""
+    return [{"codigo": codigo, "label": _CAPACIDAD_LABELS.get(codigo, codigo)} for codigo in codigos]
+
+
+def _item_para_group(group):
+    capacidades = _capacidades_desde_prefetch(group)
+    return {
+        "group": group,
+        "meta": getattr(group, "meta", None),
+        "num_usuarios": group.num_usuarios,
+        "capacidades": capacidades,
+        "capacidades_tabla": _capacidades_para_tabla(capacidades),
+    }
+
+
 def es_admin_global(user):
     """¿El operador gestiona todo el RBAC, sin restricción de programa?
 
@@ -26,51 +50,63 @@ def es_admin_global(user):
     return rbac.puede(user, "rol.administrar") or rbac.puede(user, "usuario.administrar")
 
 
-def programas_administrables(user):
+def programas_administrables(user, capacidades=None):
     """Programas donde el operador es **administrador de programa**.
 
-    Es decir, tiene un rol **activo** con ``RolMeta.programa = X`` y la capacidad
-    ``programa.configurar`` tildada. Para un admin global/superusuario devuelve
-    **todos** los programas.
+    Es decir, tiene un rol **activo** con ``RolMeta.programa = X`` y alguna de
+    ``capacidades`` (por defecto la unión ``rbac.CAPS_ADMIN_PROGRAMA``). Para un
+    admin global/superusuario devuelve **todos** los programas.
+
+    El alcance está separado por ABM: usá :func:`programas_administrables_usuarios`
+    o :func:`programas_administrables_roles` según qué se esté resolviendo, para
+    que dar la gestión de usuarios no arrastre la de roles.
     """
     if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
         return Programa.objects.none()
     if es_admin_global(user):
         return Programa.objects.all()
-    codename = rbac.codename_de("programa.configurar")
     return Programa.objects.filter(
         roles_meta__activo=True,
         roles_meta__grupo__user=user,
-        roles_meta__grupo__permissions__codename=codename,
+        roles_meta__grupo__permissions__codename__in=_codenames(capacidades or rbac.CAPS_ADMIN_PROGRAMA),
     ).distinct()
+
+
+def programas_administrables_usuarios(user):
+    """Programas cuyos **usuarios** administra el operador (ABM de Usuarios)."""
+    return programas_administrables(user, rbac.CAPS_ADMIN_PROGRAMA_USUARIOS)
+
+
+def programas_administrables_roles(user):
+    """Programas cuyos **roles** administra el operador (ABM de Roles)."""
+    return programas_administrables(user, rbac.CAPS_ADMIN_PROGRAMA_ROLES)
 
 
 def puede_gestionar_rol(user, group):
     """¿El operador puede ver/editar este rol según su alcance?
 
-    Admin global: siempre. Admin de programa: solo roles de categoría 'Programa'
+    Admin global: siempre. Admin de programa: solo roles de alcance programa
     cuyo ``programa`` esté entre los que administra.
     """
     if es_admin_global(user):
         return True
     meta = getattr(group, "meta", None)
-    _CATS_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_NACHEC, rbac.CATEGORIA_BECAS}
-    if not meta or meta.categoria not in _CATS_PROGRAMA or not meta.programa_id:
+    if not meta or meta.categoria not in _CATEGORIAS_CON_PROGRAMA or not meta.programa_id:
         return False
-    return programas_administrables(user).filter(pk=meta.programa_id).exists()
+    return programas_administrables_roles(user).filter(pk=meta.programa_id).exists()
 
 
 def roles_visibles_para(user):
     """Roles agrupados para el ABM, **filtrados por el alcance del operador**.
 
-    Devuelve ``{"categorias": [(categoria, [item, ...]), ...sin 'Programa'],
+    Devuelve ``{"categorias": [(categoria, [item, ...]), ...sin roles programáticos],
     "programas": [(Programa, [item, ...]), ...]}``. El admin global ve todo; el
     admin de programa ve solo la sub-sección de los programas que administra.
 
-    Cada ``item``: ``{"group", "meta", "num_usuarios", "capacidades"}``.
+    Cada ``item``: ``{"group", "meta", "num_usuarios", "capacidades", "capacidades_tabla"}``.
     """
     global_ = es_admin_global(user)
-    programas_ok = None if global_ else set(programas_administrables(user).values_list("pk", flat=True))
+    programas_ok = None if global_ else set(programas_administrables_roles(user).values_list("pk", flat=True))
 
     groups = (
         Group.objects.select_related("meta", "meta__programa")
@@ -85,15 +121,10 @@ def roles_visibles_para(user):
     por_programa = {}  # programa_pk -> (Programa, [items])
 
     for group in groups:
-        meta = getattr(group, "meta", None)
-        item = {
-            "group": group,
-            "meta": meta,
-            "num_usuarios": group.num_usuarios,
-            "capacidades": _capacidades_desde_prefetch(group),
-        }
+        item = _item_para_group(group)
+        meta = item["meta"]
         categoria = meta.categoria if meta else None
-        if categoria == rbac.CATEGORIA_PROGRAMA and meta and meta.programa_id:
+        if categoria in _CATEGORIAS_CON_PROGRAMA and meta and meta.programa_id:
             if not global_ and meta.programa_id not in programas_ok:
                 continue  # rol de un programa que el operador no administra
             _prog, items = por_programa.setdefault(meta.programa_id, (meta.programa, []))
@@ -110,36 +141,38 @@ def roles_visibles_para(user):
     return {"categorias": categorias, "programas": programas}
 
 
-def roles_lista_para(user):
+def roles_lista_para(user, visibles=None):
     """Roles visibles para el operador en una lista PLANA (sin agrupar).
 
     Mismo alcance que :func:`roles_visibles_para` (que sigue siendo la fuente:
     esta función solo aplana su resultado), ordenados por nombre de rol.
+    ``visibles`` permite pasar el resultado ya computado de
+    :func:`roles_visibles_para` para no repetir el pipeline (JOINs + COUNT).
     """
-    data = roles_visibles_para(user)
+    data = visibles if visibles is not None else roles_visibles_para(user)
     items = [item for _categoria, roles_cat in data["categorias"] for item in roles_cat]
     items += [item for _programa, roles_prog in data["programas"] for item in roles_prog]
     return sorted(items, key=lambda it: it["group"].name.lower())
 
 
-def roles_filtrados_para(user, get_params):
+def roles_filtrados_para(user, get_params, lista=None):
     """Lista plana de roles visibles para el operador, filtrada por querystring.
 
     ``get_params`` es un dict-like (``request.GET``). Los filtros se aplican
     **sobre** :func:`roles_lista_para` (que ya respeta el alcance del
     operador) — nunca lo amplían. Valores inválidos o fuera de alcance (p.ej.
     un ``programa`` que el operador no administra) se ignoran en silencio,
-    sin romper ni filtrar de más.
+    sin romper ni filtrar de más. ``lista`` permite pasar el resultado ya
+    computado de :func:`roles_lista_para` para no repetir el pipeline.
     """
-    items = roles_lista_para(user)
+    items = lista if lista is not None else roles_lista_para(user)
 
     q = (get_params.get("q") or "").strip().lower()
     if q:
         items = [
             it
             for it in items
-            if q in it["group"].name.lower()
-            or (it["meta"] and q in (it["meta"].descripcion or "").lower())
+            if q in it["group"].name.lower() or (it["meta"] and q in (it["meta"].descripcion or "").lower())
         ]
 
     categorias_validas = set(rbac.CATEGORIAS_ROL) | {rbac.CATEGORIA_PROGRAMA}
@@ -154,7 +187,7 @@ def roles_filtrados_para(user, get_params):
         except (TypeError, ValueError):
             programa_pk = None
         if programa_pk is not None:
-            programas_ok = set(programas_administrables(user).values_list("pk", flat=True))
+            programas_ok = set(programas_administrables_roles(user).values_list("pk", flat=True))
             if programa_pk in programas_ok:
                 items = [it for it in items if it["meta"] and it["meta"].programa_id == programa_pk]
 
@@ -183,13 +216,8 @@ def roles_por_categoria():
     por_categoria = {cat: [] for cat in rbac.CATEGORIAS_ROL}
     sin_categoria = []
     for group in groups:
-        meta = getattr(group, "meta", None)
-        item = {
-            "group": group,
-            "meta": meta,
-            "num_usuarios": group.num_usuarios,
-            "capacidades": _capacidades_desde_prefetch(group),
-        }
+        item = _item_para_group(group)
+        meta = item["meta"]
         categoria = meta.categoria if meta else None
         (por_categoria.get(categoria, sin_categoria)).append(item)
 

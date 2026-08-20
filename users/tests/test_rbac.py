@@ -20,8 +20,8 @@ def _perm(codigo):
 def render_sidebar(user):
     """Renderiza el sidebar del backoffice para ``user`` de forma aislada.
 
-    Evita falsos positivos: el cuerpo de las pÃ¡ginas (p. ej. ``core:inicio``)
-    puede contener enlaces/textos que en el menÃº estÃ¡n gateados por capacidad.
+    Evita falsos positivos: el cuerpo de las páginas (p. ej. ``core:inicio``)
+    puede contener enlaces/textos que en el menú están gateados por capacidad.
     """
     req = RequestFactory().get("/")
     req.user = user
@@ -197,11 +197,11 @@ class PortalCiudadanoSinLegajoTests(TestCase):
 
 
 class MotorPuedeProgramaTests(TestCase):
-    """#65 â€” puede()/puede_alguna() con alcance de Programa (retrocompatible)."""
+    """#65 — puede()/puede_alguna() con alcance de Programa (retrocompatible)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
-        self.nachec = Programa.objects.create(codigo="NACHEC", nombre="Ã‘achec")
+        self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
         self.rol = Group.objects.create(name="Territorial Becas")
         RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
         self.rol.permissions.add(_perm("relevamiento.gestionar"))
@@ -215,7 +215,7 @@ class MotorPuedeProgramaTests(TestCase):
         self.assertTrue(rbac.puede(self._u(), "relevamiento.gestionar", programa=self.becas))
 
     def test_otro_programa_false(self):  # TC-65-02
-        self.assertFalse(rbac.puede(self._u(), "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(self._u(), "relevamiento.gestionar", programa=self.vivienda))
 
     def test_sin_alcance_retrocompat(self):  # TC-65-03
         self.assertTrue(rbac.puede(self._u(), "relevamiento.gestionar"))
@@ -228,7 +228,7 @@ class MotorPuedeProgramaTests(TestCase):
         u.groups.add(rol_g)
         u = User.objects.get(pk=u.pk)
         self.assertTrue(rbac.puede(u, "ciudadano.ver", programa=self.becas))
-        self.assertTrue(rbac.puede(u, "ciudadano.ver", programa=self.nachec))
+        self.assertTrue(rbac.puede(u, "ciudadano.ver", programa=self.vivienda))
 
     def test_rol_programa_inactivo(self):  # TC-65-05
         self.rol.meta.activo = False
@@ -247,7 +247,7 @@ class MotorPuedeProgramaTests(TestCase):
         u = self._u()
         self.assertTrue(rbac.puede(u, "ciudadano.ver"))
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_usuario_inactivo(self):  # TC-65-08
         self.user.is_active = False
@@ -259,7 +259,7 @@ class MotorPuedeProgramaTests(TestCase):
 
         u = self._u()
         self.assertTrue(puede_en(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertFalse(puede_en(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(puede_en(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_rol_global_con_capacidad_de_programa_cuenta(self):  # RN-3
         rol_g = Group.objects.create(name="Admin total")
@@ -269,36 +269,38 @@ class MotorPuedeProgramaTests(TestCase):
         u.groups.add(rol_g)
         u = User.objects.get(pk=u.pk)
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_no_falso_positivo_por_rol_global_ajeno(self):
-        # RegresiÃ³n: un rol global (programa=null) con la cap, al que el usuario NO
-        # pertenece, no debe otorgÃ¡rsela en un programa donde no la tiene.
+        # Regresión: un rol global (programa=null) con la cap, al que el usuario NO
+        # pertenece, no debe otorgársela en un programa donde no la tiene.
         glob = Group.objects.create(name="Admin total ajeno")
         RolMeta.objects.create(grupo=glob, categoria="Sistema", activo=True, programa=None)
-        glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en glob
+        glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en glob
         u = self._u()
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
-        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
     def test_no_falso_positivo_por_cap_en_otro_programa(self):
-        # RegresiÃ³n: la cap del user estÃ¡ en Becas; que un rol AJENO de Ã‘achec tenga
-        # la misma cap no debe hacer que puede(..., programa=Ã±achec) dÃ© True.
-        otro = Group.objects.create(name="Territorial Ã‘achec ajeno")
-        RolMeta.objects.create(grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.nachec, activo=True)
-        otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO estÃ¡ en otro
+        # Regresión: la cap del user está en Becas; que un rol AJENO de Vivienda tenga
+        # la misma cap no debe hacer que puede(..., programa=vivienda) dé True.
+        otro = Group.objects.create(name="Territorial Vivienda ajeno")
+        RolMeta.objects.create(grupo=otro, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.vivienda, activo=True)
+        otro.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en otro
         u = self._u()
-        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.nachec))
+        self.assertFalse(rbac.puede(u, "relevamiento.gestionar", programa=self.vivienda))
 
 
 class AutoProteccionProgramaTests(TestCase):
-    """#68 â€” asegurar_admin_restante(programa) (RN-8) + superusuario cuenta."""
+    """#68 — asegurar_admin_restante(programa) (RN-8) + superusuario cuenta."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.rol = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
-        self.rol.permissions.add(_perm("programa.configurar"))
+        # El check cuenta las capacidades de rbac.CAPS_ADMIN_PROGRAMA: `programa.configurar`
+        # quedó afuera (es potestad de sistema, no alcance de programa).
+        self.rol.permissions.add(_perm("programa.usuario.administrar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol)
 
@@ -322,7 +324,7 @@ class AutoProteccionProgramaTests(TestCase):
         with self.assertRaises(rbac.SinAdministradorProgramaError):
             rbac.asegurar_admin_restante(programa=self.becas)
 
-    def test_superusuario_cuenta(self):  # decisiÃ³n PM: el superuser cuenta
+    def test_superusuario_cuenta(self):  # decisión PM: el superuser cuenta
         self.maria.delete()
         User.objects.create_superuser("root", "root@example.com", "x")
         rbac.asegurar_admin_restante(programa=self.becas)  # no lanza
@@ -331,13 +333,13 @@ class AutoProteccionProgramaTests(TestCase):
         self.assertTrue(issubclass(rbac.SinAdministradorProgramaError, rbac.SinAdministradorError))
 
     def test_check_global_retrocompatible_sin_programa(self):
-        # Sin programa sigue siendo el check global (no hay admin global â†’ lanza).
+        # Sin programa sigue siendo el check global (no hay admin global → lanza).
         with self.assertRaises(rbac.SinAdministradorError):
             rbac.asegurar_admin_restante()
 
 
 class CatalogoProgramaTests(TestCase):
-    """#64 â€” el catÃ¡logo distingue mÃ³dulos 'de programa' de los globales."""
+    """#64 — el catálogo distingue módulos 'de programa' de los globales."""
 
     def test_modulos_de_programa_cerrados(self):  # TC-64-05
         de_programa = {m["modulo"] for m in rbac.CATALOGO if m.get("alcance") == "programa"}
@@ -346,6 +348,8 @@ class CatalogoProgramaTests(TestCase):
             {
                 "programas",
                 "relevamientos",
+                "dispositivos",
+                "merenderos",
                 "becas_admin",
                 "becas_segmentos",
                 "becas_subsegmentos",
@@ -357,6 +361,7 @@ class CatalogoProgramaTests(TestCase):
                 "becas_revision",
                 "becas_cupo",
                 "becas_beneficiarios",
+                "becas_reportes",
                 "becas_campo",
             },
         )
@@ -368,3 +373,71 @@ class CatalogoProgramaTests(TestCase):
         self.assertNotIn("ciudadano.ver", cods)
         self.assertTrue(rbac.es_codigo_de_programa("relevamiento.gestionar"))
         self.assertFalse(rbac.es_codigo_de_programa("ciudadano.ver"))
+
+
+class AlcanceAbmSoloTransversalesTests(TestCase):
+    """El alcance sobre los ABM de Usuarios y Roles lo dan **solo** las dos
+    capacidades transversales.
+
+    Antes lo confería también ``becas.programa.administrar``, la paraguas del dominio
+    Becas, así que no había forma de quitarle los ABM al Administrador de Becas sin
+    vaciarle el rol. Ahora la paraguas queda para su dominio (reportes, RENAPER,
+    pausas, alta de coordinadores) y el alcance se otorga o se quita por separado.
+    """
+
+    def setUp(self):
+        self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.rol = Group.objects.create(name="Admin Becas")
+        RolMeta.objects.create(grupo=self.rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
+        self.user = User.objects.create_user("adm", password="x")
+        self.user.groups.add(self.rol)
+        # Sin superusuario a propósito: el check por programa lo cuenta como
+        # administrador (acceso de emergencia) y taparía lo que se quiere probar.
+
+    def _recargar(self):
+        return User.objects.get(pk=self.user.pk)
+
+    def test_la_paraguas_de_becas_no_confiere_alcance(self):
+        from users.selectors.roles import programas_administrables_roles, programas_administrables_usuarios
+
+        self.rol.permissions.add(_perm("becas.programa.administrar"))
+        user = self._recargar()
+
+        self.assertTrue(rbac.puede(user, "becas.programa.administrar", programa=self.becas))
+        self.assertEqual(list(programas_administrables_usuarios(user)), [])
+        self.assertEqual(list(programas_administrables_roles(user)), [])
+
+    def test_la_paraguas_sola_no_muestra_la_seccion_administracion(self):
+        self.rol.permissions.add(_perm("becas.programa.administrar"))
+        html = render_sidebar(self._recargar())
+
+        self.assertNotIn(reverse("users:usuarios"), html)
+        self.assertNotIn(reverse("users:roles"), html)
+
+    def test_la_paraguas_sola_no_cuenta_como_administrador_del_programa(self):
+        self.rol.permissions.add(_perm("becas.programa.administrar"))
+
+        with self.assertRaises(rbac.SinAdministradorProgramaError):
+            rbac.asegurar_admin_restante(programa=self.becas)
+
+    def test_las_transversales_dan_el_alcance(self):
+        from users.selectors.roles import programas_administrables_roles, programas_administrables_usuarios
+
+        self.rol.permissions.add(_perm("programa.usuario.administrar"), _perm("programa.rol.administrar"))
+        user = self._recargar()
+
+        self.assertEqual(list(programas_administrables_usuarios(user)), [self.becas])
+        self.assertEqual(list(programas_administrables_roles(user)), [self.becas])
+        rbac.asegurar_admin_restante(programa=self.becas)  # no lanza
+
+        html = render_sidebar(self._recargar())
+        self.assertIn(reverse("users:usuarios"), html)
+        self.assertIn(reverse("users:roles"), html)
+
+    def test_cada_abm_se_otorga_por_separado(self):
+        """Dar los usuarios del programa no arrastra sus roles (ni al revés)."""
+        self.rol.permissions.add(_perm("programa.usuario.administrar"))
+        html = render_sidebar(self._recargar())
+
+        self.assertIn(reverse("users:usuarios"), html)
+        self.assertNotIn(reverse("users:roles"), html)

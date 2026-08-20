@@ -3,7 +3,7 @@
 {% load custom_filters %}
 {% load rbac %}
 
-{% block title %}Inicio — NODO{% endblock %}
+{% block title %}Inicio — DATAÑACH{% endblock %}
 
 {% block page_css %}
 <style>
@@ -353,6 +353,11 @@
 .search-container {
     position: relative;
 }
+.search-card {
+    position: relative;
+    overflow: visible;
+    z-index: 30;
+}
 .search-input {
     width: 100%;
     height: 42px;
@@ -363,7 +368,6 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-base);
     border-radius: 9999px;
-    outline: none;
     transition: border-color 150ms var(--ease-standard), box-shadow 150ms var(--ease-standard);
 }
 .search-input:focus {
@@ -389,7 +393,7 @@
     box-shadow: var(--shadow-lg);
     max-height: 240px;
     overflow-y: auto;
-    z-index: 10;
+    z-index: 40;
 }
 .search-result-item {
     display: block;
@@ -410,6 +414,15 @@
     font-size: 12px;
     color: var(--text-body-subtle);
     font-family: var(--font-sans);
+}
+.search-more-results {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--text-body-subtle);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    text-align: center;
 }
 </style>
 {% endblock %}
@@ -511,7 +524,7 @@
     </div>
 
     {# ── Búsqueda rápida ── #}
-    <div class="ds-card mb-7" style="padding: 18px 20px;">
+    <div class="ds-card search-card mb-7" style="padding: 18px 20px;">
         <div class="flex gap-3 items-center">
             <div class="search-container flex-1">
                 <span class="search-icon">
@@ -524,7 +537,7 @@
                     class="search-input"
                     placeholder="Buscá por nombre, apellido o DNI (mín. 3 caracteres)…"
                     x-model="busqueda"
-                    @input="buscarCiudadano()"
+                    @input.debounce.300ms="buscarCiudadano()"
                     aria-label="Buscar ciudadano"
                 >
                 <div class="search-results" x-show="resultadosBusqueda.length > 0" x-cloak>
@@ -534,6 +547,9 @@
                             <div class="search-result-dni" x-text="'DNI ' + r.dni"></div>
                         </a>
                     </template>
+                    <div class="search-more-results" x-show="busquedaTieneMasResultados">
+                        Hay más resultados. Escribí más caracteres para precisar la búsqueda.
+                    </div>
                 </div>
             </div>
             {% if user|puede:"ciudadano.crear" %}
@@ -798,9 +814,9 @@ function dashboardInicio() {
     return {
         busqueda: '',
         resultadosBusqueda: [],
+        busquedaTieneMasResultados: false,
         periodo: '30d',
         saludo: '',
-        chartTendencias: null,
         dashboardApiUrls: {
             buscarCiudadanos: "{% url 'dashboard:api_buscar_ciudadanos' %}",
             tendencias: "{% url 'dashboard:api_tendencias' %}",
@@ -824,12 +840,19 @@ function dashboardInicio() {
         buscarCiudadano() {
             if (this.busqueda.length < 3) {
                 this.resultadosBusqueda = [];
+                this.busquedaTieneMasResultados = false;
                 return;
             }
             fetch(`${this.dashboardApiUrls.buscarCiudadanos}?q=${encodeURIComponent(this.busqueda)}`)
                 .then(r => r.json())
-                .then(data => { this.resultadosBusqueda = data.results || []; })
-                .catch(() => { this.resultadosBusqueda = []; });
+                .then(data => {
+                    this.resultadosBusqueda = data.results || [];
+                    this.busquedaTieneMasResultados = Boolean(data.has_more);
+                })
+                .catch(() => {
+                    this.resultadosBusqueda = [];
+                    this.busquedaTieneMasResultados = false;
+                });
         },
 
         cambiarPeriodo(p) {
@@ -841,10 +864,11 @@ function dashboardInicio() {
             fetch(`${this.dashboardApiUrls.tendencias}?periodo=${this.periodo}`)
                 .then(r => r.json())
                 .then(data => {
-                    if (!this.chartTendencias) return;
-                    this.chartTendencias.data.labels = data.labels || [];
-                    this.chartTendencias.data.datasets[0].data = data.datos || [];
-                    this.chartTendencias.update();
+                    const chart = document.getElementById('chartTendencias')?._chartTendencias;
+                    if (!chart) return;
+                    chart.data.labels = data.labels || [];
+                    chart.data.datasets[0].data = data.datos || [];
+                    chart.update();
                 })
                 .catch(err => console.error('Error cargando tendencias:', err));
         },
@@ -853,14 +877,24 @@ function dashboardInicio() {
             const canvas = document.getElementById('chartTendencias');
             if (!canvas) return;
 
-            // Chart.js no puede leer vars CSS directamente → se extraen del :root con getComputedStyle
-            // (chaco-tokens.css siempre está cargado vía includes/base.html, por eso no hace falta fallback hex)
-            const root = getComputedStyle(document.documentElement);
-            const brandColor = root.getPropertyValue('--bg-brand').trim();
-            const subtleColor = root.getPropertyValue('--text-body-subtle').trim();
-            const borderLight = root.getPropertyValue('--border-light').trim();
+            const cssColor = (variable, fallback) => {
+                const probe = document.createElement('span');
+                probe.style.color = `var(${variable}, ${fallback})`;
+                document.body.appendChild(probe);
+                const value = getComputedStyle(probe).color;
+                probe.remove();
+                return value || fallback;
+            };
 
-            this.chartTendencias = new Chart(canvas.getContext('2d'), {
+            const brandColor = cssColor('--bg-brand', 'rgb(80, 89, 188)');
+            const subtleColor = cssColor('--text-body-subtle', 'rgb(102, 112, 133)');
+            const borderLight = cssColor('--border-light', 'rgb(234, 236, 240)');
+
+            if (canvas._chartTendencias) {
+                canvas._chartTendencias.destroy();
+            }
+
+            canvas._chartTendencias = new Chart(canvas.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: [],
