@@ -1,5 +1,7 @@
+from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase, override_settings
@@ -300,3 +302,15 @@ class ConversacionesViewsContractTests(TestCase):
 
         self.assertEqual(response.status_code, 426)
         self.assertIn("requires an ASGI server", response.content.decode())
+
+
+class NotificadorGlobalConversacionesPerformanceTests(TestCase):
+    def test_pausa_el_polling_en_pestanas_ocultas_y_cancela_la_solicitud_activa(self):
+        script = Path(settings.BASE_DIR, "static", "custom", "js", "conversaciones_tiempo_real_global.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("document.visibilityState !== 'hidden'", script)
+        self.assertIn("document.addEventListener('visibilitychange'", script)
+        self.assertIn("this.controladorSolicitud?.abort()", script)
+        self.assertIn("signal: controlador.signal", script)

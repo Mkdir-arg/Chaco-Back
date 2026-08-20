@@ -7,6 +7,7 @@
         constructor() {
             this.ultimoConteo = null;
             this.polling = null;
+            this.controladorSolicitud = null;
         }
 
         estaEnLista() {
@@ -17,13 +18,18 @@
             return window.conversacionesListaWS && window.conversacionesListaWS.readyState === 1;
         }
 
+        pestanaVisible() {
+            return document.visibilityState !== 'hidden';
+        }
+
         debeUsarPolling() {
-            return !this.estaEnLista() || !this.websocketListaAbierto();
+            return this.pestanaVisible() && (!this.estaEnLista() || !this.websocketListaAbierto());
         }
 
         iniciar() {
             if (!config.statsUrl) return;
             window.addEventListener('conversaciones:lista-ws-estado', () => this.actualizarPolling());
+            document.addEventListener('visibilitychange', () => this.actualizarPolling());
             this.actualizarPolling();
         }
 
@@ -42,9 +48,10 @@
         }
 
         detenerPolling() {
-            if (!this.polling) return;
-            clearInterval(this.polling);
+            if (this.polling) clearInterval(this.polling);
             this.polling = null;
+            this.controladorSolicitud?.abort();
+            this.controladorSolicitud = null;
         }
 
         async verificar(soloBaseline) {
@@ -52,13 +59,17 @@
                 this.detenerPolling();
                 return;
             }
+            this.controladorSolicitud?.abort();
+            const controlador = new AbortController();
+            this.controladorSolicitud = controlador;
             try {
                 const response = await fetch(config.statsUrl, {
                     method: 'GET',
                     headers: {'X-Requested-With': 'XMLHttpRequest'},
+                    signal: controlador.signal,
                 });
                 const data = await response.json();
-                if (!data.success) return;
+                if (controlador.signal.aborted || !this.debeUsarPolling() || !data.success) return;
 
                 const chatsNoAtendidos = data.estadisticas.chats_no_atendidos;
                 if (soloBaseline || this.ultimoConteo === null) {
@@ -69,8 +80,13 @@
                     this.mostrarNotificacion(`${chatsNoAtendidos - this.ultimoConteo} nueva(s) conversación(es) sin atender`);
                 }
                 this.ultimoConteo = chatsNoAtendidos;
-            } catch (_) {
+            } catch (error) {
+                if (error.name === 'AbortError') return;
                 // El siguiente intervalo o una reconexión del WebSocket reintentará.
+            } finally {
+                if (this.controladorSolicitud === controlador) {
+                    this.controladorSolicitud = null;
+                }
             }
         }
 
