@@ -138,10 +138,10 @@ MIDDLEWARE = [
 
 
 def _performance_query_monitoring_enabled():
-    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "True") == "True"
+    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
 
 
-# Encendido por defecto; cada entorno conserva un interruptor explícito.
+# Apagado por defecto; los relevamientos efímeros lo habilitan explícitamente.
 PERFORMANCE_QUERY_MONITORING_ENABLED = _performance_query_monitoring_enabled()
 PERFORMANCE_METRICS_WINDOW_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_WINDOW_SECONDS", "3600"))
 PERFORMANCE_METRICS_RETENTION_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_RETENTION_SECONDS", "86400"))
@@ -162,7 +162,8 @@ if PERFORMANCE_N1_WARNING_INTERVAL_SECONDS < 0:
     raise ValueError("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS no puede ser negativo")
 PERFORMANCE_CI = os.environ.get("PERFORMANCE_CI") == "1"
 if PERFORMANCE_QUERY_MONITORING_ENABLED:
-    MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
+    # Debe envolver sesión y autenticación: agregado al final subcontaba el costo real.
+    MIDDLEWARE.insert(0, "config.middlewares.query_counter.QueryCountMiddleware")
 
 if PYTEST_RUNNING:
     MIDDLEWARE += ["zeal.middleware.zeal_middleware"]
@@ -242,9 +243,7 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 # El backend lo decide la presencia de EMAIL_HOST, no el ENVIRONMENT: qa usa el
 # mismo SMTP que prd, y el dev local sigue en consola sin configurar nada.
 EMAIL_BACKEND = (
-    "django.core.mail.backends.smtp.EmailBackend"
-    if EMAIL_HOST
-    else "django.core.mail.backends.console.EmailBackend"
+    "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
 # QA y producción comparten casilla y plantilla: el prefijo en el asunto es lo

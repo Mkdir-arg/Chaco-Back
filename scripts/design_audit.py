@@ -131,11 +131,7 @@ def iter_files(paths: list[Path]):
         if p.is_file():
             # Mismo filtro que la rama de directorios y que el modo --hook: una
             # ruta explícita (--changed) no puede saltearse las exclusiones.
-            if (
-                p.suffix in UI_SUFFIXES
-                and p.name not in EXCLUDE_FILES
-                and not (EXCLUDE_PARTS & set(p.parts))
-            ):
+            if p.suffix in UI_SUFFIXES and p.name not in EXCLUDE_FILES and not (EXCLUDE_PARTS & set(p.parts)):
                 yield p
         elif p.is_dir():
             for f in sorted(p.rglob("*")):
