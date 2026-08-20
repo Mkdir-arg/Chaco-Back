@@ -242,9 +242,7 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 # El backend lo decide la presencia de EMAIL_HOST, no el ENVIRONMENT: qa usa el
 # mismo SMTP que prd, y el dev local sigue en consola sin configurar nada.
 EMAIL_BACKEND = (
-    "django.core.mail.backends.smtp.EmailBackend"
-    if EMAIL_HOST
-    else "django.core.mail.backends.console.EmailBackend"
+    "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
 # QA y producción comparten casilla y plantilla: el prefijo en el asunto es lo

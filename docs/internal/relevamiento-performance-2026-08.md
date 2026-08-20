@@ -405,26 +405,32 @@ Cada hallazgo indica si es **hecho medido** o **hipótesis**.
   Es comportamiento correcto del producto, no un defecto; se documenta como requisito de método.
   Ya está resuelto en el harness usado acá.
 
-## 13. Cobertura adicional de la task #264
+## 13. Relación con la task #264
 
-Este mismo corte completa la línea de base verificable solicitada por #264. La
-relación no cambia la naturaleza del entregable: sigue siendo un relevamiento,
-sin optimizaciones ni cambios de presupuesto.
+Este corte aporta evidencia útil para #264, pero **no la completa**: #264 exige
+mediciones HTTP y de `/performance-api/` para todas las rutas de
+`scripts/perf_audit.py::build_targets`, mientras que este informe profundiza los
+cinco flujos de #219 y cuatro escrituras. La relación no cambia la naturaleza del
+entregable: sigue siendo un relevamiento, sin optimizaciones ni cambios de
+presupuesto.
 
 | Criterio de #264 | Evidencia en este informe |
 |---|---|
 | Contexto de la ventana y procedencia de las métricas | §1 y §2: SHA, ambiente, volumen, `shared_fixed_window`, ventana, retención y tasa de muestreo |
-| Flujos del manifiesto con calentamiento y repeticiones | §5 y §8: lecturas del manifiesto, 1 calentamiento y 5 repeticiones por flujo |
-| Máximos, duplicadas, latencia y dependencias por ruta | §6, §8 y §9, tomados de `/performance-api/` y de la sonda HTTP |
+| Flujos del manifiesto con calentamiento y repeticiones | **Parcial**: §5 cubre los 5 flujos de #219, no las 16 rutas de `build_targets` |
+| Máximos, duplicadas, latencia y dependencias por ruta | **Parcial**: §6, §8 y §9 cubren las rutas relevadas, no todo el manifiesto |
 | Contraste contra presupuestos y rutas sin margen | §11, sin modificar `scripts/perf_budgets.json` |
 | Sin carga ni servicios externos reales | §1 y §9: Docker dedicado, datos sintéticos y sin credenciales externas |
 | Artefacto sin datos sensibles | §2: no conserva SQL, parámetros, URLs, usuarios, payloads, tokens ni credenciales |
-| Continuidad de los hallazgos | Task derivada #268: alcance, requisitos y criterios verificables para H-1 a H-9 |
+| Continuidad de los hallazgos | **Pendiente**: #268 consolida el seguimiento, pero #262 exige una task acotada por fix priorizado |
 
 H-8 no es una optimización pendiente: es un resultado informativo que pide repetir
 la medición bajo Daphne antes de concluir sobre capacidad. O-1 queda incorporado
 como requisito del método de concurrencia, porque describe un control funcional
 correcto y no un defecto.
+
+Por estas brechas, este PR no cierra #262 ni #264. Ambas tasks permanecen abiertas
+hasta completar sus criterios de aprobación o redefinirlos explícitamente.
 
 ## 14. Qué NO es este informe
 
