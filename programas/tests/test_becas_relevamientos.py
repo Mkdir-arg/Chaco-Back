@@ -155,7 +155,7 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         )
         self.assertEqual(resp.status_code, 302)
         nuevo = Relevamiento.objects.get(zona=self.localidad.nombre)
-        self.assertTrue(nuevo.nombre.startswith("Relevamiento "))
+        self.assertEqual(nuevo.nombre, "Relevamiento 002 · Conv A")
         self.assertEqual(nuevo.estado, Relevamiento.Estado.ASIGNADO)
 
     def test_fecha_debe_estar_dentro_del_periodo_de_convocatoria(self):
@@ -186,6 +186,21 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
                     }
                 )
                 self.assertTrue(form.is_valid(), form.errors)
+
+    def test_fecha_hasta_debe_estar_dentro_del_periodo_de_convocatoria(self):
+        form = RelevamientoForm(
+            {
+                "convocatoria": self.conv_a.pk,
+                "territorial": self.territorial.pk,
+                "fecha_asignada": "2026-12-31T08:00",
+                "fecha_hasta": "2027-01-01T08:00",
+                "municipio": self.municipio.pk,
+                "zona": self.localidad.pk,
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("período de la convocatoria", form.errors["fecha_hasta"][0])
 
     def test_opciones_de_convocatoria_exponen_limites_para_el_datepicker(self):
         html = str(RelevamientoForm()["convocatoria"])

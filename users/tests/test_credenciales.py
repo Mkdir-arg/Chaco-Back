@@ -89,6 +89,7 @@ class CambioObligatorioPrimerLoginTests(TestCase):
         respuesta = self.client.get(self.destino)
 
         self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, f'method="post" action="{reverse("users:logout")}"')
 
     def test_al_cambiarla_se_libera_el_acceso_y_no_se_pierde_la_sesion(self):
         self.client.force_login(self.user)
@@ -106,3 +107,14 @@ class CambioObligatorioPrimerLoginTests(TestCase):
         # o BackofficeSingleSessionMiddleware expulsa al usuario en el próximo request.
         self.assertEqual(self.user.profile.backoffice_session_key, self.client.session.session_key)
         self.assertEqual(self.client.get(reverse("core:inicio")).status_code, 200)
+
+
+class LogoutTests(TestCase):
+    def test_logout_por_post_cierra_la_sesion(self):
+        user = User.objects.create_user(username="operador.logout", password="clave-segura")
+        self.client.force_login(user)
+
+        respuesta = self.client.post(reverse("users:logout"))
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertNotIn("_auth_user_id", self.client.session)

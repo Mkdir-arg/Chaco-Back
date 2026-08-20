@@ -1,5 +1,6 @@
 """Formularios del backoffice de Programas."""
 
+import unicodedata
 from calendar import monthrange
 from collections import OrderedDict
 from datetime import datetime, time
@@ -46,7 +47,12 @@ CHECKBOX_CLASS = "h-4 w-4 rounded border-base text-fg-brand focus:ring-brand"
 
 
 def _catalogo_choices(items, empty_label):
-    return [("", empty_label)] + [(str(item["id"]), item["nombre"]) for item in items]
+    def clave_alfabetica(item):
+        nombre = str(item.get("nombre") or "")
+        return unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode().casefold()
+
+    items_ordenados = sorted(items, key=clave_alfabetica)
+    return [("", empty_label)] + [(str(item["id"]), item["nombre"]) for item in items_ordenados]
 
 
 def _cargar_catalogo(loader):

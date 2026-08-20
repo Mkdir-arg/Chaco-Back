@@ -157,7 +157,7 @@ class RelevamientoTests(TestCase):
             fecha_asignada=date(2026, 6, 1),
             zona="Centro",
         )
-        self.assertEqual(rel.nombre, "Relevamiento 001")
+        self.assertEqual(rel.nombre, "Relevamiento 001 · Conv")
         self.assertEqual(rel.numero, 1)
         self.assertEqual(rel.estado, Relevamiento.Estado.ASIGNADO)
 
@@ -178,6 +178,9 @@ class RelevamientoTests(TestCase):
             convocatoria=otra_conv, territorial=self.territorial, fecha_asignada=date(2026, 6, 1), zona="C"
         )
         self.assertEqual((primero.numero, segundo.numero, primero_otra.numero), (1, 2, 1))
+        self.assertEqual(primero.nombre, "Relevamiento 001 · Conv")
+        self.assertEqual(segundo.nombre, "Relevamiento 002 · Conv")
+        self.assertEqual(primero_otra.nombre, "Relevamiento 001 · Otra")
 
 
 class CamposFormularioTests(TestCase):

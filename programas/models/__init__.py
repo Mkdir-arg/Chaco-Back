@@ -1579,14 +1579,21 @@ class Relevamiento(PausableMixin, TimeStamped):
             raise ValidationError(errores)
 
     @classmethod
-    def proximo_nombre(cls):
+    def proximo_nombre(cls, convocatoria=None):
         """Nombre autogenerado del próximo relevamiento.
 
-        Usa ``Max(id)`` en vez de ``count()`` (evita el full scan y la carrera
+        Usa ``Max(numero)`` en vez de ``count()`` (evita el full scan y la carrera
         de dos altas simultáneas con el mismo número).
         """
-        siguiente = cls.proximo_numero()
-        return f"Relevamiento {siguiente:03d}"
+        siguiente = cls.proximo_numero(convocatoria)
+        return cls.nombre_para(convocatoria, siguiente)
+
+    @classmethod
+    def nombre_para(cls, convocatoria, numero):
+        nombre = f"Relevamiento {numero:03d}"
+        if convocatoria is not None:
+            nombre = f"{nombre} · {convocatoria.nombre}"
+        return nombre[: cls._meta.get_field("nombre").max_length]
 
     @classmethod
     def proximo_numero(cls, convocatoria=None):
@@ -1604,10 +1611,10 @@ class Relevamiento(PausableMixin, TimeStamped):
             with transaction.atomic():
                 Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)
                 self.numero = self.proximo_numero(self.convocatoria_id)
-                self.nombre = f"Relevamiento {self.numero:03d}"
+                self.nombre = self.nombre_para(self.convocatoria, self.numero)
                 return super().save(*args, **kwargs)
         if not self.nombre:
-            self.nombre = f"Relevamiento {self.numero:03d}"
+            self.nombre = self.nombre_para(self.convocatoria, self.numero)
         return super().save(*args, **kwargs)
 
     @classmethod
