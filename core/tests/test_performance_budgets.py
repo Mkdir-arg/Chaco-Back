@@ -35,12 +35,15 @@ class PerformanceBudgetTests(TestCase):
             target = targets[key]
             self.assertEqual(target["route"], budget["route"], f"Route desactualizada para {key}")
             cache.clear()
-            measurement = _capture_request(clients[target["actor"]], target["url"])
+            measurement = _capture_request(clients[target["actor"]], target["url"], target.get("request"))
             query_count = measurement["query_count"]
             duplicate_query_count = measurement["duplicate_query_count"]
-            total_duration_ms += measurement["duration_ms"]
+            if target.get("include_in_timing", True):
+                total_duration_ms += measurement["duration_ms"]
             expected_status = target.get("expected_status", 200)
             self.assertEqual(measurement["response"].status_code, expected_status, f"Status inesperado en {key}")
+            if target.get("expected_json_success"):
+                self.assertTrue(measurement["response"].json().get("success"), f"Respuesta inválida en {key}")
             if query_count > budget["max_queries"]:
                 failures.append(
                     f"{key} ({target['url']}): {query_count} queries actuales vs presupuesto "
@@ -60,3 +63,46 @@ class PerformanceBudgetTests(TestCase):
             )
 
         self.assertFalse(failures, "Presupuestos de performance excedidos:\n" + "\n".join(failures))
+
+    def test_login_budget_exercises_the_submission(self):
+        manifest = build_targets()
+        target = next(item for item in manifest["targets"] if item["key"] == "login")
+        client = build_clients(manifest["actors"])[target["actor"]]
+
+        measurement = _capture_request(client, target["url"], target.get("request"))
+
+        self.assertEqual(target["expected_status"], 302)
+        self.assertIsNotNone(target.get("request"))
+        self.assertEqual(measurement["response"].status_code, 302)
+
+    def test_ci_worker_uses_an_isolated_login_identity(self):
+        from core.management.commands.perf_ci_probe import Command
+
+        worker_id = "login-contract-worker"
+        manifest = build_targets(worker_id=worker_id)
+        clients = Command._build_worker_clients(worker_id, manifest["actors"])
+        target = next(item for item in manifest["targets"] if item["key"] == "login")
+
+        response = target["request"](clients["login"], target["url"])
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_ci_workers_can_send_to_separate_conversations(self):
+        from core.management.commands.perf_ci_probe import Command
+
+        first_manifest = build_targets(worker_id="conversation-worker-one")
+        second_manifest = build_targets(worker_id="conversation-worker-two")
+        first_target = next(item for item in first_manifest["targets"] if item["key"] == "envio_conversacion")
+        second_target = next(item for item in second_manifest["targets"] if item["key"] == "envio_conversacion")
+
+        self.assertNotEqual(first_target["url"], second_target["url"])
+
+        for worker_id, manifest, target in (
+            ("conversation-worker-one", first_manifest, first_target),
+            ("conversation-worker-two", second_manifest, second_target),
+        ):
+            clients = Command._build_worker_clients(worker_id, manifest["actors"])
+            response = target["request"](clients["backoffice"], target["url"])
+
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["success"])

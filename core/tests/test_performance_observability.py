@@ -18,6 +18,7 @@ from config import settings as project_settings
 from config.middlewares.query_counter import QueryCollector, QueryCountMiddleware
 from conversaciones.context_processors import user_groups
 from core import rbac
+from core.performance.ci_external_stubs import simulate_external_call
 from core.performance.query_observability import (
     QueryObservabilityStore,
     instrument_external_call,
@@ -262,6 +263,39 @@ class QueryCountMiddlewareTests(TestCase):
 
         self.assertEqual(dependency["calls"], 1)
         self.assertEqual(dependency["errors"], 1)
+
+    def test_ci_external_simulation_records_success_for_all_dependencies_without_network(self):
+        def get_response(_request):
+            for dependency in ("siis", "personas", "renaper"):
+                simulate_external_call(dependency)
+            return HttpResponse("simulated")
+
+        with patch("socket.create_connection") as network:
+            response = QueryCountMiddleware(get_response)(RequestFactory().get("/inicio/"))
+
+        dependencies = QueryObservabilityStore().snapshot()["routes"][0]["dependencies"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(dependencies), {"siis", "personas", "renaper"})
+        for dependency in dependencies.values():
+            self.assertEqual(dependency["calls"], 1)
+            self.assertEqual(dependency["errors"], 0)
+        network.assert_not_called()
+
+    def test_ci_external_simulation_records_latency_and_error_without_network(self):
+        def get_response(_request):
+            result = simulate_external_call("personas", latency_seconds=0.25, status_code=503)
+            return HttpResponse("simulated", status=result.status_code)
+
+        with patch("core.performance.ci_external_stubs.time.sleep") as sleep:
+            with patch("socket.create_connection") as network:
+                response = QueryCountMiddleware(get_response)(RequestFactory().get("/inicio/"))
+
+        dependency = QueryObservabilityStore().snapshot()["routes"][0]["dependencies"]["personas"]
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(dependency["calls"], 1)
+        self.assertEqual(dependency["errors"], 1)
+        sleep.assert_called_once_with(0.25)
+        network.assert_not_called()
 
     def test_records_duplicate_query_count_without_persisting_sql(self):
         user = User.objects.create_user("duplicate-observability-user", password="test-password")

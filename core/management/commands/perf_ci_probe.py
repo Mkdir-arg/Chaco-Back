@@ -17,6 +17,7 @@ from django.http import HttpResponse
 from django.test import RequestFactory
 
 from config.middlewares.query_counter import QueryCountMiddleware
+from core.performance.ci_external_stubs import simulate_external_call
 from core.performance.query_observability import QueryObservabilityStore, instrument_external_call
 
 
@@ -39,11 +40,19 @@ class Command(BaseCommand):
             "--workers", type=int, default=2, help="Cantidad esperada de procesos worker para --verify."
         )
         parser.add_argument("--output", required=True, help="Artefacto JSON de CI, sin datos sensibles.")
+        parser.add_argument(
+            "--external-latency-ms",
+            type=float,
+            default=0,
+            help="Demora sintética compartida por llamada externa (sólo CI efímera).",
+        )
 
     def handle(self, *args, **options):
         self._assert_ephemeral_ci()
+        if options["external_latency_ms"] < 0:
+            raise CommandError("--external-latency-ms no puede ser negativo.")
         if options["worker"]:
-            self._run_worker(options["worker"], options["output"])
+            self._run_worker(options["worker"], options["output"], options["external_latency_ms"] / 1000)
             return
         self._verify(options["workers"], options["output"])
 
@@ -67,23 +76,35 @@ class Command(BaseCommand):
                 "efímero llamado exactamente chaco_perf_ci."
             )
 
-    def _run_worker(self, worker_id, output):
+    def _run_worker(self, worker_id, output, external_latency_seconds=0):
         from scripts.perf_audit import build_targets
 
-        manifest = build_targets()
+        manifest = build_targets(worker_id=worker_id)
         clients = self._build_worker_clients(worker_id, manifest["actors"])
         results = []
-        with patch("programas.forms.listar_programas", side_effect=self._stubbed_siis_catalog):
+        with patch(
+            "programas.forms.listar_programas",
+            side_effect=lambda: self._stubbed_siis_catalog(external_latency_seconds),
+        ):
             for target in manifest["targets"]:
-                response = clients[target["actor"]].get(target["url"], follow=False)
+                client = clients[target["actor"]]
+                request = target.get("request")
+                response = request(client, target["url"]) if request else client.get(target["url"], follow=False)
                 expected_status = target.get("expected_status", 200)
                 if response.status_code != expected_status:
                     raise CommandError(
                         f"{target['key']} devolvió {response.status_code}; se esperaba {expected_status} en CI efímera."
                     )
+                if target.get("expected_json_success"):
+                    try:
+                        payload = json.loads(response.content)
+                    except (TypeError, ValueError) as exc:
+                        raise CommandError(f"{target['key']} no devolvió JSON válido en CI efímera.") from exc
+                    if not isinstance(payload, dict) or payload.get("success") is not True:
+                        raise CommandError(f"{target['key']} no confirmó success=true en CI efímera.")
                 results.append({"key": target["key"], "route": target["route"], "status_code": response.status_code})
 
-        self._record_stubbed_dependencies()
+        self._record_stubbed_dependencies(external_latency_seconds)
         _write_json(
             output,
             {
@@ -92,6 +113,7 @@ class Command(BaseCommand):
                 "route_count": len(results),
                 "routes": results,
                 "external_dependencies": "stubbed_in_process",
+                "external_latency_ms": round(external_latency_seconds * 1000, 3),
             },
         )
 
@@ -123,6 +145,8 @@ class Command(BaseCommand):
                 },
             )
             user.groups.set(Group.objects.filter(pk__in=source.groups.values("pk")))
+            user.password = source.password
+            user.save(update_fields=["password"])
             profile, _ = Profile.objects.get_or_create(user=user)
             # La sonda puede reintentarse sobre la misma DB efímera. Forzar un
             # nuevo login requiere dejar que el middleware registre su nueva
@@ -134,6 +158,8 @@ class Command(BaseCommand):
 
         backoffice = worker_user("backoffice")
         citizen = worker_user("citizen")
+        if "login" in actor_usernames:
+            worker_user("login")
         if not Ciudadano.objects.filter(usuario=citizen).exists():
             ciudadano = Ciudadano.objects.filter(usuario__isnull=True, dni__startswith="8").order_by("dni").first()
             if ciudadano is None:
@@ -145,26 +171,29 @@ class Command(BaseCommand):
             "anonymous": Client(raise_request_exception=False),
             "backoffice": Client(raise_request_exception=False),
             "citizen": Client(raise_request_exception=False),
+            "login": Client(raise_request_exception=False),
         }
         clients["backoffice"].force_login(backoffice)
         clients["citizen"].force_login(citizen)
         return clients
 
     @staticmethod
-    def _record_stubbed_dependencies():
+    def _record_stubbed_dependencies(latency_seconds=0):
         response = type("StubResponse", (), {"status_code": 200})()
 
         def get_response(_request):
-            for dependency in ("ci_stub", "siis", "personas", "renaper"):
-                instrument_external_call(dependency, lambda: response)
+            instrument_external_call("ci_stub", lambda: response)
+            for dependency in ("siis", "personas", "renaper"):
+                simulate_external_call(dependency, latency_seconds=latency_seconds)
             return HttpResponse("ok")
 
         QueryCountMiddleware(get_response)(RequestFactory().get("/performance-ci-dependency-probe/"))
 
     @staticmethod
-    def _stubbed_siis_catalog():
+    def _stubbed_siis_catalog(latency_seconds=0):
         """Evita llamadas de red y conserva la traza agregada de la dependencia."""
-        return instrument_external_call("siis", lambda: [])
+        simulate_external_call("siis", latency_seconds=latency_seconds)
+        return []
 
     def _verify(self, worker_count, output):
         if worker_count < 2:

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import itertools
 import json
 import os
 import re
@@ -11,8 +13,10 @@ import statistics
 import sys
 import tempfile
 import time
-from collections import Counter
+import traceback
+from collections import Counter, defaultdict
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -59,46 +63,190 @@ def normalize_sql(sql: str) -> str:
     return WHITESPACE_RE.sub(" ", normalized).strip()
 
 
-def duplicate_query_groups(captured_queries):
-    groups = Counter(normalize_sql(query.get("sql", "")) for query in captured_queries)
+def sql_fingerprint(sql: str) -> str:
+    """Identificador irreversible de una forma de SQL normalizada."""
+    return hashlib.sha256(normalize_sql(sql).encode("utf-8")).hexdigest()[:16]
+
+
+def query_call_site():
+    """Devuelve el primer punto de llamada del repositorio, sin rutas locales."""
+    for frame in reversed(traceback.extract_stack()[:-1]):
+        try:
+            relative_path = Path(frame.filename).resolve().relative_to(REPO).as_posix()
+        except ValueError:
+            continue
+        if relative_path != "scripts/perf_audit.py" and not relative_path.startswith(".venv/"):
+            return f"{relative_path}:{frame.lineno}:{frame.name}"
+    return "origen_no_clasificado"
+
+
+class QueryDiagnosticCollector:
+    """Conserva SQL sólo durante la request para emitir huellas y call-sites seguros."""
+
+    def __init__(self):
+        self.records = []
+
+    def __call__(self, execute, sql, params, many, context):
+        self.records.append({"sql": sql, "call_site": query_call_site()})
+        return execute(sql, params, many, context)
+
+
+def duplicate_query_groups(query_records):
+    groups = defaultdict(lambda: {"occurrences": 0, "call_sites": Counter()})
+    for query in query_records:
+        fingerprint = sql_fingerprint(query.get("sql", ""))
+        groups[fingerprint]["occurrences"] += 1
+        groups[fingerprint]["call_sites"][query.get("call_site", "origen_no_clasificado")] += 1
+
     repeated = [
         {
-            "occurrences": occurrences,
-            "duplicates": occurrences - 1,
-            "sql": sql[:500],
+            "fingerprint": fingerprint,
+            "occurrences": group["occurrences"],
+            "duplicates": group["occurrences"] - 1,
+            "call_sites": [
+                {"call_site": call_site, "occurrences": occurrences}
+                for call_site, occurrences in sorted(group["call_sites"].items(), key=lambda item: (-item[1], item[0]))
+            ],
         }
-        for sql, occurrences in groups.items()
-        if occurrences > 1
+        for fingerprint, group in groups.items()
+        if group["occurrences"] > 1
     ]
-    repeated.sort(key=lambda item: (-item["occurrences"], item["sql"]))
+    repeated.sort(key=lambda item: (-item["occurrences"], item["fingerprint"]))
     return repeated
 
 
-def build_targets():
+def build_targets(worker_id=None):
     """Resuelve el manifiesto después del seed, fuera de la captura SQL."""
     from django.urls import reverse
 
     from conversaciones.models import Conversacion
-    from core.management.commands.seed_perf import PERF_ADMIN_USERNAME, PERF_CITIZEN_USERNAME, PERF_FIRST_DNI
+    from core.management.commands.seed_perf import (
+        PERF_ADMIN_USERNAME,
+        PERF_CITIZEN_USERNAME,
+        PERF_FIRST_DNI,
+        PERF_LOGIN_PASSWORD,
+        PERF_LOGIN_USERNAME,
+    )
+    from core.models import Localidad
     from legajos.models import Ciudadano
     from programas.models import Relevamiento
 
     ciudadano = Ciudadano.objects.get(dni=PERF_FIRST_DNI)
-    conversacion = (
-        Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME).order_by("fecha_inicio").first()
-    )
+    if worker_id is None:
+        conversacion = (
+            Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME)
+            .order_by("fecha_inicio")
+            .first()
+        )
+    else:
+        worker_suffix = hashlib.sha256(worker_id.encode()).hexdigest()[:12]
+        worker_started_at = datetime(2040, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=int(worker_suffix, 16))
+        conversacion, _ = Conversacion.objects.get_or_create(
+            ciudadano_usuario__username=PERF_CITIZEN_USERNAME,
+            fecha_inicio=worker_started_at,
+            defaults={
+                "tipo": "personal",
+                "estado": "pendiente",
+                "prioridad": "normal",
+                "dni_ciudadano": PERF_FIRST_DNI,
+            },
+        )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
+    localidad = Localidad.objects.get(pk=ciudadano.localidad_id)
+    login_username = (
+        PERF_LOGIN_USERNAME
+        if worker_id is None
+        else f"perf_ci_login_{hashlib.sha256(worker_id.encode()).hexdigest()[:12]}"
+    )
 
     if conversacion is None:
         raise RuntimeError("seed_perf no creó la conversación PERF requerida")
+
+    write_index = itertools.count(1)
+
+    def siguiente_escritura():
+        return next(write_index)
+
+    def alta_ciudadano(client, url):
+        index = siguiente_escritura()
+        worker_offset = int(hashlib.sha256((worker_id or "local").encode()).hexdigest()[:6], 16) % 9_000_000
+        dni = str(90_000_000 + worker_offset + index)
+        return client.post(
+            url,
+            {
+                "dni": dni,
+                "nombre": "Ciudadano",
+                "apellido": f"PERF {index}",
+                "fecha_nacimiento": "1990-05-05",
+                "genero": "X",
+                "telefono": "3624000000",
+                "email": f"ciudadano-{index}@perf.invalid",
+                "domicilio": "Calle PERF 123",
+                "provincia": ciudadano.provincia_id,
+                "municipio": ciudadano.municipio_id,
+                "localidad": ciudadano.localidad_id,
+            },
+        )
+
+    def carga_relevamiento(client, url):
+        index = siguiente_escritura()
+        return client.post(
+            url,
+            {
+                "convocatoria": relevamiento.convocatoria_id,
+                "territorial": relevamiento.territorial_id,
+                "municipio": localidad.municipio_id,
+                "zona": localidad.pk,
+                "fecha_asignada": f"2026-09-{index:02d}T09:00",
+                "fecha_hasta": f"2026-09-{index:02d}T18:00",
+                "cupo_maximo": 10,
+                "observaciones": f"Relevamiento sintético PERF {index}",
+                "confirmar_solapamiento": "1",
+            },
+        )
+
+    def edicion_convocatoria(client, url):
+        index = siguiente_escritura()
+        convocatoria = relevamiento.convocatoria
+        return client.post(
+            url,
+            {
+                "nombre": f"PERF Convocatoria 000 edición {index}",
+                "segmento": convocatoria.segmento_id,
+                "fecha_inicio": convocatoria.fecha_inicio.isoformat(),
+                "fecha_fin": convocatoria.fecha_fin.isoformat(),
+                "descripcion": "Edición sintética para auditoría de performance.",
+                "activo": "on",
+            },
+        )
+
+    def envio_conversacion(client, url):
+        index = siguiente_escritura()
+        return client.post(
+            url,
+            data=json.dumps({"mensaje": f"Mensaje sintético PERF {index}"}),
+            content_type="application/json",
+        )
+
+    def login(client, url):
+        client.logout()
+        return client.post(url, {"username": login_username, "password": PERF_LOGIN_PASSWORD, "remember": "on"})
 
     return {
         "actors": {
             "backoffice": PERF_ADMIN_USERNAME,
             "citizen": PERF_CITIZEN_USERNAME,
+            "login": PERF_LOGIN_USERNAME,
         },
         "targets": [
-            {"key": "login", "route": "users:login", "url": reverse("users:login"), "actor": "anonymous"},
+            {
+                "key": "login",
+                "route": "users:login",
+                "url": reverse("users:login"),
+                "actor": "login",
+                "request": login,
+                "expected_status": 302,
+            },
             {"key": "inicio", "route": "core:inicio", "url": reverse("core:inicio"), "actor": "backoffice"},
             {
                 "key": "dashboard_redirect",
@@ -124,6 +272,12 @@ def build_targets():
                 "key": "legajo_detalle",
                 "route": "legajos:ciudadano_detalle",
                 "url": reverse("legajos:ciudadano_detalle", kwargs={"pk": ciudadano.pk}),
+                "actor": "backoffice",
+            },
+            {
+                "key": "legajos_ciudadano_nuevo",
+                "route": "legajos:ciudadano_nuevo",
+                "url": reverse("legajos:ciudadano_nuevo"),
                 "actor": "backoffice",
             },
             {
@@ -181,6 +335,54 @@ def build_targets():
                 "url": reverse("becas:relevamiento_detalle", kwargs={"pk": relevamiento.pk}),
                 "actor": "backoffice",
             },
+            {
+                "key": "becas_reportes",
+                "route": "becas:reportes",
+                "url": reverse("becas:reportes"),
+                "actor": "backoffice",
+            },
+            {
+                "key": "becas_programas",
+                "route": "becas:programas",
+                "url": reverse("becas:programas"),
+                "actor": "backoffice",
+            },
+            {
+                "key": "alta_ciudadano",
+                "route": "legajos:ciudadano_manual",
+                "url": reverse("legajos:ciudadano_manual"),
+                "actor": "backoffice",
+                "expected_status": 302,
+                "request": alta_ciudadano,
+                "include_in_timing": False,
+            },
+            {
+                "key": "carga_relevamiento",
+                "route": "becas:relevamiento_crear",
+                "url": reverse("becas:relevamiento_crear"),
+                "actor": "backoffice",
+                "expected_status": 302,
+                "request": carga_relevamiento,
+                "include_in_timing": False,
+            },
+            {
+                "key": "edicion_convocatoria",
+                "route": "becas:convocatoria_editar",
+                "url": reverse("becas:convocatoria_editar", kwargs={"pk": relevamiento.convocatoria_id}),
+                "actor": "backoffice",
+                "expected_status": 302,
+                "request": edicion_convocatoria,
+                "include_in_timing": False,
+            },
+            {
+                "key": "envio_conversacion",
+                "route": "conversaciones:enviar_mensaje_operador",
+                "url": reverse("conversaciones:enviar_mensaje_operador", kwargs={"conversacion_id": conversacion.pk}),
+                "actor": "backoffice",
+                "request": envio_conversacion,
+                "expected_json_success": True,
+                "include_in_timing": False,
+            },
         ],
     }
 
@@ -194,6 +396,7 @@ def build_clients(actor_usernames):
         "anonymous": Client(raise_request_exception=False),
         "backoffice": Client(raise_request_exception=False),
         "citizen": Client(raise_request_exception=False),
+        "login": Client(raise_request_exception=False),
     }
     clients["backoffice"].force_login(user_model.objects.get(username=actor_usernames["backoffice"]))
     clients["citizen"].force_login(user_model.objects.get(username=actor_usernames["citizen"]))
@@ -209,17 +412,19 @@ def _resolved_view(url):
         return None
 
 
-def _capture_request(client, url):
+def _capture_request(client, url, request=None):
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
-    with CaptureQueriesContext(connection) as captured:
-        started = time.perf_counter_ns()
-        response = client.get(url, follow=False)
-        body = response.content
-        duration_ms = (time.perf_counter_ns() - started) / 1_000_000
+    collector = QueryDiagnosticCollector()
+    with connection.execute_wrapper(collector):
+        with CaptureQueriesContext(connection) as captured:
+            started = time.perf_counter_ns()
+            response = request(client, url) if request else client.get(url, follow=False)
+            body = response.content
+            duration_ms = (time.perf_counter_ns() - started) / 1_000_000
 
-    duplicate_groups = duplicate_query_groups(captured.captured_queries)
+    duplicate_groups = duplicate_query_groups(collector.records)
     return {
         "response": response,
         "body": body,
@@ -234,8 +439,8 @@ def measure_target(target, client):
     from django.core.cache import cache
 
     cache.clear()
-    cold = _capture_request(client, target["url"])
-    warm_samples = [_capture_request(client, target["url"]) for _ in range(WARM_SAMPLE_COUNT)]
+    cold = _capture_request(client, target["url"], target.get("request"))
+    warm_samples = [_capture_request(client, target["url"], target.get("request")) for _ in range(WARM_SAMPLE_COUNT)]
 
     response = cold["response"]
     body = cold["body"]
@@ -276,6 +481,14 @@ def measure_target(target, client):
     expected_redirect_view = target.get("expected_redirect_view")
     if expected_redirect_view and redirect_view != expected_redirect_view:
         errors.append(f"redirect resuelve a {redirect_view!r}, esperado {expected_redirect_view!r}")
+    if target.get("expected_json_success"):
+        try:
+            payload = json.loads(body)
+        except (TypeError, ValueError):
+            errors.append("no devolvió JSON válido")
+        else:
+            if not isinstance(payload, dict) or payload.get("success") is not True:
+                errors.append("no confirmó success=true")
     return result, errors
 
 

@@ -10,17 +10,19 @@
       "becas_consulta_duplicada": "2→1 (#261): la repetición medida es 1, no 2. Las dos consultas no son redundantes: programa_becas() lee Programa codigo=BECAS y programa_dispositivos() lee codigo=DISPOSITIVOS desde el tag de sidebar. normalize_sql y sql_fingerprint reemplazan el literal por ?, así que agrupan dos lecturas distintas. Se baja el techo al valor medido; llegar a 0 exigiría eliminar una lectura de negocio diferente.",
       "conversaciones_consulta_duplicada": "Se mantiene en 1 (#261): chats_no_atendidos cuenta estado=activa y el badge del sidebar cuenta estado=pendiente. Misma forma de SQL, parámetros distintos. Unificarlas exigiría fusionar dos caches de clave y TTL distintos, fuera del cuello medido.",
       "optimizacion_261": "Medido con seed_perf scale 200 + perf_audit (SQLite, request fría): legajos_lista 14→12 unificando tres COUNT de InscripcionPrograma en un aggregate; legajo_detalle 23→20 calculando el resumen de Becas una sola vez por request y reutilizando las derivaciones ya leídas en la línea de tiempo. inicio queda en 19 medidas: sus lecturas restantes viven en módulos con cache e invalidación propias (dashboard.utils) y unificarlas excede el cuello medido.",
-      "presupuestos_261": "Cada ruta tocada queda en el valor medido + 1. Ese margen absorbe el UPDATE del control de sesión única de Backoffice, que la guarda le cobra a la primera ruta autenticada del recorrido y por lo tanto depende del orden de este archivo."
+      "presupuestos_261": "Cada ruta tocada queda en el valor medido + 1. Ese margen absorbe el UPDATE del control de sesión única de Backoffice, que la guarda le cobra a la primera ruta autenticada del recorrido y por lo tanto depende del orden de este archivo.",
+      "presupuestos_271_272": "Medido con seed_perf scale 200 + perf_audit (SQLite, request fría): #272 agrega legajos_ciudadano_nuevo 7→8, becas_reportes 9→10 y becas_programas 11→12; #271 agrega alta_ciudadano 13→14, carga_relevamiento 20→21, edicion_convocatoria 12→13 y envio_conversacion 9→10. Las duplicadas quedan en el valor medido + 1; el envío tolera 1 porque su muestra warm ya la registra. Las escrituras quedan fuera de reference_total_ms para no mezclar la alarma histórica de lecturas con operaciones que cambian datos sintéticos.",
+      "referencia_tiempo_274_276": "#274 reemplaza la lectura anónima de login por un POST autenticado y #276 consolida los servicios de Compose usados por CI. La ejecución de referencia en GitHub Actions midió 1432.86 ms; se actualiza sólo la alarma gruesa de tiempo. Los presupuestos de queries permanecen como guarda dura."
     },
     "timing": {
-      "reference_total_ms": 220.92,
+      "reference_total_ms": 1432.86,
       "warning_multiplier": 1.5,
       "failure_multiplier": 3.0,
       "note": "El tiempo SQLite es una alarma gruesa; los presupuestos de queries son la guarda dura."
     }
   },
   "budgets": {
-    "login": {"route": "users:login", "max_queries": 0, "max_duplicate_queries": 0},
+    "login": {"route": "users:login", "max_queries": 23, "max_duplicate_queries": 2},
     "inicio": {"route": "core:inicio", "max_queries": 20, "max_duplicate_queries": 0},
     "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4, "max_duplicate_queries": 0},
     "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10, "max_duplicate_queries": 0},
@@ -35,6 +37,13 @@
     "becas_segmentos": {"route": "becas:segmentos", "max_queries": 15, "max_duplicate_queries": 1},
     "becas_convocatorias": {"route": "becas:convocatorias", "max_queries": 12, "max_duplicate_queries": 1},
     "becas_relevamientos": {"route": "becas:relevamientos", "max_queries": 16, "max_duplicate_queries": 1},
-    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15, "max_duplicate_queries": 1}
+    "becas_relevamiento_detalle": {"route": "becas:relevamiento_detalle", "max_queries": 15, "max_duplicate_queries": 1},
+    "legajos_ciudadano_nuevo": {"route": "legajos:ciudadano_nuevo", "max_queries": 8, "max_duplicate_queries": 0},
+    "becas_reportes": {"route": "becas:reportes", "max_queries": 10, "max_duplicate_queries": 1},
+    "becas_programas": {"route": "becas:programas", "max_queries": 12, "max_duplicate_queries": 1},
+    "alta_ciudadano": {"route": "legajos:ciudadano_manual", "max_queries": 14, "max_duplicate_queries": 0},
+    "carga_relevamiento": {"route": "becas:relevamiento_crear", "max_queries": 21, "max_duplicate_queries": 0},
+    "edicion_convocatoria": {"route": "becas:convocatoria_editar", "max_queries": 13, "max_duplicate_queries": 0},
+    "envio_conversacion": {"route": "conversaciones:enviar_mensaje_operador", "max_queries": 10, "max_duplicate_queries": 1}
   }
 }
