@@ -63,3 +63,14 @@ class PerformanceBudgetTests(TestCase):
             )
 
         self.assertFalse(failures, "Presupuestos de performance excedidos:\n" + "\n".join(failures))
+
+    def test_login_budget_exercises_the_submission(self):
+        manifest = build_targets()
+        target = next(item for item in manifest["targets"] if item["key"] == "login")
+        client = build_clients(manifest["actors"])[target["actor"]]
+
+        measurement = _capture_request(client, target["url"], target.get("request"))
+
+        self.assertEqual(target["expected_status"], 302)
+        self.assertIsNotNone(target.get("request"))
+        self.assertEqual(measurement["response"].status_code, 302)

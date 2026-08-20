@@ -35,10 +35,12 @@ from programas.models import (
 PERF_PREFIX = "PERF"
 PERF_ADMIN_USERNAME = "perf_admin"
 PERF_CITIZEN_USERNAME = "perf_ciudadano"
+PERF_LOGIN_USERNAME = "perf_login"
+PERF_LOGIN_PASSWORD = "perf-login-only"
 PERF_FIRST_DNI = "80000000"
 
 
-def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuser=False):
+def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuser=False, password=None):
     user, created = User.objects.get_or_create(username=username)
     user.first_name = first_name
     user.last_name = last_name
@@ -47,7 +49,9 @@ def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuse
     user.is_staff = is_staff
     user.is_superuser = is_superuser
     user.last_login = timezone.now()
-    if created:
+    if password:
+        user.set_password(password)
+    elif created:
         user.set_unusable_password()
     user.save()
     # El entorno productivo completa perfiles existentes mediante la migración
@@ -119,11 +123,18 @@ class Command(BaseCommand):
             last_name="Performance",
             is_staff=True,
             is_superuser=False,
+            password=PERF_LOGIN_PASSWORD,
         )
         citizen_user = _ensure_user(
             PERF_CITIZEN_USERNAME,
             first_name="Ciudadano",
             last_name="Performance",
+        )
+        _ensure_user(
+            PERF_LOGIN_USERNAME,
+            first_name="Login",
+            last_name="Performance",
+            password=PERF_LOGIN_PASSWORD,
         )
         coordinator = _ensure_user(
             "perf_coordinador",

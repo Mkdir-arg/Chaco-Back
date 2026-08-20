@@ -114,12 +114,18 @@ def duplicate_query_groups(query_records):
     return repeated
 
 
-def build_targets():
+def build_targets(worker_id=None):
     """Resuelve el manifiesto después del seed, fuera de la captura SQL."""
     from django.urls import reverse
 
     from conversaciones.models import Conversacion
-    from core.management.commands.seed_perf import PERF_ADMIN_USERNAME, PERF_CITIZEN_USERNAME, PERF_FIRST_DNI
+    from core.management.commands.seed_perf import (
+        PERF_ADMIN_USERNAME,
+        PERF_CITIZEN_USERNAME,
+        PERF_FIRST_DNI,
+        PERF_LOGIN_PASSWORD,
+        PERF_LOGIN_USERNAME,
+    )
     from core.models import Localidad
     from legajos.models import Ciudadano
     from programas.models import Relevamiento
@@ -130,6 +136,11 @@ def build_targets():
     )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
     localidad = Localidad.objects.get(pk=ciudadano.localidad_id)
+    login_username = (
+        PERF_LOGIN_USERNAME
+        if worker_id is None
+        else f"perf_ci_login_{hashlib.sha256(worker_id.encode()).hexdigest()[:12]}"
+    )
 
     if conversacion is None:
         raise RuntimeError("seed_perf no creó la conversación PERF requerida")
@@ -141,7 +152,8 @@ def build_targets():
 
     def alta_ciudadano(client, url):
         index = siguiente_escritura()
-        dni = str(90_000_000 + index)
+        worker_offset = int(hashlib.sha256((worker_id or "local").encode()).hexdigest()[:6], 16) % 9_000_000
+        dni = str(90_000_000 + worker_offset + index)
         return client.post(
             url,
             {
@@ -199,13 +211,25 @@ def build_targets():
             content_type="application/json",
         )
 
+    def login(client, url):
+        client.logout()
+        return client.post(url, {"username": login_username, "password": PERF_LOGIN_PASSWORD, "remember": "on"})
+
     return {
         "actors": {
             "backoffice": PERF_ADMIN_USERNAME,
             "citizen": PERF_CITIZEN_USERNAME,
+            "login": PERF_LOGIN_USERNAME,
         },
         "targets": [
-            {"key": "login", "route": "users:login", "url": reverse("users:login"), "actor": "anonymous"},
+            {
+                "key": "login",
+                "route": "users:login",
+                "url": reverse("users:login"),
+                "actor": "login",
+                "request": login,
+                "expected_status": 302,
+            },
             {"key": "inicio", "route": "core:inicio", "url": reverse("core:inicio"), "actor": "backoffice"},
             {
                 "key": "dashboard_redirect",
@@ -355,6 +379,7 @@ def build_clients(actor_usernames):
         "anonymous": Client(raise_request_exception=False),
         "backoffice": Client(raise_request_exception=False),
         "citizen": Client(raise_request_exception=False),
+        "login": Client(raise_request_exception=False),
     }
     clients["backoffice"].force_login(user_model.objects.get(username=actor_usernames["backoffice"]))
     clients["citizen"].force_login(user_model.objects.get(username=actor_usernames["citizen"]))

@@ -21,7 +21,7 @@
     }
   },
   "budgets": {
-    "login": {"route": "users:login", "max_queries": 0, "max_duplicate_queries": 0},
+    "login": {"route": "users:login", "max_queries": 23, "max_duplicate_queries": 2},
     "inicio": {"route": "core:inicio", "max_queries": 20, "max_duplicate_queries": 0},
     "dashboard_redirect": {"route": "core:dashboard", "max_queries": 4, "max_duplicate_queries": 0},
     "dashboard_metricas": {"route": "dashboard:api_metricas", "max_queries": 10, "max_duplicate_queries": 0},
