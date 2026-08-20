@@ -147,10 +147,15 @@
                 <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95"
                      class="absolute right-0 z-10 mt-2.5 w-36 origin-top-right rounded-xl py-2"
                      style="background: var(--bg-primary); box-shadow: var(--shadow-md); border: 1px solid var(--border-base);">
-                    <a href="{% url 'users:logout' %}" class="block px-3 py-1 text-sm leading-6" style="color: var(--text-heading);"
-                       onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
-                        <i class="fas fa-sign-out-alt mr-2" aria-hidden="true"></i>Cerrar sesión
-                    </a>
+                    {# LogoutView solo acepta POST desde Django 5.0: el cierre de sesión va por formulario, no por enlace. #}
+                    <form method="post" action="{% url 'users:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="block w-full text-left px-3 py-1 text-sm leading-6"
+                                style="color: var(--text-heading); background: transparent; border: none; cursor: pointer; font-family: inherit;"
+                                onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
+                            <i class="fas fa-sign-out-alt mr-2" aria-hidden="true"></i>Cerrar sesión
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

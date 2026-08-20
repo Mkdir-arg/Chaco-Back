@@ -27,6 +27,9 @@
     .public-auth__error { margin: 6px 0 0; color: var(--text-fg-danger); font-size: 12px; }
     .public-auth__button { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: var(--gradient-brand); color: var(--text-white); font: 700 15px var(--font-sans); cursor: pointer; box-shadow: var(--shadow-brand); }
     .public-auth__link { display: inline-block; margin-top: 18px; color: var(--text-fg-brand); font-size: 14px; font-weight: 600; text-decoration: none; }
+    /* La misma apariencia cuando el enlace tiene que ser un botón de formulario (logout por POST). */
+    button.public-auth__link { padding: 0; background: none; border: none; cursor: pointer; font-family: inherit; }
+    .public-auth__link:focus-visible { outline: none; border-radius: 6px; box-shadow: var(--ring-brand); }
     .public-auth__link:hover { text-decoration: underline; }
     @media (max-width: 480px) { .public-auth { align-items: flex-start; padding: 32px 18px; } .public-auth__card { padding: 22px 18px; } .public-auth__title { font-size: 24px; } }
   </style>

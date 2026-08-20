@@ -179,6 +179,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 35 | El login del backoffice muestra la contraseña con un botón ojo | Transversal / sesión | `#sesion` `#ui` | PM — mejora transversal aprobada el 14/08/2026, sin análisis | 14/08/2026 | 🟢 **Hecho** | No |
 | 36 | El diseño de Dispositivos es todo lo contrario a lo que tiene que ser | Dispositivos | `#ui` | PM — pedido directo en sesión de trabajo | 19/08/2026 | 🟡 **Parcial — badges y solapas hechos; 4 hallazgos abiertos** | No |
 | 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — implementado; falta envío real y aprobación de textos** | `users.0022` |
+| 38 | Cerrar sesión da error 405 después de actualizar Django | Transversal / sesión | `#sesion` `#infra` `#ui` | PM — reportó el 405 al entrar a `/logout` | 20/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -2574,6 +2575,118 @@ No requiere: solo template. Alcanza el deploy.
 Revertir el commit del template. No hay datos involucrados: el cambio es de
 presentación y no persiste nada.
 
+# Cambio 38 — Cerrar sesión da error 405 después de actualizar Django
+
+🟢 **HECHO — 20/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / sesión |
+| **Etiquetas** | `#sesion` `#infra` `#ui` |
+| **Solicitante** | PM — reportó que `https://datanach.ecomdev.ar/logout` devuelve HTTP 405 |
+| **Fecha del pedido** | 20/08/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Cuando hago `https://datanach.ecomdev.ar/logout` me da HTTP ERROR 405.»
+
+## Alcance acordado
+
+Se corrige el cierre de sesión del backoffice. **Queda afuera** el portal ciudadano,
+que no está afectado, y el resto del salto de versión de Django, que se revisó sin
+encontrar más usos de APIs removidas.
+
+## Decisiones tomadas
+
+- **La causa es el salto a Django 5.** El commit `290e365` (PR #257, issue #256, para
+  destrabar Pip Audit) subió **Django 4.2.30 → 5.2.17** el 18/08. Django 5.0 eliminó
+  el soporte de GET en `LogoutView` —deprecado en 4.1— y la vista solo acepta POST.
+  `users/urls.py` usa la vista de Django tal cual, así que entrar a `/logout` con el
+  navegador devuelve 405. No es un problema de nginx ni del despliegue.
+- **Se cierra sesión por formulario POST, no se le devuelve el GET a la vista.**
+  Reponer el GET con una vista propia sería reintroducir a mano el agujero que Django
+  cerró: con logout por GET, cualquier página de terceros con un
+  `<img src="…/logout">` cierra la sesión del usuario sin que él haga nada.
+- **Eran dos superficies, y la segunda es la más grave.** El ítem «Cerrar sesión» del
+  menú de usuario, y el «Salir» de la pantalla de cambio de contraseña obligatorio.
+  Esa pantalla retiene al usuario hasta que cambia la clave provisoria, y «Salir» es su
+  única salida: con el 405, quien entraba con clave provisoria y no quería cambiarla
+  quedaba sin forma de salir por la interfaz.
+- **El cierre por inactividad nunca se rompió.** `static/custom/js/idle-logout.js` ya
+  armaba un formulario POST con CSRF. Quedó el caso contrafáctico: el logout automático
+  funcionaba y el manual no.
+- **El portal ciudadano no estaba afectado.** Usa su propia `CiudadanoLogoutView` con
+  únicamente `post()` y su template ya enviaba un formulario. Nunca aceptó GET.
+- **Por qué no se detectó antes de desplegar:** el venv local sigue en **Django
+  4.2.20** aunque `requirements.txt` declara 5.2.17 — se actualizó el archivo y no se
+  reinstaló el entorno. `manage.py check` y los tests locales corren contra la versión
+  vieja, donde el GET todavía funcionaba con un aviso de deprecación. Y el logout no
+  tenía cobertura: la única referencia era `core/tests/test_url_namespaces.py`, que
+  verifica que la URL resuelva, nunca que responda.
+- **El resto del salto de versión se revisó.** No hay usos de `DEFAULT_FILE_STORAGE`,
+  `STATICFILES_STORAGE`, `USE_L10N`, `index_together`, `NullBooleanField`,
+  `make_random_password` ni los campos CI de Postgres. Los dos `timezone.utc` que
+  aparecen son de la biblioteca estándar, no el alias de Django que se removió.
+- **La actualización de Django no tiene entrada en este archivo.** El PR #257 se cerró
+  sin registrarla, y este 405 es su consecuencia. Queda anotado como pendiente.
+
+## Implementación
+
+El cierre de sesión del backoffice se envía por POST con token CSRF, tanto desde el
+menú de usuario como desde la pantalla de cambio de contraseña obligatorio. El usuario
+no percibe ninguna diferencia: el ítem del menú se ve igual y sigue llevando al login.
+
+## Archivos
+
+- `templates/includes/navbar.html` — el ítem del menú pasa de enlace a formulario POST,
+  conservando su apariencia y su comportamiento de hover.
+- `users/templates/user/base_public_auth.html` — variante `button.public-auth__link`
+  para que un botón de formulario se vea igual que el enlace, con foco visible.
+- `users/templates/user/cambiar_contrasena_obligatorio.html` — «Salir» pasa a formulario.
+- `users/tests/test_logout.py` — nuevo.
+- `.claude/agents/chaco-design-system.md` — el shell del backoffice deja constancia de
+  que el logout va por POST, y se inventaría el shell de autenticación pública.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `users.tests.test_logout` → 3 pruebas en verde: el POST cierra la sesión y redirige al
+  login, y ninguna de las dos pantallas ofrece el logout como enlace. Las dos últimas
+  renderizan el template directamente en lugar de pedir la página con el cliente de
+  pruebas, porque el entorno local corre Python 3.14 y ahí el cliente de pruebas de
+  Django 4.2 no puede copiar el contexto de render.
+- `manage.py check` → sin issues.
+- `scripts/design_audit.py --changed` → 0 errores, 1 WARN de `outline:none` justificado
+  (tiene su `box-shadow: var(--ring-brand)` en el mismo bloque).
+- `scripts/check_design_agent.py --changed` → `design-agent contract: OK`.
+- `scripts/compile_templates.py` → 318 templates, 0 errores.
+
+## Puesta en marcha en el servidor
+
+No requiere: solo templates. Alcanza el deploy.
+
+## Pendientes / a definir
+
+- **El venv local quedó en Django 4.2.20 contra 5.2.17 en producción.** Mientras no se
+  reinstale, las validaciones locales corren contra otra versión que el servidor y
+  pueden dejar pasar otra rotura como esta. Es el pendiente más importante de esta
+  entrada.
+- **La actualización de Django 4.2 → 5.2 no tiene entrada propia** en este archivo.
+- El logout del portal ciudadano no tiene pruebas; funciona, pero por convención más
+  que por contrato verificado.
+
+## Reversión
+
+Revertir el commit de los templates. No hay datos involucrados. Volver al enlace GET
+solo tendría efecto si además se bajara Django a 4.2, y reintroduciría el problema de
+seguridad descrito arriba.
+
 # Verificaciones generales pendientes antes de desplegar
 
 - Ejecutar la suite relevante sin una base de test reutilizada contaminada.
@@ -2895,6 +3008,16 @@ Queda **explícitamente afuera**:
   «reemplazada» y expulsa al usuario en el request siguiente, justo después de
   haber definido su contraseña. Hay un test que cubre exactamente esto.
 
+- **El chequeo del entorno es un comando propio, no `sendtestemail`.** El comando de
+  Django solo prueba que «algo salga»: no valida que el remitente coincida con la
+  casilla que autentica —la falla más probable y la más difícil de leer—, no arma las
+  plantillas reales, y cuando falla no distingue entre DNS, egress cerrado al 587, TLS
+  y credenciales rechazadas: las cuatro se ven como un error genérico.
+  `diagnosticar_correo` recorre los cuatro pasos por separado, en el mismo estilo que
+  `diagnosticar_siis`, y devuelve código distinto de 0 para poder usarse como gate de
+  despliegue. El correo de prueba usa la plantilla real del alta, así que valida también
+  el armado del mensaje y que el logo se sirva desde el static público.
+
 - **Las dos altas del producto quedaron con el mismo criterio.** Además del ABM de
   usuarios existe el **alta rápida** de los modales de Becas
   (`usuario_alta_rapida`), que crea coordinadores, referentes y territoriales y
@@ -2977,6 +3100,7 @@ Queda **explícitamente afuera**:
   `recupero_contrasena.{html,txt}`, `recupero_contrasena_asunto.txt`
   (los dos últimos vienen de `user/recuperar_contrasena_email.txt` y
   `user/recuperar_contrasena_asunto.txt`)
+- `users/management/commands/diagnosticar_correo.py`
 - `users/templates/user/cambiar_contrasena_obligatorio.html`
 - `users/templates/user/login.html` — enlace de recupero
 - `users/tests/test_credenciales.py` — reemplaza a `test_invitaciones.py`
@@ -3004,8 +3128,13 @@ sin cambio obligatorio, que es el comportamiento previo.
   preexistentes** (`test_roles_abm`, `test_usuarios_roles_panel`:
   `IntegrityError` por `Programa` duplicado entre el seed y las fixtures).
   Se verificaron en un worktree limpio de HEAD: fallan igual sin estos cambios.
-- **Sin verificar todavía:** el envío real contra `smtp.chaco.gob.ar`. Requiere las
-  variables cargadas en el ambiente y alcance de red desde el servidor.
+- `diagnosticar_correo` corrido desde el entorno de desarrollo: los pasos de
+  configuración y de armado de los correos pasan, y el envío se verificó con backend en
+  memoria. **El paso de conexión falla desde la red de desarrollo:** el 587 de
+  `smtp.chaco.gob.ar` no responde ni con 25 s de espera, aunque el nombre resuelve
+  (201.217.244.236). Es consistente con que el servidor solo acepte conexiones desde la
+  red de la provincia, así que **el diagnóstico hay que correrlo desde el servidor**.
+- **Sin verificar todavía:** el envío real contra `smtp.chaco.gob.ar`.
 
 ## Puesta en marcha en el servidor
 
@@ -3014,7 +3143,8 @@ sin cambio obligatorio, que es el comportamiento previo.
    (plantilla comentada en `.env.qa.example`; las credenciales no viven en el repo).
 2. Verificar alcance de red a `smtp.chaco.gob.ar:587` desde el servidor.
 3. `manage.py migrate` (trae `users.0022`).
-4. `manage.py sendtestemail <casilla>` en cada ambiente.
+4. `manage.py diagnosticar_correo` en cada ambiente — revisa variables, DNS,
+   conexión autenticada y armado de los correos, y manda uno de prueba.
 5. Alta de un usuario de prueba con casilla propia: confirmar que llega el correo,
    que la clave provisoria funciona y que el primer ingreso exige cambiarla.
 
@@ -3025,7 +3155,14 @@ sin cambio obligatorio, que es el comportamiento previo.
   que no queda un dato falso en el correo y no hace falta tocar código después.
 - **Aprobación de los textos (#244).** Publicados en
   `docs/client/funcionalidades/correos-credenciales.md` para la firma del cliente.
-- **Envío real (#245).** Pendiente de cargar las variables en QA y producción.
+- **Envío real (#245).** Pendiente de cargar las variables en QA y producción y de
+  correr `diagnosticar_correo` desde el servidor.
+- **Dominio de la casilla: `gob.ar` o `gov.ar`.** Infra pidió `gov.ar`; las credenciales
+  que entregó el PM dicen `gob.ar`. Los dos nombres **resuelven a la misma IP**, así que
+  `EMAIL_HOST` es indiferente: la duda afecta solo al usuario de autenticación y al
+  remitente, que tienen que ser la misma dirección. Se resuelve corriendo
+  `diagnosticar_correo` desde el servidor — si la casilla fuera la otra, el paso 2 corta
+  con credenciales rechazadas.
 - **Sin límite de intentos en el recupero.** No estaba en las reglas del #236: hoy
   se puede pedir el enlace tantas veces como se quiera. Queda anotado; no se
   implementó para no ampliar el alcance por decisión propia.
