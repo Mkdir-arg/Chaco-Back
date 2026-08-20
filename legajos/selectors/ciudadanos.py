@@ -1,7 +1,7 @@
 from datetime import date
 
 from django.core.cache import cache
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
 
@@ -64,10 +64,16 @@ def get_ciudadanos_queryset(search=""):
 
 
 def _build_ciudadanos_dashboard_metrics(total_ciudadanos=None):
-    total_inscripciones_activas = InscripcionPrograma.objects.filter(
-        estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO]
-    ).count()
-    total_inscripciones = InscripcionPrograma.objects.count()
+    totales_inscripciones = InscripcionPrograma.objects.aggregate(
+        total=Count("id"),
+        activas=Count(
+            "id",
+            filter=Q(estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO]),
+        ),
+        hoy=Count("id", filter=Q(fecha_inscripcion=date.today())),
+    )
+    total_inscripciones_activas = totales_inscripciones["activas"]
+    total_inscripciones = totales_inscripciones["total"]
     tasa_adherencia = round((total_inscripciones_activas / total_inscripciones * 100) if total_inscripciones > 0 else 0)
 
     return {
@@ -76,7 +82,7 @@ def _build_ciudadanos_dashboard_metrics(total_ciudadanos=None):
         ),
         "legajos_activos": total_inscripciones_activas,
         "alertas_criticas": AlertaCiudadano.objects.filter(activa=True).count(),
-        "seguimientos_hoy": InscripcionPrograma.objects.filter(fecha_inscripcion=date.today()).count(),
+        "seguimientos_hoy": totales_inscripciones["hoy"],
         "tasa_adherencia": tasa_adherencia,
         "casos_alto_riesgo": DerivacionPrograma.objects.filter(
             estado=DerivacionPrograma.Estado.PENDIENTE,
@@ -115,7 +121,8 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         .order_by("-fecha_inscripcion")
     )
 
-    todas_las_solapas = SolapasService.obtener_solapas_ciudadano(ciudadano)
+    resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano)
+    todas_las_solapas = SolapasService.obtener_solapas_ciudadano(ciudadano, resumen_becas=resumen_becas)
     solapas = [
         solapa for solapa in todas_las_solapas if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
     ]
@@ -133,7 +140,6 @@ def build_ciudadano_detail_context(ciudadano, user=None):
 
     # --- Becas (issue #80): tab embebida, contenido con prefijo para evitar colisiones ---
     if any(solapa["id"] == "becas" for solapa in context["solapas_programas"]):
-        resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano)
         context["becas_formularios"] = resumen_becas["formularios"]
         context["becas_estado_texto"] = resumen_becas["estado_texto"]
         context["becas_estado_color"] = resumen_becas["estado_color"]
@@ -166,9 +172,12 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         context["conversaciones_ciudadano"] = []
 
     # --- Derivaciones ---
-    context["derivaciones_ciudadano"] = ciudadano.derivaciones_programas.select_related(
-        "programa_origen", "programa_destino", "derivado_por"
-    ).order_by("-creado")[:20]
+    derivaciones_ciudadano = list(
+        ciudadano.derivaciones_programas.select_related("programa_origen", "programa_destino", "derivado_por").order_by(
+            "-creado"
+        )[:20]
+    )
+    context["derivaciones_ciudadano"] = derivaciones_ciudadano
 
     # --- Alertas ---
     context["alertas_ciudadano"] = ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
@@ -191,7 +200,7 @@ def build_ciudadano_detail_context(ciudadano, user=None):
             }
         )
 
-    for deriv in ciudadano.derivaciones_programas.select_related("programa_destino").order_by("-creado")[:10]:
+    for deriv in derivaciones_ciudadano[:10]:
         linea.append(
             {
                 "fecha": deriv.creado.date() if hasattr(deriv.creado, "date") else deriv.creado,
