@@ -1,5 +1,7 @@
+from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
@@ -34,3 +36,11 @@ class InicioPerformanceTests(TestCase):
         self.assertNotIn('<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>', html)
         self.assertIn("function cargarChartJs()", html)
         self.assertIn("IntersectionObserver", html)
+
+    def test_sidebar_renderiza_las_opciones_una_sola_vez(self):
+        sidebar = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertEqual(sidebar.count("{% include 'includes/sidebar/opciones.html' %}"), 1)
+        self.assertIn("Sidebar única", sidebar)
