@@ -264,6 +264,23 @@ class QueryCountMiddlewareTests(TestCase):
         self.assertEqual(dependency["calls"], 1)
         self.assertEqual(dependency["errors"], 1)
 
+    def test_ci_external_simulation_records_success_for_all_dependencies_without_network(self):
+        def get_response(_request):
+            for dependency in ("siis", "personas", "renaper"):
+                simulate_external_call(dependency)
+            return HttpResponse("simulated")
+
+        with patch("socket.create_connection") as network:
+            response = QueryCountMiddleware(get_response)(RequestFactory().get("/inicio/"))
+
+        dependencies = QueryObservabilityStore().snapshot()["routes"][0]["dependencies"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(dependencies), {"siis", "personas", "renaper"})
+        for dependency in dependencies.values():
+            self.assertEqual(dependency["calls"], 1)
+            self.assertEqual(dependency["errors"], 0)
+        network.assert_not_called()
+
     def test_ci_external_simulation_records_latency_and_error_without_network(self):
         def get_response(_request):
             result = simulate_external_call("personas", latency_seconds=0.25, status_code=503)

@@ -2,9 +2,9 @@ services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_DATABASE: ${DATABASE_NAME:-chaco}
-      MYSQL_USER: ${DATABASE_USER:-chaco}
-      MYSQL_PASSWORD: ${DATABASE_PASSWORD:-chaco123}
+      MYSQL_DATABASE: ${DATABASE_NAME:-chaco_db}
+      MYSQL_USER: ${DATABASE_USER:-chaco_user}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD:-chaco_secure_pass}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
     ports:
       - "3307:3306"
@@ -48,9 +48,9 @@ services:
       PERFORMANCE_QUERY_MONITORING_ENABLED: ${PERFORMANCE_QUERY_MONITORING_ENABLED:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,app}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
-      DATABASE_NAME: ${DATABASE_NAME:-chaco}
-      DATABASE_USER: ${DATABASE_USER:-chaco}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-chaco123}
+      DATABASE_NAME: ${DATABASE_NAME:-chaco_db}
+      DATABASE_USER: ${DATABASE_USER:-chaco_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-chaco_secure_pass}
       DATABASE_HOST: mysql
       DATABASE_PORT: 3306
       REDIS_HOST: redis
