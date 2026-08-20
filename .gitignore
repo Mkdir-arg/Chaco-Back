@@ -49,6 +49,8 @@ htmlcov/
 .claude/worktrees/
 .github/worklog/
 awslabs-mcp/
+# Salida local de perf_audit.py; no se versiona
+scripts/perf_baseline.json
 
 # Repositorio independiente de la aplicación móvil
 /mobile/
