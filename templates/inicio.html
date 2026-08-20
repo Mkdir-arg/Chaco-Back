@@ -831,6 +831,8 @@ function dashboardInicio() {
         busqueda: '',
         resultadosBusqueda: [],
         busquedaTieneMasResultados: false,
+        busquedaAbortController: null,
+        busquedaSecuencia: 0,
         periodo: '30d',
         saludo: '',
         dashboardApiUrls: {
@@ -880,20 +882,33 @@ function dashboardInicio() {
         },
 
         buscarCiudadano() {
+            const secuencia = ++this.busquedaSecuencia;
+            this.busquedaAbortController?.abort();
             if (this.busqueda.length < 3) {
                 this.resultadosBusqueda = [];
                 this.busquedaTieneMasResultados = false;
                 return;
             }
-            fetch(`${this.dashboardApiUrls.buscarCiudadanos}?q=${encodeURIComponent(this.busqueda)}`)
+            const controlador = new AbortController();
+            this.busquedaAbortController = controlador;
+            fetch(`${this.dashboardApiUrls.buscarCiudadanos}?q=${encodeURIComponent(this.busqueda)}`, {
+                signal: controlador.signal,
+            })
                 .then(r => r.json())
                 .then(data => {
+                    if (secuencia !== this.busquedaSecuencia) return;
                     this.resultadosBusqueda = data.results || [];
                     this.busquedaTieneMasResultados = Boolean(data.has_more);
                 })
-                .catch(() => {
+                .catch(error => {
+                    if (error.name === 'AbortError' || secuencia !== this.busquedaSecuencia) return;
                     this.resultadosBusqueda = [];
                     this.busquedaTieneMasResultados = false;
+                })
+                .finally(() => {
+                    if (secuencia === this.busquedaSecuencia) {
+                        this.busquedaAbortController = null;
+                    }
                 });
         },
 

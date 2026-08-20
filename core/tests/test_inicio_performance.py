@@ -44,3 +44,15 @@ class InicioPerformanceTests(TestCase):
 
         self.assertEqual(sidebar.count("{% include 'includes/sidebar/opciones.html' %}"), 1)
         self.assertIn("Sidebar única", sidebar)
+
+    def test_inicio_cancela_busquedas_anteriores_y_descarta_respuestas_tardias(self):
+        user = get_user_model().objects.create_user(username="inicio-search-cancel", password="secret")
+        self.client.force_login(user)
+
+        response = self.client.get("/inicio/")
+
+        html = response.content.decode()
+        self.assertIn("busquedaAbortController", html)
+        self.assertIn("busquedaSecuencia", html)
+        self.assertIn("new AbortController()", html)
+        self.assertIn("signal: controlador.signal", html)
