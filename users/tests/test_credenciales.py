@@ -61,6 +61,25 @@ class CredencialesPorCorreoTests(TestCase):
             self.assertFalse(set(clave) & set("0O1lI"))
 
 
+class LoginBrandAssetTests(TestCase):
+    def test_login_web_usa_el_logo_svg_liviano(self):
+        response = self.client.get(reverse("users:login"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("/static/custom/chaco/login-logo.svg", html)
+        self.assertNotIn("/static/custom/chaco/login-logo.png", html)
+        self.assertIn("/static/custom/css/tailwind.css", html)
+        self.assertNotIn("cdn.tailwindcss.com", html)
+
+
+class UserProfileSignalTests(TestCase):
+    def test_crear_usuario_crea_su_profile(self):
+        user = User.objects.create_user(username="usuario-con-profile")
+
+        self.assertEqual(user.profile.user, user)
+
+
 class CambioObligatorioPrimerLoginTests(TestCase):
     """RN-C2: con la clave provisoria sin cambiar no se puede operar."""
 
