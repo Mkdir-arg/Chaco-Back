@@ -1,7 +1,9 @@
 from django.contrib.auth.views import LogoutView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
 from django.urls import path, reverse_lazy
 
+from users.services.correo import contexto_pie
 from users.views import (
+    CambioContrasenaObligatorioView,
     RolCreateView,
     RolDeleteView,
     RolDetailView,
@@ -26,11 +28,20 @@ urlpatterns = [
         "recuperar-contrasena/",
         PasswordResetView.as_view(
             template_name="user/recuperar_contrasena.html",
-            email_template_name="user/recuperar_contrasena_email.txt",
-            subject_template_name="user/recuperar_contrasena_asunto.txt",
+            email_template_name="user/email/recupero_contrasena.txt",
+            html_email_template_name="user/email/recupero_contrasena.html",
+            subject_template_name="user/email/recupero_contrasena_asunto.txt",
+            # El pie y el prefijo del asunto salen de variables de entorno: fijas
+            # para el proceso, así que alcanza con resolverlas al cargar el URLconf.
+            extra_email_context=contexto_pie(),
             success_url=reverse_lazy("users:recuperar_contrasena_enviada"),
         ),
         name="recuperar_contrasena",
+    ),
+    path(
+        "cambiar-contrasena/",
+        CambioContrasenaObligatorioView.as_view(),
+        name="cambiar_contrasena_obligatorio",
     ),
     path(
         "recuperar-contrasena/enviada/",

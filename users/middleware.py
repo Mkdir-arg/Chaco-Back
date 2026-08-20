@@ -30,3 +30,27 @@ class BackofficeSingleSessionMiddleware:
                 return redirect(reverse("users:login"))
 
         return self.get_response(request)
+
+
+class CambioContrasenaObligatorioMiddleware:
+    """Con clave provisoria sin cambiar, la única pantalla disponible es cambiarla.
+
+    Va después de BackofficeSingleSessionMiddleware, que ya dejó el Profile en la
+    caché de relaciones del request: este chequeo no agrega consultas.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # /api/ usa tokens (Mobile): ahí request.user todavía es anónimo y el
+        # cambio de clave se resuelve en el navegador, no interceptando la API.
+        if request.user.is_authenticated and not request.path.startswith("/api/"):
+            # RelatedObjectDoesNotExist hereda de AttributeError: getattr alcanza.
+            profile = getattr(request.user, "profile", None)
+            if profile is not None and profile.debe_cambiar_contrasena:
+                destino = reverse("users:cambiar_contrasena_obligatorio")
+                if request.path not in (destino, reverse("users:logout")):
+                    return redirect(destino)
+
+        return self.get_response(request)

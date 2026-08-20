@@ -307,14 +307,22 @@ class RolesPorAmbitoMixin:
 
 
 class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
+    # Con correo informado la clave la genera el sistema y viaja en el mensaje
+    # (RN-C1 del análisis #236), así que este campo queda solo para el usuario sin
+    # correo, que sigue recibiendo su clave por otra vía (RN-C3).
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
                 "class": "nodo-field",
-                "placeholder": "Ingrese la contraseña",
+                "placeholder": "Solo si el usuario no tiene correo",
             }
         ),
         label="Contraseña",
+        required=False,
+        help_text=(
+            "Con correo informado no hace falta: el sistema genera una clave "
+            "provisoria y se la envía al usuario."
+        ),
     )
     groups = forms.ModelMultipleChoiceField(
         queryset=_roles_asignables_queryset(),
@@ -379,6 +387,13 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         super().clean()
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
+        # Sin correo no hay forma de entregarle una clave generada: la tiene que
+        # poner el operador ací.
+        if not self.cleaned_data.get("email") and not self.cleaned_data.get("password"):
+            self.add_error(
+                "password",
+                "Sin correo informado, la contraseña es obligatoria: el sistema no puede enviársela.",
+            )
         return _validar_jerarquia_becas(self)
 
 

@@ -28,6 +28,13 @@ class Profile(models.Model):
         editable=False,
         verbose_name="Sesión activa de Backoffice",
     )
+    # El alta manda una clave provisoria por correo: hasta que el usuario la
+    # cambie, el middleware no lo deja operar (RN-C2 del análisis #236).
+    debe_cambiar_contrasena = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name="Debe cambiar la contraseña",
+    )
 
     def __str__(self):
         return f"Perfil de {self.user.username}"

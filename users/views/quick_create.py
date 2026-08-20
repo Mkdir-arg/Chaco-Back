@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.http import JsonResponse
@@ -13,12 +15,15 @@ from programas.services.autorizacion import es_admin_becas, puede_gestionar_segm
 from users.forms import UserCreationForm
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
+from users.services.correo import entregar_credenciales_provisorias
 
 # Atajos de alta de los modales de Becas: tipo del botón → (rol que otorga, plural
 # para el mensaje de error). Son roles de backoffice y no llevan segmento: los da
 # de alta el admin del programa. ``referente`` es el Coordinador Regional que queda
 # a cargo de un subsegmento —así lo llama la UI de segmentos—, no el rol
 # "Becas — Referente".
+logger = logging.getLogger(__name__)
+
 ROLES_BACKOFFICE = {
     "coordinador": (ROL_COORDINADOR, "coordinadores"),
     "referente": (ROL_COORDINADOR_REGIONAL, "referentes"),
@@ -57,9 +62,25 @@ def usuario_alta_rapida(request):
         return JsonResponse({"ok": False, "errors": errores}, status=400)
 
     usuario = UsuariosAdminService.create_user_from_form(form, alcance_group_ids=alcance_roles_ids(request.user))
+
+    # Mismo criterio que el ABM de usuarios: con correo, la clave la genera el
+    # sistema y viaja en el mensaje (RN-C1); sin correo, queda la que tipeó el
+    # operador y se la entrega por otra vía.
+    aviso = ""
+    if usuario.email:
+        try:
+            entregar_credenciales_provisorias(usuario, request, rol=rol.name)
+            aviso = "Se envió el correo con la clave provisoria."
+        except Exception:
+            logger.exception("El usuario fue creado, pero no se pudo enviar la clave provisoria")
+            aviso = 'No se pudo enviar el correo: el usuario puede entrar con "Olvidé mi contraseña".'
+    else:
+        aviso = "Sin correo: entregale la contraseña provisoria por otra vía."
+
     return JsonResponse(
         {
             "ok": True,
+            "message": aviso,
             "user": {
                 "id": usuario.pk,
                 "label": usuario.get_full_name() or usuario.username,
