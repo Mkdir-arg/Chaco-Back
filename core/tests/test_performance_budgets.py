@@ -86,3 +86,23 @@ class PerformanceBudgetTests(TestCase):
         response = target["request"](clients["login"], target["url"])
 
         self.assertEqual(response.status_code, 302)
+
+    def test_ci_workers_can_send_to_separate_conversations(self):
+        from core.management.commands.perf_ci_probe import Command
+
+        first_manifest = build_targets(worker_id="conversation-worker-one")
+        second_manifest = build_targets(worker_id="conversation-worker-two")
+        first_target = next(item for item in first_manifest["targets"] if item["key"] == "envio_conversacion")
+        second_target = next(item for item in second_manifest["targets"] if item["key"] == "envio_conversacion")
+
+        self.assertNotEqual(first_target["url"], second_target["url"])
+
+        for worker_id, manifest, target in (
+            ("conversation-worker-one", first_manifest, first_target),
+            ("conversation-worker-two", second_manifest, second_target),
+        ):
+            clients = Command._build_worker_clients(worker_id, manifest["actors"])
+            response = target["request"](clients["backoffice"], target["url"])
+
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["success"])

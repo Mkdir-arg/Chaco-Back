@@ -16,6 +16,7 @@ import time
 import traceback
 from collections import Counter, defaultdict
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -131,9 +132,25 @@ def build_targets(worker_id=None):
     from programas.models import Relevamiento
 
     ciudadano = Ciudadano.objects.get(dni=PERF_FIRST_DNI)
-    conversacion = (
-        Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME).order_by("fecha_inicio").first()
-    )
+    if worker_id is None:
+        conversacion = (
+            Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME)
+            .order_by("fecha_inicio")
+            .first()
+        )
+    else:
+        worker_suffix = hashlib.sha256(worker_id.encode()).hexdigest()[:12]
+        worker_started_at = datetime(2040, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=int(worker_suffix, 16))
+        conversacion, _ = Conversacion.objects.get_or_create(
+            ciudadano_usuario__username=PERF_CITIZEN_USERNAME,
+            fecha_inicio=worker_started_at,
+            defaults={
+                "tipo": "personal",
+                "estado": "pendiente",
+                "prioridad": "normal",
+                "dni_ciudadano": PERF_FIRST_DNI,
+            },
+        )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
     localidad = Localidad.objects.get(pk=ciudadano.localidad_id)
     login_username = (

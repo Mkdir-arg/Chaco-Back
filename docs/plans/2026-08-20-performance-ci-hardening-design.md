@@ -18,9 +18,9 @@ development Compose start uses one consistent database contract.
    use in its tests. It does not change production clients.
 3. Use the same database name, user and password defaults in the MySQL and app
    Compose services. The healthcheck keeps using the MySQL container variables.
-4. Give write probes a worker-specific synthetic identity. The CI failure is
-   caused by two workers generating the same DNI, so the second write becomes
-   invalid and responds 200 instead of the required redirect.
+4. Give write probes a worker-specific synthetic identity and conversation. The
+   CI failure is caused by two workers generating the same DNI or trying to
+   answer the same conversation, so the second write becomes invalid.
 
 ## Validation
 
