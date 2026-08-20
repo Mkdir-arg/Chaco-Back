@@ -35,12 +35,15 @@ class PerformanceBudgetTests(TestCase):
             target = targets[key]
             self.assertEqual(target["route"], budget["route"], f"Route desactualizada para {key}")
             cache.clear()
-            measurement = _capture_request(clients[target["actor"]], target["url"])
+            measurement = _capture_request(clients[target["actor"]], target["url"], target.get("request"))
             query_count = measurement["query_count"]
             duplicate_query_count = measurement["duplicate_query_count"]
-            total_duration_ms += measurement["duration_ms"]
+            if target.get("include_in_timing", True):
+                total_duration_ms += measurement["duration_ms"]
             expected_status = target.get("expected_status", 200)
             self.assertEqual(measurement["response"].status_code, expected_status, f"Status inesperado en {key}")
+            if target.get("expected_json_success"):
+                self.assertTrue(measurement["response"].json().get("success"), f"Respuesta inválida en {key}")
             if query_count > budget["max_queries"]:
                 failures.append(
                     f"{key} ({target['url']}): {query_count} queries actuales vs presupuesto "

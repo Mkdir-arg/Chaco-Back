@@ -75,12 +75,21 @@ class Command(BaseCommand):
         results = []
         with patch("programas.forms.listar_programas", side_effect=self._stubbed_siis_catalog):
             for target in manifest["targets"]:
-                response = clients[target["actor"]].get(target["url"], follow=False)
+                client = clients[target["actor"]]
+                request = target.get("request")
+                response = request(client, target["url"]) if request else client.get(target["url"], follow=False)
                 expected_status = target.get("expected_status", 200)
                 if response.status_code != expected_status:
                     raise CommandError(
                         f"{target['key']} devolvió {response.status_code}; se esperaba {expected_status} en CI efímera."
                     )
+                if target.get("expected_json_success"):
+                    try:
+                        payload = json.loads(response.content)
+                    except (TypeError, ValueError) as exc:
+                        raise CommandError(f"{target['key']} no devolvió JSON válido en CI efímera.") from exc
+                    if not isinstance(payload, dict) or payload.get("success") is not True:
+                        raise CommandError(f"{target['key']} no confirmó success=true en CI efímera.")
                 results.append({"key": target["key"], "route": target["route"], "status_code": response.status_code})
 
         self._record_stubbed_dependencies()

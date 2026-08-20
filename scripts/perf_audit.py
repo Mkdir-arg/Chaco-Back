@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -119,6 +120,7 @@ def build_targets():
 
     from conversaciones.models import Conversacion
     from core.management.commands.seed_perf import PERF_ADMIN_USERNAME, PERF_CITIZEN_USERNAME, PERF_FIRST_DNI
+    from core.models import Localidad
     from legajos.models import Ciudadano
     from programas.models import Relevamiento
 
@@ -127,9 +129,75 @@ def build_targets():
         Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME).order_by("fecha_inicio").first()
     )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
+    localidad = Localidad.objects.get(pk=ciudadano.localidad_id)
 
     if conversacion is None:
         raise RuntimeError("seed_perf no creó la conversación PERF requerida")
+
+    write_index = itertools.count(1)
+
+    def siguiente_escritura():
+        return next(write_index)
+
+    def alta_ciudadano(client, url):
+        index = siguiente_escritura()
+        dni = str(90_000_000 + index)
+        return client.post(
+            url,
+            {
+                "dni": dni,
+                "nombre": "Ciudadano",
+                "apellido": f"PERF {index}",
+                "fecha_nacimiento": "1990-05-05",
+                "genero": "X",
+                "telefono": "3624000000",
+                "email": f"ciudadano-{index}@perf.invalid",
+                "domicilio": "Calle PERF 123",
+                "provincia": ciudadano.provincia_id,
+                "municipio": ciudadano.municipio_id,
+                "localidad": ciudadano.localidad_id,
+            },
+        )
+
+    def carga_relevamiento(client, url):
+        index = siguiente_escritura()
+        return client.post(
+            url,
+            {
+                "convocatoria": relevamiento.convocatoria_id,
+                "territorial": relevamiento.territorial_id,
+                "municipio": localidad.municipio_id,
+                "zona": localidad.pk,
+                "fecha_asignada": f"2026-09-{index:02d}T09:00",
+                "fecha_hasta": f"2026-09-{index:02d}T18:00",
+                "cupo_maximo": 10,
+                "observaciones": f"Relevamiento sintético PERF {index}",
+                "confirmar_solapamiento": "1",
+            },
+        )
+
+    def edicion_convocatoria(client, url):
+        index = siguiente_escritura()
+        convocatoria = relevamiento.convocatoria
+        return client.post(
+            url,
+            {
+                "nombre": f"PERF Convocatoria 000 edición {index}",
+                "segmento": convocatoria.segmento_id,
+                "fecha_inicio": convocatoria.fecha_inicio.isoformat(),
+                "fecha_fin": convocatoria.fecha_fin.isoformat(),
+                "descripcion": "Edición sintética para auditoría de performance.",
+                "activo": "on",
+            },
+        )
+
+    def envio_conversacion(client, url):
+        index = siguiente_escritura()
+        return client.post(
+            url,
+            data=json.dumps({"mensaje": f"Mensaje sintético PERF {index}"}),
+            content_type="application/json",
+        )
 
     return {
         "actors": {
@@ -163,6 +231,12 @@ def build_targets():
                 "key": "legajo_detalle",
                 "route": "legajos:ciudadano_detalle",
                 "url": reverse("legajos:ciudadano_detalle", kwargs={"pk": ciudadano.pk}),
+                "actor": "backoffice",
+            },
+            {
+                "key": "legajos_ciudadano_nuevo",
+                "route": "legajos:ciudadano_nuevo",
+                "url": reverse("legajos:ciudadano_nuevo"),
                 "actor": "backoffice",
             },
             {
@@ -220,6 +294,54 @@ def build_targets():
                 "url": reverse("becas:relevamiento_detalle", kwargs={"pk": relevamiento.pk}),
                 "actor": "backoffice",
             },
+            {
+                "key": "becas_reportes",
+                "route": "becas:reportes",
+                "url": reverse("becas:reportes"),
+                "actor": "backoffice",
+            },
+            {
+                "key": "becas_programas",
+                "route": "becas:programas",
+                "url": reverse("becas:programas"),
+                "actor": "backoffice",
+            },
+            {
+                "key": "alta_ciudadano",
+                "route": "legajos:ciudadano_manual",
+                "url": reverse("legajos:ciudadano_manual"),
+                "actor": "backoffice",
+                "expected_status": 302,
+                "request": alta_ciudadano,
+                "include_in_timing": False,
+            },
+            {
+                "key": "carga_relevamiento",
+                "route": "becas:relevamiento_crear",
+                "url": reverse("becas:relevamiento_crear"),
+                "actor": "backoffice",
+                "expected_status": 302,
+                "request": carga_relevamiento,
+                "include_in_timing": False,
+            },
+            {
+                "key": "edicion_convocatoria",
+                "route": "becas:convocatoria_editar",
+                "url": reverse("becas:convocatoria_editar", kwargs={"pk": relevamiento.convocatoria_id}),
+                "actor": "backoffice",
+                "expected_status": 302,
+                "request": edicion_convocatoria,
+                "include_in_timing": False,
+            },
+            {
+                "key": "envio_conversacion",
+                "route": "conversaciones:enviar_mensaje_operador",
+                "url": reverse("conversaciones:enviar_mensaje_operador", kwargs={"conversacion_id": conversacion.pk}),
+                "actor": "backoffice",
+                "request": envio_conversacion,
+                "expected_json_success": True,
+                "include_in_timing": False,
+            },
         ],
     }
 
@@ -248,7 +370,7 @@ def _resolved_view(url):
         return None
 
 
-def _capture_request(client, url):
+def _capture_request(client, url, request=None):
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
@@ -256,7 +378,7 @@ def _capture_request(client, url):
     with connection.execute_wrapper(collector):
         with CaptureQueriesContext(connection) as captured:
             started = time.perf_counter_ns()
-            response = client.get(url, follow=False)
+            response = request(client, url) if request else client.get(url, follow=False)
             body = response.content
             duration_ms = (time.perf_counter_ns() - started) / 1_000_000
 
@@ -275,8 +397,8 @@ def measure_target(target, client):
     from django.core.cache import cache
 
     cache.clear()
-    cold = _capture_request(client, target["url"])
-    warm_samples = [_capture_request(client, target["url"]) for _ in range(WARM_SAMPLE_COUNT)]
+    cold = _capture_request(client, target["url"], target.get("request"))
+    warm_samples = [_capture_request(client, target["url"], target.get("request")) for _ in range(WARM_SAMPLE_COUNT)]
 
     response = cold["response"]
     body = cold["body"]
@@ -317,6 +439,14 @@ def measure_target(target, client):
     expected_redirect_view = target.get("expected_redirect_view")
     if expected_redirect_view and redirect_view != expected_redirect_view:
         errors.append(f"redirect resuelve a {redirect_view!r}, esperado {expected_redirect_view!r}")
+    if target.get("expected_json_success"):
+        try:
+            payload = json.loads(body)
+        except (TypeError, ValueError):
+            errors.append("no devolvió JSON válido")
+        else:
+            if not isinstance(payload, dict) or payload.get("success") is not True:
+                errors.append("no confirmó success=true")
     return result, errors
 
 
