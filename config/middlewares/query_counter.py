@@ -1,7 +1,10 @@
 import logging
+import random
 import time
 from collections import Counter
+from threading import Lock
 
+from django.conf import settings
 from django.db import connection
 
 from core.performance.query_observability import (
@@ -64,9 +67,28 @@ class QueryCountMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.store = QueryObservabilityStore()
+        self._n1_warning_lock = Lock()
+        self._n1_warning_times = {}
+
+    @staticmethod
+    def _sample_request():
+        rate = float(getattr(settings, "PERFORMANCE_QUERY_SAMPLE_RATE", 1.0))
+        return rate >= 1 or (rate > 0 and random.random() < rate)
+
+    def _should_warn_n1(self, route):
+        interval = float(getattr(settings, "PERFORMANCE_N1_WARNING_INTERVAL_SECONDS", 60))
+        now = time.monotonic()
+        with self._n1_warning_lock:
+            last_warning = self._n1_warning_times.get(route)
+            if last_warning is not None and now - last_warning < interval:
+                return False
+            self._n1_warning_times[route] = now
+            return True
 
     def __call__(self, request):
         if request.path in self.excluded_paths:
+            return self.get_response(request)
+        if not self._sample_request():
             return self.get_response(request)
         route = route_name(request.path_info)
         measurement = RequestMeasurement(route)
@@ -88,7 +110,7 @@ class QueryCountMiddleware:
             measurement.dependencies,
             duplicate_query_count=collector.duplicate_query_count,
         )
-        if collector.n1_detected:
+        if collector.n1_detected and self._should_warn_n1(route):
             logger.warning(
                 "Performance Alert: route=%s query_count=%s duration_ms=%.0f", route, collector.count, duration_ms
             )

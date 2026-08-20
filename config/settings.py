@@ -136,12 +136,30 @@ MIDDLEWARE = [
     "core.middleware.RequestLoggingMiddleware",
 ]
 
-# Desactivado por defecto. CI lo habilita sólo dentro de un stack efímero
-# MySQL+Redis; fuera de ese contrato no se usa como indicador de producción.
-PERFORMANCE_QUERY_MONITORING_ENABLED = os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "False") == "True"
+
+def _performance_query_monitoring_enabled():
+    return os.environ.get("PERFORMANCE_QUERY_MONITORING_ENABLED", "True") == "True"
+
+
+# Encendido por defecto; cada entorno conserva un interruptor explícito.
+PERFORMANCE_QUERY_MONITORING_ENABLED = _performance_query_monitoring_enabled()
 PERFORMANCE_METRICS_WINDOW_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_WINDOW_SECONDS", "3600"))
 PERFORMANCE_METRICS_RETENTION_SECONDS = int(os.environ.get("PERFORMANCE_METRICS_RETENTION_SECONDS", "86400"))
 PERFORMANCE_METRICS_NAMESPACE = os.environ.get("PERFORMANCE_METRICS_NAMESPACE", "")
+PERFORMANCE_QUERY_SAMPLE_RATE = float(
+    os.environ.get("PERFORMANCE_QUERY_SAMPLE_RATE", "0.2" if ENVIRONMENT == "prd" else "1.0")
+)
+PERFORMANCE_REDIS_TIMEOUT_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_TIMEOUT_SECONDS", "0.25"))
+PERFORMANCE_REDIS_RECOVERY_SECONDS = float(os.environ.get("PERFORMANCE_REDIS_RECOVERY_SECONDS", "60"))
+PERFORMANCE_N1_WARNING_INTERVAL_SECONDS = float(os.environ.get("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS", "60"))
+if not 0 <= PERFORMANCE_QUERY_SAMPLE_RATE <= 1:
+    raise ValueError("PERFORMANCE_QUERY_SAMPLE_RATE debe estar entre 0 y 1")
+if PERFORMANCE_REDIS_TIMEOUT_SECONDS <= 0:
+    raise ValueError("PERFORMANCE_REDIS_TIMEOUT_SECONDS debe ser mayor que 0")
+if PERFORMANCE_REDIS_RECOVERY_SECONDS < 0:
+    raise ValueError("PERFORMANCE_REDIS_RECOVERY_SECONDS no puede ser negativo")
+if PERFORMANCE_N1_WARNING_INTERVAL_SECONDS < 0:
+    raise ValueError("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS no puede ser negativo")
 PERFORMANCE_CI = os.environ.get("PERFORMANCE_CI") == "1"
 if PERFORMANCE_QUERY_MONITORING_ENABLED:
     MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
@@ -321,8 +339,8 @@ if PERFORMANCE_QUERY_MONITORING_ENABLED:
         "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "SOCKET_TIMEOUT": 5,
+            "SOCKET_CONNECT_TIMEOUT": PERFORMANCE_REDIS_TIMEOUT_SECONDS,
+            "SOCKET_TIMEOUT": PERFORMANCE_REDIS_TIMEOUT_SECONDS,
         },
         "TIMEOUT": PERFORMANCE_METRICS_RETENTION_SECONDS,
     }
