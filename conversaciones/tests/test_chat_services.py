@@ -165,6 +165,9 @@ class ConversacionesViewsContractTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("csrftoken", self.client.cookies)
+        html = response.content.decode()
+        self.assertIn("/static/custom/css/tailwind.css", html)
+        self.assertNotIn("cdn.tailwindcss.com", html)
 
     @patch("conversaciones.views.public.iniciar_conversacion_publica")
     def test_iniciar_conversacion_publica_requiere_csrf_y_devuelve_contrato(self, mock_iniciar):
@@ -254,6 +257,8 @@ class ConversacionesViewsContractTests(TestCase):
         self.assertIn('data-close-url-template="/conversaciones/0/cerrar/"', html)
         self.assertIn('data-list-ws-path="/ws/conversaciones/"', html)
         self.assertIn("conversaciones_lista_ws.js", html)
+        self.assertIn("/static/custom/css/tailwind.css", html)
+        self.assertNotIn("cdn.tailwindcss.com", html)
 
     @override_settings(WEBSOCKETS_ENABLED=True)
     def test_detalle_renderiza_path_websocket_desde_template(self):

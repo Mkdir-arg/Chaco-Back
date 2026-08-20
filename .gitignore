@@ -45,6 +45,7 @@ htmlcov/
 *.pid
 
 # Local tooling
+node_modules/
 .codex-linux-first/
 .claude/worktrees/
 .github/worklog/

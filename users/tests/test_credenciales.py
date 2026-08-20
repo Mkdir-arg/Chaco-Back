@@ -69,6 +69,8 @@ class LoginBrandAssetTests(TestCase):
         html = response.content.decode()
         self.assertIn("/static/custom/chaco/login-logo.svg", html)
         self.assertNotIn("/static/custom/chaco/login-logo.png", html)
+        self.assertIn("/static/custom/css/tailwind.css", html)
+        self.assertNotIn("cdn.tailwindcss.com", html)
 
 
 class UserProfileSignalTests(TestCase):

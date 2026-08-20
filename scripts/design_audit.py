@@ -59,7 +59,10 @@ DEFAULT_TARGETS = [
 # ni siquiera <style> confiable. Los colores igual salen del kit (--gradient-brand
 # = #5059bc → #f98dff), pero escritos a mano: no hay forma de tokenizarlos.
 EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb", "email"}
-EXCLUDE_FILES = {"chaco-tokens.css"}  # fuente de tokens: los hex son legítimos
+# `tailwind.css` se genera desde templates/JS con `npm run build:tailwind`; sus
+# valores internos pertenecen al framework y se revisan mediante el build, no
+# mediante reglas pensadas para CSS escrito a mano.
+EXCLUDE_FILES = {"chaco-tokens.css", "tailwind.css"}
 UI_SUFFIXES = {".html", ".css", ".js"}
 
 HEX_RE = re.compile(r"#[0-9a-fA-F]{3,8}\b")
