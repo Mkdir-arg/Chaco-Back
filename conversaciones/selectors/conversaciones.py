@@ -52,7 +52,9 @@ def get_conversaciones_queryset_para_lista(user, filtros):
     if filtros.get("tipo"):
         queryset = queryset.filter(tipo=filtros["tipo"])
 
-    return queryset
+    # annotate() no conserva el Meta.ordering del modelo; sin un criterio explícito
+    # Paginator puede cambiar el contenido de una página entre requests.
+    return queryset.order_by("-fecha_inicio", "-pk")
 
 
 def get_conversaciones_pendientes_count(user):

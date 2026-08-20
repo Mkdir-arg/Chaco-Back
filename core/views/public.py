@@ -62,6 +62,7 @@ def inicio_view(request):
     hace_24h = ahora - timedelta(hours=24)
     inicio_mes = ahora.date().replace(day=1)
     legajo_stats = contar_legajos()
+    seguimientos_hoy = contar_seguimientos_hoy()
 
     context = {
         "total_ciudadanos": contar_ciudadanos(),
@@ -75,11 +76,11 @@ def inicio_view(request):
             lambda: InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
             300,
         ),
-        "actividad_hoy": contar_seguimientos_hoy(),
+        "actividad_hoy": seguimientos_hoy,
         "total_usuarios": contar_usuarios(),
         "total_legajos": legajo_stats["total"],
         "legajos_activos": legajo_stats["activos"],
-        "seguimientos_hoy": contar_seguimientos_hoy(),
+        "seguimientos_hoy": seguimientos_hoy,
         "alertas_activas": contar_alertas_activas(),
     }
 

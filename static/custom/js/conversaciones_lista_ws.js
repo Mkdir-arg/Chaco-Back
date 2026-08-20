@@ -1,11 +1,18 @@
 // WebSocket global para lista de conversaciones (sin recargar la página)
 (function() {
+    const listaApp = document.getElementById('conversaciones-lista-app');
+    if (!listaApp) {
+        return;
+    }
+
     if (window.__conversacionesListaWsInitialized) {
         return;
     }
     window.__conversacionesListaWsInitialized = true;
 
-    const listaApp = document.getElementById('conversaciones-lista-app');
+    function notificarEstadoWebSocket() {
+        window.dispatchEvent(new Event('conversaciones:lista-ws-estado'));
+    }
 
     function buildConversationUrl(template, conversacionId) {
         if (!template) return '';
@@ -129,9 +136,11 @@
         const wsUrl = `${protocol}//${window.location.host}${config.wsPath}`;
         const ws = new WebSocket(wsUrl);
         window.conversacionesListaWS = ws;
+        notificarEstadoWebSocket();
 
         ws.onopen = () => {
             // console.log('[Conversaciones Lista] WS conectado');
+            notificarEstadoWebSocket();
         };
         ws.onmessage = (ev) => {
             try {
@@ -159,7 +168,10 @@
                 }
             } catch (_) {}
         };
-        ws.onclose = () => setTimeout(conectarWS, 3000);
+        ws.onclose = () => {
+            notificarEstadoWebSocket();
+            setTimeout(conectarWS, 3000);
+        };
         ws.onerror = () => {};
     }
 
