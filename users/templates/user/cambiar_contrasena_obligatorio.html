@@ -18,5 +18,9 @@
   </div>
   <button type="submit" class="public-auth__button">Guardar y continuar</button>
 </form>
-<a class="public-auth__link" href="{% url 'users:logout' %}">Salir</a>
+{# Única salida de esta pantalla: va por POST porque LogoutView ya no acepta GET. #}
+<form method="post" action="{% url 'users:logout' %}">
+  {% csrf_token %}
+  <button type="submit" class="public-auth__link">Salir</button>
+</form>
 {% endblock %}
