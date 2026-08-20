@@ -83,7 +83,8 @@
        style="background: var(--bg-white); border-right: 1px solid var(--border-base);">
 
     <!-- Botón cerrar (solo móvil, fuera del panel) -->
-    <div class="absolute left-full top-0 flex w-8 justify-center pt-5 sm:w-16 lg:hidden">
+    <div x-show="sidebarOpen" style="display: none;"
+         class="absolute left-full top-0 flex w-8 justify-center pt-5 sm:w-16 lg:hidden">
         <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false" aria-label="Cerrar sidebar">
             <span class="sr-only">Cerrar sidebar</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -155,7 +156,6 @@
             </template>
         </div>
 
-        </div>
     </div>
 
     <!-- ── Navegación compartida ── -->
