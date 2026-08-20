@@ -1,5 +1,5 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 from django.conf import settings
 from django.test import SimpleTestCase
@@ -15,9 +15,7 @@ class ModernModalStylesTests(SimpleTestCase):
 
 class MobileSidebarTemplateTests(SimpleTestCase):
     def test_close_control_is_hidden_while_mobile_sidebar_is_closed(self):
-        template = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(
-            encoding="utf-8"
-        )
+        template = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(encoding="utf-8")
 
         close_control = re.search(
             r'<div[^>]*class="absolute left-full top-0[^>]*>(?P<content>.*?)</div>',
@@ -30,9 +28,7 @@ class MobileSidebarTemplateTests(SimpleTestCase):
         self.assertIn('aria-label="Cerrar sidebar"', close_control.group("content"))
 
     def test_brand_header_does_not_close_the_sidebar_early(self):
-        template = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(
-            encoding="utf-8"
-        )
+        template = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(encoding="utf-8")
 
         self.assertNotIn(
             "</template>\n        </div>\n\n        </div>\n    </div>\n\n    <!-- ── Navegación compartida",

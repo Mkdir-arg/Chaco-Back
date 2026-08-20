@@ -38,9 +38,7 @@ class InicioPerformanceTests(TestCase):
         self.assertIn("IntersectionObserver", html)
 
     def test_sidebar_renderiza_las_opciones_una_sola_vez(self):
-        sidebar = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(
-            encoding="utf-8"
-        )
+        sidebar = Path(settings.BASE_DIR, "templates", "includes", "sidebar", "base.html").read_text(encoding="utf-8")
 
         self.assertEqual(sidebar.count("{% include 'includes/sidebar/opciones.html' %}"), 1)
         self.assertIn("Sidebar única", sidebar)
