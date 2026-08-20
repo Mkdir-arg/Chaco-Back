@@ -162,7 +162,8 @@ if PERFORMANCE_N1_WARNING_INTERVAL_SECONDS < 0:
     raise ValueError("PERFORMANCE_N1_WARNING_INTERVAL_SECONDS no puede ser negativo")
 PERFORMANCE_CI = os.environ.get("PERFORMANCE_CI") == "1"
 if PERFORMANCE_QUERY_MONITORING_ENABLED:
-    MIDDLEWARE.append("config.middlewares.query_counter.QueryCountMiddleware")
+    # Debe envolver sesión y autenticación: agregado al final subcontaba el costo real.
+    MIDDLEWARE.insert(0, "config.middlewares.query_counter.QueryCountMiddleware")
 
 if PYTEST_RUNNING:
     MIDDLEWARE += ["zeal.middleware.zeal_middleware"]
