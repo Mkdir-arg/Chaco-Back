@@ -1,0 +1,17 @@
+{% load static %}{% comment %}
+Encabezado de marca de los correos. El logo se sirve desde el static público del
+propio sitio: los clientes de correo necesitan una URL absoluta.
+{% endcomment %}<tr>
+  <td style="padding:0 32px 20px 32px;" class="pad">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>
+      <td align="left" width="360" style="width:360px;">
+        <img src="{{ protocol }}://{{ domain }}{% static 'custom/chaco/login-logo.png' %}" width="110" height="40" alt="Gobierno del Chaco" style="display:block; border:0; outline:none; text-decoration:none; height:40px; width:110px;">
+      </td>
+      <td align="right" width="180" style="width:180px; font-family:Arial,Helvetica,sans-serif; font-size:11px; line-height:16px; mso-line-height-rule:exactly; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">
+        DATAÑACH · Backoffice
+      </td>
+    </tr>
+    </table>
+  </td>
+</tr>

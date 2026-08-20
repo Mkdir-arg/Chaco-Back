@@ -131,6 +131,7 @@ MIDDLEWARE = [
     "core.middleware.PortalCiudadanoMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "users.middleware.BackofficeSingleSessionMiddleware",
+    "users.middleware.CambioContrasenaObligatorioMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.RequestLoggingMiddleware",
 ]
@@ -211,17 +212,33 @@ LOGIN_REDIRECT_URL = "core:inicio"
 LOGOUT_REDIRECT_URL = "users:login"
 ACCOUNT_FORMS = {"login": "users.forms.UserLoginForm"}
 
-EMAIL_BACKEND = (
-    "django.core.mail.backends.smtp.EmailBackend"
-    if ENVIRONMENT == "prd"
-    else "django.core.mail.backends.console.EmailBackend"
-)
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+# STARTTLS en el 587 es exactamente EMAIL_USE_TLS (EMAIL_USE_SSL es el 465 implícito).
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+# El envío es sincrónico (no hay cola): sin timeout un SMTP lento cuelga el
+# request del alta de usuario hasta que corte el gateway.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+# El backend lo decide la presencia de EMAIL_HOST, no el ENVIRONMENT: qa usa el
+# mismo SMTP que prd, y el dev local sigue en consola sin configurar nada.
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_HOST
+    else "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "DATAÑACH <no-responder@datanach.local>")
+# QA y producción comparten casilla y plantilla: el prefijo en el asunto es lo
+# único que distingue un correo de prueba de uno real en la bandeja del usuario.
+EMAIL_ASUNTO_PREFIJO = "" if ENVIRONMENT == "prd" else f"[{ENVIRONMENT.upper()}] "
+# Pie de los correos. Vacío = la línea no se renderiza (a definir con el cliente).
+EMAIL_SOPORTE = os.getenv("EMAIL_SOPORTE", "")
+EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
+
+# Vencimiento del enlace de recupero. Los correos (backoffice y portal) prometen
+# 24 h; el default de Django son 3 días.
+PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "86400"))
 
 MESSAGE_TAGS = {
     messages.DEBUG: "bg-gray-800 text-white",

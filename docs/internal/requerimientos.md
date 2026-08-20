@@ -178,6 +178,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 34 | Prevalidación SIIS al aprobar o rechazar formularios | Becas / revisión | `#siis` `#rbac` `#cupos` | Análisis #72 y revisión del PR #233 | 18/08/2026 | 🟢 **Hecho sobre el contrato vigente** | No |
 | 35 | El login del backoffice muestra la contraseña con un botón ojo | Transversal / sesión | `#sesion` `#ui` | PM — mejora transversal aprobada el 14/08/2026, sin análisis | 14/08/2026 | 🟢 **Hecho** | No |
 | 36 | El diseño de Dispositivos es todo lo contrario a lo que tiene que ser | Dispositivos | `#ui` | PM — pedido directo en sesión de trabajo | 19/08/2026 | 🟡 **Parcial — badges y solapas hechos; 4 hallazgos abiertos** | No |
+| 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — implementado; falta envío real y aprobación de textos** | `users.0022` |
 
 **Notas del índice**
 
@@ -797,6 +798,19 @@ Para que el correo funcione fuera del entorno local necesitamos que Infra/ECOM:
 ## Reversión
 
 Retirar el envío desde `UserCreateView`, la ruta y template para establecer contraseña, el servicio de invitaciones y la configuración SMTP agregada. No requiere rollback de base de datos.
+
+## Historial
+
+**20/08/2026 — el criterio «no se envían contraseñas en texto plano» quedó revertido.**
+Esta entrada registró que la invitación llevaba un **enlace temporal** para
+establecer la contraseña, y explícitamente que no viajaban claves en texto plano.
+El cliente pidió lo contrario el 14/08/2026 (análisis #236): ahora el correo de alta
+lleva el nombre de usuario y una **clave provisoria**. La mitigación acordada es que
+el primer ingreso obliga a cambiarla, así que la clave enviada sirve una sola vez.
+El detalle, el motivo y la implementación están en el **Cambio 37**, que también
+reemplaza `users/services/invitations.py` por `users/services/correo.py` y cambia el
+criterio de activación del SMTP. Lo demás de esta entrada sigue vigente: la tabla de
+variables pedidas a ECOM y el comportamiento ante correo faltante o envío fallido.
 
 # Cambio 14 — Impedir sesiones simultáneas del mismo usuario
 
@@ -2788,6 +2802,243 @@ Dispositivos y se registran para que no se le imputen:
 `git revert` del commit. No hay datos involucrados: son seis templates, dos de
 ellos nuevos. Revertir devuelve el detalle a secciones apiladas con anclas y los
 estados a texto plano.
+
+## Historial
+
+No aplica: entrada nueva.
+
+# Cambio 37 — Credenciales por correo: clave provisoria al alta y recupero desde el login
+
+🟡 **PARCIAL — 20/08/2026 · el circuito está implementado; falta el envío real verificado contra el SMTP y la aprobación de los textos**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / usuarios |
+| **Etiquetas** | `#usuarios` `#correo` `#sesion` `#infra` |
+| **Solicitante** | PM — definiciones del 14/08/2026 registradas en el análisis #236, y entrega de las credenciales SMTP en sesión de trabajo del 20/08/2026 |
+| **Fecha del pedido** | 14/08/2026 |
+| **Issue / épica** | Análisis #236 (épica #46) · tasks #244, #245, #246, #247 |
+| **Partes afectadas** | Backoffice · Infra/ECOM |
+| **Migración** | `users.0022` |
+
+## Pedido original
+
+Del análisis #236: «Círculo completo de credenciales por correo: (a) al **crear un
+usuario**, que le llegue un correo con su nombre de usuario y una **clave
+provisoria**; (b) que cualquier usuario pueda **restablecer su contraseña** desde
+el login ("Olvidé mi contraseña") vía un enlace de un solo uso, incluidos los
+territoriales desde la app.»
+
+En la sesión del 20/08/2026 el PM entregó las credenciales del SMTP institucional
+(`smtp.chaco.gob.ar:587`, STARTTLS, casilla `datanach@chaco.gob.ar`) y definió que
+**el mismo servicio se usa en QA y en producción**. Las plantillas de los dos
+correos llegaron diseñadas desde un proyecto de Claude Design (`Emails Chaco`).
+
+## Alcance acordado
+
+Entra el círculo completo: configuración del SMTP, las dos plantillas HTML de
+correo, el alta con clave provisoria, el cambio obligatorio al primer ingreso y el
+"¿Olvidaste tu contraseña?" del login del backoffice.
+
+Queda **explícitamente afuera**:
+
+- **El vencimiento de la clave provisoria.** El diseño original decía «Vence en 24
+  horas»; el PM lo descartó porque no hay mecanismo de expiración de contraseñas en
+  el sistema. Se borró la frase del correo en vez de dejar una promesa incumplida.
+- El reset del portal ciudadano, que ya existía (fuera de alcance del #236).
+- La task #248 (acceso al reset desde la app de territoriales), ya cerrada aparte.
+- La casilla de soporte y la dirección postal del pie: a definir (ver *Pendientes*).
+
+## Decisiones tomadas
+
+- **La clave provisoria viaja en texto plano en el cuerpo del correo, revirtiendo
+  el criterio del Cambio 13.** Ese cambio había registrado «no se envían
+  contraseñas en texto plano» y por eso la invitación llevaba un enlace para
+  establecer la contraseña. El cliente pidió explícitamente lo contrario el
+  14/08/2026. La mitigación acordada es que la clave sirve **una sola vez en la
+  práctica**: el middleware no deja usar ninguna pantalla hasta que la persona
+  define una contraseña propia. El Cambio 13 conserva su texto y recibió su
+  sección de historial.
+
+- **El backend de correo lo decide `EMAIL_HOST`, no `ENVIRONMENT`.** Antes el SMTP
+  se activaba solo con `ENVIRONMENT=prd`, así que en QA el correo salía por la
+  consola del pod aunque estuviera configurado — la trampa que el Cambio 31 ya
+  había dejado anotada. Con el criterio nuevo, QA y producción usan el mismo SMTP
+  con solo cargar las variables, y el dev local sigue en consola sin configurar
+  nada. Es la condición para que el PM pueda probar el circuito en QA.
+
+- **El asunto se prefija con `[QA]` / `[DEV]` fuera de producción.** QA y producción
+  comparten casilla remitente y plantilla, así que un correo de prueba y uno real
+  llegan idénticos a la bandeja de un usuario real. El prefijo es lo único que los
+  distingue. Sale de `EMAIL_ASUNTO_PREFIJO`, derivado de `ENVIRONMENT`.
+
+- **`PASSWORD_RESET_TIMEOUT` fijado en 24 h.** No estaba seteado, así que Django
+  usaba su default de 3 días. Los dos correos de recupero —el nuevo del backoffice
+  y el del portal ciudadano, que ya existía— **prometían 24 horas por escrito**: la
+  promesa era falsa desde antes de este cambio. Al setearlo se corrigen ambos.
+
+- **`EMAIL_TIMEOUT` en 10 s.** El envío es sincrónico: no hay Celery en el repo, el
+  correo sale dentro del request del alta de usuario. Sin timeout, un SMTP lento
+  cuelga ese request hasta que corte el gateway.
+
+- **El remitente tiene que ser la misma casilla que autentica.** `DEFAULT_FROM_EMAIL`
+  usa `datanach@chaco.gob.ar`, igual que `EMAIL_HOST_USER`: la mayoría de los relays
+  rechazan un `From` distinto del autenticado.
+
+- **La pantalla de cambio obligatorio usa `SetPasswordForm`, no
+  `PasswordChangeForm`.** La persona acaba de autenticarse con la clave provisoria;
+  pedírsela otra vez no agrega seguridad y agrega fricción en el peor momento.
+
+- **Al cambiar la clave hay que reescribir `backoffice_session_key`.** Django rota
+  la sesión al cambiar la contraseña (`update_session_auth_hash`). Sin actualizar
+  el Profile, `BackofficeSingleSessionMiddleware` lee la sesión nueva como
+  «reemplazada» y expulsa al usuario en el request siguiente, justo después de
+  haber definido su contraseña. Hay un test que cubre exactamente esto.
+
+- **Las dos altas del producto quedaron con el mismo criterio.** Además del ABM de
+  usuarios existe el **alta rápida** de los modales de Becas
+  (`usuario_alta_rapida`), que crea coordinadores, referentes y territoriales y
+  **nunca enviaba ningún correo**: la clave la tipeaba el operador y la entregaba a
+  mano. Ahora las dos pasan por `entregar_credenciales_provisorias`. Se unificó
+  porque los territoriales —la población de RN-C6— se dan de alta justamente por
+  ese camino.
+
+- **El campo «Contraseña» del alta pasó a ser opcional.** Con la clave generada por
+  el sistema, la que tipeaba el operador quedaba silenciosamente descartada: un
+  campo obligatorio que no hacía nada. Ahora es opcional, con la ayuda que lo
+  explica, y el formulario lo exige **solo cuando no hay correo** — el único caso en
+  que el sistema no puede entregar la clave.
+
+- **La marca de «debe cambiar la contraseña» se escribe sobre el `Profile` que el
+  `User` trae cacheado, nunca con `update_or_create`.** La señal `save_user_profile`
+  (post_save de `User`) re-guarda ese objeto cacheado en **cada** `user.save()`, así
+  que un valor escrito por otra vía queda pisado por el estado viejo. El disparador
+  más directo es `update_last_login`: al loguearse, Django guarda el usuario y con
+  eso revierte la marca. Se detectó con un test que fallaba solo dentro del suite
+  completo. Es una trampa general de este modelo, no solo de este cambio.
+
+- **El gate vive en un middleware propio, después del de sesión única.** Ese
+  middleware ya deja el `Profile` en la caché de relaciones del request, así que el
+  chequeo no agrega consultas. Se excluye `/api/`: ahí la autenticación es por
+  token de Mobile y el cambio de clave se resuelve en el navegador.
+
+- **Los templates de correo quedan exceptuados de la regla HEX de la auditoría.**
+  El HTML de correo necesita estilos inline y hex literal: ningún cliente de correo
+  soporta CSS variables, y Outlook no respeta `<style>` de forma confiable. Los
+  colores igual son los del kit (`--gradient-brand` = `#5059bc → #f98dff`), pero
+  escritos a mano. Se excluyó el directorio `**/email/` en `scripts/design_audit.py`.
+
+- **Se corrigió una inconsistencia previa de la auditoría.** `iter_files` aplicaba
+  `EXCLUDE_PARTS` solo al recorrer directorios: una ruta de archivo explícita —que
+  es como llega `--changed`— se saltaba las exclusiones. El modo `--hook` sí las
+  aplicaba. Quedaron los tres caminos con el mismo filtro.
+
+- **El logo del correo se sirve desde el static público del propio sitio**
+  (`{{ protocol }}://{{ domain }}{% static ... %}`), no embebido por CID. Requiere
+  que `/static/` sea accesible sin autenticación desde afuera, que es como ya está
+  servido por nginx y WhiteNoise.
+
+## Implementación
+
+- **Alta de usuario:** el sistema genera una clave provisoria de 12 caracteres sin
+  caracteres ambiguos (`0/O`, `1/l/I`), porque se lee de un correo y se tipea a
+  mano. Se la asigna al usuario, marca el perfil como «debe cambiar la contraseña»
+  y envía el correo con usuario, rol, dirección de acceso y la clave.
+- **Primer ingreso:** hasta que la persona defina su contraseña, cualquier pantalla
+  la devuelve a `/cambiar-contrasena/`. Solo queda disponible «Salir».
+- **Si el envío falla o el usuario no tiene correo:** el usuario queda creado y el
+  administrador ve la advertencia (RN-C3, comportamiento previo conservado). El
+  aviso ahora indica que la persona puede entrar por «Olvidé mi contraseña», porque
+  con el criterio nuevo la clave la conoce únicamente el correo que no salió.
+- **Recupero:** el login tiene «¿Olvidaste tu contraseña?». El backend ya existía
+  desde el Cambio 27; se le agregó la versión HTML del correo. La respuesta del
+  formulario es neutra: un correo inexistente responde igual que uno existente.
+- **Los dos correos** salen en multipart (texto + HTML), con encabezado de marca y
+  pie compartidos.
+
+## Archivos
+
+- `config/settings.py` — backend por `EMAIL_HOST`, `EMAIL_TIMEOUT`,
+  `EMAIL_ASUNTO_PREFIJO`, `EMAIL_SOPORTE`, `EMAIL_PIE_DIRECCION`,
+  `PASSWORD_RESET_TIMEOUT`, middleware nuevo
+- `.env.qa.example` — plantilla del bloque de correo, con la trampa del
+  `ENVIRONMENT` reemplazada por el criterio nuevo
+- `users/services/correo.py` — reemplaza a `users/services/invitations.py`
+- `users/models/__init__.py` — `Profile.debe_cambiar_contrasena`
+- `users/migrations/0022_profile_debe_cambiar_contrasena.py`
+- `users/views/admin.py`, `users/views/auth.py`, `users/views/quick_create.py`,
+  `users/views/__init__.py`
+- `users/forms/__init__.py` — `password` opcional y exigido sin correo
+- `users/templates/user/_alta_rapida_modal.html`
+- `users/middleware.py` — `CambioContrasenaObligatorioMiddleware`
+- `users/urls.py`
+- `users/templates/user/email/` — `_encabezado.html`, `_pie.html`,
+  `credenciales_usuario.{html,txt}`, `credenciales_usuario_asunto.txt`,
+  `recupero_contrasena.{html,txt}`, `recupero_contrasena_asunto.txt`
+  (los dos últimos vienen de `user/recuperar_contrasena_email.txt` y
+  `user/recuperar_contrasena_asunto.txt`)
+- `users/templates/user/cambiar_contrasena_obligatorio.html`
+- `users/templates/user/login.html` — enlace de recupero
+- `users/tests/test_credenciales.py` — reemplaza a `test_invitaciones.py`
+- `scripts/design_audit.py` — exclusión de `**/email/` y filtro de `iter_files`
+- `docs/client/funcionalidades/correos-credenciales.md` + índice y `mkdocs.yml`
+
+## Base de datos
+
+`users.0022` agrega `Profile.debe_cambiar_contrasena` (booleano, default `False`).
+Segura sobre datos existentes: los perfiles ya creados quedan en `False`, es decir
+sin cambio obligatorio, que es el comportamiento previo.
+
+## Validación
+
+- `manage.py check` sin errores.
+- `scripts/compile_templates.py`: 318 templates compilados, 0 errores.
+- `scripts/design_audit.py --changed`: 0 errores (2 warnings `OUTLINE`
+  preexistentes en `login.html`, con su `--ring-brand` de reemplazo).
+- `users.tests.test_credenciales` (9 pruebas nuevas, reemplazan a
+  `test_invitaciones`) y `users.tests.test_password_reset`: **9/9 en verde** en el
+  contenedor (Python 3.12). En el venv local (Python 3.14) 3 de ellas dan error por
+  el bug conocido de `RequestContext.__copy__` con Django 4.2, que rompe cualquier
+  test que renderice vía test client; por eso la verificación vale la del contenedor.
+- Suite completa de `users` en el contenedor: **206 pruebas, 3 errores
+  preexistentes** (`test_roles_abm`, `test_usuarios_roles_panel`:
+  `IntegrityError` por `Programa` duplicado entre el seed y las fixtures).
+  Se verificaron en un worktree limpio de HEAD: fallan igual sin estos cambios.
+- **Sin verificar todavía:** el envío real contra `smtp.chaco.gob.ar`. Requiere las
+  variables cargadas en el ambiente y alcance de red desde el servidor.
+
+## Puesta en marcha en el servidor
+
+1. Cargar en QA y en producción: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
+   `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL`
+   (plantilla comentada en `.env.qa.example`; las credenciales no viven en el repo).
+2. Verificar alcance de red a `smtp.chaco.gob.ar:587` desde el servidor.
+3. `manage.py migrate` (trae `users.0022`).
+4. `manage.py sendtestemail <casilla>` en cada ambiente.
+5. Alta de un usuario de prueba con casilla propia: confirmar que llega el correo,
+   que la clave provisoria funciona y que el primer ingreso exige cambiarla.
+
+## Pendientes / a definir
+
+- **Casilla de soporte y dirección postal del pie.** El PM las dejó a definir. Salen
+  de `EMAIL_SOPORTE` y `EMAIL_PIE_DIRECCION`: vacías, la línea no se renderiza, así
+  que no queda un dato falso en el correo y no hace falta tocar código después.
+- **Aprobación de los textos (#244).** Publicados en
+  `docs/client/funcionalidades/correos-credenciales.md` para la firma del cliente.
+- **Envío real (#245).** Pendiente de cargar las variables en QA y producción.
+- **Sin límite de intentos en el recupero.** No estaba en las reglas del #236: hoy
+  se puede pedir el enlace tantas veces como se quiera. Queda anotado; no se
+  implementó para no ampliar el alcance por decisión propia.
+
+## Reversión
+
+1. Revertir `users/urls.py`, `users/views/`, `users/middleware.py` y la línea del
+   middleware en `config/settings.py`.
+2. `manage.py migrate users 0021` (se pierde la marca de «debe cambiar la
+   contraseña»: los usuarios pendientes quedan pudiendo operar con la provisoria).
+3. Restaurar `users/services/invitations.py` y los templates de correo movidos.
+4. La configuración SMTP puede quedar: con `EMAIL_HOST` vacío el sistema vuelve al
+   backend de consola.
 
 ## Historial
 
