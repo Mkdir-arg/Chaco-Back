@@ -5,7 +5,7 @@
 {% block main-content %}
 <div class="">
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-1">Nuevo relevamiento</h1>
-  <p class="text-sm text-body-subtle mb-6">El nombre se genera automáticamente (Relevamiento NNN).</p>
+  <p class="text-sm text-body-subtle mb-6">El nombre se genera automáticamente con su número y convocatoria.</p>
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% if advertencia_solapamiento %}

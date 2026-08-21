@@ -133,6 +133,22 @@ class ProgramaSiisConfigTests(_BaseConfigTest):
         # El nombre se toma tal cual del catálogo.
         self.assertEqual(programa.nombre, "Producción")
 
+    def test_modal_nuevo_programa_ordena_catalogo_alfabeticamente(self):
+        self.programas_siis.stop()
+        self.addCleanup(self.programas_siis.start)
+        with patch(
+            "programas.forms.listar_programas",
+            return_value=[
+                {"id": 3, "nombre": "Zoonosis", "estado": "ACTIVO"},
+                {"id": 1, "nombre": "Ángeles", "estado": "ACTIVO"},
+                {"id": 2, "nombre": "becas", "estado": "ACTIVO"},
+            ],
+        ):
+            resp = self.client.get(reverse("becas:programas"))
+
+        choices = list(resp.context["form_programa"].fields["siis_programa_id"].choices)
+        self.assertEqual([label for _, label in choices[1:]], ["Ángeles", "becas", "Zoonosis"])
+
     def test_detalle_del_programa(self):
         programa = ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
         Segmento.objects.create(programa=programa, nombre="Seg A", cupo_maximo=10)
