@@ -281,13 +281,13 @@
 | 2026-08-03 | Pablo Cao | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-03 | Pablo Cao | Becas | DataÑach — cambios funcionales solicitados | Implementación de los puntos del documento de cambios: sesión, datos de usuario, período y cupo de relevamientos, pausas operativas, domicilio y buscador de legajos. | 480 min |
 | 2026-08-03 | Juani Portilla | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
-| 2026-08-03 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 480 min |
+| 2026-08-03 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 30 min |
 | 2026-08-03 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-03 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-04 | Matías Fariña | Becas | Análisis funcional y pruebas de los cambios de DataÑach | Relevamiento de los cambios pedidos por el cliente, definición del alcance y pruebas funcionales de lo implementado. | 540 min |
 | 2026-08-04 | Pablo Cao | Becas | DataÑach — cambios funcionales solicitados | Implementación de los puntos del documento de cambios: sesión, datos de usuario, período y cupo de relevamientos, pausas operativas, domicilio y buscador de legajos. | 540 min |
 | 2026-08-04 | Juani Portilla | Transversal | Issue #215 — agente canónico de diseño | Investigación, implementación, tests automáticos y prueba manual del agente de diseño code-first alineado al frontend productivo. | 90 min |
-| 2026-08-04 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 450 min |
+| 2026-08-04 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 30 min |
 | 2026-08-04 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-05 | Matías Fariña | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-05 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
@@ -295,13 +295,13 @@
 | 2026-08-05 | Pablo Cao | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-05 | Pablo Cao | Becas | DataÑach — cambios funcionales solicitados | Implementación de los puntos del documento de cambios: sesión, datos de usuario, período y cupo de relevamientos, pausas operativas, domicilio y buscador de legajos. | 480 min |
 | 2026-08-05 | Juani Portilla | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
-| 2026-08-05 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 480 min |
+| 2026-08-05 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 30 min |
 | 2026-08-05 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-05 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-06 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
 | 2026-08-06 | Matías Fariña | Becas | Análisis funcional y pruebas de los cambios de DataÑach | Relevamiento de los cambios pedidos por el cliente, definición del alcance y pruebas funcionales de lo implementado. | 420 min |
 | 2026-08-06 | Pablo Cao | Becas | DataÑach — cambios funcionales solicitados | Implementación de los puntos del documento de cambios: sesión, datos de usuario, período y cupo de relevamientos, pausas operativas, domicilio y buscador de legajos. | 540 min |
-| 2026-08-06 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 540 min |
+| 2026-08-06 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 30 min |
 | 2026-08-06 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-07 | Matías Fariña | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-07 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
@@ -309,7 +309,7 @@
 | 2026-08-07 | Pablo Cao | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-07 | Pablo Cao | Becas | DataÑach — cambios funcionales solicitados | Implementación de los puntos del documento de cambios: sesión, datos de usuario, período y cupo de relevamientos, pausas operativas, domicilio y buscador de legajos. | 480 min |
 | 2026-08-07 | Juani Portilla | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
-| 2026-08-07 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 480 min |
+| 2026-08-07 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 30 min |
 | 2026-08-07 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-07 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-10 | Matías Fariña | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
@@ -318,13 +318,13 @@
 | 2026-08-10 | Pablo Cao | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-10 | Pablo Cao | Becas | Roles de Becas — reorganización | Retiro de Regiones, ajustes de roles y comandos de administración de usuarios. | 480 min |
 | 2026-08-10 | Juani Portilla | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
-| 2026-08-10 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 480 min |
+| 2026-08-10 | Juani Portilla | Dispositivos | Desarrollo backend de Dispositivos | Desarrollo backend del Programa Dispositivos. | 60 min |
 | 2026-08-10 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-10 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-11 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
 | 2026-08-11 | Matías Fariña | Transversal | Integración con el CI/CD de ECOM | Incorporación del pipeline al release, espejo del repositorio y despliegues verificados en el servidor. | 420 min |
 | 2026-08-11 | Pablo Cao | Becas | Becas — permisos, vigencia SIIS y localidades | Alcance de Usuarios y Roles por capacidades, bloqueo del segmento por baja de programa SIIS, zona del relevamiento por catálogo de localidades y subsegmento obligatorio para el Coordinador Regional. | 540 min |
-| 2026-08-11 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 540 min |
+| 2026-08-11 | Juani Portilla | Dispositivos | Desarrollo backend de Dispositivos | Desarrollo backend del Programa Dispositivos. | 30 min |
 | 2026-08-11 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-12 | Matías Fariña | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-12 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
@@ -332,13 +332,13 @@
 | 2026-08-12 | Pablo Cao | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-12 | Pablo Cao | Becas | Nivel Programa (SIIS) | Nivel Programa por encima de los segmentos: modelo, migración, ABM y vinculación con el catálogo de SIIS. | 480 min |
 | 2026-08-12 | Juani Portilla | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
-| 2026-08-12 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 480 min |
+| 2026-08-12 | Juani Portilla | Dispositivos | Desarrollo backend de Dispositivos | Desarrollo backend del Programa Dispositivos. | 60 min |
 | 2026-08-12 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-12 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-13 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
 | 2026-08-13 | Matías Fariña | Transversal | Soporte al despliegue de ECOM y documentación | Diagnóstico del arranque en Kubernetes con el equipo de ECOM y actualización de la guía de despliegue. | 420 min |
 | 2026-08-13 | Pablo Cao | Becas | Nivel Programa (SIIS) | Nivel Programa por encima de los segmentos: modelo, migración, ABM y vinculación con el catálogo de SIIS. | 540 min |
-| 2026-08-13 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 540 min |
+| 2026-08-13 | Juani Portilla | Dispositivos | Desarrollo backend de Dispositivos | Desarrollo backend del Programa Dispositivos. | 30 min |
 | 2026-08-13 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 | 2026-08-14 | Matías Fariña | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-14 | Matías Fariña | Dispositivos | Pruebas del backend de Dispositivos | Pruebas funcionales del backend del Programa Dispositivos. | 120 min |
@@ -346,7 +346,7 @@
 | 2026-08-14 | Pablo Cao | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-14 | Pablo Cao | Becas | Nivel Programa (SIIS) | Nivel Programa por encima de los segmentos: modelo, migración, ABM y vinculación con el catálogo de SIIS. | 480 min |
 | 2026-08-14 | Juani Portilla | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
-| 2026-08-14 | Juani Portilla | Dispositivos | Programa Dispositivos — desarrollo frontend | Desarrollo del frontend del Programa Dispositivos. | 480 min |
+| 2026-08-14 | Juani Portilla | Dispositivos | Desarrollo backend de Dispositivos | Desarrollo backend del Programa Dispositivos. | 60 min |
 | 2026-08-14 | Matías Abate | Transversal | Reunión de equipo y avance | Reunión de seguimiento y avance del equipo. | 60 min |
 | 2026-08-14 | Matías Abate | Becas | Pruebas funcionales por rol y flujos completos | Pruebas de los cinco roles de Becas y de los flujos completos afectados por los cambios del período: accesos, configuración, convocatorias, relevamientos, revisión y app de campo. | 240 min |
 
@@ -357,8 +357,8 @@
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
-| 17–18/08 | Juani Portilla | Transversal | Observabilidad de performance en el CI | Sonda de performance determinista para el pipeline, reescritura del alcance de métricas y de la detección de degradación, instrumentación de los servicios externos, pruebas y calibración de los presupuestos. | 13 h | 32 h |
-| 18/08 | Juani Portilla | Transversal | Actualización del ecosistema Django y controles de calidad | Actualización de Django y cryptography con alineación de dependencias, y restauración de los controles de calidad y performance del pipeline. | 4 h | 9 h |
+| 17–18/08 | Juani Portilla | Transversal | Observabilidad de performance en el CI | Sonda de performance determinista para el pipeline, reescritura del alcance de métricas y de la detección de degradación, instrumentación de los servicios externos, pruebas y calibración de los presupuestos. | 4 h | 32 h |
+| 18/08 | Juani Portilla | Transversal | Actualización del ecosistema Django y controles de calidad | Actualización de Django y cryptography con alineación de dependencias, y restauración de los controles de calidad y performance del pipeline. | 1 h | 9 h |
 | 17/08 | Pablo Cao | Becas | Módulo de reportes de Becas — cierre de revisión | Formularios de filtro del módulo, refactor del servicio de reportes, reorganización de las vistas y accesos desde el menú lateral. | 8 h | 12 h |
 | 18/08 | Pablo Cao | Becas | Franja horaria del relevamiento | Campo de franja horaria en el modelo con su migración, formularios, API de la app de campo, vistas y pruebas. | 5 h | 9 h |
 | 18/08 | Pablo Cao | Becas | Recuperación de contraseña del backoffice | Flujo completo de recuperación, plantillas de correo y de pantalla, rutas, presentación del usuario y pruebas. | 4 h | 8 h |
@@ -378,7 +378,7 @@
 | 19/08 | Pablo Cao | Becas | Análisis del módulo de formulario público | Análisis funcional del módulo de formulario público: alcance, definición del comportamiento esperado y su encuadre dentro del sistema. | 4 h | — |
 | 19/08 | Matías Abate | Becas | Pruebas de la versión | Pruebas funcionales de la versión completa: los cinco perfiles de Becas y los flujos de punta a punta, incluidos reportes, franja horaria del relevamiento y validación SIIS en la aprobación. | 4 h | — |
 | 19/08 | Equipo (4 personas) | Transversal | Reunión de equipo | Estado del cierre de reportes y franja horaria, avance de performance y prioridades. | 4 h | — |
-| | | | **Total 17 al 19/08** | | **100 h** | **132 h** |
+| | | | **Total 17 al 19/08** | | **88 h** | **132 h** |
 
 !!! warning "Pendiente de imputación"
     **Frontend del Programa Dispositivos:** no tiene actividad registrada en este repositorio durante el 17, 18 y 19 de agosto, por lo que no se imputaron horas por ese concepto. Queda pendiente de confirmación.
@@ -388,9 +388,9 @@
 | Programa | Horas agosto |
 |---|---:|
 | Becas | 243 h 00 min |
-| Dispositivos | 104 h 30 min |
-| Transversal | 92 h 30 min |
-| **Total agosto 2026 (al 19/08)** | **440 h 00 min** |
+| Dispositivos | 28 h 30 min |
+| Transversal | 80 h 30 min |
+| **Total agosto 2026 (al 19/08)** | **352 h 00 min** |
 
 ---
 
@@ -420,12 +420,9 @@
 
 
 
-    **86.352 minutos** (1.439 h 12 min)
+    **81.072 minutos** (1.351 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 440 h 00 min (al 19/08). El
-    contador declaraba 80.262 minutos (1.337 h 42 min), 90 minutos menos que la suma
-    de las tres tablas; se corrigió al valor de las tablas el 19/08/2026, y se
-    actualizó con la carga del 17 y 18 de agosto.
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 352 h 00 min (al 19/08).
 
 
 
