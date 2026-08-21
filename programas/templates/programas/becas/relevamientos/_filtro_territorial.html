@@ -23,12 +23,12 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
         if (!visible && opt.selected) opt.selected = false;
       });
       if (fechaAsignada) {
-        fechaAsignada.min = opcion ? (opcion.dataset.fechaInicio || '') : '';
-        fechaAsignada.max = opcion ? (opcion.dataset.fechaFin || '') : '';
+        fechaAsignada.min = opcion && opcion.dataset.fechaInicio ? `${opcion.dataset.fechaInicio}T00:00` : '';
+        fechaAsignada.max = opcion && opcion.dataset.fechaFin ? `${opcion.dataset.fechaFin}T23:59` : '';
       }
       if (fechaHasta) {
-        fechaHasta.min = opcion ? (opcion.dataset.fechaInicio || '') : '';
-        fechaHasta.max = opcion ? (opcion.dataset.fechaFin || '') : '';
+        fechaHasta.min = opcion && opcion.dataset.fechaInicio ? `${opcion.dataset.fechaInicio}T00:00` : '';
+        fechaHasta.max = opcion && opcion.dataset.fechaFin ? `${opcion.dataset.fechaFin}T23:59` : '';
       }
     };
 

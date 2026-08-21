@@ -170,10 +170,9 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         )
         if self.action == "list":
             ahora = timezone.now()
-            queryset = queryset.filter(
-                fecha_asignada__lte=ahora,
-                fecha_hasta__gte=ahora,
-            ).order_by("fecha_asignada", "nombre")
+            # La agenda del territorial incluye lo vigente y lo próximo. Las
+            # acciones operativas siguen validando que ya haya comenzado.
+            queryset = queryset.filter(fecha_hasta__gte=ahora).order_by("fecha_asignada", "nombre")
         return queryset
 
     def get_serializer_class(self):

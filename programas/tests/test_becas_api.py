@@ -117,7 +117,7 @@ class RelevamientoApiTests(_BaseApiTest):
         propio = next(item for item in resp.data["results"] if item["id"] == self.rel.id)
         self.assertEqual(propio["localidad"], "Localidad Norte")
 
-    def test_lista_incluye_solo_relevamientos_vigentes_ahora(self):
+    def test_lista_incluye_relevamientos_vigentes_y_futuros(self):
         vencido = Relevamiento.objects.create(
             convocatoria=self.conv,
             territorial=self.terri,
@@ -138,7 +138,7 @@ class RelevamientoApiTests(_BaseApiTest):
         ids = [r["id"] for r in resp.data["results"]]
         self.assertIn(self.rel.id, ids)
         self.assertNotIn(vencido.id, ids)
-        self.assertNotIn(futuro.id, ids)
+        self.assertIn(futuro.id, ids)
 
         propio = next(item for item in resp.data["results"] if item["id"] == self.rel.id)
         self.assertIn("T", propio["fecha_asignada"])
