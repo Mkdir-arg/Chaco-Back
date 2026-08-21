@@ -180,6 +180,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 36 | El diseño de Dispositivos es todo lo contrario a lo que tiene que ser | Dispositivos | `#ui` | PM — pedido directo en sesión de trabajo | 19/08/2026 | 🟡 **Parcial — badges y solapas hechos; 4 hallazgos abiertos** | No |
 | 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — implementado; falta envío real y aprobación de textos** | `users.0022` |
 | 38 | Cerrar sesión da error 405 después de actualizar Django | Transversal / sesión | `#sesion` `#infra` `#ui` | PM — reportó el 405 al entrar a `/logout` | 20/08/2026 | 🟢 **Hecho** | No |
+| 39 | En el login aparece el logo de Nodo en lugar del del Chaco | Transversal / marca | `#ui` `#sesion` `#infra` | PM — vio la marca del proveedor en la pantalla de acceso | 21/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -2686,6 +2687,123 @@ No requiere: solo templates. Alcanza el deploy.
 Revertir el commit de los templates. No hay datos involucrados. Volver al enlace GET
 solo tendría efecto si además se bajara Django a 4.2, y reintroduciría el problema de
 seguridad descrito arriba.
+
+# Cambio 39 — En el login aparece el logo de Nodo en lugar del del Chaco
+
+🟢 **HECHO — 21/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / marca |
+| **Etiquetas** | `#ui` `#sesion` `#infra` |
+| **Solicitante** | PM — vio el logo «Nodo — Powered by ICore» en la pantalla de acceso |
+| **Fecha del pedido** | 21/08/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Quiero ver por qué aparece este ícono y no el de Chaco», con la captura del logo
+«Nodo — Powered by ICore».
+
+## Alcance acordado
+
+Se corrige la marca del login y de las pantallas de credenciales, y se saca el asset de
+ICore de la carpeta de Chaco. **Queda afuera** el resto del branding: sidebar, portal y
+correos nunca estuvieron afectados.
+
+## Decisiones tomadas
+
+- **El archivo estaba mal archivado, no mal referenciado.**
+  `static/custom/chaco/login-logo.svg` **era el logo de Nodo/ICore**, no el del Chaco:
+  `#FD517D` para «Nodo», `#4C4C4C` para el ícono de nodos y `#6C757D` para «Powered by
+  ICore». Entró el **24/06/2026** en el commit `8a5d412`, titulado «fijar branding
+  Chaco». Vivió dos meses al lado de `login-logo.png` —que sí es el del Gobierno del
+  Chaco— con un nombre que invitaba a confundirlos.
+- **Lo puso en pantalla una optimización de peso.** El commit `1ce73b3` del 20/08
+  («perf(inicio): diferir gráfico y aligerar login») cambió los dos templates de `.png`
+  a `.svg` porque el SVG pesa 15 KB contra 194 KB. El objetivo era correcto; lo que
+  faltó fue verificar que el archivo liviano fuera la misma imagen. Se eligió por
+  nombre y por peso, nunca se abrió.
+- **La causa real del peso era el tamaño, no el formato.** El PNG del Chaco era de
+  **2212×805 px** y se renderiza a 38 px de alto en el login y 40 px en los correos:
+  194 KB para mostrar 110×40. Se redimensionó a **330×120** (3× para pantallas de alta
+  densidad) y quedó en **26 KB, un 87 % menos**. O sea que se conserva casi toda la
+  ganancia de `1ce73b3` sin cambiar de logo: la diferencia con el SVG de ICore es de
+  11 KB.
+- **El máster en alta resolución no se perdió.** `app-logo.png` y `footer-logo.png` son
+  byte a byte idénticos al PNG original (mismo SHA-256), así que la versión de 2212×805
+  sigue disponible en el repositorio.
+- **El asset de ICore se movió, no se borró.** Quedó en
+  `static/custom/icore/nodo-logo.svg`, fuera de `custom/chaco/`, para que no vuelva a
+  confundirse con la marca del organismo y sin destruir un archivo que puede hacer falta.
+- **Había un test que fijaba el error como comportamiento esperado.**
+  `LoginBrandAssetTests.test_login_web_usa_el_logo_svg_liviano` afirmaba `assertIn` del
+  SVG **y** `assertNotIn` del PNG: cualquier corrección lo habría puesto en rojo. Se
+  reescribió al revés —exige el PNG del Chaco y prohíbe cualquier referencia a
+  `nodo-logo`— y ahora es el guardián de la regresión en lugar de su candado.
+- **Ningún control mecánico podía detectarlo.** `design_audit.py` revisa hex, fuentes y
+  tags; `check_design_agent.py` revisa que el inventario se actualice —y de hecho
+  `1ce73b3` lo actualizó, dejando escrito que la marca era el SVG—. Ninguno abre una
+  imagen para ver qué dice. Por eso el inventario ahora nombra el archivo correcto y
+  aclara explícitamente que `nodo-logo.svg` es la marca del proveedor y no se usa en
+  superficies del organismo.
+
+## Implementación
+
+El login del backoffice y las cuatro pantallas de credenciales fuera de sesión
+—establecer contraseña, recuperar contraseña, aviso de envío y cambio obligatorio—
+muestran el logo del Gobierno del Chaco. Se agregaron `width`/`height` a las etiquetas
+para que el navegador reserve el espacio y la pantalla no salte al cargar.
+
+## Archivos
+
+- `static/custom/chaco/login-logo.png` — redimensionado de 2212×805 a 330×120 (194 KB → 26 KB).
+- `static/custom/icore/nodo-logo.svg` — movido desde `static/custom/chaco/login-logo.svg`.
+- `users/templates/user/login.html`, `users/templates/user/base_public_auth.html` — vuelven al PNG.
+- `users/tests/test_credenciales.py` — el test invertido.
+- `.claude/agents/chaco-design-system.md` — el inventario nombra el asset correcto.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Se abrió el PNG redimensionado y se verificó a ojo que es el logo del Gobierno del
+  Chaco y que sigue legible a ese tamaño.
+- Render directo de `user/login.html` y `user/cambiar_contrasena_obligatorio.html`: las
+  dos referencian `custom/chaco/login-logo.png`, ninguna menciona `nodo-logo`, y ninguna
+  carga el CDN de Tailwind.
+- `manage.py check` → sin issues.
+- `scripts/design_audit.py --changed` → 0 errores, 3 WARN de `outline:none` justificados.
+- `scripts/check_design_agent.py --changed` → `design-agent contract: OK`.
+- `scripts/compile_templates.py` → 318 templates, 0 errores.
+- `users.tests.test_logout` → 3 en verde. `LoginBrandAssetTests` no se puede ejecutar en
+  el entorno local: pide la página con el cliente de pruebas y ahí choca con la
+  incompatibilidad entre Python 3.14 y Django 4.2 del venv. Corre en CI, que usa 3.12.
+
+## Puesta en marcha en el servidor
+
+Alcanza el deploy. **Atención:** el release `57d17c3` —espejado al GitLab de ECOM el
+21/08— lleva el logo de ICore. Hasta que se publique un release con esta corrección,
+testing y QA muestran la marca del proveedor en la pantalla de acceso.
+
+## Pendientes / a definir
+
+- **Ningún control verifica el contenido de los assets de marca.** Si alguien vuelve a
+  intercambiar dos imágenes por nombre, solo lo detecta una persona mirando la pantalla.
+  El test nuevo cubre el caso de este archivo, no el general.
+- `app-logo.png` y `footer-logo.png` siguen pesando 194 KB cada uno y son copias
+  idénticas entre sí. Conviene revisar dónde se usan y a qué tamaño se renderizan.
+- `docs/design-kb/reference/branding.py` apunta a `custom/branding/default/login-logo.svg`,
+  una ruta que no existe en el repositorio.
+
+## Reversión
+
+Revertir el commit. El PNG vuelve a 194 KB y el SVG de ICore a `custom/chaco/`. No hay
+datos involucrados.
 
 # Verificaciones generales pendientes antes de desplegar
 

@@ -62,13 +62,20 @@ class CredencialesPorCorreoTests(TestCase):
 
 
 class LoginBrandAssetTests(TestCase):
-    def test_login_web_usa_el_logo_svg_liviano(self):
+    def test_login_web_usa_la_marca_del_chaco_y_el_css_compilado(self):
+        """El logo del login es el del organismo, no el del proveedor.
+
+        `static/custom/icore/nodo-logo.svg` estuvo archivado como
+        `custom/chaco/login-logo.svg` y una optimización lo puso en el login por
+        ser más liviano. El PNG del Chaco quedó en 330x120 y 26 KB, así que ya no
+        hay motivo de peso para volver a cambiarlo.
+        """
         response = self.client.get(reverse("users:login"))
 
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
-        self.assertIn("/static/custom/chaco/login-logo.svg", html)
-        self.assertNotIn("/static/custom/chaco/login-logo.png", html)
+        self.assertIn("/static/custom/chaco/login-logo.png", html)
+        self.assertNotIn("nodo-logo", html)
         self.assertIn("/static/custom/css/tailwind.css", html)
         self.assertNotIn("cdn.tailwindcss.com", html)
 
