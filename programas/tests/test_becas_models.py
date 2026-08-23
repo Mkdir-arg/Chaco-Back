@@ -42,6 +42,12 @@ class UUIDExternosMySQLTests(TestCase):
         columnas = (
             ("programas_formulario", "client_uuid"),
             ("programas_validacionsis", "id_consulta"),
+            ("programas_inscripcionprograma", "legajo_id"),
+            ("users_solicitudcambioemail", "token"),
+            ("legajos_legajoatencion", "id"),
+            ("legajos_alertaciudadano", "legajo_id"),
+            ("legajos_historialcontacto", "legajo_id"),
+            ("legajos_adjunto", "object_id"),
         )
         with connection.cursor() as cursor:
             for tabla, columna in columnas:
