@@ -6,6 +6,7 @@ from io import StringIO
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase
 
 from legajos.models import Ciudadano
@@ -29,6 +30,34 @@ from programas.services.becas import (
     get_segmentos_coordinador,
     resolver_ciudadano_offline,
 )
+
+
+class UUIDExternosMySQLTests(TestCase):
+    """Los UUID recibidos por API deben admitir su representación con guiones."""
+
+    def test_columnas_uuid_externas_admiten_36_caracteres(self):
+        if connection.vendor != "mysql":
+            self.skipTest("La longitud física comprobada corresponde a MySQL.")
+
+        columnas = (
+            ("programas_formulario", "client_uuid"),
+            ("programas_validacionsis", "id_consulta"),
+        )
+        with connection.cursor() as cursor:
+            for tabla, columna in columnas:
+                cursor.execute(
+                    """
+                    SELECT CHARACTER_MAXIMUM_LENGTH
+                    FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = %s
+                      AND COLUMN_NAME = %s
+                    """,
+                    [tabla, columna],
+                )
+                fila = cursor.fetchone()
+                self.assertIsNotNone(fila, f"No existe {tabla}.{columna}")
+                self.assertGreaterEqual(fila[0], 36, f"{tabla}.{columna} no admite UUID con guiones")
 
 
 class SeedBecasCommandTests(TestCase):

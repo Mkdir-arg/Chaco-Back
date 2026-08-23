@@ -483,7 +483,11 @@ class AprobarRechazarTests(_BaseRevisionTest):
         self.validar_compatibilidad.return_value = {
             "success": True,
             "compatible": True,
-            "data": {"id_programa": 41, "validaciones": {}},
+            "data": {
+                "id_programa": 41,
+                "id_consulta": "8ef13bfb-529a-4438-a8b4-dca8b238039a",
+                "validaciones": {},
+            },
         }
         self.ciudadano = Ciudadano.objects.create(
             dni="24459123", nombre="Persona", apellido="Compatible", fecha_nacimiento=date(1975, 2, 20), genero="F"
@@ -604,6 +608,10 @@ class AprobarRechazarTests(_BaseRevisionTest):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.form_a.validaciones_sis.count(), 2)
+        self.assertEqual(
+            str(self.form_a.validaciones_sis.first().id_consulta),
+            "8ef13bfb-529a-4438-a8b4-dca8b238039a",
+        )
 
     def test_coordinador_ve_boton_validar_siis(self):
         response = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
