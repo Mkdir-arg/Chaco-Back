@@ -57,6 +57,19 @@
           El link acepta inscripciones hasta el {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}, mientras haya cupo y el relevamiento no esté pausado.
           Confirmación por correo: {% if relevamiento.confirmar_por_email %}activada{% else %}desactivada{% endif %}.
         </p>
+        <form method="post" action="{% url 'becas:relevamiento_padron' relevamiento.pk %}" enctype="multipart/form-data"
+              class="flex items-end gap-2 flex-wrap pt-2" style="border-top:1px solid var(--color-brand-200)">
+          {% csrf_token %}
+          <div class="flex-1 min-w-[240px]">
+            <label class="block text-xs font-semibold text-fg-brand mb-1" for="padron-reemplazo">
+              Padrón de habilitados: {% if n_padron %}{{ n_padron }} persona{{ n_padron|pluralize }}{% else %}sin padrón (link abierto){% endif %}
+            </label>
+            <input id="padron-reemplazo" type="file" name="padron" accept=".xlsx" required class="nodo-field w-full">
+          </div>
+          <button type="submit" class="btn-nodo btn-tertiary btn-base">
+            {% if n_padron %}Reemplazar padrón{% else %}Cargar padrón{% endif %}
+          </button>
+        </form>
       </div>
       {% endif %}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

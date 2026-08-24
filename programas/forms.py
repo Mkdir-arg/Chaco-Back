@@ -1059,6 +1059,14 @@ class RelevamientoForm(forms.ModelForm):
         widget=forms.Select(attrs={"class": INPUT_CLASS, "data-municipio": "1"}),
         help_text="Filtra las localidades disponibles.",
     )
+    # Padrón de habilitados (RN-P14): opcional, solo para tipo público. Se
+    # parsea al validar; el resumen queda en ``padron_resumen``.
+    padron = forms.FileField(
+        required=False,
+        label="Padrón de habilitados",
+        help_text="Excel (.xlsx) de dos columnas: documento y sexo. Sin padrón, el link queda abierto.",
+        widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ".xlsx"}),
+    )
     # Pisa el CharField del modelo: el operador elige una Localidad y
     # ``clean_zona`` la reduce al texto que se guarda.
     zona = forms.ModelChoiceField(
@@ -1130,6 +1138,7 @@ class RelevamientoForm(forms.ModelForm):
         if not puede_publico:
             self.fields.pop("tipo")
             self.fields.pop("confirmar_por_email")
+            self.fields.pop("padron")
         else:
             # Retrocompatibilidad: un POST sin tipo sigue siendo un alta
             # territorial (clean_tipo aplica el default del modelo).
@@ -1222,6 +1231,29 @@ class RelevamientoForm(forms.ModelForm):
 
     def clean_tipo(self):
         return self.cleaned_data.get("tipo") or Relevamiento.Tipo.TERRITORIAL
+
+    def clean_padron(self):
+        archivo = self.cleaned_data.get("padron")
+        self._padron_entradas = None
+        self.padron_resumen = None
+        if not archivo:
+            return archivo
+        if self._tipo_elegido() != Relevamiento.Tipo.PUBLICO:
+            raise forms.ValidationError("El padrón solo aplica a relevamientos de formulario público.")
+        from programas.services.padron import parsear_padron
+
+        entradas, rechazadas = parsear_padron(archivo)
+        self._padron_entradas = entradas
+        self.padron_resumen = (len(entradas), rechazadas)
+        return archivo
+
+    def save(self, commit=True):
+        instance = super().save(commit)
+        if commit and getattr(self, "_padron_entradas", None):
+            from programas.services.padron import cargar_padron
+
+            cargar_padron(instance, self.cleaned_data["padron"], self._padron_entradas)
+        return instance
 
     def clean_zona(self):
         """Del catálogo al texto: se guarda el nombre de la localidad.

@@ -1539,6 +1539,14 @@ class Relevamiento(PausableMixin, TimeStamped):
         verbose_name="Enviar confirmación por correo",
         help_text="Al inscribirse por el link, la persona recibe un correo con su comprobante.",
     )
+    # Excel original del padrón de habilitados (RN-P14); las entradas parseadas
+    # viven en PadronHabilitado. Solo trazabilidad: nunca se lee por request.
+    padron_archivo = models.FileField(
+        upload_to="becas/padrones/",
+        null=True,
+        blank=True,
+        verbose_name="Padrón de habilitados (archivo)",
+    )
     # Se conserva el nombre técnico histórico para evitar romper integraciones;
     # funcionalmente representa el inicio del período.
     fecha_asignada = models.DateTimeField(verbose_name="Fecha y hora desde")
@@ -1591,11 +1599,12 @@ class Relevamiento(PausableMixin, TimeStamped):
 
     @property
     def url_publica(self):
-        """Ruta del link de inscripción. La vista pública del portal se sirve
-        en esta ruta (#293); hasta ese cambio la URL responde 404."""
+        """Ruta del link de inscripción (paso 1 del portal, #293)."""
         if not self.token_publico:
             return ""
-        return f"/inscripcion/{self.token_publico}/"
+        from django.urls import reverse
+
+        return reverse("portal:inscripcion_paso1", kwargs={"token": self.token_publico})
 
     @property
     def pausa_efectiva(self):
@@ -1740,6 +1749,41 @@ class Relevamiento(PausableMixin, TimeStamped):
             and self.fecha_hasta is not None
             and self.fecha_hasta < timezone.now()
         )
+
+
+class PadronHabilitado(TimeStamped):
+    """Entrada del padrón de habilitados de un relevamiento público (RN-P14).
+
+    Lista blanca del paso 1 del link: si el relevamiento tiene padrón, solo
+    avanza quien figura con DNI **y** sexo coincidentes (normalizados al
+    cargar). Se puebla parseando el Excel al crear/reemplazar el padrón
+    (``programas.services.padron``); el chequeo por request es una consulta
+    indexada, nunca una lectura del archivo.
+    """
+
+    class Sexo(models.TextChoices):
+        FEMENINO = "F", "Femenino"
+        MASCULINO = "M", "Masculino"
+
+    relevamiento = models.ForeignKey(
+        Relevamiento,
+        on_delete=models.CASCADE,
+        related_name="padron",
+        verbose_name="Relevamiento",
+    )
+    dni = models.CharField(max_length=20, verbose_name="DNI")
+    sexo = models.CharField(max_length=1, choices=Sexo.choices, verbose_name="Sexo")
+
+    class Meta:
+        verbose_name = "Habilitado del padrón"
+        verbose_name_plural = "Habilitados del padrón"
+        constraints = [
+            models.UniqueConstraint(fields=["relevamiento", "dni"], name="uniq_padron_dni_relevamiento"),
+        ]
+        indexes = [models.Index(fields=["relevamiento", "dni", "sexo"])]
+
+    def __str__(self):
+        return f"{self.dni} ({self.sexo})"
 
 
 class PreguntaGlobal(TimeStamped):

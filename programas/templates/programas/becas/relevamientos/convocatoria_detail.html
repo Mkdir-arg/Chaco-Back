@@ -260,7 +260,7 @@
         </button>
       </div>
 
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax>
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'becas:convocatoria_detalle' convocatoria.pk %}">
         <div class="p-6 space-y-4">
@@ -330,6 +330,12 @@
               {{ form_crear.cupo_maximo }}
               <p class="text-xs text-body-subtle mt-1">El link deja de aceptar inscripciones al llenarse el cupo.</p>
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.padron.id_for_label }}">Padrón de habilitados</label>
+              {{ form_crear.padron }}
+              <p class="text-xs text-body-subtle mt-1">{{ form_crear.padron.help_text }}</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="padron"></p>
             </div>
             <label class="flex items-center gap-2 text-sm text-heading" for="{{ form_crear.confirmar_por_email.id_for_label }}">
               {{ form_crear.confirmar_por_email }}

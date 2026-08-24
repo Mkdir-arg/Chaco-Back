@@ -552,6 +552,10 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
             # El link se muestra en el detalle: se navega ahí directamente.
             detalle = reverse("becas:relevamiento_detalle", kwargs={"pk": self.object.pk})
             mensaje = "Relevamiento público creado. Compartí el link de inscripción."
+            if getattr(form, "padron_resumen", None):
+                validas, rechazadas = form.padron_resumen
+                mensaje += f" Padrón: {validas} habilitados"
+                mensaje += f" ({rechazadas} filas ignoradas)." if rechazadas else "."
             if is_ajax(self.request):
                 return ajax_redirect(detalle, mensaje)
             messages.success(self.request, mensaje)
@@ -594,6 +598,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx = super().get_context_data(**kwargs)
         rel = self.object
         ctx["link_publico"] = self.request.build_absolute_uri(rel.url_publica) if rel.es_publico else ""
+        ctx["n_padron"] = rel.padron.count() if rel.es_publico else 0
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
@@ -672,6 +677,40 @@ def relevamiento_reasignar(request, pk):
             messages.success(request, "Territorial reasignado.")
         else:
             messages.error(request, "No se pudo reasignar: revisá el territorial seleccionado.")
+    return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+
+@login_required
+@requiere(CAP_RELEVAMIENTO_PUBLICO)
+@require_POST
+def relevamiento_reemplazar_padron(request, pk):
+    """Reemplaza (o carga) el padrón de habilitados de un público (RN-P14).
+
+    Reemplazo total, con efecto inmediato en el paso 1 del link. Gateado por
+    la capacidad del formulario público, igual que el resto de la superficie.
+    """
+    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
+    _assert_scope(request, rel)
+    if not rel.es_publico:
+        messages.error(request, "El padrón solo aplica a relevamientos de formulario público.")
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+    archivo = request.FILES.get("padron")
+    if archivo is None:
+        messages.error(request, "Adjuntá el Excel del padrón (.xlsx con documento y sexo).")
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    from programas.services.padron import cargar_padron, parsear_padron
+
+    try:
+        entradas, rechazadas = parsear_padron(archivo)
+    except DjangoValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+    cargar_padron(rel, archivo, entradas)
+    mensaje = f"Padrón reemplazado: {len(entradas)} habilitados"
+    mensaje += f" ({rechazadas} filas ignoradas)." if rechazadas else "."
+    messages.success(request, mensaje)
     return redirect("becas:relevamiento_detalle", pk=rel.pk)
 
 

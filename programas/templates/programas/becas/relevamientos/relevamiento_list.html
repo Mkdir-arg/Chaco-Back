@@ -173,7 +173,7 @@
         </button>
       </div>
 
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}">
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="p-6 space-y-4">
           <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
@@ -234,6 +234,12 @@
               <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.cupo_maximo.id_for_label }}">Cupo de personas</label>
               {{ form_crear.cupo_maximo }}
               <p class="text-xs text-body-subtle mt-1">El link deja de aceptar inscripciones al llenarse el cupo.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.padron.id_for_label }}">Padrón de habilitados</label>
+              {{ form_crear.padron }}
+              <p class="text-xs text-body-subtle mt-1">{{ form_crear.padron.help_text }}</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="padron"></p>
             </div>
             <label class="flex items-center gap-2 text-sm text-heading" for="{{ form_crear.confirmar_por_email.id_for_label }}">
               {{ form_crear.confirmar_por_email }}
