@@ -11,10 +11,11 @@ un render provisorio.
 """
 
 import logging
+import uuid
 
 from django.shortcuts import get_object_or_404, redirect, render
 
-from portal.forms.inscripcion import InscripcionPaso1Form
+from portal.forms.inscripcion import InscripcionPaso1Form, InscripcionPaso2Form
 from portal.services.inscripcion import (
     captcha_valido,
     clave_sesion,
@@ -26,6 +27,12 @@ from portal.services.inscripcion import (
     relevamiento_disponible,
 )
 from programas.models import Relevamiento
+from programas.services.becas import definicion_formulario
+from programas.services.inscripcion_publica import (
+    InscripcionDuplicada,
+    InscripcionNoDisponible,
+    crear_formulario_publico,
+)
 from programas.services.padron import esta_habilitado
 from programas.services.personas import consultar_persona
 
@@ -113,17 +120,52 @@ def inscripcion_paso1(request, token):
 
 
 def inscripcion_paso2(request, token):
-    """Guardia del paso 2: exige la identificación del paso 1 en la sesión.
-
-    El formulario dinámico se renderiza acá a partir de #294; mientras tanto
-    la pantalla confirma la identificación y anuncia el paso siguiente.
-    """
+    """Paso 2 (#294): el mismo formulario dinámico que la app de campo, más
+    contacto, apoderado para menores y GPS best-effort. El envío crea el
+    formulario y el legajo en el acto (#295) y redirige al comprobante."""
     relevamiento = _get_relevamiento(token)
     if not relevamiento_disponible(relevamiento):
         return _no_disponible(request, relevamiento)
     identificacion = request.session.get(clave_sesion(relevamiento))
     if not identificacion:
         return redirect("portal:inscripcion_paso1", token=relevamiento.token_publico)
+
+    # Idempotencia del doble submit: un client_uuid por identificación, igual
+    # que las capturas de la app (RN de #295).
+    if not identificacion.get("client_uuid"):
+        identificacion["client_uuid"] = str(uuid.uuid4())
+        request.session[clave_sesion(relevamiento)] = identificacion
+
+    definicion = definicion_formulario(relevamiento)
+    form = InscripcionPaso2Form(
+        request.POST or None,
+        request.FILES or None,
+        definicion=definicion,
+        identificacion=identificacion,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            formulario, _creado = crear_formulario_publico(
+                relevamiento,
+                identificacion=identificacion,
+                form=form,
+                client_uuid=identificacion["client_uuid"],
+            )
+        except InscripcionNoDisponible:
+            return _no_disponible(request, relevamiento)
+        except InscripcionDuplicada:
+            return render(
+                request,
+                "portal/inscripcion/ya_inscripto.html",
+                {"relevamiento": relevamiento, "dni": identificacion["dni"]},
+            )
+        request.session.pop(clave_sesion(relevamiento), None)
+        request.session[f"inscripcion_ok_{relevamiento.pk}"] = {
+            "numero": formulario.numero,
+            "email": formulario.email_contacto,
+        }
+        return redirect("portal:inscripcion_confirmacion", token=relevamiento.token_publico)
+
     return render(
         request,
         "portal/inscripcion/paso2.html",
@@ -131,5 +173,25 @@ def inscripcion_paso2(request, token):
             "relevamiento": relevamiento,
             "convocatoria": relevamiento.convocatoria,
             "identificacion": identificacion,
+            "form": form,
+            "requiere_gps": definicion["requiere_gps"],
+        },
+    )
+
+
+def inscripcion_confirmacion(request, token):
+    """Comprobante del envío. Se alimenta de la sesión para tolerar el refresh
+    sin duplicar nada; sin envío previo, vuelve al paso 1."""
+    relevamiento = _get_relevamiento(token)
+    comprobante = request.session.get(f"inscripcion_ok_{relevamiento.pk}")
+    if not comprobante:
+        return redirect("portal:inscripcion_paso1", token=relevamiento.token_publico)
+    return render(
+        request,
+        "portal/inscripcion/confirmacion.html",
+        {
+            "relevamiento": relevamiento,
+            "convocatoria": relevamiento.convocatoria,
+            "comprobante": comprobante,
         },
     )
