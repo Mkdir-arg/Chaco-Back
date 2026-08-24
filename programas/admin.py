@@ -231,10 +231,10 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
 
 @admin.register(Relevamiento)
 class RelevamientoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "convocatoria", "territorial", "fecha_asignada", "fecha_hasta", "zona", "estado")
-    list_filter = ("estado", "convocatoria")
+    list_display = ("nombre", "tipo", "convocatoria", "territorial", "fecha_asignada", "fecha_hasta", "zona", "estado")
+    list_filter = ("tipo", "estado", "convocatoria")
     search_fields = ("nombre", "zona", "territorial__username")
-    readonly_fields = ("nombre",)
+    readonly_fields = ("nombre", "token_publico")
 
 
 @admin.register(PreguntaGlobal)

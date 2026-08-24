@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import date, datetime, time
 
 from django.contrib.auth.models import Group, User
@@ -1476,7 +1477,12 @@ class Convocatoria(PausableMixin, TimeStamped):
 
 
 class Relevamiento(PausableMixin, TimeStamped):
-    """Campaña de campo asignada a un territorial. Nombre auto-generado."""
+    """Campaña de campo asignada a un territorial, o formulario público con
+    link de inscripción (análisis #289). Nombre auto-generado.
+
+    Los públicos no tienen territorial ni zona, nacen EN_CURSO y reciben un
+    ``token_publico`` no adivinable que arma el link del portal. La API de
+    campo no los expone (su queryset filtra por territorial)."""
 
     def _normalizar_franja(self):
         zona = timezone.get_current_timezone()
@@ -1493,6 +1499,10 @@ class Relevamiento(PausableMixin, TimeStamped):
         EN_REVISION = "EN_REVISION", "En revisión"
         TERMINADO = "TERMINADO", "Terminado"
 
+    class Tipo(models.TextChoices):
+        TERRITORIAL = "TERRITORIAL", "Territorial"
+        PUBLICO = "PUBLICO", "Formulario público"
+
     nombre = models.CharField(max_length=100, editable=False, verbose_name="Nombre")
     numero = models.PositiveIntegerField(editable=False, verbose_name="Número dentro de la convocatoria")
     convocatoria = models.ForeignKey(
@@ -1501,17 +1511,41 @@ class Relevamiento(PausableMixin, TimeStamped):
         related_name="relevamientos",
         verbose_name="Convocatoria",
     )
+    tipo = models.CharField(
+        max_length=20,
+        choices=Tipo.choices,
+        default=Tipo.TERRITORIAL,
+        db_index=True,
+        verbose_name="Tipo",
+    )
     territorial = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="relevamientos_asignados",
         verbose_name="Territorial",
+    )
+    # Link público (solo tipo PUBLICO): nunca se expone el pk en la URL.
+    token_publico = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Token del link público",
+    )
+    confirmar_por_email = models.BooleanField(
+        default=False,
+        verbose_name="Enviar confirmación por correo",
+        help_text="Al inscribirse por el link, la persona recibe un correo con su comprobante.",
     )
     # Se conserva el nombre técnico histórico para evitar romper integraciones;
     # funcionalmente representa el inicio del período.
     fecha_asignada = models.DateTimeField(verbose_name="Fecha y hora desde")
     fecha_hasta = models.DateTimeField(verbose_name="Fecha y hora hasta")
-    zona = models.CharField(max_length=200, verbose_name="Zona")
+    # blank=True desde #290: los públicos no llevan zona; para los territoriales
+    # la exige clean() (y el form del backoffice).
+    zona = models.CharField(max_length=200, blank=True, verbose_name="Zona")
     cupo_maximo = models.PositiveIntegerField(
         default=100,
         validators=[MinValueValidator(1)],
@@ -1537,10 +1571,31 @@ class Relevamiento(PausableMixin, TimeStamped):
         ]
         constraints = [
             models.UniqueConstraint(fields=["convocatoria", "numero"], name="uniq_relevamiento_numero_convocatoria"),
+            # Coherencia tipo/territorial: un territorial siempre tiene operador
+            # asignado; un público nunca (RN-P1/P2 del análisis #289).
+            models.CheckConstraint(
+                check=(
+                    models.Q(tipo="TERRITORIAL", territorial__isnull=False)
+                    | models.Q(tipo="PUBLICO", territorial__isnull=True)
+                ),
+                name="relevamiento_tipo_territorial_coherente",
+            ),
         ]
 
     def __str__(self):
         return self.nombre
+
+    @property
+    def es_publico(self):
+        return self.tipo == self.Tipo.PUBLICO
+
+    @property
+    def url_publica(self):
+        """Ruta del link de inscripción. La vista pública del portal se sirve
+        en esta ruta (#293); hasta ese cambio la URL responde 404."""
+        if not self.token_publico:
+            return ""
+        return f"/inscripcion/{self.token_publico}/"
 
     @property
     def pausa_efectiva(self):
@@ -1549,6 +1604,13 @@ class Relevamiento(PausableMixin, TimeStamped):
     def clean(self):
         super().clean()
         self._normalizar_franja()
+        if self.tipo == self.Tipo.TERRITORIAL:
+            if not self.territorial_id:
+                raise ValidationError({"territorial": "Un relevamiento territorial requiere un territorial asignado."})
+            if not self.zona:
+                raise ValidationError({"zona": "Un relevamiento territorial requiere una zona."})
+        elif self.territorial_id:
+            raise ValidationError({"territorial": "Un relevamiento de formulario público no lleva territorial."})
         if self.pk and self.cupo_maximo is not None:
             utilizados = self.formularios.count()
             if self.cupo_maximo < utilizados:
@@ -1607,6 +1669,12 @@ class Relevamiento(PausableMixin, TimeStamped):
             self.fecha_hasta = timezone.make_aware(
                 datetime.combine(dia, time(23, 59, 59)), timezone.get_current_timezone()
             )
+        if self._state.adding and self.tipo == self.Tipo.PUBLICO:
+            # No hay territorial que lo inicie: nace operativo y con su link.
+            if not self.token_publico:
+                self.token_publico = uuid.uuid4()
+            if self.estado == self.Estado.ASIGNADO:
+                self.estado = self.Estado.EN_CURSO
         if self._state.adding and not self.numero:
             with transaction.atomic():
                 Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)
