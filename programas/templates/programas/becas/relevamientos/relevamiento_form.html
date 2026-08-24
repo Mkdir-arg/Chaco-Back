@@ -3,7 +3,8 @@
 {% block title %}Becas · Nuevo relevamiento{% endblock %}
 
 {% block main-content %}
-<div class="">
+<style>[x-cloak]{display:none!important}</style>
+<div x-data="{ tipoRel: '{{ form.tipo.value|default:"TERRITORIAL" }}' }">
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-1">Nuevo relevamiento</h1>
   <p class="text-sm text-body-subtle mb-6">El nombre se genera automáticamente con su número y convocatoria.</p>
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
@@ -17,11 +18,32 @@
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% if field.name == "territorial" and request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ field.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}{% endfor %}
+    {% if form.tipo %}
+      {% with field=form.tipo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% endif %}
+    {% with field=form.convocatoria %}{% include "programas/becas/_field.html" %}{% endwith %}
+    <fieldset x-show="tipoRel==='TERRITORIAL'" :disabled="tipoRel!=='TERRITORIAL'" class="border-0 p-0 m-0">
+      {% with field=form.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
+      {% with field=form.municipio %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% with field=form.zona %}{% include "programas/becas/_field.html" %}{% endwith %}
+    </fieldset>
+    {% with field=form.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% if form.tipo %}
+    <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="border-0 p-0 m-0">
+      <label class="mb-4 flex items-center gap-2 text-sm text-heading" for="{{ form.confirmar_por_email.id_for_label }}">
+        {{ form.confirmar_por_email }}
+        Enviar confirmación por correo al inscribirse
+      </label>
+    </fieldset>
+    {% endif %}
+    {% with field=form.observaciones %}{% include "programas/becas/_field.html" %}{% endwith %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base">
-        {% if advertencia_solapamiento %}Confirmar asignación{% else %}Crear y asignar{% endif %}
+        {% if advertencia_solapamiento %}Confirmar asignación{% else %}Crear relevamiento{% endif %}
       </button>
     </div>
   </form>

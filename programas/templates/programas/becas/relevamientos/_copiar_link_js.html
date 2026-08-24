@@ -1,0 +1,18 @@
+{% comment %}Copia al portapapeles el link público de un relevamiento.
+   Uso: <button data-copy-link="https://...">. Toast de confirmación con el
+   sistema NODO (window.toast, cargado por includes/base.html).{% endcomment %}
+<script>
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-copy-link]');
+  if (!btn) return;
+  var link = btn.getAttribute('data-copy-link');
+  function avisar() {
+    if (window.toast && window.toast.success) window.toast.success('Link copiado al portapapeles.');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(avisar, function () { window.prompt('Copiá el link:', link); });
+  } else {
+    window.prompt('Copiá el link:', link);
+  }
+});
+</script>

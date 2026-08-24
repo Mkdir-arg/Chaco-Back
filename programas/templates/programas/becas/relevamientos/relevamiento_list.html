@@ -4,7 +4,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="mb-8" x-data="{ modalRel: false }">
+<div class="mb-8" x-data="{ modalRel: false, tipoRel: 'TERRITORIAL' }">
 
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
@@ -95,11 +95,23 @@
               <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:underline">{{ rel.nombre }}</a>
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.convocatoria.segmento.nombre }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.territorial.get_full_name|default:rel.territorial.username }}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona }}</td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">
+              {% if rel.territorial %}
+                {{ rel.territorial.get_full_name|default:rel.territorial.username }}
+              {% else %}
+                <span class="badge badge-info">Formulario público</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.zona|default:"—" }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ rel.fecha_asignada|date:"d/m/Y H:i" }} al {{ rel.fecha_hasta|date:"d/m/Y H:i" }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light">{% include "programas/becas/relevamientos/_estado_badge.html" %}</td>
-            <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+            <td class="px-4 py-[13px] text-sm border-t border-light text-right whitespace-nowrap">
+              {% if rel.es_publico %}
+              <button type="button" class="text-fg-brand hover:opacity-70 p-1" title="Copiar link de inscripción" aria-label="Copiar link de inscripción"
+                      data-copy-link="{{ request.scheme }}://{{ request.get_host }}{{ rel.url_publica }}">
+                <i class="fas fa-link"></i>
+              </button>
+              {% endif %}
               <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="text-fg-brand hover:opacity-70 p-1" title="Ver" aria-label="Ver">
                 <i class="fas fa-eye"></i>
               </a>
@@ -166,34 +178,46 @@
         <div class="p-6 space-y-4">
           <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
             <i class="fas fa-circle-info mt-0.5"></i>
-            <span>El relevamiento recibe automáticamente el próximo número disponible dentro de la convocatoria seleccionada y queda en estado Asignado.</span>
+            <span x-show="tipoRel==='TERRITORIAL'">El relevamiento recibe automáticamente el próximo número disponible dentro de la convocatoria seleccionada y queda en estado Asignado.</span>
+            {% if puede_publico %}
+            <span x-show="tipoRel==='PUBLICO'" x-cloak>Se generará un link público al guardar. El relevamiento queda <strong>En curso</strong> hasta su fecha de fin y no requiere territorial ni municipio/localidad.</span>
+            {% endif %}
           </div>
           {% if form_crear.non_field_errors %}
             <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
+          {% endif %}
+          {% if puede_publico %}
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.tipo.id_for_label }}">Tipo de relevamiento <span class="text-fg-danger">*</span></label>
+            {{ form_crear.tipo }}
+            <p class="text-xs text-body-subtle mt-1">Territorial va a la app de campo; Formulario público genera un link para que las personas se inscriban solas.</p>
+          </div>
           {% endif %}
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
             {{ form_crear.convocatoria }}
           </div>
-          <div>
-            <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
-            {{ form_crear.territorial }}
-            {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
-            <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <fieldset x-show="tipoRel==='TERRITORIAL'" :disabled="tipoRel!=='TERRITORIAL'" class="space-y-4 border-0 p-0 m-0">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Municipio <span class="text-fg-danger">*</span></label>
-              {{ form_crear.municipio }}
-              <p class="text-xs text-body-subtle mt-1">Filtra las localidades disponibles.</p>
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="municipio"></p>
+              <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
+              {{ form_crear.territorial }}
+              {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
+              <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-heading mb-1">Localidad <span class="text-fg-danger">*</span></label>
-              {{ form_crear.zona }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Municipio <span class="text-fg-danger">*</span></label>
+                {{ form_crear.municipio }}
+                <p class="text-xs text-body-subtle mt-1">Filtra las localidades disponibles.</p>
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="municipio"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Localidad <span class="text-fg-danger">*</span></label>
+                {{ form_crear.zona }}
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
+              </div>
             </div>
-          </div>
+          </fieldset>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Fecha desde <span class="text-fg-danger">*</span></label>
@@ -204,6 +228,19 @@
               {{ form_crear.fecha_hasta }}
             </div>
           </div>
+          {% if puede_publico %}
+          <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="space-y-4 border-0 p-0 m-0">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.cupo_maximo.id_for_label }}">Cupo de personas</label>
+              {{ form_crear.cupo_maximo }}
+              <p class="text-xs text-body-subtle mt-1">El link deja de aceptar inscripciones al llenarse el cupo.</p>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-heading" for="{{ form_crear.confirmar_por_email.id_for_label }}">
+              {{ form_crear.confirmar_por_email }}
+              Enviar confirmación por correo al inscribirse
+            </label>
+          </fieldset>
+          {% endif %}
         </div>
         <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
           <button type="button" @click="modalRel=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
@@ -215,5 +252,6 @@
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
 {% include "programas/becas/relevamientos/_cascada_localidad.html" %}
+{% include "programas/becas/relevamientos/_copiar_link_js.html" %}
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}

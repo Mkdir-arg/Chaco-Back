@@ -1069,6 +1069,7 @@ class RelevamientoForm(forms.ModelForm):
     )
 
     field_order = [
+        "tipo",
         "convocatoria",
         "territorial",
         "municipio",
@@ -1076,21 +1077,26 @@ class RelevamientoForm(forms.ModelForm):
         "fecha_asignada",
         "fecha_hasta",
         "cupo_maximo",
+        "confirmar_por_email",
         "observaciones",
     ]
 
     class Meta:
         model = Relevamiento
         fields = [
+            "tipo",
             "convocatoria",
             "territorial",
             "fecha_asignada",
             "fecha_hasta",
             "zona",
             "cupo_maximo",
+            "confirmar_por_email",
             "observaciones",
         ]
         widgets = {
+            # x-model: los templates del alta togglean campos por tipo (Alpine).
+            "tipo": forms.Select(attrs={"class": INPUT_CLASS, "x-model": "tipoRel"}),
             "convocatoria": forms.Select(attrs={"class": INPUT_CLASS}),
             "territorial": forms.Select(attrs={"class": INPUT_CLASS}),
             "fecha_asignada": forms.DateTimeInput(
@@ -1100,6 +1106,7 @@ class RelevamientoForm(forms.ModelForm):
                 format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}
             ),
             "cupo_maximo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
+            "confirmar_por_email": forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
             "observaciones": forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
         }
 
@@ -1110,10 +1117,23 @@ class RelevamientoForm(forms.ModelForm):
         convocatorias_permitidas=None,
         territoriales_permitidos=None,
         operador=None,
+        puede_publico=False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.operador = operador
+        # Gateo RBAC (RN-P13, análisis #289): sin la capacidad
+        # ``becas.relevamiento.publico`` el selector de tipo no existe y el
+        # form es exactamente el de siempre. El intento de forzar tipo=PUBLICO
+        # por POST se rechaza en clean().
+        self.puede_publico = puede_publico
+        if not puede_publico:
+            self.fields.pop("tipo")
+            self.fields.pop("confirmar_por_email")
+        else:
+            # Retrocompatibilidad: un POST sin tipo sigue siendo un alta
+            # territorial (clean_tipo aplica el default del modelo).
+            self.fields["tipo"].required = False
         from programas.services.autorizacion import usuarios_territoriales_becas
 
         terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial", "profile")
@@ -1160,7 +1180,23 @@ class RelevamientoForm(forms.ModelForm):
         # el valor vigente (o el default del modelo en un alta).
         self.fields["fecha_hasta"].required = False
         self.fields["cupo_maximo"].required = False
+        # El modelo permite territorial nulo (públicos), pero para el flujo
+        # territorial sigue siendo obligatorio a nivel form.
+        self.fields["territorial"].required = True
+        if self._tipo_elegido() == Relevamiento.Tipo.PUBLICO:
+            for campo in ("territorial", "municipio", "zona"):
+                self.fields[campo].required = False
         self._preparar_localidad()
+
+    def _tipo_elegido(self):
+        """Tipo efectivo del alta: lo elegido en el POST (si la capacidad lo
+        habilitó), o el del modelo/instancia. Sin capacidad siempre es
+        TERRITORIAL: el campo no existe y el clean() rechaza el intento."""
+        if "tipo" not in self.fields:
+            return Relevamiento.Tipo.TERRITORIAL
+        if self.is_bound:
+            return self.data.get(self.add_prefix("tipo")) or Relevamiento.Tipo.TERRITORIAL
+        return self.initial.get("tipo") or self.instance.tipo or Relevamiento.Tipo.TERRITORIAL
 
     def _preparar_localidad(self):
         """Deja listos los dos selectores de la zona.
@@ -1184,12 +1220,17 @@ class RelevamientoForm(forms.ModelForm):
         vacia = "Elegí una localidad" if opciones else "Elegí primero el municipio"
         self.fields["zona"].widget.choices = [("", vacia), *opciones]
 
+    def clean_tipo(self):
+        return self.cleaned_data.get("tipo") or Relevamiento.Tipo.TERRITORIAL
+
     def clean_zona(self):
         """Del catálogo al texto: se guarda el nombre de la localidad.
 
         El cruce contra el municipio se hace acá porque ``field_order`` lo limpia
         antes; después de esto la instancia de Localidad se pierde.
         """
+        if self._tipo_elegido() == Relevamiento.Tipo.PUBLICO:
+            return ""
         localidad = self.cleaned_data.get("zona")
         if localidad is None:
             return ""
@@ -1200,6 +1241,16 @@ class RelevamientoForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        # Sin la capacidad, un POST armado a mano con tipo=PUBLICO se rechaza
+        # explícitamente (ocultar no es bloquear).
+        if not self.puede_publico and self.data.get(self.add_prefix("tipo")) == Relevamiento.Tipo.PUBLICO:
+            raise forms.ValidationError("No tenés permiso para crear relevamientos de formulario público.")
+        if cleaned.get("tipo") == Relevamiento.Tipo.PUBLICO:
+            if cleaned.get("territorial"):
+                self.add_error("territorial", "Un relevamiento de formulario público no lleva territorial.")
+            cleaned["territorial"] = None
+            cleaned["zona"] = ""
+            cleaned["municipio"] = None
         convocatoria = cleaned.get("convocatoria")
         territorial = cleaned.get("territorial")
         if convocatoria and territorial:

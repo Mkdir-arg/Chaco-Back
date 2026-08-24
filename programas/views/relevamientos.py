@@ -38,7 +38,7 @@ from programas.services.autorizacion import (
     subsegmentos_visibles,
     usuarios_territoriales_becas,
 )
-from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
+from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
 CAP_CONVOCATORIA_CREAR = "becas.convocatoria.crear"
@@ -46,7 +46,21 @@ CAP_CONVOCATORIA_EDITAR = "becas.convocatoria.editar"
 CAP_RELEVAMIENTO_VER = "becas.relevamiento.ver"
 CAP_RELEVAMIENTO_CREAR = "becas.relevamiento.crear"
 CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
+# Gateo del formulario público (RN-P13, análisis #289): sin esta capacidad los
+# relevamientos públicos no existen para el usuario (ni selector, ni listados).
+CAP_RELEVAMIENTO_PUBLICO = "becas.relevamiento.publico"
 CAP_REPORTES = "becas.programa.administrar"
+
+
+def _puede_publico(user):
+    return puede(user, CAP_RELEVAMIENTO_PUBLICO)
+
+
+def _sin_publicos_si_no_puede(qs, user):
+    """Excluye los relevamientos públicos para quien no tiene la capacidad."""
+    if _puede_publico(user):
+        return qs
+    return qs.exclude(tipo=Relevamiento.Tipo.PUBLICO)
 
 
 def _convocatorias_qs(request):
@@ -72,7 +86,11 @@ def _convocatorias_ajax(request, message="Convocatoria guardada."):
 def _relevamientos_ajax(request, convocatoria, message="Relevamiento creado y asignado."):
     """Re-renderiza la tabla de relevamientos de una convocatoria (pestaña
     "Relevamientos" de su detalle) tras crear uno desde el modal embebido."""
-    relevamientos = list(convocatoria.relevamientos.select_related("territorial").order_by("-fecha_asignada"))
+    relevamientos = list(
+        _sin_publicos_si_no_puede(convocatoria.relevamientos.select_related("territorial"), request.user).order_by(
+            "-fecha_asignada"
+        )
+    )
     return ajax_ok(
         request,
         target="#relevamientos-table",
@@ -145,7 +163,11 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         conv = self.object
         # Materializados una vez: los counts se derivan en Python (evita 3
         # queries COUNT extra sobre los mismos datos).
-        relevamientos = list(conv.relevamientos.select_related("territorial").order_by("-fecha_asignada"))
+        relevamientos = list(
+            _sin_publicos_si_no_puede(conv.relevamientos.select_related("territorial"), self.request.user).order_by(
+                "-fecha_asignada"
+            )
+        )
         ctx["relevamientos"] = relevamientos
         # Beneficiarios = formularios cargados en los relevamientos de esta convocatoria.
         beneficiarios = list(
@@ -168,6 +190,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         form.fields["segmento"].queryset = segmentos
         ctx["form_convocatoria"] = form
         # Modal "Nuevo relevamiento" con esta convocatoria preseleccionada.
+        ctx["puede_publico"] = _puede_publico(self.request.user)
         ctx["form_crear"] = RelevamientoForm(
             initial={"convocatoria": conv},
             segmentos_permitidos=segmentos,
@@ -176,6 +199,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
                 asignacion_territorial__segmento__in=segmentos
             ),
             operador=self.request.user,
+            puede_publico=ctx["puede_publico"],
         )
         # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
         ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
@@ -338,7 +362,7 @@ def convocatoria_export_relevamientos(request, pk):
         ]
     )
     relevamientos = (
-        conv.relevamientos.select_related("territorial")
+        _sin_publicos_si_no_puede(conv.relevamientos.select_related("territorial"), request.user)
         .annotate(
             n_enviados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.ENVIADO)),
             n_aprobados=Count("formularios", filter=Q(formularios__estado=Formulario.Estado.APROBADO)),
@@ -347,7 +371,7 @@ def convocatoria_export_relevamientos(request, pk):
         .order_by("-fecha_asignada")
     )
     for r in relevamientos:
-        terr = r.territorial.get_full_name() or r.territorial.username
+        terr = (r.territorial.get_full_name() or r.territorial.username) if r.territorial else "Formulario público"
         writer.writerow(
             [
                 r.nombre,
@@ -409,6 +433,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
             .filter(convocatoria__in=convocatorias_visibles(self.request.user))
             .order_by("-fecha_asignada", "nombre")
         )
+        qs = _sin_publicos_si_no_puede(qs, self.request.user)
 
         q = self.request.GET.get("q", "").strip()
         estado = self.request.GET.get("estado", "").strip()
@@ -455,11 +480,13 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         query_params.pop("page", None)
         ctx["querystring"] = query_params.urlencode()
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
+        ctx["puede_publico"] = _puede_publico(self.request.user)
         form_crear = RelevamientoForm(
             segmentos_permitidos=segmentos,
             convocatorias_permitidas=convocatorias_visibles(self.request.user),
             territoriales_permitidos=territoriales,
             operador=self.request.user,
+            puede_publico=ctx["puede_publico"],
         )
         # El filtro y el modal usan los mismos territoriales. Congelar las
         # opciones evita consultar dos veces el mismo queryset al renderizar.
@@ -489,18 +516,22 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
             asignacion_territorial__segmento__in=segmentos_visibles(self.request.user)
         )
         kwargs["operador"] = self.request.user
+        kwargs["puede_publico"] = _puede_publico(self.request.user)
         return kwargs
 
     def form_valid(self, form):
-        territorial = form.cleaned_data["territorial"]
+        territorial = form.cleaned_data.get("territorial")
         fecha_desde = form.cleaned_data["fecha_asignada"]
         fecha_hasta = form.cleaned_data["fecha_hasta"]
+        # El control de solapamiento es por territorial; a un público no aplica.
         solapamiento = (
             Relevamiento.asignaciones_solapadas(
                 territorial=territorial, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta
             )
             .only("zona")
             .first()
+            if territorial
+            else None
         )
         if solapamiento and self.request.POST.get("confirmar_solapamiento") != "1":
             mensaje = _mensaje_solapamiento(territorial, fecha_desde, fecha_hasta, solapamiento)
@@ -517,6 +548,14 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
             )
 
         self.object = form.save()
+        if self.object.es_publico:
+            # El link se muestra en el detalle: se navega ahí directamente.
+            detalle = reverse("becas:relevamiento_detalle", kwargs={"pk": self.object.pk})
+            mensaje = "Relevamiento público creado. Compartí el link de inscripción."
+            if is_ajax(self.request):
+                return ajax_redirect(detalle, mensaje)
+            messages.success(self.request, mensaje)
+            return redirect(detalle)
         if is_ajax(self.request):
             return _relevamientos_ajax(self.request, self.object.convocatoria)
         messages.success(self.request, "Relevamiento creado y asignado.")
@@ -547,11 +586,14 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
         _assert_scope(self.request, obj)
+        if obj.es_publico and not _puede_publico(self.request.user):
+            raise PermissionDenied("No tiene acceso a los relevamientos de formulario público.")
         return obj
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         rel = self.object
+        ctx["link_publico"] = self.request.build_absolute_uri(rel.url_publica) if rel.es_publico else ""
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
@@ -617,6 +659,9 @@ def relevamiento_reabrir(request, pk):
 def relevamiento_reasignar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
+    if rel.es_publico:
+        messages.error(request, "Un relevamiento de formulario público no lleva territorial.")
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if _rechazar_si_pausado(request, rel):
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
     if request.method == "POST":
