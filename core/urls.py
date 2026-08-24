@@ -24,7 +24,11 @@ app_name = "core"
 
 
 def dashboard_redirect(request):
-    return redirect("dashboard:inicio")
+    # `/dashboard/` es un alias histórico del inicio del backoffice. Apuntar a
+    # `dashboard:inicio` era ambiguo: esa vista está montada en la raíz, así que
+    # reverseaba a `/` —la misma URL que el login— y el usuario autenticado
+    # rebotaba por la pantalla de login en vez de ir derecho al inicio.
+    return redirect("core:inicio")
 
 
 urlpatterns = [

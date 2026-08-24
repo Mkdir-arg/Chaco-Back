@@ -181,6 +181,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — implementado; falta envío real y aprobación de textos** | `users.0022` |
 | 38 | Cerrar sesión da error 405 después de actualizar Django | Transversal / sesión | `#sesion` `#infra` `#ui` | PM — reportó el 405 al entrar a `/logout` | 20/08/2026 | 🟢 **Hecho** | No |
 | 39 | En el login aparece el logo de Nodo en lugar del del Chaco | Transversal / marca | `#ui` `#sesion` `#infra` | PM — vio la marca del proveedor en la pantalla de acceso | 21/08/2026 | 🟢 **Hecho** | No |
+| 40 | Corregir la redirección autenticada de `/dashboard/` | Transversal / ruteo | `#sesion` `#ui` | Hallazgo propio en la validación HTTP de #262 y la PR #284 | 20/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -3294,6 +3295,103 @@ sin cambio obligatorio, que es el comportamiento previo.
 3. Restaurar `users/services/invitations.py` y los templates de correo movidos.
 4. La configuración SMTP puede quedar: con `EMAIL_HOST` vacío el sistema vuelve al
    backend de consola.
+
+## Historial
+
+No aplica: entrada nueva.
+
+# Cambio 40 — Corregir la redirección autenticada de `/dashboard/`
+
+🟢 **HECHO — 24/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / ruteo |
+| **Etiquetas** | `#sesion` `#ui` |
+| **Solicitante** | Hallazgo propio en la validación HTTP de #262 y la PR #284 |
+| **Fecha del pedido** | 20/08/2026 |
+| **Issue / épica** | #285 (padre #262, PR relacionada #284) |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Corregir la redirección autenticada de `/dashboard/`: no debe terminar en `/`
+(login), sino en `/inicio/`.» Del issue #285, que además pide eliminar la
+resolución ambigua de `dashboard:inicio`, conservar `login_required` y agregar la
+regresión.
+
+## Alcance acordado
+
+Entra: el destino del redirect de `/dashboard/`, su regresión automática y la
+verificación de que la ruta deje de clasificarse como redirect al login.
+
+Queda afuera: mover o renombrar `dashboard:inicio` —la vista del dashboard sigue
+montada donde estaba— y cualquier cambio en la pantalla de inicio.
+
+## Decisiones tomadas
+
+- **El alias apunta al nombre explícito `core:inicio`, no a `dashboard:inicio`.**
+  `dashboard.urls` está incluido en la raíz (`path("", include("dashboard.urls"))`)
+  y su vista `inicio` vive en `path("", ...)`, así que `reverse("dashboard:inicio")`
+  devolvía `/`: exactamente la misma URL que `users:login`. El redirect era correcto
+  en la intención y equivocado en el destino.
+- **No se toca el montaje de `dashboard.urls`.** Desambiguar moviendo esa app a un
+  prefijo propio arrastraría todos sus endpoints de API, y no es lo que pide el
+  issue: alcanza con que el alias nombre su destino sin ambigüedad.
+- **El redirect sigue siendo temporal (302) y detrás de `login_required`.** La sonda
+  `scripts/perf_http_probe.py` espera 302 en esa ruta.
+
+## Implementación
+
+Un usuario autenticado que entra a `/dashboard/` aterriza en `/inicio/` en un solo
+salto. Un usuario anónimo sigue yendo al login con `?next=/dashboard/`.
+
+## Archivos
+
+- `core/urls.py` — `dashboard_redirect` redirige a `core:inicio`, con el comentario
+  que explica por qué el nombre anterior era ambiguo.
+- `core/tests/test_dashboard_redirect.py` — nuevo: regresión del destino y de la
+  protección anónima.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py test core.tests.test_dashboard_redirect core.tests.test_url_namespaces`
+  → 8 tests OK.
+- **La regresión se verificó en rojo**: contra el código anterior, 2 de los 3 casos
+  nuevos fallan con `'/' != '/inicio/'`; el de protección anónima pasa en ambos
+  lados, como corresponde.
+- `manage.py check` → sin issues.
+- `ruff check` y `ruff format --check` sobre los dos archivos → limpios.
+- `scripts/design_audit.py --changed` → 0 errores, 0 warnings (no se tocó UI).
+- Verificación HTTP sobre el stack local, sin seguir redirects: anónimo
+  `/dashboard/` → 302 a `/?next=/dashboard/`; autenticado → 302 a `/inicio/` (antes
+  era 302 a `/`). Siguiendo redirects bajó de 2 saltos a 1.
+
+## Puesta en marcha en el servidor
+
+No requiere: solo código.
+
+## Pendientes / a definir
+
+- **La sonda `scripts/perf_http_probe.py` no se corrió completa.** Su manifiesto
+  necesita fixtures propias (`ciudadano_pk`, `conversacion_pk`, `relevamiento_pk`) y
+  `seed_perf` exige una base llamada exactamente `chaco_perf_ci`, o sea otro stack.
+  El criterio quedó cubierto de forma equivalente: `is_login_redirect()` marca todo
+  302 cuyo `Location` tenga path `/`, y ahora el destino es `/inicio/`.
+- **`dashboard:inicio` sigue reverseando a `/`.** Ya no lo usa nadie para redirigir,
+  pero el nombre continúa siendo ambiguo para quien lo tome a futuro.
+
+## Reversión
+
+1. Revertir `core/urls.py`: una línea, el destino del redirect.
+2. Borrar `core/tests/test_dashboard_redirect.py`.
+
+No se pierden datos.
 
 ## Historial
 
