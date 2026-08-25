@@ -16,6 +16,7 @@ Garantías dentro de la transacción (mismo patrón que la API de campo):
 from __future__ import annotations
 
 import logging
+import uuid
 
 from django.core.mail import send_mail
 from django.db import transaction
@@ -24,8 +25,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from programas.models import AdjuntoFormulario, Convocatoria, Formulario, Relevamiento
-from programas.services.becas import resolver_ciudadano_offline
+from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.padron import esta_habilitado
+from programas.services.personas import fecha_iso
 
 
 class InscripcionNoDisponible(Exception):
@@ -72,9 +74,14 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
     with transaction.atomic():
         rel = Relevamiento.objects.select_for_update().get(pk=relevamiento.pk)
         if client_uuid:
-            existente = rel.formularios.filter(client_uuid=client_uuid).first()
-            if existente:
-                return existente, False
+            try:
+                client_uuid_obj = uuid.UUID(str(client_uuid))
+            except (TypeError, ValueError):
+                client_uuid_obj = None
+            if client_uuid_obj:
+                existente = formulario_por_client_uuid(rel, client_uuid_obj)
+                if existente:
+                    return existente, False
         if rel.estado != Relevamiento.Estado.EN_CURSO or not rel.habilitado_en(timezone.now()):
             raise InscripcionNoDisponible()
         if rel.formularios.count() >= rel.cupo_maximo:
@@ -90,7 +97,10 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
         if es_validado:
             nombre = datos_basicos.get("nombre", "")
             apellido = datos_basicos.get("apellido", "")
-            fecha_nacimiento = datos_basicos.get("fecha_nacimiento", "")
+            fecha_nacimiento = fecha_iso(datos_basicos.get("fecha_nacimiento"))
+            if not fecha_nacimiento:
+                fecha = cleaned.get("fecha_nacimiento")
+                fecha_nacimiento = fecha.isoformat() if fecha else ""
         else:
             nombre = cleaned.get("nombre", "")
             apellido = cleaned.get("apellido", "")

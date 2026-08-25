@@ -34,7 +34,7 @@
       <tbody>{% for formulario in formularios %}<tr class="border-t border-light">
         <td class="px-4 py-3 text-sm text-heading">{% if formulario.ciudadano %}{{ formulario.ciudadano.nombre_completo }} ({{ formulario.ciudadano.dni }}){% else %}Sin ciudadano vinculado{% endif %}</td>
         <td class="px-4 py-3 text-sm text-body">{{ formulario.creado|date:'d/m/Y' }}</td>
-        <td class="px-4 py-3 text-sm text-body">{{ formulario.relevamiento.territorial.username }}</td>
+        <td class="px-4 py-3 text-sm text-body">{% if formulario.relevamiento.territorial %}{{ formulario.relevamiento.territorial.username }}{% else %}Formulario pÃºblico{% endif %}</td>
         <td class="px-4 py-3 text-sm text-body">{{ formulario.relevamiento.convocatoria.segmento.nombre }}</td>
         <td class="px-4 py-3 text-right"><a href="{% url 'becas:formulario_detalle' formulario.pk %}" class="btn-nodo btn-tertiary btn-sm">Abrir</a></td>
       </tr>{% endfor %}</tbody>

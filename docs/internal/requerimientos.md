@@ -3411,4 +3411,16 @@ Revertir los PRs en orden inverso (#304 → #301). Las migraciones se retroceden
 - **Duplicado por convocatoria**: se lockea la convocatoria antes del chequeo (dos envíos simultáneos por relevamientos distintos podían pasar ambos) y RN-P5 quedó en una sola función compartida por portal e ingesta.
 - Un relevamiento cambiado a público desde el admin quedaba **sin token** → se genera en `save()` siempre que falte.
 
+**25/08/2026 - Fase 6 - segunda revision.** Se implementaron las correcciones de la segunda revision:
+
+- El rate limit del paso 1 deja de confiar en el primer `X-Forwarded-For`: usa `X-Real-IP`, luego el ultimo forwarded, y el portal delega en el throttle central.
+- El captcha del paso 1 se consume apenas valida correctamente, aun cuando despues el flujo vuelva con error.
+- La idempotencia por `client_uuid` del formulario publico usa el helper tolerante a UUID texto/sin guiones compartido con la API.
+- `formulario_revalidar_renaper` vuelve a pasar por `_assert_scope_formulario` antes de mutar datos del ciudadano.
+- Si Gran Base valida identidad pero no entrega fecha normalizable, el paso 2 pide fecha de nacimiento y RN-22 vuelve a exigir apoderado para menores.
+- El DNI del apoderado se normaliza y valida siempre que venga cargado, tambien en formularios de adultos.
+- La creacion de relevamientos publicos con padron queda atomica: si falla la carga del padron no queda link abierto.
+- Los listados de revision y pendientes RENAPER excluyen formularios publicos cuando el usuario no tiene `becas.relevamiento.publico`.
+- Beneficiarios de convocatoria y su CSV aplican el mismo recorte de formularios publicos que los relevamientos visibles.
+- El admin deja `tipo` como solo lectura al editar un relevamiento; la conversion territorial/publico queda bloqueada.
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.

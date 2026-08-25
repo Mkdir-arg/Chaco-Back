@@ -63,6 +63,12 @@ def _sin_publicos_si_no_puede(qs, user):
     return qs.exclude(tipo=Relevamiento.Tipo.PUBLICO)
 
 
+def _sin_formularios_publicos_si_no_puede(qs, user):
+    if _puede_publico(user):
+        return qs
+    return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
+
+
 def _convocatorias_qs(request):
     return (
         Convocatoria.objects.select_related("segmento", "subsegmento")
@@ -174,7 +180,10 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["relevamientos"] = relevamientos
         # Beneficiarios = formularios cargados en los relevamientos de esta convocatoria.
         beneficiarios = list(
-            Formulario.objects.filter(relevamiento__convocatoria=conv)
+            _sin_formularios_publicos_si_no_puede(
+                Formulario.objects.filter(relevamiento__convocatoria=conv),
+                self.request.user,
+            )
             .select_related("ciudadano", "relevamiento")
             .order_by("-creado")
         )
@@ -327,7 +336,10 @@ def convocatoria_export_beneficiarios(request, pk):
     writer = csv.writer(response)
     writer.writerow(["Nombre", "DNI", "Segmento", "Convocatoria", "Fecha de aprobación"])
     formularios = (
-        Formulario.objects.filter(relevamiento__convocatoria=conv, estado=Formulario.Estado.APROBADO)
+        _sin_formularios_publicos_si_no_puede(
+            Formulario.objects.filter(relevamiento__convocatoria=conv, estado=Formulario.Estado.APROBADO),
+            request.user,
+        )
         .select_related("ciudadano", "relevamiento")
         .order_by("-creado")
     )

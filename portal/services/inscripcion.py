@@ -1,8 +1,8 @@
-"""Servicios del formulario público de inscripción de Becas (#293, análisis #289).
+"""Servicios del formulario publico de inscripcion de Becas (#293, analisis #289).
 
 Reglas del paso 1 del link: disponibilidad del relevamiento, control de
 duplicados por convocatoria completa (RN-P5), rate limiting por IP (RN-P11) y
-el desafío anti-bot. El padrón (RN-P14) vive en ``programas.services.padron``
+el desafio anti-bot. El padron (RN-P14) vive en ``programas.services.padron``
 y la consulta de identidad en ``programas.services.personas``.
 """
 
@@ -11,14 +11,14 @@ from __future__ import annotations
 import random
 
 from django.conf import settings
-from django.core.cache import cache
 from django.utils import timezone
 
+from core.services.throttle import rate_limit_excedido
 from programas.models import Relevamiento
 from programas.services.inscripcion_publica import dni_en_convocatoria
 
 # Rate limit del paso 1 (RN-P11): intentos por IP dentro de la ventana. Los
-# rechazos por límite o captcha nunca llegan a consultar RENAPER/Gran Base.
+# rechazos por limite o captcha nunca llegan a consultar RENAPER/Gran Base.
 MAX_INTENTOS_IP = getattr(settings, "INSCRIPCION_MAX_INTENTOS_IP", 10)
 VENTANA_SEGUNDOS = getattr(settings, "INSCRIPCION_VENTANA_SEGUNDOS", 600)
 
@@ -27,8 +27,7 @@ SESSION_KEY_CAPTCHA_PREGUNTA = "inscripcion_captcha_pregunta"
 
 
 def relevamiento_disponible(relevamiento):
-    """¿El link acepta envíos? Una sola respuesta para vencido, pausado, cupo
-    lleno o cerrado: la pantalla pública no revela el motivo (RN-P4)."""
+    """El link acepta envios cuando esta publico, vigente, en curso y con cupo."""
     return bool(
         relevamiento.es_publico
         and relevamiento.estado == Relevamiento.Estado.EN_CURSO
@@ -37,36 +36,16 @@ def relevamiento_disponible(relevamiento):
     )
 
 
-# RN-P5 vive en una sola función (la ingesta la re-chequea en su transacción).
+# RN-P5 vive en una sola funcion (la ingesta la re-chequea en su transaccion).
 dni_ya_inscripto = dni_en_convocatoria
 
 
-def _ip_de(request):
-    reenviada = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if reenviada:
-        return reenviada.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
-
-
-def intentos_excedidos(request):
-    clave = f"inscripcion:intentos:{_ip_de(request)}"
-    return (cache.get(clave) or 0) >= MAX_INTENTOS_IP
-
-
-def registrar_intento(request):
-    clave = f"inscripcion:intentos:{_ip_de(request)}"
-    if cache.add(clave, 1, VENTANA_SEGUNDOS):
-        return 1
-    try:
-        return cache.incr(clave)
-    except ValueError:  # la clave expiró entre el add y el incr
-        cache.set(clave, 1, VENTANA_SEGUNDOS)
-        return 1
+def paso1_excedido(request):
+    return rate_limit_excedido(request, "inscripcion_paso1", MAX_INTENTOS_IP, VENTANA_SEGUNDOS)
 
 
 def nuevo_captcha(request):
-    """Desafío aritmético anti-bot del paso 1 (decisión del plan: autoalojado,
-    sin servicio externo ni dependencia nueva). Se regenera en cada render."""
+    """Desafio aritmetico anti-bot del paso 1."""
     a, b = random.randint(2, 9), random.randint(2, 9)
     request.session[SESSION_KEY_CAPTCHA] = a + b
     request.session[SESSION_KEY_CAPTCHA_PREGUNTA] = f"¿Cuánto es {a} + {b}?"
@@ -85,6 +64,11 @@ def captcha_valido(request, respuesta):
         return False
 
 
+def consumir_captcha(request):
+    request.session.pop(SESSION_KEY_CAPTCHA, None)
+    request.session.pop(SESSION_KEY_CAPTCHA_PREGUNTA, None)
+
+
 def clave_sesion(relevamiento):
-    """La identificación del paso 1 vive en la sesión, por relevamiento."""
+    """La identificacion del paso 1 vive en la sesion, por relevamiento."""
     return f"inscripcion_{relevamiento.pk}"

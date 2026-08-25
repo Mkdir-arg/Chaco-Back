@@ -129,6 +129,12 @@ def _assert_scope_formulario(request, formulario):
         raise PermissionDenied("No tiene acceso a este formulario.")
 
 
+def _sin_formularios_publicos_si_no_puede(qs, user):
+    if puede(user, CAP_RELEVAMIENTO_PUBLICO):
+        return qs
+    return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
+
+
 def _tiene_conflicto_duplicado_pendiente(formulario):
     return (
         formulario.conflicto_duplicado and not formulario.conflicto_resuelto
@@ -152,6 +158,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
             .filter(relevamiento__convocatoria__in=convocatorias_visibles(self.request.user))
             .order_by("-creado")
         )
+        qs = _sin_formularios_publicos_si_no_puede(qs, self.request.user)
         estado = self.request.GET.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
@@ -162,7 +169,10 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         ctx["estados"] = Formulario.Estado.choices
         ctx["estado_actual"] = self.request.GET.get("estado", "")
         ctx["puede_revalidar_renaper"] = puede(self.request.user, CAP_REVALIDAR_RENAPER)
-        ctx["pendientes_renaper"] = Formulario.objects.filter(validado_renaper=False).count()
+        ctx["pendientes_renaper"] = _sin_formularios_publicos_si_no_puede(
+            Formulario.objects.filter(validado_renaper=False),
+            self.request.user,
+        ).count()
         return ctx
 
 
@@ -176,6 +186,7 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
         queryset = Formulario.objects.filter(validado_renaper=False).select_related(
             "ciudadano", "relevamiento__territorial", "relevamiento__convocatoria__segmento"
         )
+        queryset = _sin_formularios_publicos_si_no_puede(queryset, self.request.user)
         if self.request.GET.get("fecha"):
             queryset = queryset.filter(creado__date=self.request.GET["fecha"])
         # Los filtros llegan por GET: solo se aplican si son ids válidos.
@@ -201,9 +212,10 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base = Formulario.objects.filter(validado_renaper=False)
+        base = _sin_formularios_publicos_si_no_puede(base, self.request.user)
         context["territoriales"] = self.territoriales_pendientes(base)
         context["segmentos"] = (
-            Segmento.objects.filter(convocatorias__relevamientos__formularios__validado_renaper=False)
+            Segmento.objects.filter(convocatorias__relevamientos__formularios__in=base)
             .distinct()
             .order_by("nombre")
         )
@@ -562,6 +574,7 @@ def formulario_rechazar(request, pk):
 @requiere(CAP_REVALIDAR_RENAPER)
 def formulario_revalidar_renaper(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
+    _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     ciudadano = formulario.ciudadano

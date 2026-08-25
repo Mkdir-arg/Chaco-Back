@@ -34,8 +34,9 @@
             </div>
         {% endif %}
 
-        {% if form.es_manual %}
+        {% if form.es_manual or "fecha_nacimiento" in form.fields %}
         <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Tus datos</h2>
+        {% if not form.es_manual %}<p class="text-xs mb-3" style="color: var(--text-body-subtle);">No pudimos obtener tu fecha de nacimiento: completala.</p>{% endif %}
         <div class="space-y-4 mb-6">
             {% for campo in form %}{% if campo.name == "nombre" or campo.name == "apellido" or campo.name == "fecha_nacimiento" %}
             <div>

@@ -8,7 +8,7 @@ from datetime import datetime, time
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -1248,12 +1248,13 @@ class RelevamientoForm(forms.ModelForm):
         return archivo
 
     def save(self, commit=True):
-        instance = super().save(commit)
-        if commit and getattr(self, "_padron_entradas", None):
-            from programas.services.padron import cargar_padron
+        with transaction.atomic():
+            instance = super().save(commit)
+            if commit and getattr(self, "_padron_entradas", None):
+                from programas.services.padron import cargar_padron
 
-            cargar_padron(instance, self.cleaned_data["padron"], self._padron_entradas)
-        return instance
+                cargar_padron(instance, self.cleaned_data["padron"], self._padron_entradas)
+            return instance
 
     def clean_zona(self):
         """Del catálogo al texto: se guarda el nombre de la localidad.

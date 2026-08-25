@@ -236,6 +236,12 @@ class RelevamientoAdmin(admin.ModelAdmin):
     search_fields = ("nombre", "zona", "territorial__username")
     readonly_fields = ("nombre", "token_publico")
 
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None and "tipo" not in fields:
+            fields.append("tipo")
+        return fields
+
 
 @admin.register(PreguntaGlobal)
 class PreguntaGlobalAdmin(admin.ModelAdmin):

@@ -157,7 +157,12 @@ class InscripcionPaso2Form(forms.Form):
         self.es_manual = identificacion.get("origen") != "personas"
         if not self.es_manual:
             # La identidad ya vino validada del paso 1: no se pide ni se pisa.
-            del self.fields["nombre"], self.fields["apellido"], self.fields["fecha_nacimiento"]
+            del self.fields["nombre"], self.fields["apellido"]
+            datos = self.identificacion.get("datos") or {}
+            if fecha_iso(datos.get("fecha_nacimiento")):
+                del self.fields["fecha_nacimiento"]
+            else:
+                self.fields["fecha_nacimiento"].label = "No pudimos obtener tu fecha de nacimiento: completala"
         self._campos_dinamicos = []
         for prefijo, lista in (("g", definicion["globales"]), ("r", definicion["requisitos"])):
             for campo in lista:
@@ -176,11 +181,18 @@ class InscripcionPaso2Form(forms.Form):
     def fecha_nacimiento_efectiva(self):
         if self.es_manual:
             return self.cleaned_data.get("fecha_nacimiento")
+        if "fecha_nacimiento" in self.fields:
+            return self.cleaned_data.get("fecha_nacimiento")
         datos = self.identificacion.get("datos") or {}
         return parse_date(fecha_iso(datos.get("fecha_nacimiento")) or "") or None
 
     def clean(self):
         cleaned = super().clean()
+        dni_apoderado_original = cleaned.get("apoderado_dni")
+        dni_apoderado = "".join(ch for ch in str(dni_apoderado_original or "") if ch.isdigit())
+        if dni_apoderado_original and len(dni_apoderado) not in (7, 8):
+            self.add_error("apoderado_dni", "Ingresa un DNI valido de 7 u 8 digitos.")
+        cleaned["apoderado_dni"] = dni_apoderado
         if es_menor(self.fecha_nacimiento_efectiva()):
             campos = (
                 "apoderado_nombre",
@@ -192,10 +204,6 @@ class InscripcionPaso2Form(forms.Form):
             for campo in campos:
                 if not cleaned.get(campo):
                     self.add_error(campo, "Este dato es obligatorio cuando la persona que se inscribe es menor de edad.")
-            dni_apoderado = "".join(ch for ch in str(cleaned.get("apoderado_dni") or "") if ch.isdigit())
-            if cleaned.get("apoderado_dni") and len(dni_apoderado) not in (7, 8):
-                self.add_error("apoderado_dni", "Ingresá un DNI válido de 7 u 8 dígitos.")
-            cleaned["apoderado_dni"] = dni_apoderado
         return cleaned
 
     # --- Salidas hacia la ingesta (#295) ----------------------------------

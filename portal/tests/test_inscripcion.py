@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from legajos.models import Ciudadano
+from core.services.throttle import rate_limit_excedido
 from portal.services import inscripcion as servicio
 
 
@@ -123,11 +124,10 @@ class ServiciosInscripcionTests(_BaseInscripcionTest):
         rf = RequestFactory()
         request = rf.post("/", REMOTE_ADDR="10.0.0.1")
         for _ in range(servicio.MAX_INTENTOS_IP):
-            self.assertFalse(servicio.intentos_excedidos(request))
-            servicio.registrar_intento(request)
-        self.assertTrue(servicio.intentos_excedidos(request))
+            self.assertFalse(rate_limit_excedido(request, "inscripcion_paso1", servicio.MAX_INTENTOS_IP, servicio.VENTANA_SEGUNDOS))
+        self.assertTrue(rate_limit_excedido(request, "inscripcion_paso1", servicio.MAX_INTENTOS_IP, servicio.VENTANA_SEGUNDOS))
         otra_ip = rf.post("/", REMOTE_ADDR="10.0.0.2")
-        self.assertFalse(servicio.intentos_excedidos(otra_ip))
+        self.assertFalse(rate_limit_excedido(otra_ip, "inscripcion_paso1", servicio.MAX_INTENTOS_IP, servicio.VENTANA_SEGUNDOS))
 
 
 class Paso1FlujoTests(_BaseInscripcionTest):
@@ -214,7 +214,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
     @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
     def test_rate_limit_corta_sin_consultar(self, mock_consulta):
         with patch.object(servicio, "MAX_INTENTOS_IP", 0), patch(
-            "portal.views.inscripcion.intentos_excedidos", return_value=True
+            "portal.views.inscripcion.paso1_excedido", return_value=True
         ):
             try:
                 self._post_paso1()

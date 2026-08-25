@@ -59,7 +59,7 @@ class ReporteProduccionConPublicosTests(TestCase):
 class RateLimitDevuelveMensajeTests(_BaseInscripcionTest):
     @patch("portal.views.inscripcion.consultar_persona")
     def test_rate_limit_no_es_un_500(self, mock_consulta):
-        with patch("portal.views.inscripcion.intentos_excedidos", return_value=True):
+        with patch("portal.views.inscripcion.paso1_excedido", return_value=True):
             try:
                 resp = self._post_paso1()
             except AttributeError as exc:
@@ -94,7 +94,9 @@ class PendientesRenaperConPublicosTests(TestCase):
     def test_filtro_territorial_invalido_no_rompe(self):
         vista = RenaperPendientesListView()
         vista.request = RequestFactory().get("/?territorial=None&segmento=abc")
-        self.assertEqual(vista.get_queryset().count(), 1)  # antes: ValueError → 500
+        vista.request.user = User.objects.create_user("admin_publicos")
+        with patch("programas.views.revision.puede", return_value=True):
+            self.assertEqual(vista.get_queryset().count(), 1)
 
 
 class FechaNoIsoTests(_BasePaso2Test):

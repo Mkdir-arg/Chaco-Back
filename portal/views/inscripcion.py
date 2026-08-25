@@ -20,11 +20,11 @@ from portal.forms.inscripcion import InscripcionPaso1Form, InscripcionPaso2Form
 from portal.services.inscripcion import (
     captcha_valido,
     clave_sesion,
+    consumir_captcha,
     dni_ya_inscripto,
-    intentos_excedidos,
     nuevo_captcha,
+    paso1_excedido,
     pregunta_captcha,
-    registrar_intento,
     relevamiento_disponible,
 )
 from programas.models import Relevamiento
@@ -77,16 +77,15 @@ def inscripcion_paso1(request, token):
 
     form = InscripcionPaso1Form(request.POST if request.method == "POST" else None)
     if request.method == "POST":
-        if intentos_excedidos(request):
+        if paso1_excedido(request):
             # Solo se valida el form para poder colgarle el error general: no
             # se registra el intento ni se consulta identidad.
             form.is_valid()
             form.add_error(None, MENSAJE_DEMASIADOS_INTENTOS)
         elif not captcha_valido(request, request.POST.get("captcha")):
-            registrar_intento(request)
             form.add_error("captcha", "La verificación no es correcta. Probá de nuevo.")
         elif form.is_valid():
-            registrar_intento(request)
+            consumir_captcha(request)
             dni = form.cleaned_data["dni"]
             sexo = form.cleaned_data["sexo"]
             if not esta_habilitado(relevamiento, dni, sexo):
@@ -113,8 +112,6 @@ def inscripcion_paso1(request, token):
                         "origen": "personas" if validado else "manual",
                     }
                     return redirect("portal:inscripcion_paso2", token=relevamiento.token_publico)
-        else:
-            registrar_intento(request)
 
     contexto = {
         "relevamiento": relevamiento,
