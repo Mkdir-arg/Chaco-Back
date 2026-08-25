@@ -179,6 +179,7 @@ CATALOGO = [
             ("becas.relevamiento.ver", "Ver relevamientos de Becas"),
             ("becas.relevamiento.crear", "Crear relevamientos de Becas"),
             ("becas.relevamiento.editar", "Editar relevamientos (reasignar territorial, reprogramar)"),
+            ("becas.relevamiento.publico", "Crear y ver relevamientos de formulario público (link de inscripción)"),
         ],
     },
     {

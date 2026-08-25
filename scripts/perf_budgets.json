@@ -12,6 +12,7 @@
       "optimizacion_261": "Medido con seed_perf scale 200 + perf_audit (SQLite, request fría): legajos_lista 14→12 unificando tres COUNT de InscripcionPrograma en un aggregate; legajo_detalle 23→20 calculando el resumen de Becas una sola vez por request y reutilizando las derivaciones ya leídas en la línea de tiempo. inicio queda en 19 medidas: sus lecturas restantes viven en módulos con cache e invalidación propias (dashboard.utils) y unificarlas excede el cuello medido.",
       "presupuestos_261": "Cada ruta tocada queda en el valor medido + 1. Ese margen absorbe el UPDATE del control de sesión única de Backoffice, que la guarda le cobra a la primera ruta autenticada del recorrido y por lo tanto depende del orden de este archivo.",
       "presupuestos_271_272": "Medido con seed_perf scale 200 + perf_audit (SQLite, request fría): #272 agrega legajos_ciudadano_nuevo 7→8, becas_reportes 9→10 y becas_programas 11→12; #271 agrega alta_ciudadano 13→14, carga_relevamiento 20→21, edicion_convocatoria 12→13 y envio_conversacion 9→10. Las duplicadas quedan en el valor medido + 1; el envío tolera 1 porque su muestra warm ya la registra. Las escrituras quedan fuera de reference_total_ms para no mezclar la alarma histórica de lecturas con operaciones que cambian datos sintéticos.",
+      "presupuesto_290_formulario_publico": "Medido con seed_perf scale 200 bajo el TestCase de presupuestos (Django 5.2, SQLite): carga_relevamiento 21→24. #290 agrega al modelo Relevamiento la CheckConstraint relevamiento_tipo_territorial_coherente (tipo/territorial), que el ModelForm valida en full_clean con una consulta SELECT _check; dentro de la transacción del TestCase, Q.check() la envuelve en atomic y cuesta SAVEPOINT + SELECT + RELEASE (3 consultas; en producción es 1). El valor medido es 23 y el presupuesto queda en medido + 1. El atomic propio que RelevamientoForm.save abría en cada alta se eliminó para el caso sin padrón (evitaba +2 por savepoint anidado con el atomic de Relevamiento.save); con padrón se conserva para guardar relevamiento y habilitados todo-o-nada.",
       "referencia_tiempo_274_276": "#274 reemplaza la lectura anónima de login por un POST autenticado y #276 consolida los servicios de Compose usados por CI. La ejecución de referencia en GitHub Actions midió 1432.86 ms; se actualiza sólo la alarma gruesa de tiempo. Los presupuestos de queries permanecen como guarda dura."
     },
     "timing": {
@@ -42,7 +43,7 @@
     "becas_reportes": {"route": "becas:reportes", "max_queries": 10, "max_duplicate_queries": 1},
     "becas_programas": {"route": "becas:programas", "max_queries": 12, "max_duplicate_queries": 1},
     "alta_ciudadano": {"route": "legajos:ciudadano_manual", "max_queries": 14, "max_duplicate_queries": 0},
-    "carga_relevamiento": {"route": "becas:relevamiento_crear", "max_queries": 21, "max_duplicate_queries": 0},
+    "carga_relevamiento": {"route": "becas:relevamiento_crear", "max_queries": 24, "max_duplicate_queries": 0},
     "edicion_convocatoria": {"route": "becas:convocatoria_editar", "max_queries": 13, "max_duplicate_queries": 0},
     "envio_conversacion": {"route": "conversaciones:enviar_mensaje_operador", "max_queries": 10, "max_duplicate_queries": 1}
   }

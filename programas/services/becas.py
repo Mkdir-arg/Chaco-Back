@@ -7,6 +7,8 @@ RBAC (admin vs coordinador con alcance) vive en ``programas.services.autorizacio
 from datetime import date
 
 from django.db import models, transaction
+from django.db.models import CharField, Value
+from django.db.models.functions import Cast, Replace
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -62,6 +64,19 @@ def definicion_formulario(relevamiento):
         "globales": [_campo_dict(p, "global") for p in globales],
         "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }
+
+
+def formulario_por_client_uuid(relevamiento, client_uuid):
+    """Busca la clave idempotente sin depender del lookup UUID del motor."""
+    if not client_uuid:
+        return None
+    return (
+        relevamiento.formularios.annotate(
+            client_uuid_text=Replace(Cast("client_uuid", CharField()), Value("-"), Value(""))
+        )
+        .filter(client_uuid_text=client_uuid.hex)
+        .first()
+    )
 
 
 def _alcance_requisito(requisito):

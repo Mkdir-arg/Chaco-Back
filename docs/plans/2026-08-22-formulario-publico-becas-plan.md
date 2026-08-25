@@ -14,14 +14,75 @@ La revisión, SIS, cupos y la app móvil **no se tocan**.
 capacidad nueva `becas.relevamiento.publico`. Se puede desplegar a producción sin que los
 usuarios del cliente vean nada; habilitarlo después es tildar la capacidad en Roles, sin deploy.
 
-## Etapas y orden
+## Estado (24/08/2026)
+
+Las cuatro fases están desarrolladas y en PRs apilados sobre `development`, cada uno con sus
+gates en verde: **#301** (Fase 1) → **#302** (Fase 2) → **#303** (Fase 3) → **#304** (Fase 4) →
+**#305** (Fase 5: correcciones de la revision de codigo) -> **PR pendiente** (Fase 6: segunda revision, ver Historial del Cambio 40).
+Mergear en orden re-apuntando bases. Registro de cierre: `docs/internal/requerimientos.md`,
+Cambio 40. Queda para el PM: merge, ejecución de los 65 casos de QA y deploy a test.
+
+## Fases de desarrollo
+
+Cuatro fases incrementales. Cada fase cierra con un **entregable demostrable**, sus tests en
+verde y los gates de cierre del final de este documento; una fase no arranca hasta que la
+anterior mergeó en `development`.
+
+### Fase 1 — Base y backoffice (16 h · ~2 días) → #290, #292, #291
+
+El backoffice completo del relevamiento público, sin portal todavía.
+
+- **Entregable demostrable:** un operador con la capacidad crea un relevamiento público
+  (sin territorial ni zona), ve el link generado y lo copia; el relevamiento nace En curso
+  y se cierra solo al vencer; para un usuario sin la capacidad, el sistema se ve idéntico
+  a hoy. La app de campo no muestra públicos.
+- **Gate de salida:** migración aplicada y reversible en local, suite de Becas sin
+  regresiones, `design_audit`/`compile_templates` en 0, casos TC-290/291/292 ejecutables.
+- **Riesgo a vigilar:** consumidores de `territorial` no nulo (listados, export, admin, API).
+
+### Fase 2 — Padrón + puerta de entrada pública (14 h · ~1,5 días) → #299, #293
+
+La primera superficie pública: identificación y todas las pantallas de rechazo.
+
+- **Entregable demostrable:** abrir el link real desde un celular; padrón cargado y
+  aplicándose (habilitado pasa, no habilitado no, con normalización); "Ya estás inscripto",
+  "Formulario no disponible" y 404 de token inválido funcionando; captcha y rate limit
+  activos; match RENAPER dejando los datos básicos en sesión. (El paso 2 aún no existe:
+  el avance termina en un placeholder.)
+- **Gate de salida:** TC-299 completos y TC-293 ejecutables salvo los que dependen del
+  paso 2; verificación manual de que un rechazo no consulta RENAPER.
+- **Riesgo a vigilar:** exposición de datos (solo básicos) y costo de consultas RENAPER.
+
+### Fase 3 — Formulario e ingesta end-to-end (15 h · ~2 días) → #294, #295
+
+El corazón funcional: del link al legajo. Al cerrar esta fase la funcionalidad está completa.
+
+- **Entregable demostrable:** flujo entero en test — identificarse, completar el formulario
+  dinámico (preguntas, archivos, GPS, apoderado si menor), enviar, ver el comprobante, y del
+  lado backoffice el formulario ENVIADO en la bandeja de revisión con su legajo ciudadano
+  creado; aprobarlo/rechazarlo funciona idéntico a uno de campo.
+- **Gate de salida:** TC-294/295 completos + los TC-293 que quedaron pendientes; prueba de
+  concurrencia de cupo (test automatizado); revisión de diseño de las pantallas del portal.
+- **Riesgo a vigilar:** paridad de validaciones con el serializer de campo (RN-22, requisitos).
+
+### Fase 4 — Correo y cierre (3 h + cierre · ~1 día) → #296 + entrega
+
+- **Entregable demostrable:** correo de confirmación llegando con el toggle activo (en test
+  si #245 ya está; si no, demo con backend local y queda documentado).
+- **Cierre de la funcionalidad:** ejecución completa de los 65 casos TC-* por QA, entrada en
+  `docs/internal/requerimientos.md` (con `--check` OK), actualización del mockup si hubo
+  desvíos, y deploy a test para la demo interna. El encendido al cliente (asignar la
+  capacidad) queda como decisión del PM, posterior y sin deploy.
+
+Dependencias externas: #245 (SMTP) solo condiciona la verificación real de la Fase 4.
+
+### Detalle de orden y dependencias
 
 ```
-Etapa 1 (base)          Etapa 2 (portal)                 Etapa 3 (cierre)
-#290 modelo+capacidad ─┬─ #293 paso 1 ── #294 paso 2 ── #295 ingesta ── #296 correo*
-                       ├─ #291 backoffice (paralelo a #293)
-                       ├─ #292 ciclo de vida (paralelo, chico)
-                       └─ #299 padrón Excel (paralelo; #293 consume su servicio)
+Fase 1                  Fase 2                Fase 3                     Fase 4
+#290 modelo+capacidad ─┬─ #299 padrón ──┬─ #293 paso 1 ── #294 paso 2 ── #295 ingesta ── #296 correo*
+                       ├─ #291 backoffice (en Fase 1, tras #290)
+                       └─ #292 ciclo de vida (en Fase 1, chico)
 * #296 requiere #245 (SMTP) para verificarse fuera de local.
 ```
 

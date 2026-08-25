@@ -21,6 +21,7 @@ from .views.ciudadano import (
     ciudadano_nueva_consulta,
     ciudadano_programa_detalle,
 )
+from .views.inscripcion import inscripcion_confirmacion, inscripcion_paso1, inscripcion_paso2
 from .views.public import (
     PortalHomeView,
 )
@@ -29,6 +30,10 @@ app_name = "portal"
 
 urlpatterns = [
     path("", PortalHomeView.as_view(), name="home"),
+    # Formulario público de Becas (#293) — superficie sin login, por token.
+    path("inscripcion/<uuid:token>/", inscripcion_paso1, name="inscripcion_paso1"),
+    path("inscripcion/<uuid:token>/formulario/", inscripcion_paso2, name="inscripcion_paso2"),
+    path("inscripcion/<uuid:token>/confirmacion/", inscripcion_confirmacion, name="inscripcion_confirmacion"),
     # Portal ciudadano
     path("mi-perfil/login/", CiudadanoLoginView.as_view(), name="ciudadano_login"),
     path("mi-perfil/logout/", CiudadanoLogoutView.as_view(), name="ciudadano_logout"),

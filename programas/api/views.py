@@ -7,8 +7,7 @@ y formularios. Capacidad requerida: ``becas.campo``.
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import CharField, Count, Q, Value
-from django.db.models.functions import Cast, Replace
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -28,7 +27,7 @@ from programas.api.serializers import (
     RelevamientoListSerializer,
 )
 from programas.models import Formulario, Relevamiento
-from programas.services.becas import resolver_ciudadano_offline
+from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.personas import consultar_persona
 
 CAP = "becas.campo"
@@ -54,23 +53,7 @@ def _formulario_dni_existe(relevamiento, dni):
     return _formulario_por_dni(relevamiento, dni) is not None
 
 
-def _formulario_por_client_uuid(relevamiento, client_uuid):
-    """Busca la clave idempotente sin depender del lookup UUID del motor.
-
-    El esquema productivo guarda UUIDField como texto sin guiones. En algunas versiones de
-    MySQL/MariaDB el lookup nativo de UUID de Django genera una expresion que el
-    motor rechaza. El CAST conserva la comparacion exacta y funciona igual en
-    SQLite (tests) y MySQL.
-    """
-    if not client_uuid:
-        return None
-    return (
-        relevamiento.formularios.annotate(
-            client_uuid_text=Replace(Cast("client_uuid", CharField()), Value("-"), Value(""))
-        )
-        .filter(client_uuid_text=client_uuid.hex)
-        .first()
-    )
+_formulario_por_client_uuid = formulario_por_client_uuid
 
 
 def _captura_habilitada(relevamiento, capturado_en=None):

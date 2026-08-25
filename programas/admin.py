@@ -231,10 +231,16 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
 
 @admin.register(Relevamiento)
 class RelevamientoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "convocatoria", "territorial", "fecha_asignada", "fecha_hasta", "zona", "estado")
-    list_filter = ("estado", "convocatoria")
+    list_display = ("nombre", "tipo", "convocatoria", "territorial", "fecha_asignada", "fecha_hasta", "zona", "estado")
+    list_filter = ("tipo", "estado", "convocatoria")
     search_fields = ("nombre", "zona", "territorial__username")
-    readonly_fields = ("nombre",)
+    readonly_fields = ("nombre", "token_publico")
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None and "tipo" not in fields:
+            fields.append("tipo")
+        return fields
 
 
 @admin.register(PreguntaGlobal)

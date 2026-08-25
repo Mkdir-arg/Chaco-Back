@@ -45,7 +45,11 @@ def _capacidades_admin_becas():
     los usuarios ni los roles de Becas, y como ``asegurar_roles_becas`` usa
     ``permissions.set()``, una corrida del seed revertiría el traspaso de ``users.0020``.
     """
-    finas = [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c != "becas.campo"]
+    # becas.relevamiento.publico se excluye a propósito (RN-P13, análisis #289):
+    # el lanzamiento del formulario público está gateado y la capacidad se
+    # asigna manualmente desde la pantalla de Roles, nunca por seed.
+    excluidas = ("becas.campo", "becas.relevamiento.publico")
+    finas = [c for c in rbac.codigos_de_capacidad() if c.startswith("becas.") and c not in excluidas]
     return finas + list(rbac.CAPS_ADMIN_PROGRAMA)
 
 
