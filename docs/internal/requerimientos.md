@@ -3486,6 +3486,7 @@ La regla, el motivo de cada campo y la mitad de lectura —qué consultar **ante
 
 ## Pendientes / a definir
 
+- **Configurar Base de Personas (Gran Base) en testing y QA**: `PERSONAS_API_CLIENT_ID`, `PERSONAS_API_CLIENT_SECRET` y `PERSONAS_API_ENTIDAD_UUID` están vacías en el deployment, así que el paso 1 nunca precarga y toda inscripción queda `origen=manual`. Las provee ECOM; se verificaron contra su API el 25/08/2026 (ver Historial). No requiere deploy de código, solo variables de entorno.
 - **Ejecución de los 65 casos de QA** sobre testing (el merge y el despliegue se cerraron el 25/08/2026: PR #306 → `development` → release `main` → espejo a ECOM).
 - **Mockup desactualizado en dos detalles**: el modal del backoffice ya tiene el campo de padrón y «no estás habilitado» quedó como error inline del paso 1 (no pantalla propia).
 - **Flag «visible en formulario público» por pregunta/requisito** si el programa necesita acotar el formulario del público (evolutivo aparte, ~4–6 h).
@@ -3539,5 +3540,23 @@ GitLab de ECOM (`test` → testing, `main` → QA). Dos cosas salieron de ahí:
   superficie del formulario público desde el próximo release; el gate sigue en pie para los roles de Becas
   del cliente, que se encienden a mano. Es coherente con `seed_rbac`, que ya le asigna al Administrador
   todas las capacidades del catálogo.
+
+**25/08/2026 — Prueba en testing y comando de diagnóstico de integraciones.** Al probar el link en testing el
+paso 1 aceptó el padrón y el captcha, pero el paso 2 mostró «No pudimos validar tus datos automáticamente». No era
+un bug: con las credenciales de Base de Personas sin cargar, `PersonasAPIClient.consultar` corta **antes de salir a
+la red**, devuelve error de configuración y el flujo sigue como `origen=manual`, exactamente como está diseñado. El
+problema es que las tres causas posibles —credenciales ausentes, servicio que rechaza, o DNI que no está en la
+fuente— se ven **idénticas** en pantalla y las dos primeras no dejan rastro en el log.
+
+Se verificó contra la API de ECOM con las credenciales del organismo que la integración funciona: token OK y la
+consulta de un DNI real devolvió apellido, nombre y fecha de nacimiento normalizada (el DNI que se probó primero
+respondió `código 12 — NO SE ENCONTRO INFORMACION`, o sea que no está en la fuente 13; eso no es una falla).
+
+Para no volver a diagnosticar a ciegas se agregó **`manage.py diagnosticar_integraciones`**: audita las variables de
+todas las integraciones (Base de Personas, RENAPER, SIIS, correo, caché y base), prueba Gran Base de verdad con
+`--dni`/`--sexo` diciendo si el formulario público precargaría, y con `--relevamiento`/`--token` audita por qué un
+link acepta o no inscripciones —los cuatro motivos que comparten la pantalla «Formulario no disponible»— más si el
+DNI está en el padrón o ya se inscribió. Nunca imprime secretos (informa presencia y largo) y devuelve código de
+salida distinto de 0 si algo falla, para usarlo como gate de despliegue.
 
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.

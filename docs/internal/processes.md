@@ -54,6 +54,88 @@ Quién pone qué:
 | `RENAPER_*` | El organismo, vía ECOM. Con `RENAPER_TEST_MODE=True` el entorno levanta sin credenciales |
 | `EMAIL_*` | Infraestructura de ECOM (pendiente al 11/08/2026: sin esto la invitación por correo no sale) |
 
+!!! warning "Los valores de ejemplo están en `.env.qa.example`"
+    Ese archivo es la **plantilla completa y comentada**: trae cada variable con un
+    valor de ejemplo, las que son obligatorias y quién provee el secreto. Viaja en el
+    release, así que está en el repositorio espejado a ECOM. Para desarrollo, el
+    equivalente es `.env.local.example`. Las tablas de abajo son la referencia; la
+    plantilla es lo que se copia y se completa.
+
+### Todas las variables
+
+#### Obligatorias: sin estas el entorno no levanta o responde 400
+
+| Variable | Valor | Si falta |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | secreto propio de **cada** entorno | el proceso no arranca (`ValueError`) |
+| `DJANGO_SETTINGS_MODULE` | `config.settings_production` en servidores | quedan los defaults de desarrollo (Silk activo, sin refuerzos de seguridad) |
+| `DJANGO_ALLOWED_HOSTS` | dominios separados por coma | con `settings_production` el proceso no arranca; sin él, 400 a toda petición |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | orígenes con esquema (`https://dominio`) | los formularios fallan por CSRF |
+| `DOMINIO` | dominio público del entorno | los links de los correos apuntan a `localhost:8000` |
+| `ENVIRONMENT` | `dev` \| `qa` \| `prd` | asume `dev`: caché en memoria del proceso en lugar de Redis |
+| `DATABASE_NAME` · `DATABASE_USER` · `DATABASE_PASSWORD` · `DATABASE_HOST` · `DATABASE_PORT` | conexión MySQL propia del entorno | no hay base: el arranque falla |
+| `REDIS_HOST` · `REDIS_PORT` · `REDIS_SSL` · `REDIS_DB` (o `REDIS_URL`) | `redis` / `6379` / `False` / `1` | con `ENVIRONMENT=prd` la caché y las sesiones son Redis: sin él, error en cada request |
+
+#### Integraciones: si faltan, la aplicación **levanta igual** y falla en silencio
+
+Este es el grupo que más veces quedó sin cargar, justamente porque no rompe el
+arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
+
+| Grupo | Variables | Lo provee | Qué se degrada si falta |
+|---|---|---|---|
+| **Base de Personas (Gran Base)** | `PERSONAS_API_CLIENT_ID`, `PERSONAS_API_CLIENT_SECRET`, `PERSONAS_API_ENTIDAD_UUID` · opcionales con default: `PERSONAS_API_URL`, `PERSONAS_API_FUENTE_ID` (13), `PERSONAS_API_CONNECT_TIMEOUT`, `PERSONAS_API_TIMEOUT` | **ECOM** | el **formulario público** y la app de campo **nunca validan identidad**: el paso 1 no precarga nada y toda inscripción queda `origen=manual`. La consulta corta antes de salir a la red, así que no hay error ni log |
+| **SIIS** | `SIIS_API_CLIENT_ID`, `SIIS_API_CLIENT_SECRET` · con default: `SIIS_API_URL`, timeouts | **ECOM** | el select de «Programa SIIS» queda vacío y no se pueden crear ni vincular segmentos |
+| **RENAPER** | `RENAPER_TEST_MODE` · si es `False`: `RENAPER_API_URL` (o `RENAPER_LOGIN_URL` + `RENAPER_CONSULTA_URL`) y `RENAPER_API_USERNAME` + `RENAPER_API_PASSWORD` **o** `RENAPER_API_KEY` (+ `RENAPER_API_KEY_HEADER`, `RENAPER_API_KEY_PREFIX`) · ajustes: `RENAPER_AUTH_MODE`, `RENAPER_HTTP_METHOD`, `RENAPER_RETRIES`, timeouts, `RENAPER_TEST_LATENCY_SECONDS` | El organismo, vía ECOM | el backoffice no puede validar ni revalidar identidad en legajos. Con `RENAPER_TEST_MODE=True` el entorno levanta sin credenciales y devuelve datos de prueba |
+| **Correo** | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` · opcionales: `EMAIL_TIMEOUT`, `EMAIL_SOPORTE`, `EMAIL_PIE_DIRECCION` | Infraestructura de ECOM | no salen la confirmación de la inscripción pública ni las credenciales de alta ni el recupero de contraseña. La inscripción **no** se rompe: el fallo de correo se traga a propósito |
+
+!!! warning "El remitente tiene que ser del dominio del servidor SMTP"
+    Si `DEFAULT_FROM_EMAIL` no pertenece al dominio de `EMAIL_HOST`, el servidor puede
+    rechazar el relay y los correos rebotan sin aviso en la aplicación.
+
+#### Arranque del contenedor
+
+| Variable | Valor | Para qué |
+|---|---|---|
+| `APP_RUNTIME` | `daphne` \| `runserver` | `daphne` es el único que habilita WebSockets (chat en vivo) |
+| `APP_BIND` · `APP_PORT` | `0.0.0.0` / `8000` | interfaz y puerto donde escucha |
+| `RUN_MIGRATIONS` | `true` | aplica `migrate` en cada arranque |
+| `RUN_COLLECTSTATIC` | `true` | recolecta estáticos en cada arranque |
+| `LOCAL_BOOTSTRAP_COMMANDS` | `seed_datos_base crear_programas` | sembrado obligatorio (ver la advertencia de abajo) |
+| `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` | vacío | comandos extra que pueden fallar sin abortar el arranque |
+| `DJANGO_ENV_FILE` | p. ej. `.env.local` | archivo de entorno a cargar. Se carga **sin sobreescribir** lo que ya viene en el entorno |
+| `SERVE_MEDIA` | `True` cuando no hay un nginx sirviendo `/media/` | archivos adjuntos accesibles |
+| `WEBSOCKETS_ENABLED` | se deduce de `APP_RUNTIME` | forzar el chat en vivo con otro runtime |
+| `DJANGO_SYNCDB_PROJECT_APPS` | `False` | solo para CI |
+
+#### Opcionales con default sano (se toca solo si hace falta)
+
+`DJANGO_DEBUG` (ignorada: `settings_production` fuerza `DEBUG = False`) ·
+`SESSION_IDLE_TIMEOUT_MINUTES` (15) · `SESSION_IDLE_WARNING_SECONDS` (60) ·
+`PASSWORD_RESET_TIMEOUT` (86400) · `SECURE_SSL_REDIRECT` · `SESSION_COOKIE_SECURE` ·
+`CSRF_COOKIE_SECURE` · `SECURE_HSTS_SECONDS` · `SECURE_HSTS_INCLUDE_SUBDOMAINS` ·
+`SECURE_HSTS_PRELOAD` (todas seguras por defecto en `settings_production`) ·
+`SLOW_REQUEST_MS` (3000) · `PERFORMANCE_QUERY_MONITORING_ENABLED` y el resto de
+`PERFORMANCE_*` (instrumentación de consultas).
+
+!!! warning "Tres variables que no hacen nada"
+    Aparecieron en configuraciones reales y conviene saber que son inertes:
+    `RUN_CREAR_PROGRAMAS` y `RUN_CREAR_SUPERADMIN` **no las lee nadie** —el bootstrap
+    no crea usuarios, el primer superusuario se crea a mano (ver abajo)— y
+    `OPENAI_API_KEY` quedó residual en `settings.py` sin ningún consumidor.
+
+#### Cómo verificar que están todas
+
+Después de montar o actualizar un entorno, dentro del contenedor:
+
+```bash
+python manage.py diagnosticar_integraciones --dni <un DNI real> --sexo F
+```
+
+Audita las variables de todas las integraciones, prueba Base de Personas de verdad
+—diciendo si el formulario público precargaría los datos— y devuelve código de salida
+distinto de 0 si algo falta, así sirve de gate de despliegue. Nunca imprime secretos.
+Para SIIS y correo existen además `diagnosticar_siis` y `diagnosticar_correo`.
+
 ### Dos cosas que rompen un entorno nuevo
 
 1. **El dominio tiene que estar en `DJANGO_ALLOWED_HOSTS` y
