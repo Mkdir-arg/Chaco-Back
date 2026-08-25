@@ -1248,12 +1248,18 @@ class RelevamientoForm(forms.ModelForm):
         return archivo
 
     def save(self, commit=True):
+        entradas = getattr(self, "_padron_entradas", None) if commit else None
+        if not entradas:
+            # Sin padrón no hace falta una transacción propia: ``Relevamiento.save``
+            # ya abre la suya para numerar, y anidar otra cuesta un SAVEPOINT +
+            # RELEASE por alta (presupuesto de consultas de carga_relevamiento).
+            return super().save(commit)
+        # Con padrón, relevamiento y habilitados se guardan todo-o-nada.
+        from programas.services.padron import cargar_padron
+
         with transaction.atomic():
             instance = super().save(commit)
-            if commit and getattr(self, "_padron_entradas", None):
-                from programas.services.padron import cargar_padron
-
-                cargar_padron(instance, self.cleaned_data["padron"], self._padron_entradas)
+            cargar_padron(instance, self.cleaned_data["padron"], entradas)
             return instance
 
     def clean_zona(self):
