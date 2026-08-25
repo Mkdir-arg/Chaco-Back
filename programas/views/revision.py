@@ -34,6 +34,7 @@ from programas.services.becas import es_menor, registrar_traza, resolver_ciudada
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.personas import consultar_persona
 from programas.services.validacion_siis import validar_formulario_en_siis
+from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
@@ -107,6 +108,10 @@ def _con_conflicto_duplicado_pendiente(queryset):
 
 
 def _assert_scope_relevamiento(request, relevamiento):
+    # RN-P13: sin la capacidad, un relevamiento público no existe para el usuario
+    # (tampoco para mutarlo por URL).
+    if relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
+        raise PermissionDenied("No tiene acceso a este relevamiento.")
     if (
         not puede_gestionar_segmento(request.user, relevamiento.segmento)
         or not convocatorias_visibles(request.user).filter(pk=relevamiento.convocatoria_id).exists()
@@ -115,11 +120,19 @@ def _assert_scope_relevamiento(request, relevamiento):
 
 
 def _assert_scope_formulario(request, formulario):
+    if formulario.relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
+        raise PermissionDenied("No tiene acceso a este formulario.")
     if (
         not puede_gestionar_segmento(request.user, formulario.relevamiento.segmento)
         or not convocatorias_visibles(request.user).filter(pk=formulario.relevamiento.convocatoria_id).exists()
     ):
         raise PermissionDenied("No tiene acceso a este formulario.")
+
+
+def _sin_formularios_publicos_si_no_puede(qs, user):
+    if puede(user, CAP_RELEVAMIENTO_PUBLICO):
+        return qs
+    return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
 
 
 def _tiene_conflicto_duplicado_pendiente(formulario):
@@ -145,6 +158,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
             .filter(relevamiento__convocatoria__in=convocatorias_visibles(self.request.user))
             .order_by("-creado")
         )
+        qs = _sin_formularios_publicos_si_no_puede(qs, self.request.user)
         estado = self.request.GET.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
@@ -155,7 +169,10 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         ctx["estados"] = Formulario.Estado.choices
         ctx["estado_actual"] = self.request.GET.get("estado", "")
         ctx["puede_revalidar_renaper"] = puede(self.request.user, CAP_REVALIDAR_RENAPER)
-        ctx["pendientes_renaper"] = Formulario.objects.filter(validado_renaper=False).count()
+        ctx["pendientes_renaper"] = _sin_formularios_publicos_si_no_puede(
+            Formulario.objects.filter(validado_renaper=False),
+            self.request.user,
+        ).count()
         return ctx
 
 
@@ -169,26 +186,36 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
         queryset = Formulario.objects.filter(validado_renaper=False).select_related(
             "ciudadano", "relevamiento__territorial", "relevamiento__convocatoria__segmento"
         )
+        queryset = _sin_formularios_publicos_si_no_puede(queryset, self.request.user)
         if self.request.GET.get("fecha"):
             queryset = queryset.filter(creado__date=self.request.GET["fecha"])
-        if self.request.GET.get("territorial"):
-            queryset = queryset.filter(relevamiento__territorial_id=self.request.GET["territorial"])
-        if self.request.GET.get("segmento"):
-            queryset = queryset.filter(relevamiento__convocatoria__segmento_id=self.request.GET["segmento"])
+        # Los filtros llegan por GET: solo se aplican si son ids válidos.
+        territorial = self.request.GET.get("territorial", "")
+        if territorial.isdigit():
+            queryset = queryset.filter(relevamiento__territorial_id=int(territorial))
+        segmento = self.request.GET.get("segmento", "")
+        if segmento.isdigit():
+            queryset = queryset.filter(relevamiento__convocatoria__segmento_id=int(segmento))
         return queryset.order_by("-creado")
+
+    @staticmethod
+    def territoriales_pendientes(base):
+        """Opciones del filtro. Los formularios públicos no tienen territorial:
+        quedan fuera del selector (antes generaban una opción `None`)."""
+        return (
+            base.exclude(relevamiento__territorial__isnull=True)
+            .values("relevamiento__territorial_id", "relevamiento__territorial__username")
+            .distinct()
+            .order_by("relevamiento__territorial__username")
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base = Formulario.objects.filter(validado_renaper=False)
-        context["territoriales"] = (
-            base.values("relevamiento__territorial_id", "relevamiento__territorial__username")
-            .distinct()
-            .order_by("relevamiento__territorial__username")
-        )
+        base = _sin_formularios_publicos_si_no_puede(base, self.request.user)
+        context["territoriales"] = self.territoriales_pendientes(base)
         context["segmentos"] = (
-            Segmento.objects.filter(convocatorias__relevamientos__formularios__validado_renaper=False)
-            .distinct()
-            .order_by("nombre")
+            Segmento.objects.filter(convocatorias__relevamientos__formularios__in=base).distinct().order_by("nombre")
         )
         context["filtros"] = self.request.GET
         return context
@@ -545,6 +572,7 @@ def formulario_rechazar(request, pk):
 @requiere(CAP_REVALIDAR_RENAPER)
 def formulario_revalidar_renaper(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
+    _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     ciudadano = formulario.ciudadano

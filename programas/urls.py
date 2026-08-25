@@ -87,6 +87,7 @@ urlpatterns = [
     path("relevamientos/<int:pk>/finalizar/", rel.relevamiento_finalizar, name="relevamiento_finalizar"),
     path("relevamientos/<int:pk>/reabrir/", rel.relevamiento_reabrir, name="relevamiento_reabrir"),
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
+    path("relevamientos/<int:pk>/padron/", rel.relevamiento_reemplazar_padron, name="relevamiento_padron"),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
     path("relevamientos/<int:pk>/cupo/", rel.relevamiento_modificar_cupo, name="relevamiento_modificar_cupo"),
     # --- Revisión de formularios ---

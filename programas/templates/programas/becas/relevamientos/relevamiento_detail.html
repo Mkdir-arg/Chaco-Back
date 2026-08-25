@@ -42,6 +42,36 @@
 
     {# ============ TAB: Información ============ #}
     <div x-show="tab==='info'" class="p-6">
+      {% if relevamiento.es_publico %}
+      <div class="rounded-xl bg-brand-soft p-4 mb-4 flex flex-col gap-3" style="border:1px solid var(--color-brand-200)">
+        <div class="flex items-center gap-2 text-sm font-bold text-fg-brand">
+          <i class="fas fa-link"></i> Link del formulario público
+        </div>
+        <div class="flex items-stretch gap-2 flex-wrap">
+          <input type="text" readonly value="{{ link_publico }}" class="nodo-field flex-1 min-w-[240px]" aria-label="Link de inscripción" onfocus="this.select()">
+          <button type="button" class="btn-nodo btn-brand btn-base" data-copy-link="{{ link_publico }}">
+            <i class="fas fa-copy"></i> Copiar link
+          </button>
+        </div>
+        <p class="text-xs text-fg-brand">
+          El link acepta inscripciones hasta el {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}, mientras haya cupo y el relevamiento no esté pausado.
+          Confirmación por correo: {% if relevamiento.confirmar_por_email %}activada{% else %}desactivada{% endif %}.
+        </p>
+        <form method="post" action="{% url 'becas:relevamiento_padron' relevamiento.pk %}" enctype="multipart/form-data"
+              class="flex items-end gap-2 flex-wrap pt-2" style="border-top:1px solid var(--color-brand-200)">
+          {% csrf_token %}
+          <div class="flex-1 min-w-[240px]">
+            <label class="block text-xs font-semibold text-fg-brand mb-1" for="padron-reemplazo">
+              Padrón de habilitados: {% if n_padron %}{{ n_padron }} persona{{ n_padron|pluralize }}{% else %}sin padrón (link abierto){% endif %}
+            </label>
+            <input id="padron-reemplazo" type="file" name="padron" accept=".xlsx" required class="nodo-field w-full">
+          </div>
+          <button type="submit" class="btn-nodo btn-tertiary btn-base">
+            {% if n_padron %}Reemplazar padrón{% else %}Cargar padrón{% endif %}
+          </button>
+        </form>
+      </div>
+      {% endif %}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {# Info card #}
         <div class="bg-white rounded-xl border border-base shadow-sm p-5 space-y-2 text-sm">
@@ -61,12 +91,18 @@
           {% endif %}
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Territorial</span>
-            <span class="text-heading">{{ relevamiento.territorial.get_full_name|default:relevamiento.territorial.username }}</span>
+            {% if relevamiento.territorial %}
+              <span class="text-heading">{{ relevamiento.territorial.get_full_name|default:relevamiento.territorial.username }}</span>
+            {% else %}
+              <span class="badge badge-info">Formulario público</span>
+            {% endif %}
           </div>
+          {% if not relevamiento.es_publico %}
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Zona</span>
             <span class="text-heading">{{ relevamiento.zona }}</span>
           </div>
+          {% endif %}
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Fecha asignada</span>
             <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y H:i" }} al {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}</span>
@@ -112,6 +148,7 @@
           </div>
           {% endif %}
 
+          {% if not relevamiento.es_publico %}
           <form method="post" action="{% url 'becas:relevamiento_reasignar' relevamiento.pk %}"
                 class="bg-white rounded-xl border border-base shadow-sm p-5">
             {% csrf_token %}
@@ -122,6 +159,7 @@
             {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_reasignar.territorial.id_for_label }}" data-segment-id="{{ relevamiento.convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
           </form>
+          {% endif %}
 
           <form method="post" action="{% url 'becas:relevamiento_reprogramar' relevamiento.pk %}"
                 class="bg-white rounded-xl border border-base shadow-sm p-5">
@@ -226,6 +264,7 @@
     </div>
   </div>
 </div>
+{% include "programas/becas/relevamientos/_copiar_link_js.html" %}
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 

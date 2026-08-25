@@ -195,6 +195,9 @@ def reporte_produccion(user, *, segmento_id=None, territorial_id=None, desde=Non
         qs = qs.filter(fecha_hasta__gte=desde)
     if hasta:
         qs = qs.filter(fecha_asignada__lte=hasta)
+    # Los relevamientos públicos no tienen territorial: no son "producción
+    # territorial" y romperían el agrupado (revisión Cambio 40).
+    qs = qs.filter(territorial__isnull=False)
     grupos = defaultdict(lambda: {"rels": [], "forms": []})
     for rel in qs:
         clave = (rel.territorial_id, rel.convocatoria.segmento_id)

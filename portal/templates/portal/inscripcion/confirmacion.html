@@ -1,0 +1,27 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Inscripción enviada - Portal Ciudadano{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto text-center">
+    <div class="bg-white p-10 animate-fadeInUp" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
+        <div class="inline-flex items-center justify-center w-16 h-16 mb-4" style="border-radius: var(--radius-full); background: var(--gradient-brand);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #fff;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"></path>
+            </svg>
+        </div>
+        <h1 class="text-2xl font-bold" style="color: var(--text-heading);">¡Inscripción enviada!</h1>
+        <p class="mt-3 text-sm" style="color: var(--text-body);">Tu formulario fue recibido y va a ser revisado por el equipo del programa.</p>
+
+        <div class="mt-6 p-4 text-left" style="background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: var(--radius-xl);">
+            <p class="text-xs font-bold uppercase tracking-wide" style="color: var(--text-body-subtle);">Comprobante</p>
+            <p class="text-sm mt-1 font-semibold" style="color: var(--text-heading);">Formulario Nº {{ comprobante.numero }} · {{ convocatoria.nombre }}</p>
+            {% if comprobante.correo_enviado %}
+            <p class="text-xs mt-2" style="color: var(--text-body-subtle);">Te enviamos una copia a {{ comprobante.email }}.</p>
+            {% endif %}
+        </div>
+
+        <p class="mt-6 text-xs" style="color: var(--text-body-subtle);">Podés cerrar esta página. Ante cualquier consulta, comunicate al 0800-222-1133.</p>
+    </div>
+</div>
+{% endblock %}
