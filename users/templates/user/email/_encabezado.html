@@ -9,7 +9,7 @@ propio sitio: los clientes de correo necesitan una URL absoluta.
         <img src="{{ protocol }}://{{ domain }}{% static 'custom/chaco/login-logo.png' %}" width="110" height="40" alt="Gobierno del Chaco" style="display:block; border:0; outline:none; text-decoration:none; height:40px; width:110px;">
       </td>
       <td align="right" width="180" style="width:180px; font-family:Arial,Helvetica,sans-serif; font-size:11px; line-height:16px; mso-line-height-rule:exactly; letter-spacing:1px; text-transform:uppercase; color:#6b7280;">
-        DATAÑACH · Backoffice
+        DATAÑACH · {{ encabezado_seccion|default:"Backoffice" }}
       </td>
     </tr>
     </table>

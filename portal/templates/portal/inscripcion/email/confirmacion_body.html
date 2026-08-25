@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Comprobante de inscripción — {{ convocatoria }}</title>
+<!--[if mso]>
+<xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+<![endif]-->
+<style>
+  @media only screen and (max-width:620px) {
+    .wrap { width:100% !important; }
+    .pad { padding-left:24px !important; padding-right:24px !important; }
+    .h1 { font-size:24px !important; }
+    .dato { display:block !important; width:100% !important; padding-left:0 !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background-color:#f9fafb; -webkit-font-smoothing:antialiased;">
+<span style="display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all;">Recibimos tu inscripción a {{ convocatoria }}. Guardá este correo: es tu comprobante.</span>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f9fafb;">
+<tr>
+<td align="center" style="padding:32px 12px;">
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" class="wrap" style="width:600px; max-width:600px;">
+
+    {% include "user/email/_encabezado.html" %}
+
+    {% comment %}Tarjeta{% endcomment %}
+    <tr>
+      <td style="background-color:#ffffff; border:1px solid #e5e7eb; border-radius:12px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+
+          {% comment %}Banda de marca (gradiente Jacarandá → Rosa, 45°){% endcomment %}
+          <tr>
+            <td bgcolor="#5059bc" height="6" style="height:6px; line-height:6px; font-size:0; background-color:#5059bc; background-image:linear-gradient(45deg,#5059bc 0%,#f98dff 100%); border-radius:12px 12px 0 0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td class="pad" style="padding:36px 40px 8px 40px; font-family:Arial,Helvetica,sans-serif;">
+              <p style="margin:0 0 12px 0; font-size:12px; line-height:16px; mso-line-height-rule:exactly; letter-spacing:1px; text-transform:uppercase; color:#5059bc; font-weight:bold;">Comprobante de inscripción</p>
+              <h1 class="h1" style="margin:0 0 16px 0; font-size:28px; line-height:34px; mso-line-height-rule:exactly; letter-spacing:-0.8px; font-weight:bold; color:#252f40;">Recibimos tu inscripción</h1>
+              <p style="margin:0 0 16px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Hola{% if nombre %} {{ nombre }}{% endif %},</p>
+              <p style="margin:0 0 8px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Tu inscripción a <strong style="color:#252f40;">{{ convocatoria }}</strong> quedó registrada. Guardá este correo: es tu comprobante.</p>
+            </td>
+          </tr>
+
+          {% comment %}Datos del comprobante{% endcomment %}
+          <tr>
+            <td class="pad" style="padding:20px 40px 0 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; background-color:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+              <tr>
+                <td style="padding:18px 20px 6px 20px; font-family:Arial,Helvetica,sans-serif;">
+                  <p style="margin:0 0 4px 0; font-size:11px; line-height:16px; mso-line-height-rule:exactly; letter-spacing:1px; text-transform:uppercase; color:#6b7280; font-weight:bold;">Comprobante</p>
+                  <p style="margin:0 0 14px 0; font-size:24px; line-height:30px; mso-line-height-rule:exactly; font-weight:bold; color:#5059bc;">Formulario Nº {{ numero }}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 20px 18px 20px; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:22px; mso-line-height-rule:exactly; color:#4b5563;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                    <tr>
+                      <td class="dato" width="150" style="width:150px; padding:4px 0; color:#6b7280;">Programa</td>
+                      <td class="dato" style="padding:4px 0; color:#252f40;">{{ segmento }}</td>
+                    </tr>
+                    {% if documento %}
+                    <tr>
+                      <td class="dato" width="150" style="width:150px; padding:4px 0; color:#6b7280;">Documento</td>
+                      <td class="dato" style="padding:4px 0; color:#252f40;">{{ documento }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                      <td class="dato" width="150" style="width:150px; padding:4px 0; color:#6b7280;">Fecha de envío</td>
+                      <td class="dato" style="padding:4px 0; color:#252f40;">{{ enviado_el }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              </table>
+            </td>
+          </tr>
+
+          {% comment %}Qué sigue{% endcomment %}
+          <tr>
+            <td class="pad" style="padding:20px 40px 0 40px; font-family:Arial,Helvetica,sans-serif;">
+              <p style="margin:0 0 6px 0; font-size:14px; line-height:22px; mso-line-height-rule:exactly; color:#4b5563;"><strong style="color:#252f40;">Qué sigue.</strong> El equipo del programa va a revisar tu formulario. Si hace falta algún dato, se van a comunicar con vos por los datos de contacto que dejaste.</p>
+              <p style="margin:0; font-size:14px; line-height:22px; mso-line-height-rule:exactly; color:#6b7280;">No hace falta que hagas nada más.</p>
+            </td>
+          </tr>
+
+          {% comment %}Aviso{% endcomment %}
+          <tr>
+            <td class="pad" style="padding:20px 40px 36px 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; background-color:#fff8f1; border:1px solid #fcd9bd; border-radius:8px;">
+              <tr>
+                <td style="padding:14px 16px; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:22px; mso-line-height-rule:exactly; color:#771d1d;">
+                  Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier consulta, comunicate al <strong>0800-222-1133</strong>.
+                </td>
+              </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+
+    {% include "user/email/_pie.html" %}
+
+  </table>
+
+</td>
+</tr>
+</table>
+</body>
+</html>

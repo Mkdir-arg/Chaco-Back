@@ -1,9 +1,19 @@
-Hola,
+Hola{% if nombre %} {{ nombre }}{% endif %},
 
-Recibimos tu inscripción a {{ convocatoria }} ({{ segmento }}).
+Tu inscripción a {{ convocatoria }} quedó registrada. Guardá este correo: es tu comprobante.
 
-Tu comprobante es el Formulario Nº {{ numero }}. Guardá este correo: el equipo del programa va a revisar tu formulario y, si hace falta, se va a comunicar con vos por los datos de contacto que dejaste.
+COMPROBANTE
+Formulario Nº {{ numero }}
+Programa: {{ segmento }}
+{% if documento %}Documento: {{ documento }}
+{% endif %}Fecha de envío: {{ enviado_el }}
 
-Este mensaje se envió automáticamente; no es necesario responderlo.
+Qué sigue: el equipo del programa va a revisar tu formulario. Si hace falta algún dato, se van a comunicar con vos por los datos de contacto que dejaste. No hace falta que hagas nada más.
 
-DATAÑACH — Portal Ciudadano
+Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier consulta, comunicate al 0800-222-1133.
+
+--
+Gobierno de la Provincia del Chaco
+Ministerio de Desarrollo Social{% if direccion_postal %} · {{ direccion_postal }}{% endif %} · Resistencia, Chaco
+{% if soporte %}Soporte: {{ soporte }}
+{% endif %}DATAÑACH — Portal Ciudadano
