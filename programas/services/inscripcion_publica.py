@@ -15,8 +15,12 @@ Garantías dentro de la transacción (mismo patrón que la API de campo):
 
 from __future__ import annotations
 
+import logging
+
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Q
+from django.template.loader import render_to_string
 from django.utils import timezone
 
 from programas.models import AdjuntoFormulario, Formulario, Relevamiento
@@ -112,3 +116,51 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
         resolver_ciudadano_offline(formulario)
         formulario.refresh_from_db()
     return formulario, True
+
+
+# --- Correo de confirmación (#296, RN-P10) ---------------------------------
+
+logger = logging.getLogger(__name__)
+
+
+def enmascarar_email(email):
+    """``maria.gomez@correo.com`` → ``ma•••@correo.com`` para el comprobante."""
+    usuario, _, dominio = (email or "").partition("@")
+    if not dominio:
+        return email or ""
+    visible = usuario[:2] if len(usuario) > 2 else usuario[:1]
+    return f"{visible}•••@{dominio}"
+
+
+def enviar_confirmacion_inscripcion(formulario):
+    """Manda el comprobante a ``email_contacto`` si el relevamiento tiene el
+    toggle activo. Exclusivo del flujo público: la API de campo no lo llama.
+
+    Nunca rompe la inscripción: cualquier falla de SMTP se loguea y devuelve
+    ``False`` (el formulario ya quedó creado y la persona ve su comprobante).
+    """
+    relevamiento = formulario.relevamiento
+    if not relevamiento.confirmar_por_email or not formulario.email_contacto:
+        return False
+    convocatoria = relevamiento.convocatoria
+    contexto = {
+        "numero": formulario.numero,
+        "convocatoria": convocatoria.nombre,
+        "segmento": convocatoria.segmento.nombre,
+    }
+    try:
+        send_mail(
+            subject=f"Comprobante de inscripción — {convocatoria.nombre}",
+            message=render_to_string("portal/inscripcion/email/confirmacion_body.txt", contexto),
+            from_email=None,
+            recipient_list=[formulario.email_contacto],
+            fail_silently=False,
+        )
+    except Exception:  # SMTP caído, mal configurado, rechazo del servidor…
+        logger.exception(
+            "No se pudo enviar el correo de confirmación del formulario %s (relevamiento %s)",
+            formulario.pk,
+            relevamiento.pk,
+        )
+        return False
+    return True

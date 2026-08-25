@@ -16,6 +16,9 @@
         <div class="mt-6 p-4 text-left" style="background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: var(--radius-xl);">
             <p class="text-xs font-bold uppercase tracking-wide" style="color: var(--text-body-subtle);">Comprobante</p>
             <p class="text-sm mt-1 font-semibold" style="color: var(--text-heading);">Formulario Nº {{ comprobante.numero }} · {{ convocatoria.nombre }}</p>
+            {% if comprobante.correo_enviado %}
+            <p class="text-xs mt-2" style="color: var(--text-body-subtle);">Te enviamos una copia a {{ comprobante.email }}.</p>
+            {% endif %}
         </div>
 
         <p class="mt-6 text-xs" style="color: var(--text-body-subtle);">Podés cerrar esta página. Ante cualquier consulta, comunicate al 0800-222-1133.</p>

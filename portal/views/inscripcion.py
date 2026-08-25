@@ -6,8 +6,9 @@ duplicado por convocatoria (RN-P5) → consulta a Gran Base/RENAPER (RN-P6).
 Con match se precargan **solo datos básicos** en la sesión (RN-P7); sin match
 se continúa igual y el formulario quedará no validado.
 
-Paso 2 (formulario dinámico) llega con #294: acá vive su guardia de sesión y
-un render provisorio.
+Paso 2 (#294): el mismo formulario dinámico que la app de campo; su envío crea
+el formulario y el legajo en el acto (#295) y, si el relevamiento lo tiene
+activo, manda el comprobante por correo (#296).
 """
 
 import logging
@@ -32,6 +33,8 @@ from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
     InscripcionNoDisponible,
     crear_formulario_publico,
+    enmascarar_email,
+    enviar_confirmacion_inscripcion,
 )
 from programas.services.padron import esta_habilitado
 from programas.services.personas import consultar_persona
@@ -145,7 +148,7 @@ def inscripcion_paso2(request, token):
     )
     if request.method == "POST" and form.is_valid():
         try:
-            formulario, _creado = crear_formulario_publico(
+            formulario, creado = crear_formulario_publico(
                 relevamiento,
                 identificacion=identificacion,
                 form=form,
@@ -159,10 +162,15 @@ def inscripcion_paso2(request, token):
                 "portal/inscripcion/ya_inscripto.html",
                 {"relevamiento": relevamiento, "dni": identificacion["dni"]},
             )
+        # Correo de confirmación (#296): solo si el relevamiento lo tiene
+        # activo y solo en el envío que creó el formulario; su falla no
+        # rompe nada (queda logueada).
+        correo_enviado = bool(creado and enviar_confirmacion_inscripcion(formulario))
         request.session.pop(clave_sesion(relevamiento), None)
         request.session[f"inscripcion_ok_{relevamiento.pk}"] = {
             "numero": formulario.numero,
-            "email": formulario.email_contacto,
+            "email": enmascarar_email(formulario.email_contacto),
+            "correo_enviado": correo_enviado,
         }
         return redirect("portal:inscripcion_confirmacion", token=relevamiento.token_publico)
 

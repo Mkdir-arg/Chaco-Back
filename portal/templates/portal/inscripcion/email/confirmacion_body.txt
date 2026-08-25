@@ -1,0 +1,9 @@
+Hola,
+
+Recibimos tu inscripción a {{ convocatoria }} ({{ segmento }}).
+
+Tu comprobante es el Formulario Nº {{ numero }}. Guardá este correo: el equipo del programa va a revisar tu formulario y, si hace falta, se va a comunicar con vos por los datos de contacto que dejaste.
+
+Este mensaje se envió automáticamente; no es necesario responderlo.
+
+DATAÑACH — Portal Ciudadano
