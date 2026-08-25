@@ -3397,3 +3397,18 @@ La regla, el motivo de cada campo y la mitad de lectura —qué consultar **ante
 ## Reversión
 
 Revertir los PRs en orden inverso (#304 → #301). Las migraciones se retroceden a `programas.0048`: antes de hacerlo con datos reales hay que **exportar los relevamientos públicos, sus padrones y los formularios ingresados por link** —el rollback elimina `tipo`, `token_publico`, `confirmar_por_email`, `padron_archivo` y la tabla `PadronHabilitado`, y los relevamientos sin territorial violarían la columna no nula—. Los formularios ya creados y sus legajos ciudadanos son datos comunes y se conservan.
+
+## Historial
+
+**24/08/2026 — Revisión de código de las cuatro fases (PR de correcciones, Fase 5).** Antes de mergear se revisó el diff completo y se corrigieron diez hallazgos; cinco eran errores 500 o salteos de reglas que los tests no cubrían:
+
+- El reporte **Producción territorial** se caía con un solo relevamiento público (territorial nulo) → se excluyen del agrupado.
+- El **rate limit** del paso 1 devolvía 500 en vez del mensaje (`add_error` sobre un form sin `cleaned_data`); un `except AttributeError` de los tests, puesto para tolerar el bug de render del entorno, lo tapaba → se corrigió el form y los tests ahora re-lanzan cualquier error que no sea ese bug conocido.
+- **Pendientes RENAPER** generaba una opción `None` de territorial y rompía al filtrar → se excluyen públicos del selector y se validan los filtros GET.
+- **Fecha de nacimiento no ISO** de Gran Base (`15/03/2010`) salteaba RN-22 (no exigía apoderado a un menor) y rompía el alta del ciudadano → `fecha_iso()` normaliza en `normalizar_persona`.
+- El **gate RBAC** protegía listados y detalle pero no las vistas mutantes (finalizar, reabrir, reprogramar, cupo, pausa, revisión) → el chequeo vive ahora en `_assert_scope*` y en pausas.
+- **Padrón**: los DNIs como float del Excel (`30123456.0`) quedaban con un cero de más y nadie matcheaba → cast numérico y rechazo de filas que no dan 7-8 dígitos. Y el padrón ahora **se re-verifica al enviar**, dentro de la transacción (un reemplazo entre paso 1 y envío ya no deja pasar).
+- **Duplicado por convocatoria**: se lockea la convocatoria antes del chequeo (dos envíos simultáneos por relevamientos distintos podían pasar ambos) y RN-P5 quedó en una sola función compartida por portal e ingesta.
+- Un relevamiento cambiado a público desde el admin quedaba **sin token** → se genera en `save()` siempre que falte.
+
+**Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.
