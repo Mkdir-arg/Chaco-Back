@@ -6,6 +6,7 @@ cliente usa credenciales propias, cachea el token y consulta solamente por DNI.
 
 import logging
 import re
+from datetime import datetime
 
 import requests
 from django.conf import settings
@@ -48,6 +49,23 @@ def _primero(flat, *keys):
     return ""
 
 
+def fecha_iso(valor):
+    """Normaliza la fecha de un proveedor a ``AAAA-MM-DD`` (o ``""`` si no se
+    puede). Gran Base/RENAPER no garantizan formato: llegó ``15/03/2010`` y
+    rompía RN-22 y el alta del ciudadano (revisión Cambio 40)."""
+    if hasattr(valor, "isoformat"):
+        return valor.isoformat()[:10]
+    texto = _texto(valor).split("T")[0].split(" ")[0]
+    if not texto:
+        return ""
+    for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%Y%m%d"):
+        try:
+            return datetime.strptime(texto, formato).date().isoformat()
+        except ValueError:
+            continue
+    return ""
+
+
 def normalizar_persona(payload, dni):
     """Tolera variantes de nombres hasta que se cierre el contrato definitivo."""
     data = payload.get("data") if isinstance(payload, dict) else payload
@@ -56,7 +74,7 @@ def normalizar_persona(payload, dni):
         "dni": _texto(_primero(flat, "dni", "documento", "numero_documento", "nro_documento")) or dni,
         "apellido": _texto(_primero(flat, "apellido", "apellidos")),
         "nombre": _texto(_primero(flat, "nombre", "nombres")),
-        "fecha_nacimiento": _texto(_primero(flat, "fecha_nacimiento", "fechaNacimiento", "nacimiento")),
+        "fecha_nacimiento": fecha_iso(_primero(flat, "fecha_nacimiento", "fechaNacimiento", "nacimiento")),
         "sexo": _texto(_primero(flat, "sexo", "genero")).upper(),
     }
 

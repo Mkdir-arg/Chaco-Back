@@ -1,0 +1,79 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Inscripción a {{ convocatoria.nombre }} - Portal Ciudadano{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="mb-6">
+        <span class="inline-block text-xs font-bold px-3 py-1" style="background: var(--bg-brand-soft); color: var(--text-fg-brand); border-radius: var(--radius-full);">Paso 1 de 2 · Identificación</span>
+        <h1 class="text-2xl font-bold mt-2" style="color: var(--text-heading);">Inscripción a {{ convocatoria.nombre }}</h1>
+        <p class="text-sm mt-1" style="color: var(--text-body-subtle);">Programa de Becas · {{ convocatoria.segmento.nombre }}</p>
+    </div>
+
+    <div class="bg-white p-8 animate-fadeInUp" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
+        <p class="text-sm mb-6" style="color: var(--text-body);">Ingresá tus datos para comenzar. Vamos a validar tu identidad con el Registro Nacional de las Personas.</p>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="mb-4 p-3 flex items-start gap-2 text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); border-radius: var(--radius-lg); color: var(--text-fg-danger);" role="alert">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; margin-top:2px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"></path>
+                    </svg>
+                    <div>
+                        {% for error in form.non_field_errors %}<p class="m-0">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="space-y-4">
+                <div>
+                    <label for="{{ form.dni.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
+                        {{ form.dni.label }} <span style="color: var(--text-fg-danger);">*</span>
+                    </label>
+                    {{ form.dni }}
+                    {% for error in form.dni.errors %}
+                        <p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <div>
+                    <label for="{{ form.sexo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
+                        {{ form.sexo.label }} <span style="color: var(--text-fg-danger);">*</span>
+                    </label>
+                    {{ form.sexo }}
+                    {% for error in form.sexo.errors %}
+                        <p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <div class="p-4" style="background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: var(--radius-lg);">
+                    <label for="{{ form.captcha.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
+                        {{ captcha_pregunta }} <span style="color: var(--text-fg-danger);">*</span>
+                    </label>
+                    <p class="text-xs mb-2" style="color: var(--text-body-subtle);">Respondé para confirmar que no sos un robot.</p>
+                    {{ form.captcha }}
+                    {% for error in form.captcha.errors %}
+                        <p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn-nodo btn-brand btn-lg w-full mt-6">
+                Continuar
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6"></path>
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <p class="text-xs mt-4 flex items-start gap-2" style="color: var(--text-body-subtle);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; margin-top:1px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 11v5m0-8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path>
+        </svg>
+        Tus datos personales se usan únicamente para esta inscripción y se tratan según la Ley 25.326 de Protección de Datos Personales.
+    </p>
+</div>
+{% endblock %}

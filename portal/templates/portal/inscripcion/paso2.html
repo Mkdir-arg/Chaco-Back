@@ -1,0 +1,137 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Inscripción a {{ convocatoria.nombre }} - Portal Ciudadano{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="mb-6">
+        <span class="inline-block text-xs font-bold px-3 py-1" style="background: var(--bg-brand-soft); color: var(--text-fg-brand); border-radius: var(--radius-full);">Paso 2 de 2 · Formulario</span>
+        <h1 class="text-2xl font-bold mt-2" style="color: var(--text-heading);">Inscripción a {{ convocatoria.nombre }}</h1>
+        <p class="text-sm mt-1" style="color: var(--text-body-subtle);">Programa de Becas · {{ convocatoria.segmento.nombre }}</p>
+    </div>
+
+    {% if identificacion.datos %}
+    <div class="p-4 mb-4" style="background: var(--bg-brand-softer); border: 1px solid var(--border-brand-subtle); border-radius: var(--radius-xl);">
+        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ identificacion.datos.nombre }} {{ identificacion.datos.apellido }}</p>
+        <p class="text-xs mt-1" style="color: var(--text-body-subtle);">DNI {{ identificacion.dni }}{% if identificacion.datos.fecha_nacimiento %} · Nacimiento {{ identificacion.datos.fecha_nacimiento }}{% endif %}</p>
+        <p class="text-xs mt-1 font-semibold" style="color: var(--text-fg-brand);">Identidad validada · RENAPER</p>
+    </div>
+    {% else %}
+    <div class="p-4 mb-4" style="background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: var(--radius-xl);">
+        <p class="text-sm font-semibold" style="color: var(--text-heading);">DNI {{ identificacion.dni }}</p>
+        <p class="text-xs mt-1" style="color: var(--text-body-subtle);">No pudimos validar tus datos automáticamente: completalos a continuación.</p>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" novalidate id="form-inscripcion"
+          class="bg-white p-8 animate-fadeInUp" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
+        {% csrf_token %}
+        {{ form.gps_lat }}{{ form.gps_lng }}
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 p-3 text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); border-radius: var(--radius-lg); color: var(--text-fg-danger);" role="alert">
+                {% for error in form.non_field_errors %}<p class="m-0">{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        {% if form.es_manual or "fecha_nacimiento" in form.fields %}
+        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Tus datos</h2>
+        {% if not form.es_manual %}<p class="text-xs mb-3" style="color: var(--text-body-subtle);">No pudimos obtener tu fecha de nacimiento: completala.</p>{% endif %}
+        <div class="space-y-4 mb-6">
+            {% for campo in form %}{% if campo.name == "nombre" or campo.name == "apellido" or campo.name == "fecha_nacimiento" %}
+            <div>
+                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }} <span style="color: var(--text-fg-danger);">*</span></label>
+                {{ campo }}
+                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+
+        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Datos de contacto</h2>
+        <div class="space-y-4 mb-6">
+            {% for campo in form %}{% if campo.name == "celular" or campo.name == "email_contacto" %}
+            <div>
+                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }} <span style="color: var(--text-fg-danger);">*</span></label>
+                {{ campo }}
+                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}{% endfor %}
+        </div>
+
+        {% if form.campos_globales %}
+        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Sobre vos</h2>
+        <div class="space-y-4 mb-6">
+            {% for campo in form.campos_globales %}
+            <div>
+                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}{% if campo.field.required %} <span style="color: var(--text-fg-danger);">*</span>{% endif %}</label>
+                {{ campo }}
+                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if form.campos_requisitos %}
+        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Requisitos</h2>
+        <div class="space-y-4 mb-6">
+            {% for campo in form.campos_requisitos %}
+            <div>
+                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}{% if campo.field.required %} <span style="color: var(--text-fg-danger);">*</span>{% endif %}</label>
+                {{ campo }}
+                {% if campo.field.widget.input_type == "file" %}<p class="text-xs mt-1" style="color: var(--text-body-subtle);">JPG, PNG o PDF, hasta 5 MB.</p>{% endif %}
+                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <h2 class="text-sm font-bold uppercase tracking-wide mb-1" style="color: var(--text-body-subtle);">Apoderado</h2>
+        <p class="text-xs mb-3" style="color: var(--text-body-subtle);">Completalo solo si la persona que se inscribe es menor de 18 años.</p>
+        <div class="space-y-4 mb-6">
+            {% for campo in form %}{% if campo.name == "apoderado_nombre" or campo.name == "apoderado_apellido" or campo.name == "apoderado_dni" or campo.name == "apoderado_genero" or campo.name == "apoderado_fecha_nacimiento" %}
+            <div>
+                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}</label>
+                {{ campo }}
+                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}{% endfor %}
+        </div>
+
+        {% if requiere_gps %}
+        <div class="p-3 mb-6 flex items-start gap-2 text-xs" style="background: var(--bg-brand-tint); border-radius: var(--radius-lg); color: var(--text-heading);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0; margin-top:1px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"></path>
+            </svg>
+            <span>Al enviar vamos a solicitar tu ubicación para georreferenciar la inscripción. Si preferís no compartirla, el envío se realiza igual.</span>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn-nodo btn-brand btn-lg w-full">
+            Enviar formulario
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"></path>
+            </svg>
+        </button>
+    </form>
+
+    <p class="text-xs mt-4" style="color: var(--text-body-subtle);">Tus datos se usan únicamente para esta inscripción (Ley 25.326).</p>
+</div>
+
+{% if requiere_gps %}
+<script>
+// Geolocalización best-effort (asunción del análisis 289): se pide al cargar y
+// completa los campos ocultos; si la persona la niega, el envío sigue igual.
+(function () {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    var lat = document.getElementById('id_gps_lat');
+    var lng = document.getElementById('id_gps_lng');
+    if (lat) lat.value = pos.coords.latitude.toFixed(6);
+    if (lng) lng.value = pos.coords.longitude.toFixed(6);
+  }, function () { /* denegada: best effort */ }, { timeout: 8000 });
+})();
+</script>
+{% endif %}
+{% endblock %}
