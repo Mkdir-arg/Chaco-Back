@@ -182,7 +182,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 38 | Cerrar sesión da error 405 después de actualizar Django | Transversal / sesión | `#sesion` `#infra` `#ui` | PM — reportó el 405 al entrar a `/logout` | 20/08/2026 | 🟢 **Hecho** | No |
 | 39 | En el login aparece el logo de Nodo en lugar del del Chaco | Transversal / marca | `#ui` `#sesion` `#infra` | PM — vio la marca del proveedor en la pantalla de acceso | 21/08/2026 | 🟢 **Hecho** | No |
 | 40 | Corregir la redirección autenticada de `/dashboard/` | Transversal / ruteo | `#sesion` `#ui` | Hallazgo propio en la validación HTTP de #262 y la PR #284 | 20/08/2026 | 🟢 **Hecho** | No |
-| 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟡 **Hecho — pendiente de merge y despliegue (PRs #301–#304)** | `programas.0049` + `programas.0050` |
+| 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟢 **Hecho — mergeado (PR #306) y desplegado en testing 25/08/2026** | `programas.0049` + `programas.0050` + `users.0025` |
 
 **Notas del índice**
 
@@ -3414,7 +3414,7 @@ La regla, el motivo de cada campo y la mitad de lectura —qué consultar **ante
 
 # Cambio 41 — Formulario público de autocompletado: relevamientos con link de inscripción
 
-🟡 **HECHO — 24/08/2026 — pendiente de merge y despliegue (PRs #301, #302, #303 y #304, apilados)**
+🟢 **HECHO — 24/08/2026 · mergeado a `development` el 25/08/2026 (PR #306, integra las fases 1 a 5) y espejado al GitLab de ECOM (testing y QA)**
 
 | | |
 |---|---|
@@ -3424,7 +3424,7 @@ La regla, el motivo de cada campo y la mitad de lectura —qué consultar **ante
 | **Fecha del pedido** | 21/08/2026 |
 | **Issue / épica** | Épica #69 · Análisis #289 · Tasks #290–#296 y #299 |
 | **Partes afectadas** | Backoffice · Portal ciudadano (nueva superficie pública) · Servidor. **Mobile no se toca.** |
-| **Migración** | `programas.0049` (tipo, token, correo, territorial nullable) + `programas.0050` (padrón) |
+| **Migración** | `programas.0049` (tipo, token, correo, territorial nullable) + `programas.0050` (padrón) + `users.0025` (la capacidad al rol Administrador) |
 
 ## Pedido original
 
@@ -3480,13 +3480,13 @@ La regla, el motivo de cada campo y la mitad de lectura —qué consultar **ante
 ## Puesta en marcha en el servidor
 
 - Deploy estándar **con migración** (`manage.py migrate`; 0049 y 0050 son aditivas y de bajo riesgo).
-- Tras el deploy **el cliente no ve nada**: ningún rol tiene `becas.relevamiento.publico`. Encender = asignarla desde la pantalla de Roles, sin deploy. Probar el link end-to-end **en test, no en producción** (un envío de prueba aparecería en la bandeja de revisión del cliente).
+- Tras el deploy **los roles del cliente no ven nada**: `seed_becas` sigue excluyendo `becas.relevamiento.publico` de los roles de Becas y encenderlos es tildarla en la pantalla de Roles, sin deploy. La excepción es el rol **`Administrador`**, que la recibe en `users.0025` (ver Historial del 25/08/2026). Probar el link end-to-end **en test, no en producción** (un envío de prueba aparecería en la bandeja de revisión del cliente).
 - El correo de confirmación depende del **Cambio 37 / #245 (SMTP)**; hasta entonces crear los públicos con el toggle apagado.
 - Sin cron nuevo: el cierre por vencimiento corre dentro del `procesar_vencimientos` existente.
 
 ## Pendientes / a definir
 
-- **Merge y despliegue** de los cuatro PRs apilados (#301 → #302 → #303 → #304) y ejecución de los 65 casos de QA.
+- **Ejecución de los 65 casos de QA** sobre testing (el merge y el despliegue se cerraron el 25/08/2026: PR #306 → `development` → release `main` → espejo a ECOM).
 - **Mockup desactualizado en dos detalles**: el modal del backoffice ya tiene el campo de padrón y «no estás habilitado» quedó como error inline del paso 1 (no pantalla propia).
 - **Flag «visible en formulario público» por pregunta/requisito** si el programa necesita acotar el formulario del público (evolutivo aparte, ~4–6 h).
 - Textos definitivos de pantallas y correo: se usaron los del mockup; los ajusta el programa cuando lo vea.
@@ -3521,4 +3521,23 @@ Revertir los PRs en orden inverso (#304 → #301). Las migraciones se retroceden
 - Los listados de revision y pendientes RENAPER excluyen formularios publicos cuando el usuario no tiene `becas.relevamiento.publico`.
 - Beneficiarios de convocatoria y su CSV aplican el mismo recorte de formularios publicos que los relevamientos visibles.
 - El admin deja `tipo` como solo lectura al editar un relevamiento; la conversion territorial/publico queda bloqueada.
+**25/08/2026 — Merge, despliegue y la capacidad para el rol `Administrador`.** Las cinco fases se
+integraron en un solo merge a `development` (PR #306: CI 11/11 en verde, 889 tests OK) y se espejaron al
+GitLab de ECOM (`test` → testing, `main` → QA). Dos cosas salieron de ahí:
+
+- **Presupuesto de consultas del alta de relevamiento** (`carga_relevamiento` 21 → 24). La `CheckConstraint`
+  nueva tipo↔territorial se valida en el `full_clean` del ModelForm y, dentro de la transacción del
+  `TestCase`, Django 5.2 envuelve ese `SELECT` en un `atomic` (SAVEPOINT + SELECT + RELEASE = 3 consultas;
+  1 en producción). De paso se quitó el `transaction.atomic()` que `RelevamientoForm.save` abría en **cada**
+  alta, anidado con el que `Relevamiento.save` ya abre para numerar: ahora solo se abre cuando hay padrón
+  que cargar, que es el caso donde relevamiento y habilitados tienen que ser todo-o-nada.
+- **El rol `Administrador` recibe `becas.relevamiento.publico` por migración** (`users.0025`), por decisión
+  del PM. El gate de RN-P13 dejaba la capacidad fuera de los seeds para encenderla desde la pantalla de
+  Roles, pero ese rol es **protegido** y la pantalla rechaza su edición, así que para él no había camino
+  manual: el único mecanismo que corre en cada deploy es una migración (el entrypoint ejecuta `migrate`, no
+  los seeds). **Consecuencia asumida:** en producción los usuarios con rol Administrador van a ver la
+  superficie del formulario público desde el próximo release; el gate sigue en pie para los roles de Becas
+  del cliente, que se encienden a mano. Es coherente con `seed_rbac`, que ya le asigna al Administrador
+  todas las capacidades del catálogo.
+
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.
