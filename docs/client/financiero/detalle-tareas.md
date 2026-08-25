@@ -445,18 +445,23 @@
 | 24/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo. | 0,5 h | — |
 | 24/08 | Juani Portilla | Transversal | Redirección de /dashboard/ al inicio | Corrección de la ruta heredada que mandaba al login en vez del inicio, con pruebas (#285 — PR #300). | 1 h | 2 h |
 | 24/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 24/08 | Pablo Cao | Becas | Frontend del formulario público | Desarrollo del frontend de las pantallas del formulario público del portal. | 5 h | — |
 | 24/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 24/08 | Matías Abate | Becas | Armado de documentación | Documentación funcional del período. | 2 h | — |
+| 24/08 | Matías Abate | Becas | Armado de épicas | Estructuración y actualización de épicas en el tablero. | 2 h | — |
+| 24/08 | Matías Abate | Becas | Casos de prueba | Diseño de casos de prueba de las tareas del período. | 2 h | — |
+| 24/08 | Matías Abate | Becas | Pruebas automatizadas | Armado y ejecución de pruebas automatizadas sobre los flujos de Becas. | 2 h | — |
 | 24/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 24/08** | | **121,5 h** | **118 h** |
+| | | | **Total 20 al 24/08** | | **134,5 h** | **118 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 314 h 00 min |
+| Becas | 327 h 00 min |
 | Dispositivos | 124 h 30 min |
 | Transversal | 127 h 00 min |
-| **Total agosto 2026 (al 24/08)** | **565 h 30 min** |
+| **Total agosto 2026 (al 24/08)** | **578 h 30 min** |
 
 ---
 
@@ -486,9 +491,9 @@
 
 
 
-    **93.882 minutos** (1.564 h 42 min)
+    **94.662 minutos** (1.577 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 565 h 30 min (al 24/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 578 h 30 min (al 24/08).
 
 
 
