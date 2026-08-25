@@ -391,7 +391,10 @@
 !!! note "Restauración de horas (23/08/2026)"
     Un ajuste del 21/08 había reducido en **88 h** el registro de Juani Portilla: el desarrollo frontend de Dispositivos del 03 al 14/08 (−76 h) y los entregables de observabilidad y actualización de Django del 17–18/08 (−12 h). Por decisión del PM esas horas se **restauraron a sus valores originales**, y se **conservaron** las filas de desarrollo backend de Dispositivos agregadas en aquel ajuste (4 h).
 
-### :material-package-variant-closed: Consumo del 20 al 23 de agosto — por entregable
+### :material-package-variant-closed: Consumo del 20 al 24 de agosto — por entregable
+
+!!! info "Regla desde el 24/08"
+    Se incorpora una **reunión de seguimiento diaria** de las cuatro personas del equipo (1 h por persona) y el **armado del informe diario** por parte del PM (30 min). Ambas se registran cada día hábil.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -435,16 +438,25 @@
 | 23/08 | Matías Fariña | Becas | Documentación de la funcionalidad | Documentación del diseño y las decisiones de la funcionalidad de publicación de formularios. | 1 h | — |
 | 23/08 | Matías Fariña | Transversal | Auditoría y reconstrucción del registro de horas | Detección y reversión de un recorte no validado de 88 h en el registro, y reconstrucción del consumo del 20 al 23 por entregable a partir del repositorio. | 3 h | — |
 | 23/08 | Matías Fariña | Transversal | Gestión del tablero del Project | Carga del campo Proyecto en los 137 items del tablero, con verificación. | 1 h | — |
-| | | | **Total 20 al 23/08** | | **107 h** | **73 h** |
+| 24/08 | Matías Fariña | Becas | Formulario público — Fase 1: modelo, backoffice y ciclo de vida | Modelo de relevamiento público con tipo, token, correo y capacidad RBAC; alta y gestión en el backoffice gateada por permiso; ciclo de vida con cierre por vencimiento; cobertura de pruebas (#290, #291, #292 — PR #301). | 3 h | 16 h |
+| 24/08 | Matías Fariña | Becas | Formulario público — Fase 2: padrón por Excel y paso 1 del portal | Padrón de habilitados cargado por Excel y primera pantalla pública de identificación por DNI y sexo contra RENAPER (#299, #293 — PR #302). | 3 h | 12 h |
+| 24/08 | Matías Fariña | Becas | Formulario público — Fase 3: formulario dinámico e ingesta | Paso 2 del portal con el formulario dinámico y la ingesta de punta a punta que crea el Formulario y el legajo ciudadano (#294, #295 — PR #303). | 3 h | 15 h |
+| 24/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 24/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo. | 0,5 h | — |
+| 24/08 | Juani Portilla | Transversal | Redirección de /dashboard/ al inicio | Corrección de la ruta heredada que mandaba al login en vez del inicio, con pruebas (#285 — PR #300). | 1 h | 2 h |
+| 24/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 24/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 24/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 20 al 24/08** | | **121,5 h** | **118 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 305 h 00 min |
+| Becas | 314 h 00 min |
 | Dispositivos | 124 h 30 min |
-| Transversal | 121 h 30 min |
-| **Total agosto 2026 (al 23/08)** | **551 h 00 min** |
+| Transversal | 127 h 00 min |
+| **Total agosto 2026 (al 24/08)** | **565 h 30 min** |
 
 ---
 
@@ -474,9 +486,9 @@
 
 
 
-    **93.012 minutos** (1.550 h 12 min)
+    **93.882 minutos** (1.564 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 551 h 00 min (al 23/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 565 h 30 min (al 24/08).
 
 
 
