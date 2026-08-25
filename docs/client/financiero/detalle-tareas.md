@@ -444,6 +444,7 @@
 | 24/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 24/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo. | 0,5 h | — |
 | 24/08 | Juani Portilla | Transversal | Redirección de /dashboard/ al inicio | Corrección de la ruta heredada que mandaba al login en vez del inicio, con pruebas (#285 — PR #300). | 1 h | 2 h |
+| 24/08 | Juani Portilla | Dispositivos | Automatización de pruebas backend de Dispositivos | Automatización de las pruebas del backend del Programa Dispositivos. | 6 h | — |
 | 24/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 24/08 | Pablo Cao | Becas | Frontend del formulario público | Desarrollo del frontend de las pantallas del formulario público del portal. | 5 h | — |
 | 24/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
@@ -452,16 +453,16 @@
 | 24/08 | Matías Abate | Becas | Casos de prueba | Diseño de casos de prueba de las tareas del período. | 2 h | — |
 | 24/08 | Matías Abate | Becas | Pruebas automatizadas | Armado y ejecución de pruebas automatizadas sobre los flujos de Becas. | 2 h | — |
 | 24/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 24/08** | | **134,5 h** | **118 h** |
+| | | | **Total 20 al 24/08** | | **140,5 h** | **118 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
 | Becas | 327 h 00 min |
-| Dispositivos | 124 h 30 min |
+| Dispositivos | 130 h 30 min |
 | Transversal | 127 h 00 min |
-| **Total agosto 2026 (al 24/08)** | **578 h 30 min** |
+| **Total agosto 2026 (al 24/08)** | **584 h 30 min** |
 
 ---
 
@@ -491,9 +492,9 @@
 
 
 
-    **94.662 minutos** (1.577 h 42 min)
+    **95.022 minutos** (1.583 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 578 h 30 min (al 24/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 584 h 30 min (al 24/08).
 
 
 
