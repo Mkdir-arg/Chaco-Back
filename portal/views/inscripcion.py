@@ -169,7 +169,14 @@ def inscripcion_paso2(request, token):
             # Correo de confirmación (#296): solo si el relevamiento lo tiene
             # activo y solo en el envío que creó el formulario; su falla no
             # rompe nada (queda logueada).
-            correo_enviado = bool(creado and enviar_confirmacion_inscripcion(formulario))
+            correo_enviado = bool(
+                creado
+                and enviar_confirmacion_inscripcion(
+                    formulario,
+                    protocol="https" if request.is_secure() else "http",
+                    domain=request.get_host(),
+                )
+            )
             request.session.pop(clave_sesion(relevamiento), None)
             request.session[f"inscripcion_ok_{relevamiento.pk}"] = {
                 "numero": formulario.numero,

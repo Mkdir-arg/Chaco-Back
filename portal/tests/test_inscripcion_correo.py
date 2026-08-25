@@ -33,6 +33,42 @@ class EnviarConfirmacionTests(_BasePaso2Test):
         self.assertIn(f"Formulario Nº {formulario.numero}", correo.body)
         self.assertIn("Becas 2026", correo.body)
 
+    def test_manda_texto_y_html_de_marca(self):
+        self.relevamiento.confirmar_por_email = True
+        self.relevamiento.save(update_fields=["confirmar_por_email"])
+        formulario = self._formulario()
+        formulario.datos_identificacion = {"dni": "30123456", "nombre": "MARIA LUJAN", "apellido": "GOMEZ"}
+        formulario.save(update_fields=["datos_identificacion"])
+
+        self.assertTrue(enviar_confirmacion_inscripcion(formulario, domain="datanach.example"))
+
+        correo = mail.outbox[0]
+        self.assertEqual(len(correo.alternatives), 1, "falta la versión HTML")
+        html, tipo = correo.alternatives[0]
+        self.assertEqual(tipo, "text/html")
+        # Saludo con el nombre de pila, no con el nombre completo.
+        self.assertIn("Hola MARIA,", html)
+        self.assertIn("Hola MARIA,", correo.body)
+        # Los datos del comprobante, en las dos versiones.
+        for cuerpo in (html, correo.body):
+            self.assertIn(str(formulario.numero), cuerpo)
+            self.assertIn("30123456", cuerpo)
+            self.assertIn("Becas 2026", cuerpo)
+        # Marca del portal, no la del backoffice, y logo con URL absoluta.
+        self.assertIn("Portal Ciudadano", html)
+        self.assertNotIn("Backoffice", html)
+        self.assertIn("https://datanach.example/static/", html)
+
+    def test_sin_nombre_el_saludo_no_queda_colgado(self):
+        self.relevamiento.confirmar_por_email = True
+        self.relevamiento.save(update_fields=["confirmar_por_email"])
+        formulario = self._formulario()  # datos_identificacion sin nombre
+
+        self.assertTrue(enviar_confirmacion_inscripcion(formulario))
+
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertIn("Hola,", html)
+
     def test_toggle_apagado_no_envia(self):
         formulario = self._formulario()
         self.assertFalse(enviar_confirmacion_inscripcion(formulario))
@@ -42,7 +78,10 @@ class EnviarConfirmacionTests(_BasePaso2Test):
         self.relevamiento.confirmar_por_email = True
         self.relevamiento.save(update_fields=["confirmar_por_email"])
         formulario = self._formulario()
-        with patch("programas.services.inscripcion_publica.send_mail", side_effect=OSError("smtp caído")):
+        with patch(
+            "programas.services.inscripcion_publica.EmailMultiAlternatives.send",
+            side_effect=OSError("smtp caído"),
+        ):
             self.assertFalse(enviar_confirmacion_inscripcion(formulario))
         self.assertTrue(Formulario.objects.filter(pk=formulario.pk).exists())
 
@@ -84,7 +123,10 @@ class CorreoEnLaVistaTests(_BasePaso2Test):
     def test_smtp_caido_no_impide_la_inscripcion(self):
         self.relevamiento.confirmar_por_email = True
         self.relevamiento.save(update_fields=["confirmar_por_email"])
-        with patch("programas.services.inscripcion_publica.send_mail", side_effect=OSError("smtp caído")):
+        with patch(
+            "programas.services.inscripcion_publica.EmailMultiAlternatives.send",
+            side_effect=OSError("smtp caído"),
+        ):
             resp = self._enviar()
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.relevamiento.formularios.count(), 1)

@@ -18,7 +18,8 @@ from __future__ import annotations
 import logging
 import uuid
 
-from django.core.mail import send_mail
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.db.models import Q
 from django.template.loader import render_to_string
@@ -28,6 +29,7 @@ from programas.models import AdjuntoFormulario, Convocatoria, Formulario, Releva
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.padron import esta_habilitado
 from programas.services.personas import fecha_iso
+from users.services.correo import contexto_pie
 
 
 class InscripcionNoDisponible(Exception):
@@ -160,9 +162,14 @@ def enmascarar_email(email):
     return f"{visible}•••@{dominio}"
 
 
-def enviar_confirmacion_inscripcion(formulario):
+def enviar_confirmacion_inscripcion(formulario, *, protocol="https", domain=""):
     """Manda el comprobante a ``email_contacto`` si el relevamiento tiene el
     toggle activo. Exclusivo del flujo público: la API de campo no lo llama.
+
+    Va en dos versiones, como el resto de los correos del sistema: texto plano y
+    HTML de marca (``confirmacion_body.txt`` / ``.html``). ``protocol`` y
+    ``domain`` arman la URL absoluta del logo —los clientes de correo no
+    resuelven rutas relativas—; sin ellos se cae a ``settings.DOMINIO``.
 
     Nunca rompe la inscripción: cualquier falla de SMTP se loguea y devuelve
     ``False`` (el formulario ya quedó creado y la persona ve su comprobante).
@@ -171,19 +178,32 @@ def enviar_confirmacion_inscripcion(formulario):
     if not relevamiento.confirmar_por_email or not formulario.email_contacto:
         return False
     convocatoria = relevamiento.convocatoria
+    identificacion = formulario.datos_identificacion or {}
     contexto = {
         "numero": formulario.numero,
         "convocatoria": convocatoria.nombre,
         "segmento": convocatoria.segmento.nombre,
+        # Nombre de pila para el saludo: si la identidad no se validó puede no
+        # estar, y el saludo queda sin nombre en lugar de con un hueco raro.
+        "nombre": (identificacion.get("nombre") or "").split(" ")[0],
+        "documento": identificacion.get("dni") or getattr(formulario.ciudadano, "dni", "") or "",
+        "enviado_el": timezone.localtime(formulario.creado).strftime("%d/%m/%Y %H:%M"),
+        "protocol": protocol,
+        "domain": domain or settings.DOMINIO,
+        "encabezado_seccion": "Portal Ciudadano",
+        **contexto_pie(),
     }
+    cuerpo = render_to_string("portal/inscripcion/email/confirmacion_body.txt", contexto)
+    html = render_to_string("portal/inscripcion/email/confirmacion_body.html", contexto)
+    mensaje = EmailMultiAlternatives(
+        subject=f"Comprobante de inscripción — {convocatoria.nombre}",
+        body=cuerpo,
+        from_email=None,
+        to=[formulario.email_contacto],
+    )
+    mensaje.attach_alternative(html, "text/html")
     try:
-        send_mail(
-            subject=f"Comprobante de inscripción — {convocatoria.nombre}",
-            message=render_to_string("portal/inscripcion/email/confirmacion_body.txt", contexto),
-            from_email=None,
-            recipient_list=[formulario.email_contacto],
-            fail_silently=False,
-        )
+        mensaje.send(fail_silently=False)
     except Exception:  # SMTP caído, mal configurado, rechazo del servidor…
         logger.exception(
             "No se pudo enviar el correo de confirmación del formulario %s (relevamiento %s)",

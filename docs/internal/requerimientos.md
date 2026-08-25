@@ -3559,4 +3559,13 @@ link acepta o no inscripciones —los cuatro motivos que comparten la pantalla �
 DNI está en el padrón o ya se inscribió. Nunca imprime secretos (informa presencia y largo) y devuelve código de
 salida distinto de 0 si algo falla, para usarlo como gate de despliegue.
 
+**25/08/2026 — Comprobante de inscripción con plantilla de marca.** El correo del comprobante salía en texto
+plano; ahora va en las dos versiones —texto y HTML— como el resto de los correos del sistema, reusando el
+encabezado y el pie compartidos (`user/email/_encabezado.html` y `_pie.html`). La plantilla está apuntada al
+**ciudadano**, no al backoffice: el encabezado dice «Portal Ciudadano» (el include quedó parametrizado con
+`encabezado_seccion`, default «Backoffice»), muestra el número de formulario con la misma frase que la pantalla
+de comprobante, los datos de la inscripción (programa, documento, fecha y hora) y el teléfono del programa. El
+envío pasó de `send_mail` a `EmailMultiAlternatives`; la vista le pasa protocolo y host para que el logo cargue
+con URL absoluta, con `settings.DOMINIO` como respaldo. Sigue sin romper la inscripción si el SMTP falla.
+
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.
