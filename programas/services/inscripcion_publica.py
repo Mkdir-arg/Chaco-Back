@@ -23,8 +23,9 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from programas.models import AdjuntoFormulario, Formulario, Relevamiento
+from programas.models import AdjuntoFormulario, Convocatoria, Formulario, Relevamiento
 from programas.services.becas import resolver_ciudadano_offline
+from programas.services.padron import esta_habilitado
 
 
 class InscripcionNoDisponible(Exception):
@@ -35,7 +36,19 @@ class InscripcionDuplicada(Exception):
     """El DNI ya está inscripto en la convocatoria (RN-P5)."""
 
 
-def _dni_en_convocatoria(convocatoria, dni):
+class InscripcionNoHabilitada(Exception):
+    """El DNI+sexo dejó de figurar en el padrón del relevamiento (RN-P14)."""
+
+
+def dni_en_convocatoria(convocatoria, dni):
+    """RN-P5, única definición: cualquier relevamiento de la convocatoria (de
+    campo o público), por ciudadano resuelto o identificación offline. La usan
+    el paso 1 del portal y el re-chequeo transaccional del envío.
+
+    Cuenta también los formularios RECHAZADO/BAJA (mismo criterio que la app
+    de campo): una persona rechazada no puede reinscribirse por link. Es una
+    decisión tomada por omisión, pendiente de confirmar con el programa.
+    """
     return (
         Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
         .filter(Q(ciudadano__dni=dni) | Q(datos_identificacion__dni=dni))
@@ -66,8 +79,13 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
             raise InscripcionNoDisponible()
         if rel.formularios.count() >= rel.cupo_maximo:
             raise InscripcionNoDisponible()
-        if _dni_en_convocatoria(rel.convocatoria, dni):
+        # El duplicado es por convocatoria completa: se lockea la convocatoria
+        # para que dos envíos simultáneos por relevamientos distintos no pasen.
+        convocatoria = Convocatoria.objects.select_for_update().get(pk=rel.convocatoria_id)
+        if dni_en_convocatoria(convocatoria, dni):
             raise InscripcionDuplicada()
+        if not esta_habilitado(rel, dni, identificacion.get("sexo", "")):
+            raise InscripcionNoHabilitada()
 
         if es_validado:
             nombre = datos_basicos.get("nombre", "")

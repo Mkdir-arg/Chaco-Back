@@ -101,7 +101,10 @@ def _relevamientos_ajax(request, convocatoria, message="Relevamiento creado y as
 
 
 def _assert_scope(request, relevamiento):
-    """403 si el usuario no puede gestionar el segmento del relevamiento."""
+    """403 si el usuario no puede gestionar el segmento del relevamiento, o si
+    es público y no tiene la capacidad (RN-P13: ocultar no es bloquear)."""
+    if relevamiento.es_publico and not _puede_publico(request.user):
+        raise PermissionDenied("No tiene acceso a este relevamiento.")
     programa = programa_becas()
     if (
         not puede_gestionar_segmento(request.user, relevamiento.segmento, programa=programa)

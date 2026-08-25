@@ -35,6 +35,10 @@ _ENCABEZADOS_DNI = {"DOCUMENTO", "DNI", "NRO DOCUMENTO", "NUMERO DE DOCUMENTO", 
 
 
 def normalizar_dni(valor):
+    # openpyxl entrega floats (30123456.0) en Excels exportados desde CSV,
+    # pandas o LibreOffice; sin este cast el DNI quedaba con un 0 de más.
+    if isinstance(valor, float) and valor.is_integer():
+        valor = int(valor)
     return "".join(ch for ch in str(valor or "") if ch.isdigit())
 
 
@@ -78,7 +82,7 @@ def parsear_padron(archivo):
                 continue  # fila totalmente vacía
             if indice == 0 and not dni and str(crudo_dni or "").strip().upper() in _ENCABEZADOS_DNI:
                 continue  # fila de encabezado
-            if not dni or not sexo:
+            if not dni or not sexo or len(dni) not in (7, 8):
                 rechazadas += 1
                 continue
             if dni in vistos:

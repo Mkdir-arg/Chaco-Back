@@ -12,6 +12,15 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from portal.services import inscripcion as servicio
+
+
+def _tolerar_render_local(exc):
+    """Solo se tolera el bug conocido de ``Context.__copy__`` del test client con
+    Python 3.14 + Django 4.2 (mensaje con ``dicts``). Cualquier otro
+    ``AttributeError`` es un bug real y se re-lanza: uno de rate limit se
+    escondió acá (revisión Cambio 40)."""
+    if "dicts" not in str(exc):
+        raise exc
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
 from programas.services.padron import cargar_padron
 
@@ -125,8 +134,9 @@ class Paso1FlujoTests(_BaseInscripcionTest):
     def test_token_invalido_404(self):
         try:
             resp = self.client.get(reverse("portal:inscripcion_paso1", kwargs={"token": uuid4()}))
-        except AttributeError:
-            return  # render de la página 404 en el entorno local (Py3.14); se valida en CI
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
         self.assertEqual(resp.status_code, 404)
 
     @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
@@ -156,16 +166,16 @@ class Paso1FlujoTests(_BaseInscripcionTest):
     def test_fallecido_no_avanza(self, mock_consulta):
         try:
             self._post_paso1()
-        except AttributeError:
-            pass  # render del entorno local (Py3.14); la aserción clave es la sesión
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
     @patch("portal.views.inscripcion.consultar_persona")
     def test_captcha_incorrecto_no_consulta_identidad(self, mock_consulta):
         try:
             self._post_paso1(captcha="999")
-        except AttributeError:
-            pass  # render del entorno local
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
         mock_consulta.assert_not_called()
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
@@ -174,8 +184,8 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         cargar_padron(self.relevamiento, None, [("28111222", "M")])
         try:
             self._post_paso1(dni="30123456", sexo="F")
-        except AttributeError:
-            pass  # render del entorno local
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
         mock_consulta.assert_not_called()
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
@@ -196,8 +206,8 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         )
         try:
             self._post_paso1(dni="30123456", sexo="F")
-        except AttributeError:
-            pass  # render del entorno local
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
         mock_consulta.assert_not_called()
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
@@ -208,8 +218,8 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         ):
             try:
                 self._post_paso1()
-            except AttributeError:
-                pass  # render del entorno local
+            except AttributeError as exc:
+                _tolerar_render_local(exc)
         mock_consulta.assert_not_called()
 
     def test_paso2_sin_paso1_redirige(self):
@@ -222,6 +232,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         )
         try:
             resp = self.client.get(self._url(vencido))
-        except AttributeError:
-            return  # render del entorno local: la pantalla se valida en CI
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
         self.assertTemplateUsed(resp, "portal/inscripcion/no_disponible.html")

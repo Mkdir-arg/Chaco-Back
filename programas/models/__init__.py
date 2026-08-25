@@ -1678,12 +1678,12 @@ class Relevamiento(PausableMixin, TimeStamped):
             self.fecha_hasta = timezone.make_aware(
                 datetime.combine(dia, time(23, 59, 59)), timezone.get_current_timezone()
             )
-        if self._state.adding and self.tipo == self.Tipo.PUBLICO:
-            # No hay territorial que lo inicie: nace operativo y con su link.
-            if not self.token_publico:
-                self.token_publico = uuid.uuid4()
-            if self.estado == self.Estado.ASIGNADO:
-                self.estado = self.Estado.EN_CURSO
+        if self.tipo == self.Tipo.PUBLICO and not self.token_publico:
+            # Un público siempre tiene link, también si cambió de tipo por admin.
+            self.token_publico = uuid.uuid4()
+        if self._state.adding and self.tipo == self.Tipo.PUBLICO and self.estado == self.Estado.ASIGNADO:
+            # No hay territorial que lo inicie: nace operativo.
+            self.estado = self.Estado.EN_CURSO
         if self._state.adding and not self.numero:
             with transaction.atomic():
                 Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)

@@ -3,9 +3,11 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core.rbac import puede
 from programas.models import Convocatoria, ProgramaSiis, RegistroPausa, Relevamiento, Segmento, Subsegmento
 from programas.services.autorizacion import es_admin_becas, puede_gestionar_segmento
 from programas.services.pausas import cambiar_pausa
+from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 
 TIPOS = {
     "programa": (ProgramaSiis, "becas:programa_detalle"),
@@ -36,6 +38,8 @@ def gestionar_pausa(request, tipo, pk):
         raise PermissionDenied("Tipo de elemento no permitido.")
     modelo, redirect_name = configuracion
     objeto = get_object_or_404(modelo, pk=pk)
+    if isinstance(objeto, Relevamiento) and objeto.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
+        raise PermissionDenied("No tiene acceso a este relevamiento.")
 
     segmento = _segmento_de(objeto)
     if not es_admin_becas(request.user) or (

@@ -19,6 +19,7 @@ from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
+from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm
 from programas.models import (
     Formulario,
@@ -107,6 +108,10 @@ def _con_conflicto_duplicado_pendiente(queryset):
 
 
 def _assert_scope_relevamiento(request, relevamiento):
+    # RN-P13: sin la capacidad, un relevamiento público no existe para el usuario
+    # (tampoco para mutarlo por URL).
+    if relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
+        raise PermissionDenied("No tiene acceso a este relevamiento.")
     if (
         not puede_gestionar_segmento(request.user, relevamiento.segmento)
         or not convocatorias_visibles(request.user).filter(pk=relevamiento.convocatoria_id).exists()
@@ -115,6 +120,8 @@ def _assert_scope_relevamiento(request, relevamiento):
 
 
 def _assert_scope_formulario(request, formulario):
+    if formulario.relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
+        raise PermissionDenied("No tiene acceso a este formulario.")
     if (
         not puede_gestionar_segmento(request.user, formulario.relevamiento.segmento)
         or not convocatorias_visibles(request.user).filter(pk=formulario.relevamiento.convocatoria_id).exists()
@@ -171,20 +178,30 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
         )
         if self.request.GET.get("fecha"):
             queryset = queryset.filter(creado__date=self.request.GET["fecha"])
-        if self.request.GET.get("territorial"):
-            queryset = queryset.filter(relevamiento__territorial_id=self.request.GET["territorial"])
-        if self.request.GET.get("segmento"):
-            queryset = queryset.filter(relevamiento__convocatoria__segmento_id=self.request.GET["segmento"])
+        # Los filtros llegan por GET: solo se aplican si son ids válidos.
+        territorial = self.request.GET.get("territorial", "")
+        if territorial.isdigit():
+            queryset = queryset.filter(relevamiento__territorial_id=int(territorial))
+        segmento = self.request.GET.get("segmento", "")
+        if segmento.isdigit():
+            queryset = queryset.filter(relevamiento__convocatoria__segmento_id=int(segmento))
         return queryset.order_by("-creado")
+
+    @staticmethod
+    def territoriales_pendientes(base):
+        """Opciones del filtro. Los formularios públicos no tienen territorial:
+        quedan fuera del selector (antes generaban una opción `None`)."""
+        return (
+            base.exclude(relevamiento__territorial__isnull=True)
+            .values("relevamiento__territorial_id", "relevamiento__territorial__username")
+            .distinct()
+            .order_by("relevamiento__territorial__username")
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         base = Formulario.objects.filter(validado_renaper=False)
-        context["territoriales"] = (
-            base.values("relevamiento__territorial_id", "relevamiento__territorial__username")
-            .distinct()
-            .order_by("relevamiento__territorial__username")
-        )
+        context["territoriales"] = self.territoriales_pendientes(base)
         context["segmentos"] = (
             Segmento.objects.filter(convocatorias__relevamientos__formularios__validado_renaper=False)
             .distinct()

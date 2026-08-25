@@ -4,6 +4,7 @@ from django import forms
 from django.utils.dateparse import parse_date
 
 from programas.services.becas import es_menor
+from programas.services.personas import fecha_iso
 
 INPUT_CLASS = "nodo-field w-full"
 
@@ -176,7 +177,7 @@ class InscripcionPaso2Form(forms.Form):
         if self.es_manual:
             return self.cleaned_data.get("fecha_nacimiento")
         datos = self.identificacion.get("datos") or {}
-        return parse_date(str(datos.get("fecha_nacimiento") or "")) or None
+        return parse_date(fecha_iso(datos.get("fecha_nacimiento")) or "") or None
 
     def clean(self):
         cleaned = super().clean()

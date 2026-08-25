@@ -12,10 +12,10 @@ import random
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Q
 from django.utils import timezone
 
-from programas.models import Formulario, Relevamiento
+from programas.models import Relevamiento
+from programas.services.inscripcion_publica import dni_en_convocatoria
 
 # Rate limit del paso 1 (RN-P11): intentos por IP dentro de la ventana. Los
 # rechazos por límite o captcha nunca llegan a consultar RENAPER/Gran Base.
@@ -37,14 +37,8 @@ def relevamiento_disponible(relevamiento):
     )
 
 
-def dni_ya_inscripto(convocatoria, dni):
-    """Duplicado por convocatoria completa (RN-P5): cualquier relevamiento, de
-    campo o público, por ciudadano resuelto o identificación offline."""
-    return (
-        Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
-        .filter(Q(ciudadano__dni=dni) | Q(datos_identificacion__dni=dni))
-        .exists()
-    )
+# RN-P5 vive en una sola función (la ingesta la re-chequea en su transacción).
+dni_ya_inscripto = dni_en_convocatoria
 
 
 def _ip_de(request):

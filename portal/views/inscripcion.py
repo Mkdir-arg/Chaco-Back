@@ -32,6 +32,7 @@ from programas.services.becas import definicion_formulario
 from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
     InscripcionNoDisponible,
+    InscripcionNoHabilitada,
     crear_formulario_publico,
     enmascarar_email,
     enviar_confirmacion_inscripcion,
@@ -74,10 +75,12 @@ def inscripcion_paso1(request, token):
     if not relevamiento_disponible(relevamiento):
         return _no_disponible(request, relevamiento)
 
-    form = InscripcionPaso1Form(request.POST or None)
+    form = InscripcionPaso1Form(request.POST if request.method == "POST" else None)
     if request.method == "POST":
         if intentos_excedidos(request):
-            form = InscripcionPaso1Form()  # no procesar nada del POST
+            # Solo se valida el form para poder colgarle el error general: no
+            # se registra el intento ni se consulta identidad.
+            form.is_valid()
             form.add_error(None, MENSAJE_DEMASIADOS_INTENTOS)
         elif not captcha_valido(request, request.POST.get("captcha")):
             registrar_intento(request)
@@ -162,17 +165,21 @@ def inscripcion_paso2(request, token):
                 "portal/inscripcion/ya_inscripto.html",
                 {"relevamiento": relevamiento, "dni": identificacion["dni"]},
             )
-        # Correo de confirmación (#296): solo si el relevamiento lo tiene
-        # activo y solo en el envío que creó el formulario; su falla no
-        # rompe nada (queda logueada).
-        correo_enviado = bool(creado and enviar_confirmacion_inscripcion(formulario))
-        request.session.pop(clave_sesion(relevamiento), None)
-        request.session[f"inscripcion_ok_{relevamiento.pk}"] = {
-            "numero": formulario.numero,
-            "email": enmascarar_email(formulario.email_contacto),
-            "correo_enviado": correo_enviado,
-        }
-        return redirect("portal:inscripcion_confirmacion", token=relevamiento.token_publico)
+        except InscripcionNoHabilitada:
+            # El padrón cambió entre el paso 1 y el envío (RN-P14).
+            form.add_error(None, MENSAJE_NO_HABILITADO)
+        else:
+            # Correo de confirmación (#296): solo si el relevamiento lo tiene
+            # activo y solo en el envío que creó el formulario; su falla no
+            # rompe nada (queda logueada).
+            correo_enviado = bool(creado and enviar_confirmacion_inscripcion(formulario))
+            request.session.pop(clave_sesion(relevamiento), None)
+            request.session[f"inscripcion_ok_{relevamiento.pk}"] = {
+                "numero": formulario.numero,
+                "email": enmascarar_email(formulario.email_contacto),
+                "correo_enviado": correo_enviado,
+            }
+            return redirect("portal:inscripcion_confirmacion", token=relevamiento.token_publico)
 
     return render(
         request,
