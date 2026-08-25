@@ -14,6 +14,13 @@ La revisión, SIS, cupos y la app móvil **no se tocan**.
 capacidad nueva `becas.relevamiento.publico`. Se puede desplegar a producción sin que los
 usuarios del cliente vean nada; habilitarlo después es tildar la capacidad en Roles, sin deploy.
 
+## Estado (24/08/2026)
+
+Las cuatro fases están desarrolladas y en PRs apilados sobre `development`, cada uno con sus
+gates en verde: **#301** (Fase 1) → **#302** (Fase 2) → **#303** (Fase 3) → **#304** (Fase 4).
+Mergear en orden re-apuntando bases. Registro de cierre: `docs/internal/requerimientos.md`,
+Cambio 40. Queda para el PM: merge, ejecución de los 65 casos de QA y deploy a test.
+
 ## Fases de desarrollo
 
 Cuatro fases incrementales. Cada fase cierra con un **entregable demostrable**, sus tests en

@@ -181,6 +181,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — implementado; falta envío real y aprobación de textos** | `users.0022` |
 | 38 | Cerrar sesión da error 405 después de actualizar Django | Transversal / sesión | `#sesion` `#infra` `#ui` | PM — reportó el 405 al entrar a `/logout` | 20/08/2026 | 🟢 **Hecho** | No |
 | 39 | En el login aparece el logo de Nodo en lugar del del Chaco | Transversal / marca | `#ui` `#sesion` `#infra` | PM — vio la marca del proveedor en la pantalla de acceso | 21/08/2026 | 🟢 **Hecho** | No |
+| 40 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟡 **Hecho — pendiente de merge y despliegue (PRs #301–#304)** | `programas.0049` + `programas.0050` |
 
 **Notas del índice**
 
@@ -3309,3 +3310,90 @@ La estructura de cada entrada nueva está definida en **[Plantilla obligatoria d
 4. Correr `scripts/requerimientos.py --check`: verifica que la entrada y el índice coincidan y que las etiquetas existan en el vocabulario. Tiene que dar OK.
 
 La regla, el motivo de cada campo y la mitad de lectura —qué consultar **antes** de escribir código— están en **[Regla de oro](#regla-de-oro)** y en **[Cómo leerlo sin leerlo entero](#cómo-leerlo-sin-leerlo-entero)**.
+
+
+---
+
+# Cambio 40 — Formulario público de autocompletado: relevamientos con link de inscripción
+
+🟡 **HECHO — 24/08/2026 — pendiente de merge y despliegue (PRs #301, #302, #303 y #304, apilados)**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Portal |
+| **Etiquetas** | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` |
+| **Solicitante** | Programa de Becas, a través del PM — pedido relevado y cerrado en sesión de análisis del 21/08/2026 (con adiciones del 22/08 y 24/08) |
+| **Fecha del pedido** | 21/08/2026 |
+| **Issue / épica** | Épica #69 · Análisis #289 · Tasks #290–#296 y #299 |
+| **Partes afectadas** | Backoffice · Portal ciudadano (nueva superficie pública) · Servidor. **Mobile no se toca.** |
+| **Migración** | `programas.0049` (tipo, token, correo, territorial nullable) + `programas.0050` (padrón) |
+
+## Pedido original
+
+> «Desde el programa de Becas quieren que un público objetivo se autocomplete: pasar un link con un formulario y que esa data llegue como si fuera desde la aplicación a un relevamiento. Mi idea era sumar en la configuración del relevamiento si es territorial o formulario público; en base a eso genera un relevamiento en la app o un link público.» Después: «siempre el primer paso antes de ingresar al form es poner número de documento y sexo […] valida si ya fue relevado […] después valida contra la Gran Base / RENAPER y te completa la información». Y el 24/08: «cuando se configura el relevamiento público la opción se valida con un Excel de dos columnas, documento y sexo, para dejar pasar o no al siguiente paso; esa validación la podemos configurar».
+
+## Alcance acordado
+
+- Nuevo **tipo de relevamiento**: territorial (exactamente como hoy) o **formulario público**, que genera un link con token y no tiene territorial ni zona.
+- Flujo público en dos pasos: identificación (DNI + sexo, captcha) → formulario dinámico → comprobante. Lo enviado es un `Formulario` **ENVIADO** más, con su legajo ciudadano creado en el acto.
+- **Padrón de habilitados** opcional por relevamiento (Excel documento/sexo) como lista blanca del paso 1.
+- **Correo de confirmación configurable** por relevamiento.
+- **Lanzamiento gateado por RBAC**: toda la superficie backoffice detrás de la capacidad `becas.relevamiento.publico`.
+- **Afuera**: configurador de formularios propio, comunicar cupo o motivo de cierre, login del portal como requisito, avisos al backoffice por envío, editar el tipo de un relevamiento existente, pedir fecha de nacimiento en el paso 1.
+
+## Decisiones tomadas
+
+- **Sin form-builder: el público usa la misma definición dinámica que la app** (`definicion_formulario`: preguntas globales + requisitos heredados). Motivo: `Formulario.data` está keyed por pk de pregunta/requisito y la revisión renderiza contra eso; un form propio habría roto el «llega como si fuera de la app». Si hace falta acotar qué ve el público, el camino barato es un flag por pregunta (evolutivo aparte).
+- **La ingesta no pasa por la API DRF** (exige token de territorial): una vista pública reutiliza los mismos servicios (`resolver_ciudadano_offline`, cupo bajo `select_for_update`, `client_uuid` idempotente). Para el backoffice el formulario es indistinguible: la bandeja de revisión, SIS, cupos y exportación **no se tocaron**.
+- **Territorial pasa a nullable + constraint por tipo** en vez de un usuario sistema «Formulario público». Motivo: un usuario fantasma aparecería en filtros y reportes. Efecto colateral buscado: la API móvil filtra por territorial, así que los públicos desaparecen solos de la app (con test).
+- **El público nace En curso y se cierra solo** al pasar `fecha_hasta`, reutilizando el registro de vencimientos (`becas.relevamiento_publico` → FINALIZADO). La pausa existente lo saca de servicio a mano. Sin operador que lo inicie no había alternativa.
+- **Duplicado por convocatoria completa** (opción B del análisis), no por relevamiento: quien ya fue relevado en campo no puede volver a inscribirse por link. Se re-chequea dentro de la transacción del envío por si se coló otro entre paso 1 y envío.
+- **Sin match en RENAPER/Gran Base se deja pasar igual**, con `validado_renaper=False` (mismo tratamiento que una carga manual del territorial); FALLECIDO corta. Decisión del cliente.
+- **Los menores pueden inscribirse**; el paso 2 exige apoderado (RN-22, misma regla que la app; cumplir 18 hoy = mayor).
+- **Solo datos básicos en la respuesta** (nombre, apellido, fecha de nacimiento): nunca domicilio. El paso 1 es un oráculo público y se acotó lo que revela. Se decidió **no** pedir fecha de nacimiento como control extra «por ahora»: quien sabe DNI y sexo de un tercero puede inscribirlo; la revisión humana es la mitigación.
+- **Gateo por capacidad RBAC, no por variable de entorno.** Motivo: el pedido fue «que yo la configure y el cliente no la vea» en el mismo ambiente → per-usuario; encender es tildar la capacidad en Roles, sin deploy. El link en sí no se gatea (es público por diseño). El superusuario tiene bypass.
+- **Padrón: Excel parseado al subir a una tabla indexada**, nunca leído por request; chequeo **antes** de RENAPER (ahorra consultas de no habilitados); normalización en ambos sentidos (dígitos; F/M sin mayúsculas); **reemplazo total, no merge**; el mensaje «no estás habilitado» revela pertenencia y se asumió como parte del requerimiento (la persona tiene que saber por qué no entra), acotado por captcha y rate limit.
+- **Captcha aritmético autoalojado** en vez de reCAPTCHA/Turnstile o una dependencia nueva: los servicios externos exigirían salida a internet desde icore-srv y claves por ambiente. **Rate limiting sobre el cache de Django** (Redis en producción): cero infraestructura nueva.
+- **GPS best-effort**: si la persona niega la geolocalización del navegador, el envío se acepta sin coordenadas (en campo el territorial la garantiza; desde la casa no tiene sentido bloquear).
+- **El correo nunca rompe la inscripción**: cualquier falla de SMTP se loguea y el comprobante se muestra igual. Es exclusivo del flujo público (la API de campo no lo llama, con test).
+
+## Implementación
+
+- **Backoffice:** el modal de Nuevo relevamiento (listado, detalle de convocatoria y alta completa) tiene un selector de tipo visible solo con la capacidad; al elegir público se ocultan Territorial y Municipio/Localidad y aparecen Cupo, Padrón (archivo .xlsx) y el toggle de correo. El detalle muestra el link con botón copiar, la vigencia, el padrón cargado y la acción Cargar/Reemplazar padrón. Listados con badge de tipo; los públicos se ocultan a quien no tiene la capacidad y el POST con tipo público se rechaza server-side.
+- **Portal** (`/inscripcion/<token>/`): paso 1 con DNI, sexo y verificación; en orden captcha → rate limit → padrón → duplicado → Gran Base. Pantallas: «Ya estás inscripto», «Formulario no disponible» (única para vencido/pausado/cupo/cerrado, sin motivo), 404 para token inválido, «No estás habilitado» inline. Paso 2 con datos validados en solo lectura (o carga manual sin match), contacto, preguntas y requisitos de la convocatoria con los seis tipos de campo, archivos JPG/PNG/PDF hasta 5 MB, apoderado y GPS. Comprobante con número de formulario y, si aplica, aviso del correo enviado (email enmascarado).
+- **Ingesta:** `Formulario` ENVIADO con `datos_identificacion` en el contrato de la app, `validado_renaper` según origen, adjuntos como `AdjuntoFormulario`, legajo ciudadano creado o linkeado, `created_by` vacío.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0049_*`, `0050_*` · `programas/forms.py` · `programas/views/relevamientos.py` · `programas/urls.py` · `programas/services/{vencimientos,padron,inscripcion_publica}.py` · `programas/api/views.py` · `programas/admin.py` · `programas/templates/programas/becas/relevamientos/*` · `core/rbac.py` · `portal/{urls,forms/inscripcion,services/inscripcion,views/inscripcion}.py` · `portal/templates/portal/inscripcion/*` · tests: `programas/tests/test_relevamiento_publico.py`, `test_padron.py`, `portal/tests/test_inscripcion*.py` · `docs/plans/2026-08-22-formulario-publico-becas-plan.md`.
+
+## Base de datos
+
+- `programas.0049`: `Relevamiento.tipo` (default TERRITORIAL), `token_publico` (UUID único, nulo en territoriales), `confirmar_por_email`, `territorial` nullable + `CheckConstraint` tipo↔territorial. **Segura sobre datos existentes**: todos los relevamientos previos quedan TERRITORIAL con su territorial intacto.
+- `programas.0050`: `Relevamiento.padron_archivo` + tabla `PadronHabilitado` (relevamiento, dni, sexo; único por relevamiento+dni). Aditiva.
+
+## Validación
+
+- **~75 pruebas automáticas nuevas** en verde en local: modelo/constraint/API móvil/vistas gateadas (fase 1), cierre por vencimiento, parser y servicio del padrón, paso 1 completo (captcha, rate limit, padrón, duplicado por ambos campos, FALLECIDO, caído, privacidad de la respuesta), form dinámico (obligatorios, ids ajenos, archivos, RN-22 con borde de 18), ingesta (validado, linkeo sin duplicar, manual, idempotencia, cupo, duplicado colado, vencido), vista y correo (toggle on/off, SMTP caído, la API de campo no manda).
+- Suites completas de Becas y Portal: solo los errores de entorno preexistentes (Python 3.14 renderizando plantillas), verificados contra `development` limpio en cada fase.
+- `manage.py check` OK · `makemigrations --check` sin faltantes · `design_audit.py --changed` 0 errores / 0 warnings en las cuatro fases · `compile_templates.py` 324 plantillas, 0 errores · `check_design_agent.py` OK.
+- **65 casos de QA** (`TC-290…299`) en los cuerpos de las tasks, a ejecutar por QA humano cuando los PRs mergeen.
+
+## Puesta en marcha en el servidor
+
+- Deploy estándar **con migración** (`manage.py migrate`; 0049 y 0050 son aditivas y de bajo riesgo).
+- Tras el deploy **el cliente no ve nada**: ningún rol tiene `becas.relevamiento.publico`. Encender = asignarla desde la pantalla de Roles, sin deploy. Probar el link end-to-end **en test, no en producción** (un envío de prueba aparecería en la bandeja de revisión del cliente).
+- El correo de confirmación depende del **Cambio 37 / #245 (SMTP)**; hasta entonces crear los públicos con el toggle apagado.
+- Sin cron nuevo: el cierre por vencimiento corre dentro del `procesar_vencimientos` existente.
+
+## Pendientes / a definir
+
+- **Merge y despliegue** de los cuatro PRs apilados (#301 → #302 → #303 → #304) y ejecución de los 65 casos de QA.
+- **Mockup desactualizado en dos detalles**: el modal del backoffice ya tiene el campo de padrón y «no estás habilitado» quedó como error inline del paso 1 (no pantalla propia).
+- **Flag «visible en formulario público» por pregunta/requisito** si el programa necesita acotar el formulario del público (evolutivo aparte, ~4–6 h).
+- Textos definitivos de pantallas y correo: se usaron los del mockup; los ajusta el programa cuando lo vea.
+- El control extra de fecha de nacimiento en el paso 1 quedó descartado «por ahora»; retomarlo si aparece abuso.
+
+## Reversión
+
+Revertir los PRs en orden inverso (#304 → #301). Las migraciones se retroceden a `programas.0048`: antes de hacerlo con datos reales hay que **exportar los relevamientos públicos, sus padrones y los formularios ingresados por link** —el rollback elimina `tipo`, `token_publico`, `confirmar_por_email`, `padron_archivo` y la tabla `PadronHabilitado`, y los relevamientos sin territorial violarían la columna no nula—. Los formularios ya creados y sus legajos ciudadanos son datos comunes y se conservan.
