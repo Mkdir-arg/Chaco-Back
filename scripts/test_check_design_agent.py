@@ -33,6 +33,15 @@ class CheckDesignAgentCliTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("must update .claude/agents/chaco-design-system.md", result.stdout)
 
+    def test_programas_templates_can_be_canonical_evidence(self) -> None:
+        result = self.run_checker(
+            "--changed-file",
+            "programas/templates/programas/becas/config/programa_detail.html",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must update .claude/agents/chaco-design-system.md", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
