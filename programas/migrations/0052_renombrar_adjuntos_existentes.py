@@ -54,7 +54,9 @@ def renombrar(apps, schema_editor):
     Adjunto = apps.get_model("programas", "AdjuntoFormulario")
     Relevamiento = apps.get_model("programas", "Relevamiento")
 
-    for adjunto in Adjunto.objects.exclude(archivo="").iterator():
+    for adjunto in Adjunto.objects.exclude(archivo="").exclude(archivo__isnull=True).iterator():
+        if not adjunto.archivo or not adjunto.archivo.name:
+            continue
         # Los que ya tienen nombre de UUID (subidos después de la 0051) se saltean.
         nombre = PurePosixPath(adjunto.archivo.name).stem
         if len(nombre) == 32 and all(c in "0123456789abcdef" for c in nombre):
@@ -65,7 +67,13 @@ def renombrar(apps, schema_editor):
             adjunto.archivo.name = nueva
             adjunto.save(update_fields=["archivo"])
 
-    for relevamiento in Relevamiento.objects.exclude(padron_archivo="").iterator():
+    # ``padron_archivo`` es nullable: ``exclude("")`` no filtra los NULL y el
+    # ``.name`` de un FieldFile vacío es ``None`` (rompió el bootstrap en ECOM).
+    for relevamiento in (
+        Relevamiento.objects.exclude(padron_archivo="").exclude(padron_archivo__isnull=True).iterator()
+    ):
+        if not relevamiento.padron_archivo or not relevamiento.padron_archivo.name:
+            continue
         nombre = PurePosixPath(relevamiento.padron_archivo.name).stem
         if len(nombre) == 32 and all(c in "0123456789abcdef" for c in nombre):
             continue
