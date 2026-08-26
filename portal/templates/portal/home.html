@@ -1,6 +1,6 @@
 {% extends 'portal/base.html' %}
 
-{% block title %}Portal Municipal — Portal Nande{% endblock %}
+{% block title %}Portal Ciudadano — DATAÑACH{% endblock %}
 
 {% block content %}
 <style>
@@ -14,8 +14,6 @@
     }
     .card-lift { transition: transform 0.25s ease, box-shadow 0.25s ease; }
     .card-lift:hover { transform: translateY(-5px); box-shadow: 0 20px 40px -8px rgba(0,0,0,0.12); }
-
-    .link-warning:hover { color: var(--text-fg-warning); }
 
     /* Hero */
     .hero-bg {
@@ -43,11 +41,11 @@
     /* Stats strip */
     .stats-strip {
         background: var(--bg-primary);
-        border-radius: 1.5rem;
-        box-shadow: 0 4px 24px -4px rgba(0,0,0,0.10);
+        border-radius: var(--radius-3xl);
+        box-shadow: var(--shadow-md);
         border: 1px solid var(--border-base);
     }
-    .stat-divider { border-left: 1px solid var(--border-base); }
+    @media (min-width: 768px) { .stat-divider { border-left: 1px solid var(--border-base); } }
 
     /* Accesos rápidos */
     .access-pill {
@@ -62,13 +60,6 @@
         transition: transform 0.22s, box-shadow 0.22s;
     }
     .programa-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px -8px rgba(0,0,0,0.10); }
-
-    /* Instituciones */
-    .inst-type-badge {
-        font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
-        text-transform: uppercase; padding: 0.2rem 0.6rem; border-radius: 99px;
-        background: var(--bg-info-soft); color: var(--text-fg-info);
-    }
 
     /* Turnos */
     .turno-card { transition: transform 0.22s, box-shadow 0.22s; }
@@ -101,16 +92,16 @@
             <div class="flex-1 text-center lg:text-left">
                 <div class="inline-flex items-center gap-2 bg-white bg-opacity-15 backdrop-blur-sm px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest mb-6">
                     <span class="w-2 h-2 rounded-full dot-live" style="background: var(--text-fg-success);"></span>
-                    Servicios digitales disponibles
+                    Programas sociales del Gobierno del Chaco
                 </div>
 
                 <h1 class="text-4xl md:text-5xl xl:text-6xl font-extrabold leading-tight mb-5">
-                    Tu municipio,<br>
-                    <span class="text-white text-opacity-80">al alcance de un clic</span>
+                    Tus programas sociales,<br>
+                    <span class="text-white text-opacity-80">en un solo lugar</span>
                 </h1>
                 <p class="text-lg text-white text-opacity-75 leading-relaxed mb-8 max-w-xl">
-                    Gestioná trámites, seguí tus programas sociales, hacé consultas
-                    y conectate con el municipio sin salir de casa.
+                    Seguí tus programas e inscripciones, consultá al equipo de tu
+                    programa y mantené tus datos al día, con tu DNI.
                 </p>
 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -140,10 +131,10 @@
                     <i class="fas fa-comments text-3xl mb-2 group-hover:scale-110 transition-transform inline-block"></i>
                     <p class="text-sm font-semibold">Consultas</p>
                 </a>
-                <a href="{% url 'portal:ciudadano_login' %}"
+                <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_datos' %}"
                    class="bg-white bg-opacity-15 backdrop-blur-sm hover:bg-opacity-25 rounded-2xl p-5 text-center transition-all duration-200 group">
-                    <i class="fas fa-building text-3xl mb-2 group-hover:scale-110 transition-transform inline-block"></i>
-                    <p class="text-sm font-semibold">Instituciones</p>
+                    <i class="fas fa-id-card text-3xl mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                    <p class="text-sm font-semibold">Mis datos</p>
                 </a>
             </div>
         </div>
@@ -152,7 +143,7 @@
     <!-- ══════════════════════════════════════════════════════
          STATS STRIP
     ══════════════════════════════════════════════════════ -->
-    <div class="stats-strip p-6 mb-14 grid grid-cols-2 md:grid-cols-4 gap-0">
+    <div class="stats-strip p-6 mb-14 grid grid-cols-1 md:grid-cols-3 gap-0">
         <div class="text-center px-6 py-2">
             <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.ciudadanos }}</div>
             <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Ciudadanos registrados</div>
@@ -160,10 +151,6 @@
         <div class="text-center px-6 py-2 stat-divider">
             <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.programas }}</div>
             <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Programas activos</div>
-        </div>
-        <div class="text-center px-6 py-2 stat-divider">
-            <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.instituciones }}</div>
-            <div class="text-xs text-[var(--text-body-subtle)] font-medium mt-1">Instituciones DATAÑACH</div>
         </div>
         <div class="text-center px-6 py-2 stat-divider">
             <div class="text-3xl font-extrabold text-[var(--text-heading)]">{{ stats.inscripciones_activas }}</div>
@@ -221,24 +208,24 @@
                 </div>
             </div>
 
-            <!-- INSTITUCIONES -->
+            <!-- CONSULTAS AL PROGRAMA -->
             <div class="bg-white rounded-3xl border border-[var(--border-base)] overflow-hidden card-lift">
                 <div class="p-8 text-white relative overflow-hidden"
                      style="background: var(--gradient-brand);">
                     <div class="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white opacity-10"></div>
                     <div class="relative z-10">
                         <div class="inline-flex items-center gap-2 bg-white bg-opacity-20 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
-                            <i class="fas fa-building"></i> Instituciones
+                            <i class="fas fa-comments"></i> Consultas
                         </div>
-                        <h2 class="text-2xl font-extrabold mb-2">Red DATAÑACH</h2>
+                        <h2 class="text-2xl font-extrabold mb-2">Consultas al programa</h2>
                         <p class="text-white text-opacity-80 text-sm leading-relaxed">
-                            Registrá tu institución y articulá con el municipio en el territorio
+                            Hacé tu consulta al equipo del programa y seguí la respuesta desde tu cuenta
                         </p>
                     </div>
                 </div>
                 <div class="p-8">
                     <div class="space-y-3 mb-7">
-                        {% for item in institucion_items %}
+                        {% for item in consulta_items %}
                         <div class="flex items-center gap-3 text-sm text-[var(--text-heading)]">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
                                  style="background: var(--bg-brand);">
@@ -249,15 +236,15 @@
                         {% endfor %}
                     </div>
                     <div class="flex gap-3">
-                        <a href="{% url 'portal:ciudadano_login' %}"
+                        <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_nueva_consulta' %}"
                            class="flex-1 text-center text-white font-bold py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:opacity-90"
                            style="background: var(--gradient-brand);">
-                            <i class="fas fa-rocket mr-2"></i>Iniciar trámite
+                            <i class="fas fa-pen mr-2"></i>Hacer una consulta
                         </a>
-                        <a href="{% url 'portal:ciudadano_login' %}"
+                        <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_consultas' %}"
                            class="flex-1 text-center font-semibold py-3 rounded-xl border-2 transition-all duration-300 hover:bg-gray-50"
                            style="color: var(--text-fg-brand); border-color: var(--border-brand);">
-                            <i class="fas fa-search mr-2"></i>Consultar estado
+                            <i class="fas fa-list mr-2"></i>Ver mis consultas
                         </a>
                     </div>
                 </div>
@@ -266,7 +253,7 @@
     </section>
 
     <!-- ══════════════════════════════════════════════════════
-         PROGRAMAS MUNICIPALES
+         PROGRAMAS DEL GOBIERNO DEL CHACO
     ══════════════════════════════════════════════════════ -->
     {% if programas %}
     <section class="section">
@@ -275,8 +262,8 @@
                 <div class="section-label" style="background: var(--bg-info-soft); color: var(--text-fg-info);">
                     <i class="fas fa-hands-helping"></i> Programas sociales
                 </div>
-                <h2 class="text-2xl font-extrabold text-[var(--text-heading)]">Programas municipales</h2>
-                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Conocé los programas disponibles y a cuáles podés inscribirte</p>
+                <h2 class="text-2xl font-extrabold text-[var(--text-heading)]">Programas del Gobierno del Chaco</h2>
+                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Conocé los programas activos y seguí tu inscripción desde tu cuenta</p>
             </div>
             <a href="{% url 'portal:ciudadano_login' %}?next={% url 'portal:ciudadano_mis_programas' %}"
                class="hidden md:inline-flex items-center gap-2 text-sm font-semibold transition-colors"
@@ -304,7 +291,7 @@
                 {% if programa.descripcion %}
                 <p class="text-[var(--text-body-subtle)] text-sm leading-relaxed line-clamp-2">{{ programa.descripcion }}</p>
                 {% else %}
-                <p class="text-[var(--text-body-subtle)] text-sm italic">Programa de atención municipal</p>
+                <p class="text-[var(--text-body-subtle)] text-sm italic">Programa social del Gobierno del Chaco</p>
                 {% endif %}
                 <div class="mt-4 pt-4 border-t border-[var(--border-light)]">
                     <a href="{% url 'portal:ciudadano_login' %}"
@@ -320,62 +307,21 @@
     {% endif %}
 
     <!-- ══════════════════════════════════════════════════════
-         INSTITUCIONES DATAÑACH
+         LINK DE INSCRIPCIÓN
     ══════════════════════════════════════════════════════ -->
-    {% if instituciones %}
-    <section class="section">
-        <div class="flex items-end justify-between mb-8">
+    <section class="mb-14">
+        <div class="rounded-2xl border border-[var(--border-base)] p-6 flex items-center gap-4" style="background: var(--bg-secondary);">
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background: var(--bg-brand-tint);">
+                <i class="fas fa-link" style="color: var(--text-fg-brand);"></i>
+            </div>
             <div>
-                <div class="section-label" style="background: var(--bg-warning-soft); color: var(--text-fg-warning-subtle);">
-                    <i class="fas fa-network-wired"></i> Red territorial
-                </div>
-                <h2 class="text-2xl font-extrabold text-[var(--text-heading)]">Instituciones de la red</h2>
-                <p class="text-[var(--text-body-subtle)] mt-1 text-sm">Organizaciones que trabajan junto al municipio en el territorio</p>
+                <h3 class="font-bold text-[var(--text-heading)]">¿Recibiste un link de inscripción?</h3>
+                <p class="text-[var(--text-body-subtle)] text-sm mt-0.5">
+                    Si el programa te envió un link, ingresá desde ese link para completar tu inscripción. Solo vas a necesitar tu DNI.
+                </p>
             </div>
-            <a href="{% url 'portal:ciudadano_login' %}"
-               class="hidden md:inline-flex items-center gap-2 text-sm font-semibold transition-colors link-warning"
-               style="color: var(--text-fg-warning-subtle);">
-                Registrar institución <i class="fas fa-arrow-right text-xs"></i>
-            </a>
-        </div>
-
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {% for inst in instituciones %}
-            <div class="bg-white rounded-2xl border border-[var(--border-base)] p-6 card-lift flex flex-col gap-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background: var(--bg-warning-soft);">
-                        <i class="fas fa-building text-lg" style="color: var(--text-fg-warning-subtle);"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <h3 class="font-bold text-[var(--text-heading)] truncate">{{ inst.nombre }}</h3>
-                        <span class="inst-type-badge">{{ inst.tipo }}</span>
-                    </div>
-                </div>
-                <div class="space-y-1.5 text-sm text-[var(--text-body-subtle)]">
-                    {% if inst.localidad %}
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-map-marker-alt w-4 text-center"></i>
-                        <span>{{ inst.localidad }}</span>
-                    </div>
-                    {% endif %}
-                    {% if inst.telefono %}
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-phone w-4 text-center"></i>
-                        <span>{{ inst.telefono }}</span>
-                    </div>
-                    {% endif %}
-                    {% if inst.direccion %}
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-road w-4 text-center"></i>
-                        <span class="truncate">{{ inst.direccion }}</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
         </div>
     </section>
-    {% endif %}
 
     <!-- ══════════════════════════════════════════════════════
          CTA FINAL + AYUDA
@@ -390,7 +336,7 @@
                 </div>
                 <h2 class="text-3xl font-extrabold mb-4">¿Ya tenés tu cuenta?<br>Ingresá ahora</h2>
                 <p class="text-white text-opacity-75 mb-8 leading-relaxed">
-                    Con tu DNI y contraseña podés ver todos tus programas y consultas
+                    Con tu DNI y contraseña podés ver tus programas y consultas
                     desde cualquier dispositivo.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4">
@@ -418,8 +364,8 @@
                     <div class="flex items-center gap-3 rounded-xl p-3.5 border border-[var(--border-base)]" style="background: var(--bg-secondary);">
                         <i class="fas fa-phone w-5 text-center" style="color: var(--text-fg-brand);"></i>
                         <div>
-                            <p class="text-xs text-[var(--text-body-subtle)] font-medium">Línea gratuita</p>
-                            <p class="font-bold text-[var(--text-heading)] text-sm">0800-222-1133</p>
+                            <p class="text-xs text-[var(--text-body-subtle)] font-medium">Teléfono</p>
+                            <p class="font-bold text-[var(--text-heading)] text-sm">+54 362 430-0002</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 rounded-xl p-3.5 border border-[var(--border-base)]" style="background: var(--bg-secondary);">
