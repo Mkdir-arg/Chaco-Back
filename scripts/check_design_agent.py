@@ -44,7 +44,7 @@ BANNED_AUTHORITY_CLAIMS = (
     "inviolable laws",
     "take precedence over personal",
 )
-EVIDENCE_PREFIXES = ("static/", "templates/", "portal/", "users/", "docs/", ".claude/")
+EVIDENCE_PREFIXES = ("static/", "templates/", "portal/", "users/", "programas/", "docs/", ".claude/")
 
 
 def relative_path(path: str | Path) -> Path:
@@ -61,7 +61,16 @@ def read_text(repo: Path, relative: Path, errors: list[str]) -> str:
 
 def inventory_rows(agent_text: str, errors: list[str]) -> list[tuple[str, str, str]]:
     rows: list[tuple[str, str, str]] = []
+    in_inventory = False
     for line in agent_text.splitlines():
+        if line.startswith("## "):
+            if line.strip() == "## Inventario operativo inicial":
+                in_inventory = True
+                continue
+            if in_inventory:
+                break
+        if not in_inventory:
+            continue
         if not line.startswith("|") or line.startswith("|---"):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
