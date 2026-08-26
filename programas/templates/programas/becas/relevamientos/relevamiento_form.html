@@ -33,6 +33,14 @@
     {% with field=form.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% if form.tipo %}
     <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="border-0 p-0 m-0">
+      {% comment %}El padrón es opcional por decisión del programa (RN-P14), pero
+      sin él el link acepta a cualquiera: el aviso hace explícita la consecuencia
+      en el momento de decidir, no después (revisión de seguridad 26/08/2026).{% endcomment %}
+      <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-3" role="alert">
+        <i class="fas fa-triangle-exclamation text-fg-warning mr-1"></i>
+        <strong>Sin padrón el link queda abierto:</strong> cualquier persona que lo reciba puede inscribirse y
+        ocupar cupo. Cargá el Excel de habilitados si la convocatoria es para un grupo definido.
+      </div>
       {% with field=form.padron %}{% include "programas/becas/_field.html" %}{% endwith %}
       <label class="mb-4 flex items-center gap-2 text-sm text-heading" for="{{ form.confirmar_por_email.id_for_label }}">
         {{ form.confirmar_por_email }}
