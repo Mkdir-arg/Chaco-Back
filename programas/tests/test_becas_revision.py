@@ -797,6 +797,57 @@ class AvisoResolucionCableadoTests(_BaseAvisoResolucionTest):
         aviso.assert_not_called()
 
 
+class ResolucionCoherenteTests(_BaseAvisoResolucionTest):
+    """Los tres huecos que destapó la revisión del Cambio 44."""
+
+    def test_no_se_puede_rechazar_un_formulario_ya_resuelto(self):
+        """Sin la guarda, un doble clic rechazaba dos veces y mandaba dos correos."""
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+
+        with patch("programas.views.revision.enviar_aviso_resolucion") as aviso:
+            self.client.post(
+                reverse("becas:formulario_rechazar", args=[self.form_a.pk]),
+                {"motivo": "no corresponde"},
+            )
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        aviso.assert_not_called()
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_el_rechazo_de_una_carga_duplicada_no_avisa(self, aviso):
+        """Las dos cargas son de la misma persona: rechazar el duplicado es
+        limpieza, no la resolución de su inscripción. La que sobrevive avisa
+        cuando se resuelva de verdad."""
+        previo = Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="3624300300",
+            email_contacto="mismo@b.com",
+            estado=Formulario.Estado.ENVIADO,
+        )
+        self.form_a.conflicto_duplicado = True
+        self.form_a.duplicado_de = previo
+        self.form_a.save(update_fields=["conflicto_duplicado", "duplicado_de"])
+
+        self.client.post(
+            reverse("becas:formulario_resolver_duplicado", args=[self.form_a.pk]),
+            {"decision": "conservar_previo"},
+        )
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        aviso.assert_not_called()
+
+    @patch("programas.views.cupo.enviar_aviso_resolucion")
+    def test_el_alta_manual_a_lista_de_espera_avisa(self, aviso):
+        """Mismo desenlace que aprobar sin cupo, mismo aviso."""
+        self.client.post(reverse("becas:formulario_agregar_espera", args=[self.form_a.pk]))
+
+        aviso.assert_called_once()
+        self.assertEqual(aviso.call_args.args[1], "lista_espera")
+
+
 class AvisoResolucionEnvioRealTests(_BaseAvisoResolucionTest):
     """El correo se arma y sale de verdad, y nunca rompe la acción del técnico:
     cuando la vista llama al servicio, la aprobación o el rechazo ya están
