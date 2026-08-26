@@ -64,6 +64,55 @@ class PersonasClientTests(SimpleTestCase):
         self.assertEqual(get.call_args.kwargs["params"], {"dni": "30111222", "sexo": "F", "fuente_id": 13})
         self.assertEqual(get.call_args.kwargs["headers"], {"Authorization": "Bearer token-prueba"})
 
+    def _respuesta(self, data):
+        response = Mock(status_code=200)
+        response.json.return_value = {"codigo_http": 200, "mensaje_http": "OK", "data": data}
+        response.raise_for_status.return_value = None
+        return response
+
+    @patch("programas.services.personas.requests.get")
+    def test_una_persona_fallecida_no_devuelve_success(self, get):
+        """La regla «FALLECIDO corta» del Cambio 41 no se cumplía: el paso 1 del
+        formulario público espera la clave ``fallecido`` y el cliente nunca la
+        producía, así que se dejaba pasar. Se prueba con la forma real de la
+        respuesta, no mockeando ``consultar_persona``."""
+        cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
+        get.return_value = self._respuesta(
+            {"dni": "30111222", "apellido": "Perez", "nombre": "Ana", "mensaf": "FALLECIDO"}
+        )
+
+        result = PersonasAPIClient().consultar("30111222", "F")
+
+        self.assertFalse(result["success"])
+        self.assertTrue(result["fallecido"])
+        self.assertNotIn("data", result)
+
+    @patch("programas.services.personas.requests.get")
+    def test_reconoce_las_variantes_de_fallecido_del_contrato_abierto(self, get):
+        cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
+        for data in (
+            {"mensaje": "PERSONA FALLECIDA"},
+            {"fecha_fallecimiento": "2020-05-01"},
+            {"fallecido": True},
+            {"es_fallecido": "SI"},
+        ):
+            with self.subTest(data=data):
+                get.return_value = self._respuesta({"dni": "30111222", **data})
+                result = PersonasAPIClient().consultar("30111222", "F")
+                self.assertTrue(result.get("fallecido"), data)
+
+    @patch("programas.services.personas.requests.get")
+    def test_una_persona_viva_no_se_marca_como_fallecida(self, get):
+        cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)
+        get.return_value = self._respuesta(
+            {"dni": "30111222", "apellido": "Perez", "nombre": "Ana", "mensaje": "OK", "fallecido": False}
+        )
+
+        result = PersonasAPIClient().consultar("30111222", "F")
+
+        self.assertTrue(result["success"])
+        self.assertNotIn("fallecido", result)
+
     @patch("programas.services.personas.requests.get")
     def test_http_200_con_codigo_12_es_persona_no_encontrada(self, get):
         cache.set(TOKEN_CACHE_KEY, "token-prueba", 60)

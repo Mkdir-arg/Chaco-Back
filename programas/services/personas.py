@@ -79,6 +79,31 @@ def normalizar_persona(payload, dni):
     }
 
 
+def _informa_fallecido(data):
+    """``True`` si la respuesta marca a la persona como fallecida.
+
+    Se mira por las mismas vias que el resto del contrato: el ``mensaje`` que ya
+    se inspecciona para el "no encontrado", la clave ``mensaf`` que usa el
+    cliente RENAPER de este repo, y una marca booleana o una fecha de
+    defuncion si la fuente las expone. El contrato definitivo de Base de
+    Personas sigue abierto (task #243), asi que se aceptan variantes en lugar
+    de fijar una sola clave.
+    """
+    if not isinstance(data, dict):
+        return False
+    plano = _aplanar(data)
+    if _texto(_primero(plano, "mensaf")).upper() == "FALLECIDO":
+        return True
+    if "FALLECID" in _texto(_primero(plano, "mensaje")).upper():
+        return True
+    if _primero(plano, "fecha_fallecimiento", "fechaFallecimiento", "fecha_defuncion"):
+        return True
+    marca = _primero(plano, "fallecido", "es_fallecido")
+    if isinstance(marca, bool):
+        return marca
+    return _texto(marca).upper() in ("S", "SI", "TRUE", "1")
+
+
 class PersonasAPIClient:
     def __init__(self):
         self.base_url = _texto(settings.PERSONAS_API_URL).rstrip("/")
@@ -143,6 +168,13 @@ class PersonasAPIClient:
                     "not_found": True,
                     "error": "El DNI no fue encontrado en Base de Personas.",
                 }
+            if _informa_fallecido(data):
+                # Mismo contrato que el cliente RENAPER
+                # (``legajos/services/consulta_renaper.py``): quien consume la
+                # respuesta corta con ``fallecido``. El paso 1 del formulario
+                # publico ya lo esperaba, pero nada lo producia nunca, asi que
+                # la regla "FALLECIDO corta" del Cambio 41 no se cumplia.
+                return {"success": False, "fallecido": True}
             return {"success": True, "data": normalizar_persona(body, dni), "datos_api": body}
         except (requests.RequestException, ValueError, TypeError) as exc:
             # Sin `logger.exception`: el traceback de `requests` arrastra la URL
