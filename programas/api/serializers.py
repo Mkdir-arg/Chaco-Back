@@ -177,11 +177,36 @@ class FormularioSerializer(serializers.ModelSerializer):
         return attrs
 
 
+# Adjuntos de la app de campo. El portal publico tiene su propia lista, mas
+# corta (`portal/forms/inscripcion.py`): alla el upload es anonimo y ahi el
+# criterio es el mas duro posible. Aca sube un territorial autenticado desde un
+# telefono, asi que se suman los formatos que producen las camaras -- rechazar
+# una captura legitima le rompe el trabajo de campo.
+#
+# Lo que importa que quede AFUERA es el contenido ejecutable o interpretable
+# (.html, .svg, .js): `/media/` lo sirve nginx directo, sin pasar por Django, asi
+# que un archivo asi se ejecutaria en el origen del sitio.
+ADJUNTO_EXTENSIONES = (".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif", ".webp")
+ADJUNTO_MAX_BYTES = 5 * 1024 * 1024
+
+
 class AdjuntoFormularioSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdjuntoFormulario
         fields = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
         read_only_fields = ["id", "formulario", "creado"]
+
+    def validate_archivo(self, archivo):
+        """Ni tipo ni tamano se validaban: la API aceptaba cualquier archivo, de
+        cualquier peso. ``DATA_UPLOAD_MAX_MEMORY_SIZE`` no alcanza -- Django
+        excluye los archivos de ese limite -- y ``FILE_UPLOAD_MAX_MEMORY_SIZE``
+        solo decide cuando volcar a disco, no cuanto se acepta."""
+        nombre = (getattr(archivo, "name", "") or "").lower()
+        if not nombre.endswith(ADJUNTO_EXTENSIONES):
+            raise serializers.ValidationError("Solo se aceptan archivos JPG, PNG, WEBP, HEIC o PDF.")
+        if archivo.size > ADJUNTO_MAX_BYTES:
+            raise serializers.ValidationError("El archivo no puede superar los 5 MB.")
+        return archivo
 
     def validate(self, attrs):
         pregunta = attrs.get("pregunta_global")
