@@ -133,6 +133,9 @@ MIDDLEWARE = [
     "users.middleware.BackofficeSingleSessionMiddleware",
     "users.middleware.CambioContrasenaObligatorioMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # CSP y Permissions-Policy: el ingress reescribe X-Frame-Options con una
+    # directiva obsoleta, así que el anti-clickjacking real es frame-ancestors.
+    "config.middlewares.security_headers.SecurityHeadersMiddleware",
     "core.middleware.RequestLoggingMiddleware",
 ]
 
@@ -410,6 +413,37 @@ RENAPER_TEST_LATENCY_SECONDS = max(0, float(os.getenv("RENAPER_TEST_LATENCY_SECO
 RENAPER_CONNECT_TIMEOUT = int(os.getenv("RENAPER_CONNECT_TIMEOUT", "10"))
 RENAPER_TIMEOUT = int(os.getenv("RENAPER_TIMEOUT", "20"))
 RENAPER_RETRIES = int(os.getenv("RENAPER_RETRIES", "0"))
+# ─── Seguridad de la superficie pública ───────────────────────────────────────
+# Redes desde las que se aceptan las cabeceras de proxy (X-Real-IP / X-Forwarded-For)
+# al resolver la IP del cliente para el rate limit. Fuera de estas redes manda
+# REMOTE_ADDR: sin esto, cualquiera anulaba el límite mandando una cabecera falsa.
+TRUSTED_PROXY_NETS = [
+    red.strip()
+    for red in os.environ.get(
+        "TRUSTED_PROXY_NETS", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7"
+    ).split(",")
+    if red.strip()
+]
+
+# Techos de carga. Django no limita por sí mismo el tamaño de los archivos, y el
+# formulario público acepta adjuntos sin autenticación: sin estos valores un solo
+# request podía escribir cientos de MB a disco antes de que el form los validara.
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", 5 * 1024 * 1024))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", 2 * 1024 * 1024))
+DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("DATA_UPLOAD_MAX_NUMBER_FIELDS", 500))
+DATA_UPLOAD_MAX_NUMBER_FILES = int(os.environ.get("DATA_UPLOAD_MAX_NUMBER_FILES", 20))
+
+# reCAPTCHA v2 (casilla "No soy un robot") del formulario público. Sin claves
+# configuradas el paso 1 cae al desafío aritmético propio, así que un entorno sin
+# credenciales sigue funcionando.
+# CSP en modo solo-reporte para una puesta en marcha gradual (no bloquea, avisa).
+CSP_REPORT_ONLY = os.environ.get("CSP_REPORT_ONLY", "False") == "True"
+
+RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "").strip()
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "").strip()
+RECAPTCHA_VERIFY_URL = os.environ.get("RECAPTCHA_VERIFY_URL", "https://www.google.com/recaptcha/api/siteverify")
+RECAPTCHA_TIMEOUT = int(os.environ.get("RECAPTCHA_TIMEOUT", "10"))
+
 PERSONAS_API_URL = os.getenv("PERSONAS_API_URL", "https://personas.ecomdev.ar/api/v1").strip().rstrip("/")
 PERSONAS_API_CLIENT_ID = os.getenv("PERSONAS_API_CLIENT_ID", "")
 PERSONAS_API_CLIENT_SECRET = os.getenv("PERSONAS_API_CLIENT_SECRET", "")

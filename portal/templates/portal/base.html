@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}DATAÑACH — Portal Ciudadano{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'custom/css/tailwind.css' %}">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {% comment %}Autoalojadas: el formulario público no le pide recursos a terceros.{% endcomment %}
+    <link href="{% static 'vendor/fontawesome/css/all.min.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/manrope/manrope.css' %}" rel="stylesheet">
     <!-- CHACO Design Tokens — CSS variables para componentes del portal -->
     <link href="{% static 'custom/css/chaco-tokens.css' %}" rel="stylesheet">
     <link href="{% static 'custom/css/nodo-buttons.css' %}" rel="stylesheet">
@@ -168,7 +169,10 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    {% comment %}Alpine 3.14.9 autoalojado. Antes venía de unpkg con versión
+    flotante (3.x.x): un compromiso de ese CDN ejecutaba código arbitrario en la
+    página donde el ciudadano tipea su documento.{% endcomment %}
+    <script src="{% static 'vendor/alpinejs/alpine.min.js' %}" defer></script>
     <script src="{% static 'custom/js/portal-effects.js' %}" defer></script>
     <script src="{% static 'custom/js/modern-messages.js' %}" defer></script>
     <!-- NODO Toast: lee los mensajes de Django y expone window.toast() -->
@@ -354,5 +358,6 @@
             });
         });
     </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

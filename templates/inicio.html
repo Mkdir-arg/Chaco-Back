@@ -817,7 +817,7 @@ function cargarChartJs() {
 
     chartJsPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.src = '{% static "vendor/chartjs/chart.umd.min.js" %}';
         script.async = true;
         script.onload = resolve;
         script.onerror = () => reject(new Error('No se pudo cargar Chart.js'));

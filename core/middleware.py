@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 from urllib.parse import urlparse
 
@@ -90,6 +91,18 @@ class PortalCiudadanoMiddleware:
         return self.get_response(request)
 
 
+# El link de inscripción pública lleva su token en la ruta: quien lea los logs
+# podría inscribir gente en esa convocatoria. Se registra la forma, no el valor.
+_RUTA_CON_TOKEN = re.compile(r"^(/portal/inscripcion/)[0-9a-fA-F-]{8,}(/.*)?$")
+
+
+def _path_sin_secretos(path):
+    coincide = _RUTA_CON_TOKEN.match(path or "")
+    if not coincide:
+        return path
+    return f"{coincide.group(1)}<token>{coincide.group(2) or ''}"
+
+
 class RequestLoggingMiddleware:
     """Loguea cada request HTTP con método, URL, usuario, IP, status y duración."""
 
@@ -109,7 +122,7 @@ class RequestLoggingMiddleware:
         log_request(
             "%s %s user=%s ip=%s status=%s duration=%dms",
             request.method,
-            request.path,
+            _path_sin_secretos(request.path),
             username,
             ip,
             response.status_code,

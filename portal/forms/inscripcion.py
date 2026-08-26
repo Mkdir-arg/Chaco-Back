@@ -28,6 +28,11 @@ class InscripcionPaso1Form(forms.Form):
     )
     captcha = forms.CharField(
         label="Verificación",
+        # Opcional a nivel form: con reCAPTCHA activo este campo no se renderiza
+        # —el token viaja en `g-recaptcha-response`— y exigirlo dejaba el paso 1
+        # imposible de completar. Quien valida de verdad es `captcha_valido()`
+        # en la vista, antes que el form, en los dos modos.
+        required=False,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric", "autocomplete": "off"}),
     )
 

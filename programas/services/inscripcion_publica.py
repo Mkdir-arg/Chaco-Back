@@ -26,7 +26,11 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from programas.models import AdjuntoFormulario, Convocatoria, Formulario, Relevamiento
-from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
+from programas.services.becas import (
+    definicion_formulario,
+    formulario_por_client_uuid,
+    resolver_ciudadano_offline,
+)
 from programas.services.padron import esta_habilitado
 from programas.services.personas import fecha_iso
 from users.services.correo import contexto_pie
@@ -72,6 +76,7 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
     datos_basicos = identificacion.get("datos") or {}
     es_validado = identificacion.get("origen") == "personas"
     cleaned = form.cleaned_data
+    pide_gps = bool(definicion_formulario(relevamiento).get("requiere_gps"))
 
     with transaction.atomic():
         rel = Relevamiento.objects.select_for_update().get(pk=relevamiento.pk)
@@ -118,8 +123,10 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
             apoderado_dni=cleaned.get("apoderado_dni", ""),
             apoderado_genero=cleaned.get("apoderado_genero", ""),
             apoderado_fecha_nacimiento=cleaned.get("apoderado_fecha_nacimiento"),
-            gps_lat=cleaned.get("gps_lat"),
-            gps_lng=cleaned.get("gps_lng"),
+            # Solo si el segmento pide ubicación: el navegador la manda igual y
+            # es el domicilio del ciudadano con precisión de metros.
+            gps_lat=cleaned.get("gps_lat") if pide_gps else None,
+            gps_lng=cleaned.get("gps_lng") if pide_gps else None,
             data=form.respuestas(),
             # Mismo contrato que el sync offline de la app: el origen
             # "personas" acredita identidad (validado_renaper); "manual" no.

@@ -3569,6 +3569,55 @@ de comprobante, los datos de la inscripción (programa, documento, fecha y hora)
 envío pasó de `send_mail` a `EmailMultiAlternatives`; la vista le pasa protocolo y host para que el logo cargue
 con URL absoluta, con `settings.DOMINIO` como respaldo. Sigue sin romper la inscripción si el SMTP falla.
 
+**26/08/2026 — Revisión de seguridad de la superficie pública y endurecimiento.** El PM pidió auditar el link de
+inscripción. Se revisó el código con tres lentes (abuso y enumeración, archivos y datos personales, configuración y
+cabeceras) y se contrastó contra el entorno de testing en vivo. Se corrigió todo lo hallado **menos dos cosas que el
+PM dejó fuera de alcance a propósito**: que una inscripción anónima cree un `Ciudadano` (y que eso saltee la
+verificación RENAPER del registro del portal) y que el paso 2 muestre nombre, apellido y fecha de nacimiento de
+cualquier documento. **Las dos siguen abiertas.**
+
+Lo que se cerró:
+
+- **Cadena de suministro.** El portal cargaba Alpine desde `unpkg` con versión **flotante** (`3.x.x`) en la misma
+  página donde el ciudadano tipea su documento; el backoffice, otro Alpine desde `jsdelivr`, **SweetAlert2 en 17
+  pantallas**, Chart.js, Bootstrap, AdminLTE, Font Awesome y la tipografía. Todo quedó autoalojado en
+  `static/vendor/` con versión fija. La aplicación ya no carga **ningún** recurso de terceros salvo el reCAPTCHA, y
+  un test recorre las plantillas y falla si alguien vuelve a pegar un CDN.
+- **Anti-bot.** El desafío aritmético se resolvía leyendo la pregunta del HTML. Pasa a **reCAPTCHA v2 de Google**
+  cuando hay claves (`RECAPTCHA_SITE_KEY`/`SECRET_KEY`); sin claves cae al desafío anterior para no romper un
+  entorno sin credenciales. Si Google no responde, **rechaza**: una caída de red no puede abrir la puerta.
+- **Fin del oráculo del paso 1.** Padrón, duplicado y documento no disponible daban tres mensajes distintos, así que
+  barriendo documentos se reconstruía el padrón de habilitados (dato socioeconómico) y se sabía quién ya se había
+  inscripto —incluidas las personas relevadas en campo—. Ahora es un solo mensaje y un solo cuerpo; hay un test que
+  compara los dos renders byte a byte.
+- **Rate limit.** La IP se tomaba de `X-Real-IP` sin verificar el origen: mandar la cabecera distinta en cada
+  request anulaba el límite. Ahora las cabeceras solo se leen si el request viene de `TRUSTED_PROXY_NETS`, y la IP
+  del cliente sale de recorrer `X-Forwarded-For` de derecha a izquierda descartando proxies conocidos (RFC 7239).
+  **Cambia el contrato de la Fase 6**, que prefería `X-Real-IP`: con dos proxies encadenados esa preferencia hacía
+  que todos los ciudadanos compartieran una única cubeta. Se sumó una cubeta **por documento** (sin IP, consumida
+  después del captcha para que nadie pueda quemarle la cuota a un tercero) y un techo al **paso 2**, que escribe y
+  recibe archivos y no tenía ninguno. Una caché caída ya no devuelve 500.
+- **Archivos.** `/media/` quedó detrás de login donde lo sirve Django, y los adjuntos y el Excel del padrón pasan a
+  nombres UUID (`programas.0051`), con una migración de datos que renombra lo ya subido (`programas.0052`): antes
+  el primero que subía `dni.jpg` quedaba en una ruta que se adivina con un diccionario de cien entradas.
+- **Cabeceras.** Middleware propio con CSP y `Permissions-Policy`. `frame-ancestors 'none'` es el reemplazo real del
+  anti-clickjacking: el código manda `X-Frame-Options: DENY` pero **el ingress lo reescribe con `ALLOW-FROM`**, una
+  directiva obsoleta que los navegadores ignoran —y al ignorarla la página quedaba embebible—.
+- **Datos.** El documento ya no viaja en el traceback de Gran Base, el token del link se enmascara en el log de
+  accesos, la ubicación GPS solo se guarda si el segmento la pide, y la identificación del paso 1 caduca a los 45
+  minutos con un sello propio que se renueva (acortar la sesión entera hacía perder el paso 2 a medio llenar).
+- `/api/schema|docs|redoc/` quedaron detrás de login.
+
+**Una revisión adversarial del propio cambio encontró 21 defectos**, tres de ellos rotos de raíz: `collectstatic`
+fallaba por los sourcemaps de las librerías autoalojadas —el contenedor no habría arrancado—, con las claves de
+reCAPTCHA cargadas el paso 1 era imposible de completar porque el campo del form seguía siendo obligatorio, y el
+CSP bloqueaba SweetAlert2 y Alpine en el backoffice. Los tres corregidos y verificados.
+
+**Pendiente de infraestructura, no de código:** en la VM con nginx el `login_required` sobre `/media/` no aplica
+—nginx sirve el directorio antes de llegar a Django— y, si la app móvil descarga adjuntos con token DRF, un
+`login_required` la rompería. Definir con ECOM y con el equipo móvil antes de tocar esa topología. También hay que
+pedirle a ECOM que **deje de reescribir `X-Frame-Options`** y que cargue `RECAPTCHA_*`.
+
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.
 
 

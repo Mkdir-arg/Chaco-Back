@@ -58,7 +58,10 @@ DEFAULT_TARGETS = [
 # inline y hex literal — ningún cliente de correo soporta CSS variables, y Outlook
 # ni siquiera <style> confiable. Los colores igual salen del kit (--gradient-brand
 # = #5059bc → #f98dff), pero escritos a mano: no hay forma de tokenizarlos.
-EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb", "email"}
+# "vendor": librerías de terceros autoalojadas (Alpine, Font Awesome, vis-network,
+# la tipografía). No son superficie de diseño propia y traen sus propios colores;
+# se sirven desde el dominio para no depender de un CDN, no para editarlas.
+EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb", "email", "vendor"}
 # `tailwind.css` se genera desde templates/JS con `npm run build:tailwind`; sus
 # valores internos pertenecen al framework y se revisan mediante el build, no
 # mediante reglas pensadas para CSS escrito a mano.
