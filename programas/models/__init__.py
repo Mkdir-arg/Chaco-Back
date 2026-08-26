@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import date, datetime, time
+from pathlib import Path
 
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
@@ -10,6 +11,22 @@ from django.utils import timezone
 
 from core.models import TimeStamped
 from legajos.models import Ciudadano
+
+
+def ruta_adjunto_becas(instance, filename):
+    """Nombre no adivinable para los adjuntos del formulario (seguridad, 26/08/2026).
+
+    Django conservaba el nombre original, así que el primero que subía ``dni.jpg``
+    quedaba en una ruta que se adivina con un diccionario de cien entradas. Con un
+    UUID el nombre deja de ser enumerable; el archivo original no aporta nada, la
+    trazabilidad la da el ``AdjuntoFormulario``.
+    """
+    return f"becas/adjuntos/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+def ruta_padron_becas(instance, filename):
+    """Ídem para el Excel del padrón, que es la lista de habilitados completa."""
+    return f"becas/padrones/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
 
 
 class PausableMixin(models.Model):
@@ -1542,7 +1559,7 @@ class Relevamiento(PausableMixin, TimeStamped):
     # Excel original del padrón de habilitados (RN-P14); las entradas parseadas
     # viven en PadronHabilitado. Solo trazabilidad: nunca se lee por request.
     padron_archivo = models.FileField(
-        upload_to="becas/padrones/",
+        upload_to=ruta_padron_becas,
         null=True,
         blank=True,
         verbose_name="Padrón de habilitados (archivo)",
@@ -2137,7 +2154,7 @@ class AdjuntoFormulario(TimeStamped):
         related_name="adjuntos_formulario",
         verbose_name="Requisito nativo",
     )
-    archivo = models.FileField(upload_to="becas/adjuntos/%Y/%m/", verbose_name="Archivo")
+    archivo = models.FileField(upload_to=ruta_adjunto_becas, verbose_name="Archivo")
 
     class Meta:
         verbose_name = "Adjunto de formulario"

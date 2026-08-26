@@ -144,8 +144,11 @@ class PersonasAPIClient:
                     "error": "El DNI no fue encontrado en Base de Personas.",
                 }
             return {"success": True, "data": normalizar_persona(body, dni), "datos_api": body}
-        except (requests.RequestException, ValueError, TypeError):
-            logger.exception("Error al consultar Base de Personas")
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            # Sin `logger.exception`: el traceback de `requests` arrastra la URL
+            # completa, y ahí viaja el documento consultado (?dni=...). Queda el
+            # tipo de error, que es lo que sirve para diagnosticar.
+            logger.error("Error al consultar Base de Personas (%s)", type(exc).__name__)
             return {"success": False, "error": "No se pudo consultar Base de Personas."}
 
 

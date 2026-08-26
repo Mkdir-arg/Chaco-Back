@@ -1108,7 +1108,7 @@
     </div>
 </div>
 
-<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script src="{% static 'vendor/vis-network/vis-network.min.js' %}"></script>
 <script>
 // ============================================================
 // Sistema de solapas: deep-linking por hash + accesibilidad
@@ -1849,5 +1849,5 @@ function getPrioridadText(prioridad) {
 {% endblock %}
 
 {% block customJS %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
 {% endblock %}

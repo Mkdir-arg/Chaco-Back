@@ -13,17 +13,23 @@ activo, manda el comprobante por correo (#296).
 
 import logging
 import uuid
+from datetime import datetime
 
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from portal.forms.inscripcion import InscripcionPaso1Form, InscripcionPaso2Form
 from portal.services.inscripcion import (
+    captcha_activo,
     captcha_valido,
     clave_sesion,
     consumir_captcha,
     dni_ya_inscripto,
+    documento_excedido,
     nuevo_captcha,
     paso1_excedido,
+    paso2_excedido,
     pregunta_captcha,
     relevamiento_disponible,
 )
@@ -42,9 +48,35 @@ from programas.services.personas import consultar_persona
 
 logger = logging.getLogger(__name__)
 
-MENSAJE_NO_HABILITADO = "No estás habilitado para esta inscripción."
-MENSAJE_DOCUMENTO_NO_DISPONIBLE = "La inscripción no está disponible para ese documento."
+# Un ÚNICO mensaje para los tres rechazos del paso 1 —fuera del padrón, ya
+# inscripto, documento no disponible— porque textos distintos convertían el
+# formulario en un oráculo: barriendo documentos se reconstruía el padrón de
+# habilitados (dato socioeconómico) y se averiguaba quién ya se había inscripto,
+# incluidas las personas relevadas en campo. Revisión de seguridad del 26/08/2026.
+MENSAJE_RECHAZO = (
+    "No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002."
+)
 MENSAJE_DEMASIADOS_INTENTOS = "Realizaste demasiados intentos. Esperá unos minutos y volvé a probar."
+# Cuánto vale la identificación del paso 1 antes de tener que rehacerla.
+IDENTIFICACION_VIGENCIA_SEGUNDOS = 45 * 60
+
+
+def _identificacion_vencida(identificacion):
+    """La identificación del paso 1 vale un rato, no las 24 h de la sesión.
+
+    En una terminal compartida —un cíber, un centro comunitario— el documento de
+    la persona anterior quedaba listo para completar. Se guarda un sello propio
+    en vez de acortar la sesión entera, que se llevaba puesto el paso 2 a medio
+    llenar.
+    """
+    sellada = identificacion.get("sellada")
+    if not sellada:
+        return False
+    try:
+        momento = datetime.fromisoformat(sellada)
+    except (TypeError, ValueError):
+        return True
+    return (timezone.now() - momento).total_seconds() > IDENTIFICACION_VIGENCIA_SEGUNDOS
 
 
 def _get_relevamiento(token):
@@ -88,18 +120,18 @@ def inscripcion_paso1(request, token):
             consumir_captcha(request)
             dni = form.cleaned_data["dni"]
             sexo = form.cleaned_data["sexo"]
-            if not esta_habilitado(relevamiento, dni, sexo):
-                form.add_error(None, MENSAJE_NO_HABILITADO)
+            if documento_excedido(request, dni):
+                # Recién acá: el captcha ya se resolvió, así que esta cubeta no
+                # se puede quemar en nombre de otro con un script.
+                form.add_error(None, MENSAJE_DEMASIADOS_INTENTOS)
+            elif not esta_habilitado(relevamiento, dni, sexo):
+                form.add_error(None, MENSAJE_RECHAZO)
             elif dni_ya_inscripto(relevamiento.convocatoria, dni):
-                return render(
-                    request,
-                    "portal/inscripcion/ya_inscripto.html",
-                    {"relevamiento": relevamiento, "dni": dni},
-                )
+                form.add_error(None, MENSAJE_RECHAZO)
             else:
                 resultado = consultar_persona(dni, sexo)
                 if resultado.get("fallecido"):
-                    form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
+                    form.add_error(None, MENSAJE_RECHAZO)
                 else:
                     datos = _datos_basicos(resultado.get("data") or {}) if resultado.get("success") else None
                     validado = bool(datos and datos["nombre"] and datos["apellido"])
@@ -111,13 +143,24 @@ def inscripcion_paso1(request, token):
                         # "personas" acredita identidad; "manual" no.
                         "origen": "personas" if validado else "manual",
                     }
+                    # Caduca por sí misma, sin tocar la expiración de la
+                    # sesión: acortar la sesión entera hacía perder el paso 2 a
+                    # medio completar (con los adjuntos ya elegidos). El sello
+                    # se renueva en cada paso del formulario.
+                    request.session[clave_sesion(relevamiento)]["sellada"] = timezone.now().isoformat()
                     return redirect("portal:inscripcion_paso2", token=relevamiento.token_publico)
 
     contexto = {
         "relevamiento": relevamiento,
         "convocatoria": relevamiento.convocatoria,
         "form": form,
-        "captcha_pregunta": nuevo_captcha(request) if request.method == "POST" else pregunta_captcha(request),
+        "captcha_pregunta": (
+            nuevo_captcha(request)
+            if request.method == "POST" and captcha_activo() == "aritmetico"
+            else pregunta_captcha(request)
+        ),
+        "captcha_tipo": captcha_activo(),
+        "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
     }
     return render(request, "portal/inscripcion/paso1.html", contexto)
 
@@ -130,8 +173,17 @@ def inscripcion_paso2(request, token):
     if not relevamiento_disponible(relevamiento):
         return _no_disponible(request, relevamiento)
     identificacion = request.session.get(clave_sesion(relevamiento))
-    if not identificacion:
+    if not identificacion or _identificacion_vencida(identificacion):
+        request.session.pop(clave_sesion(relevamiento), None)
         return redirect("portal:inscripcion_paso1", token=relevamiento.token_publico)
+    # Cada paso por el formulario renueva la vigencia: lo que caduca es dejarlo
+    # abandonado, no tardar en completarlo.
+    identificacion["sellada"] = timezone.now().isoformat()
+    request.session[clave_sesion(relevamiento)] = identificacion
+    if request.method == "POST" and paso2_excedido(request, identificacion.get("dni", "")):
+        # El envío es el que escribe y el que recibe archivos: sin techo, una
+        # sesión válida podía POSTear adjuntos indefinidamente.
+        return render(request, "portal/inscripcion/demasiados_intentos.html", {"relevamiento": relevamiento})
 
     # Idempotencia del doble submit: un client_uuid por identificación, igual
     # que las capturas de la app (RN de #295).
@@ -164,7 +216,7 @@ def inscripcion_paso2(request, token):
             )
         except InscripcionNoHabilitada:
             # El padrón cambió entre el paso 1 y el envío (RN-P14).
-            form.add_error(None, MENSAJE_NO_HABILITADO)
+            form.add_error(None, MENSAJE_RECHAZO)
         else:
             # Correo de confirmación (#296): solo si el relevamiento lo tiene
             # activo y solo en el envío que creó el formulario; su falla no

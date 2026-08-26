@@ -43,19 +43,35 @@ class RateLimitHeaderTests(TestCase):
         cache.clear()
         self.rf = RequestFactory()
 
-    def test_x_real_ip_prevalece_sobre_x_forwarded_for(self):
+    # Contrato nuevo desde la revisión de seguridad del 26/08/2026: la IP se
+    # resuelve recorriendo `X-Forwarded-For` de derecha a izquierda y
+    # descartando los saltos que son proxies conocidos (`TRUSTED_PROXY_NETS`).
+    # Antes ganaba `X-Real-IP` a secas, que con dos proxies encadenados es la IP
+    # del proxy y hacía que todos los ciudadanos compartieran una sola cubeta.
+
+    def test_dos_clientes_distintos_no_comparten_cubeta(self):
         req1 = self.rf.post("/", HTTP_X_REAL_IP="10.0.0.1", HTTP_X_FORWARDED_FOR="1.1.1.1")
         req2 = self.rf.post("/", HTTP_X_REAL_IP="10.0.0.1", HTTP_X_FORWARDED_FOR="2.2.2.2")
         with patch.object(servicio, "MAX_INTENTOS_IP", 1):
             self.assertFalse(servicio.paso1_excedido(req1))
+            # Otro ciudadano detrás del mismo proxy: cubeta propia.
+            self.assertFalse(servicio.paso1_excedido(req2))
+
+    def test_el_mismo_cliente_comparte_cubeta_aunque_cambie_el_salto_interno(self):
+        req1 = self.rf.post("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9")
+        req2 = self.rf.post("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.10")
+        with patch.object(servicio, "MAX_INTENTOS_IP", 1):
+            self.assertFalse(servicio.paso1_excedido(req1))
             self.assertTrue(servicio.paso1_excedido(req2))
 
-    def test_x_forwarded_for_usa_el_ultimo_valor_si_no_hay_x_real_ip(self):
+    def test_el_ultimo_salto_privado_no_se_toma_como_cliente(self):
         req1 = self.rf.post("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9")
         req2 = self.rf.post("/", HTTP_X_FORWARDED_FOR="2.2.2.2, 10.0.0.9")
         with patch.object(servicio, "MAX_INTENTOS_IP", 1):
             self.assertFalse(servicio.paso1_excedido(req1))
-            self.assertTrue(servicio.paso1_excedido(req2))
+            # Si se tomara el último elemento (10.0.0.9) los dos caerían en la
+            # misma cubeta y el segundo ciudadano quedaría bloqueado.
+            self.assertFalse(servicio.paso1_excedido(req2))
 
 
 class CaptchaConsumeTests(_BaseInscripcionTest):

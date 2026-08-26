@@ -49,11 +49,16 @@
                 </div>
 
                 <div class="p-4" style="background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: var(--radius-lg);">
+                    {% if captcha_tipo == "recaptcha" %}
+                    <p class="block text-sm font-semibold mb-2" style="color: var(--text-heading);">Verificación de seguridad <span style="color: var(--text-fg-danger);">*</span></p>
+                    <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}"></div>
+                    {% else %}
                     <label for="{{ form.captcha.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">
                         {{ captcha_pregunta }} <span style="color: var(--text-fg-danger);">*</span>
                     </label>
                     <p class="text-xs mb-2" style="color: var(--text-body-subtle);">Respondé para confirmar que no sos un robot.</p>
                     {{ form.captcha }}
+                    {% endif %}
                     {% for error in form.captcha.errors %}
                         <p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>
                     {% endfor %}
@@ -76,4 +81,13 @@
         Tus datos personales se usan únicamente para esta inscripción y se tratan según la Ley 25.326 de Protección de Datos Personales.
     </p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if captcha_tipo == "recaptcha" %}
+{% comment %}Único tercero que queda en la superficie pública, y es deliberado:
+el reCAPTCHA de Google reemplaza al desafío aritmético, que un script resolvía
+leyendo la pregunta del HTML. El CSP lo permite explícitamente.{% endcomment %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endif %}
 {% endblock %}

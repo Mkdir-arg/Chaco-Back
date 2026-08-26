@@ -6,9 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}DATAÑACH{% endblock %}</title>
   <link rel="icon" type="image/png" href="{% static 'custom/chaco/favicon.png' %}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="{% static 'vendor/manrope/manrope.css' %}" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'custom/css/chaco-tokens.css' %}">
   <style>
     * { box-sizing: border-box; }
