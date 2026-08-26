@@ -42,7 +42,6 @@ from programas.services.personas import consultar_persona
 
 logger = logging.getLogger(__name__)
 
-MENSAJE_NO_HABILITADO = "No estás habilitado para esta inscripción."
 MENSAJE_DOCUMENTO_NO_DISPONIBLE = "La inscripción no está disponible para ese documento."
 MENSAJE_DEMASIADOS_INTENTOS = "Realizaste demasiados intentos. Esperá unos minutos y volvé a probar."
 
@@ -88,14 +87,8 @@ def inscripcion_paso1(request, token):
             consumir_captcha(request)
             dni = form.cleaned_data["dni"]
             sexo = form.cleaned_data["sexo"]
-            if not esta_habilitado(relevamiento, dni, sexo):
-                form.add_error(None, MENSAJE_NO_HABILITADO)
-            elif dni_ya_inscripto(relevamiento.convocatoria, dni):
-                return render(
-                    request,
-                    "portal/inscripcion/ya_inscripto.html",
-                    {"relevamiento": relevamiento, "dni": dni},
-                )
+            if not esta_habilitado(relevamiento, dni, sexo) or dni_ya_inscripto(relevamiento.convocatoria, dni):
+                form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
             else:
                 resultado = consultar_persona(dni, sexo)
                 if resultado.get("fallecido"):
@@ -157,14 +150,10 @@ def inscripcion_paso2(request, token):
         except InscripcionNoDisponible:
             return _no_disponible(request, relevamiento)
         except InscripcionDuplicada:
-            return render(
-                request,
-                "portal/inscripcion/ya_inscripto.html",
-                {"relevamiento": relevamiento, "dni": identificacion["dni"]},
-            )
+            form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
         except InscripcionNoHabilitada:
             # El padrón cambió entre el paso 1 y el envío (RN-P14).
-            form.add_error(None, MENSAJE_NO_HABILITADO)
+            form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
         else:
             # Correo de confirmación (#296): solo si el relevamiento lo tiene
             # activo y solo en el envío que creó el formulario; su falla no

@@ -10,9 +10,11 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
+from core.services.throttle import ip_cliente
 from portal.services import inscripcion as servicio
 from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest, _tolerar_render_local
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
@@ -57,6 +59,14 @@ class RateLimitHeaderTests(TestCase):
             self.assertFalse(servicio.paso1_excedido(req1))
             self.assertTrue(servicio.paso1_excedido(req2))
 
+    def test_ip_cliente_expone_el_resolver_canonico(self):
+        self.assertEqual(
+            ip_cliente(self.rf.get("/", HTTP_X_REAL_IP="10.0.0.1", HTTP_X_FORWARDED_FOR="1.1.1.1")),
+            "10.0.0.1",
+        )
+        self.assertEqual(ip_cliente(self.rf.get("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9")), "10.0.0.9")
+        self.assertEqual(ip_cliente(self.rf.get("/", REMOTE_ADDR="127.0.0.1")), "127.0.0.1")
+
 
 class CaptchaConsumeTests(_BaseInscripcionTest):
     @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
@@ -68,6 +78,32 @@ class CaptchaConsumeTests(_BaseInscripcionTest):
         except AttributeError as exc:
             _tolerar_render_local(exc)
         mock_consulta.assert_called_once_with("30123456", "F")
+
+
+class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
+    @patch("portal.views.inscripcion.consultar_persona")
+    def test_duplicado_en_paso1_no_revela_que_el_dni_ya_esta_inscripto(self, mock_consulta):
+        Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            celular="1",
+            email_contacto="a@a.com",
+            datos_identificacion={"dni": "30123456"},
+        )
+
+        renders = []
+
+        def fake_render(request, template, context):
+            renders.append((template, context))
+            return HttpResponse("ok")
+
+        with patch("portal.views.inscripcion.render", side_effect=fake_render):
+            resp = self._post_paso1()
+
+        self.assertEqual(resp.status_code, 200)
+        template, context = renders[-1]
+        self.assertEqual(template, "portal/inscripcion/paso1.html")
+        self.assertIn("La inscripción no está disponible para ese documento.", context["form"].non_field_errors())
+        mock_consulta.assert_not_called()
 
 
 class IdempotenciaUuidTextoTests(_BasePaso2Test):

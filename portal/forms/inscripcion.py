@@ -4,6 +4,7 @@ from django import forms
 from django.utils.dateparse import parse_date
 
 from programas.services.becas import es_menor
+from programas.services.padron import normalizar_dni
 from programas.services.personas import fecha_iso
 
 INPUT_CLASS = "nodo-field w-full"
@@ -32,7 +33,7 @@ class InscripcionPaso1Form(forms.Form):
     )
 
     def clean_dni(self):
-        dni = "".join(ch for ch in self.cleaned_data["dni"] if ch.isdigit())
+        dni = normalizar_dni(self.cleaned_data["dni"])
         if len(dni) not in (7, 8):
             raise forms.ValidationError("Ingresá un DNI válido de 7 u 8 dígitos, sin puntos.")
         return dni
@@ -194,7 +195,7 @@ class InscripcionPaso2Form(forms.Form):
     def clean(self):
         cleaned = super().clean()
         dni_apoderado_original = cleaned.get("apoderado_dni")
-        dni_apoderado = "".join(ch for ch in str(dni_apoderado_original or "") if ch.isdigit())
+        dni_apoderado = normalizar_dni(dni_apoderado_original)
         if dni_apoderado_original and len(dni_apoderado) not in (7, 8):
             self.add_error("apoderado_dni", "Ingresa un DNI valido de 7 u 8 digitos.")
         cleaned["apoderado_dni"] = dni_apoderado

@@ -27,7 +27,7 @@ def get_cupo_stats(segmento):
     }
 
 
-def motivo_bloqueo_aprobacion(formulario):
+def motivo_bloqueo_aprobacion(formulario, validacion=None):
     """Explica por qué un formulario todavía no puede aprobarse.
 
     La aprobación exige identidad validada y la última consulta SIIS compatible
@@ -43,7 +43,8 @@ def motivo_bloqueo_aprobacion(formulario):
     if programa is None:
         return "El segmento no tiene un programa SIIS configurado."
 
-    validacion = formulario.validaciones_sis.order_by("-creado").first()
+    if validacion is None:
+        validacion = formulario.validaciones_sis.order_by("-creado").first()
     if validacion is None:
         return "Debe realizarse la validación SIIS antes de aprobar."
     if validacion.estado == ValidacionSIS.Estado.RECHAZADO:

@@ -3,7 +3,7 @@
 from django.core.cache import cache
 
 
-def _ip_cliente(request):
+def ip_cliente(request):
     real_ip = request.META.get("HTTP_X_REAL_IP", "").strip()
     if real_ip:
         return real_ip
@@ -15,7 +15,7 @@ def _ip_cliente(request):
 
 def rate_limit_excedido(request, clave, limite, ventana_segundos=60):
     """True si la IP superó `limite` invocaciones en la ventana dada."""
-    key = f"throttle:{clave}:{_ip_cliente(request)}"
+    key = f"throttle:{clave}:{ip_cliente(request)}"
     if cache.add(key, 1, ventana_segundos):
         return False
     try:

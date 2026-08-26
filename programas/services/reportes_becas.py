@@ -1,6 +1,7 @@
 """Datasets de solo lectura para los reportes transversales de Becas."""
 
-from collections import Counter, defaultdict
+from collections import Counter
+from datetime import datetime, time, timedelta
 
 from django.db.models import Count, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
@@ -18,6 +19,18 @@ from programas.services.reportes import Reporte
 
 def _formularios(user):
     return Formulario.objects.filter(relevamiento__convocatoria__in=convocatorias_visibles(user))
+
+
+def _aware_start(fecha):
+    return timezone.make_aware(datetime.combine(fecha, time.min), timezone.get_current_timezone())
+
+
+def _filter_creado_rango(qs, desde=None, hasta=None):
+    if desde:
+        qs = qs.filter(creado__gte=_aware_start(desde))
+    if hasta:
+        qs = qs.filter(creado__lt=_aware_start(hasta + timedelta(days=1)))
+    return qs
 
 
 def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
@@ -182,11 +195,7 @@ def reporte_avance(user, *, segmento_id=None, desde=None, hasta=None, estado=Non
 
 
 def reporte_produccion(user, *, segmento_id=None, territorial_id=None, desde=None, hasta=None):
-    qs = (
-        Relevamiento.objects.filter(convocatoria__in=convocatorias_visibles(user))
-        .select_related("territorial", "convocatoria__segmento")
-        .prefetch_related("formularios")
-    )
+    qs = Relevamiento.objects.filter(convocatoria__in=convocatorias_visibles(user))
     if segmento_id:
         qs = qs.filter(convocatoria__segmento_id=segmento_id)
     if territorial_id:
@@ -198,31 +207,94 @@ def reporte_produccion(user, *, segmento_id=None, territorial_id=None, desde=Non
     # Los relevamientos públicos no tienen territorial: no son "producción
     # territorial" y romperían el agrupado (revisión Cambio 40).
     qs = qs.filter(territorial__isnull=False)
-    grupos = defaultdict(lambda: {"rels": [], "forms": []})
-    for rel in qs:
-        clave = (rel.territorial_id, rel.convocatoria.segmento_id)
-        grupos[clave]["territorial"] = rel.territorial
-        grupos[clave]["segmento"] = rel.convocatoria.segmento
-        grupos[clave]["rels"].append(rel)
-        grupos[clave]["forms"].extend(rel.formularios.all())
-    filas = []
     ahora = timezone.now()
+    grupos = {}
+    campos_grupo = (
+        "territorial_id",
+        "territorial__first_name",
+        "territorial__last_name",
+        "territorial__username",
+        "convocatoria__segmento_id",
+        "convocatoria__segmento__nombre",
+    )
+    rels = qs.values(*campos_grupo, "estado", "fecha_hasta").annotate(total=Count("pk"))
+    for rel in rels:
+        clave = (rel["territorial_id"], rel["convocatoria__segmento_id"])
+        grupo = grupos.setdefault(
+            clave,
+            {
+                "territorial__first_name": rel["territorial__first_name"],
+                "territorial__last_name": rel["territorial__last_name"],
+                "territorial__username": rel["territorial__username"],
+                "convocatoria__segmento__nombre": rel["convocatoria__segmento__nombre"],
+                "asignados": 0,
+                "terminados": 0,
+                "vencidos": 0,
+                "formularios": 0,
+                "aprobados": 0,
+                "rechazados": 0,
+            },
+        )
+        total = rel["total"]
+        grupo["asignados"] += total
+        if rel["estado"] == Relevamiento.Estado.TERMINADO:
+            grupo["terminados"] += total
+        if rel["estado"] in (Relevamiento.Estado.ASIGNADO, Relevamiento.Estado.EN_CURSO) and rel["fecha_hasta"] < ahora:
+            grupo["vencidos"] += total
+
+    forms = (
+        Formulario.objects.filter(relevamiento__in=qs)
+        .values(
+            "relevamiento__territorial_id",
+            "relevamiento__territorial__first_name",
+            "relevamiento__territorial__last_name",
+            "relevamiento__territorial__username",
+            "relevamiento__convocatoria__segmento_id",
+            "relevamiento__convocatoria__segmento__nombre",
+            "estado",
+        )
+        .annotate(total=Count("pk"))
+    )
+    for form in forms:
+        clave = (form["relevamiento__territorial_id"], form["relevamiento__convocatoria__segmento_id"])
+        grupo = grupos.setdefault(
+            clave,
+            {
+                "territorial__first_name": form["relevamiento__territorial__first_name"],
+                "territorial__last_name": form["relevamiento__territorial__last_name"],
+                "territorial__username": form["relevamiento__territorial__username"],
+                "convocatoria__segmento__nombre": form["relevamiento__convocatoria__segmento__nombre"],
+                "asignados": 0,
+                "terminados": 0,
+                "vencidos": 0,
+                "formularios": 0,
+                "aprobados": 0,
+                "rechazados": 0,
+            },
+        )
+        total = form["total"]
+        grupo["formularios"] += total
+        if form["estado"] == Formulario.Estado.APROBADO:
+            grupo["aprobados"] += total
+        elif form["estado"] == Formulario.Estado.RECHAZADO:
+            grupo["rechazados"] += total
+
+    filas = []
     for datos in grupos.values():
-        rels, forms = datos["rels"], datos["forms"]
-        estados = Counter(f.estado for f in forms)
-        vencidos = sum(r.estado in ("ASIGNADO", "EN_CURSO") and r.fecha_hasta < ahora for r in rels)
-        porcentaje = round(estados["APROBADO"] * 100 / len(forms), 1) if forms else 0
-        usuario = datos["territorial"]
+        formularios = datos["formularios"]
+        aprobados = datos["aprobados"]
+        porcentaje = round(aprobados * 100 / formularios, 1) if formularios else 0
+        nombre = f"{datos['territorial__first_name']} {datos['territorial__last_name']}".strip()
         filas.append(
             (
-                usuario.get_full_name() or usuario.username,
-                datos["segmento"].nombre,
-                len(rels),
-                sum(r.estado == "TERMINADO" for r in rels),
-                vencidos,
-                len(forms),
-                estados["APROBADO"],
-                estados["RECHAZADO"],
+                nombre or datos["territorial__username"],
+                datos["convocatoria__segmento__nombre"],
+                datos["asignados"],
+                datos["terminados"],
+                datos["vencidos"],
+                formularios,
+                aprobados,
+                datos["rechazados"],
                 f"{porcentaje}%",
             )
         )
@@ -247,26 +319,30 @@ def reporte_embudo(user, *, convocatoria_id=None, desde=None, hasta=None):
     qs = _formularios(user)
     if convocatoria_id:
         qs = qs.filter(relevamiento__convocatoria_id=convocatoria_id)
-    if desde:
-        qs = qs.filter(creado__date__gte=desde)
-    if hasta:
-        qs = qs.filter(creado__date__lte=hasta)
-    ids = list(qs.values_list("pk", flat=True))
+    qs = _filter_creado_rango(qs, desde, hasta)
     ultima = ValidacionSIS.objects.filter(formulario_id=OuterRef("pk")).order_by("-creado", "-pk")
     con_ultima = qs.annotate(
         ultimo_siis=Subquery(ultima.values("estado")[:1]),
         ultimo_siis_id=Subquery(ultima.values("pk")[:1]),
     )
-    total = qs.count()
+    conteos = qs.aggregate(
+        total=Count("pk"),
+        renaper=Count("pk", filter=Q(validado_renaper=True)),
+        aprobados=Count("pk", filter=Q(estado=Formulario.Estado.APROBADO)),
+        rechazados=Count("pk", filter=Q(estado=Formulario.Estado.RECHAZADO)),
+        baja=Count("pk", filter=Q(estado=Formulario.Estado.BAJA)),
+    )
+    total = conteos["total"] or 0
+    aprobados = conteos["aprobados"] or 0
     etapas = (
         ("Formularios enviados", total),
-        ("Validados RENAPER", qs.filter(validado_renaper=True).count()),
-        ("Aprobados", qs.filter(estado=Formulario.Estado.APROBADO).count()),
+        ("Validados RENAPER", conteos["renaper"] or 0),
+        ("Aprobados", aprobados),
         ("Validación SIIS OK", con_ultima.filter(ultimo_siis=ValidacionSIS.Estado.OK).count()),
-        ("Beneficiarios", qs.filter(estado=Formulario.Estado.APROBADO).count()),
-        ("Lista de espera", ListaEspera.objects.filter(formulario_id__in=ids, promovido=False).count()),
-        ("Rechazados", qs.filter(estado=Formulario.Estado.RECHAZADO).count()),
-        ("Dados de baja", qs.filter(estado=Formulario.Estado.BAJA).count()),
+        ("Beneficiarios", aprobados),
+        ("Lista de espera", qs.filter(lista_espera__promovido=False).distinct().count()),
+        ("Rechazados", conteos["rechazados"] or 0),
+        ("Dados de baja", conteos["baja"] or 0),
     )
     filas = [(etapa, cantidad, f"{round(cantidad * 100 / total, 1) if total else 0}%") for etapa, cantidad in etapas]
     motivos_backoffice = Counter(
@@ -303,9 +379,9 @@ def beneficiarios_queryset(user, *, segmento_id=None, convocatoria_id=None, desd
     if convocatoria_id:
         qs = qs.filter(relevamiento__convocatoria_id=convocatoria_id)
     if desde:
-        qs = qs.filter(fecha_aprobacion_reporte__date__gte=desde)
+        qs = qs.filter(fecha_aprobacion_reporte__gte=_aware_start(desde))
     if hasta:
-        qs = qs.filter(fecha_aprobacion_reporte__date__lte=hasta)
+        qs = qs.filter(fecha_aprobacion_reporte__lt=_aware_start(hasta + timedelta(days=1)))
     return qs
 
 

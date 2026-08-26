@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
+from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
@@ -24,7 +25,7 @@ class CiudadanoAuthViewsTests(TestCase):
             data={"dni": ciudadano.dni, "genero": ciudadano.genero},
         )
 
-        self.assertRedirects(response, reverse("portal:ciudadano_registro_step2"))
+        self.assertRedirects(response, reverse("portal:ciudadano_registro_step2"), fetch_redirect_response=False)
         session = self.client.session["registro_ciudadano"]
         self.assertEqual(session["flujo"], "legajo_existente")
         self.assertEqual(session["ciudadano_id"], ciudadano.pk)
@@ -46,7 +47,7 @@ class CiudadanoAuthViewsTests(TestCase):
             data={"dni": "30111222", "genero": "F"},
         )
 
-        self.assertRedirects(response, reverse("portal:ciudadano_login"))
+        self.assertRedirects(response, reverse("portal:ciudadano_login"), fetch_redirect_response=False)
 
     @patch("portal.services.ciudadano_auth.consultar_datos_renaper")
     def test_registro_step1_nuevo_consulta_renaper_y_guarda_sesion(self, consultar_mock):
@@ -60,7 +61,7 @@ class CiudadanoAuthViewsTests(TestCase):
             data={"dni": "30111222", "genero": "F"},
         )
 
-        self.assertRedirects(response, reverse("portal:ciudadano_registro_step2"))
+        self.assertRedirects(response, reverse("portal:ciudadano_registro_step2"), fetch_redirect_response=False)
         session = self.client.session["registro_ciudadano"]
         self.assertEqual(session["flujo"], "nuevo")
         self.assertEqual(session["nombre"], "Ana")
@@ -95,4 +96,17 @@ class CiudadanoAuthViewsTests(TestCase):
         self.assertIsNotNone(ciudadano.usuario_id)
         self.assertEqual(ciudadano.usuario.email, "ana@example.com")
         self.assertEqual(self.client.session.get("_auth_user_id"), str(ciudadano.usuario_id))
-        self.assertRedirects(response, reverse("portal:ciudadano_mi_perfil"))
+        self.assertRedirects(response, reverse("portal:ciudadano_mi_perfil"), fetch_redirect_response=False)
+
+    @patch("portal.views.ciudadano_auth.login_bloqueado", return_value=True)
+    @patch("portal.views.ciudadano_auth.render", return_value=HttpResponse("bloqueado"))
+    def test_login_lockout_usa_ip_canonica(self, render_mock, login_bloqueado_mock):
+        response = self.client.post(
+            reverse("portal:ciudadano_login"),
+            data={"username": "30111222", "password": "x"},
+            HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        login_bloqueado_mock.assert_called_once_with("10.0.0.9")
+        render_mock.assert_called_once()
