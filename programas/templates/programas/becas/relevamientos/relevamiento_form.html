@@ -42,12 +42,18 @@
         ocupar cupo. Cargá el Excel de habilitados si la convocatoria es para un grupo definido.
       </div>
       {% with field=form.padron %}{% include "programas/becas/_field.html" %}{% endwith %}
-      <label class="mb-4 flex items-center gap-2 text-sm text-heading" for="{{ form.confirmar_por_email.id_for_label }}">
-        {{ form.confirmar_por_email }}
-        Enviar confirmación por correo al inscribirse
-      </label>
     </fieldset>
     {% endif %}
+    {% comment %}Fuera del fieldset de tipo público (Cambio 44): los avisos por
+    correo aplican a los dos tipos de relevamiento.{% endcomment %}
+    <div class="mb-4">
+      <label class="flex items-center gap-2 text-sm text-heading" for="{{ form.confirmar_por_email.id_for_label }}">
+        {{ form.confirmar_por_email }}
+        Avisar por correo a la persona
+      </label>
+      <p class="text-xs text-body-subtle mt-1">{{ form.confirmar_por_email.help_text }}</p>
+      {% if form.confirmar_por_email.errors %}<p class="mt-1 text-xs text-fg-danger">{{ form.confirmar_por_email.errors|join:", " }}</p>{% endif %}
+    </div>
     {% with field=form.observaciones %}{% include "programas/becas/_field.html" %}{% endwith %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>

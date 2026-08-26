@@ -55,7 +55,6 @@
         </div>
         <p class="text-xs text-fg-brand">
           El link acepta inscripciones hasta el {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}, mientras haya cupo y el relevamiento no esté pausado.
-          Confirmación por correo: {% if relevamiento.confirmar_por_email %}activada{% else %}desactivada{% endif %}.
         </p>
         <form method="post" action="{% url 'becas:relevamiento_padron' relevamiento.pk %}" enctype="multipart/form-data"
               class="flex items-end gap-2 flex-wrap pt-2" style="border-top:1px solid var(--color-brand-200)">
@@ -110,6 +109,13 @@
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Personas relevadas</span>
             <span class="text-heading font-semibold">{{ n_formularios }} / {{ relevamiento.cupo_maximo }}</span>
+          </div>
+          {% comment %}Sale de la tarjeta del link público (Cambio 44): el toggle
+          ahora vale también para los territoriales, y el aviso de resolución no
+          es una "confirmación de inscripción".{% endcomment %}
+          <div class="flex justify-between gap-3 py-1 border-b border-light">
+            <span class="text-body-subtle whitespace-nowrap">Avisos por correo</span>
+            <span class="text-heading text-right">{% if relevamiento.confirmar_por_email %}Activados: resolución del formulario{% if relevamiento.es_publico %} y comprobante{% endif %}{% else %}Desactivados{% endif %}</span>
           </div>
           {% if relevamiento.observaciones %}
           <div class="pt-2">

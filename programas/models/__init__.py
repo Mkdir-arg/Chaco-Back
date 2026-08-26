@@ -1551,10 +1551,18 @@ class Relevamiento(PausableMixin, TimeStamped):
         editable=False,
         verbose_name="Token del link público",
     )
+    # Un único interruptor para todo el correo que le llega a la persona por
+    # este relevamiento: el comprobante de inscripción (solo link público) y
+    # los avisos de resolución del Cambio 44, que aplican también al canal
+    # territorial. Dos toggles serían el mismo hecho duplicado.
     confirmar_por_email = models.BooleanField(
         default=False,
-        verbose_name="Enviar confirmación por correo",
-        help_text="Al inscribirse por el link, la persona recibe un correo con su comprobante.",
+        verbose_name="Avisar por correo a la persona",
+        help_text=(
+            "Avisa por correo cuando se resuelve el formulario: aprobado, en lista de espera o "
+            "rechazado. En los relevamientos con link público, además manda el comprobante al "
+            "inscribirse."
+        ),
     )
     # Excel original del padrón de habilitados (RN-P14); las entradas parseadas
     # viven en PadronHabilitado. Solo trazabilidad: nunca se lee por request.

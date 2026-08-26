@@ -32,6 +32,7 @@ from programas.models import (
     ValidacionSIS,
 )
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
+from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.personas import consultar_persona
@@ -500,6 +501,17 @@ def formulario_aprobar(request, pk):
                     request,
                     f"No hay cupo disponible en {segmento.nombre}: se agregó a la lista de espera.",
                 )
+            # Aviso al ciudadano (Cambio 44). Va acá y no dentro de
+            # ``aprobar_o_poner_en_espera``: el servicio es ``@transaction.atomic``
+            # y un rollback dejaría el correo enviado sin forma de retractarlo.
+            # ``resultado`` distingue los dos desenlaces de "Aprobar": mandar
+            # «fuiste aprobado» le mentiría a quien cayó en lista de espera.
+            enviar_aviso_resolucion(
+                formulario,
+                resultado,
+                protocol="https" if request.is_secure() else "http",
+                domain=request.get_host(),
+            )
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
@@ -575,6 +587,16 @@ def formulario_rechazar(request, pk):
         formulario.motivo_rechazo = motivo
         formulario.save(update_fields=["estado", "motivo_rechazo", "modificado"])
         registrar_traza(formulario, request.user, [("estado", estado_anterior, f"RECHAZADO: {motivo}")])
+        # Aviso al ciudadano (Cambio 44), con el motivo textual tal como lo
+        # escribió el técnico (decisión del cliente). Si el correo falla, el
+        # rechazo ya quedó firme: el servicio loguea y devuelve False.
+        enviar_aviso_resolucion(
+            formulario,
+            "rechazado",
+            motivo=motivo,
+            protocol="https" if request.is_secure() else "http",
+            domain=request.get_host(),
+        )
         if validacion.estado == ValidacionSIS.Estado.ERROR:
             messages.warning(request, "SIIS no respondió correctamente; quedó registrado para reintentar.")
         messages.success(request, "Formulario rechazado.")

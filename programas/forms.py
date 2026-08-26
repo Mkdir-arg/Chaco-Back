@@ -1137,7 +1137,11 @@ class RelevamientoForm(forms.ModelForm):
         self.puede_publico = puede_publico
         if not puede_publico:
             self.fields.pop("tipo")
-            self.fields.pop("confirmar_por_email")
+            # ``confirmar_por_email`` no se remueve (Cambio 44): los avisos por
+            # correo ya no son exclusivos del link público —también avisan cómo
+            # se resolvió un formulario cargado por el territorial—, así que el
+            # toggle se ofrece en los dos tipos. ``tipo`` y ``padron`` sí siguen
+            # siendo del flujo público y siguen gateados por RBAC (RN-P13).
             self.fields.pop("padron")
         else:
             # Retrocompatibilidad: un POST sin tipo sigue siendo un alta

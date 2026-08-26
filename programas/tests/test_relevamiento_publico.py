@@ -169,7 +169,12 @@ class FormPublicoTests(_BasePublicoTest):
     def test_sin_capacidad_el_form_no_ofrece_tipo(self):
         form = RelevamientoForm(puede_publico=False)
         self.assertNotIn("tipo", form.fields)
-        self.assertNotIn("confirmar_por_email", form.fields)
+        self.assertNotIn("padron", form.fields)
+
+    def test_sin_capacidad_el_form_igual_ofrece_el_toggle_de_correo(self):
+        """Cambio 44: los avisos por correo dejaron de ser del link público."""
+        form = RelevamientoForm(puede_publico=False)
+        self.assertIn("confirmar_por_email", form.fields)
 
     def test_flujo_territorial_sigue_exigiendo_territorial(self):
         data = self._form_data(tipo=Relevamiento.Tipo.TERRITORIAL)
