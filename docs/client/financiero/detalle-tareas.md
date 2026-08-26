@@ -391,7 +391,7 @@
 !!! note "Restauración de horas (23/08/2026)"
     Un ajuste del 21/08 había reducido en **88 h** el registro de Juani Portilla: el desarrollo frontend de Dispositivos del 03 al 14/08 (−76 h) y los entregables de observabilidad y actualización de Django del 17–18/08 (−12 h). Por decisión del PM esas horas se **restauraron a sus valores originales**, y se **conservaron** las filas de desarrollo backend de Dispositivos agregadas en aquel ajuste (4 h).
 
-### :material-package-variant-closed: Consumo del 20 al 24 de agosto — por entregable
+### :material-package-variant-closed: Consumo del 20 al 25 de agosto — por entregable
 
 !!! info "Regla desde el 24/08"
     Se incorpora una **reunión de seguimiento diaria** de las cuatro personas del equipo (1 h por persona) y el **armado del informe diario** por parte del PM (30 min). Ambas se registran cada día hábil.
@@ -453,16 +453,33 @@
 | 24/08 | Matías Abate | Becas | Casos de prueba | Diseño de casos de prueba de las tareas del período. | 2 h | — |
 | 24/08 | Matías Abate | Becas | Pruebas automatizadas | Armado y ejecución de pruebas automatizadas sobre los flujos de Becas. | 2 h | — |
 | 24/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 24/08** | | **140,5 h** | **118 h** |
+| 25/08 | Matías Fariña | Becas | Formulario público — Fase 4: correo de confirmación configurable | Correo de confirmación al inscribirse, activable por relevamiento, con plantilla propia y sin romper la inscripción si el envío falla (#296 — PR #304). | 1,5 h | 4 h |
+| 25/08 | Matías Fariña | Becas | Revisión de código de las cuatro fases y Fase 5 de correcciones | Revisión completa del formulario público (diez hallazgos: reporte de producción, rate limit, pendientes RENAPER, fechas de Gran Base, gate de permisos, padrón, duplicados) y su corrección con once pruebas nuevas (PR #305). | 2,5 h | 8 h |
+| 25/08 | Matías Fariña | Becas | Segunda revisión y documento de traspaso de la Fase 6 | Segunda revisión del conjunto y documento de trabajo con error y solución por hallazgo para la siguiente fase de correcciones. | 1 h | — |
+| 25/08 | Matías Fariña | Becas | Integración de las fases 1 a 5 en development y release | Integración de la épica en la rama de trabajo, ajuste del alta de relevamiento y publicación del release (PR #306). | 1,5 h | 4 h |
+| 25/08 | Matías Fariña | Becas | Capacidad de formulario público para el rol Administrador | Otorgamiento por migración de la capacidad del formulario público al rol Administrador. | 0,5 h | 2 h |
+| 25/08 | Matías Fariña | Transversal | Comando de diagnóstico de integraciones y referencia de variables | Comando de diagnóstico de las integraciones del sistema y referencia completa de las variables de entorno para los despliegues. | 1 h | 4 h |
+| 25/08 | Matías Fariña | Becas | Comprobante de inscripción con plantilla de marca | Plantilla HTML de marca para el correo de comprobante de la inscripción pública. | 0,5 h | 2 h |
+| 25/08 | Matías Fariña | Becas | Espejo del release al GitLab de ECOM | Tres publicaciones del release en la rama de testing de ECOM con merge de alineación sin reescritura. | 0,5 h | — |
+| 25/08 | Matías Fariña | Transversal | Carga del consumo de horas del 24/08 | Registro del consumo del 24/08 y de la regla de reunión diaria en las páginas financieras. | 0,5 h | — |
+| 25/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe diario | Reunión diaria de seguimiento del equipo y armado del informe diario. | 1,5 h | — |
+| 25/08 | Matías Abate | Becas | Pruebas funcionales del formulario público | Ejecución de los casos de prueba de las tasks del formulario público sobre las cinco fases: alta de relevamiento público, padrón, identificación, formulario dinámico, ingesta y correo. | 4 h | — |
+| 25/08 | Matías Abate | Becas | Documentación funcional del formulario público | Documentación para el cliente de la funcionalidad completa: configuración del relevamiento público, flujo del ciudadano y revisión en el backoffice. | 3 h | — |
+| 25/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 25/08 | Pablo Cao | Becas | App de campo — conectividad y adaptación a los cambios de la API | Ajuste de la app móvil a los cambios del backend del formulario público y de la sincronización: relevamientos por tipo, identificador de captura normalizado, fechas de vigencia y respuestas de la API; pruebas de conectividad contra testing. | 6 h | 12 h |
+| 25/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 25/08 | Juani Portilla | Dispositivos | Automatización de pruebas y ajuste de diseño del Programa Dispositivos | Continuación de la automatización de pruebas backend del programa y ajustes de diseño de sus pantallas. | 4 h | — |
+| 25/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 20 al 25/08** | | **171,5 h** | **154 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 327 h 00 min |
-| Dispositivos | 130 h 30 min |
-| Transversal | 127 h 00 min |
-| **Total agosto 2026 (al 24/08)** | **584 h 30 min** |
+| Becas | 348 h 00 min |
+| Dispositivos | 134 h 30 min |
+| Transversal | 133 h 00 min |
+| **Total agosto 2026 (al 25/08)** | **615 h 30 min** |
 
 ---
 
@@ -492,9 +509,9 @@
 
 
 
-    **95.022 minutos** (1.583 h 42 min)
+    **96.882 minutos** (1.614 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 584 h 30 min (al 24/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 615 h 30 min (al 25/08).
 
 
 
