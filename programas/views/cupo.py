@@ -18,6 +18,7 @@ from django.views.generic.detail import DetailView
 from core.rbac import CapacidadRequeridaMixin, puede_alguna
 from programas.models import Formulario, ListaEspera, Segmento
 from programas.services.autorizacion import SegmentoScopedMixin, puede_gestionar_segmento
+from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import (
     agregar_a_lista_espera,
     dar_baja_beneficiario,
@@ -136,7 +137,11 @@ def dar_baja_beneficiario_view(request, pk):
 @login_required
 def promover_lista_espera_view(request, pk):
     lista = get_object_or_404(
-        ListaEspera.objects.select_related("formulario__ciudadano", "segmento"),
+        # La convocatoria y el segmento del relevamiento los necesita el aviso
+        # de resolución (Cambio 44) para el asunto y el cuerpo del correo.
+        ListaEspera.objects.select_related(
+            "formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento", "segmento"
+        ),
         pk=pk,
     )
     if not puede_alguna(request.user, [CAP_BENEFICIARIO_EDITAR]) or not puede_gestionar_segmento(
@@ -146,10 +151,22 @@ def promover_lista_espera_view(request, pk):
     if request.method == "POST":
         try:
             promover_lista_espera(lista, request.user)
-            nombre = lista.formulario.ciudadano.nombre_completo if lista.formulario.ciudadano else "el ciudadano"
-            messages.success(request, f"{nombre} fue promovido como beneficiario.")
         except ValidationError as e:
             messages.error(request, e.message)
+        else:
+            # Aviso al ciudadano (Cambio 44): pasar de la lista a beneficiario
+            # también es una resolución que le cambia el desenlace. Va afuera de
+            # ``promover_lista_espera``, que es ``@transaction.atomic``, y afuera
+            # del ``try``, para no confundir una falla del correo con una
+            # promoción rechazada.
+            enviar_aviso_resolucion(
+                lista.formulario,
+                "promovido",
+                protocol="https" if request.is_secure() else "http",
+                domain=request.get_host(),
+            )
+            nombre = lista.formulario.ciudadano.nombre_completo if lista.formulario.ciudadano else "el ciudadano"
+            messages.success(request, f"{nombre} fue promovido como beneficiario.")
     return redirect(reverse("becas:cupo_segmento", kwargs={"pk": lista.segmento.pk}) + "?tab=lista_espera")
 
 

@@ -6,10 +6,13 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import TestCase
+from django.template import TemplateDoesNotExist
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from legajos.models import Ciudadano
@@ -29,6 +32,8 @@ from programas.models import (
     TracaFormulario,
     ValidacionSIS,
 )
+from programas.views.cupo import promover_lista_espera_view
+from programas.views.revision import formulario_aprobar, formulario_rechazar
 
 
 class _BaseRevisionTest(TestCase):
@@ -474,7 +479,10 @@ class ReportesBecasTests(_BaseRevisionTest):
         self.assertNotIn("attachment", response.headers.get("Content-Disposition", ""))
 
 
-class AprobarRechazarTests(_BaseRevisionTest):
+class _BaseAprobacionTest(_BaseRevisionTest):
+    """Formulario listo para aprobar: identidad validada, programa SIIS y una
+    validación OK que corresponde al DNI y al programa actuales."""
+
     def setUp(self):
         super().setUp()
         self.siis = patch("programas.services.validacion_siis.validar_compatibilidad")
@@ -508,6 +516,8 @@ class AprobarRechazarTests(_BaseRevisionTest):
         )
         self.client.force_login(self.coord_a)
 
+
+class AprobarRechazarTests(_BaseAprobacionTest):
     def test_aprobar(self):
         resp = self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
         self.assertEqual(resp.status_code, 302)
@@ -677,3 +687,235 @@ class BeneficiarioScopingTests(_BaseRevisionTest):
         self.assertEqual(resp.status_code, 302)
         self.form_b.refresh_from_db()
         self.assertEqual(self.form_b.estado, Formulario.Estado.BAJA)
+
+
+class _BaseAvisoResolucionTest(_BaseAprobacionTest):
+    """``rel_a`` es territorial y con el toggle encendido: el escenario que
+    habilita el Cambio 44 (antes el toggle solo existía en los públicos)."""
+
+    def setUp(self):
+        super().setUp()
+        # El aviso es opt-in: sin el toggle el servicio corta antes de armar nada.
+        self.rel_a.confirmar_por_email = True
+        self.rel_a.save(update_fields=["confirmar_por_email"])
+
+
+class AvisoResolucionCableadoTests(_BaseAvisoResolucionTest):
+    """Cada vista avisa con el desenlace que realmente ocurrió (Cambio 44)."""
+
+    def _ocupar_todo_el_cupo(self):
+        """Deja el segmento sin cupo para que Aprobar caiga en lista de espera."""
+        self.seg_a.cupo_maximo = 1
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="3624300300",
+            email_contacto="ocupa@b.com",
+            estado=Formulario.Estado.APROBADO,
+        )
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_aprobar_con_cupo_avisa_aprobado(self, aviso):
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        aviso.assert_called_once()
+        self.assertEqual(aviso.call_args.args[0].pk, self.form_a.pk)
+        self.assertEqual(aviso.call_args.args[1], "aprobado")
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_aprobar_sin_cupo_avisa_lista_de_espera(self, aviso):
+        self._ocupar_todo_el_cupo()
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        # Sin cupo el formulario sigue ENVIADO: avisar «aprobado» sería mentirle.
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        self.assertTrue(ListaEspera.objects.filter(formulario=self.form_a, promovido=False).exists())
+        aviso.assert_called_once()
+        self.assertEqual(aviso.call_args.args[1], "lista_espera")
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_aprobacion_bloqueada_no_avisa(self, aviso):
+        self.form_a.validado_renaper = False
+        self.form_a.save(update_fields=["validado_renaper"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        aviso.assert_not_called()
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_rechazar_avisa_con_el_motivo_textual(self, aviso):
+        motivo = "Falta el certificado de alumno regular."
+
+        self.client.post(reverse("becas:formulario_rechazar", args=[self.form_a.pk]), {"motivo": motivo})
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        aviso.assert_called_once()
+        self.assertEqual(aviso.call_args.args[0].pk, self.form_a.pk)
+        self.assertEqual(aviso.call_args.args[1], "rechazado")
+        self.assertEqual(aviso.call_args.kwargs["motivo"], motivo)
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_rechazo_sin_motivo_no_avisa(self, aviso):
+        self.client.post(reverse("becas:formulario_rechazar", args=[self.form_a.pk]), {"motivo": ""})
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        aviso.assert_not_called()
+
+    @patch("programas.views.cupo.enviar_aviso_resolucion")
+    def test_promover_desde_lista_de_espera_avisa_promovido(self, aviso):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[entrada.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        aviso.assert_called_once()
+        self.assertEqual(aviso.call_args.args[0].pk, self.form_a.pk)
+        self.assertEqual(aviso.call_args.args[1], "promovido")
+
+    @patch("programas.views.cupo.enviar_aviso_resolucion")
+    def test_promocion_que_no_prospera_no_avisa(self, aviso):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1, promovido=True)
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[entrada.pk]))
+
+        aviso.assert_not_called()
+
+    @patch("programas.views.revision.enviar_aviso_resolucion")
+    def test_validar_siis_no_avisa(self, aviso):
+        """La prevalidación (Cambio 34) no resuelve el caso: no es un desenlace."""
+        self.client.post(reverse("becas:formulario_validar_sis", args=[self.form_a.pk]))
+
+        aviso.assert_not_called()
+
+
+class AvisoResolucionEnvioRealTests(_BaseAvisoResolucionTest):
+    """El correo se arma y sale de verdad, y nunca rompe la acción del técnico:
+    cuando la vista llama al servicio, la aprobación o el rechazo ya están
+    commiteados y no hay forma de retractarlos (criterio del Cambio 41).
+
+    Estas pruebas llaman a la vista con ``RequestFactory`` en vez de
+    ``self.client``: bajo Python 3.14 + Django 4.2 el test client instrumenta
+    el render de plantillas y revienta en ``Context.__copy__``, lo que alcanza
+    también al ``render_to_string`` del correo y dejaría el ``outbox`` vacío
+    por un motivo ajeno al cambio. Es el mismo desvío que hace
+    ``test_avisos_resolucion`` al ejercitar el servicio suelto.
+    """
+
+    def _llamar(self, vista, pk, **data):
+        request = RequestFactory().post("/", data)
+        request.user = self.coord_a
+        request.session = self.client.session
+        request._messages = FallbackStorage(request)
+        return vista(request, pk)
+
+    def test_territorial_con_el_toggle_encendido_manda_el_aviso(self):
+        """La regresión que habilita el cambio: ``rel_a`` no es público."""
+        self.assertFalse(self.rel_a.es_publico)
+
+        resp = self._llamar(formulario_aprobar, self.form_a.pk)
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["a@b.com"])
+        self.assertEqual(mail.outbox[0].subject, "Tu inscripción fue aprobada — Conv A")
+
+    def test_el_rechazo_manda_el_motivo_textual(self):
+        motivo = "Falta el certificado de alumno regular."
+
+        self._llamar(formulario_rechazar, self.form_a.pk, motivo=motivo)
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Novedades sobre tu inscripción — Conv A")
+        self.assertIn(motivo, mail.outbox[0].body)
+
+    def test_la_promocion_manda_el_aviso(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+
+        self._llamar(promover_lista_espera_view, entrada.pk)
+
+        entrada.refresh_from_db()
+        self.assertTrue(entrada.promovido)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Tu inscripción fue aprobada — Conv A")
+        self.assertIn("Se liberó un lugar", mail.outbox[0].body)
+
+    def test_toggle_apagado_no_manda_nada(self):
+        self.rel_a.confirmar_por_email = False
+        self.rel_a.save(update_fields=["confirmar_por_email"])
+
+        self._llamar(formulario_aprobar, self.form_a.pk)
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_smtp_caido_no_voltea_la_aprobacion(self):
+        with patch(
+            "programas.services.avisos_resolucion.EmailMultiAlternatives.send",
+            side_effect=OSError("smtp caído"),
+        ):
+            with self.assertLogs("programas.services.avisos_resolucion", level="ERROR"):
+                resp = self._llamar(formulario_aprobar, self.form_a.pk)
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_smtp_caido_no_voltea_el_rechazo(self):
+        with patch(
+            "programas.services.avisos_resolucion.EmailMultiAlternatives.send",
+            side_effect=OSError("smtp caído"),
+        ):
+            with self.assertLogs("programas.services.avisos_resolucion", level="ERROR"):
+                resp = self._llamar(formulario_rechazar, self.form_a.pk, motivo="Documentación incompleta")
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        self.assertEqual(self.form_a.motivo_rechazo, "Documentación incompleta")
+
+    def test_smtp_caido_no_voltea_la_promocion(self):
+        entrada = ListaEspera.objects.create(formulario=self.form_a, segmento=self.seg_a, posicion=1)
+
+        with patch(
+            "programas.services.avisos_resolucion.EmailMultiAlternatives.send",
+            side_effect=OSError("smtp caído"),
+        ):
+            with self.assertLogs("programas.services.avisos_resolucion", level="ERROR"):
+                resp = self._llamar(promover_lista_espera_view, entrada.pk)
+
+        self.assertEqual(resp.status_code, 302)
+        entrada.refresh_from_db()
+        self.form_a.refresh_from_db()
+        self.assertTrue(entrada.promovido)
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+    def test_una_plantilla_rota_tampoco_voltea_la_aprobacion(self):
+        """El armado del correo está dentro del mismo blindaje que el envío: si
+        quedara afuera, un error de plantilla daría un 500 sobre una aprobación
+        ya guardada, que es justo lo que el cambio se propone evitar."""
+        with patch(
+            "programas.services.avisos_resolucion.render_to_string",
+            side_effect=TemplateDoesNotExist("resolucion_body.txt"),
+        ):
+            with self.assertLogs("programas.services.avisos_resolucion", level="ERROR"):
+                resp = self._llamar(formulario_aprobar, self.form_a.pk)
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(len(mail.outbox), 0)

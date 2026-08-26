@@ -350,12 +350,18 @@
               <p class="text-xs text-body-subtle mt-1">{{ form_crear.padron.help_text }}</p>
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="padron"></p>
             </div>
-            <label class="flex items-center gap-2 text-sm text-heading" for="{{ form_crear.confirmar_por_email.id_for_label }}">
-              {{ form_crear.confirmar_por_email }}
-              Enviar confirmación por correo al inscribirse
-            </label>
           </fieldset>
           {% endif %}
+          {% comment %}Fuera del fieldset de tipo público (Cambio 44): los avisos
+          por correo aplican a los dos tipos de relevamiento.{% endcomment %}
+          <div>
+            <label class="flex items-center gap-2 text-sm text-heading" for="{{ form_crear.confirmar_por_email.id_for_label }}">
+              {{ form_crear.confirmar_por_email }}
+              Avisar por correo a la persona
+            </label>
+            <p class="text-xs text-body-subtle mt-1">{{ form_crear.confirmar_por_email.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="confirmar_por_email"></p>
+          </div>
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
         <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">

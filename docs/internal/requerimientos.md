@@ -185,6 +185,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟢 **Hecho — mergeado (PR #306) y desplegado en testing 25/08/2026** | `programas.0049` + `programas.0050` + `users.0025` |
 | 42 | El portal ciudadano quedó viejo: marca, textos y contenido de la home | Portal | `#ui` `#textos` | PM — «actualiza el diseño y los nombres de datanach.ecomdev.ar/portal/ ya que quedó viejo» | 26/08/2026 | 🟢 **Hecho** | No |
 | 43 | Sacar el fondo animado del formulario de inscripción: shell propio «panel de marca» | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «el fondo animado lo tendríamos que borrar»; eligió la Opción B de tres mockups | 26/08/2026 | 🟢 **Hecho** | No |
+| 44 | Avisar por correo al ciudadano cuando se resuelve su formulario | Becas / revisión · Portal | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` | PM — pedido directo en sesión de trabajo | 26/08/2026 | 🟡 **Implementado — inerte hasta el SMTP de ECOM** | `programas.0053` |
 
 **Notas del índice**
 
@@ -3561,6 +3562,15 @@ link acepta o no inscripciones —los cuatro motivos que comparten la pantalla �
 DNI está en el padrón o ya se inscribió. Nunca imprime secretos (informa presencia y largo) y devuelve código de
 salida distinto de 0 si algo falla, para usarlo como gate de despliegue.
 
+**26/08/2026 — El toggle de correo dejó de ser exclusivo del alta pública (Cambio 44).** Esta entrada decía que al
+elegir tipo público «aparecen Cupo, Padrón y el toggle de correo», y `RelevamientoForm` lo removía junto con `tipo`
+y `padron` cuando el usuario no tenía `becas.relevamiento.publico`. El Cambio 44 usa el mismo
+`confirmar_por_email` para avisar cómo se resolvió un formulario —y eso pasa igual en los territoriales—, así que
+el campo se ofrece ahora en los dos tipos y salió del `fieldset` condicionado; `tipo` y `padron` **siguen** gateados
+por RN-P13. Lo que **no** cambió es la decisión de arriba: el comprobante de inscripción sigue siendo exclusivo del
+flujo público y la API de campo no lo llama. También cambiaron la etiqueta y el `help_text` del campo
+(`programas.0053`, solo metadatos), que hablaban únicamente del comprobante.
+
 **25/08/2026 — Comprobante de inscripción con plantilla de marca.** El correo del comprobante salía en texto
 plano; ahora va en las dos versiones —texto y HTML— como el resto de los correos del sistema, reusando el
 encabezado y el pie compartidos (`user/email/_encabezado.html` y `_pie.html`). La plantilla está apuntada al
@@ -3768,3 +3778,194 @@ Solo el deploy. Sin variables, cron ni migración. La home **sigue** cargando `p
 ## Reversión
 
 Revertir el commit: las seis páginas vuelven a extender `portal/base.html`. Conviene **conservar** `ya_inscripto.html` aunque se revierta el resto, porque sin él la pantalla de duplicado rompe.
+
+---
+
+# Cambio 44 — Avisar por correo al ciudadano cuando se resuelve su formulario
+
+🟡 **IMPLEMENTADO — 26/08/2026 · inerte hasta que ECOM entregue el SMTP**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión de formularios y cupo · correo al Portal Ciudadano |
+| **Etiquetas** | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, con las definiciones cerradas en la misma sesión al relevar el código |
+| **Fecha del pedido** | 26/08/2026 |
+| **Issue / épica** | Sin issue (cuelga funcionalmente del análisis #289 / Cambio 41) |
+| **Partes afectadas** | Backoffice · Servidor. **Mobile no se toca.** |
+| **Migración** | `programas.0053` — solo metadatos (`verbose_name` / `help_text`). Sin cambio de esquema. |
+
+## Pedido original
+
+> «En el programa Becas, cuando el ciudadano se inscribe le llega el comprobante de
+> inscripción. Cuando el técnico valida el relevamiento en `/becas/revision/formulario/`
+> lo puede aprobar o rechazar. Quiero que cuando pase eso se le envíe un mail avisando
+> si fue aprobado o rechazado. Pero la aprobación o el rechazo no es la de SIIS, es la
+> del caso en general.»
+
+Definiciones agregadas en la misma sesión, al relevar el código:
+
+> «Si queda en lista de espera se le notifica que entró pero está en lista de espera.»
+> «Se le manda el motivo textual.» · «Ambas, sea por link o territorial.»
+> «Lo respeta, y sumale eso al territorial también.» · «Sí, también cuando se pasa de
+> lista a aprobado se avisa.»
+
+## Alcance acordado
+
+**Cuatro momentos de aviso**, no dos:
+
+| Momento | Vista que lo dispara | Estado resultante |
+|---|---|---|
+| Aprobado con cupo | `formulario_aprobar` | `APROBADO` |
+| Entró pero quedó en lista de espera | `formulario_aprobar` | sigue `ENVIADO` + entrada en `ListaEspera` |
+| Rechazado | `formulario_rechazar` | `RECHAZADO` |
+| Promovido de lista de espera a aprobado | `promover_lista_espera_view` | `APROBADO` |
+
+- Aplica a **los dos tipos de relevamiento**: público por link y territorial de campo.
+- **Respeta el toggle `confirmar_por_email`** del relevamiento, que pasa a estar
+  disponible también en los territoriales (hasta este cambio solo se ofrecía en los públicos).
+- El **motivo del rechazo se manda textual**, tal como lo escribió el técnico.
+
+**Queda explícitamente afuera:** la baja de un beneficiario ya aprobado (`dar_de_baja`),
+los cambios de estado hechos desde el admin de Django, el reenvío manual de un aviso y
+cualquier aviso ligado a la validación SIIS.
+
+## Decisiones tomadas
+
+- **Cuatro correos y no dos, porque «Aprobar» tiene dos desenlaces.**
+  `aprobar_o_poner_en_espera` devuelve `"aprobado"` o `"lista_espera"` según haya cupo, y
+  `Formulario.Estado` no tiene un estado «en espera»: sin cupo el formulario **sigue en
+  `ENVIADO`**. Mandar «fuiste aprobado» al apretar Aprobar le mentiría a quien cayó en
+  lista de espera. Por eso el desenlace lo pasa la vista y no se deduce del estado.
+
+- **El motivo del rechazo va textual, por decisión del cliente.** Se deja asentado el
+  riesgo asumido: `motivo_rechazo` es hoy una nota interna del técnico, sin revisión de
+  estilo ni destinatario ciudadano. Si el programa quiere despersonalizarlo más adelante,
+  el cambio es de plantilla y no de flujo. En el HTML el motivo se escapa (test propio).
+
+- **El aviso no distingue origen del formulario.** `email_contacto` es obligatorio en el
+  modelo (`Bloque C — Contacto`) y viaja también en el serializer de la API móvil, así que
+  un formulario cargado por el territorial tiene correo igual que uno del link.
+
+- **El toggle se extiende a territorial en lugar de crear un campo nuevo.** Es el mismo
+  hecho para el ciudadano —«este relevamiento notifica por correo»— y duplicarlo daría dos
+  interruptores que hay que mantener sincronizados. Como el campo tiene `default=False`,
+  **ningún relevamiento existente empieza a mandar correos**: es opt-in y no hay envío
+  retroactivo. Esto **no reabre** la decisión del Cambio 41 «el comprobante es exclusivo
+  del flujo público»: el comprobante sigue saliendo solo por link (la API de campo no lo
+  llama); lo que se amplía es dónde se puede *configurar* el toggle.
+
+- **El correo se manda desde la vista, después de que el servicio devuelve, nunca dentro
+  de la transacción.** `aprobar_o_poner_en_espera` y `promover_lista_espera` son
+  `@transaction.atomic`: si se enviara adentro y la transacción hiciera rollback, el correo
+  ya salió y no se puede retractar.
+
+- **El aviso nunca rompe la acción del técnico**, mismo criterio que el comprobante
+  (Cambio 41): si SMTP falla se loguea y la aprobación o el rechazo quedan firmes. El
+  blindaje cubre **también el armado** del mensaje, no solo el `send`: cuando la vista
+  llama al servicio la resolución ya está commiteada, así que un error de plantilla daría
+  un 500 sobre una acción ya hecha. Con el render adentro del `try`, el servicio devuelve
+  `False` y la vista sigue.
+
+- **No se toca `formulario_validar_sis`.** Es la prevalidación del Cambio 34 y no resuelve
+  el caso; el pedido fue explícito en distinguirla. Hay un test que verifica que no avisa.
+
+- **El estado del toggle se muestra en la tarjeta de información del relevamiento, no en la
+  del link público.** Estaba dentro del bloque que solo se dibuja para los públicos: ahí un
+  territorial con avisos activos no lo vería nunca. La redacción vieja («Confirmación por
+  correo: activada») también quedó corta, porque ya no describe solo el comprobante.
+
+## Implementación
+
+- **Servicio nuevo** `programas/services/avisos_resolucion.py`, modelado sobre
+  `enviar_confirmacion_inscripcion`: corta temprano si el relevamiento no notifica, si el
+  formulario no tiene correo de contacto o si el desenlace no es uno de los cuatro; arma
+  `EmailMultiAlternatives` con texto plano + HTML de marca y `contexto_pie()`; devuelve
+  `True`/`False` y **nunca propaga**.
+- **Plantillas** `programas/templates/programas/becas/email/resolucion_body.{txt,html}`:
+  un par único con bloques condicionales por desenlace, reusando el encabezado y el pie de
+  marca del portal. Asuntos: «Tu inscripción fue aprobada», «Tu inscripción quedó en lista
+  de espera», «Novedades sobre tu inscripción» (rechazo) y de nuevo «Tu inscripción fue
+  aprobada» para la promoción —para el ciudadano es el mismo hecho—, todos con
+  «— {convocatoria}».
+- **Tres puntos de llamada**, siempre después de que el servicio de dominio devolvió y
+  fuera de su transacción: `formulario_aprobar` (con el `resultado` tal cual),
+  `formulario_rechazar` (`"rechazado"` + motivo) y `promover_lista_espera_view`
+  (`"promovido"`). Los tres pasan protocolo y host del request para que el logo del correo
+  tenga URL absoluta.
+- **Toggle en territoriales:** `RelevamientoForm.__init__` deja de remover
+  `confirmar_por_email` cuando el usuario no tiene la capacidad de público; `tipo` y
+  `padron` siguen gateados por RN-P13. En las tres pantallas de alta el control salió del
+  `fieldset` condicionado por tipo y ahora se ve en los dos casos, con el `help_text` del
+  modelo debajo.
+- **Textos:** la etiqueta pasó a «Avisar por correo a la persona» y el `help_text` a
+  «Avisa por correo cuando se resuelve el formulario: aprobado, en lista de espera o
+  rechazado. En los relevamientos con link público, además manda el comprobante al
+  inscribirse.»
+
+## Archivos
+
+`programas/services/avisos_resolucion.py` (nuevo) ·
+`programas/templates/programas/becas/email/resolucion_body.{txt,html}` (nuevos) ·
+`programas/views/revision.py` · `programas/views/cupo.py` · `programas/forms.py` ·
+`programas/models/__init__.py` · `programas/migrations/0053_relevamiento_avisos_correo_textos.py` ·
+`programas/templates/programas/becas/relevamientos/{convocatoria_detail,relevamiento_list,relevamiento_form,relevamiento_detail}.html` ·
+`.claude/agents/chaco-design-system.md` (regla de `fieldset` condicionados en el bullet *Forms*) ·
+tests: `programas/tests/test_avisos_resolucion.py` (nuevo), `programas/tests/test_becas_revision.py`,
+`programas/tests/test_relevamiento_publico.py`.
+
+## Base de datos
+
+Sin cambio de esquema. `Relevamiento.confirmar_por_email` ya existe desde `programas.0049`
+con `default=False`. `programas.0053` solo registra el cambio de `verbose_name` /
+`help_text`, necesario para que `makemigrations --check` quede limpio. Segura sobre datos
+existentes: no toca valores.
+
+## Validación
+
+- **34 tests propios**: 18 del servicio (`test_avisos_resolucion`, un caso por desenlace,
+  motivo textual y escapado, toggle apagado en público y en territorial, territorial
+  encendido, sin correo de contacto, desenlace desconocido, SMTP caído, marca y saludo) y
+  16 de integración de las vistas (`test_becas_revision`): que cada vista llama al servicio
+  con el desenlace correcto, que una aprobación bloqueada o un rechazo sin motivo no avisan,
+  que `formulario_validar_sis` no avisa, que el territorial con el toggle encendido manda de
+  verdad, y que ni un SMTP caído ni una plantilla rota voltean la aprobación, el rechazo o
+  la promoción.
+- Las pruebas de envío real llaman a la vista con `RequestFactory` en vez del test client:
+  bajo Python 3.14 + Django 4.2 el client instrumenta el render y revienta en
+  `Context.__copy__`, lo que alcanzaría también al `render_to_string` del correo. Es el
+  mismo desvío que ya usaba `portal/tests/test_inscripcion_correo`.
+- `manage.py check` sin observaciones · `makemigrations --check --dry-run` sin cambios ·
+  `scripts/design_audit.py --changed` **0 errores** (1 WARN preexistente de `outline:none`
+  en un `select` que este cambio no toca) · `scripts/compile_templates.py` 179 plantillas,
+  0 errores · `scripts/requerimientos.py --check` OK.
+- Suite `programas` completa: **525 tests, 1 falla + 119 errores antes del cambio y los
+  mismos después**. Todos los errores son el bug de entorno de Python 3.14 renderizando bajo
+  el test client; la única falla (`test_cachea_la_ausencia_del_programa`) es preexistente y
+  de caché entre tests, ajena a este cambio.
+
+## Puesta en marcha en el servidor
+
+- Deploy estándar con migración (solo metadatos, riesgo nulo).
+- **Depende del SMTP real**, que es el Cambio 37 / 13 y sigue pendiente de ECOM:
+  `EMAIL_BACKEND` cae a consola mientras `EMAIL_HOST` esté vacío. Hasta entonces el código
+  funciona y los tests pasan, pero **no se entrega nada**. Por eso la entrada queda 🟡 y no 🟢.
+- Tras el deploy **nada cambia solo**: el toggle viene en `False` en todos los relevamientos
+  existentes. Para empezar a notificar hay que activarlo relevamiento por relevamiento.
+
+## Pendientes / a definir
+
+- La **baja de un beneficiario aprobado** (`dar_de_baja`) no avisa. Quedó fuera de alcance;
+  es el mismo hecho para el ciudadano y conviene definirlo.
+- **Textos definitivos de los cuatro correos**: los aprueba el programa de Becas.
+- Si el motivo del rechazo textual resulta inadecuado en producción, la salida es cambiar la
+  plantilla, no el flujo.
+- Nadie ve hoy si un aviso salió o falló: solo queda en el log del servidor. Si el programa
+  necesita trazabilidad por formulario, es un desarrollo aparte.
+
+## Reversión
+
+Revertir el PR y retroceder la migración a `programas.0052`. No se pierden datos: no hay
+columnas nuevas ni registros propios. Los relevamientos territoriales que hayan quedado con
+el toggle en `True` conservan el valor; deja de tener efecto sobre los avisos de resolución
+y vuelve a valer solo para el comprobante del link público.

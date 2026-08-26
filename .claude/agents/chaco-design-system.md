@@ -144,6 +144,13 @@ explicativo, acciones cerca del dato, y jerarquía visual clara.
   `text-fg-danger`, campos `nodo-field` o clases equivalentes con `border-base`,
   `focus:border-brand`, `focus:ring-brand`; errores cerca del campo en
   `text-fg-danger`.
+  Cuando el alta tiene `fieldset` condicionados por tipo (`x-show`/`:disabled` con
+  Alpine), adentro va **solo** lo que aplica a ese tipo: un control común a todos los
+  tipos se ubica fuera del `fieldset`, o queda deshabilitado y sin enviarse para el
+  resto. Evidencia en el alta de relevamiento —`convocatoria_detail.html`,
+  `relevamiento_list.html` y `relevamiento_form.html`—: el toggle de avisos por correo
+  vale para territoriales y públicos y por eso quedó fuera del `fieldset` de tipo
+  público, que conserva cupo y padrón.
 - **Tables:** preferir tabla densa antes que cards repetidas cuando el usuario compara
   filas. Mantener encabezados uppercase de 11px, celdas de 13-14px y acciones en la
   última columna alineadas a la derecha.
