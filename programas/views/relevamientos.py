@@ -638,8 +638,9 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         )
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
         formularios_qs = rel.formularios.select_related("ciudadano").order_by("numero")
-        ctx["formularios"] = _paginate(self.request, formularios_qs, page_param="formularios_page")
-        ctx["n_formularios"] = formularios_qs.count()
+        formularios_page = _paginate(self.request, formularios_qs, page_param="formularios_page")
+        ctx["formularios"] = formularios_page
+        ctx["n_formularios"] = formularios_page.paginator.count
         ctx["formularios_querystring"] = _querystring_without(self.request, "formularios_page", "tab")
         ctx["puede_revisar"] = puede(self.request.user, "becas.revision.ver")
         ctx["estados_revisables"] = [

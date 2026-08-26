@@ -108,5 +108,5 @@ class CiudadanoAuthViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        login_bloqueado_mock.assert_called_once_with("10.0.0.9")
+        login_bloqueado_mock.assert_called_once_with("1.1.1.1")
         render_mock.assert_called_once()

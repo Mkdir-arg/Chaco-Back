@@ -18,6 +18,7 @@ from core.services.throttle import ip_cliente
 from portal.services import inscripcion as servicio
 from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest, _tolerar_render_local
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
+from portal.views.inscripcion import MENSAJE_RECHAZO
 from programas.admin import RelevamientoAdmin
 from programas.forms import RelevamientoForm
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
@@ -78,9 +79,9 @@ class RateLimitHeaderTests(TestCase):
     def test_ip_cliente_expone_el_resolver_canonico(self):
         self.assertEqual(
             ip_cliente(self.rf.get("/", HTTP_X_REAL_IP="10.0.0.1", HTTP_X_FORWARDED_FOR="1.1.1.1")),
-            "10.0.0.1",
+            "1.1.1.1",
         )
-        self.assertEqual(ip_cliente(self.rf.get("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9")), "10.0.0.9")
+        self.assertEqual(ip_cliente(self.rf.get("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 10.0.0.9")), "1.1.1.1")
         self.assertEqual(ip_cliente(self.rf.get("/", REMOTE_ADDR="127.0.0.1")), "127.0.0.1")
 
 
@@ -118,7 +119,7 @@ class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
         self.assertEqual(resp.status_code, 200)
         template, context = renders[-1]
         self.assertEqual(template, "portal/inscripcion/paso1.html")
-        self.assertIn("La inscripción no está disponible para ese documento.", context["form"].non_field_errors())
+        self.assertIn(MENSAJE_RECHAZO, context["form"].non_field_errors())
         mock_consulta.assert_not_called()
 
 

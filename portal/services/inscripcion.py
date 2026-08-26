@@ -21,9 +21,11 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
-from core.services.throttle import rate_limit_excedido
+from core.performance.query_observability import instrument_external_call
+from core.services.throttle import ip_cliente, rate_limit_excedido
 from programas.models import Relevamiento
 from programas.services.inscripcion_publica import dni_en_convocatoria
+from programas.services.padron import normalizar_dni
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,7 @@ SESSION_KEY_CAPTCHA = "inscripcion_captcha"
 SESSION_KEY_CAPTCHA_PREGUNTA = "inscripcion_captcha_pregunta"
 
 CAMPO_RECAPTCHA = "g-recaptcha-response"
+RECAPTCHA_TIMEOUT = settings.RECAPTCHA_TIMEOUT
 
 
 def relevamiento_disponible(relevamiento):
@@ -71,7 +74,7 @@ def documento_excedido(request, dni):
     podría quemarle la cuota a un documento ajeno con unos pocos POST y dejar a
     esa persona sin poder inscribirse en toda la convocatoria.
     """
-    dni = "".join(ch for ch in str(dni or "") if ch.isdigit())
+    dni = normalizar_dni(dni)
     if not dni:
         return False
     return rate_limit_excedido(
@@ -91,7 +94,7 @@ def paso2_excedido(request, dni=""):
     NAT —una escuela, un centro comunitario—, que es justo el escenario del
     trámite.
     """
-    dni = "".join(ch for ch in str(dni or "") if ch.isdigit())
+    dni = normalizar_dni(dni)
     return rate_limit_excedido(
         request,
         "inscripcion_paso2",
@@ -137,14 +140,16 @@ def _recaptcha_valido(request):
     if not token:
         return False
     datos = {"secret": settings.RECAPTCHA_SECRET_KEY, "response": token}
-    ip = request.META.get("REMOTE_ADDR")
+    ip = ip_cliente(request)
     if ip:
         datos["remoteip"] = ip
     try:
-        respuesta = requests.post(
+        respuesta = instrument_external_call(
+            "recaptcha",
+            requests.post,
             settings.RECAPTCHA_VERIFY_URL,
             data=datos,
-            timeout=getattr(settings, "RECAPTCHA_TIMEOUT", 10),
+            timeout=RECAPTCHA_TIMEOUT,
         )
         respuesta.raise_for_status()
         cuerpo = respuesta.json()

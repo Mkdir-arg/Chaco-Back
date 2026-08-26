@@ -47,6 +47,7 @@ EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
 def _aware_start(fecha):
     return timezone.make_aware(datetime.combine(fecha, time.min), timezone.get_current_timezone())
 
+
 SIIS_CONTROLES = (
     ("vigencia_programa", "Vigencia del programa"),
     ("edad_minima", "Edad mínima"),
