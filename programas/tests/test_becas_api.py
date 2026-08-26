@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth.models import Group, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
@@ -837,3 +838,55 @@ class FormularioSyncTests(_BaseApiTest):
         self.assertEqual(resp.status_code, 400)
         form.refresh_from_db()
         self.assertEqual(form.celular, "111")
+
+
+class AdjuntoValidacionTests(_BaseApiTest):
+    """La API aceptaba cualquier archivo, de cualquier peso.
+
+    ``/media/`` lo sirve nginx sin pasar por Django, asi que un ``.html`` o un
+    ``.svg`` subido por ahi se ejecutaria en el origen del sitio.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        self.formulario = Formulario.objects.create(
+            relevamiento=self.rel,
+            celular="3624111222",
+            email_contacto="x@y.com",
+        )
+        self.pregunta = PreguntaGlobal.objects.create(
+            texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900
+        )
+        self.autenticar(self.terri)
+
+    def _subir(self, archivo):
+        return self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[self.formulario.pk]),
+            {"pregunta_global": self.pregunta.pk, "archivo": archivo},
+            format="multipart",
+        )
+
+    def test_acepta_una_foto(self):
+        resp = self._subir(SimpleUploadedFile("dni.jpg", b"datos", content_type="image/jpeg"))
+        self.assertEqual(resp.status_code, 201, resp.data)
+
+    def test_acepta_los_formatos_de_camara_de_telefono(self):
+        for nombre in ("dni.heic", "dni.webp", "dni.PNG"):
+            with self.subTest(nombre=nombre):
+                resp = self._subir(SimpleUploadedFile(nombre, b"datos"))
+                self.assertEqual(resp.status_code, 201, resp.data)
+
+    def test_rechaza_contenido_ejecutable(self):
+        for nombre in ("payload.html", "payload.svg", "payload.js"):
+            with self.subTest(nombre=nombre):
+                resp = self._subir(SimpleUploadedFile(nombre, b"<script>alert(1)</script>"))
+                self.assertEqual(resp.status_code, 400)
+                self.assertIn("archivo", resp.data)
+
+    def test_rechaza_un_archivo_de_mas_de_5_mb(self):
+        grande = SimpleUploadedFile("dni.jpg", b"0" * (5 * 1024 * 1024 + 1), content_type="image/jpeg")
+        resp = self._subir(grande)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("5 MB", str(resp.data))

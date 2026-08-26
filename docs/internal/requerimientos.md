@@ -187,6 +187,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 43 | Sacar el fondo animado del formulario de inscripción: shell propio «panel de marca» | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «el fondo animado lo tendríamos que borrar»; eligió la Opción B de tres mockups | 26/08/2026 | 🟢 **Hecho** | No |
 | 44 | Avisar por correo al ciudadano cuando se resuelve su formulario | Becas / revisión · Portal | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` | PM — pedido directo en sesión de trabajo | 26/08/2026 | 🟡 **Implementado — inerte hasta el SMTP de ECOM** | `programas.0053` |
 | 45 | Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1 | Becas · Documentación | `#textos` `#ui` `#relevamientos` | PM — «leer toda la documentación pública de Becas y actualizarla al detalle con lo que tenemos del proceso» | 26/08/2026 | 🟢 **Hecho — publicado en GitHub Pages** | No |
+| 46 | La API de campo aceptaba cualquier archivo, de cualquier peso | Becas · Mobile / API | `#api` `#mobile` `#datos` | Hallazgo propio en la revisión del flujo público pedida por el PM | 26/08/2026 | 🟢 **Hecho — falta verificar contra la app antes de producción** | No |
 
 **Notas del índice**
 
@@ -4153,3 +4154,99 @@ Ninguna. El workflow `docs-auto-deploy.yml` publica solo ante un push a `develop
 
 Revertir el commit. El de junio vuelve a quedar sin el aviso y como única entrada del índice y
 de la navegación. No se pierde nada: es documentación, sin código ni datos.
+
+
+---
+
+# Cambio 46 — La API de campo aceptaba cualquier archivo, de cualquier peso
+
+🟢 **HECHO — 26/08/2026 · pendiente de verificar contra la app antes de producción**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Mobile / API |
+| **Etiquetas** | `#api` `#mobile` `#datos` |
+| **Solicitante** | Hallazgo propio en la revisión del flujo público que pidió el PM |
+| **Fecha del pedido** | 26/08/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API. **La app móvil no se toca, pero hay que verificarla.** |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «¿Hay algún otro error más en todo este proceso del programa Becas? Me importa que los
+> formularios públicos funcionen bien.» — y después: «resolvé los errores que encuentres».
+
+## El problema
+
+`AdjuntoFormularioSerializer` validaba **una sola cosa**: que viniera exactamente uno de
+`pregunta_global` / `requisito_nativo`. Ni extensión ni tamaño. El portal público sí valida
+—`.jpg/.jpeg/.png/.pdf`, 5 MB, en Python— así que las dos puertas de entrada al mismo modelo
+tenían criterios opuestos.
+
+Los límites globales de Django no cubrían el hueco, y es fácil creer que sí:
+`DATA_UPLOAD_MAX_MEMORY_SIZE` **excluye los archivos** de su cuenta, y
+`FILE_UPLOAD_MAX_MEMORY_SIZE` solo decide a partir de qué tamaño volcar a disco, no cuánto se
+acepta. En los hechos **no había techo**.
+
+Lo que lo vuelve serio: `/media/` lo sirve **nginx directo, sin pasar por Django** (pendiente
+ya registrado en el Cambio 41), así que un `.html` o un `.svg` subido por la API se serviría y
+se ejecutaría en el origen del sitio.
+
+## Decisiones tomadas
+
+- **Lista blanca, no lista negra.** El riesgo es contenido ejecutable o interpretable, y una
+  lista negra siempre deja una extensión afuera.
+
+- **La lista de la API es más amplia que la del portal, a propósito.** El portal recibe uploads
+  **anónimos** y por eso su criterio es el más duro posible. Acá sube un **territorial
+  autenticado desde un teléfono**, así que se suman los formatos que producen las cámaras
+  (`.heic`, `.heif`, `.webp`): rechazar una captura legítima le rompe el trabajo de campo, y
+  ese daño es peor que el que se está evitando. Lo que importa es que quede afuera `.html`,
+  `.svg` y `.js`, y queda.
+
+- **Mismo techo de 5 MB que el portal**, que es el límite ya documentado del producto.
+
+- **No se tocó la app móvil.** Vive en otro repo y no se puede inspeccionar desde acá.
+
+## Implementación
+
+`validate_archivo` en `AdjuntoFormularioSerializer`, con las constantes
+`ADJUNTO_EXTENSIONES` y `ADJUNTO_MAX_BYTES` al lado y el motivo de la divergencia con el
+portal escrito en el código.
+
+## Archivos
+
+`programas/api/serializers.py` · `programas/tests/test_becas_api.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Cuatro tests nuevos en `AdjuntoValidacionTests` —**no existía ninguno para adjuntos en la
+API**—: acepta una foto, acepta los formatos de cámara, rechaza `.html`/`.svg`/`.js` con 400,
+y rechaza un archivo de más de 5 MB. Suite `programas.tests.test_becas_api` completa en verde.
+`manage.py check` OK.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar, sin migración.
+
+**Antes de producción hay que verificar qué formato manda la app.** No hay ni un indicio en
+este repo —ni tests de adjuntos, ni documentación del contrato— y la app vive en
+`Chaco-mobile`. Si sube algo fuera de la lista, las capturas empiezan a rechazarse con 400 y
+se corta el trabajo de campo. La lista se amplía en una línea.
+
+## Pendientes / a definir
+
+- Verificar el formato real contra la app móvil (arriba).
+- La asimetría de fondo sigue: portal y API tienen dos listas y dos constantes. Unificarlas en
+  un solo lugar es un refactor aparte; hoy la divergencia es deliberada y está explicada.
+- Sigue sin resolverse que nginx sirva `/media/` sin autenticación (Cambio 41), que es lo que
+  vuelve peligroso un adjunto ejecutable. Esto reduce el riesgo, no lo elimina.
+
+## Reversión
+
+Revertir el commit. Los archivos ya subidos no se tocan.
