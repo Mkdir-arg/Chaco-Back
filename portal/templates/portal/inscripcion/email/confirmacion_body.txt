@@ -10,7 +10,7 @@ Programa: {{ segmento }}
 
 Qué sigue: el equipo del programa va a revisar tu formulario. Si hace falta algún dato, se van a comunicar con vos por los datos de contacto que dejaste. No hace falta que hagas nada más.
 
-Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier consulta, comunicate al 0800-222-1133.
+Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier consulta, comunicate al +54 362 430-0002.
 
 --
 Gobierno de la Provincia del Chaco

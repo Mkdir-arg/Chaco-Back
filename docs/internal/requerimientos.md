@@ -183,6 +183,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 39 | En el login aparece el logo de Nodo en lugar del del Chaco | Transversal / marca | `#ui` `#sesion` `#infra` | PM — vio la marca del proveedor en la pantalla de acceso | 21/08/2026 | 🟢 **Hecho** | No |
 | 40 | Corregir la redirección autenticada de `/dashboard/` | Transversal / ruteo | `#sesion` `#ui` | Hallazgo propio en la validación HTTP de #262 y la PR #284 | 20/08/2026 | 🟢 **Hecho** | No |
 | 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟢 **Hecho — mergeado (PR #306) y desplegado en testing 25/08/2026** | `programas.0049` + `programas.0050` + `users.0025` |
+| 42 | El portal ciudadano quedó viejo: marca, textos y contenido de la home | Portal | `#ui` `#textos` | PM — «actualiza el diseño y los nombres de datanach.ecomdev.ar/portal/ ya que quedó viejo» | 26/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -3569,3 +3570,80 @@ envío pasó de `send_mail` a `EmailMultiAlternatives`; la vista le pasa protoco
 con URL absoluta, con `settings.DOMINIO` como respaldo. Sigue sin romper la inscripción si el SMTP falla.
 
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.
+
+
+---
+
+# Cambio 42 — El portal ciudadano quedó viejo: marca, textos y contenido de la home
+
+🟢 **HECHO — 26/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal ciudadano |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, sobre la URL de testing de ECOM |
+| **Fecha del pedido** | 26/08/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Portal ciudadano (home pública y shell) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Actualiza el diseño y los nombres de https://datanach.ecomdev.ar/portal/ ya que quedó viejo.»
+
+## Alcance acordado
+
+- La **home pública** del portal (`/portal/`) y el **shell** que comparten todas sus páginas (header, footer, título del navegador).
+- Marca, textos y contenido; el lenguaje visual (tokens, tarjetas, botones NODO, gradiente de marca) se conserva.
+- **Afuera:** las páginas internas del perfil ciudadano (login, registro, mis programas, consultas, mis datos) y el flujo de inscripción pública: heredan el shell y no tenían textos viejos propios. También afuera los datos de contacto (ver Pendientes).
+
+## Decisiones tomadas
+
+- **La marca es DATAÑACH, sin sub-marca.** El portal decía «Portal Nande» / «Nande» en título, header y footer. Se pasó a «DATAÑACH · Portal Ciudadano · Gobierno del Chaco». La sub-marca «Ñandé» sigue **pendiente de decisión del cliente** (ver Cambio 39 y el rename de julio): no se usa hasta que se defina.
+- **Chaco es provincia, no municipio.** Toda la home hablaba de «tu municipio», «Portal Municipal», «programas municipales», «consultas y reclamos municipales». Se reemplazó por «Gobierno del Chaco» / «programas sociales del Gobierno del Chaco». Se eligió «Gobierno del Chaco» y no el nombre del ministerio porque la documentación del cliente lo escribe de dos maneras distintas («Ministerio de Desarrollo de Chaco» y «Ministerio de Desarrollo Humano»); el logo cargado en el login es el del Gobierno del Chaco, así que es el nombre que no puede estar mal.
+- **Se eliminó todo lo que no tenía una funcionalidad detrás.** La tarjeta «Instituciones / Red DATAÑACH» con los botones «Iniciar trámite» y «Consultar estado», el indicador «Instituciones DATAÑACH» (siempre 0) y la sección «Instituciones de la red» (la lista venía vacía por código: `"instituciones": []`) eran maquetas de un módulo que no existe y mandaban al login sin destino. Un portal público no puede prometer trámites que no se pueden hacer.
+- **En su lugar, lo que el portal sí hace hoy:** una tarjeta «Consultas al programa» (conversaciones con el equipo, funcionalidad real) y el acceso rápido «Mis datos». Tres indicadores en vez de cuatro.
+- **Franja «¿Recibiste un link de inscripción?» sin botón.** La inscripción pública (Cambio 41) entra por un link con token que distribuye el programa; no existe una URL genérica, así que la home solo orienta: «ingresá desde ese link».
+- **El shell no cambió de estructura ni de assets** (es pieza «Canónico reutilizable» del inventario de diseño): solo textos y atributos. El año del copyright pasó a ser dinámico (`{% now "Y" %}`), que era «2024» fijo.
+- **El divisor entre indicadores solo se dibuja en escritorio.** En móvil, con una columna, quedaba como una línea decorativa sin sentido (observación del revisor de diseño).
+
+## Implementación
+
+- Header: «DATAÑACH» con subtítulo «Portal Ciudadano · Gobierno del Chaco»; título del navegador «DATAÑACH — Portal Ciudadano».
+- Hero: «Tus programas sociales, en un solo lugar», con accesos rápidos a Mis programas, Consultas y Mis datos.
+- Tres indicadores: ciudadanos registrados, programas activos, personas acompañadas.
+- Dos tarjetas: «Mi perfil ciudadano» y «Consultas al programa».
+- Sección «Programas del Gobierno del Chaco» (misma lista dinámica de programas activos).
+- Franja informativa sobre el link de inscripción; CTA final y bloque de ayuda como estaban.
+- Footer: «DATAÑACH — Portal Ciudadano de los programas sociales del Gobierno del Chaco», copyright con año dinámico.
+- **Datos de contacto confirmados por el PM el 26/08/2026:** teléfono **+54 362 430-0002** y correo **datanach@chaco.gob.ar**, reemplazando el 0800-222-1133 e info@chaco.gob.ar de la primera versión en header, footer, bloque de ayuda de la home y en las pantallas y correo de la inscripción pública (Cambio 41). Como ya no es una línea 0800, la etiqueta «Línea gratuita» pasó a «Teléfono».
+
+## Archivos
+
+`portal/templates/portal/base.html` · `portal/templates/portal/home.html` · `portal/selectors/public.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` sin observaciones. `scripts/design_audit.py --changed`: **0 errores, 0 warnings**. `scripts/compile_templates.py`: 325 plantillas, 0 errores.
+- Revisión con el agente `chaco-design-reviewer`: **aprobable**, sin hallazgos bloqueantes; se aplicó su única mejora (divisor de stats solo en `md+`). Tokens verificados uno a uno contra `chaco-tokens.css`; URLs nuevas verificadas contra `portal/urls.py`; el shell sin cambios estructurales.
+- Búsqueda de restos: ninguna aparición de «Nande», «municip», «Instituciones», «trámite» ni «2024» en los tres archivos.
+- Los tests del portal que renderizan bajo el test client no corren en este entorno (Python 3.14, error preexistente ya documentado en el Cambio 41); `test_package_exports` en verde.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy. Sin variables, cron ni migración. La home se cachea 5 minutos (`portal:home_ctx`): tras desplegar, los textos del contexto (items de las tarjetas) pueden tardar hasta 5 minutos en actualizarse.
+
+## Pendientes / a definir
+
+- El horario de atención («Lunes a Viernes 9–17 hs») viene de la primera versión y no fue confirmado por el cliente.
+- **Sub-marca «Ñandé»** y **logos definitivos**: siguen pendientes de decisión del cliente (ver Cambio 39). El portal usa `mini-logo.png`.
+- Nombre exacto del ministerio para el pie de página, si el cliente lo prefiere sobre «Gobierno del Chaco».
+
+## Reversión
+
+Revertir el commit de los tres archivos. No hay datos ni migración involucrados.
