@@ -468,16 +468,32 @@ class SinRecursosDeTercerosTests(TestCase):
 
         from django.conf import settings
 
+        from django.template.utils import get_app_template_dirs
+
         patron = re.compile(r'(?:src|href)="(https?://[^"]+)"')
+        # Se recorren las plantillas que Django SIRVE --los ``DIRS`` configurados
+        # mas el ``templates/`` de cada app--, no todo ``BASE_DIR``. Recorrer la
+        # raiz entera hacia fallar la suite por HTML que nadie sirve y que
+        # aparece en cualquier copia de trabajo: el ``site/`` de ``mkdocs build``,
+        # los entornos virtuales, dependencias clonadas al lado del repo.
+        raices = [Path(d) for cfg in settings.TEMPLATES for d in cfg.get("DIRS", [])]
+        raices += [Path(d) for d in get_app_template_dirs("templates")]
+
         infractores = []
-        for plantilla in Path(settings.BASE_DIR).rglob("*.html"):
-            partes = set(plantilla.parts)
-            if {"docs", ".venv", "staticfiles", "node_modules"} & partes:
+        vistas = set()
+        for raiz in raices:
+            if not raiz.is_dir():
                 continue
-            texto = plantilla.read_text(encoding="utf-8", errors="ignore")
-            for url in patron.findall(texto):
-                if not url.startswith(self.PERMITIDOS):
-                    infractores.append(f"{plantilla.relative_to(settings.BASE_DIR)}: {url}")
+            for plantilla in raiz.rglob("*.html"):
+                if plantilla in vistas:
+                    continue
+                vistas.add(plantilla)
+                texto = plantilla.read_text(encoding="utf-8", errors="ignore")
+                for url in patron.findall(texto):
+                    if not url.startswith(self.PERMITIDOS):
+                        infractores.append(f"{plantilla}: {url}")
+
+        self.assertTrue(vistas, "no se encontro ninguna plantilla: el recorrido quedo vacio")
 
         self.assertEqual(infractores, [], "hay recursos de terceros en plantillas servidas")
 

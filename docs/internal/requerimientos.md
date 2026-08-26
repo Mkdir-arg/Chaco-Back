@@ -3633,6 +3633,36 @@ pedirle a ECOM que **deje de reescribir `X-Frame-Options`** y que cargue `RECAPT
 **Decisión pendiente detectada:** los formularios **RECHAZADO/BAJA** cuentan como «ya inscripto» y bloquean la reinscripción por link (mismo criterio que la app de campo). Quedó así por omisión; confirmar con el programa si el rechazo debe liberar el DNI.
 
 
+
+## Historial
+
+**26/08/2026 — la regla «FALLECIDO corta» estaba escrita pero no se cumplía.** Se detectó
+revisando el flujo público a pedido del PM.
+
+`portal/views/inscripcion.py` corta el paso 1 con `resultado.get("fallecido")`, pero
+`PersonasAPIClient.consultar` **nunca producía esa clave**: `normalizar_persona` devuelve
+exactamente cinco campos —`dni`, `apellido`, `nombre`, `fecha_nacimiento`, `sexo`— y el
+resto de la respuesta se descarta. La condición era código muerto, así que **el documento de
+una persona fallecida pasaba el paso 1 y podía inscribirse**.
+
+Los tests daban confianza falsa: mockeaban `consultar_persona` devolviendo
+`{"success": False, "fallecido": True}`, una forma que el cliente real no produce. Verificaban
+la vista, no la integración.
+
+Se agregó la detección en `PersonasAPIClient.consultar`, por las mismas vías que el método ya
+usa para el «no encontrado» (`data.mensaje`) más la clave `mensaf` que usa el cliente RENAPER
+de este repo, una fecha de defunción o una marca booleana. Devuelve `{"success": False,
+"fallecido": True}`, el mismo contrato que ya esperaba el consumidor. Se aceptan variantes
+porque el contrato de Base de Personas sigue abierto (task #243).
+
+Tres tests nuevos en `PersonasClientTests` lo ejercitan **con la forma real de la respuesta**,
+no mockeando el servicio.
+
+**Queda una limitación honesta:** si Base de Personas no informa el fallecimiento por ninguna
+de esas vías, la regla sigue sin poder cumplirse. La diferencia es que ahora funciona en cuanto
+el dato llegue, en vez de estar rota en silencio. Verificarlo contra el servicio real depende de
+las credenciales, que siguen sin cargar en testing/QA.
+
 ---
 
 # Cambio 42 — El portal ciudadano quedó viejo: marca, textos y contenido de la home
