@@ -4,7 +4,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-6" x-data="{ tab: 'info' }">
+<div class="space-y-6" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'info' }">
 
   <div>
     <div class="flex items-center gap-3 flex-wrap">
@@ -253,6 +253,19 @@
             </tbody>
           </table>
         </div>
+        {% if formularios.paginator.num_pages > 1 %}
+        <div class="flex items-center justify-between gap-3 flex-wrap p-4 border-t border-base text-xs text-body-subtle">
+          <span>Página {{ formularios.number }} de {{ formularios.paginator.num_pages }} · {{ formularios.paginator.count }} formulario{{ formularios.paginator.count|pluralize }}</span>
+          <div class="flex gap-2">
+            {% if formularios.has_previous %}
+            <a href="?tab=formularios{% if formularios_querystring %}&amp;{{ formularios_querystring }}{% endif %}&amp;formularios_page={{ formularios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+            {% endif %}
+            {% if formularios.has_next %}
+            <a href="?tab=formularios{% if formularios_querystring %}&amp;{{ formularios_querystring }}{% endif %}&amp;formularios_page={{ formularios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
           <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>

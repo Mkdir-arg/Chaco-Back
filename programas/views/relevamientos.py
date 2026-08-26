@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -50,6 +51,19 @@ CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
 # relevamientos públicos no existen para el usuario (ni selector, ni listados).
 CAP_RELEVAMIENTO_PUBLICO = "becas.relevamiento.publico"
 CAP_REPORTES = "becas.programa.administrar"
+DETALLE_PAGE_SIZE = 50
+
+
+def _paginate(request, queryset, page_param="page", per_page=DETALLE_PAGE_SIZE):
+    paginator = Paginator(queryset, per_page)
+    return paginator.get_page(request.GET.get(page_param))
+
+
+def _querystring_without(request, *keys):
+    params = request.GET.copy()
+    for key in keys:
+        params.pop(key, None)
+    return params.urlencode()
 
 
 def _puede_publico(user):
@@ -170,27 +184,28 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         conv = self.object
-        # Materializados una vez: los counts se derivan en Python (evita 3
-        # queries COUNT extra sobre los mismos datos).
-        relevamientos = list(
-            _sin_publicos_si_no_puede(conv.relevamientos.select_related("territorial"), self.request.user).order_by(
-                "-fecha_asignada"
-            )
+        relevamientos_qs = _sin_publicos_si_no_puede(
+            conv.relevamientos.select_related("territorial"), self.request.user
+        ).order_by("-fecha_asignada")
+        relevamientos = list(relevamientos_qs)
+        formularios_base = _sin_formularios_publicos_si_no_puede(
+            Formulario.objects.filter(relevamiento__convocatoria=conv),
+            self.request.user,
         )
         ctx["relevamientos"] = relevamientos
-        # Beneficiarios = formularios cargados en los relevamientos de esta convocatoria.
-        beneficiarios = list(
-            _sin_formularios_publicos_si_no_puede(
-                Formulario.objects.filter(relevamiento__convocatoria=conv),
-                self.request.user,
-            )
-            .select_related("ciudadano", "relevamiento")
-            .order_by("-creado")
+        ctx["beneficiarios"] = _paginate(
+            self.request,
+            formularios_base.select_related("ciudadano", "relevamiento").order_by("-creado"),
+            page_param="beneficiarios_page",
         )
-        ctx["beneficiarios"] = beneficiarios
         ctx["n_relevamientos"] = len(relevamientos)
-        ctx["n_beneficiarios"] = len(beneficiarios)
-        ctx["n_aprobados"] = sum(1 for f in beneficiarios if f.estado == Formulario.Estado.APROBADO)
+        conteos = formularios_base.aggregate(
+            total=Count("pk"),
+            aprobados=Count("pk", filter=Q(estado=Formulario.Estado.APROBADO)),
+        )
+        ctx["n_beneficiarios"] = conteos["total"] or 0
+        ctx["n_aprobados"] = conteos["aprobados"] or 0
+        ctx["beneficiarios_querystring"] = _querystring_without(self.request, "beneficiarios_page", "tab")
         ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
         ctx["cupo_segmento"] = conv.segmento.cupo_maximo
         segmentos = segmentos_visibles(self.request.user)
@@ -622,11 +637,10 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             convocatoria=rel.convocatoria,
         )
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
-        # Personas relevadas: se listan en la solapa "Formularios". Se materializa
-        # una vez y el contador se deriva en Python (evita un COUNT extra).
-        formularios = list(rel.formularios.select_related("ciudadano").order_by("numero"))
-        ctx["formularios"] = formularios
-        ctx["n_formularios"] = len(formularios)
+        formularios_qs = rel.formularios.select_related("ciudadano").order_by("numero")
+        ctx["formularios"] = _paginate(self.request, formularios_qs, page_param="formularios_page")
+        ctx["n_formularios"] = formularios_qs.count()
+        ctx["formularios_querystring"] = _querystring_without(self.request, "formularios_page", "tab")
         ctx["puede_revisar"] = puede(self.request.user, "becas.revision.ver")
         ctx["estados_revisables"] = [
             Relevamiento.Estado.FINALIZADO,
