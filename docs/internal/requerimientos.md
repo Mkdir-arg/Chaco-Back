@@ -3971,6 +3971,42 @@ columnas nuevas ni registros propios. Los relevamientos territoriales que hayan 
 el toggle en `True` conservan el valor; deja de tener efecto sobre los avisos de resolución
 y vuelve a valer solo para el comprobante del link público.
 
+
+## Historial
+
+**26/08/2026, más tarde — la revisión posterior al merge destapó tres caminos que la
+entrada original no contemplaba.** El spec enumeraba cuatro momentos de aviso, pero
+`Formulario.estado` se escribe en **seis** puntos del código; los dos que faltaban y una
+guarda ausente se resolvieron así:
+
+- **La resolución de una carga duplicada NO avisa, y ahora está escrito en el código.**
+  `formulario_resolver_duplicado` deja una de las dos cargas en `RECHAZADO`, pero las dos
+  son de la **misma persona en el mismo relevamiento**: rechazar el duplicado es limpieza
+  de datos, no la resolución de su inscripción. La carga que sobrevive queda `ENVIADO` y
+  recibe el correo que corresponda cuando se resuelva de verdad. Avisar ahí le diría «no
+  fue aprobada» a alguien cuyo trámite sigue abierto. Queda un comentario en las dos ramas
+  y un test que lo fija, para que no se «corrija» más adelante.
+
+- **El alta manual a lista de espera ahora sí avisa.** `agregar_lista_espera_view` metía a
+  una persona en la lista sin correo, mientras que llegar ahí por «Aprobar sin cupo» sí
+  avisaba. Para el ciudadano el desenlace es el mismo, así que manda el mismo aviso
+  (`lista_espera`). Va afuera de la transacción y afuera del `try`, igual que los otros tres.
+
+- **`formulario_rechazar` no tenía guarda de estado.** Iba directo de validar el motivo a
+  escribir `RECHAZADO`, sin verificar que el formulario estuviera `ENVIADO` —a diferencia de
+  la aprobación, que corta en `aprobar_o_poner_en_espera`—. Era **preexistente**, pero este
+  cambio lo agravó: un doble clic mandaba **dos correos**, y un POST armado a mano podía
+  rechazar a un beneficiario ya `APROBADO`, liberándole el cupo (que se cuenta en vivo) y
+  avisándole que no fue aprobado. Se agregó la guarda simétrica a la de aprobar.
+
+Tres tests nuevos en `ResolucionCoherenteTests` fijan las tres decisiones.
+
+Lo que decía antes y sigue valiendo: los cuatro momentos de aviso originales y sus reglas no
+cambiaron. Lo que cambió es que ahora los **seis** puntos que mueven el estado tienen una
+decisión explícita: cuatro avisan, uno avisa desde ahora (lista de espera manual) y uno
+deliberadamente no avisa (duplicados). La baja de un beneficiario sigue sin avisar y sigue
+figurando como pendiente.
+
 ---
 
 # Cambio 45 — Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1

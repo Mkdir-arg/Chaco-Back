@@ -531,6 +531,13 @@ def formulario_resolver_duplicado(request, pk):
             messages.error(request, "No se encontró la carga anterior vinculada.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
 
+        # Ninguna de las dos ramas manda el aviso del Cambio 44, y es deliberado:
+        # las dos cargas son de la MISMA persona en el mismo relevamiento, asi que
+        # el rechazo de una es limpieza de un duplicado, no la resolucion de su
+        # inscripcion. La carga que sobrevive queda ENVIADO y cuando se resuelva
+        # --aprobada, en espera o rechazada-- ahi si recibe el correo que
+        # corresponde. Avisar aca le diria "no fue aprobada" a alguien cuyo tramite
+        # sigue abierto.
         if decision == "conservar_previo":
             estado_anterior = formulario.estado
             formulario.estado = Formulario.Estado.RECHAZADO
@@ -572,6 +579,14 @@ def formulario_rechazar(request, pk):
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
             messages.error(request, "Primero debés resolver el conflicto de cargas duplicadas.")
+            return redirect("becas:formulario_detalle", pk=formulario.pk)
+        # Simetria con la aprobacion, que corta en ``aprobar_o_poner_en_espera``.
+        # Sin esta guarda un doble clic rechazaba dos veces --y desde el Cambio 44
+        # mandaba dos correos-- y un POST armado a mano podia rechazar a un
+        # beneficiario ya APROBADO, liberandole el cupo y avisandole que no fue
+        # aprobado.
+        if formulario.estado != Formulario.Estado.ENVIADO:
+            messages.error(request, "Solo se pueden rechazar formularios pendientes de resolución.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         motivo = (request.POST.get("motivo") or "").strip()
         if not motivo:

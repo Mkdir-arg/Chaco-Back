@@ -184,7 +184,20 @@ def agregar_lista_espera_view(request, pk):
     if request.method == "POST":
         try:
             agregar_a_lista_espera(formulario, segmento, request.user)
-            messages.success(request, "Formulario agregado a la lista de espera.")
         except ValidationError as e:
             messages.error(request, e.message)
+        else:
+            # Mismo desenlace que aprobar sin cupo, asi que mismo aviso (Cambio 44):
+            # para la persona da igual si entro a la lista por el cupo lleno o
+            # porque el operador la agrego a mano. Va afuera de
+            # ``agregar_a_lista_espera``, que es ``@transaction.atomic``, y afuera
+            # del ``try``, para no reportar una falla del correo como un alta
+            # rechazada.
+            enviar_aviso_resolucion(
+                formulario,
+                "lista_espera",
+                protocol="https" if request.is_secure() else "http",
+                domain=request.get_host(),
+            )
+            messages.success(request, "Formulario agregado a la lista de espera.")
     return redirect(reverse("becas:cupo_segmento", kwargs={"pk": segmento.pk}) + "?tab=lista_espera")
