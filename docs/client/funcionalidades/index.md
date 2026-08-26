@@ -14,7 +14,8 @@ hide:
 
 | Funcionalidad | Módulo | Estado | Documento |
 |---|---|---|---|
-| Programa Becas — Relevamiento territorial y asignación de cupos | Programas | En análisis | [:material-arrow-right: Ver](programa-becas.md) |
+| Programa Becas — el sistema construido | Programas | Vigente | [:material-arrow-right: Ver](programa-becas-sistema.md) |
+| Programa Becas — propuesta funcional original (jun-2026) | Programas | Histórico | [:material-arrow-right: Ver](programa-becas.md) |
 | Programa Dispositivos — Legajo institucional, admisiones, camas y merenderos | Programas | Definición aprobada | [:material-arrow-right: Ver](programa-dispositivos.md) |
 | Correos de credenciales — alta de usuario y recuperación de contraseña | Usuarios | Pendiente de aprobación | [:material-arrow-right: Ver](correos-credenciales.md) |
 

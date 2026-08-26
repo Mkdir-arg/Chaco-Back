@@ -186,6 +186,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 42 | El portal ciudadano quedó viejo: marca, textos y contenido de la home | Portal | `#ui` `#textos` | PM — «actualiza el diseño y los nombres de datanach.ecomdev.ar/portal/ ya que quedó viejo» | 26/08/2026 | 🟢 **Hecho** | No |
 | 43 | Sacar el fondo animado del formulario de inscripción: shell propio «panel de marca» | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «el fondo animado lo tendríamos que borrar»; eligió la Opción B de tres mockups | 26/08/2026 | 🟢 **Hecho** | No |
 | 44 | Avisar por correo al ciudadano cuando se resuelve su formulario | Becas / revisión · Portal | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` | PM — pedido directo en sesión de trabajo | 26/08/2026 | 🟡 **Implementado — inerte hasta el SMTP de ECOM** | `programas.0053` |
+| 45 | Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1 | Becas · Documentación | `#textos` `#ui` `#relevamientos` | PM — «leer toda la documentación pública de Becas y actualizarla al detalle con lo que tenemos del proceso» | 26/08/2026 | 🟢 **Hecho — publicado en GitHub Pages** | No |
 
 **Notas del índice**
 
@@ -3969,3 +3970,118 @@ Revertir el PR y retroceder la migración a `programas.0052`. No se pierden dato
 columnas nuevas ni registros propios. Los relevamientos territoriales que hayan quedado con
 el toggle en `True` conservan el valor; deja de tener efecto sobre los avisos de resolución
 y vuelve a valer solo para el comprobante del link público.
+
+---
+
+# Cambio 45 — Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1
+
+🟢 **HECHO — 26/08/2026 · publicado en `development` (2d075aa), desplegado a GitHub Pages**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Documentación |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo del 26/08/2026 |
+| **Fecha del pedido** | 26/08/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Documentación pública (GitHub Pages). **Sin cambios de código.** |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero leer toda la documentación que tenemos pública de Becas y actualizarla al detalle
+> con lo que tenemos del proceso: sumarle las funcionalidades de los email, el formulario
+> público, la nueva jerarquía de programa/subsegmento y todo eso. Habría que leer el código
+> completo de punta a punta y leer la documentación que tenemos de Becas y actualizarla al
+> detalle. La idea es que esté bien detallada, con todas las reglas y todo eso, que no falte
+> nada del detalle.»
+
+Y al definir cómo convivirían los dos documentos: «convive, ya que es la evolución;
+planteamos esto como evolución de la V1».
+
+## Alcance acordado
+
+- **Documento nuevo** `docs/client/funcionalidades/programa-becas-sistema.md` que describe el
+  sistema construido, con sus reglas, procesos y controles.
+- **El documento de junio se conserva** como registro histórico de la propuesta original de la
+  Versión 001, con un aviso arriba que apunta al nuevo.
+- Índice de funcionalidades y navegación de MkDocs actualizados con los dos.
+
+**Afuera:** cambios de código, y la documentación de Dispositivos.
+
+## Decisiones tomadas
+
+- **Documento nuevo en vez de actualizar el de junio.** No era una desactualización de bordes:
+  el de junio es una *propuesta* previa a construir —con «preguntas abiertas», «asunciones a
+  confirmar» y «próximos pasos»— y lo pedido era una *descripción del sistema*. Son dos
+  géneros distintos; pisarlo habría perdido la trazabilidad de qué se propuso en junio y en
+  qué se convirtió. El PM eligió explícitamente la convivencia.
+
+- **Relevamiento en paralelo por áreas antes de redactar.** El territorio son ~14.800 líneas de
+  `programas` más la superficie del portal. Se dividió en seis relevamientos de solo lectura
+  (jerarquía, RBAC, ciclo de vida, inscripción, revisión/cupos, integraciones), cada uno
+  cruzando el código con este archivo por etiqueta, y **un solo redactor** sintetizó. Un solo
+  escritor evita el conflicto de merge que trae que varias ramas toquen el mismo documento.
+
+- **Sin referencias a código ni deuda interna.** El criterio de publicación del propio sitio
+  pide «lenguaje orientado al cliente» y excluye «detalle interno (estado del código, impacto
+  técnico, riesgos ni preguntas abiertas)». Las ~200 referencias `archivo:línea` del
+  relevamiento fueron garantía de exactitud, no material publicable.
+
+- **Las constantes numéricas de los controles anti-abuso no se publican.** Se dice que hay
+  límite de intentos por conexión y por documento; no cuántos. Publicar los números le da el
+  mapa a quien quiera evadirlos.
+
+- **Sí se publican las dependencias de ECOM.** Catálogo SIIS vacío, credenciales de Base de
+  Personas sin cargar y SMTP sin verificar, con qué queda inerte en cada caso. No es «riesgo
+  interno»: es una dependencia que solo el cliente puede destrabar, y hasta hoy la
+  conversación era nuestra.
+
+## Implementación
+
+El documento tiene 15 secciones: qué cambió respecto de la propuesta original · cómo se
+organiza el programa (los cinco niveles) · quién hace qué (los cinco roles y su alcance) · qué
+se le pregunta a la persona (los cuatro niveles de campos) · cómo se inscribe (los dos canales
+paso a paso) · cómo se revisa y se resuelve · cupos y lista de espera · pausas y vencimientos ·
+correos · integraciones · dependencias de ECOM · reportes y exportaciones · qué ve el ciudadano
+en su legajo · estados de referencia · documentos relacionados.
+
+## Archivos
+
+`docs/client/funcionalidades/programa-becas-sistema.md` (nuevo, 440 líneas) ·
+`docs/client/funcionalidades/programa-becas.md` (aviso de documento histórico) ·
+`docs/client/funcionalidades/index.md` · `mkdocs.yml`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `mkdocs build --strict` sin errores, dos corridas (antes y después de completar la cobertura).
+- Enlaces internos verificados uno por uno.
+- **Chequeo de cobertura contra los seis relevamientos**, que encontró huecos reales y frenó una
+  primera publicación: faltaban los cinco reportes y las tres exportaciones, la solapa de Becas
+  del legajo, la bandeja de identidades pendientes, el control de solapamiento de asignaciones
+  de territorial, la validación de archivos, la tolerancia de reloj de la sincronización, cómo
+  se asigna el alcance y la auditoría de cambios. Se incorporaron y se volvió a verificar.
+
+## Puesta en marcha en el servidor
+
+Ninguna. El workflow `docs-auto-deploy.yml` publica solo ante un push a `development` que toque
+`docs/client/**` o `mkdocs.yml`.
+
+## Pendientes / a definir
+
+- **Las correcciones del doc de junio no se propagaron a `estimacion-programa-becas.md`**, que
+  sigue reflejando el alcance estimado en junio.
+- El documento describe el Cambio 44 (avisos de resolución del caso) **como todavía inexistente**,
+  porque al publicarse no estaba terminado. Al cerrar el 44 hay que sumar esos cuatro correos a
+  la sección de correos.
+- Las tres exclusiones deliberadas —constantes de los controles anti-abuso, catálogo de
+  capacidades y deuda interna— se pueden revertir si el PM las quiere adentro.
+
+## Reversión
+
+Revertir el commit. El de junio vuelve a quedar sin el aviso y como única entrada del índice y
+de la navegación. No se pierde nada: es documentación, sin código ni datos.
