@@ -103,7 +103,8 @@ nav:
     - Detalle de tareas: financiero/detalle-tareas.md
   - Funcionalidades:
     - funcionalidades/index.md
-    - Programa Becas: funcionalidades/programa-becas.md
+    - Programa Becas: funcionalidades/programa-becas-sistema.md
+    - Programa Becas (propuesta original): funcionalidades/programa-becas.md
     - Programa Dispositivos: funcionalidades/programa-dispositivos.md
     - Correos de credenciales: funcionalidades/correos-credenciales.md
 
