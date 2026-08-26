@@ -184,6 +184,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 40 | Corregir la redirección autenticada de `/dashboard/` | Transversal / ruteo | `#sesion` `#ui` | Hallazgo propio en la validación HTTP de #262 y la PR #284 | 20/08/2026 | 🟢 **Hecho** | No |
 | 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟢 **Hecho — mergeado (PR #306) y desplegado en testing 25/08/2026** | `programas.0049` + `programas.0050` + `users.0025` |
 | 42 | El portal ciudadano quedó viejo: marca, textos y contenido de la home | Portal | `#ui` `#textos` | PM — «actualiza el diseño y los nombres de datanach.ecomdev.ar/portal/ ya que quedó viejo» | 26/08/2026 | 🟢 **Hecho** | No |
+| 43 | Sacar el fondo animado del formulario de inscripción: shell propio «panel de marca» | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «el fondo animado lo tendríamos que borrar»; eligió la Opción B de tres mockups | 26/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -3696,3 +3697,74 @@ Solo el deploy. Sin variables, cron ni migración. La home se cachea 5 minutos (
 ## Reversión
 
 Revertir el commit de los tres archivos. No hay datos ni migración involucrados.
+
+
+---
+
+# Cambio 43 — Sacar el fondo animado del formulario de inscripción: shell propio «panel de marca»
+
+🟢 **HECHO — 26/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal ciudadano · inscripción pública de Becas (Cambio 41) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, mirando el link real en el testing de ECOM; eligió entre tres mockups |
+| **Fecha del pedido** | 26/08/2026 |
+| **Issue / épica** | Sin issue (cuelga funcionalmente del análisis #289) |
+| **Partes afectadas** | Portal ciudadano (seis pantallas del flujo de inscripción) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «El fondo animado lo tendríamos que borrar. Proponeme 3 diseños, armá los mockups.» Y ante los tres: «Vamos con la opción B.»
+
+## Alcance acordado
+
+- Las **seis pantallas** del link de inscripción: paso 1, paso 2, comprobante, «ya estás inscripto», «no disponible» y «demasiados intentos».
+- **Afuera:** la home del portal y sus efectos (siguen como en el Cambio 42: `portal-effects.js` se sigue cargando en la home; sacarlo de ahí es otra decisión), los correos de la inscripción y la lógica de los formularios.
+
+## Decisiones tomadas
+
+- **El fondo animado era herencia, no diseño del formulario.** Las pantallas de inscripción extendían `portal/base.html`, el shell de la home, que carga `portal-effects.js`: un canvas de 80 partículas animadas detrás de toda la página. En un trámite que la gente hace desde el celular eso es ruido, consumo de batería y una distracción sobre campos obligatorios.
+- **Se resolvió con un shell propio, no con un `if` en el shell de la home.** `base_inscripcion.html` carga solo lo que el formulario necesita (Tailwind compilado, Manrope autoalojada, tokens, botones y campos NODO). Sin Alpine, sin FontAwesome, sin toasts, sin chat, sin efectos, sin animaciones de entrada. El único tercero que puede cargar es el reCAPTCHA de paso 1, y solo si está configurado. Motivo: desacopla el formulario de la home —que puede seguir evolucionando con sus efectos— y lo deja más liviano para una superficie pública anónima.
+- **Se eligió la Opción B «panel de marca»** entre tres mockups (A «trámite limpio»: blanco liso y barra de progreso; C «banda de convocatoria»: banda rosa con vigencia y columna de ayuda). En escritorio, un panel lateral de 520 px con el gradiente de marca lleva la convocatoria, los tres pasos y la ayuda, y el formulario va sobre blanco a la derecha; en celular el panel se convierte en cabecera con stepper horizontal y el formulario debajo. Motivo del cliente: la marca acompaña sin competir con los campos, y los pasos quedan siempre visibles.
+- **El flujo ahora se muestra como tres pasos**, no dos: Identificación · Formulario · Comprobante. El comprobante ya existía como pantalla; contarlo como paso hace que la persona sepa que el envío termina en algo que puede guardar.
+- **El paso activo se resuelve con `data-paso-activo` y selectores CSS**, no con lógica de template: cada página declara su número en un bloque y el shell lo pinta. Motivo: los bloques de Django no son variables de contexto y no se pueden comparar en un `{% if %}` del padre; esta es la forma más simple que funciona sin JS.
+- **Sin build de Tailwind disponible** (no hay `node_modules` en el entorno), el layout del panel vive en un `<style>` del shell con tokens `var(--…)`; las clases utilitarias usadas se verificaron una a una contra el CSS compilado.
+- **`ya_inscripto.html` había desaparecido de `development`.** La plantilla existía (release `a72c2f2`) y la borró por error el commit `6e0a576` («docs(requerimientos): Cambio 40»), que solo debía tocar documentación. Desde entonces la vista la renderiza para quien ya está inscripto y la pantalla daba `TemplateDoesNotExist`. Se restauró en este cambio sobre el patrón nuevo. Es un bug de integración que salió a la luz al tocar el flujo completo; conviene revisar cómo se generó ese commit.
+- **Accesibilidad del stepper (observación del revisor de diseño):** el paso activo no puede distinguirse solo por color. El stepper es un include (`_stepper.html`) que recibe `paso_activo` y marca el `<li>` activo con `aria-current="step"` y un texto solo para lectores de pantalla. Y el pie del panel de escritorio va sobre navy sólido, no sobre el gradiente: el texto chico blanco sobre el tramo rosa no alcanzaba el contraste mínimo.
+
+## Implementación
+
+- Escritorio: panel izquierdo con logo, «DATAÑACH · Portal Ciudadano · Gobierno del Chaco», etiqueta del programa y segmento, «Inscripción a {convocatoria}», la línea «Completá la inscripción en tres pasos. Solo necesitás tu DNI.», el stepper vertical (activo con círculo blanco y número en color de marca) y abajo la ayuda (+54 362 430-0002 · datanach@chaco.gob.ar) y el copyright con año dinámico. A la derecha, el formulario sobre blanco, con chip «Paso N de 3» y un título corto («Ingresá tus datos», «Completá tu formulario», «¡Inscripción enviada!»).
+- Celular: el panel es la cabecera con stepper horizontal; el formulario debajo; la ayuda y el copyright pasan al pie.
+- Las pantallas de resultado no muestran stepper y conservan icono, título y texto.
+- Campos, ids, CSRF, `enctype`, captcha en sus dos modos, el script de geolocalización del paso 2 y el `extra_js` del reCAPTCHA quedaron intactos: solo cambió el contenedor.
+
+## Archivos
+
+`portal/templates/portal/inscripcion/base_inscripcion.html` (nuevo) · `_stepper.html` (nuevo) · `paso1.html` · `paso2.html` · `confirmacion.html` · `ya_inscripto.html` (nuevo) · `no_disponible.html` · `demasiados_intentos.html` · `.claude/agents/chaco-design-system.md` (fila «Shell de inscripción pública»).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` sin observaciones · `scripts/design_audit.py --changed` **0 errores, 0 warnings** · `scripts/compile_templates.py` 328 plantillas, 0 errores · `scripts/check_design_agent.py --base development` OK (la pieza nueva quedó inventariada como «Canónico reutilizable»).
+- Suite de inscripción (`test_inscripcion`, `test_inscripcion_envio`, `test_inscripcion_correo`): 42 tests, el único error es el de entorno (Python 3.14 renderizando bajo el test client), verificado idéntico sin los cambios.
+- Revisión con `chaco-design-reviewer`: ver resultado en el PR.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy. Sin variables, cron ni migración. La home **sigue** cargando `portal-effects.js`: si el cliente quiere sacarlo también de ahí, es un cambio de una línea en `portal/base.html` y se registra aparte.
+
+## Pendientes / a definir
+
+- Decidir si el fondo de partículas también se retira de la **home** (hay tres mockups de la home listos de esta misma sesión).
+- Cuando exista un entorno con `node_modules`, mover el `<style>` del shell a clases del build de Tailwind si el equipo lo prefiere; funcionalmente es equivalente.
+
+## Reversión
+
+Revertir el commit: las seis páginas vuelven a extender `portal/base.html`. Conviene **conservar** `ya_inscripto.html` aunque se revierta el resto, porque sin él la pantalla de duplicado rompe.

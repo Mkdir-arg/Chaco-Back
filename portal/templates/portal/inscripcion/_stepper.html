@@ -1,0 +1,23 @@
+{% comment %}
+Stepper de 3 pasos del flujo público de inscripción (shell "Panel de marca").
+Contrato: se incluye desde el {% block stepper %} de cada página con
+{% include "portal/inscripcion/_stepper.html" with paso_activo=1 %} (1, 2 o 3);
+las pantallas de resultado dejan ese bloque vacío y no lo incluyen.
+El paso activo no se distingue solo por color (WCAG 1.4.1): lleva
+aria-current="step" en el <li> y un texto para lectores de pantalla antes del
+nombre del paso.
+{% endcomment %}
+<ol class="di-stepper">
+    <li class="di-step" data-step="1"{% if paso_activo == 1 %} aria-current="step"{% endif %}>
+        <span class="di-step__circle">1</span>
+        <span class="di-step__label">{% if paso_activo == 1 %}<span class="sr-only">Paso actual: </span>{% endif %}Identificación<small>DNI y sexo</small></span>
+    </li>
+    <li class="di-step" data-step="2"{% if paso_activo == 2 %} aria-current="step"{% endif %}>
+        <span class="di-step__circle">2</span>
+        <span class="di-step__label">{% if paso_activo == 2 %}<span class="sr-only">Paso actual: </span>{% endif %}Formulario<small>Contacto y preguntas del programa</small></span>
+    </li>
+    <li class="di-step" data-step="3"{% if paso_activo == 3 %} aria-current="step"{% endif %}>
+        <span class="di-step__circle">3</span>
+        <span class="di-step__label">{% if paso_activo == 3 %}<span class="sr-only">Paso actual: </span>{% endif %}Comprobante<small>Número de inscripción</small></span>
+    </li>
+</ol>

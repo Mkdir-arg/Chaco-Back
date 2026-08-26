@@ -1,13 +1,14 @@
-{% extends 'portal/base.html' %}
+{% extends 'portal/inscripcion/base_inscripcion.html' %}
 
 {% block title %}Inscripción a {{ convocatoria.nombre }} - Portal Ciudadano{% endblock %}
 
+{% block stepper %}{% include "portal/inscripcion/_stepper.html" with paso_activo=2 %}{% endblock %}
+
 {% block content %}
-<div class="max-w-md mx-auto">
+<div>
     <div class="mb-6">
-        <span class="inline-block text-xs font-bold px-3 py-1" style="background: var(--bg-brand-soft); color: var(--text-fg-brand); border-radius: var(--radius-full);">Paso 2 de 2 · Formulario</span>
-        <h1 class="text-2xl font-bold mt-2" style="color: var(--text-heading);">Inscripción a {{ convocatoria.nombre }}</h1>
-        <p class="text-sm mt-1" style="color: var(--text-body-subtle);">Programa de Becas · {{ convocatoria.segmento.nombre }}</p>
+        <span class="inline-block text-xs font-bold px-3 py-1" style="background: var(--bg-brand-soft); color: var(--text-fg-brand); border-radius: var(--radius-full);">Paso 2 de 3 · Formulario</span>
+        <h2 class="text-2xl font-bold mt-2" style="color: var(--text-heading);">Completá tu formulario</h2>
     </div>
 
     {% if identificacion.datos %}
@@ -23,8 +24,7 @@
     </div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" novalidate id="form-inscripcion"
-          class="bg-white p-8 animate-fadeInUp" style="border-radius: var(--radius-2xl); box-shadow: var(--shadow-sm); border: 1px solid var(--border-base);">
+    <form method="post" enctype="multipart/form-data" novalidate id="form-inscripcion">
         {% csrf_token %}
         {{ form.gps_lat }}{{ form.gps_lng }}
 
