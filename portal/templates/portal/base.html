@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Portal Nande{% endblock %}</title>
+    <title>{% block title %}DATAÑACH — Portal Ciudadano{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'custom/css/tailwind.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -28,11 +28,11 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <div class="rounded-xl flex items-center justify-center" style="width: 64px; height: 64px; background: transparent;">
-                        <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Portal Nande" class="max-w-full max-h-full object-contain">
+                        <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="DATAÑACH" class="max-w-full max-h-full object-contain">
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold" style="color: var(--text-heading);">Portal Nande</h1>
-                        <p class="text-sm" style="color: var(--text-body-subtle);">Portal Ciudadano</p>
+                        <h1 class="text-2xl font-bold" style="color: var(--text-heading);">DATAÑACH</h1>
+                        <p class="text-sm" style="color: var(--text-body-subtle);">Portal Ciudadano · Gobierno del Chaco</p>
                     </div>
                 </div>
                 <div class="hidden md:flex items-center space-x-6">
@@ -72,12 +72,12 @@
                 <div>
                     <div class="flex items-center space-x-3 mb-4">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: transparent;">
-                            <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Nande" class="max-w-full max-h-full object-contain">
+                            <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="DATAÑACH" class="max-w-full max-h-full object-contain">
                         </div>
-                        <h3 class="font-bold text-lg">Nande</h3>
+                        <h3 class="font-bold text-lg">DATAÑACH</h3>
                     </div>
                     <p class="text-gray-300 text-sm leading-relaxed">
-                        Sistema de Registro de Instituciones
+                        Portal Ciudadano de los programas sociales del Gobierno del Chaco
                     </p>
                 </div>
                 <div>
@@ -103,7 +103,7 @@
             </div>
             <div class="border-t border-gray-700 mt-8 pt-6 text-center">
                 <p class="text-gray-400 text-sm">
-                    &copy; 2024 DATAÑACH - Todos los derechos reservados
+                    &copy; {% now "Y" %} DATAÑACH — Gobierno del Chaco
                 </p>
             </div>
         </div>
