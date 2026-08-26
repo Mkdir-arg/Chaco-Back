@@ -3617,6 +3617,7 @@ con URL absoluta, con `settings.DOMINIO` como respaldo. Sigue sin romper la insc
 - Sección «Programas del Gobierno del Chaco» (misma lista dinámica de programas activos).
 - Franja informativa sobre el link de inscripción; CTA final y bloque de ayuda como estaban.
 - Footer: «DATAÑACH — Portal Ciudadano de los programas sociales del Gobierno del Chaco», copyright con año dinámico.
+- **Datos de contacto confirmados por el PM el 26/08/2026:** teléfono **+54 362 430-0002** y correo **datanach@chaco.gob.ar**, reemplazando el 0800-222-1133 e info@chaco.gob.ar de la primera versión en header, footer, bloque de ayuda de la home y en las pantallas y correo de la inscripción pública (Cambio 41). Como ya no es una línea 0800, la etiqueta «Línea gratuita» pasó a «Teléfono».
 
 ## Archivos
 
@@ -3639,7 +3640,7 @@ Solo el deploy. Sin variables, cron ni migración. La home se cachea 5 minutos (
 
 ## Pendientes / a definir
 
-- **Datos de contacto sin verificar:** el portal muestra 0800-222-1133, info@chaco.gob.ar y «Lunes a Viernes 9–17 hs» desde su primera versión; no se cambiaron porque no hay datos confirmados. Confirmar con el cliente.
+- El horario de atención («Lunes a Viernes 9–17 hs») viene de la primera versión y no fue confirmado por el cliente.
 - **Sub-marca «Ñandé»** y **logos definitivos**: siguen pendientes de decisión del cliente (ver Cambio 39). El portal usa `mini-logo.png`.
 - Nombre exacto del ministerio para el pie de página, si el cliente lo prefiere sobre «Gobierno del Chaco».
 
