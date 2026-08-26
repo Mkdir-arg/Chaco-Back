@@ -250,11 +250,15 @@ Aprobar tiene **dos desenlaces**, según haya cupo:
 - **Con cupo disponible**, el caso queda **Aprobado** y consume una beca del segmento.
 - **Sin cupo**, la persona entra en **lista de espera**. El caso no queda aprobado.
 
+En los dos casos, **si el relevamiento tiene los avisos encendidos, la persona recibe un correo** que dice exactamente qué pasó: aprobada, o en lista de espera. Son mensajes distintos justamente porque son desenlaces distintos.
+
 Además de la compatibilidad con SIIS, aprobar exige que la identidad esté validada, que el legajo tenga documento y que el segmento tenga su programa configurado.
 
 ### Rechazar
 
-Rechazar **exige un motivo escrito**. El caso pasa a **Rechazado** y el motivo queda registrado.
+Rechazar **exige un motivo escrito**. El caso pasa a **Rechazado** y el motivo queda registrado. Si los avisos están encendidos, **la persona recibe un correo con ese motivo, tal como lo escribió el técnico**.
+
+Un caso ya resuelto no se puede volver a rechazar: la acción solo está disponible mientras esté pendiente.
 
 ### Cargas duplicadas
 
@@ -288,7 +292,8 @@ El cupo de becas del segmento se ocupa **solo con las aprobaciones**, y se calcu
 
 Cuando se aprueba sin cupo, la persona entra a la lista de espera del segmento con una posición.
 
-- **La promoción es manual.** Dar de baja a un beneficiario libera el cupo, pero no promueve a nadie automáticamente: el sistema avisa que hay lugar y el operador elige a quién.
+- **La promoción es manual.** Dar de baja a un beneficiario libera el cupo, pero no promueve a nadie automáticamente: el sistema avisa que hay lugar y el operador elige a quién. **Al promover, la persona recibe el correo de aprobación.**
+- El operador también puede **agregar a alguien a la lista a mano**, y en ese caso recibe el mismo aviso que si hubiera llegado por falta de cupo.
 - **Al promover se vuelve a controlar todo**, incluida la compatibilidad con SIIS. Si en el ínterin SIIS pasó a informar incompatible, la promoción se bloquea.
 
 ### Baja de un beneficiario
@@ -326,18 +331,35 @@ Un relevamiento cerrado por vencimiento no se reabre: su trabajo continúa en la
 
 ## :material-email-outline: Correos al ciudadano y a los operadores
 
-| Correo | Cuándo | Estado |
-|---|---|---|
-| **Comprobante de inscripción** | Al inscribirse por el formulario público, si el relevamiento lo tiene activado | Implementado |
-| **Credenciales de acceso** | Al dar de alta un usuario del backoffice | Implementado |
-| **Recuperación de contraseña** | Cuando el usuario la solicita desde el ingreso | Implementado |
+### Al ciudadano
 
-El comprobante es **opcional por relevamiento** y **nunca interrumpe la inscripción**: si el correo no puede enviarse, la persona ve su comprobante en pantalla igual.
+| Correo | Cuándo |
+|---|---|
+| **Comprobante de inscripción** | Al inscribirse por el formulario público |
+| **Tu inscripción fue aprobada** | Cuando el técnico aprueba el caso y hay cupo |
+| **Tu inscripción quedó en lista de espera** | Cuando se aprueba sin cupo disponible, o cuando el operador la agrega a la lista |
+| **Novedades sobre tu inscripción** | Cuando el caso se rechaza. Incluye el motivo que escribió el técnico |
+| **Tu inscripción fue aprobada** | Cuando se la promueve desde la lista de espera |
+
+### A los operadores
+
+| Correo | Cuándo |
+|---|---|
+| **Credenciales de acceso** | Al dar de alta un usuario del backoffice |
+| **Recuperación de contraseña** | Cuando el usuario la solicita desde el ingreso |
+
+### Cómo se controlan
+
+Los avisos al ciudadano son **opcionales por relevamiento**: un mismo interruptor decide si ese relevamiento notifica o no, y vale tanto para los públicos como para los territoriales. Viene **apagado** por defecto, así que hay que encenderlo relevamiento por relevamiento.
+
+**El correo nunca interrumpe nada.** Si no puede enviarse, la inscripción se completa igual y la persona ve su comprobante en pantalla; y del lado del técnico, la aprobación o el rechazo quedan firmes aunque el aviso falle.
+
+**Hay un caso en que no se avisa, deliberadamente:** cuando se resuelve una carga duplicada. Las dos cargas son de la misma persona, así que descartar la repetida es limpieza de datos y no la resolución de su inscripción — la carga que queda avisa cuando se resuelva de verdad. Tampoco avisa la baja de un beneficiario, que está pendiente de definición.
 
 La clave que se envía al dar de alta un usuario es **provisoria**: el primer ingreso obliga a cambiarla. El link de recuperación de contraseña vale **24 horas**.
 
 !!! warning "Los correos todavía no salen"
-    El servidor de correo institucional está configurado pero **su funcionamiento nunca pudo verificarse**: el puerto no responde desde fuera de la red de la provincia. Hasta que se confirme, ningún correo llega a destino y los relevamientos públicos deben crearse con el aviso apagado. Ver *Dependencias de ECOM*.
+    El servidor de correo institucional está configurado pero **su funcionamiento nunca pudo verificarse**: el puerto no responde desde fuera de la red de la provincia. Hasta que se confirme, **ningún correo llega a destino**: ni comprobantes, ni avisos de resolución, ni credenciales de acceso. Conviene dejar los avisos apagados hasta entonces. Ver *Dependencias de ECOM*.
 
 ---
 

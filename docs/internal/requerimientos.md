@@ -4111,9 +4111,11 @@ Ninguna. El workflow `docs-auto-deploy.yml` publica solo ante un push a `develop
 
 - **Las correcciones del doc de junio no se propagaron a `estimacion-programa-becas.md`**, que
   sigue reflejando el alcance estimado en junio.
-- El documento describe el Cambio 44 (avisos de resolución del caso) **como todavía inexistente**,
-  porque al publicarse no estaba terminado. Al cerrar el 44 hay que sumar esos cuatro correos a
-  la sección de correos.
+- ~~El documento describe el Cambio 44 (avisos de resolución del caso) **como todavía
+  inexistente**, porque al publicarse no estaba terminado.~~ **Resuelto el 26/08/2026**: la
+  sección de correos se partió en «al ciudadano» (cinco) y «a los operadores» (dos), y se
+  actualizaron además aprobar, rechazar y lista de espera, que ahora notifican. Se dejó
+  asentado el caso que deliberadamente no avisa (resolución de cargas duplicadas).
 - Las tres exclusiones deliberadas —constantes de los controles anti-abuso, catálogo de
   capacidades y deuda interna— se pueden revertir si el PM las quiere adentro.
 
