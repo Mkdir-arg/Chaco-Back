@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic.detail import DetailView
@@ -27,6 +28,19 @@ from programas.services.cupo import (
 CAP_CUPO_VER = "becas.cupo.ver"
 CAP_BENEFICIARIO_VER = "becas.beneficiario.ver"
 CAP_BENEFICIARIO_EDITAR = "becas.beneficiario.editar"
+CUPO_PAGE_SIZE = 50
+
+
+def _paginate(request, queryset, page_param):
+    paginator = Paginator(queryset, CUPO_PAGE_SIZE)
+    return paginator.get_page(request.GET.get(page_param))
+
+
+def _querystring_without(request, *keys):
+    params = request.GET.copy()
+    for key in keys:
+        params.pop(key, None)
+    return params.urlencode()
 
 
 class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
@@ -47,7 +61,7 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
 
         stats = get_cupo_stats(segmento)
 
-        beneficiarios = (
+        beneficiarios_qs = (
             Formulario.objects.filter(
                 estado=Formulario.Estado.APROBADO,
                 ciudadano__isnull=False,
@@ -57,7 +71,7 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
             .order_by("modificado")
         )
 
-        lista_espera = (
+        lista_espera_qs = (
             ListaEspera.objects.filter(segmento=segmento, promovido=False)
             .select_related("formulario__ciudadano", "formulario__relevamiento__convocatoria")
             .order_by("posicion")
@@ -67,7 +81,7 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         formularios_en_espera_ids = ListaEspera.objects.filter(segmento=segmento, promovido=False).values_list(
             "formulario_id", flat=True
         )
-        pendientes = (
+        pendientes_qs = (
             Formulario.objects.filter(
                 estado=Formulario.Estado.ENVIADO,
                 ciudadano__isnull=False,
@@ -81,9 +95,15 @@ class CupoSegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, Login
         ctx.update(
             {
                 "stats": stats,
-                "beneficiarios": beneficiarios,
-                "lista_espera": lista_espera,
-                "pendientes": pendientes,
+                "beneficiarios": _paginate(self.request, beneficiarios_qs, "beneficiarios_page"),
+                "lista_espera": _paginate(self.request, lista_espera_qs, "lista_espera_page"),
+                "pendientes": _paginate(self.request, pendientes_qs, "pendientes_page"),
+                "n_beneficiarios": beneficiarios_qs.count(),
+                "n_lista_espera": lista_espera_qs.count(),
+                "n_pendientes": pendientes_qs.count(),
+                "beneficiarios_querystring": _querystring_without(self.request, "beneficiarios_page", "tab"),
+                "lista_espera_querystring": _querystring_without(self.request, "lista_espera_page", "tab"),
+                "pendientes_querystring": _querystring_without(self.request, "pendientes_page", "tab"),
                 "puede_editar_beneficiarios": puede_alguna(self.request.user, [CAP_BENEFICIARIO_EDITAR]),
             }
         )

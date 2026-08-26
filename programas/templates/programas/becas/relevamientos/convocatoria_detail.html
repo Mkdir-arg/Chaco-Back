@@ -4,7 +4,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5" x-data="{ tab: 'info', modalRel: false, tipoRel: 'TERRITORIAL' }" @becas-saved.window="modalRel=false">
+<div class="space-y-5" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'info', modalRel: false, tipoRel: 'TERRITORIAL' }" @becas-saved.window="modalRel=false">
 
   <div>
     <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -204,6 +204,19 @@
           </tbody>
         </table>
       </div>
+      {% if beneficiarios.paginator.num_pages > 1 %}
+      <div class="flex items-center justify-between gap-3 flex-wrap text-xs text-body-subtle">
+        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
+        <div class="flex gap-2">
+          {% if beneficiarios.has_previous %}
+          <a href="?tab=ben{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if beneficiarios.has_next %}
+          <a href="?tab=ben{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
       {% else %}
       <div class="py-14 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
         <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>

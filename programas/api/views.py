@@ -28,18 +28,15 @@ from programas.api.serializers import (
 )
 from programas.models import Formulario, Relevamiento
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
+from programas.services.padron import normalizar_dni
 from programas.services.personas import consultar_persona
 
 CAP = "becas.campo"
 DNI_DUPLICADO_MENSAJE = "Este DNI ya fue relevado en este relevamiento."
 
 
-def _normalizar_dni(value):
-    return "".join(character for character in str(value or "") if character.isdigit())
-
-
 def _formulario_por_dni(relevamiento, dni):
-    dni = _normalizar_dni(dni)
+    dni = normalizar_dni(dni)
     if not dni:
         return None
     return (
@@ -132,7 +129,7 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
 @authentication_classes([TokenAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated, CampoBecasPermission])
 def consultar_persona_becas(request):
-    dni = _normalizar_dni(request.data.get("dni"))
+    dni = normalizar_dni(request.data.get("dni"))
     sexo = str(request.data.get("sexo") or "").strip().upper()
 
     if not dni or sexo not in ("F", "M"):
@@ -297,7 +294,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_409_CONFLICT,
                 )
             datos_identificacion = serializer.validated_data.get("datos_identificacion") or {}
-            dni = _normalizar_dni(datos_identificacion.get("dni"))
+            dni = normalizar_dni(datos_identificacion.get("dni"))
             datos_identificacion["dni"] = dni
             formulario_existente = _formulario_por_dni(rel, dni)
             formulario = serializer.save(
@@ -314,7 +311,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get"], url_path="dni-existe")
     def dni_existe(self, request, pk=None):
         rel = self.get_object()
-        dni = _normalizar_dni(request.query_params.get("dni"))
+        dni = normalizar_dni(request.query_params.get("dni"))
         if not dni:
             return Response({"dni": "El DNI es requerido."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"existe": _formulario_dni_existe(rel, dni)})

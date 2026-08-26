@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 
 from core import rbac
+from core.services.throttle import ip_cliente
 
 logger = logging.getLogger("core.requests")
 
@@ -116,7 +117,7 @@ class RequestLoggingMiddleware:
 
         user = getattr(request, "user", None)
         username = user.username if user and user.is_authenticated else "anon"
-        ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR", "-")
+        ip = ip_cliente(request)
 
         log_request = logger.warning if duration_ms > settings.SLOW_REQUEST_MS else logger.info
         log_request(

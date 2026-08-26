@@ -104,7 +104,7 @@
         Beneficiarios
         <span x-cloak
               :class="tab==='beneficiarios' ? 'badge badge-info' : 'badge badge-gray'"
-              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ beneficiarios|length }}</span>
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ n_beneficiarios }}</span>
       </button>
       <button @click="tab='lista_espera'" type="button"
               class="becas-tab-btn"
@@ -113,7 +113,7 @@
         Lista de espera
         <span x-cloak
               :class="tab==='lista_espera' ? 'badge badge-info' : 'badge badge-gray'"
-              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ lista_espera|length }}</span>
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ n_lista_espera }}</span>
       </button>
       <button @click="tab='pendientes'" type="button"
               class="becas-tab-btn"
@@ -122,7 +122,7 @@
         Pendientes de cupo
         <span x-cloak
               :class="tab==='pendientes' ? 'badge badge-info' : 'badge badge-gray'"
-              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ pendientes|length }}</span>
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ n_pendientes }}</span>
       </button>
     </div>
 
@@ -199,6 +199,19 @@
           </tbody>
         </table>
       </div>
+      {% if beneficiarios.paginator.num_pages > 1 %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border-base,#E5E7EB);font-size:12px;color:var(--text-body-subtle);">
+        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
+        <div style="display:flex;gap:8px;">
+          {% if beneficiarios.has_previous %}
+          <a href="?tab=beneficiarios{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if beneficiarios.has_next %}
+          <a href="?tab=beneficiarios{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     {# ===== TAB: Lista de espera ===== #}
@@ -270,6 +283,19 @@
           </tbody>
         </table>
       </div>
+      {% if lista_espera.paginator.num_pages > 1 %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border-base,#E5E7EB);font-size:12px;color:var(--text-body-subtle);">
+        <span>Página {{ lista_espera.number }} de {{ lista_espera.paginator.num_pages }} · {{ lista_espera.paginator.count }} persona{{ lista_espera.paginator.count|pluralize }} en espera</span>
+        <div style="display:flex;gap:8px;">
+          {% if lista_espera.has_previous %}
+          <a href="?tab=lista_espera{% if lista_espera_querystring %}&amp;{{ lista_espera_querystring }}{% endif %}&amp;lista_espera_page={{ lista_espera.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if lista_espera.has_next %}
+          <a href="?tab=lista_espera{% if lista_espera_querystring %}&amp;{{ lista_espera_querystring }}{% endif %}&amp;lista_espera_page={{ lista_espera.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     {# ===== TAB: Pendientes de cupo ===== #}
@@ -339,6 +365,19 @@
           </tbody>
         </table>
       </div>
+      {% if pendientes.paginator.num_pages > 1 %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border-base,#E5E7EB);font-size:12px;color:var(--text-body-subtle);">
+        <span>Página {{ pendientes.number }} de {{ pendientes.paginator.num_pages }} · {{ pendientes.paginator.count }} pendiente{{ pendientes.paginator.count|pluralize }}</span>
+        <div style="display:flex;gap:8px;">
+          {% if pendientes.has_previous %}
+          <a href="?tab=pendientes{% if pendientes_querystring %}&amp;{{ pendientes_querystring }}{% endif %}&amp;pendientes_page={{ pendientes.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if pendientes.has_next %}
+          <a href="?tab=pendientes{% if pendientes_querystring %}&amp;{{ pendientes_querystring }}{% endif %}&amp;pendientes_page={{ pendientes.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
   </div>

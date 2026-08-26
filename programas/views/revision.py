@@ -5,6 +5,7 @@ para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcanc
 por segmento. La validación SIIS conserva y presenta el detalle auditable de ECOM.
 """
 
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -15,6 +16,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
@@ -40,6 +42,10 @@ CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
+
+
+def _aware_start(fecha):
+    return timezone.make_aware(datetime.combine(fecha, time.min), timezone.get_current_timezone())
 
 SIIS_CONTROLES = (
     ("vigencia_programa", "Vigencia del programa"),
@@ -188,7 +194,12 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
         )
         queryset = _sin_formularios_publicos_si_no_puede(queryset, self.request.user)
         if self.request.GET.get("fecha"):
-            queryset = queryset.filter(creado__date=self.request.GET["fecha"])
+            fecha = parse_date(self.request.GET["fecha"])
+            if fecha:
+                queryset = queryset.filter(
+                    creado__gte=_aware_start(fecha),
+                    creado__lt=_aware_start(fecha + timedelta(days=1)),
+                )
         # Los filtros llegan por GET: solo se aplican si son ids válidos.
         territorial = self.request.GET.get("territorial", "")
         if territorial.isdigit():
@@ -258,7 +269,8 @@ def _respuestas_resueltas(formulario):
     globales = data.get("globales", {}) or {}
     requisitos = data.get("requisitos", {}) or {}
 
-    preguntas = {str(p.pk): p for p in PreguntaGlobal.objects.all()}
+    pregunta_ids = [int(k) for k in globales.keys() if str(k).isdigit()]
+    preguntas = {str(p.pk): p for p in PreguntaGlobal.objects.filter(pk__in=pregunta_ids)}
     req_ids = [int(k) for k in requisitos.keys() if str(k).isdigit()]
     requisitos_map = {str(r.pk): r for r in RequisitoNativo.objects.filter(pk__in=req_ids)}
 
@@ -391,7 +403,7 @@ def formulario_detalle(request, pk):
             "validacion_sis": validacion_sis,
             "detalle_siis": _detalle_validacion_siis(validacion_sis),
             "historial_validaciones_sis": historial_validaciones_sis,
-            "motivo_bloqueo_aprobacion": motivo_bloqueo_aprobacion(formulario),
+            "motivo_bloqueo_aprobacion": motivo_bloqueo_aprobacion(formulario, validacion_sis),
             "tiene_conflicto_duplicado_pendiente": _tiene_conflicto_duplicado_pendiente(formulario),
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
