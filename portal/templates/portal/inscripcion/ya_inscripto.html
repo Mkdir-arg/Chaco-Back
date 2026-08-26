@@ -1,6 +1,6 @@
 {% extends 'portal/inscripcion/base_inscripcion.html' %}
 
-{% block title %}Formulario no disponible - Portal Ciudadano{% endblock %}
+{% block title %}Ya estás inscripto - Portal Ciudadano{% endblock %}
 
 {% block stepper %}{% endblock %}
 
@@ -11,8 +11,10 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path>
         </svg>
     </div>
-    <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Formulario no disponible</h2>
-    <p class="mt-3 text-sm" style="color: var(--text-body);">Este formulario ya no admite inscripciones.</p>
-    <p class="mt-2 text-xs" style="color: var(--text-body-subtle);">Para más información, comunicate con el programa al +54 362 430-0002.</p>
+    <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Ya estás inscripto</h2>
+    <p class="mt-3 text-sm" style="color: var(--text-body);">
+        Ya existe una inscripción para el DNI {{ dni }} en esta convocatoria. No podés volver a inscribirte.
+    </p>
+    <p class="mt-2 text-xs" style="color: var(--text-body-subtle);">Si creés que es un error, comunicate con el programa al +54 362 430-0002.</p>
 </div>
 {% endblock %}
