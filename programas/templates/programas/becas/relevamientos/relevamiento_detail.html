@@ -140,18 +140,24 @@
                     data-confirm-text="Podrás reabrirlo mientras no haya pasado a revisión."
                     data-confirm-icon="question" data-confirm-ok="Sí, finalizar">Finalizar relevamiento</button>
           </div>
-          {% elif relevamiento.estado == 'FINALIZADO' %}
-          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
+          {% elif relevamiento.estado == 'FINALIZADO' or relevamiento.estado == 'EN_REVISION' %}
+          <form method="post" action="{% url 'becas:relevamiento_reabrir' relevamiento.pk %}"
+                id="volver-a-campo" class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
             <h3 class="text-sm font-bold text-heading mb-2">
-              <i class="fas fa-rotate-left mr-1 text-fg-brand"></i> Reabrir relevamiento
+              <i class="fas fa-rotate-left mr-1 text-fg-brand"></i> Volver a campo
             </h3>
-            <p class="text-xs text-body-subtle mb-3">Vuelve el relevamiento a En curso para permitir nuevas cargas.</p>
-            <button type="button" class="btn-nodo btn-tertiary btn-sm w-full"
-                    data-confirm-url="{% url 'becas:relevamiento_reabrir' relevamiento.pk %}"
-                    data-confirm-title="¿Reabrir el relevamiento?"
-                    data-confirm-text="Los formularios enviados no se modificarán."
-                    data-confirm-icon="question" data-confirm-ok="Sí, reabrir">Reabrir relevamiento</button>
-          </div>
+            <p class="text-xs text-body-subtle mb-3">
+              Vuelve el relevamiento a En curso para permitir nuevas cargas{% if relevamiento.es_publico %} y reabrir el link público{% endif %}. Los casos ya resueltos no se modifican.
+            </p>
+            {% if relevamiento.esta_vencido or relevamiento.estado == 'EN_REVISION' %}
+            <p class="text-xs text-body-subtle mb-3">
+              El período ya venció: indicá hasta cuándo queda abierto, o el cierre automático por fecha lo devolvería a En revisión.
+            </p>
+            {% endif %}
+            {% with field=form_volver_a_campo.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Volver a campo</button>
+          </form>
           {% endif %}
 
           {% if not relevamiento.es_publico %}
@@ -211,7 +217,7 @@
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-secondary border-b border-base">
-                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Formulario</th>
+                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Caso</th>
                 <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
                 <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Contacto</th>
                 <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Identidad</th>
@@ -222,7 +228,7 @@
             <tbody>
               {% for f in formularios %}
               <tr class="hover:bg-secondary">
-                <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-semibold">Formulario {{ f.numero }}</td>
+                <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-semibold">Caso {{ f.numero }}</td>
                 <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
                   {% if f.ciudadano %}
                     {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
@@ -276,7 +282,7 @@
         <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
           <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>
           <p class="text-[17px] font-bold text-heading">Sin personas relevadas</p>
-          <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene formularios cargados.</p>
+          <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene casos cargados.</p>
         </div>
         {% endif %}
       </div>

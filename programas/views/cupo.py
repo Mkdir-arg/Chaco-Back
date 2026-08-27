@@ -199,5 +199,5 @@ def agregar_lista_espera_view(request, pk):
                 protocol="https" if request.is_secure() else "http",
                 domain=request.get_host(),
             )
-            messages.success(request, "Formulario agregado a la lista de espera.")
+            messages.success(request, "Caso agregado a la lista de espera.")
     return redirect(reverse("becas:cupo_segmento", kwargs={"pk": segmento.pk}) + "?tab=lista_espera")

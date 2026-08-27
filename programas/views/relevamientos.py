@@ -6,6 +6,7 @@ relevamientos de sus segmentos asignados); el Admin ve todos.
 """
 
 import csv
+import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -29,6 +30,7 @@ from programas.forms import (
     ReasignarTerritorialForm,
     RelevamientoForm,
     ReprogramarForm,
+    VolverACampoForm,
 )
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
 from programas.services.autorizacion import (
@@ -44,6 +46,8 @@ from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_a
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
 CAP_CONVOCATORIA_CREAR = "becas.convocatoria.crear"
 CAP_CONVOCATORIA_EDITAR = "becas.convocatoria.editar"
+logger = logging.getLogger(__name__)
+
 CAP_RELEVAMIENTO_VER = "becas.relevamiento.ver"
 CAP_RELEVAMIENTO_CREAR = "becas.relevamiento.crear"
 CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
@@ -637,6 +641,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             convocatoria=rel.convocatoria,
         )
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
+        ctx["form_volver_a_campo"] = VolverACampoForm(convocatoria=rel.convocatoria)
         formularios_qs = rel.formularios.select_related("ciudadano").order_by("numero")
         formularios_page = _paginate(self.request, formularios_qs, page_param="formularios_page")
         ctx["formularios"] = formularios_page
@@ -674,18 +679,61 @@ def relevamiento_finalizar(request, pk):
 @requiere(CAP_RELEVAMIENTO_EDITAR)
 @require_POST
 def relevamiento_reabrir(request, pk):
+    """Vuelve el relevamiento a EN_CURSO: «volver a campo».
+
+    Admite los dos estados cerrados: FINALIZADO —el campo se cerró a mano y el
+    período sigue vigente— y EN_REVISION, al que solo se llega por fecha (la
+    regla ``becas.relevamiento`` de ``procesar_vencimientos``).
+
+    Las dos condiciones de abajo no son preferencia sino mecánica: si la
+    convocatoria venció o está cerrada, o si el período del relevamiento ya
+    pasó y no se manda una fecha nueva, el cron devolvería el relevamiento a
+    EN_REVISION a las 03:10 y la reapertura sería mentira por unas horas.
+    """
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope(request, rel)
     if _rechazar_si_pausado(request, rel):
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
-    if rel.estado != Relevamiento.Estado.FINALIZADO:
-        messages.error(request, "Solo se puede reabrir un relevamiento finalizado.")
+    if rel.estado not in (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION):
+        messages.error(request, "Solo se puede volver a campo un relevamiento finalizado o en revisión.")
         return redirect("becas:relevamiento_detalle", pk=rel.pk)
 
+    convocatoria = rel.convocatoria
+    if not convocatoria.activo or convocatoria.esta_vencida:
+        messages.error(
+            request,
+            "La convocatoria está cerrada o vencida: extendé su fecha de fin antes de volver el relevamiento a campo.",
+        )
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+    form = VolverACampoForm(request.POST, convocatoria=convocatoria)
+    if not form.is_valid():
+        messages.error(request, next(iter(form.errors.values()))[0])
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+    fecha_hasta = form.cleaned_data.get("fecha_hasta") or rel.fecha_hasta
+    if fecha_hasta is None or fecha_hasta <= timezone.now():
+        messages.error(
+            request,
+            "El período del relevamiento ya venció: indicá una fecha hasta futura para volver a campo.",
+        )
+        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+
+    estado_anterior = rel.estado
     rel.estado = Relevamiento.Estado.EN_CURSO
     rel.fecha_finalizado = None
-    rel.save(update_fields=["estado", "fecha_finalizado", "modificado"])
-    messages.success(request, "Relevamiento reabierto.")
+    rel.fecha_hasta = fecha_hasta
+    rel.save(update_fields=["estado", "fecha_finalizado", "fecha_hasta", "modificado"])
+    # El relevamiento no tiene traza propia (a diferencia de los casos y los
+    # dispositivos): hasta que exista, la reapertura queda en el log.
+    logger.info(
+        "relevamiento_volver_a_campo pk=%s de=%s por=%s fecha_hasta=%s",
+        rel.pk,
+        estado_anterior,
+        request.user.pk,
+        rel.fecha_hasta.isoformat() if rel.fecha_hasta else None,
+    )
+    messages.success(request, f"Relevamiento en curso otra vez, con fecha hasta {timezone.localtime(rel.fecha_hasta):%d/%m/%Y %H:%M}.")
     return redirect("becas:relevamiento_detalle", pk=rel.pk)
 
 

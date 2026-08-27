@@ -2054,6 +2054,21 @@ class Formulario(TimeStamped):
         verbose_name="Formulario previo con el mismo DNI",
     )
     validado_renaper = models.BooleanField(default=False, verbose_name="Validado RENAPER")
+    # Salida de emergencia cuando Base de Personas no puede validar a alguien
+    # que sí existe (no está en la fuente, la fuente no responde, el DNI no
+    # figura). Sin esto la aprobación queda bloqueada para siempre, porque
+    # ``motivo_bloqueo_aprobacion`` exige identidad validada. Se guarda aparte
+    # de ``validado_renaper`` para que un validado a mano nunca se confunda con
+    # uno que devolvió la fuente: el motivo y el autor quedan además en la traza.
+    identidad_forzada = models.BooleanField(
+        default=False,
+        verbose_name="Identidad validada manualmente",
+    )
+    identidad_forzada_motivo = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Motivo de la validación manual",
+    )
 
     # Bloque C — Contacto (manual, obligatorio)
     celular = models.CharField(max_length=20, verbose_name="Celular")

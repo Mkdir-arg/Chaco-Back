@@ -172,7 +172,7 @@
     {# ===== TAB: Beneficiarios ===== #}
     <div x-show="tab==='ben'" x-cloak class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
-        <p class="text-sm text-body-subtle">Personas relevadas en esta convocatoria (formularios cargados).</p>
+        <p class="text-sm text-body-subtle">Personas relevadas en esta convocatoria (casos cargados).</p>
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> Exportar CSV</a>
       </div>
       {% if beneficiarios %}

@@ -473,10 +473,15 @@ class FinalizarReabrirTests(_BaseRelevTest):
         self.assertEqual(self.rel_a.estado, Relevamiento.Estado.ASIGNADO)
         self.assertIsNone(self.rel_a.fecha_finalizado)
 
-    def test_reabrir_relevamiento_finalizado(self):
-        self.rel_a.estado = Relevamiento.Estado.FINALIZADO
+    def _cerrar_relevamiento(self, estado, *, fecha_hasta=None):
+        """Deja rel_a cerrado, con el período vigente salvo que se pida otro."""
+        self.rel_a.estado = estado
         self.rel_a.fecha_finalizado = timezone.now()
-        self.rel_a.save(update_fields=["estado", "fecha_finalizado"])
+        self.rel_a.fecha_hasta = fecha_hasta if fecha_hasta is not None else timezone.now() + timedelta(days=5)
+        self.rel_a.save(update_fields=["estado", "fecha_finalizado", "fecha_hasta"])
+
+    def test_volver_a_campo_desde_finalizado_con_periodo_vigente(self):
+        self._cerrar_relevamiento(Relevamiento.Estado.FINALIZADO)
         self.client.force_login(self.coord_a)
 
         response = self.client.post(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]))
@@ -486,15 +491,81 @@ class FinalizarReabrirTests(_BaseRelevTest):
         self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_CURSO)
         self.assertIsNone(self.rel_a.fecha_finalizado)
 
-    def test_reabrir_rechaza_estado_en_revision(self):
-        self.rel_a.estado = Relevamiento.Estado.EN_REVISION
-        self.rel_a.save(update_fields=["estado"])
+    def test_volver_a_campo_desde_en_revision(self):
+        """El caso que pidió el PM: a EN_REVISION se llega por fecha y hay vuelta."""
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION, fecha_hasta=timezone.now() - timedelta(days=1))
+        self.client.force_login(self.coord_a)
+        nueva = timezone.localtime(timezone.now() + timedelta(days=10))
+
+        response = self.client.post(
+            reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]),
+            {"fecha_hasta": nueva.strftime("%Y-%m-%dT%H:%M")},
+        )
+
+        self.assertRedirects(response, reverse("becas:relevamiento_detalle", args=[self.rel_a.pk]))
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_CURSO)
+        self.assertIsNone(self.rel_a.fecha_finalizado)
+        self.assertEqual(timezone.localtime(self.rel_a.fecha_hasta).date(), nueva.date())
+
+    def test_volver_a_campo_vencido_sin_fecha_nueva_se_rechaza(self):
+        """Sin fecha futura el cron lo devolvería a EN_REVISION esa noche."""
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION, fecha_hasta=timezone.now() - timedelta(days=1))
         self.client.force_login(self.coord_a)
 
         self.client.post(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]))
 
         self.rel_a.refresh_from_db()
         self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_REVISION)
+
+    def test_volver_a_campo_rechaza_fecha_pasada(self):
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION, fecha_hasta=timezone.now() - timedelta(days=1))
+        self.client.force_login(self.coord_a)
+        pasada = timezone.localtime(timezone.now() - timedelta(days=2))
+
+        self.client.post(
+            reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]),
+            {"fecha_hasta": pasada.strftime("%Y-%m-%dT%H:%M")},
+        )
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_REVISION)
+
+    def test_volver_a_campo_rechaza_convocatoria_cerrada(self):
+        """Con la convocatoria cerrada el cron lo revierte igual: se bloquea."""
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION)
+        self.conv_a.activo = False
+        self.conv_a.save(update_fields=["activo"])
+        self.client.force_login(self.coord_a)
+
+        self.client.post(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]))
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_REVISION)
+
+    def test_volver_a_campo_rechaza_terminado(self):
+        self._cerrar_relevamiento(Relevamiento.Estado.TERMINADO)
+        self.client.force_login(self.coord_a)
+
+        self.client.post(reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]))
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.TERMINADO)
+
+    def test_lo_que_vuelve_a_campo_no_lo_revierte_el_cron(self):
+        """La razón de exigir fecha futura: la regla de vencimiento no lo agarra."""
+        from programas.services.vencimientos import relevamientos_de_convocatoria_vencida
+
+        self._cerrar_relevamiento(Relevamiento.Estado.EN_REVISION, fecha_hasta=timezone.now() - timedelta(days=1))
+        self.client.force_login(self.coord_a)
+        nueva = timezone.localtime(timezone.now() + timedelta(days=10))
+
+        self.client.post(
+            reverse("becas:relevamiento_reabrir", args=[self.rel_a.pk]),
+            {"fecha_hasta": nueva.strftime("%Y-%m-%dT%H:%M")},
+        )
+
+        self.assertNotIn(self.rel_a.pk, relevamientos_de_convocatoria_vencida().values_list("pk", flat=True))
 
     def test_acciones_solo_aceptan_post(self):
         self.client.force_login(self.coord_a)

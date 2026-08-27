@@ -1411,6 +1411,68 @@ class ReprogramarForm(forms.Form):
         return cleaned
 
 
+class ForzarIdentidadForm(forms.Form):
+    """Motivo obligatorio para validar una identidad a mano.
+
+    Es un control que se saltea: sin el motivo escrito no queda registro de por
+    qué, y la traza del caso es lo único que después explica la decisión.
+    """
+
+    motivo = forms.CharField(
+        max_length=255,
+        label="Motivo de la validación manual",
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
+        error_messages={"required": "Escribí el motivo de la validación manual."},
+    )
+
+    def clean_motivo(self):
+        motivo = (self.cleaned_data.get("motivo") or "").strip()
+        if len(motivo) < 10:
+            raise forms.ValidationError("Contá el motivo con un poco más de detalle (al menos 10 caracteres).")
+        return motivo
+
+
+class VolverACampoForm(forms.Form):
+    """Fecha nueva para devolver un relevamiento a EN_CURSO.
+
+    El campo es opcional: si el relevamiento todavía tiene período vigente
+    alcanza con volverlo a campo. Se pide cuando la fecha ya pasó, porque la
+    regla de vencimiento (``procesar_vencimientos``) devolvería el relevamiento
+    a EN_REVISION esa misma noche y la reapertura duraría hasta las 03:10.
+    """
+
+    fecha_hasta = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
+        label="Nueva fecha hasta",
+    )
+
+    def __init__(self, *args, convocatoria=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.convocatoria = convocatoria
+        if convocatoria is not None:
+            self.fields["fecha_hasta"].widget.attrs.update(
+                min=f"{convocatoria.fecha_inicio.isoformat()}T00:00",
+                max=f"{convocatoria.fecha_fin.isoformat()}T23:59",
+            )
+
+    def clean_fecha_hasta(self):
+        fecha_hasta = self.cleaned_data.get("fecha_hasta")
+        if not fecha_hasta:
+            return fecha_hasta
+        if fecha_hasta <= timezone.now():
+            raise forms.ValidationError("La nueva fecha hasta tiene que ser futura.")
+        if self.convocatoria and not (
+            self.convocatoria.fecha_inicio <= fecha_hasta.date() <= self.convocatoria.fecha_fin
+        ):
+            inicio = self.convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = self.convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            raise forms.ValidationError(
+                f"La fecha hasta debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin})."
+            )
+        return fecha_hasta
+
+
 class FormularioRevisionForm(forms.ModelForm):
     """Edición en revisión de los campos de contacto/apoderado del formulario.
 

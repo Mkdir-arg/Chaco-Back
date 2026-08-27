@@ -1,6 +1,6 @@
 {% extends "includes/base.html" %}
 {% load rbac %}
-{% block title %}Becas · Formulario {{ formulario.numero }}{% endblock %}
+{% block title %}Becas · Caso {{ formulario.numero }}{% endblock %}
 
 {% block main-content %}
 <style>
@@ -46,10 +46,10 @@
     <div class="flex items-center gap-3 flex-wrap">
       <a href="{% url 'becas:revision_formularios' relevamiento.pk %}"
          class="btn-tertiary btn-back-circle"
-         aria-label="Volver a formularios del relevamiento">
+         aria-label="Volver a los casos del relevamiento">
         <i class="fas fa-arrow-left" aria-hidden="true"></i>
       </a>
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Formulario {{ formulario.numero }}</h1>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Caso {{ formulario.numero }}</h1>
       {% if formulario.estado == 'APROBADO' %}
         <span class="badge badge-success badge-dot">Aprobado</span>
       {% elif formulario.estado == 'RECHAZADO' %}
@@ -70,11 +70,11 @@
       <div class="flex-1">
         <h2 class="font-bold text-fg-warning">DNI cargado desde más de un dispositivo</h2>
         <p class="mt-1 text-sm text-fg-warning">
-          Los formularios {{ conflicto_pendiente.duplicado_de.numero }} y {{ conflicto_pendiente.numero }} corresponden al mismo DNI.
+          Los casos {{ conflicto_pendiente.duplicado_de.numero }} y {{ conflicto_pendiente.numero }} corresponden al mismo DNI.
           Revisá ambas cargas y decidí cuál conservar.
         </p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}" class="btn-nodo btn-tertiary btn-base">Comparar con formulario {{ formulario_comparacion.numero }}</a>
+          <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}" class="btn-nodo btn-tertiary btn-base">Comparar con el caso {{ formulario_comparacion.numero }}</a>
           <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}">
             {% csrf_token %}
             <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_previo{% else %}conservar_actual{% endif %}">
@@ -133,7 +133,7 @@
           <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Sexo</dt>
           <dd class="text-sm">
             {% if formulario.ciudadano %}
-              {% if formulario.validado_renaper and formulario.ciudadano.genero %}
+              {% if formulario.validado_renaper and not formulario.identidad_forzada and formulario.ciudadano.genero %}
                 <span class="text-heading font-medium">
                   {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
                 </span>
@@ -175,14 +175,26 @@
         <div>
           <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Validación de identidad</dt>
           <dd class="text-sm">
-            {% if formulario.validado_renaper %}
+            {% if formulario.identidad_forzada %}
+              <span class="badge badge-warning">Validada manualmente</span>
+              <p class="text-xs text-body-subtle mt-1">{{ formulario.identidad_forzada_motivo }}</p>
+              <p class="text-xs text-body-subtle">Base de Personas no la validó: el detalle de quién y cuándo está en la traza.</p>
+            {% elif formulario.validado_renaper %}
               <span class="badge badge-success">Validado</span>
+              <p class="text-xs text-body-subtle mt-1">Contra Base de Personas del Chaco.</p>
             {% else %}
               <span class="badge badge-warning">Pendiente</span>
-              {% if puede_revalidar_renaper %}<form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}" class="inline-block ml-2">
-                {% csrf_token %}
-                <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
-              </form>{% endif %}
+              {% if puede_revalidar_renaper %}
+              <div class="flex flex-wrap items-center gap-2 mt-2">
+                <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
+                </form>
+                <button type="button" id="btn-forzar-identidad" class="btn-nodo btn-tertiary btn-sm">
+                  <i class="fas fa-user-check"></i> Validar manualmente
+                </button>
+              </div>
+              {% endif %}
             {% endif %}
           </dd>
         </div>
@@ -252,7 +264,7 @@
           </iframe>
         {% else %}
           <div class="rounded-xl bg-secondary border border-light p-5 text-sm text-body-subtle">
-            Este formulario no tiene coordenadas GPS registradas.
+            Este caso no tiene coordenadas GPS registradas.
           </div>
         {% endif %}
       </div>
@@ -416,7 +428,7 @@
 
     <div class="border-t border-light mt-5 pt-4 text-xs text-body-subtle space-y-1">
       {% if validacion_sis.id_consulta %}<p><strong>ID de consulta:</strong> <span class="break-all">{{ validacion_sis.id_consulta }}</span></p>{% endif %}
-      <p>Compatible significa que SIIS no encontró incompatibilidades para postularse; no implica la aprobación automática del formulario.</p>
+      <p>Compatible significa que SIIS no encontró incompatibilidades para postularse; no implica la aprobación automática del caso.</p>
     </div>
     {% else %}
     <p class="text-sm text-body-subtle">Todavía no se consultó la compatibilidad de esta persona.</p>
@@ -506,6 +518,11 @@
         <strong>Aprobación bloqueada:</strong> {{ motivo_bloqueo_aprobacion }}
       </div>
       {% endif %}
+      {% if formulario.identidad_forzada %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Identidad validada manualmente:</strong> {{ formulario.identidad_forzada_motivo }}
+      </div>
+      {% endif %}
       <div class="flex justify-end gap-3">
       <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
         <i class="fas fa-times"></i> Rechazar
@@ -524,7 +541,7 @@
   </form>
   {% endif %}
 
-  {# Modal "Rechazar formulario" — pide motivo obligatorio (ModernModal no soporta input propio) #}
+  {# Modal "Rechazar caso" — pide motivo obligatorio (ModernModal no soporta input propio) #}
   <div id="modal-rechazo-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);">
     <div role="dialog" aria-modal="true" aria-labelledby="modal-rechazo-title" class="w-full" style="max-width:520px;background:var(--bg-primary,#fff);border-radius:var(--radius-2xl,16px);box-shadow:var(--shadow-xl);overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid var(--border-light,#F3F4F6);display:flex;align-items:center;justify-content:space-between;gap:12px;">
@@ -532,7 +549,7 @@
           <div style="width:40px;height:40px;border-radius:var(--radius-lg,8px);display:flex;align-items:center;justify-content:center;background:var(--bg-danger-soft,#FEF0F2);color:var(--text-fg-danger,#C70036);flex-shrink:0;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
-          <h3 id="modal-rechazo-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Rechazar formulario</h3>
+          <h3 id="modal-rechazo-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Rechazar caso</h3>
         </div>
         <button type="button" id="modal-rechazo-close" aria-label="Cerrar" style="color:var(--text-body-subtle);background:none;border:none;cursor:pointer;line-height:1;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -551,6 +568,42 @@
       </div>
     </div>
   </div>
+
+  {# Modal "Validar identidad manualmente" — motivo obligatorio, mismo patrón que el de rechazo #}
+  {% if puede_revalidar_renaper and not formulario.validado_renaper %}
+  <div id="modal-forzar-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-forzar-title" class="w-full" style="max-width:520px;background:var(--bg-primary,#fff);border-radius:var(--radius-2xl,16px);box-shadow:var(--shadow-xl);overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--border-light,#F3F4F6);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:var(--radius-lg,8px);display:flex;align-items:center;justify-content:center;background:var(--bg-warning-soft);color:var(--text-fg-warning);flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+          </div>
+          <h3 id="modal-forzar-title" style="font-size:18px;font-weight:700;color:var(--text-heading);">Validar identidad manualmente</h3>
+        </div>
+        <button type="button" id="modal-forzar-close" aria-label="Cerrar" style="color:var(--text-body-subtle);background:none;border:none;cursor:pointer;line-height:1;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form method="post" action="{% url 'becas:formulario_forzar_identidad' formulario.pk %}" id="form-forzar-identidad">
+        {% csrf_token %}
+        <div style="padding:24px;">
+          <p class="text-sm text-body mb-3">
+            Habilita la aprobación sin la validación de Base de Personas. No cambia los datos de la persona: quedan los que se cargaron. El motivo se guarda en la traza del caso.
+          </p>
+          <label for="{{ forzar_identidad_form.motivo.id_for_label }}" style="display:block;font-size:13px;font-weight:600;color:var(--text-heading);margin-bottom:6px;">
+            {{ forzar_identidad_form.motivo.label }} <span style="color:var(--text-fg-danger);">*</span>
+          </label>
+          {{ forzar_identidad_form.motivo }}
+          <p id="modal-forzar-error" class="hidden" style="font-size:12.5px;color:var(--text-fg-danger);margin-top:6px;">Contá el motivo con un poco más de detalle (al menos 10 caracteres).</p>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--border-light,#F3F4F6);background:var(--bg-secondary,#F9FAFB);">
+          <button type="button" id="modal-forzar-cancelar" class="btn-nodo btn-tertiary btn-sm">Cancelar</button>
+          <button type="submit" id="modal-forzar-confirmar" class="btn-nodo btn-brand btn-sm">Validar manualmente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 
   <div id="image-preview-overlay"
        class="fixed inset-0 z-[1002] hidden items-center justify-center p-4 sm:p-8"
@@ -622,8 +675,8 @@ document.addEventListener('DOMContentLoaded', function () {
     btnAprobar.addEventListener('click', function () {
       ModernModal.show({
         type: 'confirm',
-        title: '¿Aprobar formulario?',
-        message: 'Si hay cupo disponible en el segmento, el formulario pasará a estado aprobado. Si no, se agregará a la lista de espera. ¿Confirmás?',
+        title: '¿Aprobar caso?',
+        message: 'Si hay cupo disponible en el segmento, el caso pasará a estado aprobado. Si no, se agregará a la lista de espera. ¿Confirmás?',
         confirmText: 'Sí, aprobar',
         cancelText: 'Cancelar',
         onConfirm: function () { document.getElementById('form-aprobar').submit(); }
@@ -631,7 +684,51 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Modal "Rechazar formulario" con motivo obligatorio (markup propio de esta página).
+  // Modal "Validar identidad manualmente" (mismo patrón que el de rechazo).
+  const forzarOverlay = document.getElementById('modal-forzar-overlay');
+  if (forzarOverlay) {
+    const forzarForm = document.getElementById('form-forzar-identidad');
+    const forzarMotivo = forzarForm.querySelector('textarea, input[type="text"]');
+    const forzarError = document.getElementById('modal-forzar-error');
+    let forzarPreviouslyFocused = null;
+
+    function cerrarModalForzar() {
+      forzarOverlay.classList.add('hidden');
+      forzarOverlay.style.display = 'none';
+      if (forzarPreviouslyFocused && typeof forzarPreviouslyFocused.focus === 'function') {
+        forzarPreviouslyFocused.focus();
+      }
+    }
+
+    const btnForzar = document.getElementById('btn-forzar-identidad');
+    if (btnForzar) {
+      btnForzar.addEventListener('click', function () {
+        forzarPreviouslyFocused = document.activeElement;
+        forzarError.classList.add('hidden');
+        forzarOverlay.classList.remove('hidden');
+        forzarOverlay.style.display = 'flex';
+        forzarMotivo.focus();
+      });
+    }
+    document.getElementById('modal-forzar-cancelar').addEventListener('click', cerrarModalForzar);
+    document.getElementById('modal-forzar-close').addEventListener('click', cerrarModalForzar);
+    forzarOverlay.addEventListener('click', function (e) {
+      if (e.target === forzarOverlay) cerrarModalForzar();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !forzarOverlay.classList.contains('hidden')) cerrarModalForzar();
+    });
+    // El servidor vuelve a validar el motivo; esto solo evita el viaje al vacío.
+    forzarForm.addEventListener('submit', function (e) {
+      if (forzarMotivo.value.trim().length < 10) {
+        e.preventDefault();
+        forzarError.classList.remove('hidden');
+        forzarMotivo.focus();
+      }
+    });
+  }
+
+  // Modal "Rechazar caso" con motivo obligatorio (markup propio de esta página).
   const rechazoOverlay = document.getElementById('modal-rechazo-overlay');
   const rechazoMotivo = document.getElementById('modal-rechazo-motivo');
   const rechazoError = document.getElementById('modal-rechazo-error');
