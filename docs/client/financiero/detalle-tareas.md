@@ -484,21 +484,26 @@
 | 26/08 | Matías Fariña | Dispositivos | Auditoría de diseño funcional y de frontend de Dispositivos | Relevamiento del programa contra el sistema de diseño y el comportamiento esperado, con los hallazgos registrados. | 0,5 h | — |
 | 26/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 26/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo y registro del consumo del día. | 0,5 h | — |
+| 26/08 | Juani Portilla | Becas | Pruebas automatizadas del flujo público de inscripción | Cobertura del paso 1, el paso 2 y la ingesta: identificación, formulario dinámico, adjuntos y creación del formulario con su legajo. | 2 h | — |
+| 26/08 | Juani Portilla | Becas | Pruebas automatizadas de las correcciones de la revisión | Cobertura de los caminos que la revisión de código destapó: límite de intentos, padrón revalidado al enviar, duplicados por convocatoria y apoderado obligatorio para menores. | 2 h | — |
+| 26/08 | Juani Portilla | Becas | Pruebas automatizadas del correo de confirmación y el comprobante | Cobertura del envío con el toggle activo y apagado, del contenido de la plantilla y de que una falla del servidor de correo no rompa la inscripción. | 1 h | — |
+| 26/08 | Juani Portilla | Becas | Pruebas automatizadas del gateo por capacidad | Cobertura de la capacidad del formulario público: con el permiso y sin él, sobre listados, detalle, alta y vistas que modifican datos. | 1 h | — |
+| 26/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 26/08 | Matías Abate | Becas | Pruebas de regresión del portal ciudadano rediseñado | Home y shell con la marca DATAÑACH: navegación, contenido real, datos de contacto y comportamiento en celular. | 2 h | — |
 | 26/08 | Matías Abate | Becas | Pruebas del panel de marca de la inscripción pública | Verificación de las pantallas del link con el shell propio, en escritorio y en celular. | 1 h | — |
 | 26/08 | Matías Abate | Becas | Pruebas del endurecimiento del formulario público | Casos de la revisión de seguridad: verificación anti-bot, mensaje único de rechazo, límites de intentos, vigencia de la identificación y carga de adjuntos. | 2 h | — |
 | 26/08 | Matías Abate | Transversal | Pruebas de regresión del backoffice | Recorrido de las pantallas afectadas por el autoalojado de librerías: confirmaciones de borrado, gráficos del inicio, mapa de la revisión y listados con acciones. | 2 h | — |
 | 26/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 26/08** | | **191,5 h** | **190 h** |
+| | | | **Total 20 al 26/08** | | **198,5 h** | **190 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 363 h 00 min |
+| Becas | 369 h 00 min |
 | Dispositivos | 135 h 00 min |
-| Transversal | 137 h 30 min |
-| **Total agosto 2026 (al 26/08)** | **635 h 30 min** |
+| Transversal | 138 h 30 min |
+| **Total agosto 2026 (al 26/08)** | **642 h 30 min** |
 
 ---
 
@@ -528,9 +533,9 @@
 
 
 
-    **98.082 minutos** (1.634 h 42 min)
+    **98.502 minutos** (1.641 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 635 h 30 min (al 26/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 642 h 30 min (al 26/08).
 
 
 
