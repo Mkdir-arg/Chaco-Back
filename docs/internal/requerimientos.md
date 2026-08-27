@@ -3664,6 +3664,18 @@ de esas vías, la regla sigue sin poder cumplirse. La diferencia es que ahora fu
 el dato llegue, en vez de estar rota en silencio. Verificarlo contra el servicio real depende de
 las credenciales, que siguen sin cargar en testing/QA.
 
+**En el mismo commit, un arreglo colateral del test que prohíbe recursos de terceros**
+(`portal/tests/test_seguridad_publica.SinRecursosDeTercerosTests`). Recorría **todo
+`BASE_DIR`** buscando `.html`, así que fallaba por archivos que nadie sirve y que aparecen en
+cualquier copia de trabajo: el `site/` que deja `mkdocs build`, los entornos virtuales
+(`.venv-e2e` no estaba excluido) y repos clonados al lado del proyecto. Se descubrió porque
+correr `mkdocs build` para validar la documentación rompía la suite del portal.
+
+Ahora recorre **las plantillas que Django sirve** —los `DIRS` configurados más el
+`templates/` de cada app, vía `get_app_template_dirs`—, que son 330 contra las 329 que compila
+`compile_templates.py`, y **aborta si el recorrido queda vacío** para que no pueda pasar en
+falso si algún día cambia la configuración de templates.
+
 ---
 
 # Cambio 42 — El portal ciudadano quedó viejo: marca, textos y contenido de la home
@@ -4246,6 +4258,37 @@ se corta el trabajo de campo. La lista se amplía en una línea.
   un solo lugar es un refactor aparte; hoy la divergencia es deliberada y está explicada.
 - Sigue sin resolverse que nginx sirva `/media/` sin autenticación (Cambio 41), que es lo que
   vuelve peligroso un adjunto ejecutable. Esto reduce el riesgo, no lo elimina.
+
+### Revisados en la misma pasada y NO corregidos, con su motivo
+
+La revisión del flujo público del 26/08 miró todo el circuito. Además de lo ya corregido
+—`FALLECIDO` (Cambio 41) y estos adjuntos—, quedaron tres cosas sin tocar **a propósito**, para
+que no se vuelvan a relevar de cero:
+
+- **GPS sin validación geográfica en el servidor.** El segmento declara `requiere_gps` y ambos
+  canales envían coordenadas, pero el servidor no las exige ni verifica que caigan en la
+  localidad. No se resuelve escribiendo código: falta una **fuente oficial de polígonos de
+  localidades**. Pendiente heredado del Cambio 19.
+
+- **`RECHAZADO` y `BAJA` bloquean reinscribirse por link.** Cualquier formulario previo con el
+  mismo documento en la convocatoria corta el paso 1, incluidos los ya rechazados o dados de
+  baja. Quedó así **por omisión** al construir el Cambio 41 y nunca se confirmó con el
+  programa. **Es una decisión de producto, no un defecto**: cambiarla sin que el programa la
+  defina sería peor que dejarla registrada.
+
+- **Los dos riesgos de privacidad del paso 1**, que el PM dejó fuera de alcance explícitamente
+  en la revisión de seguridad del 26/08: (1) una inscripción anónima crea un `Ciudadano` sin
+  pasar por la verificación de identidad del alta de cuenta del portal; (2) el paso 2 muestra
+  nombre, apellido y fecha de nacimiento de cualquier documento que matchee, sin que quien
+  completa el formulario sea necesariamente su dueño. No se revierten sin decisión del PM.
+
+**Lo que sí se revisó y está correcto**, para no volver a auditarlo: el cierre del envío del
+formulario público no tiene carreras —lock del relevamiento, idempotencia por `client_uuid`,
+re-chequeo de estado, vigencia con pausa heredada, cupo, lock de la convocatoria para el
+duplicado y re-verificación del padrón, todo **dentro** de la transacción y no solo en el paso
+1—; el orden de validaciones del paso 1 consume el límite por documento **después** del
+captcha, para que nadie pueda quemarle la cuota a un tercero rotando IP; y la respuesta de
+Base de Personas solo expone nombre, apellido y fecha de nacimiento.
 
 ## Reversión
 
