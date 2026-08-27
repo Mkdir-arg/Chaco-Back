@@ -50,6 +50,35 @@ cuando el cliente o el PM lo solicitan explícitamente, o cuando hay necesidad d
 documentación formal externa. No agrega conocimiento nuevo (la fuente sigue siendo
 cada análisis), pero facilita la lectura end-to-end.
 
+## Etiqueta de programa (obligatoria en todo issue)
+
+Los labels tienen **dos ejes independientes** y todo issue lleva **uno de cada uno**:
+
+| Eje | Labels | Qué responde |
+|-----|--------|--------------|
+| **Nivel** | `epica` · `analisis` · `task` | Qué tipo de issue es |
+| **Programa** | `becas` · `dispositivos` · `transversal` | A qué programa pertenece el trabajo |
+
+| Label | Alcance |
+|-------|---------|
+| `becas` | Relevamiento territorial, convocatorias, segmentos y subsegmentos, cupos y lista de espera, nivel Programa (SIIS), app de campo, formulario público, reportes de Becas |
+| `dispositivos` | Legajo institucional, tipos de dispositivo y campos F-00, camas, admisiones y traslados, parte diario F-01, **merenderos** (solicitudes, entregas, prestación alimentaria F-02) |
+| `transversal` | Plataforma: RBAC, usuarios y roles, legajo ciudadano, portal, dashboard, performance y observabilidad, infraestructura, CI y design system |
+
+Reglas:
+
+- **Un programa por issue.** Si un trabajo toca dos, se parte, o se etiqueta por
+  dónde vive el valor funcional — no por los módulos de código que toca.
+- **Merenderos va dentro de `dispositivos`**: la épica es "Dispositivos y
+  Merenderos" (#127) y el presupuesto de `/pm:horas` se lleva por Becas/Dispositivos.
+- **El programa no es el módulo.** El campo `Modulo` del Project guarda el módulo
+  técnico (`programas`, `users`, `core`…) y no sirve para esto: hay trabajo
+  `transversal` que vive en `programas` y trabajo de `becas` que vive en `users`.
+  Decidí por el programa funcional al que le sirve la tarea, no por los archivos.
+- **Se hereda hacia abajo:** cada sub-issue lleva el programa de su análisis, y el
+  análisis el de su épica. Si un sub-issue no lo hereda, probablemente esté colgado
+  de la épica equivocada.
+
 ## Forma de trabajar (siempre igual, en este orden)
 
 1. **Recepción.** Reformulá el requerimiento en una oración para confirmar el pedido real.
@@ -185,7 +214,8 @@ item-edit`: es la probada con los IDs reales de los campos.
 ## Crear los issues (gh)
 
 Prerrequisito: `gh` autenticado con scope `project`. Si falla, avisá y no inventes
-issues. Los labels `epica`, `analisis`, `task` ya existen en el repo.
+issues. Los labels ya existen en el repo: los de **nivel** (`epica`, `analisis`,
+`task`) y los de **programa** (`becas`, `dispositivos`, `transversal`).
 
 ### Constantes del Project "Proyect Chaco" (Mkdir-arg/Chaco)
 ```
@@ -204,8 +234,9 @@ TIPO_FIELD=PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE      # Epica=abc63c47 · Analisis=3dab
 
 ### Por cada issue (épica, análisis y cada sub-issue)
 ```bash
-# 1. crear y capturar URL
-URL=$(gh issue create --title "[ANALISIS] ..." --label analisis --body-file <archivo>)
+# 1. crear y capturar URL — SIEMPRE dos labels: nivel + programa
+URL=$(gh issue create --title "[ANALISIS] ..." \
+  --label analisis --label <becas|dispositivos|transversal> --body-file <archivo>)
 # 2. agregar al Project (--jq integrado de gh, no requiere binario jq)
 ITEM=$(gh project item-add 1 --owner Mkdir-arg --url "$URL" --format json --jq '.id')
 # 3. Status = Backlog
@@ -219,7 +250,8 @@ gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
 ### Requerimiento completo (caso especial)
 Se crea igual (crear → item-add → Status Backlog → Prioridad + Modulo), con el
 título `[REQUERIMIENTO] ...` y **Tipo = Requerimiento** (opción `f49bbfa6`).
-No lleva label nuevo: alcanza con el prefijo `[REQUERIMIENTO]` en el título.
+No lleva label de **nivel**: alcanza con el prefijo `[REQUERIMIENTO]` en el
+título. El de **programa** sí lo lleva, como todo issue.
 (El `[PLAN DE PRUEBAS]` de QA usa la misma receta con **Tipo = Testing**,
 opción `06e99ba0`; ver `QA.md`.)
 
@@ -330,6 +362,9 @@ constantes del Project de este archivo son compartidas: no se duplican en `QA.md
 
 ## Reglas generales
 
+- **Todo issue nace etiquetado por programa** (`becas`, `dispositivos` o
+  `transversal`), además de su label de nivel. Sin programa no se puede filtrar
+  el tablero ni imputar horas: un issue sin etiquetar es deuda para el PM.
 - Code-first: leé el código antes de afirmar qué existe o cómo funciona.
 - No generes issues con preguntas abiertas o inconsistencias. Frenar es correcto.
 - La fuente de verdad del conocimiento es el Issue, no `docs/`.

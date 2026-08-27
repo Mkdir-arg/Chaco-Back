@@ -55,6 +55,7 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 | `#api` | Impacta el servidor/API consumido por Mobile |
 | `#infra` | Requiere algo del ambiente: cron, SMTP, despliegue, ECOM |
 | `#gestion` | Tablero del Project, trazabilidad de issues y planes de prueba: qué se entregó y dónde figura |
+| `#metodo` | Método de trabajo de los agentes: `AGENTS.md`, `QA.md`, `PM.md` y las convenciones que deben cumplir al crear issues |
 
 ## Regla de oro
 
@@ -191,6 +192,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 46 | La API de campo aceptaba cualquier archivo, de cualquier peso | Becas · Mobile / API | `#api` `#mobile` `#datos` | Hallazgo propio en la revisión del flujo público pedida por el PM | 26/08/2026 | 🟢 **Hecho — falta verificar contra la app antes de producción** | No |
 | 47 | El tablero no reflejaba que el formulario público ya estaba entregado | Becas · Gestión | `#gestion` `#relevamientos` | PM — «las épicas y los task sobre el formulario público de los relevamientos de becas en qué estado están?» | 27/08/2026 | 🟡 **Parcial — tablero al día; plan de pruebas redactado sin publicar** | No |
 | 48 | Analizar todo el diseño de Dispositivos, funcional y sobre todo front | Dispositivos | `#ui` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo: «quiero analizar todo el diseño a nivel funcional y más que nada a diseño front del programa de dispositivos» | 26/08/2026 | 🟢 **Hecho — diagnóstico entregado; la remediación queda en #310-#323** | No requiere |
+| 49 | Etiquetar en GitHub a qué programa pertenece cada tarea | Transversal / gestión | `#gestion` `#metodo` | PM — pedido directo en sesión de trabajo | 27/08/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -4627,6 +4629,142 @@ No aplica. No hay nada que desplegar: es documentación y backlog.
 Revertir los dos commits de documentación (`docs/auditoria-diseno-dispositivos`). Los
 issues #309 a #323 **no se revierten con git**: si se descarta el plan hay que cerrarlos a
 mano y sacar la fila `- [ ] #309` de la épica #127. No hay datos ni código involucrados.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 49 — Etiquetar en GitHub a qué programa pertenece cada tarea
+
+🟢 **HECHO — 27/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / gestión |
+| **Etiquetas** | `#gestion` `#metodo` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Sin issue — cambio de gestión sobre el Project #1 |
+| **Partes afectadas** | Ninguna del producto: labels del repo en GitHub y método de los agentes |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Quiero que en git en el project pongas una etiqueta nueva o busques una que ya tenemos
+y agregues a qué programa pertenecen las tareas, ejemplo las que son de Becas y las que
+son de Dispositivos, para diferenciar; tenemos transversales también.»
+
+Y al cerrar el primer tramo: «documentá y sumá tanto al PM como a los otros agentes que
+siempre que se cree una tarea se tiene que etiquetar».
+
+## Alcance acordado
+
+Entra: crear las etiquetas de programa, clasificar los 153 items del Project #1 y
+documentar la convención en el método de los tres agentes.
+
+Queda explícitamente afuera:
+
+- Separar `merenderos` como cuarta etiqueta (ver Decisiones).
+- Limpiar el campo `Modulo` del Project, que queda como eje paralelo y desprolijo.
+- Tocar `Status` o cualquier otro campo del Project.
+
+## Decisiones tomadas
+
+- **Etiquetas de repo, no un campo nuevo del Project.** El PM pidió «una etiqueta», y
+  además el label gana: se ve en el issue mismo, se filtra con `label:becas`, el Project
+  puede agrupar por Labels, y los agentes Analista y QA pueden ponerlo en el mismo
+  `gh issue create` sin un `item-edit` extra. Un campo single-select solo se ve dentro
+  del Project.
+- **Tres etiquetas, no cuatro: Merenderos va dentro de `dispositivos`.** La épica es
+  literalmente «Dispositivos y Merenderos» (#127) y el presupuesto que lleva `/pm:horas`
+  se computa por Becas/Dispositivos. Si alguna vez hace falta separarlo son 3 issues
+  (#181, #182 y parte de #128).
+- **El programa no es el módulo, y el campo `Modulo` no servía.** Ya existía `Modulo`
+  (texto libre) en el Project, pero guarda el módulo **técnico** y está sucio: 41
+  `programas`, 24 `users`, 19 vacíos, más `programas/dispositivos`, `apps/programas` y
+  combinaciones tipo `scripts, legajos, configuracion`. Hay trabajo `transversal` que
+  vive en `programas` y trabajo de `becas` que vive en `users`: el eje funcional y el
+  técnico no coinciden, así que se agregó uno nuevo en vez de reciclar el viejo.
+- **Los labels pasan a tener dos ejes independientes:** nivel (`epica`, `analisis`,
+  `task`) y programa (`becas`, `dispositivos`, `transversal`). Todo issue lleva uno de
+  cada uno; el programa se hereda hacia abajo de la épica al análisis y del análisis a
+  sus sub-issues.
+- **Cuatro clasificaciones ambiguas, resueltas y confirmadas por el PM:**
+  1. Merenderos dentro de `dispositivos`.
+  2. La app móvil va a `becas` (#242, #248, #249, #251): la app de campo solo sirve a
+     territoriales de Becas, aunque #248 y #251 nazcan del análisis de credenciales.
+  3. #79 (roles Admin/Territorial/Coordinador) va a `becas`: el trabajo es RBAC pero los
+     roles son los de Becas.
+  4. #273 y #278 (H-2, «duplicadas de Becas») van a `transversal`: son tareas de la
+     iniciativa de performance, aunque midan consultas de Becas.
+- **Se agregó `#metodo` al vocabulario cerrado de este archivo**, porque no había
+  etiqueta para cambios en el método de los agentes y el mecanismo está previsto.
+
+## Implementación
+
+Tres labels creadas en `Mkdir-arg/Chaco-Back` y aplicadas a 152 de los 153 items del
+Project:
+
+| Label | Color | Issues | Alcance |
+|---|---|---|---|
+| `becas` | `#0e8a16` | 52 | Relevamiento territorial, convocatorias, segmentos, cupos, nivel Programa (SIIS), app de campo, formulario público, reportes de Becas |
+| `dispositivos` | `#d93f0b` | 30 | Legajo institucional, tipos y campos F-00, camas, admisiones y traslados, parte diario F-01, merenderos y prestación alimentaria F-02 |
+| `transversal` | `#6e7781` | 70 | RBAC, usuarios y roles, legajo ciudadano, portal, dashboard, performance y observabilidad, infra, CI y design system |
+
+La convención quedó escrita en el método de los tres agentes: `AGENTS.md` la define
+(sección «Etiqueta de programa») y es la fuente única; `QA.md` y `PM.md` la referencian
+sin duplicarla. El Analista y QA **etiquetan al crear**; el PM Assistant **lee y
+reporta**, y solo escribe si el PM humano se lo pide.
+
+## Archivos
+
+- `AGENTS.md` — sección «Etiqueta de programa», los dos ejes, el `gh issue create` con
+  doble label, y la regla general de que ningún issue nace sin programa.
+- `QA.md` — el `[PLAN DE PRUEBAS]` hereda la etiqueta de su épica; regla general.
+- `PM.md` — el eje como fuente de datos, el chequeo 6 de `/pm:salud` con su comando de
+  detección, el control cruzado en `/pm:horas` y la regla de «se lee, no se asigna».
+- `docs/internal/requerimientos.md` — `#metodo` en el vocabulario, fila 49 y esta entrada.
+
+No se tocó código del producto.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Clasificación validada antes de escribir: 152 de 153 items, sin huecos, sin duplicados
+  y sin números inexistentes.
+- Verificación posterior contra GitHub, issue por issue: `becas` 52/52, `dispositivos`
+  30/30, `transversal` 70/70; ninguno sin etiquetar y ninguno de más.
+- El comando de detección que quedó documentado en `PM.md` se ejecutó y funciona.
+- `manage.py check` y la auditoría de diseño no aplican: no se tocó código ni UI.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **#163** quedó sin etiqueta: su título es literalmente «Task», sin tipo ni módulo, y
+  está en `Done`. No hay con qué clasificarlo hasta que el PM diga qué era.
+- **#161 «Notificaciones»** está abierto, sin etiqueta y **fuera del Project**. Lo
+  detectó el comando de `/pm:salud` al probarlo. Hay issues del repo que no están en el
+  tablero: conviene una pasada aparte.
+- El campo `Modulo` del Project quedó como eje paralelo y desprolijo. Ahora que el
+  programa vive en el label, `Modulo` debería quedar solo como módulo técnico o vaciarse.
+  Es limpieza estructural del Project y la decide el PM.
+- La convención vale de acá en adelante solo si los agentes la cumplen: el chequeo 6 de
+  `/pm:salud` es el que lo detecta.
+
+## Reversión
+
+`gh label delete becas` (y `dispositivos`, `transversal`): borrar el label lo quita de
+todos los issues, no hace falta desetiquetar uno por uno. Después revertir los bloques
+agregados en `AGENTS.md`, `QA.md` y `PM.md`, y esta entrada con su fila del índice y la
+etiqueta `#metodo`. No hay datos del sistema en juego ni migración que deshacer.
 
 ## Historial
 

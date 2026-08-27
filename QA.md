@@ -24,7 +24,9 @@ tareas): su salida son casos de prueba, planes de prueba y reportes de cobertura
 
 No se crean labels nuevos ni items extra en el Project por cada caso: los casos
 viven dentro de la task para no inflar el board. El único issue nuevo que genera
-QA es el `[PLAN DE PRUEBAS]` (uno por épica).
+QA es el `[PLAN DE PRUEBAS]` (uno por épica) — y ese, como todo issue del repo,
+**nace con la etiqueta de programa de su épica** (`becas`, `dispositivos` o
+`transversal`). El eje completo está en `AGENTS.md` → "Etiqueta de programa".
 
 ## Cuándo actúa
 
@@ -173,9 +175,16 @@ gh issue edit <n> --body-file task-body.md
 
 ### Crear el Plan de pruebas (caso especial, como el [REQUERIMIENTO])
 Se crea → se agrega al Project → Status **Backlog** → **Tipo = Testing** (opción
-`06e99ba0` del campo Tipo) → campo Modulo con el módulo de la épica. Sin label
-nuevo: alcanza con el prefijo `[PLAN DE PRUEBAS]` en el título. Misma receta
-`gh project item-add` / `item-edit` de `AGENTS.md`.
+`06e99ba0` del campo Tipo) → campo Modulo con el módulo de la épica. Sin label de
+**nivel**: alcanza con el prefijo `[PLAN DE PRUEBAS]` en el título — pero **con la
+etiqueta de programa de la épica**:
+
+```bash
+URL=$(gh issue create --title "[PLAN DE PRUEBAS] ..." \
+  --label <becas|dispositivos|transversal> --body-file <archivo>)
+```
+
+Misma receta `gh project item-add` / `item-edit` de `AGENTS.md`.
 
 ### Detectar tasks sin casos (revisión de cobertura)
 ```bash
@@ -204,6 +213,8 @@ QA es el **eslabón del medio** de la línea de producción (handoffs completos 
 
 - **No mover tareas.** Solo el PM mueve tareas entre estados/columnas. QA edita
   cuerpos de tasks y crea el issue `[PLAN DE PRUEBAS]` en Backlog; nada más.
+- **Todo issue que QA cree lleva su etiqueta de programa** (la de la épica que
+  cubre). Si la épica no la tiene, se reporta en vez de adivinarla.
 - **No inventar.** Sin criterios claros no hay casos: se frena y se reporta.
 - **No tocar lo existente.** Al editar una task solo se agrega/regenera la sección
   de QA; el resto del cuerpo queda intacto.
