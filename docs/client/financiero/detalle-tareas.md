@@ -391,7 +391,7 @@
 !!! note "Restauración de horas (23/08/2026)"
     Un ajuste del 21/08 había reducido en **88 h** el registro de Juani Portilla: el desarrollo frontend de Dispositivos del 03 al 14/08 (−76 h) y los entregables de observabilidad y actualización de Django del 17–18/08 (−12 h). Por decisión del PM esas horas se **restauraron a sus valores originales**, y se **conservaron** las filas de desarrollo backend de Dispositivos agregadas en aquel ajuste (4 h).
 
-### :material-package-variant-closed: Consumo del 20 al 26 de agosto — por entregable
+### :material-package-variant-closed: Consumo del 20 al 27 de agosto — por entregable
 
 !!! info "Regla desde el 24/08"
     Se incorpora una **reunión de seguimiento diaria** de las cuatro personas del equipo (1 h por persona) y el **armado del informe diario** por parte del PM (30 min). Ambas se registran cada día hábil.
@@ -494,16 +494,42 @@
 | 26/08 | Matías Abate | Becas | Pruebas del endurecimiento del formulario público | Casos de la revisión de seguridad: verificación anti-bot, mensaje único de rechazo, límites de intentos, vigencia de la identificación y carga de adjuntos. | 2 h | — |
 | 26/08 | Matías Abate | Transversal | Pruebas de regresión del backoffice | Recorrido de las pantallas afectadas por el autoalojado de librerías: confirmaciones de borrado, gráficos del inicio, mapa de la revisión y listados con acciones. | 2 h | — |
 | 26/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 26/08** | | **198,5 h** | **190 h** |
+| 27/08 | Matías Fariña | Becas | Cierre del registro de la revisión de seguridad del flujo público | Registro de los hallazgos revisados y no corregidos, con el motivo de cada uno. | 0,5 h | — |
+| 27/08 | Matías Fariña | Becas | Tablero del formulario público al día y plan de pruebas | Diagnóstico de los diez items de la épica, asignación a la iteración activa, auditoría de cobertura de los 316 casos escritos y redacción del plan de pruebas con doce casos de punta a punta. | 1,5 h | 6 h |
+| 27/08 | Matías Fariña | Becas | Panel de marca fijo en el formulario de inscripción | El panel de la izquierda queda fijo y solo scrollea el formulario, por extenso que sea. | 0,5 h | 2 h |
+| 27/08 | Matías Fariña | Becas | Corrección del error de sesión en el formulario público | El link público ya no falla cuando la persona tiene el backoffice abierto en otra pestaña, con pantalla propia de sesión vencida y pruebas. | 1 h | 4 h |
+| 27/08 | Matías Fariña | Becas | Reapertura de relevamientos, validación manual de identidad y vocabulario de casos | Un relevamiento en revisión se puede volver a poner en curso; la identidad se puede validar a mano cuando la Base de Personas no puede validarla, con registro de quién lo hizo; y la interfaz distingue el relevamiento de los casos que lo completaron. | 2 h | 14 h |
+| 27/08 | Matías Fariña | Dispositivos | Registro de la auditoría de diseño de Dispositivos | Diagnóstico asentado con su alcance y sus decisiones, y derivación de las catorce tareas de remediación. | 0,5 h | — |
+| 27/08 | Matías Fariña | Transversal | Etiqueta de programa en el tablero | Etiquetado de los 152 items del tablero según el programa al que pertenecen, e incorporación de la convención al método de trabajo. | 1 h | 4 h |
+| 27/08 | Matías Fariña | Transversal | Verificación de las dependencias desbloqueadas por el organismo | Comprobación y registro punto por punto del correo, la Base de Personas, el catálogo de SIIS, el despliegue y la contraseña del administrador: ocho dependencias externas cerradas. | 1 h | — |
+| 27/08 | Matías Fariña | Transversal | Documentación del despliegue de los entornos del organismo | Confirmación del equipo de infraestructura sobre qué rama alimenta cada entorno, con la advertencia de que la publicación es automática, asentada en el procedimiento. | 0,5 h | — |
+| 27/08 | Matías Fariña | Transversal | Espejo del release al repositorio del organismo | Tres publicaciones del release en las ramas de testing y producción con merge de alineación sin reescritura. | 0,5 h | — |
+| 27/08 | Matías Fariña | Transversal | Carga del consumo y documentación cliente al día | Registro del consumo del 25 y 26/08 por entregable y actualización de las páginas del cliente con lo entregado en la semana. | 0,5 h | — |
+| 27/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 27/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo. | 0,5 h | — |
+| 27/08 | Pablo Cao | Becas | Reapertura de relevamientos y validación manual de identidad — desarrollo conjunto | Desarrollo de la funcionalidad en conjunto: vuelta a campo desde revisión, validación manual de la identidad y ajuste de los textos de la interfaz. | 3 h | — |
+| 27/08 | Pablo Cao | Becas | Corrección del error de sesión en el formulario público — desarrollo conjunto | Diagnóstico y corrección del error que aparecía al abrir el link público con el backoffice abierto en otra pestaña. | 1,5 h | — |
+| 27/08 | Pablo Cao | Becas | Panel de marca fijo en el formulario de inscripción — frontend | Ajuste del frontend de las pantallas del link para que el panel quede fijo y solo scrollee el formulario. | 1 h | — |
+| 27/08 | Pablo Cao | Transversal | Verificación de las integraciones en el entorno de pruebas | Comprobación de que el correo, la Base de Personas y el catálogo de SIIS traen datos en el entorno del organismo una vez configurados. | 1,5 h | — |
+| 27/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 27/08 | Matías Abate | Becas | Pruebas del flujo completo de Becas | Recorrido de punta a punta del programa sobre el entorno del organismo: convocatoria, relevamiento, carga en campo y por el link público, revisión, cupo y resolución. | 3,5 h | — |
+| 27/08 | Matías Abate | Becas | Pruebas de la reapertura, la validación manual de identidad y los textos | Casos de la vuelta a campo desde revisión, de la validación manual cuando la Base de Personas no valida y del vocabulario nuevo de la interfaz. | 2 h | — |
+| 27/08 | Matías Abate | Becas | Pruebas del formulario público con el arreglo de sesión y el panel fijo | Verificación del link con el backoffice abierto en otra pestaña, la pantalla de sesión vencida y el panel de marca fijo en escritorio y en celular. | 1,5 h | — |
+| 27/08 | Matías Abate | Becas | Reporte del error al crear un relevamiento con tipo de formulario | Detección, reproducción y reporte del error con sus pasos y su evidencia. | 0,5 h | — |
+| 27/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 20 al 27/08** | | **226 h** | **220 h** |
+
+!!! warning "Pendiente de imputación"
+    **Pablo Cao — 26/08:** su jornada del 26 de agosto no está imputada todavía; se carga cuando se confirme el detalle.
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 369 h 00 min |
-| Dispositivos | 135 h 00 min |
-| Transversal | 138 h 30 min |
-| **Total agosto 2026 (al 26/08)** | **642 h 30 min** |
+| Becas | 387 h 30 min |
+| Dispositivos | 135 h 30 min |
+| Transversal | 147 h 00 min |
+| **Total agosto 2026 (al 27/08)** | **670 h 00 min** |
 
 ---
 
@@ -533,9 +559,9 @@
 
 
 
-    **98.502 minutos** (1.641 h 42 min)
+    **100.152 minutos** (1.669 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 642 h 30 min (al 26/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 670 h 00 min (al 27/08).
 
 
 
