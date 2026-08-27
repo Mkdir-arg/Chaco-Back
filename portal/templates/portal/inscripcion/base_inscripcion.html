@@ -16,6 +16,7 @@
         body { font-family: 'Manrope', sans-serif; margin: 0; background: var(--bg-white); }
 
         .di-shell {
+            --di-panel-w: 520px;
             display: grid;
             grid-template-columns: 1fr;
             grid-template-areas: "phead" "content" "pfoot";
@@ -99,11 +100,22 @@
 
         @media (min-width: 1024px) {
             .di-shell {
-                grid-template-columns: 520px minmax(0, 1fr);
+                grid-template-columns: var(--di-panel-w) minmax(0, 1fr);
                 grid-template-areas: "phead content" "pfoot content";
             }
+            /* El panel de marca queda fijo a la izquierda: por largo que sea el
+               formulario, solo scrollea la columna de contenido. La cabecera
+               cubre el alto de la ventana y el pie se apoya sobre ella; de ahi
+               el padding inferior (~112px de pie mas aire) y el scroll propio,
+               que solo aparece en ventanas muy bajas. */
             .di-panel-head {
-                padding: 40px 48px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: var(--di-panel-w);
+                height: 100vh;
+                overflow-y: auto;
+                padding: 40px 48px 136px;
                 display: flex;
                 flex-direction: column;
             }
@@ -119,6 +131,10 @@
             .di-step__label small { display: block; font-weight: var(--font-weight-normal); opacity: .8; font-size: var(--font-size-xs); margin-top: 2px; }
 
             .di-panel-foot {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: var(--di-panel-w);
                 background: var(--bg-navy);
                 color: var(--text-white);
                 border-top: none;

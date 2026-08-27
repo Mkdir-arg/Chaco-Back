@@ -150,12 +150,12 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 6 | Usuarios y Roles dentro de Programas | Becas | `#usuarios` `#ui` `#rbac` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho mediante alta contextual** | No |
 | 6.1 | Alta rápida del Referente del subsegmento | Becas / subsegmentos | `#usuarios` `#rbac` `#ui` `#convocatorias` | PM — pedido directo en sesión de trabajo | 11/08/2026 | 🟢 **Hecho** | No |
 | 7 | Quitar categoría Becas | Becas / roles | `#rbac` `#ui` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | No |
-| 8 | Incorporar programas | Becas / SIIS | `#siis` `#infra` | Cliente — DOCX | 07/08/2026 | 🟡 **Pertenece a ECOM** | No desarrollada |
+| 8 | Incorporar programas | Becas / SIIS | `#siis` `#infra` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho — ECOM incorporó los cuatro programas al catálogo (27/08/2026)** | No desarrollada |
 | 9 | Localidades como subsegmentos | Becas | `#convocatorias` `#datos` | Cliente — DOCX | 07/08/2026 | ⚪ **Se resolvió con el título de la convocatoria** | No desarrollada |
 | 10 | Fecha desde/hasta del relevamiento | Becas · Mobile / API | `#relevamientos` `#mobile` `#api` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | `programas.0036` |
 | 11 | Domicilio actual del ciudadano | Legajos | `#ui` `#datos` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | No |
 | 12 | Desplegable de búsqueda de legajos | Legajos / Inicio | `#ui` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | No |
-| 13 | Correo al crear usuario | Transversal / correo | `#correo` `#usuarios` `#infra` | Cliente — DOCX | 07/08/2026 | 🟡 **Implementado — pendiente SMTP ECOM** | No |
+| 13 | Correo al crear usuario | Transversal / correo | `#correo` `#usuarios` `#infra` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho — SMTP de ECOM configurado en QA y producción (27/08/2026)** | No |
 | 14 | Sesión web única por usuario | Transversal / sesión | `#sesion` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | `users.0013` |
 | 15 | Administrador de programa y pausas | Becas · Mobile / API | `#rbac` `#pausas` `#mobile` `#api` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | `programas.0037` |
 | 16 | Coordinador del segmento | Becas / permisos | `#rbac` `#usuarios` | Cliente — DOCX | 07/08/2026 | 🟢 **Hecho** | `users.0014` |
@@ -171,28 +171,30 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 26 | Subsegmento obligatorio para el Coordinador Regional | Becas / convocatorias | `#convocatorias` `#rbac` `#ui` | PM — surgió del análisis general de Becas del 11/08 | 11/08/2026 | 🟢 **Hecho** | No |
 | 27 | El release lleva el pipeline de ECOM | Transversal / infraestructura | `#infra` `#mobile` | ECOM — mensaje al PM sobre el entorno nuevo con CI/CD | 11/08/2026 | 🟢 **Hecho** | No |
 | 27.1 | Plantilla de variables y guía de configuración de entornos | Transversal / infraestructura | `#infra` `#correo` `#siis` | PM — para responderle a ECOM qué configurar sin entregar secretos | 11/08/2026 | 🟢 **Hecho** | No |
-| 28 | Retirar el superusuario con credenciales en el código | Transversal / seguridad | `#infra` `#usuarios` `#sesion` | PM — surgió al revisar qué crea el bootstrap | 11/08/2026 | 🟡 **Hecho — falta cambiar la contraseña del `admin` ya creado** | No |
+| 28 | Retirar el superusuario con credenciales en el código | Transversal / seguridad | `#infra` `#usuarios` `#sesion` | PM — surgió al revisar qué crea el bootstrap | 11/08/2026 | 🟢 **Hecho — contraseña del `admin` cambiada (27/08/2026)** | No |
 | 29 | El bootstrap unificado en `seed_datos_base` | Transversal / infraestructura | `#infra` `#rbac` `#datos` | PM — vio que en el testing de ECOM faltaban roles de Becas | 11/08/2026 | 🟢 **Hecho** | No |
 | 30 | La guía cubre el despliegue en Kubernetes desde cero | Transversal / infraestructura | `#infra` `#siis` | PM — pidió el repaso final de la guía para setear el sistema desde cero en Kubernetes | 11/08/2026 | 🟢 **Hecho** | No |
-| 31 | La imagen autosuficiente para Kubernetes | Transversal / infraestructura | `#infra` `#relevamientos` `#ui` | PM — «que quede para levantarse en Kubernetes en todos los aspectos» | 11/08/2026 | 🟡 **Hecho — pendiente de despliegue** | No |
+| 31 | La imagen autosuficiente para Kubernetes | Transversal / infraestructura | `#infra` `#relevamientos` `#ui` | PM — «que quede para levantarse en Kubernetes en todos los aspectos» | 11/08/2026 | 🟢 **Hecho — desplegado por ECOM (27/08/2026)** | No |
 | 32 | Programas (SIIS) por encima de los segmentos | Becas / estructura | `#siis` `#convocatorias` `#requisitos` `#pausas` `#ui` | PM — pedido directo en sesión de trabajo | 13/08/2026 | 🟢 **Hecho** | `programas.0045` |
-| 33 | Probar por qué SIIS no trae datos | Becas / SIIS | `#siis` `#infra` | PM — «quiero que pruebes la integración con SIIS, porque no me está trayendo datos» | 18/08/2026 | 🟢 **Hecho — diagnóstico y comando de verificación** | No |
+| 33 | Probar por qué SIIS no trae datos | Becas / SIIS | `#siis` `#infra` | PM — «quiero que pruebes la integración con SIIS, porque no me está trayendo datos» | 18/08/2026 | 🟢 **Hecho — credenciales cargadas; el catálogo trae datos (27/08/2026)** | No |
 | 34 | Prevalidación SIIS al aprobar o rechazar formularios | Becas / revisión | `#siis` `#rbac` `#cupos` | Análisis #72 y revisión del PR #233 | 18/08/2026 | 🟢 **Hecho sobre el contrato vigente** | No |
 | 35 | El login del backoffice muestra la contraseña con un botón ojo | Transversal / sesión | `#sesion` `#ui` | PM — mejora transversal aprobada el 14/08/2026, sin análisis | 14/08/2026 | 🟢 **Hecho** | No |
 | 36 | El diseño de Dispositivos es todo lo contrario a lo que tiene que ser | Dispositivos | `#ui` | PM — pedido directo en sesión de trabajo | 19/08/2026 | 🟡 **Parcial — badges y solapas hechos; 4 hallazgos abiertos** | No |
-| 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — implementado; falta envío real y aprobación de textos** | `users.0022` |
+| 37 | Credenciales por correo: clave provisoria al alta y recupero desde el login | Transversal / usuarios | `#usuarios` `#correo` `#sesion` `#infra` | PM — definiciones del 14/08/2026 (análisis #236) y credenciales SMTP entregadas el 20/08/2026 | 14/08/2026 | 🟡 **Parcial — SMTP configurado 27/08/2026; falta verificar el envío y aprobar los textos** | `users.0022` |
 | 38 | Cerrar sesión da error 405 después de actualizar Django | Transversal / sesión | `#sesion` `#infra` `#ui` | PM — reportó el 405 al entrar a `/logout` | 20/08/2026 | 🟢 **Hecho** | No |
 | 39 | En el login aparece el logo de Nodo en lugar del del Chaco | Transversal / marca | `#ui` `#sesion` `#infra` | PM — vio la marca del proveedor en la pantalla de acceso | 21/08/2026 | 🟢 **Hecho** | No |
 | 40 | Corregir la redirección autenticada de `/dashboard/` | Transversal / ruteo | `#sesion` `#ui` | Hallazgo propio en la validación HTTP de #262 y la PR #284 | 20/08/2026 | 🟢 **Hecho** | No |
-| 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟢 **Hecho — mergeado (PR #306) y desplegado en testing 25/08/2026** | `programas.0049` + `programas.0050` + `users.0025` |
+| 41 | Formulario público de autocompletado: relevamientos con link de inscripción | Becas · Portal | `#relevamientos` `#datos` `#rbac` `#correo` `#ui` | Programa de Becas, vía PM — sesión de análisis del 21/08/2026 (análisis #289) | 21/08/2026 | 🟢 **Hecho — mergeado (PR #306); Gran Base configurada 27/08/2026** | `programas.0049` + `programas.0050` + `users.0025` |
 | 42 | El portal ciudadano quedó viejo: marca, textos y contenido de la home | Portal | `#ui` `#textos` | PM — «actualiza el diseño y los nombres de datanach.ecomdev.ar/portal/ ya que quedó viejo» | 26/08/2026 | 🟢 **Hecho** | No |
 | 43 | Sacar el fondo animado del formulario de inscripción: shell propio «panel de marca» | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «el fondo animado lo tendríamos que borrar»; eligió la Opción B de tres mockups | 26/08/2026 | 🟢 **Hecho** | No |
-| 44 | Avisar por correo al ciudadano cuando se resuelve su formulario | Becas / revisión · Portal | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` | PM — pedido directo en sesión de trabajo | 26/08/2026 | 🟡 **Implementado — inerte hasta el SMTP de ECOM** | `programas.0053` |
+| 44 | Avisar por correo al ciudadano cuando se resuelve su formulario | Becas / revisión · Portal | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` | PM — pedido directo en sesión de trabajo | 26/08/2026 | 🟡 **Implementado — activo con el SMTP de ECOM; falta verificar el envío real** | `programas.0053` |
 | 45 | Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1 | Becas · Documentación | `#textos` `#ui` `#relevamientos` | PM — «leer toda la documentación pública de Becas y actualizarla al detalle con lo que tenemos del proceso» | 26/08/2026 | 🟢 **Hecho — publicado en GitHub Pages** | No |
 | 46 | La API de campo aceptaba cualquier archivo, de cualquier peso | Becas · Mobile / API | `#api` `#mobile` `#datos` | Hallazgo propio en la revisión del flujo público pedida por el PM | 26/08/2026 | 🟢 **Hecho — falta verificar contra la app antes de producción** | No |
 | 47 | El tablero no reflejaba que el formulario público ya estaba entregado | Becas · Gestión | `#gestion` `#relevamientos` | PM — «las épicas y los task sobre el formulario público de los relevamientos de becas en qué estado están?» | 27/08/2026 | 🟡 **Parcial — tablero al día; plan de pruebas redactado sin publicar** | No |
 | 48 | Analizar todo el diseño de Dispositivos, funcional y sobre todo front | Dispositivos | `#ui` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo: «quiero analizar todo el diseño a nivel funcional y más que nada a diseño front del programa de dispositivos» | 26/08/2026 | 🟢 **Hecho — diagnóstico entregado; la remediación queda en #310-#323** | No requiere |
 | 49 | Etiquetar en GitHub a qué programa pertenece cada tarea | Transversal / gestión | `#gestion` `#metodo` | PM — pedido directo en sesión de trabajo | 27/08/2026 | 🟢 **Hecho** | No |
+| 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; falta el endpoint de salida de SIIS** | No requiere |
+| 51 | El panel de marca del formulario de inscripción se estiraba con el formulario | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «si el form es muy extenso se agranda y eso tendría que ser fijo… cuando escroleás el form eso está fijo y el form solo va para abajo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -572,7 +574,7 @@ Para volver a mostrar `Becas`:
 
 # Cambio 8 — Incorporar programas al catálogo de SIIS
 
-🟡 **NO SE DESARROLLA DE ESTE LADO — DEPENDE DE ECOM**
+🟢 **HECHO — 27/08/2026 · ECOM INCORPORÓ LOS CUATRO PROGRAMAS AL CATÁLOGO**
 
 > Entrada escrita el 11/08/2026 para cerrar un hueco del registro: el requerimiento figuraba en el índice desde el principio, pero nunca tuvo entrada propia.
 
@@ -609,6 +611,19 @@ Que ECOM incorpore los cuatro programas al catálogo de SIIS. Cuando eso ocurra,
 ## Reversión
 
 No aplica.
+
+## Historial
+
+**27/08/2026 — ECOM incorporó los programas al catálogo y la entrada quedó cerrada.** El PM
+confirmó que los cuatro programas del pedido ya están en el catálogo de SIIS, así que el
+semáforo pasa de 🟡 «depende de ECOM» a 🟢. La sección *Estado* de arriba —dos programas
+vinculados al 11/08/2026— queda como foto de ese día y **ya no describe el catálogo actual**.
+Del lado del Backoffice no hubo desarrollo, tal como preveían las decisiones tomadas: el
+selector consume el catálogo, así que los programas nuevos aparecieron solos. Lo que resta es
+operativo y no de código: **vincular a su programa los segmentos que hoy no lo tienen** —el
+Cambio 32 lo volvió obligatorio en el alta, pero no fue retroactivo, y esos segmentos quedan
+visibles con «—» en la columna Programa—. El desbloqueo completo está registrado en el
+**Cambio 50**.
 
 ---
 
@@ -825,6 +840,15 @@ El detalle, el motivo y la implementación están en el **Cambio 37**, que tambi
 reemplaza `users/services/invitations.py` por `users/services/correo.py` y cambia el
 criterio de activación del SMTP. Lo demás de esta entrada sigue vigente: la tabla de
 variables pedidas a ECOM y el comportamiento ante correo faltante o envío fallido.
+
+**27/08/2026 — el SMTP de ECOM quedó configurado en QA y en producción.** Con eso se cierra el
+pendiente que mantenía esta entrada en 🟡 desde el 07/08/2026: la tabla de variables que le
+pedía a Infra está cargada y el backend deja de ser el de consola. La casilla quedó en el
+dominio **`gov.ar`**, que era la duda abierta del Cambio 37. Dos aclaraciones de alcance para
+que el verde no se lea de más: el circuito de correo vigente es el del **Cambio 37** (clave
+provisoria, no enlace temporal), y **configurado no es verificado** — que el envío real
+funcione se comprueba corriendo `diagnosticar_correo` desde el servidor, y ese paso sigue
+pendiente allá. Ver **Cambio 50**.
 
 # Cambio 14 — Impedir sesiones simultáneas del mismo usuario
 
@@ -1874,6 +1898,14 @@ Borrar `.gitlab-ci.yml`, su línea en `.gitattributes` y los dos nombres agregad
 
 No aplica: entrada nueva.
 
+**27/08/2026 — ECOM confirmó las variables de testing y desplegó el ambiente.** De la lista
+*Para ECOM* se cierra una sola pregunta, la de si **las variables de entorno de testing están
+cargadas** (base, SIIS y correo): lo están, y el ambiente quedó desplegado. **El resto de esa
+lista sigue abierto** y este desbloqueo no lo toca — URL de QA, política de actualización de
+`main`, accesos a ArgoCD con usuario de dominio y quién define el CronJob de sync de SIIS. De
+nuestro lado también sigue en pie que **la app móvil apunta al entorno viejo**: cambiar la URL
+base en `Chaco-mobile` y regenerar el APK. Ver **Cambio 50**.
+
 ## 27.1 Plantilla de variables y guía de configuración de entornos
 
 🟢 **HECHO — 11/08/2026**
@@ -1928,7 +1960,7 @@ Borrar el archivo y las dos secciones de `processes.md`. Sin efecto sobre la apl
 
 # Cambio 28 — Se retira el superusuario con credenciales escritas en el código
 
-🟡 **HECHO — 11/08/2026 · FALTA CAMBIAR LA CONTRASEÑA DEL `admin` YA CREADO**
+🟢 **HECHO — 11/08/2026 · CONTRASEÑA DEL `admin` CAMBIADA EL 27/08/2026**
 
 | | |
 |---|---|
@@ -2013,6 +2045,15 @@ Restaurar el archivo del comando y las líneas de bootstrap. No se recomienda: l
 
 No aplica: entrada nueva.
 
+**27/08/2026 — la contraseña del `admin` quedó cambiada y la exposición está cerrada.** Era el
+único pendiente que mantenía la entrada en 🟡: el superusuario salió del código el 11/08/2026,
+pero el usuario ya creado seguía usando la credencial que había estado versionada, así que la
+exposición real no se cerraba hasta hoy. ECOM confirmó el cambio y el semáforo pasa a 🟢.
+Siguen abiertos los dos pendientes menores, que no son de seguridad: en un entorno local nuevo
+el harness de E2E necesita crear el usuario a mano (receta no interactiva en `setup.md`), y
+`RUN_CREAR_PROGRAMAS` de `docker-compose.prod.yml` sigue siendo configuración muerta que
+conviene retirar. Ver **Cambio 50**.
+
 # Cambio 29 — El bootstrap unificado en `seed_datos_base`
 
 🟢 **HECHO — 11/08/2026**
@@ -2089,6 +2130,10 @@ Volver las tres líneas a `seed_rbac crear_programas`. No se recomienda: es rein
 
 No aplica: entrada nueva.
 
+**27/08/2026 — ECOM corrió el sembrado en testing.** Era el único pendiente de la entrada. Con
+`seed_datos_base` ejecutado quedan creados los cinco grupos de Becas que faltaban en su
+ambiente, que es el desfasaje que originó este cambio. Ver **Cambio 50**.
+
 # Cambio 30 — La guía cubre el despliegue en Kubernetes desde cero
 
 🟢 **HECHO — 11/08/2026**
@@ -2161,9 +2206,18 @@ Revertir los tres archivos. Sin efecto sobre la aplicación.
 
 No aplica: entrada nueva. Completa la 27.1 (la guía) con lo específico de Kubernetes, y le da al Cambio 29 su hipótesis de causa raíz del lado de ECOM.
 
+**27/08/2026 — ECOM desplegó el ambiente completo.** Con el despliegue hecho, el primer
+pendiente queda resuelto por la vía de los hechos: la duda del entrypoint (completo vs.
+`command` propio) ya está contestada en el ambiente real, y el Historial del Cambio 31 del
+13/08/2026 documenta cómo — initContainer `bootstrap` en exit 0 y un solo deployment con
+daphne. El segundo pendiente **no** se cierra con esto: del espejado de `.env.qa.example` no
+hay confirmación explícita, y que su ambiente levante con las variables correctas no prueba que
+el archivo de ejemplo haya viajado. Conviene verificarlo en la próxima pasada de
+`/pushGitLabecom` en vez de asumirlo. Ver **Cambio 50**.
+
 # Cambio 31 — La imagen autosuficiente para Kubernetes
 
-🟡 **HECHO — 11/08/2026 · PENDIENTE DE DESPLIEGUE**
+🟢 **HECHO — 11/08/2026 · DESPLEGADO EL 27/08/2026**
 
 | | |
 |---|---|
@@ -2252,6 +2306,16 @@ El cluster quedó corriendo para inspección manual (`http://10.5.6.209:8090` po
 1. **El ejemplo del initContainer tenía un hueco real:** con `command` propio en el contenedor web, el `collectstatic` del bootstrap escribía en el filesystem efímero del initContainer y los estáticos nunca llegaban al contenedor que sirve — whitenoise sin manifest responde 500 en toda pantalla. Se agregó el `emptyDir` de `/app/staticfiles` compartido entre ambos, con el motivo comentado.
 2. **El comentario de horarios de `cronjobs.yaml` era impreciso:** decía «horarios en UTC-3 según el timezone del cluster», pero Kubernetes interpreta `schedule` en el timezone del controlador (UTC salvo configuración). Ahora indica `timeZone: America/Argentina/Buenos_Aires` (K8s ≥ 1.27) o correr los horarios tres horas.
 3. **Trampa de correo sin documentar:** el backend SMTP solo se activa con `ENVIRONMENT=prd`; con `qa` el correo sale por la consola del pod aunque el SMTP esté configurado. Es deliberado del código (un QA no debe mandar mails reales), pero nadie lo decía: quedó anotado en la plantilla y en la guía, con la salida (correr el QA con `prd` si necesita probar invitaciones de punta a punta).
+
+**27/08/2026 — quedó desplegado, y el punto 3 de arriba caducó.** ECOM confirmó el despliegue
+del ambiente completo, que era el pendiente que mantenía el semáforo en amarillo; la entrada
+pasa a 🟢. Junto con eso hay que corregir el **punto 3 del bloque anterior**, que registró como
+trampa que «el backend SMTP solo se activa con `ENVIRONMENT=prd`»: **ese criterio ya no rige**.
+El Cambio 37 lo reescribió y hoy `config/settings.py` elige el backend **por la presencia de
+`EMAIL_HOST`**, no por el `ENVIRONMENT`, con el motivo comentado en el propio archivo («qa usa
+el mismo SMTP que prd, y el dev local sigue en consola sin configurar nada»). O sea que un QA
+con SMTP cargado **manda correo real**, y lo único que lo distingue en la bandeja es el prefijo
+`[QA]` del asunto (`EMAIL_ASUNTO_PREFIJO`). Ver **Cambio 50**.
 
 # Cambio 32 — Programas (SIIS) por encima de los segmentos
 
@@ -2416,6 +2480,22 @@ Nada propio: viaja en la imagen y se corre a mano cuando hace falta. Las variabl
 ## Reversión
 
 Borrar los dos archivos nuevos. Sin efecto sobre la aplicación: nada del producto los importa.
+
+## Historial
+
+**27/08/2026 — la integración quedó verificada contra el servicio real, en su mitad de
+lectura.** ECOM cargó las credenciales de SIIS y el sistema **trae el catálogo de programas y
+valida personas** contra el servicio: los pasos 3 y 4 del diagnóstico dejan de ser teóricos y
+no apareció ningún cambio de contrato en el catálogo, que era el riesgo que este pendiente
+vigilaba. El segundo pendiente, las credenciales de **producción**, también se cierra: el
+deploy de ECOM las incluyó.
+
+Lo que **no** está resuelto es la otra mitad de la integración: **SIIS todavía no expone el
+endpoint de salida** para informarle los beneficiarios confirmados con beca. Hoy
+`programas/services/siis.py` es solo de lectura —`listar_programas`, `listar_programas_todos`
+y `validar_compatibilidad`— y no hay método de escritura porque no hay contra qué escribir; sin
+el contrato, implementarlo sería una apuesta. Queda registrado como pendiente 1 del **Cambio
+50** y es lo que mantiene el análisis #72 en *En análisis*.
 
 # Cambio 34 — Prevalidación SIIS al aprobar o rechazar formularios
 
@@ -3062,7 +3142,7 @@ fuera de alcance por requerir definición de producto (#179).
 
 # Cambio 37 — Credenciales por correo: clave provisoria al alta y recupero desde el login
 
-🟡 **PARCIAL — 20/08/2026 · el circuito está implementado; falta el envío real verificado contra el SMTP y la aprobación de los textos**
+🟡 **PARCIAL — 20/08/2026 · el SMTP quedó configurado el 27/08/2026; falta verificar el envío y aprobar los textos**
 
 | | |
 |---|---|
@@ -3320,6 +3400,20 @@ sin cambio obligatorio, que es el comportamiento previo.
 ## Historial
 
 No aplica: entrada nueva.
+
+**27/08/2026 — se cerraron dos de los cinco pendientes: el SMTP y el dominio.** ECOM configuró
+el servidor de correo en **QA y en producción**, y el dominio de la casilla quedó definido en
+**`gov.ar`**. Esa era la duda que esta entrada dejó abierta entre `gob.ar` y `gov.ar`, y se
+resuelve sin tocar código: como los dos nombres resuelven a la misma IP, `EMAIL_HOST` era
+indiferente y lo que faltaba definir era el usuario de autenticación y el remitente, que ahora
+son `gov.ar`.
+
+El semáforo **sigue en 🟡 a propósito**: que el SMTP esté configurado no es que el envío esté
+verificado, y marcar esto en verde sería registrar como probado algo que nadie vio salir. Falta
+correr `diagnosticar_correo` desde el servidor (task #245) y falta la **aprobación de los
+textos (#244)**, que la firma el cliente y no la desbloquea Infra. Siguen abiertos también la
+casilla de soporte y la dirección postal del pie, y el límite de intentos en el recupero. Ver
+**Cambio 50**.
 
 # Cambio 40 — Corregir la redirección autenticada de `/dashboard/`
 
@@ -3692,6 +3786,14 @@ Ahora recorre **las plantillas que Django sirve** —los `DIRS` configurados má
 `compile_templates.py`, y **aborta si el recorrido queda vacío** para que no pueda pasar en
 falso si algún día cambia la configuración de templates.
 
+**27/08/2026 — Base de Personas (Gran Base) quedó configurada en testing y QA.** Era el primer
+pendiente de la entrada: `PERSONAS_API_CLIENT_ID`, `PERSONAS_API_CLIENT_SECRET` y
+`PERSONAS_API_ENTIDAD_UUID` estaban vacías en el deployment, así que el paso 1 nunca precargaba
+y toda inscripción quedaba `origen=manual`. Con las credenciales cargadas el circuito se puede
+probar de verdad, lo que convierte el pendiente de **los 65 casos de QA** en el trabajo que
+sigue. También queda verificable el arreglo del bloque anterior de este historial, que dependía
+de estas mismas credenciales para comprobarse contra el servicio real. Ver **Cambio 50**.
+
 ---
 
 # Cambio 42 — El portal ciudadano quedó viejo: marca, textos y contenido de la home
@@ -3843,7 +3945,7 @@ Revertir el commit: las seis páginas vuelven a extender `portal/base.html`. Con
 
 # Cambio 44 — Avisar por correo al ciudadano cuando se resuelve su formulario
 
-🟡 **IMPLEMENTADO — 26/08/2026 · inerte hasta que ECOM entregue el SMTP**
+🟡 **IMPLEMENTADO — 26/08/2026 · activo desde el 27/08/2026 con el SMTP de ECOM; falta verificar el envío real**
 
 | | |
 |---|---|
@@ -4065,6 +4167,18 @@ cambiaron. Lo que cambió es que ahora los **seis** puntos que mueven el estado 
 decisión explícita: cuatro avisan, uno avisa desde ahora (lista de espera manual) y uno
 deliberadamente no avisa (duplicados). La baja de un beneficiario sigue sin avisar y sigue
 figurando como pendiente.
+
+**27/08/2026 — el circuito dejó de estar inerte: ECOM configuró el SMTP.** Esta entrada se
+cerró el 26/08 con los cuatro avisos implementados pero sin poder salir del servidor. Con el
+SMTP cargado en **QA y producción** los correos se envían de verdad; en QA con el prefijo
+`[QA]` en el asunto, que es lo único que los distingue en la bandeja del ciudadano (ver la
+corrección del Historial del Cambio 31, porque el criterio del backend no es el `ENVIRONMENT`).
+
+El semáforo **queda en 🟡**: nadie vio todavía llegar uno de estos avisos, así que falta correr
+`diagnosticar_correo` desde el servidor y falta la aprobación de los **textos definitivos por
+el programa de Becas**. Los otros pendientes no los toca este desbloqueo: la baja de un
+beneficiario aprobado sigue sin avisar, y sigue sin haber trazabilidad de qué aviso salió o
+falló más allá del log del servidor. Ver **Cambio 50**.
 
 ---
 
@@ -4452,6 +4566,21 @@ quitar el assignee de las 8 tasks devuelve el tablero al estado previo, aunque l
 movió la automatización habría que corregirlos a mano. Revertir el commit deshace esta entrada y
 la etiqueta `#gestion`.
 
+## Historial
+
+**27/08/2026 — el pendiente 7 quedó desbloqueado y el 8 tiene un motivo más preciso.** ECOM
+configuró el SMTP en QA y producción, así que las dos verificaciones que la task **#245**
+frenaba —el correo de confirmación del Cambio 41 (**#296**) y el aviso de resolución del Cambio
+44— ya se pueden correr: deja de ser un bloqueo externo y pasa a ser trabajo propio, correr
+`diagnosticar_correo` desde el servidor.
+
+Sobre el pendiente 8: ECOM entregó la **lectura** de SIIS —el catálogo de programas y la
+validación de personas ya funcionan contra el servicio real— pero **no el endpoint para
+informarle los confirmados con beca**. El análisis **#72** sigue *En análisis* por eso, no por
+falta de trabajo propio, y mientras no exista ese contrato la épica **#69** no se puede
+consolidar ni dar por probada. Los otros siete pendientes siguen abiertos, incluido el que
+mantiene la entrada en 🟡: publicar el `[PLAN DE PRUEBAS]` de la épica #69. Ver **Cambio 50**.
+
 ---
 
 # Cambio 48 — Analizar todo el diseño de Dispositivos, funcional y sobre todo front
@@ -4770,3 +4899,248 @@ etiqueta `#metodo`. No hay datos del sistema en juego ni migración que deshacer
 ## Historial
 
 No aplica: entrada nueva.
+
+---
+
+# Cambio 50 — ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue
+
+🟡 **PARCIAL — 27/08/2026 · ocho dependencias externas cerradas; falta el endpoint de salida de SIIS y verificar los envíos**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Becas / integraciones |
+| **Etiquetas** | `#infra` `#correo` `#siis` `#gestion` |
+| **Solicitante** | PM — reporte punto por punto, en sesión de trabajo, sobre la lista de pendientes de este archivo |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | #245 (SMTP), #244 (textos), #296 (correo de confirmación), #72 (integración SIS) |
+| **Partes afectadas** | Infra/ECOM · Backoffice · Portal · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El PM informó, punto por punto sobre la lista de pendientes que salió de este archivo, qué
+resolvió ECOM:
+
+1. «ECOM ya configuró los SMTP en prd y qa».
+2. «Ya se definió el dominio en `gov.ar`».
+3. «Ya configuraron la Gran Base».
+4. «Ya los incorporó» — los cuatro programas al catálogo de SIIS.
+5. «Ya incorporó las credenciales de SIIS».
+6. «Ya se corrió el set de datos» — `seed_datos_base` en testing.
+7. «Ya desplegaron todo».
+8. «Estamos integrados al momento de traer los programas, validar personas, pero por ahora no
+   nos dieron el endpoint para enviarle los confirmados con becas».
+9. «Ya cambiaron el `admin`».
+
+## Alcance acordado
+
+Esta entrada **no es un desarrollo**: es el registro del desbloqueo externo y de los semáforos
+que mueve. Entra actualizar el estado de las entradas afectadas con su historial fechado, dejar
+asentado lo que el desbloqueo **no** resuelve, y corregir un criterio que había quedado mal
+registrado. Queda explícitamente afuera ejecutar las verificaciones que el desbloqueo recién
+ahora hace posibles —`diagnosticar_correo`, los 65 casos de QA del formulario público—: eso es
+trabajo propio y figura como pendiente, no como hecho.
+
+## Decisiones tomadas
+
+- **El dominio de la casilla de correo es `gov.ar`.** Cierra la duda del Cambio 37, donde Infra
+  pedía `gov.ar` y las credenciales entregadas decían `gob.ar`. Como los dos nombres resuelven
+  a la misma IP, `EMAIL_HOST` era indiferente: lo que faltaba definir era el usuario de
+  autenticación y el remitente, que tienen que ser la misma dirección.
+- **«SMTP configurado» no es «SMTP verificado».** Se movieron los semáforos que dependían de
+  que ECOM entregara el servidor, pero no los que dependen de comprobar que un correo llega.
+  Poner los Cambios 37 y 44 en verde hoy sería registrar como probado algo que nadie vio salir;
+  siguen en 🟡 hasta que `diagnosticar_correo` corra desde el servidor.
+- **La integración con SIIS quedó cerrada solo en su mitad de lectura**, y así se registra. El
+  sistema trae el catálogo de programas y valida personas contra el servicio real, pero no hay
+  cómo informarle los beneficiarios confirmados. No se va a escribir ese envío a ciegas: sin el
+  contrato del endpoint, cualquier implementación es una apuesta que después habría que
+  rehacer. Es el mismo criterio con el que el Cambio 8 se negó a cargar programas a mano.
+- **Los cuatro programas del Cambio 8 aparecieron sin desarrollo de este lado**, como estaba
+  previsto: el selector consume el catálogo. Lo que queda es operativo —vincular los segmentos
+  viejos que no tienen programa—, no de código.
+- **Se corrige un criterio mal registrado, no se borra.** El punto 3 del historial del Cambio 31
+  (11/08/2026) decía que el backend SMTP solo se activa con `ENVIRONMENT=prd`. El Cambio 37
+  cambió eso y nadie lo asentó. Se deja el texto viejo y se agrega la corrección fechada, como
+  manda la regla de oro.
+
+## Implementación
+
+No hubo cambios de código: el sistema ya estaba preparado para las tres integraciones y lo que
+faltaba era configuración del otro lado. El trabajo fue de registro:
+
+- Pasaron a 🟢 los Cambios **8** (programas en el catálogo), **13** (SMTP), **28** (contraseña
+  del `admin`) y **31** (despliegue).
+- Siguen en 🟡, con el motivo acotado, los Cambios **37** y **44**: ya no los frena ECOM, los
+  frena la verificación del envío y la aprobación de los textos.
+- Recibieron historial sin cambiar de semáforo los Cambios **27**, **29**, **30**, **33**, **41**
+  y **47**.
+
+## Archivos
+
+- `docs/internal/requerimientos.md` — esta entrada, su fila del índice y el historial fechado de
+  los Cambios 8, 13, 27, 28, 29, 30, 31, 33, 37, 41, 44 y 47.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- `scripts/requerimientos.py --check` → OK, el índice y las entradas coinciden.
+- **Verificado en el código, no asumido:** `config/settings.py` elige el backend de correo por
+  la presencia de `EMAIL_HOST`, no por el `ENVIRONMENT`, así que el QA con SMTP cargado manda
+  correo real, distinguible solo por el prefijo `[QA]` del asunto (`EMAIL_ASUNTO_PREFIJO`). Esto
+  es lo que **corrige** el punto 3 del historial del Cambio 31.
+- **Verificado en el código:** `programas/services/siis.py` expone únicamente
+  `listar_programas`, `listar_programas_todos` y `validar_compatibilidad`. No hay método de
+  escritura ni a medias, lo que confirma que el envío de confirmados está entero por hacer.
+- Existen los dos comandos que cierran las verificaciones pendientes:
+  `users/management/commands/diagnosticar_correo.py` y
+  `programas/management/commands/diagnosticar_integraciones.py`.
+
+## Puesta en marcha en el servidor
+
+Nada de este lado. Lo que el desbloqueo habilita y conviene correr cuanto antes:
+
+1. `manage.py diagnosticar_correo` en QA y en producción — es lo que cierra los Cambios 37 y 44
+   y las verificaciones #245 y #296.
+2. `manage.py diagnosticar_integraciones` para dejar asentada la respuesta real del catálogo de
+   SIIS con las credenciales nuevas.
+
+## Pendientes / a definir
+
+1. **Endpoint de salida de SIIS: informar los beneficiarios confirmados con beca.** ECOM no lo
+   entregó. Es la mitad faltante de la integración, lo que mantiene el análisis **#72** en *En
+   análisis* y lo que impide consolidar la épica **#69**. Hasta que exista el contrato no hay
+   nada que implementar.
+2. **Verificar el envío real de correo** con `diagnosticar_correo` en QA y producción (task
+   **#245**). Desbloquea los Cambios 37 y 44 y la verificación del correo de confirmación
+   (**#296**).
+3. **Aprobación de los textos (#244)**: los de credenciales y los cuatro avisos de resolución
+   del Cambio 44. La firma es del cliente y del programa de Becas; el SMTP no la desbloquea.
+4. **Vincular a su programa los segmentos existentes que no lo tienen** (Cambio 8 más el
+   pendiente del Cambio 32). Con los cuatro programas ya en el catálogo es una pasada operativa.
+5. **Ejecutar los 65 casos de QA del formulario público** (Cambio 41): con la Gran Base
+   configurada el paso 1 precarga y el circuito se puede probar de verdad.
+6. **Del Cambio 27 sigue abierto lo que este desbloqueo no toca**: URL de QA, política de
+   actualización de `main`, accesos a ArgoCD, quién define el CronJob de sync de SIIS, y la app
+   móvil apuntando al entorno viejo.
+7. **Confirmar el espejado de `.env.qa.example`** (Cambio 30): el ambiente levanta, pero que su
+   ambiente tenga las variables correctas no prueba que el archivo de ejemplo haya viajado.
+8. **Cambiar también la contraseña del `admin` en testing y QA** si ECOM cambió solo la de
+   producción. El Cambio 28 pedía las tres; el reporte dice «ya cambiaron el `admin`» sin
+   distinguir ambiente.
+
+## Reversión
+
+No aplica: no hay código. Si alguno de los ocho puntos resultara no estar hecho, se corrige con
+un historial nuevo en la entrada afectada, sin borrar este.
+
+## Historial
+
+No aplica: entrada nueva.
+# Cambio 51 — El panel de marca del formulario de inscripción se estiraba con el formulario
+
+🟢 **HECHO — 27/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal ciudadano · inscripción pública de Becas (shell del Cambio 43) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, mirando el link real de una convocatoria en producción |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Sin issue (ajuste estético del Cambio 43, que cuelga del análisis #289) |
+| **Partes afectadas** | Portal ciudadano (las seis pantallas del flujo de inscripción, solo en escritorio) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «La sección cuadrada que engloba esto "¿Necesitás ayuda? +54 362 430-0002 · datanach@chaco.gob.ar
+> © 2026 DATAÑACH — Gobierno del Chaco": si el form es muy extenso se agranda y eso tendría que ser
+> fijo. En realidad todo el cuadrado que tiene a la izquierda, que engloba todo eso, tiene que ser
+> fijo, y cuando escroleás el form eso está fijo y el form solo va para abajo.»
+
+## Alcance acordado
+
+- El panel izquierdo de escritorio (gradiente con marca, título de la convocatoria y stepper, más el
+  pie navy con ayuda y copyright) queda fijo en la ventana; scrollea únicamente la columna del
+  formulario.
+- Aplica a las **seis pantallas** del link porque todas extienden el mismo shell: paso 1, paso 2,
+  comprobante, «ya estás inscripto», «no disponible» y «demasiados intentos».
+- **Afuera:** el celular (ahí el panel es cabecera y tiene que seguir scrolleando con la página), los
+  campos y la lógica de los formularios, y el shell de la home del portal.
+
+## Decisiones tomadas
+
+- **El panel se fija con `position: fixed`, no envolviendo cabecera y pie en un contenedor sticky.**
+  La alternativa —un `<div>` que envuelva `aside` + `footer` y sea `sticky` de 100vh— obligaba a
+  poner el pie antes del `<main>` en el HTML, y en celular eso deja los links de ayuda en el orden de
+  tabulación antes de los campos del formulario (WCAG 2.4.3). Con `fixed` el HTML no se toca: el
+  cambio es solo CSS dentro del `@media (min-width: 1024px)`, y el celular queda idéntico a como
+  estaba.
+- **La columna izquierda del grid la sostiene el track explícito.** Al salir del flujo las dos piezas
+  del panel, la primera columna queda vacía, pero `grid-template-columns: var(--di-panel-w) minmax(0,1fr)`
+  la mantiene en 520px y el `<main>` sigue arrancando en el mismo lugar. No hubo que agregar padding
+  al shell ni tocar la columna de contenido.
+- **El ancho del panel pasó a ser una variable del shell (`--di-panel-w: 520px`).** Ahora el número
+  aparece en tres lugares (el track del grid y el `width` de cabecera y pie): declararlo una sola vez
+  evita que se desincronicen en el próximo ajuste.
+- **La cabecera fija tiene scroll propio y aire abajo (`overflow-y: auto`, `padding-bottom: 136px`).**
+  Medido: el pie mide 112px de alto en todos los anchos de escritorio (no llega a envolver ni a
+  1024px) y el contenido del panel termina a 517px. Con eso, en ventanas de 650px de alto o más no
+  hay scroll interno; en ventanas más bajas el contenido del panel sigue siendo alcanzable en vez de
+  quedar tapado por el pie. Dentro de la cabecera no hay nada enfocable —marca, título y stepper son
+  texto— así que el contenedor scrollable no puede atrapar el foco de teclado.
+
+## Implementación
+
+`portal/templates/portal/inscripcion/base_inscripcion.html`, solo el `<style>` del shell: la variable
+`--di-panel-w` en `.di-shell` y, dentro del `@media (min-width: 1024px)`, `.di-panel-head` fija a
+`top: 0` con `height: 100vh` y `.di-panel-foot` fija a `bottom: 0`, las dos con
+`width: var(--di-panel-w)`. Ni el HTML, ni los bloques de Django, ni el include del stepper, ni el
+CSS de celular cambiaron.
+
+## Archivos
+
+`portal/templates/portal/inscripcion/base_inscripcion.html` · `.claude/agents/chaco-design-system.md`
+(fila «Shell de inscripción pública», que ahora describe el panel fijo).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` sin observaciones · `scripts/design_audit.py --changed` **0 errores, 0 warnings** ·
+  `scripts/compile_templates.py` 329 plantillas, 0 errores.
+- Verificación visual con Playwright sobre el shell renderizado con un formulario de 30 campos: en
+  1440×900, con la página scrolleada 1200px, la cabecera queda en `(0, 0, 520×900)` y el pie en
+  `(0, 788, 520×112)` mientras el contenido se desplaza; sin scroll horizontal
+  (`scrollWidth == innerWidth`) en 1024, 1100, 1280, 1440 y 1920px.
+- En 390×844 (celular) la cabecera sigue `static` y el orden cabecera → contenido → pie no cambió.
+- Con contenido corto (pantallas de resultado) la página mide exactamente una ventana: el panel se ve
+  completo y no aparece hueco.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy. Sin variables, cron ni migración. Es CSS embebido en el template: no requiere rebuild
+de Tailwind ni `collectstatic`.
+
+## Pendientes / a definir
+
+- Si alguna vez se imprime el comprobante (hoy no hay botón de impresión), conviene agregar un
+  `@media print` que devuelva el panel al flujo: un elemento `fixed` puede repetirse o recortarse en
+  la impresión.
+
+## Reversión
+
+Quitar del `@media (min-width: 1024px)` las declaraciones `position/top/bottom/left/width/height/overflow-y`
+de `.di-panel-head` y `.di-panel-foot` y devolverle a la cabecera `padding: 40px 48px`. El panel vuelve
+a estirarse con el formulario; no hay datos ni contratos involucrados.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
