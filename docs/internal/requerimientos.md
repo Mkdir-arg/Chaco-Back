@@ -190,6 +190,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 45 | Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1 | Becas · Documentación | `#textos` `#ui` `#relevamientos` | PM — «leer toda la documentación pública de Becas y actualizarla al detalle con lo que tenemos del proceso» | 26/08/2026 | 🟢 **Hecho — publicado en GitHub Pages** | No |
 | 46 | La API de campo aceptaba cualquier archivo, de cualquier peso | Becas · Mobile / API | `#api` `#mobile` `#datos` | Hallazgo propio en la revisión del flujo público pedida por el PM | 26/08/2026 | 🟢 **Hecho — falta verificar contra la app antes de producción** | No |
 | 47 | El tablero no reflejaba que el formulario público ya estaba entregado | Becas · Gestión | `#gestion` `#relevamientos` | PM — «las épicas y los task sobre el formulario público de los relevamientos de becas en qué estado están?» | 27/08/2026 | 🟡 **Parcial — tablero al día; plan de pruebas redactado sin publicar** | No |
+| 48 | Analizar todo el diseño de Dispositivos, funcional y sobre todo front | Dispositivos | `#ui` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo: «quiero analizar todo el diseño a nivel funcional y más que nada a diseño front del programa de dispositivos» | 26/08/2026 | 🟢 **Hecho — diagnóstico entregado; la remediación queda en #310-#323** | No requiere |
 
 **Notas del índice**
 
@@ -3045,7 +3046,17 @@ estados a texto plano.
 
 ## Historial
 
-No aplica: entrada nueva.
+**26/08/2026 — el Cambio 48 reauditó el programa y corrigió uno de estos pendientes.**
+La segunda auditoría (ver Cambio 48) verificó que **lo ejecutado acá sigue en pie** —badges
+de estado y solapas Alpine reales— y confirmó que los cuatro pendientes seguían abiertos.
+Sobre el **pendiente 3** cambia la salida: acá se propuso unificar los dos handlers de
+confirmación tomando como modelo `becas/_confirm_js.html`, y **eso no corresponde**. Al
+leerlo se comprobó que ese include está montado sobre `ModernModal`, que el agente canónico
+clasifica como *Legacy solo mantenimiento*, mientras SweetAlert2 —lo que ya usa
+Dispositivos— figura como *Canónico reutilizable, condicionado*. La salida correcta es
+extraer un `dispositivos/_confirm_js.html` propio, no copiar Becas: copiarlo sería ir para
+atrás. Los pendientes 1 y 3 quedan tomados por la task #321, el 2 por la #317, y el 4 sigue
+fuera de alcance por requerir definición de producto (#179).
 
 # Cambio 37 — Credenciales por correo: clave provisoria al alta y recupero desde el login
 
@@ -4437,3 +4448,186 @@ Nada que revertir en el producto. En el Project: limpiar el campo `Iteration` de
 quitar el assignee de las 8 tasks devuelve el tablero al estado previo, aunque los Status que
 movió la automatización habría que corregirlos a mano. Revertir el commit deshace esta entrada y
 la etiqueta `#gestion`.
+
+---
+
+# Cambio 48 — Analizar todo el diseño de Dispositivos, funcional y sobre todo front
+
+🟢 **HECHO — 26/08/2026** (el diagnóstico; la remediación queda planificada, no ejecutada)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos |
+| **Etiquetas** | `#ui` `#datos` `#rbac` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo |
+| **Fecha del pedido** | 26/08/2026 |
+| **Issue / épica** | Épica #127 · análisis #309 · tasks #310 a #323 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere (este cambio no toca código; la task #313 sí necesitará una) |
+
+## Pedido original
+
+«Quiero analizar todo el diseño a nivel funcional y más que nada a diseño front del
+programa de dispositivos.» Y después, cerrado el diagnóstico: «generá las task en git,
+asignalas a esta iteración y a mi usuario».
+
+## Alcance acordado
+
+**Diagnóstico, no remediación.** El PM eligió explícitamente las tres cosas que acotan
+este cambio:
+
+1. **Las 22 plantillas del programa Dispositivos y nada más** — 17 de
+   `programas/templates/programas/dispositivos/` y 5 de
+   `programas/templates/programas/admisiones/`. Quedaron afuera, por decisión del PM en la
+   orquestación: reportes y exportes, el RBAC transversal, el sidebar, Becas, Merenderos y
+   el portal ciudadano.
+2. **Diagnóstico priorizado**, sin propuesta de rediseño ni wireframes.
+3. **El informe en `docs/internal/`**, commiteado en su propia rama.
+
+Después del diagnóstico se sumó, como segundo tramo del mismo pedido, la creación del
+backlog en GitHub: análisis contenedor y 14 tasks, asignadas a la iteración activa y al PM.
+
+## Decisiones tomadas
+
+- **El diagnóstico se ejecutó en un worktree aparte, con una sesión paralela.** Se creó
+  `C:\Users\mkdir\Proyectos\Chaco-wt-dispositivos` sobre la rama
+  `docs/auditoria-diseno-dispositivos`. El motivo es el registrado en la memoria del
+  proyecto sobre sesiones concurrentes: dos sesiones sobre el mismo checkout ya hicieron
+  caer un commit en la rama equivocada. La auditoría es de solo lectura sobre el producto,
+  así que el aislamiento no costó nada.
+
+- **El PM orquestó antes de ejecutar.** No se largó el análisis en crudo: primero se
+  clasificó la ruta (diseño, con el agente canónico como gate obligatorio), se identificó
+  el programa y se relevó la superficie real —28 rutas, 22 plantillas, 4 módulos de
+  vistas— para que el encargo tuviera blancos concretos. Recién con eso se lanzó.
+
+- **Lo mecánico ya estaba limpio, y eso definió el foco.** `scripts/design_audit.py`
+  sobre las dos carpetas da **0 errores y 0 warnings**. Igual que en el Cambio 36, el gate
+  de cierre pasaba y el módulo seguía teniendo problemas: la conclusión es que el valor
+  estaba en lo que el script no puede ver, y así se instruyó el análisis.
+
+- **El diseño ya no era el problema; el circuito sí.** Los badges y las solapas reales del
+  Cambio 36 resolvieron la queja visual original. Lo que quedó son agujeros de flujo, y por
+  eso este cambio pesa más en lo funcional que en lo visual, al revés de lo que el pedido
+  anticipaba.
+
+- **Becas es vara de calidad, no molde visual.** Está por encima en paginación, permisos
+  resueltos en la vista y reutilización de includes, y en eso se lo toma como referencia.
+  Pero **en confirmaciones Dispositivos está mejor parado**: usa SweetAlert2, pieza
+  canónica condicionada, mientras Becas sigue sobre `ModernModal`, clasificado *Legacy solo
+  mantenimiento*. Se decide extraer un include propio del módulo y **no** copiar el de
+  Becas —lo que corrige el pendiente 3 del Cambio 36, que proponía justamente copiarlo—.
+
+- **Baja lógica, no borrado, para los campos de tipo de dispositivo.** El programa se rige
+  por «historial permanente, sin borrar registros», y hoy el borrado o revienta con 500 o
+  deja el histórico ilegible. La decisión aplica a la task #313.
+
+- **Las 14 tasks cuelgan de un análisis nuevo, no del #128.** `AGENTS.md` no admite
+  sub-issues sin análisis de origen. El #128 define el alcance original del programa
+  (F-00/F-01/F-02, merenderos) y estas tasks nacen de una auditoría posterior: mezclarlas
+  habría ensuciado la trazabilidad de las dos cosas. Se creó el análisis #309 colgando de
+  la épica #127.
+
+- **Iteración y assignees los cargó el PM.** `AGENTS.md` los reserva al PM humano; se
+  hicieron por pedido explícito suyo en esta misma sesión. El **Status quedó en Backlog**
+  en los 15 issues: no se movió ningún estado.
+
+## Implementación
+
+Lo que existe ahora y antes no:
+
+- Un **informe de auditoría** de 28 hallazgos sobre las 22 plantillas, con el mapa de la
+  superficie clasificado pieza por pieza —8 canónicas reutilizables, 7 legacy de
+  mantenimiento y 7 duplicadas o conflictivas— y cada hallazgo con su `archivo:línea`,
+  qué pasa hoy, impacto en el operador, propuesta concreta y esfuerzo.
+- Un **análisis funcional en GitHub** (#309) que consolida el diagnóstico y deja
+  registradas las decisiones de arriba, colgando de la épica #127.
+- **14 tasks ejecutables** (#310 a #323), agrupando hallazgos que conviene resolver juntos,
+  con criterios de aprobación, guía de interfaz y dependencias sugeridas entre ellas.
+  Estimación total **89 h**, cargadas en el campo `EstimacionHoras`.
+
+Los cinco hallazgos bloqueantes, que son el corazón del diagnóstico:
+
+| | Hallazgo | Evidencia |
+|---|---|---|
+| **B1** | El F-00 es de escritura únicamente: se completa al admitir y al trasladar y ninguna pantalla lo muestra después. El indicador «Completitud F-00» acusa un problema que el operador no puede ni mirar ni corregir | `respuestas_f00`, `archivos_f00` y `origen_traslado` no aparecen en **ninguna** plantilla del repo; único lector: `services/indicadores.py:69` |
+| **B2** | El traslado sin cama deja a la persona **alojada en el origen y en espera en el destino a la vez**, sin marca en ninguna de las dos pantallas. Único aviso: un toast de 7 segundos | `services/admisiones.py:204-212` no cierra el origen; recién lo hace `:248-249` al promover |
+| **B3** | El parte diario **pisa el turno de otro operador** —observaciones y firma— y responde con el mismo mensaje de éxito que cuando lo crea | `services/registro_diario.py:58-67`; mensaje único en `views/admisiones.py:201` |
+| **B4** | Eliminar un campo de tipo: **500** si tiene archivos, o historial huérfano si no | `views/dispositivos_config.py:219` sin captura; `models/__init__.py:877` es FK `PROTECT` |
+| **B5** | El alta se bloquea **sin decir nada** cuando el código duplicado está fuera del alcance territorial. Le pasa siempre a quien tiene `dispositivo.crear` sin `dispositivo.ver` | `views/dispositivos_legajo.py:133-136` filtra las coincidencias pero no `codigo_duplicado`; `legajo/form.html:28` y `:64` |
+
+Los cinco fueron **verificados contra el código** por el PM antes de crear las tasks, no
+tomados por buenos del informe. En esa verificación apareció además un dato que abarata
+B5: `views/dispositivos_legajo.py:132` ya calcula y devuelve `hay_coincidencias` **antes**
+del filtro territorial —el backend ya expone la señal que falta y el template la ignora—.
+
+## Archivos
+
+- `docs/internal/auditoria-diseno-dispositivos-2026-08.md` — nuevo, el informe completo.
+- `docs/internal/requerimientos.md` — esta entrada y el historial del Cambio 36.
+- **Ningún archivo de código productivo fue modificado.**
+
+## Base de datos
+
+No requiere. La task #313 necesitará una migración cuando se ejecute (campo `activo` en
+`CampoTipoDispositivo` para la baja lógica).
+
+## Validación
+
+- `scripts/design_audit.py` sobre `programas/templates/programas/dispositivos` y
+  `programas/templates/programas/admisiones`: **0 errores, 0 warnings**.
+- Los 5 hallazgos bloqueantes verificados uno por uno contra el código real: **los 5
+  confirmados**, con la línea exacta.
+- Los 15 issues verificados con `gh project item-list`: **Status Backlog**, Tipo, Prioridad,
+  Módulo `programas/dispositivos`, `EstimacionHoras`, **Iteration 7** y assignee en los 15.
+- `manage.py check` **no se corrió**: este cambio no toca código ni configuración de Django.
+  Corresponde a cada task de remediación cuando se ejecute.
+
+## Puesta en marcha en el servidor
+
+No aplica. No hay nada que desplegar: es documentación y backlog.
+
+## Pendientes / a definir
+
+1. **Las 14 tasks están sin arrancar**, en Backlog e Iteration 7 (89 h estimadas). Por
+   costo/beneficio conviene empezar por **#314** (bajo, desatasca un alta que hoy es un
+   callejón sin salida) y **#312** (medio, es el mayor riesgo operativo: dos operadores
+   pueden actuar sobre la misma persona sin saberlo). **#310** es el que más valor devuelve
+   y el más caro, y arrastra a **#317**.
+
+2. **Dos preguntas abiertas bloquean el arranque de sus tasks**, anotadas en el cuerpo de
+   cada una:
+   - **#310** — ¿la pantalla de detalle de admisión debe además **permitir completar** el
+     F-00 después del ingreso, o es solo de lectura? Cambia el tamaño de la task.
+   - **#311** — ¿cuántos días hacia atrás se habilitan para regularizar el parte diario?
+     La auditoría propone 7 como valor de partida.
+
+3. **Sin casos de QA.** Ninguna de las 14 tasks tiene su sección «Casos de prueba (QA)».
+   Según `ESTADOS.md`, **sin casos de QA una task no es Ready**: hay que pasarles `/qa` antes
+   de que el PM las mueva.
+
+4. **La estimación de 89 h es propia, no del equipo.** Se derivó del esfuerzo bajo/medio/alto
+   del informe y conviene contrastarla con quien vaya a tomar las tasks.
+
+5. **Los cuatro pendientes del Cambio 36 siguen abiertos** y quedan absorbidos acá: el motor
+   de modal AJAX y los dos handlers de confirmación en **#321**, las stat cards en **#317**,
+   y la solapa embebida en el legajo **fuera de alcance** —es decisión de producto sobre
+   `services/solapas.py`, vive en #179—.
+
+6. **El pendiente del Cambio 23** —el orden de los campos de tipo de dispositivo, que quedó
+   sin la regla de autonumerado sin repetidos— queda tomado por **#323**. Incluye verificar
+   si hay órdenes repetidos ya cargados en producción, que habría que normalizar primero.
+
+7. **El assignee se infirió.** Las 15 issues se asignaron a `Mkdir-arg` por ser la cuenta
+   autenticada y dueña del Project; el otro Matías del repo es `matias-abate` (Matias
+   Abate). Si no corresponde, se corrige con un `gh issue edit --add-assignee`.
+
+## Reversión
+
+Revertir los dos commits de documentación (`docs/auditoria-diseno-dispositivos`). Los
+issues #309 a #323 **no se revierten con git**: si se descarta el plan hay que cerrarlos a
+mano y sacar la fila `- [ ] #309` de la épica #127. No hay datos ni código involucrados.
+
+## Historial
+
+No aplica: entrada nueva.
