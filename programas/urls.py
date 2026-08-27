@@ -90,11 +90,10 @@ urlpatterns = [
     path("relevamientos/<int:pk>/padron/", rel.relevamiento_reemplazar_padron, name="relevamiento_padron"),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
     path("relevamientos/<int:pk>/cupo/", rel.relevamiento_modificar_cupo, name="relevamiento_modificar_cupo"),
-    # --- Revisión de formularios ---
+    # --- Revisión de casos ---
     path("revision/", rev.RevisionPersonasListView.as_view(), name="revision"),
     path("revision/renaper/pendientes/", rev.RenaperPendientesListView.as_view(), name="renaper_pendientes"),
     path("revision/relevamiento/<int:relevamiento_pk>/", rev.revision_formularios, name="revision_formularios"),
-    path("revision/relevamiento/<int:pk>/iniciar/", rev.relevamiento_iniciar_revision, name="revision_iniciar"),
     path("revision/relevamiento/<int:pk>/terminar/", rev.relevamiento_terminar, name="revision_terminar"),
     path("revision/formulario/<int:pk>/", rev.formulario_detalle, name="formulario_detalle"),
     path("revision/formulario/<int:pk>/validar-sis/", rev.formulario_validar_sis, name="formulario_validar_sis"),
@@ -114,6 +113,11 @@ urlpatterns = [
         "revision/formulario/<int:pk>/revalidar-renaper/",
         rev.formulario_revalidar_renaper,
         name="formulario_revalidar_renaper",
+    ),
+    path(
+        "revision/formulario/<int:pk>/forzar-identidad/",
+        rev.formulario_forzar_identidad,
+        name="formulario_forzar_identidad",
     ),
     # --- Cupo y lista de espera (#78) ---
     path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),

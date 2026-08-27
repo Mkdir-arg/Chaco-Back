@@ -196,6 +196,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; falta el endpoint de salida de SIIS** | No requiere |
 | 51 | El panel de marca del formulario de inscripción se estiraba con el formulario | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «si el form es muy extenso se agranda y eso tendría que ser fijo… cuando escroleás el form eso está fijo y el form solo va para abajo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 52 | El formulario público moría en un 403 de CSRF si el backoffice estaba abierto | Portal / inscripción pública | `#ui` `#sesion` `#relevamientos` | PM — reportó el 403 en producción sobre un link real: «el link es público, tiene que ser indistinto si es backoffice» | 27/08/2026 | 🟢 **Hecho** | No requiere |
+| 53 | «Relevamiento» y «caso» son dos cosas y la UI usaba la misma palabra para las dos | Becas / textos · revisión | `#textos` `#ui` `#metodo` | PM — fijó el vocabulario en sesión de trabajo: «relevamiento = parametría con sus estados; casos = personas que completaron el formulario» | 27/08/2026 | 🟢 **Hecho** | No requiere |
+| 54 | Un relevamiento en revisión no se podía volver a poner en curso | Becas / relevamientos | `#relevamientos` `#rbac` `#ui` `#convocatorias` | PM — «cuando está en estado En revisión no lo puedo pasar a En curso, como para abrirlo de nuevo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
+| 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 
 **Notas del índice**
 
@@ -5260,6 +5263,365 @@ cachear** en el WAF que está adelante del dominio (hoy responde con `Cache-Cont
 
 Quitar `CSRF_FAILURE_VIEW` de `config/settings.py` (vuelve la pantalla de Django), el script del shell y la
 ruta `portal:csrf_token`. El formulario queda como estaba, con el 403 en el escenario de las dos pestañas.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+# Cambio 53 — «Relevamiento» y «caso» son dos cosas y la UI usaba la misma palabra para las dos
+
+🟢 **HECHO — 27/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · backoffice (relevamientos, revisión, cupo) y solapa de Legajos |
+| **Etiquetas** | `#textos` `#ui` `#metodo` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, mientras se analizaban los estados |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Sin issue (cuelga del análisis de estados; ver Pendientes) |
+| **Partes afectadas** | Nueve plantillas del backoffice y los mensajes de dos vistas |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Cuando yo hablo de relevamientos me refiero al formulario en sí, no a las personas que
+> confirmaron un relevamiento. Dejemos claros esos dos conceptos: relevamientos = parametría,
+> con sus estados; casos = personas que completaron el formulario de relevamientos, tanto
+> público como por territorial.» Y ante el relevamiento de textos: «dale, renombrá.»
+
+## Alcance acordado
+
+- Los textos **visibles** del backoffice de Becas que dicen «formulario» hablando de la
+  persona que completó el relevamiento pasan a decir **«caso»**.
+- **Afuera:** el modelo, las rutas, los identificadores de Python y el contrato de la API de
+  campo (la app móvil depende de esos nombres); el portal ciudadano; y «formulario público»,
+  que nombra al *tipo de relevamiento* y por lo tanto ya usa la palabra en el sentido del PM.
+
+## Decisiones tomadas
+
+- **El vocabulario queda fijado así:** «relevamiento» es la parametría —la campaña con sus
+  seis estados, territorial o pública—; «caso» es la persona que la completó, por link público
+  o por territorial. En el código el caso sigue siendo el modelo `Formulario`.
+- **La ambigüedad estaba dentro del producto, no solo en la conversación.** El tipo de
+  relevamiento se mostraba como «Formulario público» (sentido parametría) y las pantallas de
+  revisión decían «Revisión de formularios» y «formularios cargados» (sentido caso): la misma
+  palabra con los dos significados en pantallas contiguas.
+- **No se renombró el modelo `Formulario` a `Caso`.** Sería un refactor grande —migración,
+  relaciones, serializers, la app de campo— sin beneficio funcional. Se documentó la
+  traducción en el docstring del módulo de revisión y en el comentario del badge de estado,
+  para que quien lea el código sepa que un `Formulario` es un caso.
+- **Los mensajes al usuario se renombraron también**, no solo los títulos: un toast que dijera
+  «Formulario aprobado» contra una pantalla titulada «Casos» reinstala la ambigüedad. Incluye
+  los dos textos que se escriben en la traza del conflicto de duplicados, que se leen desde la
+  pantalla del caso.
+- **«Formulario N» pasó a «Caso N»** en el título del detalle, en la fila de la tabla y en el
+  título del navegador; el número no cambió (sigue siendo el número dentro del relevamiento).
+
+## Implementación
+
+Textos renombrados: «Revisión de formularios» → «Revisión de casos»; la columna «Formulario» de
+las tres tablas (detalle del relevamiento, revisión y cupo del segmento); «Caso N» en el detalle;
+los vacíos «todavía no tiene casos cargados», «No hay casos pendientes», «Sin casos»; «Casos en
+el Programa Becas» en la solapa del ciudadano; «Casos cuya identidad todavía requiere
+validación»; los modales «Rechazar caso» y «¿Aprobar caso?»; y los mensajes «Caso aprobado»,
+«Caso rechazado», «Caso actualizado», «Caso agregado a la lista de espera», «Quedan N caso(s) sin
+revisar», «Solo se pueden rechazar casos pendientes de resolución», «El caso no tiene un
+ciudadano vinculado».
+
+## Archivos
+
+`programas/templates/programas/becas/revision/personas_list.html` · `formulario_list.html` ·
+`formulario_detalle.html` · `renaper_pendientes.html` ·
+`programas/templates/programas/becas/relevamientos/relevamiento_detail.html` ·
+`convocatoria_detail.html` · `programas/templates/programas/becas/cupo/segmento_detail.html` ·
+`_resumen_ciudadano.html` · `_formulario_estado_badge.html` · `programas/views/revision.py` ·
+`programas/views/cupo.py` · `programas/urls.py` · `programas/tests/test_becas_revision.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` sin observaciones · `scripts/design_audit.py --changed` **0 errores** (3 WARN
+  de `outline:none` preexistentes, en líneas que este cambio no toca) ·
+  `scripts/compile_templates.py` 330 plantillas, 0 errores.
+- `programas.tests.test_becas_revision` + `legajos.tests`: **83 tests OK** en un venv igual al CI
+  (Python 3.12 + Django 5.2.17). Un test asertaba el texto viejo del cartel de GPS
+  («Este formulario no tiene coordenadas GPS registradas») y se actualizó al nuevo.
+- Suites de Becas completas antes del ajuste del test: 181 tests, con esa única falla, ya corregida.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy. Sin variables, cron ni migración.
+
+## Pendientes / a definir
+
+- El análisis de los estados del relevamiento sigue abierto y es el motivo por el que apareció
+  este vocabulario: hoy **no existe la transición `EN_REVISION → EN_CURSO`** y el cron de
+  vencimientos revierte cualquier reapertura que no venga con las fechas corridas. Quedan seis
+  decisiones del PM antes de implementar «volver a campo» (capacidad, si se vuelve desde
+  `TERMINADO`, qué pasa con la convocatoria cerrada, si la app puede seguir editando casos ya
+  cargados durante la revisión, si la carga tardía sin señal tiene que poder entrar, y si un
+  rechazo se puede deshacer).
+- La documentación pública de `docs/client/` todavía usa «formulario» en el sentido de caso.
+  Conviene alinearla en la próxima pasada de documentación, no en este cambio.
+
+## Reversión
+
+Revertir el commit: son textos, sin efecto sobre datos ni contratos.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+# Cambio 54 — Un relevamiento en revisión no se podía volver a poner en curso
+
+🟢 **HECHO — 27/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · relevamientos y revisión (backoffice) |
+| **Etiquetas** | `#relevamientos` `#rbac` `#ui` `#convocatorias` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, con el análisis de estados a la vista |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Sin issue (cuelga del análisis #289; vocabulario en el Cambio 53) |
+| **Partes afectadas** | Detalle del relevamiento, pantalla de revisión, regla de vencimiento |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Me di cuenta de que en los relevamientos, cuando está en estado En revisión, no lo puedo
+> pasar a En curso, como para abrirlo de nuevo. Analizá todos los flujos de estados.» Y al
+> definir el modelo: «para mí el que tiene `becas.relevamiento.editar` es el que puede pasar
+> los estados, puede finalizarlo, puede pasarlo a un estado en curso, y en revisión se pasa
+> solo con la fecha.»
+
+## Alcance acordado
+
+- Devolver a campo un relevamiento cerrado, desde `FINALIZADO` **y** desde `EN_REVISION`.
+- `EN_REVISION` pasa a ser un estado **solo automático**: se llega por vencimiento de fecha.
+- **Afuera:** deshacer una resolución de un caso, cerrar la edición de casos ya cargados durante
+  la revisión, la ventana de sincronización tardía (`FINALIZANDO`) y la traza propia del
+  relevamiento. Están en Pendientes.
+
+## Decisiones tomadas
+
+- **Todas las transiciones manuales son de `becas.relevamiento.editar`**, como lo definió el PM:
+  finalizar y volver a campo. `becas.revision.editar` queda para el trabajo de revisión —resolver
+  casos— más el cierre («Marcar terminado»), que no se movió de dueño en este cambio.
+- **A `EN_REVISION` se llega solo por fecha.** Se eliminó el botón manual «Iniciar revisión» junto
+  con su vista y su ruta (`revision_iniciar`): el único camino a ese estado es la regla
+  `becas.relevamiento` de `procesar_vencimientos`. Así el estado significa una sola cosa —«la
+  fecha cerró el campo y todavía no se terminó»— en vez de ser dos cosas según quién lo puso.
+- **Consecuencia obligada: «Marcar terminado» ahora también sale de `FINALIZADO`.** Si a
+  `EN_REVISION` solo se llega por vencimiento, un relevamiento cerrado a mano no habría podido
+  terminarse hasta que venciera su fecha. Sigue exigiendo cero casos sin revisar. Revisar nunca
+  dependió del estado, así que no se pierde nada por el camino.
+- **Volver a campo exige fecha futura y convocatoria vigente. No es preferencia, es mecánica:**
+  el cron devuelve a `EN_REVISION` todo lo abierto de una convocatoria vencida y todo `ASIGNADO`
+  o `EN_CURSO` con `fecha_hasta` pasada. Sin esas dos condiciones la reapertura duraría hasta las
+  03:10 y el problema volvería disfrazado de fantasma. Con la convocatoria cerrada o vencida se
+  bloquea con un mensaje que dice qué hacer (extender su fecha de fin), porque reabrir la
+  convocatoria es una decisión de programa, no de un relevamiento.
+- **La fecha nueva es opcional cuando el período sigue vigente**, para no complicar el caso
+  simple: un `FINALIZADO` que todavía está en fecha vuelve a campo con un clic, como antes.
+- **La reapertura queda en el log de la aplicación** (`relevamiento_volver_a_campo`) con estado
+  anterior, usuario y fecha nueva. El relevamiento no tiene traza propia como los casos y los
+  dispositivos; hasta que exista, esto es lo que hay.
+- **La API de campo no cambió.** Su `reabrir` sigue aceptando solo `FINALIZADO` y exigiendo estar
+  dentro del período: es contrato con la app móvil y un vencido no pasaría igual.
+
+## Implementación
+
+- `programas/forms.py`: `VolverACampoForm` — `fecha_hasta` opcional, validada futura y dentro del
+  período de la convocatoria.
+- `programas/views/relevamientos.py`: `relevamiento_reabrir` reescrita como «volver a campo»
+  (acepta `FINALIZADO` y `EN_REVISION`, valida convocatoria y fecha, limpia `fecha_finalizado`,
+  actualiza `fecha_hasta`, loguea); el detalle pasa el form nuevo al contexto.
+- `programas/views/revision.py`: se eliminó `relevamiento_iniciar_revision`;
+  `relevamiento_terminar` acepta `ESTADOS_TERMINABLES` (`FINALIZADO`, `EN_REVISION`).
+- `programas/urls.py`: se eliminó la ruta `revision_iniciar`.
+- UI: tarjeta «Volver a campo» con la fecha en el detalle del relevamiento (con el texto que
+  explica por qué se pide la fecha), y en la pantalla de revisión el botón «Volver a campo»
+  —para quien tenga `becas.relevamiento.editar`— más «Marcar terminado» en los dos estados.
+
+## Archivos
+
+`programas/forms.py` · `programas/views/relevamientos.py` · `programas/views/revision.py` ·
+`programas/urls.py` ·
+`programas/templates/programas/becas/relevamientos/relevamiento_detail.html` ·
+`programas/templates/programas/becas/revision/formulario_list.html` ·
+`programas/tests/test_becas_relevamientos.py` · `programas/tests/test_becas_revision.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `programas.tests.test_becas_relevamientos` + `test_becas_revision` + `test_becas_vencimientos`
+  + `test_becas_rbac`: **139 tests OK** en un venv igual al CI (Python 3.12 + Django 5.2.17).
+- Tests nuevos: volver a campo desde `FINALIZADO` con período vigente y desde `EN_REVISION` con
+  fecha nueva; rechazo sin fecha, con fecha pasada, con convocatoria cerrada y desde `TERMINADO`;
+  y el que cierra el círculo: después de volver a campo, `relevamientos_de_convocatoria_vencida()`
+  ya no lo incluye, o sea que el cron no lo revierte.
+- Tests actualizados: el que afirmaba que reabrir rechazaba `EN_REVISION` (era el comportamiento
+  que se vino a cambiar) y el de «iniciar revisión», reemplazado por terminar desde `FINALIZADO`.
+- `manage.py check` sin observaciones · `scripts/design_audit.py --changed` **0 errores** (3 WARN
+  de `outline:none` preexistentes) · `scripts/compile_templates.py` 330 plantillas, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy. Sin variables, cron ni migración. El CronJob de `procesar_vencimientos` (03:10)
+no cambia: sigue siendo el único que pone `EN_REVISION`.
+
+## Pendientes / a definir
+
+- **La app puede seguir editando casos ya cargados y subiéndoles adjuntos en cualquier estado**, y
+  el permiso no caduca (valida la fecha de captura, que ya quedó fija). Decidir si se cierra a
+  partir de `EN_REVISION`.
+- **La carga tardía sin señal se pierde**: el cron cierra la entrada a las 03:10 y la app recibe
+  409 aunque la captura sea de dentro del período. `FINALIZANDO (sync)` era el estado para esa
+  ventana y nadie lo escribe. Definir con el equipo de la app móvil.
+- **Un rechazo no se puede deshacer** y el rechazado tampoco puede reinscribirse por el link
+  (la regla de duplicado cuenta `RECHAZADO` y `BAJA`, anotado en el código como decisión por
+  omisión). Confirmar con el programa.
+- **El relevamiento no tiene traza propia**: los cambios de estado solo quedan en el log.
+- Decidir si «Marcar terminado» también pasa a `becas.relevamiento.editar`, por coherencia con
+  «el que mueve los estados»; hoy quedó con `becas.revision.editar`.
+
+## Reversión
+
+Revertir el commit devuelve el botón «Iniciar revisión» con su ruta y vuelve a limitar la
+reapertura a `FINALIZADO`. No hay datos ni contratos involucrados; la app móvil no se tocó.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+# Cambio 55 — Validar la identidad a mano cuando Base de Personas no puede validar
+
+🟢 **HECHO — 27/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión de casos (backoffice) |
+| **Etiquetas** | `#siis` `#rbac` `#ui` `#datos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, mirando un caso real en producción |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Sin issue (cuelga de la revisión de Becas, #77) |
+| **Partes afectadas** | Pantalla del caso en revisión · gate de aprobación |
+| **Migración** | `programas.0054_identidad_forzada` |
+
+## Pedido original
+
+> «Primero la Validación de identidad: ¿contra qué valida hoy? Y segundo, hoy en día no puedo
+> validar: ¿podemos agregar una funcionalidad para que, aunque no valide, poder forzar la
+> validación?»
+
+## Alcance acordado
+
+- Poder marcar la identidad como validada **a mano**, con motivo obligatorio y traza, para
+  desbloquear la resolución del caso.
+- **Afuera:** cambiar la integración con Base de Personas, tocar el gate de SIIS (que es otro
+  control y sigue igual) y diagnosticar por qué la fuente no responde en el ambiente del cliente.
+
+## Decisiones tomadas
+
+- **Qué valida hoy, para dejarlo escrito:** la «Validación de identidad» consulta **Base de
+  Personas del Chaco («Gran Base»)**, no RENAPER. Es `programas/services/personas.py`
+  (`consultar_persona`), con token OAuth *client_credentials* cacheado casi 24 h y una consulta
+  `GET /personas/consulta/` por `dni` + `sexo` + `fuente_id`. El RENAPER real vive aparte, en
+  `legajos/services/consulta_renaper.py`, y Becas no lo usa. El campo del modelo se llama
+  `validado_renaper` por herencia del nombre viejo.
+- **Qué hace cuando valida:** sobreescribe nombre, apellido, fecha de nacimiento y sexo del
+  ciudadano con lo que devuelve la fuente, marca `validado_renaper=True` y registra cada cambio en
+  la traza. Requiere ciudadano vinculado y sexo F o M cargado.
+- **Por qué el pedido es urgente y no cosmético:** `motivo_bloqueo_aprobacion` exige identidad
+  validada, así que un caso que la fuente no puede validar **no se puede aprobar ni resolver
+  nunca**. Los motivos por los que hoy puede fallar son cuatro y cada uno tiene su mensaje:
+  configuración incompleta, DNI no encontrado (404 o código 12), persona fallecida, o error
+  técnico de la fuente.
+- **La validación manual se guarda aparte de la real.** Se agregaron `identidad_forzada` y
+  `identidad_forzada_motivo`: `validado_renaper` queda en `True` para desbloquear la aprobación,
+  pero el dato nunca se lee como si lo hubiera devuelto la fuente. La pantalla muestra «Validada
+  manualmente» sobre badge de advertencia con el motivo debajo, y el bloque de acciones de
+  revisión lo repite antes de aprobar.
+- **No inventa datos.** A diferencia de «Revalidar», la validación manual **no toca** nombre,
+  apellido, fecha de nacimiento ni sexo: quedan los que cargó el territorial o la persona. Por eso
+  el sexo **sigue editable** después de forzar (si la validación no vino de la fuente, no hay
+  motivo para congelar el dato).
+- **Motivo obligatorio de diez caracteres como mínimo**, en un Django Form (`ForzarIdentidadForm`)
+  y validado también en el cliente. Es un control que se saltea: sin el motivo escrito no queda
+  registro de por qué, y la traza es lo único que después explica la decisión.
+- **La capacidad es `becas.programa.administrar`**, la misma que ya gobierna «Revalidar»
+  (`CAP_REVALIDAR_RENAPER`). No se creó una capacidad nueva: la que existe ya está restringida al
+  administrador de programa, que es el nivel que corresponde para saltear un control.
+- **No se puede forzar dos veces** ni sobre un caso ya validado, y se exige ciudadano con DNI
+  (el gate de aprobación lo pide igual).
+
+## Implementación
+
+- Modelo: `Formulario.identidad_forzada` y `Formulario.identidad_forzada_motivo`
+  (migración `0054_identidad_forzada`).
+- `programas/forms.py`: `ForzarIdentidadForm` (motivo, mínimo 10 caracteres).
+- `programas/views/revision.py`: `formulario_forzar_identidad` — POST, capacidad, alcance,
+  transacción, traza «Validación de identidad → Validada manualmente — {motivo}».
+- `programas/urls.py`: `revision/formulario/<pk>/forzar-identidad/`.
+- UI en `formulario_detalle.html`: tres estados en la celda de identidad (Validado / Validada
+  manualmente / Pendiente), botón «Validar manualmente» junto a «Revalidar», modal con el motivo
+  (mismo patrón que el de rechazo), aviso en el bloque de aprobación y el sexo editable tras la
+  validación manual.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0054_identidad_forzada.py` ·
+`programas/forms.py` · `programas/views/revision.py` · `programas/urls.py` ·
+`programas/templates/programas/becas/revision/formulario_detalle.html` ·
+`programas/tests/test_becas_revision.py`.
+
+## Base de datos
+
+`programas.0054_identidad_forzada`: agrega `identidad_forzada` (booleano, default `False`) y
+`identidad_forzada_motivo` (texto corto, vacío por defecto) a `Formulario`. Sin backfill: los casos
+ya validados por la fuente quedan como estaban.
+
+## Validación
+
+- `programas.tests.test_becas_revision.ForzarIdentidadTests`: **8 tests OK** en un venv igual al CI
+  (Python 3.12 + Django 5.2.17). Cubren que marca validado y deja traza, que no toca los datos de
+  la persona, motivo corto y motivo ausente, sin ciudadano, doble forzado, solo POST, y que después
+  de forzar la identidad deja de ser el motivo de bloqueo de la aprobación.
+- Suites completas `test_becas_revision` + `test_becas_rbac` + `test_becas_api`: **125 tests OK**.
+- `manage.py check` sin observaciones · `makemigrations --check` sin cambios pendientes ·
+  `scripts/design_audit.py --changed` **0 errores** (3 WARN de `outline:none` preexistentes) ·
+  `scripts/compile_templates.py` 330 plantillas, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Deploy + `migrate`. Sin variables nuevas ni cron.
+
+## Pendientes / a definir
+
+- **Averiguar por qué la fuente no valida en el ambiente del cliente.** El mensaje exacto que
+  muestra la pantalla dice cuál de los cuatro casos es; si es «Configuracion de Base de Personas
+  incompleta», el arreglo real es que ECOM cargue `PERSONAS_API_URL`, `PERSONAS_API_CLIENT_ID`,
+  `PERSONAS_API_CLIENT_SECRET`, `PERSONAS_API_ENTIDAD_UUID` y `PERSONAS_API_FUENTE_ID`. La
+  validación manual es la salida de emergencia, no el arreglo.
+- **Reporte de identidades validadas a mano.** Hoy el dato está en el caso y en la traza, pero no
+  hay una vista que las liste; con volumen conviene tenerla para auditar.
+- Definir si el aviso al ciudadano y el legajo tienen que mostrar de algún modo que la identidad no
+  fue validada por la fuente.
+
+## Reversión
+
+Revertir el commit y la migración (`migrate programas 0053`). Los casos validados a mano quedan con
+`validado_renaper=True` —siguen aprobables— pero se pierde la marca de que fue manual; el motivo y
+el autor quedan igual en la traza, que es aditiva.
 
 ## Historial
 

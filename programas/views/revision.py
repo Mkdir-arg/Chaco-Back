@@ -1,4 +1,7 @@
-"""Backoffice — Revisión de formularios de Becas (#77).
+"""Backoffice — Revisión de casos de Becas (#77).
+
+Un «caso» es la persona que completó un relevamiento, por link público o por
+territorial; en el modelo es ``Formulario`` (vocabulario del PM, 27/08/2026).
 
 Acceso granular: ``becas.revision.ver`` para listar/consultar, ``becas.revision.editar``
 para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcance
@@ -21,7 +24,7 @@ from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm
+from programas.forms import CiudadanoGeneroRevisionForm, ForzarIdentidadForm, FormularioRevisionForm
 from programas.models import (
     Formulario,
     PreguntaGlobal,
@@ -337,7 +340,7 @@ def formulario_detalle(request, pk):
             resolver_ciudadano_offline(formulario)
             n = registrar_traza(formulario, request.user, cambios)
             if n:
-                messages.success(request, f"Formulario actualizado ({n} cambio(s) registrado(s)).")
+                messages.success(request, f"Caso actualizado ({n} cambio(s) registrado(s)).")
             else:
                 messages.info(request, "No hubo cambios para guardar.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
@@ -401,6 +404,7 @@ def formulario_detalle(request, pk):
             "mapa": mapa,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
+            "forzar_identidad_form": ForzarIdentidadForm(),
             "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
             "validacion_sis": validacion_sis,
             "detalle_siis": _detalle_validacion_siis(validacion_sis),
@@ -445,7 +449,7 @@ def formulario_actualizar_genero(request, pk):
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     if formulario.ciudadano is None:
-        messages.error(request, "El formulario no tiene un ciudadano vinculado.")
+        messages.error(request, "El caso no tiene un ciudadano vinculado.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     if formulario.validado_renaper and formulario.ciudadano.genero:
         messages.info(request, "La identidad ya fue validada; el sexo es de solo lectura.")
@@ -494,7 +498,7 @@ def formulario_aprobar(request, pk):
             messages.error(request, getattr(error, "message", str(error)))
         else:
             if resultado == "aprobado":
-                messages.success(request, "Formulario aprobado.")
+                messages.success(request, "Caso aprobado.")
             else:
                 segmento = formulario.relevamiento.convocatoria.segmento
                 messages.warning(
@@ -547,9 +551,9 @@ def formulario_resolver_duplicado(request, pk):
             registrar_traza(
                 formulario,
                 request.user,
-                [("Conflicto DNI", estado_anterior, f"Se conservó el Formulario {previo.numero}")],
+                [("Conflicto DNI", estado_anterior, f"Se conservó el caso {previo.numero}")],
             )
-            messages.success(request, f"Se conservó el Formulario {previo.numero} y se descartó esta carga duplicada.")
+            messages.success(request, f"Se conservó el caso {previo.numero} y se descartó esta carga duplicada.")
         elif decision == "conservar_actual":
             if previo.estado != Formulario.Estado.ENVIADO:
                 messages.error(request, "La carga anterior ya fue procesada y no puede reemplazarse desde aquí.")
@@ -562,10 +566,10 @@ def formulario_resolver_duplicado(request, pk):
             registrar_traza(
                 previo,
                 request.user,
-                [("Conflicto DNI", "ENVIADO", f"Reemplazado por el Formulario {formulario.numero}")],
+                [("Conflicto DNI", "ENVIADO", f"Reemplazado por el caso {formulario.numero}")],
             )
             registrar_traza(formulario, request.user, [("Conflicto DNI", "PENDIENTE", "Carga conservada")])
-            messages.success(request, f"Se conservó esta carga y se descartó el Formulario {previo.numero}.")
+            messages.success(request, f"Se conservó esta carga y se descartó el caso {previo.numero}.")
         else:
             messages.error(request, "Seleccioná qué carga querés conservar.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
@@ -586,7 +590,7 @@ def formulario_rechazar(request, pk):
         # beneficiario ya APROBADO, liberandole el cupo y avisandole que no fue
         # aprobado.
         if formulario.estado != Formulario.Estado.ENVIADO:
-            messages.error(request, "Solo se pueden rechazar formularios pendientes de resolución.")
+            messages.error(request, "Solo se pueden rechazar casos pendientes de resolución.")
             return redirect("becas:formulario_detalle", pk=formulario.pk)
         motivo = (request.POST.get("motivo") or "").strip()
         if not motivo:
@@ -614,7 +618,7 @@ def formulario_rechazar(request, pk):
         )
         if validacion.estado == ValidacionSIS.Estado.ERROR:
             messages.warning(request, "SIIS no respondió correctamente; quedó registrado para reintentar.")
-        messages.success(request, "Formulario rechazado.")
+        messages.success(request, "Caso rechazado.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
@@ -627,7 +631,7 @@ def formulario_revalidar_renaper(request, pk):
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     ciudadano = formulario.ciudadano
     if ciudadano is None:
-        messages.error(request, "El formulario no tiene un ciudadano vinculado para revalidar.")
+        messages.error(request, "El caso no tiene un ciudadano vinculado para revalidar.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
     if ciudadano.genero not in ("F", "M"):
         messages.error(request, "Completá el sexo F o M antes de consultar Base de Personas.")
@@ -675,15 +679,63 @@ def formulario_revalidar_renaper(request, pk):
 
 
 @login_required
-@requiere(CAP_REVISION_EDITAR)
-def relevamiento_iniciar_revision(request, pk):
-    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope_relevamiento(request, rel)
-    if request.method == "POST" and rel.estado == Relevamiento.Estado.FINALIZADO:
-        rel.estado = Relevamiento.Estado.EN_REVISION
-        rel.save(update_fields=["estado", "modificado"])
-        messages.success(request, "Relevamiento marcado en revisión.")
-    return redirect("becas:revision_formularios", relevamiento_pk=rel.pk)
+@requiere(CAP_REVALIDAR_RENAPER)
+def formulario_forzar_identidad(request, pk):
+    """Marca la identidad como validada a mano, con motivo y traza.
+
+    Base de Personas no siempre puede validar a alguien que existe: el DNI no
+    figura en la fuente, la fuente no responde, o la persona quedó fuera del
+    padrón que expone. Como ``motivo_bloqueo_aprobacion`` exige identidad
+    validada, sin esta salida el caso no se puede resolver nunca.
+
+    No inventa datos: no toca nombre, apellido, fecha de nacimiento ni sexo
+    —eso sigue siendo lo que cargó el territorial o la persona— y deja marcado
+    que la validación fue manual, para que el dato no se lea como si lo hubiera
+    devuelto la fuente.
+    """
+    formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
+    _assert_scope_formulario(request, formulario)
+    if request.method != "POST":
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if formulario.validado_renaper:
+        messages.error(request, "La identidad de este caso ya está validada.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if formulario.ciudadano_id is None or not formulario.ciudadano.dni:
+        messages.error(request, "El caso necesita un ciudadano con DNI antes de validar la identidad.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    form = ForzarIdentidadForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, next(iter(form.errors.values()))[0])
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    motivo = form.cleaned_data["motivo"]
+    with transaction.atomic():
+        formulario.validado_renaper = True
+        formulario.identidad_forzada = True
+        formulario.identidad_forzada_motivo = motivo
+        formulario.save(
+            update_fields=["validado_renaper", "identidad_forzada", "identidad_forzada_motivo", "modificado"]
+        )
+        registrar_traza(
+            formulario,
+            request.user,
+            [("Validación de identidad", "Pendiente", f"Validada manualmente — {motivo}")],
+        )
+    messages.warning(
+        request,
+        "Identidad validada manualmente. Queda registrado en la traza junto con el motivo.",
+    )
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+# Estados desde los que se puede cerrar la revisión: el campo ya está cerrado,
+# sea porque alguien finalizó el relevamiento o porque se venció la fecha. A
+# EN_REVISION solo se llega por fecha (decisión del PM, 27/08/2026): no hay
+# forma manual de marcar un relevamiento «en revisión», así que terminar
+# también tiene que poder hacerse desde FINALIZADO o el cierre quedaría
+# esperando el vencimiento.
+ESTADOS_TERMINABLES = (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION)
 
 
 @login_required
@@ -691,12 +743,15 @@ def relevamiento_iniciar_revision(request, pk):
 def relevamiento_terminar(request, pk):
     rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     _assert_scope_relevamiento(request, rel)
-    if request.method == "POST" and rel.estado == Relevamiento.Estado.EN_REVISION:
-        pendientes = rel.formularios.filter(estado=Formulario.Estado.ENVIADO).count()
-        if pendientes:
-            messages.error(request, f"Quedan {pendientes} formulario(s) sin revisar.")
+    if request.method == "POST":
+        if rel.estado not in ESTADOS_TERMINABLES:
+            messages.error(request, "Solo se puede terminar un relevamiento finalizado o en revisión.")
         else:
-            rel.estado = Relevamiento.Estado.TERMINADO
-            rel.save(update_fields=["estado", "modificado"])
-            messages.success(request, "Relevamiento terminado.")
+            pendientes = rel.formularios.filter(estado=Formulario.Estado.ENVIADO).count()
+            if pendientes:
+                messages.error(request, f"Quedan {pendientes} caso(s) sin revisar.")
+            else:
+                rel.estado = Relevamiento.Estado.TERMINADO
+                rel.save(update_fields=["estado", "modificado"])
+                messages.success(request, "Relevamiento terminado.")
     return redirect("becas:revision_formularios", relevamiento_pk=rel.pk)

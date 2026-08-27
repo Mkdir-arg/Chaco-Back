@@ -178,7 +178,7 @@ class EdicionTrazaTests(_BaseRevisionTest):
         resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
 
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Este formulario no tiene coordenadas GPS registradas.")
+        self.assertContains(resp, "Este caso no tiene coordenadas GPS registradas.")
         self.assertNotContains(resp, "Mapa del lugar donde se realizó la toma")
 
     def test_detalle_muestra_respuesta_completa_de_siis(self):
@@ -634,10 +634,30 @@ class TransicionesRelevamientoTests(_BaseRevisionTest):
         super().setUp()
         self.client.force_login(self.coord_a)
 
-    def test_iniciar_revision(self):
-        self.client.post(reverse("becas:revision_iniciar", args=[self.rel_a.pk]))
+    def test_terminar_desde_finalizado(self):
+        """A EN_REVISION se llega solo por fecha, así que terminar también sale
+        de FINALIZADO: si no, un relevamiento cerrado a mano no se podría
+        cerrar hasta que venciera (decisión del PM, 27/08/2026)."""
+        self.rel_a.estado = Relevamiento.Estado.FINALIZADO
+        self.rel_a.save(update_fields=["estado"])
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save()
+
+        self.client.post(reverse("becas:revision_terminar", args=[self.rel_a.pk]))
+
         self.rel_a.refresh_from_db()
-        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_REVISION)
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.TERMINADO)
+
+    def test_terminar_rechaza_estado_en_curso(self):
+        self.rel_a.estado = Relevamiento.Estado.EN_CURSO
+        self.rel_a.save(update_fields=["estado"])
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save()
+
+        self.client.post(reverse("becas:revision_terminar", args=[self.rel_a.pk]))
+
+        self.rel_a.refresh_from_db()
+        self.assertEqual(self.rel_a.estado, Relevamiento.Estado.EN_CURSO)
 
     def test_terminar_bloqueado_con_pendientes(self):
         self.rel_a.estado = Relevamiento.Estado.EN_REVISION
@@ -970,3 +990,88 @@ class AvisoResolucionEnvioRealTests(_BaseAvisoResolucionTest):
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class ForzarIdentidadTests(_BaseRevisionTest):
+    """Salida de emergencia cuando Base de Personas no valida (27/08/2026)."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        self.form_a.ciudadano = Ciudadano.objects.create(
+            dni="30300300",
+            nombre="Persona",
+            apellido="Sin Fuente",
+            genero="F",
+            fecha_nacimiento=date(1990, 5, 5),
+        )
+        self.form_a.save(update_fields=["ciudadano"])
+        self.url = reverse("becas:formulario_forzar_identidad", args=[self.form_a.pk])
+
+    def test_sin_ciudadano_no_se_puede_forzar(self):
+        self.form_b.refresh_from_db()
+        url_b = reverse("becas:formulario_forzar_identidad", args=[self.form_b.pk])
+
+        self.client.post(url_b, {"motivo": "La fuente no responde desde ayer"})
+
+        self.form_b.refresh_from_db()
+        self.assertFalse(self.form_b.validado_renaper)
+
+    def test_forzar_marca_validado_y_deja_traza(self):
+        self.assertFalse(self.form_a.validado_renaper)
+
+        respuesta = self.client.post(self.url, {"motivo": "El DNI no figura en Base de Personas"})
+
+        self.assertRedirects(respuesta, reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+        self.form_a.refresh_from_db()
+        self.assertTrue(self.form_a.validado_renaper)
+        self.assertTrue(self.form_a.identidad_forzada)
+        self.assertEqual(self.form_a.identidad_forzada_motivo, "El DNI no figura en Base de Personas")
+        traza = self.form_a.trazas.filter(campo="Validación de identidad").first()
+        self.assertIsNotNone(traza)
+        self.assertIn("Validada manualmente", traza.valor_nuevo)
+
+    def test_forzar_no_toca_los_datos_de_la_persona(self):
+        ciudadano = self.form_a.ciudadano
+        nombre, apellido, genero = ciudadano.nombre, ciudadano.apellido, ciudadano.genero
+
+        self.client.post(self.url, {"motivo": "La fuente no responde desde ayer"})
+
+        ciudadano.refresh_from_db()
+        self.assertEqual((ciudadano.nombre, ciudadano.apellido, ciudadano.genero), (nombre, apellido, genero))
+
+    def test_motivo_corto_se_rechaza(self):
+        self.client.post(self.url, {"motivo": "porque"})
+
+        self.form_a.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+
+    def test_sin_motivo_se_rechaza(self):
+        self.client.post(self.url, {})
+
+        self.form_a.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+
+    def test_no_se_puede_forzar_dos_veces(self):
+        self.client.post(self.url, {"motivo": "El DNI no figura en Base de Personas"})
+
+        self.client.post(self.url, {"motivo": "Otro motivo cualquiera para probar"})
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.identidad_forzada_motivo, "El DNI no figura en Base de Personas")
+
+    def test_solo_acepta_post(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertFalse(self.form_a.validado_renaper)
+
+    def test_desbloquea_la_identidad_como_motivo_de_bloqueo(self):
+        from programas.services.cupo import motivo_bloqueo_aprobacion
+
+        self.assertIn("identidad", motivo_bloqueo_aprobacion(self.form_a).lower())
+
+        self.client.post(self.url, {"motivo": "El DNI no figura en Base de Personas"})
+
+        self.form_a.refresh_from_db()
+        motivo = motivo_bloqueo_aprobacion(self.form_a)
+        self.assertTrue(motivo is None or "identidad" not in motivo.lower())
