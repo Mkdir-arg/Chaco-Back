@@ -54,9 +54,24 @@ Del otro lado **no** es un repo pasivo: tiene CI/CD propio.
   on-prem de ECOM con **el nombre de la rama en la ruta** —
   `…/datanach/<rama>:latest`. Corre solo para `test` y `main`, así que son dos
   imágenes distintas. **ArgoCD** las despliega.
-- Los entornos de ECOM son suyos y se despliegan solos: `test` alimenta
-  **testing** (`https://datanach.ecomdev.ar/`) y `main` está previsto para **QA**.
-  Nada que ver con `icore-srv`, que seguimos desplegando a mano.
+- Los entornos de ECOM son suyos y **se despliegan solos**. Confirmado por su
+  equipo de DevOps el 26/08/2026:
+
+  | Rama | Imagen | Entorno |
+  |---|---|---|
+  | `test` | `…/datanach/test:latest` | **testing** (`https://datanach.ecomdev.ar/`) |
+  | `main` | `…/datanach/main:latest` | **PRODUCCIÓN** |
+
+  !!! danger "Pushear `main` a ECOM es desplegar en producción"
+      Los dos entornos tienen el CI/CD configurado igual: al publicarse una imagen
+      nueva en `main`, **impacta en producción de forma automática**, sin pase, sin
+      aprobación y sin ventana. Tarda **5 a 7 minutos** en verse. No hay un entorno
+      de QA intermedio: los entornos de ECOM son dos, testing y producción.
+
+  Consecuencia práctica: `test` es el único lugar donde se puede probar antes. Al
+  espejar, primero `test`, se verifica ahí, y **recién después** `main` —que ya es
+  el ambiente real, con datos y usuarios del organismo—. Nada que ver con
+  `icore-srv`, que seguimos desplegando a mano.
 - **La rama `test` de ECOM no es nuestra.** Tiene commits propios de su
   automatización (autor `argocd`, `[ci skip]`), así que está divergida de nuestra
   `main`: un push normal se rechaza. **No se fuerza.** Se actualiza haciendo que

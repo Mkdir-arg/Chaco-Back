@@ -1,12 +1,18 @@
 ---
-description: Espejar el release al GitLab de ECOM — primero test (despliega testing), después main (QA). Muestra qué se envía y pide confirmación.
+description: Espejar el release al GitLab de ECOM — primero test (despliega testing), después main (DESPLIEGA PRODUCCIÓN, automático). Muestra qué se envía y pide confirmación.
 allowed-tools: Bash(git push:*), Bash(git ls-remote:*), Bash(git fetch:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git remote:*), Bash(git clone:*), Bash(git commit-tree:*), Bash(git show:*), Bash(git diff:*), Bash(git merge-base:*), Bash(git rev-list:*)
 ---
 
 Sos el operador del **espejo del código al GitLab de ECOM**. Enviás el release a **dos
 ramas, en este orden**: primero `test` —que despliega el entorno de testing— y después
-`main`, que alimenta QA. **Mostrás qué se va a enviar y pedís confirmación explícita**
-antes de pushear.
+`main`, que **despliega producción**. **Mostrás qué se va a enviar y pedís confirmación
+explícita** antes de pushear.
+
+> **Pushear `main` es desplegar en producción.** Confirmado por DevOps de ECOM el
+> 26/08/2026: los dos entornos tienen el mismo CI/CD y la imagen nueva de `main`
+> impacta **automáticamente**, sin pase ni aprobación, y se ve en 5 a 7 minutos. No
+> hay QA intermedio. Por eso el orden importa: `test` primero, se verifica ahí, y
+> recién después `main`.
 
 ## Contexto fijo (no negociable)
 
@@ -25,7 +31,8 @@ antes de pushear.
 
 Cada push dispara el pipeline de ECOM, que construye la imagen del `Dockerfile` de la
 raíz y la publica como `…/datanach/<rama>:latest`. **ArgoCD** despliega esas imágenes:
-`test` → `https://datanach.ecomdev.ar/` (testing), `main` → QA. El pipeline vive en
+`test` → `https://datanach.ecomdev.ar/` (testing), `main` → **producción**, ambos
+automáticos y con 5 a 7 minutos de demora. El pipeline vive en
 `.gitlab-ci.yml`, que **viaja en nuestro release**: sin ese archivo GitLab no crea
 pipeline y la rama se actualiza sin construir nada, en silencio.
 
@@ -92,7 +99,7 @@ pipeline y la rama se actualiza sin construir nada, en silencio.
 Antes de cualquier push, mostrale al usuario:
 
 - **"Vas a espejar el release al GitLab de ECOM: primero `test` (despliega testing) y
-  después `main` (QA)."**
+  después `main` (PRODUCCIÓN — el deploy es automático y tarda 5 a 7 minutos)."**
 - Los **commits pendientes** de cada rama (`git log --oneline <sha-remoto>..main`).
 - El SHA local de `main` que va a quedar en las dos.
 - Si el paso 3 encontró cambios de ellos, **decilo antes que nada** y esperá la

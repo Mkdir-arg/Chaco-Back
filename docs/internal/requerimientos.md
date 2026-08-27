@@ -1881,8 +1881,8 @@ Antes se había verificado que sobrescribir `test` no habría perdido contenido 
 
 Para ECOM:
 
-- QA: ¿va a tomar `…/main:latest`? ¿Con qué URL?
-- ¿Cómo quieren que manejemos `main`: la actualizamos en cada release nuestra, o solo cuando avisemos que hay una versión estable? Ahora cada push construye.
+- ~~QA: ¿va a tomar `…/main:latest`? ¿Con qué URL?~~ **Respondido por DevOps de ECOM el 26/08/2026: no hay entorno de QA.** Son dos entornos, y `…/main:latest` es **producción**, con despliegue automático al publicarse la imagen (5 a 7 minutos). Ver `docs/internal/branching.md`.
+- ¿Cómo quieren que manejemos `main`: la actualizamos en cada release nuestra, o solo cuando avisemos que hay una versión estable? Ahora cada push construye —y, sabiendo que `main` es producción, **cada push despliega**: la pregunta pasa a ser cuándo publicamos, no si construye.
 - ¿Las variables de entorno de testing están cargadas (base, SIIS, correo)?
 - Accesos a ArgoCD con usuario de dominio.
 - El sync periódico de SIIS en Kubernetes sería un CronJob, o sea configuración: ¿lo definen ellos?
