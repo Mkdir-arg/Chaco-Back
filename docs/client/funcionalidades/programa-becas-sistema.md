@@ -205,6 +205,19 @@ Pensado para que un público objetivo se inscriba solo. Se genera un link con un
     - **La identificación caduca a los 45 minutos**, para que en una computadora compartida no quede disponible el documento de la persona anterior.
     - **Los mensajes de rechazo son idénticos** entre sí, para que nadie pueda reconstruir el padrón ni averiguar quién ya está inscripto probando documentos.
 
+### Qué protege el link
+
+El formulario está abierto a cualquiera que reciba el link, así que lleva sus propios cuidados:
+
+- **Verificación de seguridad** antes de dejar avanzar, para distinguir a una persona de un programa automático.
+- **Límite de intentos** por documento y por origen, de modo que nadie pueda probar documentos en serie.
+- **Un único mensaje de rechazo** cuando el documento no puede inscribirse: no se informa si la causa es el padrón,
+  una inscripción previa o el documento en sí, para no revelar quién está en la lista de habilitados.
+- **Los archivos que sube la persona** se guardan con un nombre que no se puede adivinar y solo se acceden con sesión
+  del backoffice.
+- **La identificación caduca**: si alguien deja el formulario abierto en una máquina compartida, al rato hay que
+  volver a identificarse.
+
 ### Reglas comunes a los dos canales
 
 - **El apoderado es obligatorio para menores de edad.** Si la persona es menor, se piden nombre, apellido, documento, género y fecha de nacimiento del apoderado.
