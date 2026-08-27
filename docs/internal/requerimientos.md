@@ -54,6 +54,7 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 | `#mobile` | Impacta la APK de territoriales |
 | `#api` | Impacta el servidor/API consumido por Mobile |
 | `#infra` | Requiere algo del ambiente: cron, SMTP, despliegue, ECOM |
+| `#gestion` | Tablero del Project, trazabilidad de issues y planes de prueba: qué se entregó y dónde figura |
 
 ## Regla de oro
 
@@ -188,6 +189,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 44 | Avisar por correo al ciudadano cuando se resuelve su formulario | Becas / revisión · Portal | `#correo` `#relevamientos` `#cupos` `#ui` `#infra` | PM — pedido directo en sesión de trabajo | 26/08/2026 | 🟡 **Implementado — inerte hasta el SMTP de ECOM** | `programas.0053` |
 | 45 | Documentar el Programa Becas al detalle: el sistema construido como evolución de la V1 | Becas · Documentación | `#textos` `#ui` `#relevamientos` | PM — «leer toda la documentación pública de Becas y actualizarla al detalle con lo que tenemos del proceso» | 26/08/2026 | 🟢 **Hecho — publicado en GitHub Pages** | No |
 | 46 | La API de campo aceptaba cualquier archivo, de cualquier peso | Becas · Mobile / API | `#api` `#mobile` `#datos` | Hallazgo propio en la revisión del flujo público pedida por el PM | 26/08/2026 | 🟢 **Hecho — falta verificar contra la app antes de producción** | No |
+| 47 | El tablero no reflejaba que el formulario público ya estaba entregado | Becas · Gestión | `#gestion` `#relevamientos` | PM — «las épicas y los task sobre el formulario público de los relevamientos de becas en qué estado están?» | 27/08/2026 | 🟡 **Parcial — tablero al día; plan de pruebas redactado sin publicar** | No |
 
 **Notas del índice**
 
@@ -4293,3 +4295,145 @@ Base de Personas solo expone nombre, apellido y fecha de nacimiento.
 ## Reversión
 
 Revertir el commit. Los archivos ya subidos no se tocan.
+
+---
+
+# Cambio 47 — El tablero no reflejaba que el formulario público ya estaba entregado
+
+🟡 **PARCIAL — 27/08/2026 · tablero al día; el plan de pruebas quedó redactado sin publicar**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Gestión |
+| **Etiquetas** | `#gestion` `#relevamientos` |
+| **Solicitante** | PM — sesión de trabajo del 27/08/2026 |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Épica #69 · análisis #289 · tasks #290 a #296 y #299 |
+| **Partes afectadas** | Ninguna del producto. Solo el Project #1 de GitHub, los issues y este documento |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Las épicas y los task sobre el formulario público de los relevamientos de becas ¿en qué
+> estado están?» — y después, en orden: «a todos ponele iteración actual», «asignáme esas
+> tareas a mi usuario Matías Fariña», «¿todas tienen los casos /qa:plan?», «armá el plan en
+> la épica» y «documentá todo lo que se hizo».
+
+## El problema
+
+El **Cambio 41** (formulario público) estaba entregado desde el 25/08: PR #306 mergeada en
+`development` y desplegada en testing, más los Cambios 43 y 44 encima. Pero en el Project #1
+la épica, el análisis y las **8 tasks seguían en `Backlog` y abiertos**, sin responsable y sin
+iteración.
+
+No era un tablero abandonado —el resto del Project estaba mantenido: 84 items en Done y 24 en
+In QA— sino **este cluster puntual desincronizado**. Un tablero que dice Backlog sobre trabajo
+ya desplegado en testing hace invisible lo que falta de verdad, que era verificarlo.
+
+## Alcance acordado
+
+Entra: poner al día los campos del tablero de ese cluster y dejar escrito el plan de pruebas
+de la épica. **No entra** ejecutar los casos, ni tocar código del producto, ni cerrar issues.
+
+## Decisiones tomadas
+
+- **«Solo lectura sobre el Project» cubre el `Status`, no los campos de metadata.** La regla de
+  `PM.md` existe para que ningún asistente decida por su cuenta que algo avanzó de estado.
+  Completar `Iteration` y `Assignees` cuando el PM lo pide explícitamente no toma esa decisión:
+  es tipeo delegado y es reversible. Se escribieron esos campos y **no** se tocó ningún Status
+  a mano.
+
+- **No se tocó la configuración del campo de iteración.** Editar `iterationConfiguration` por
+  API reemplaza la definición completa y rompe las asignaciones existentes. Se asignó la
+  iteración item por item con `gh project item-edit`; la configuración quedó verificada intacta
+  (1 activa + 6 completadas).
+
+- **`Mkdir-arg` es el usuario del PM, no `matias-abate`.** Las dos cuentas empiezan con
+  «Matías» y son personas distintas: `matias-abate` es Matías **Abate**. Se confirmó por el
+  correo de git de la cuenta autenticada (`farinamatias00@gmail.com`) antes de asignar.
+
+- **El gate del plan de pruebas se evalúa sobre las tasks abiertas.** `QA.md` pide que «todas
+  las tasks de la épica» tengan casos, y su propia receta de cobertura filtra por
+  `--state open`. Las **12 tasks abiertas** de la épica #69 tienen casos; las 6 cerradas que no
+  (#73, #74, #75, #76, #77, #82) se entregaron antes de que el método de QA existiera. No se
+  generaron casos retroactivos para ellas: se documentaron como cubiertas de forma indirecta
+  por los end-to-end.
+
+- **El plan se hizo sobre la épica entera, no solo sobre el formulario público.** Se advirtió
+  que un plan de #69 arrastra 316 casos y nueve meses de módulo, y que un plan acotado al canal
+  público sería más ejecutable; el PM eligió igual el de la épica. Queda registrado que la
+  decisión fue consciente.
+
+## Implementación
+
+Lo que quedó hecho, en orden:
+
+1. **Diagnóstico del cluster** — 10 items (épica #69, análisis #289, tasks #290 a #296 y #299),
+   48 h estimadas, contrastados contra `development` y contra el índice de este archivo.
+
+2. **Iteration 7 asignada a los 10 items.** Es la única iteración activa desde el 10/08/2026.
+
+3. **Las 8 tasks asignadas a `Mkdir-arg`.** La automatización del Project reaccionó a la
+   asignación y movió **7 de ellas a `In QA`**; **#299 quedó en `Backlog`**. Ese movimiento no
+   lo hizo el asistente: fue la regla del Project, y quedó reportado al PM en el momento.
+
+4. **Auditoría de cobertura QA de la épica #69** — 42 hijos, **316 casos** `TC-*` escritos,
+   ninguno tildado.
+
+5. **Plan de pruebas redactado** — estructura canónica de `QA.md`: alcance, actores y accesos,
+   cobertura por las 36 tasks, **12 casos end-to-end nuevos** (`TC-E2E-01` a `TC-E2E-12`), datos
+   de prueba, criterios de salida y fuera de alcance. Los end-to-end cubren las costuras que
+   ninguna task prueba sola: la unicidad del ciudadano entre el canal de campo y el público
+   (`TC-E2E-03`), el último cupo disputado entre ambos canales (`TC-E2E-04`), el lanzamiento por
+   capacidad sin deploy (`TC-E2E-06`) y el vencimiento que cierra el link pero no la revisión
+   (`TC-E2E-05`).
+
+## Archivos
+
+`docs/internal/requerimientos.md` (esta entrada y la etiqueta `#gestion` nueva en el
+vocabulario). El cuerpo del plan de pruebas todavía **no está en el repositorio ni en GitHub**:
+se le mostró al PM y quedó a la espera de su OK para publicarse como issue.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Sin código que validar. Cada escritura al Project se verificó releyendo
+`gh project item-list` después de aplicarla: los 10 items con `Iteration 7`, las 8 tasks con
+assignee, los Status resultantes y la configuración del campo de iteración intacta.
+`scripts/requerimientos.py --check` sobre esta entrada.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+1. **Publicar el `[PLAN DE PRUEBAS]` de la épica #69.** Está redactado y revisado; falta el OK
+   del PM para crearlo como issue en Backlog con Tipo = Testing. Mientras no se publique, el
+   trabajo de este cambio está a medias — de ahí el semáforo amarillo.
+2. **#299 quedó en `Backlog` mientras las otras 7 pasaron a `In QA`.** Hay que emparejar el
+   cluster; lo mueve el PM.
+3. **El análisis #289 sigue en `Backlog`** aunque está Definido, sin preguntas abiertas y con
+   sus 8 sub-issues ejecutados. Corresponde `Done`.
+4. **La épica #69 quedó con iteración**, y es la única de las 7 épicas del tablero que la tiene.
+   Se hizo porque el pedido fue «a todos»; falta decidir si se mantiene o se limpia por
+   convención.
+5. **Los 316 casos y los 12 end-to-end están sin ejecutar** (0 tildados). Es el trabajo real que
+   el tablero desincronizado estaba ocultando.
+6. **Los Cambios 42, 43, 44 y 45 no tienen issue en el Project.** Se entregaron como pedidos
+   directos y solo viven en este archivo. Falta decidir si se crean issues retroactivos —como se
+   hizo con el #234— o si se acepta explícitamente que no los tengan.
+7. **El SMTP de ECOM (task #245) bloquea dos verificaciones:** el correo de confirmación del
+   Cambio 41 (#296) y el aviso de resolución del Cambio 44.
+8. **El análisis #72 (integración SIS) sigue En análisis**, bloqueado a la espera del contrato
+   técnico. Mientras siga así, la épica #69 no se puede consolidar ni dar por probada.
+
+## Reversión
+
+Nada que revertir en el producto. En el Project: limpiar el campo `Iteration` de los 10 items y
+quitar el assignee de las 8 tasks devuelve el tablero al estado previo, aunque los Status que
+movió la automatización habría que corregirlos a mano. Revertir el commit deshace esta entrada y
+la etiqueta `#gestion`.
