@@ -21,7 +21,12 @@ from .views.ciudadano import (
     ciudadano_nueva_consulta,
     ciudadano_programa_detalle,
 )
-from .views.inscripcion import inscripcion_confirmacion, inscripcion_paso1, inscripcion_paso2
+from .views.inscripcion import (
+    csrf_token_vigente,
+    inscripcion_confirmacion,
+    inscripcion_paso1,
+    inscripcion_paso2,
+)
 from .views.public import (
     PortalHomeView,
 )
@@ -30,6 +35,9 @@ app_name = "portal"
 
 urlpatterns = [
     path("", PortalHomeView.as_view(), name="home"),
+    # Token CSRF vigente para los formularios públicos: el login del backoffice
+    # rota la cookie del navegador y dejaba el formulario abierto con un token viejo.
+    path("csrf/", csrf_token_vigente, name="csrf_token"),
     # Formulario público de Becas (#293) — superficie sin login, por token.
     path("inscripcion/<uuid:token>/", inscripcion_paso1, name="inscripcion_paso1"),
     path("inscripcion/<uuid:token>/formulario/", inscripcion_paso2, name="inscripcion_paso2"),
