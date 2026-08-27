@@ -3633,6 +3633,7 @@ Lo que se cerró:
   accesos, la ubicación GPS solo se guarda si el segmento la pide, y la identificación del paso 1 caduca a los 45
   minutos con un sello propio que se renueva (acortar la sesión entera hacía perder el paso 2 a medio llenar).
 - `/api/schema|docs|redoc/` quedaron detrás de login.
+- **Aviso de padrón abierto al crear un relevamiento público.** Volver el padrón obligatorio habría contradicho RN-P14 —que decidió que sin padrón el link es abierto—, así que en lugar de imponerlo se hace explícita la consecuencia en el momento de decidir: el alta muestra un aviso de que sin padrón cualquiera con el link se inscribe y ocupa cupo. Si el programa quiere volverlo obligatorio, es una validación más en el form.
 
 **Una revisión adversarial del propio cambio encontró 21 defectos**, tres de ellos rotos de raíz: `collectstatic`
 fallaba por los sourcemaps de las librerías autoalojadas —el contenedor no habría arrancado—, con las claves de
