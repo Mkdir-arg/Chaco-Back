@@ -16,8 +16,11 @@ import uuid
 from datetime import datetime
 
 from django.conf import settings
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_GET
 
 from portal.forms.inscripcion import InscripcionPaso1Form, InscripcionPaso2Form
 from portal.services.inscripcion import (
@@ -266,3 +269,21 @@ def inscripcion_confirmacion(request, token):
             "comprobante": comprobante,
         },
     )
+
+
+@require_GET
+def csrf_token_vigente(request):
+    """Devuelve el token CSRF que corresponde a la cookie actual del navegador.
+
+    El backoffice y el portal comparten dominio, y `django.contrib.auth.login`
+    rota la cookie CSRF de todo el navegador (Django lo hace en `login()`). Quien
+    tenía este formulario público abierto en otra pestaña se quedaba con un token
+    viejo y el envío moría en un 403 sin poder recuperarse. El shell del
+    formulario pide el token de nuevo cada vez que la pestaña vuelve al frente.
+
+    No expone nada: es el mismo token que ya viaja en el HTML del formulario y
+    solo lo puede leer una página del propio origen.
+    """
+    respuesta = JsonResponse({"token": get_token(request)})
+    respuesta["Cache-Control"] = "no-store"
+    return respuesta

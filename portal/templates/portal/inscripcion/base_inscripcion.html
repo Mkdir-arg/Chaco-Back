@@ -192,6 +192,39 @@
         </footer>
     </div>
 
+    {% comment %}El backoffice y el portal comparten dominio, y Django rota la cookie
+    CSRF de todo el navegador en cada `login()`: quien tenía este formulario abierto en
+    otra pestaña se quedaba con un token viejo y el envío moría en un 403. Al volver a
+    la pestaña se pide el token que corresponde a la cookie actual. Si el pedido falla
+    se envía el token original —el formulario sigue funcionando sin este script— y el
+    403 cae en la pantalla recuperable de `config.views.csrf_failure`.{% endcomment %}
+    <script>
+        (function () {
+            var campos = document.querySelectorAll('input[name="csrfmiddlewaretoken"]');
+            if (!campos.length || !window.fetch) { return; }
+            var pidiendo = false;
+            var ultimo = 0;
+            function refrescar() {
+                var ahora = Date.now();
+                if (pidiendo || ahora - ultimo < 30000 || document.visibilityState === 'hidden') { return; }
+                pidiendo = true;
+                ultimo = ahora;
+                fetch('{% url "portal:csrf_token" %}', { credentials: 'same-origin', cache: 'no-store' })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (datos) {
+                        if (datos && datos.token) {
+                            Array.prototype.forEach.call(campos, function (campo) { campo.value = datos.token; });
+                        }
+                    })
+                    .catch(function () { /* sin red se manda el token original */ })
+                    .then(function () { pidiendo = false; });
+            }
+            document.addEventListener('visibilitychange', refrescar);
+            window.addEventListener('focus', refrescar);
+            window.addEventListener('pageshow', function (evento) { if (evento.persisted) { refrescar(); } });
+        })();
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

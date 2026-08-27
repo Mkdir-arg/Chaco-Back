@@ -195,6 +195,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 49 | Etiquetar en GitHub a qué programa pertenece cada tarea | Transversal / gestión | `#gestion` `#metodo` | PM — pedido directo en sesión de trabajo | 27/08/2026 | 🟢 **Hecho** | No |
 | 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; falta el endpoint de salida de SIIS** | No requiere |
 | 51 | El panel de marca del formulario de inscripción se estiraba con el formulario | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «si el form es muy extenso se agranda y eso tendría que ser fijo… cuando escroleás el form eso está fijo y el form solo va para abajo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
+| 52 | El formulario público moría en un 403 de CSRF si el backoffice estaba abierto | Portal / inscripción pública | `#ui` `#sesion` `#relevamientos` | PM — reportó el 403 en producción sobre un link real: «el link es público, tiene que ser indistinto si es backoffice» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -5138,6 +5139,127 @@ de Tailwind ni `collectstatic`.
 Quitar del `@media (min-width: 1024px)` las declaraciones `position/top/bottom/left/width/height/overflow-y`
 de `.di-panel-head` y `.di-panel-foot` y devolverle a la cabecera `padding: 40px 48px`. El panel vuelve
 a estirarse con el formulario; no hay datos ni contratos involucrados.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+# Cambio 52 — El formulario público moría en un 403 de CSRF si el backoffice estaba abierto
+
+🟢 **HECHO — 27/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal ciudadano · inscripción pública de Becas |
+| **Etiquetas** | `#ui` `#sesion` `#relevamientos` |
+| **Solicitante** | PM — reportó el 403 mirando un link real de convocatoria en producción |
+| **Fecha del pedido** | 27/08/2026 |
+| **Issue / épica** | Sin issue (cuelga del análisis #289, formulario público) |
+| **Partes afectadas** | Portal ciudadano (los dos formularios del flujo público) · `CSRF_FAILURE_VIEW` de todo el portal |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «¿Por qué da este error en prd? "Prohibido (403) — Verificación CSRF fallida. Petición abortada."»
+> Y al confirmar el escenario: «Fue al tocar continuar del paso 1. Lo abrí en otra pantalla y levantó, si
+> tenía las dos abiertas [fallaba]. El link es público, tiene que ser indistinto si es backoffice.»
+
+## Alcance acordado
+
+- Que el envío del formulario público no dependa de lo que pase en otra pestaña del mismo navegador.
+- Que un CSRF fallido en el portal sea una pantalla de la que se pueda salir, no el 403 crudo de Django.
+- **Afuera:** el 403 del backoffice (sigue con la pantalla de Django), y separar el dominio o las cookies
+  del portal respecto del backoffice, que es decisión de infraestructura.
+
+## Decisiones tomadas
+
+- **La causa es la rotación de la cookie CSRF, no una falla de configuración.** Se descartaron a mano las
+  dos causas típicas contra el link real de producción: el POST completo desde afuera pasa CSRF y llega al
+  captcha (200), y el rechazo por `Referer` ausente prueba que Django se ve a sí mismo como HTTPS, o sea que
+  `X-Forwarded-Proto` llega bien y no falta `DJANGO_CSRF_TRUSTED_ORIGINS`. Lo que rompe es que
+  `django.contrib.auth.login` llama a `rotate_token()` (`contrib/auth/__init__.py`): el backoffice y el
+  portal comparten `datanach.chaco.gob.ar`, así que iniciar sesión en el backoffice le cambia la cookie
+  `csrftoken` a **todo** el navegador y el formulario público abierto en otra pestaña queda con un token que
+  ya no vale.
+- **Se resolvió refrescando el token, no eximiendo la vista de CSRF.** `@csrf_exempt` en un POST público que
+  dispara consultas de identidad y crea inscripciones es una regresión de seguridad; el paso 2 además
+  escribe. El shell pide el token vigente cuando la pestaña vuelve al frente y reemplaza el
+  `csrfmiddlewaretoken` de los formularios. Endpoint nuevo `GET /portal/csrf/` (`csrf_token_vigente`), que
+  devuelve el mismo token que ya viaja en el HTML y solo es legible desde el propio origen —no hay
+  `django-cors-headers` en el proyecto, así que ningún sitio externo puede leerlo.
+- **El refresco no intercepta el envío.** Se dispara en `visibilitychange`, `focus` y `pageshow` persistido
+  (el botón «atrás» también restaura páginas con token viejo), con throttle de 30 s, y no toca el `submit`:
+  así no puede demorar ni romper el envío, ni pelearse con el reCAPTCHA. Si el pedido falla, se manda el
+  token original y el formulario funciona como antes.
+- **La red de contención es una pantalla recuperable, no el 403 de Django.** `CSRF_FAILURE_VIEW`
+  (`config.views.csrf_failure`) devuelve para las rutas `/portal/` la pantalla `portal/sesion_vencida.html`
+  —el mismo shell de inscripción, con el botón «Volver a cargar el formulario»— y para el resto conserva la
+  pantalla de Django tal cual estaba. Motivo: cualquiera que sea la causa (token viejo, cookies bloqueadas,
+  `Origin`/`Referer` borrados por una extensión), un ciudadano tiene que poder seguir; y el backoffice es
+  superficie con login, se toca aparte.
+- **El destino del botón se sanea.** Se vuelve a `request.get_full_path()` solo si empieza con una barra y no
+  con dos: `//otro-dominio` es una ruta válida para el navegador pero una URL absoluta dentro de un `href`, y
+  ahí el 403 se volvía un redirect abierto. Hay test.
+- **Queda registrado el efecto hermano, que no se toca acá:** el `logout()` del backoffice hace
+  `session.flush()` y se lleva la identificación del paso 1 guardada en la sesión (la persona vuelve al paso
+  1). El `login()` en cambio usa `cycle_key()` y **conserva** los datos. Separar de verdad las dos
+  superficies pide dominio o cookies distintas, que es de ECOM.
+
+## Implementación
+
+- `portal/views/inscripcion.py`: `csrf_token_vigente` (`@require_GET`, `JsonResponse` con `Cache-Control: no-store`).
+- `portal/urls.py`: `path("csrf/", …, name="csrf_token")`.
+- `config/views.py`: `csrf_failure` + `_destino_seguro`; `config/settings.py`: `CSRF_FAILURE_VIEW`.
+- `portal/templates/portal/sesion_vencida.html` (nueva) y el script inline del shell
+  `portal/templates/portal/inscripcion/base_inscripcion.html`.
+
+## Archivos
+
+`portal/views/inscripcion.py` · `portal/urls.py` · `config/views.py` · `config/settings.py` ·
+`portal/templates/portal/sesion_vencida.html` (nuevo) ·
+`portal/templates/portal/inscripcion/base_inscripcion.html` ·
+`portal/tests/test_csrf_publico.py` (nuevo) · `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Diagnóstico contra producción antes de tocar código, sobre el link reportado: GET con `Set-Cookie:
+  csrftoken` presente; POST con cookie y token de la misma visita → **200** (llega al captcha); token de una
+  visita con cookie de otra → **403**; token sin cookie → **403**; cookie y token correctos sin `Origin` ni
+  `Referer` → **403**. Dos GET seguidos devolvieron tokens distintos con su propio `Set-Cookie`, así que no
+  hay HTML cacheado. Los POST de prueba usaron `dni=1` y murieron en el captcha: no crearon nada.
+- `portal/tests/test_csrf_publico.py`: 7 tests, **OK** en un venv igual al CI (Python 3.12 + Django 5.2.17).
+  Cubren el endpoint (200, `no-store`, 405 en POST, y que su token sirve para enviar), la pantalla del portal
+  (403 + template + botón + ruta de vuelta), que fuera del portal no se usa esa pantalla, y el saneo del
+  destino.
+- Suites del portal en el mismo venv: `test_inscripcion`, `test_inscripcion_envio`, `test_inscripcion_correo`,
+  `test_seguridad_publica`, `test_ciudadano_auth`, `test_package_exports` → **83 tests OK**.
+- `manage.py check` sin observaciones · `scripts/design_audit.py --changed` **0 errores, 0 warnings** ·
+  `scripts/compile_templates.py` 330 plantillas, 0 errores · `scripts/check_design_agent.py --base development` OK.
+- Revisión visual de `sesion_vencida.html` renderizada: panel, botón de marca y pie correctos.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy. Sin variables, cron ni migración. Conviene avisarle a ECOM que **`/portal/csrf/` no se puede
+cachear** en el WAF que está adelante del dominio (hoy responde con `Cache-Control: no-store`).
+
+## Pendientes / a definir
+
+- Decidir con ECOM si el backoffice y el portal público van a seguir compartiendo dominio. Mientras lo
+  compartan, un `logout()` en el backoffice le sigue borrando al mismo navegador la identificación del paso 1
+  (vuelve al paso 1, sin 403).
+- El 403 de CSRF del backoffice sigue mostrando la pantalla cruda de Django. Cambiarla implica que
+  `403.html` (que extiende `includes/main.html`) renderice bien para un usuario anónimo; se evaluó y se dejó
+  afuera de este cambio.
+
+## Reversión
+
+Quitar `CSRF_FAILURE_VIEW` de `config/settings.py` (vuelve la pantalla de Django), el script del shell y la
+ruta `portal:csrf_token`. El formulario queda como estaba, con el 403 en el escenario de las dos pestañas.
 
 ## Historial
 

@@ -70,6 +70,10 @@ if DEBUG:
     ]
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
+# El 403 de CSRF del portal público tiene que ser recuperable, no la pantalla
+# cruda de Django: ver `config.views.csrf_failure`.
+CSRF_FAILURE_VIEW = "config.views.csrf_failure"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
