@@ -474,21 +474,31 @@
 | 25/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 25/08 | Juani Portilla | Dispositivos | Automatización de pruebas y ajuste de diseño del Programa Dispositivos | Continuación de la automatización de pruebas backend del programa y ajustes de diseño de sus pantallas. | 4 h | — |
 | 25/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 26/08 | Matías Fariña | Becas | Portal ciudadano con la marca DATAÑACH | Home y shell del portal con contenido real, datos de contacto confirmados y el contrato de marca del shell asentado en el sistema de diseño. | 1,5 h | 4 h |
+| 26/08 | Matías Fariña | Becas | Panel de marca de la inscripción pública y canon de frontend | Shell propio de las pantallas del link, sin el fondo animado del portal, y ordenamiento del canon de frontend y de la orquestación de trabajo. | 1 h | 3 h |
+| 26/08 | Matías Fariña | Becas | Revisión de seguridad de la superficie pública | Auditoría del formulario público sin login contra el código y el entorno en vivo: abuso automatizado, fuga de información por enumeración, archivos subidos, datos personales y cabeceras. Informe priorizado con el esfuerzo de cada mitigación. | 1,5 h | — |
+| 26/08 | Matías Fariña | Becas | Endurecimiento del formulario público | Verificación anti-bot de Google con respaldo propio, límites por documento y en el envío, mensaje único de rechazo, archivos subidos con nombre no adivinable y detrás de sesión, cabeceras de seguridad y librerías servidas desde el propio dominio. | 1,5 h | 12 h |
+| 26/08 | Matías Fariña | Becas | Revisión adversarial del endurecimiento y correcciones | Revisión del propio cambio con verificación independiente de cada hallazgo, y corrección de los veintiuno confirmados, incluido uno que impedía el arranque del contenedor. | 1 h | 6 h |
+| 26/08 | Matías Fariña | Becas | Aviso por correo de la resolución del formulario | Notificación al ciudadano de cómo se resolvió su inscripción, con sus plantillas, y las correcciones de la revisión del cambio. | 2 h | 8 h |
+| 26/08 | Matías Fariña | Becas | Documento no disponible y validación de adjuntos de la app de campo | Corrección de la regla que debía cortar la inscripción de un documento no disponible, y validación de tipo y tamaño de los adjuntos que entran por la API de la app. | 0,5 h | 3 h |
+| 26/08 | Matías Fariña | Dispositivos | Auditoría de diseño funcional y de frontend de Dispositivos | Relevamiento del programa contra el sistema de diseño y el comportamiento esperado, con los hallazgos registrados. | 0,5 h | — |
+| 26/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 26/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo y registro del consumo del día. | 0,5 h | — |
 | 26/08 | Matías Abate | Becas | Pruebas de regresión del portal ciudadano rediseñado | Home y shell con la marca DATAÑACH: navegación, contenido real, datos de contacto y comportamiento en celular. | 2 h | — |
 | 26/08 | Matías Abate | Becas | Pruebas del panel de marca de la inscripción pública | Verificación de las pantallas del link con el shell propio, en escritorio y en celular. | 1 h | — |
 | 26/08 | Matías Abate | Becas | Pruebas del endurecimiento del formulario público | Casos de la revisión de seguridad: verificación anti-bot, mensaje único de rechazo, límites de intentos, vigencia de la identificación y carga de adjuntos. | 2 h | — |
 | 26/08 | Matías Abate | Transversal | Pruebas de regresión del backoffice | Recorrido de las pantallas afectadas por el autoalojado de librerías: confirmaciones de borrado, gráficos del inicio, mapa de la revisión y listados con acciones. | 2 h | — |
 | 26/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 26/08** | | **180,5 h** | **154 h** |
+| | | | **Total 20 al 26/08** | | **191,5 h** | **190 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 354 h 00 min |
-| Dispositivos | 134 h 30 min |
-| Transversal | 136 h 00 min |
-| **Total agosto 2026 (al 26/08)** | **624 h 30 min** |
+| Becas | 363 h 00 min |
+| Dispositivos | 135 h 00 min |
+| Transversal | 137 h 30 min |
+| **Total agosto 2026 (al 26/08)** | **635 h 30 min** |
 
 ---
 
@@ -518,9 +528,9 @@
 
 
 
-    **97.422 minutos** (1.623 h 42 min)
+    **98.082 minutos** (1.634 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 624 h 30 min (al 26/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 635 h 30 min (al 26/08).
 
 
 
