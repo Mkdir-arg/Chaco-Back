@@ -391,7 +391,7 @@
 !!! note "Restauración de horas (23/08/2026)"
     Un ajuste del 21/08 había reducido en **88 h** el registro de Juani Portilla: el desarrollo frontend de Dispositivos del 03 al 14/08 (−76 h) y los entregables de observabilidad y actualización de Django del 17–18/08 (−12 h). Por decisión del PM esas horas se **restauraron a sus valores originales**, y se **conservaron** las filas de desarrollo backend de Dispositivos agregadas en aquel ajuste (4 h).
 
-### :material-package-variant-closed: Consumo del 20 al 25 de agosto — por entregable
+### :material-package-variant-closed: Consumo del 20 al 26 de agosto — por entregable
 
 !!! info "Regla desde el 24/08"
     Se incorpora una **reunión de seguimiento diaria** de las cuatro personas del equipo (1 h por persona) y el **armado del informe diario** por parte del PM (30 min). Ambas se registran cada día hábil.
@@ -463,23 +463,32 @@
 | 25/08 | Matías Fariña | Becas | Espejo del release al GitLab de ECOM | Tres publicaciones del release en la rama de testing de ECOM con merge de alineación sin reescritura. | 0,5 h | — |
 | 25/08 | Matías Fariña | Transversal | Carga del consumo de horas del 24/08 | Registro del consumo del 24/08 y de la regla de reunión diaria en las páginas financieras. | 0,5 h | — |
 | 25/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe diario | Reunión diaria de seguimiento del equipo y armado del informe diario. | 1,5 h | — |
-| 25/08 | Matías Abate | Becas | Pruebas funcionales del formulario público | Ejecución de los casos de prueba de las tasks del formulario público sobre las cinco fases: alta de relevamiento público, padrón, identificación, formulario dinámico, ingesta y correo. | 4 h | — |
+| 25/08 | Matías Abate | Becas | Pruebas del flujo público de punta a punta | Recorrido completo del link: identificación, formulario dinámico, adjuntos, envío y pantalla de comprobante, con los cinco perfiles de Becas verificando qué ve cada uno. | 2 h | — |
+| 25/08 | Matías Abate | Becas | Pruebas del correo de confirmación de la inscripción | Verificación del comprobante por correo con el toggle activo y apagado, y de que una falla de envío no rompa la inscripción. | 1 h | — |
+| 25/08 | Matías Abate | Becas | Pruebas de las correcciones de la revisión de código | Casos de las diez correcciones: límite de intentos, padrón, duplicados por convocatoria, apoderado obligatorio para menores y validación SIIS al aprobar. | 1 h | — |
+| 25/08 | Matías Abate | Becas | Pruebas del alta y la gestión del relevamiento público | Alta con selector de tipo, carga y reemplazo del padrón, link copiable, ciclo de vida y cupo. | 0,5 h | — |
+| 25/08 | Matías Abate | Becas | Pruebas del gateo por capacidad del formulario público | Verificación con un rol que tiene la capacidad y con otro que no: selector, listados, detalle y accesos directos. | 0,5 h | — |
 | 25/08 | Matías Abate | Becas | Documentación funcional del formulario público | Documentación para el cliente de la funcionalidad completa: configuración del relevamiento público, flujo del ciudadano y revisión en el backoffice. | 3 h | — |
 | 25/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 25/08 | Pablo Cao | Becas | App de campo — conectividad y adaptación a los cambios de la API | Ajuste de la app móvil a los cambios del backend del formulario público y de la sincronización: relevamientos por tipo, identificador de captura normalizado, fechas de vigencia y respuestas de la API; pruebas de conectividad contra testing. | 6 h | 12 h |
 | 25/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 25/08 | Juani Portilla | Dispositivos | Automatización de pruebas y ajuste de diseño del Programa Dispositivos | Continuación de la automatización de pruebas backend del programa y ajustes de diseño de sus pantallas. | 4 h | — |
 | 25/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 25/08** | | **171,5 h** | **154 h** |
+| 26/08 | Matías Abate | Becas | Pruebas de regresión del portal ciudadano rediseñado | Home y shell con la marca DATAÑACH: navegación, contenido real, datos de contacto y comportamiento en celular. | 2 h | — |
+| 26/08 | Matías Abate | Becas | Pruebas del panel de marca de la inscripción pública | Verificación de las pantallas del link con el shell propio, en escritorio y en celular. | 1 h | — |
+| 26/08 | Matías Abate | Becas | Pruebas del endurecimiento del formulario público | Casos de la revisión de seguridad: verificación anti-bot, mensaje único de rechazo, límites de intentos, vigencia de la identificación y carga de adjuntos. | 2 h | — |
+| 26/08 | Matías Abate | Transversal | Pruebas de regresión del backoffice | Recorrido de las pantallas afectadas por el autoalojado de librerías: confirmaciones de borrado, gráficos del inicio, mapa de la revisión y listados con acciones. | 2 h | — |
+| 26/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 20 al 26/08** | | **180,5 h** | **154 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 348 h 00 min |
+| Becas | 354 h 00 min |
 | Dispositivos | 134 h 30 min |
-| Transversal | 133 h 00 min |
-| **Total agosto 2026 (al 25/08)** | **615 h 30 min** |
+| Transversal | 136 h 00 min |
+| **Total agosto 2026 (al 26/08)** | **624 h 30 min** |
 
 ---
 
@@ -509,9 +518,9 @@
 
 
 
-    **96.882 minutos** (1.614 h 42 min)
+    **97.422 minutos** (1.623 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 615 h 30 min (al 25/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 624 h 30 min (al 26/08).
 
 
 
