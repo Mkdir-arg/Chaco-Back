@@ -484,6 +484,8 @@
 | 26/08 | Matías Fariña | Dispositivos | Auditoría de diseño funcional y de frontend de Dispositivos | Relevamiento del programa contra el sistema de diseño y el comportamiento esperado, con los hallazgos registrados. | 0,5 h | — |
 | 26/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 26/08 | Matías Fariña | Transversal | Armado del informe diario | Informe diario de avance del equipo y registro del consumo del día. | 0,5 h | — |
+| 26/08 | Pablo Cao | Becas | Asistencia técnica del desarrollo del día, en paralelo | Acompañamiento técnico de las tareas del día trabajando en paralelo: portal ciudadano, endurecimiento del formulario público y aviso de resolución al ciudadano. | 5 h | — |
+| 26/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 26/08 | Juani Portilla | Becas | Pruebas automatizadas del flujo público de inscripción | Cobertura del paso 1, el paso 2 y la ingesta: identificación, formulario dinámico, adjuntos y creación del formulario con su legajo. | 2 h | — |
 | 26/08 | Juani Portilla | Becas | Pruebas automatizadas de las correcciones de la revisión | Cobertura de los caminos que la revisión de código destapó: límite de intentos, padrón revalidado al enviar, duplicados por convocatoria y apoderado obligatorio para menores. | 2 h | — |
 | 26/08 | Juani Portilla | Becas | Pruebas automatizadas del correo de confirmación y el comprobante | Cobertura del envío con el toggle activo y apagado, del contenido de la plantilla y de que una falla del servidor de correo no rompa la inscripción. | 1 h | — |
@@ -519,19 +521,16 @@
 | 27/08 | Matías Abate | Becas | Pruebas del formulario público con el arreglo de sesión y el panel fijo | Verificación del link con el backoffice abierto en otra pestaña, la pantalla de sesión vencida y el panel de marca fijo en escritorio y en celular. | 1,5 h | — |
 | 27/08 | Matías Abate | Becas | Reporte del error al crear un relevamiento con tipo de formulario | Detección, reproducción y reporte del error con sus pasos y su evidencia. | 0,5 h | — |
 | 27/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 27/08** | | **232 h** | **220 h** |
-
-!!! warning "Pendiente de imputación"
-    **Pablo Cao — 26/08:** su jornada del 26 de agosto no está imputada todavía; se carga cuando se confirme el detalle.
+| | | | **Total 20 al 27/08** | | **238 h** | **220 h** |
 
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 387 h 30 min |
+| Becas | 392 h 30 min |
 | Dispositivos | 140 h 30 min |
-| Transversal | 148 h 00 min |
-| **Total agosto 2026 (al 27/08)** | **676 h 00 min** |
+| Transversal | 149 h 00 min |
+| **Total agosto 2026 (al 27/08)** | **682 h 00 min** |
 
 ---
 
@@ -561,9 +560,9 @@
 
 
 
-    **100.512 minutos** (1.675 h 12 min)
+    **100.872 minutos** (1.681 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 676 h 00 min (al 27/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 682 h 00 min (al 27/08).
 
 
 
