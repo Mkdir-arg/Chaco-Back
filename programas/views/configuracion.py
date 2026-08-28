@@ -34,6 +34,7 @@ from programas.forms import (
 from programas.models import (
     AsignacionCoordinador,
     PreguntaGlobal,
+    PresentacionCampo,
     ProgramaSiis,
     RequisitoNativo,
     Segmento,
@@ -250,6 +251,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["requisitos"] = programa.requisitos.order_by("orden", "id")
         ctx["form_segmento"] = SegmentoCreateForm(initial={"programa": programa.pk})
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
+        ctx["presentacion_choices"] = PresentacionCampo.choices
         return ctx
 
 
@@ -368,6 +370,7 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         ctx["form_subsegmento"] = SubsegmentoForm(segmento=seg)
         ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
+        ctx["presentacion_choices"] = PresentacionCampo.choices
         return ctx
 
 
@@ -678,6 +681,7 @@ class RequisitosSegmentoView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["seg_actual"] = self.request.GET.get("segmento", "")
         ctx["sub_actual"] = self.request.GET.get("subsegmento", "")
         ctx["tipo_choices"] = TipoCampo.choices
+        ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["form_requisito"] = RequisitoNativoForm()
         return ctx
 
@@ -708,6 +712,7 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
         ctx["requisitos_heredados"] = heredados
         ctx["requisitos_propios"] = sub.requisitos.order_by("orden", "id")
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg, subsegmento=sub)
+        ctx["presentacion_choices"] = PresentacionCampo.choices
         return ctx
 
 
@@ -749,6 +754,7 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["tipo_choices"] = TipoCampo.choices
+        ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["hay_filtros_activos"] = any(
             self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
         )

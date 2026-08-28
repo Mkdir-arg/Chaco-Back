@@ -24,6 +24,7 @@ from programas.models import (
     EntregaMercaderia,
     Formulario,
     PreguntaGlobal,
+    PresentacionCampo,
     PrestacionDiaria,
     ProgramaSiis,
     RegistroDiario,
@@ -282,7 +283,7 @@ class _OpcionesMixin(forms.ModelForm):
         cleaned = super().clean()
         tipo = cleaned.get(self.tipo_field_name)
         texto = (cleaned.get("opciones_texto") or "").strip()
-        if tipo in (TipoCampo.SELECTOR, TipoCampo.SELECTOR_MULTIPLE):
+        if tipo in TipoCampo.selectores():
             opciones = [linea.strip() for linea in texto.splitlines() if linea.strip()]
             if not opciones:
                 self.add_error("opciones_texto", "Indicá al menos una opción para este tipo de campo.")
@@ -294,6 +295,24 @@ class _OpcionesMixin(forms.ModelForm):
     def save(self, commit=True):
         self.instance.opciones = self.cleaned_data.get("_opciones")
         return super().save(commit=commit)
+
+
+class _PresentacionMixin(forms.ModelForm):
+    """``presentacion`` solo tiene sentido en los tipos selector (Cambio 56).
+
+    Si el operador elige otro tipo, el valor se normaliza a ``LISTA`` en vez de
+    rechazar el alta: es un ajuste de presentación, no un dato del requisito, y
+    dejarlo en ``BUSCADOR`` sobre un campo de texto solo guardaría basura que
+    nadie lee. Lo usan los dos configuradores de requisitos de Becas; los campos
+    de tipos de dispositivo quedan afuera (su formulario es otra superficie).
+    """
+
+    def clean(self):
+        cleaned = super().clean()
+        es_selector = cleaned.get(self.tipo_field_name) in TipoCampo.selectores()
+        if not es_selector or not cleaned.get("presentacion"):
+            cleaned["presentacion"] = PresentacionCampo.LISTA
+        return cleaned
 
 
 class _OrdenUnicoMixin:
@@ -807,17 +826,18 @@ class PrestacionMensualForm(forms.Form):
         return cleaned_data
 
 
-class PreguntaGlobalForm(_OrdenUnicoMixin, _OpcionesMixin):
+class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """Requisitos generales: el orden es único entre todas las preguntas."""
 
     mensaje_orden_duplicado = "Ya hay otra pregunta con el orden {orden}. Elegí un número libre."
 
     class Meta:
         model = PreguntaGlobal
-        fields = ["texto", "tipo", "obligatorio", "orden", "activo"]
+        fields = ["texto", "tipo", "presentacion", "obligatorio", "orden", "activo"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
+            "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
             "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
@@ -827,7 +847,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _OpcionesMixin):
         return PreguntaGlobal.objects.all()
 
 
-class RequisitoNativoForm(_OrdenUnicoMixin, _OpcionesMixin):
+class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """El ancla (programa, segmento o subsegmento) se fija desde la vista."""
 
     obligatorio = forms.TypedChoiceField(
@@ -840,10 +860,11 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _OpcionesMixin):
 
     class Meta:
         model = RequisitoNativo
-        fields = ["texto", "tipo", "obligatorio", "orden"]
+        fields = ["texto", "tipo", "presentacion", "obligatorio", "orden"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
+            "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 

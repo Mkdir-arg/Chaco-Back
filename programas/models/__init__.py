@@ -1137,6 +1137,25 @@ class TipoCampo(models.TextChoices):
     DATE = "DATE", "Fecha"
     ARCHIVO = "ARCHIVO", "Archivo adjunto"
 
+    @classmethod
+    def selectores(cls):
+        """Los tipos que ofrecen opciones para elegir."""
+        return (cls.SELECTOR, cls.SELECTOR_MULTIPLE)
+
+
+class PresentacionCampo(models.TextChoices):
+    """Cómo se le muestra al ciudadano un campo de tipo selector (Cambio 56).
+
+    Es solo presentación: no cambia el dato guardado ni las opciones válidas, y
+    los tipos que no son selector la ignoran (se normaliza a ``LISTA``). Con
+    listas largas —nivel educativo, localidades— la lista completa obliga a
+    barrer decenas de opciones; el buscador filtra al tipear y deja lo elegido
+    a la vista en píldoras.
+    """
+
+    LISTA = "LISTA", "Lista de opciones"
+    BUSCADOR = "BUSCADOR", "Buscador con píldoras"
+
 
 class CampoTipoDispositivo(TimeStamped):
     """Campo configurable del formulario propio de un tipo de dispositivo."""
@@ -1823,6 +1842,14 @@ class PreguntaGlobal(TimeStamped):
         verbose_name="Opciones",
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
     )
+    presentacion = models.CharField(
+        max_length=20,
+        choices=PresentacionCampo.choices,
+        default=PresentacionCampo.LISTA,
+        blank=True,
+        verbose_name="Presentación",
+        help_text="Solo para Selector / Selector múltiple: cómo elige la persona entre las opciones.",
+    )
     activo = models.BooleanField(
         default=True,
         db_index=True,
@@ -1856,6 +1883,14 @@ class RequisitoNativo(TimeStamped):
         blank=True,
         verbose_name="Opciones",
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
+    )
+    presentacion = models.CharField(
+        max_length=20,
+        choices=PresentacionCampo.choices,
+        default=PresentacionCampo.LISTA,
+        blank=True,
+        verbose_name="Presentación",
+        help_text="Solo para Selector / Selector múltiple: cómo elige la persona entre las opciones.",
     )
     programa = models.ForeignKey(
         ProgramaSiis,

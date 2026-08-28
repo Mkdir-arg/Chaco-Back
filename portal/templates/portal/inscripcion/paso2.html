@@ -1,4 +1,10 @@
 {% extends 'portal/inscripcion/base_inscripcion.html' %}
+{% load static %}
+
+{% comment %}Los campos selector configurados como «Buscador con píldoras»
+(Cambio 56) se montan sobre el <select> nativo. Si el JS no corre queda el
+desplegable del navegador y el formulario se envía igual.{% endcomment %}
+{% block extra_css %}<link href="{% static 'custom/css/nodo-buscador.css' %}" rel="stylesheet">{% endblock %}
 
 {% block title %}Inscripción a {{ convocatoria.nombre }} - Portal Ciudadano{% endblock %}
 
@@ -118,6 +124,8 @@
 
     <p class="text-xs mt-4" style="color: var(--text-body-subtle);">Tus datos se usan únicamente para esta inscripción (Ley 25.326).</p>
 </div>
+
+<script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 
 {% if requiere_gps %}
 <script>

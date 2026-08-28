@@ -12,6 +12,7 @@
     <link href="{% static 'custom/css/chaco-tokens.css' %}" rel="stylesheet">
     <link href="{% static 'custom/css/nodo-buttons.css' %}" rel="stylesheet">
     <link href="{% static 'custom/css/nodo-forms.css' %}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
     <style>
         body { font-family: 'Manrope', sans-serif; margin: 0; background: var(--bg-white); }
 

@@ -19,13 +19,15 @@
        editReqObligatorio: 'True',
        editReqOrden: 0,
        editReqOpciones: '',
-       openReqEdit(url, texto, tipo, obligatorio, orden, opciones) {
+       editReqPresentacion: 'LISTA',
+       openReqEdit(url, texto, tipo, obligatorio, orden, opciones, presentacion) {
          this.editReqUrl = url;
          this.editReqTexto = texto;
          this.editReqTipo = tipo;
          this.editReqObligatorio = obligatorio;
          this.editReqOrden = orden;
          this.editReqOpciones = (opciones || []).join('\n');
+         this.editReqPresentacion = presentacion || 'LISTA';
          this.modalReqEdit = true;
        },
        openInfo(datos) {
@@ -311,6 +313,12 @@
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
+          <div data-presentacion-wrapper>
+            <label class="block text-sm font-medium text-heading mb-1">{{ form_requisito.presentacion.label }}</label>
+            {{ form_requisito.presentacion }}
+            <p class="text-xs text-body-subtle mt-1">{{ form_requisito.presentacion.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="presentacion"></p>
+          </div>
         </div>
         <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
           <button type="button" @click="modalReq=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
@@ -375,6 +383,13 @@
             <textarea name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field"></textarea>
             <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
           </div>
+          <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
+            <select name="presentacion" x-model="editReqPresentacion" class="nodo-field">
+              {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
         </div>
         <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
           <button type="button" @click="modalReqEdit=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
@@ -389,4 +404,5 @@
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+{% include "programas/becas/config/_tipo_selector_js.html" %}{% endblock %}

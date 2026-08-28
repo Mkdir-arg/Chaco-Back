@@ -1,0 +1,158 @@
+/* NODO Design System — Buscador con píldoras (Cambio 56)
+   Presentación alternativa de un campo selector: en vez de barrer una lista
+   larga, se filtra al tipear y lo elegido queda a la vista en píldoras.
+   Se monta sobre un <select data-buscador> desde nodo-buscador.js; hereda el
+   canon del field (alto mínimo 42px, radius lg, borde base, ring de marca). */
+
+.nodo-buscador {
+    position: relative;
+    width: 100%;
+    font-family: 'Manrope', sans-serif;
+}
+
+/* La caja: se comporta como un .nodo-field que crece con las píldoras. */
+.nodo-buscador__control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 6px 10px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: var(--rounded-lg);
+    cursor: text;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nodo-buscador--abierto .nodo-buscador__control,
+.nodo-buscador__control:focus-within {
+    border-color: var(--border-brand);
+    box-shadow: var(--ring-brand);
+}
+
+/* El valor seleccionado, en píldora. Mismo lenguaje que los badges de marca. */
+.nodo-buscador__pildora {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 3px 4px 3px 10px;
+    font-size: 12px;
+    font-weight: var(--font-weight-bold);
+    line-height: 1.4;
+    color: var(--text-fg-brand);
+    background: var(--bg-brand-soft);
+    border: 1px solid var(--border-brand-subtle);
+    border-radius: var(--radius-full);
+}
+
+.nodo-buscador__pildora-texto {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nodo-buscador__quitar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--text-fg-brand);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+}
+
+.nodo-buscador__quitar:hover {
+    background: var(--bg-brand-softer);
+}
+
+/* Con teclado el cambio de fondo solo no alcanza: lleva su propio ring. */
+.nodo-buscador__quitar:focus-visible {
+    background: var(--bg-brand-softer);
+    outline: none;
+    box-shadow: var(--ring-brand);
+}
+
+/* El input no muestra ring propio: el que se ve es el del control, vía
+   :focus-within. Dos rings anidados se leen como un error de render. */
+.nodo-buscador__input {
+    flex: 1 1 90px;
+    min-width: 90px;
+    height: 28px;
+    padding: 0;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text-heading);
+    background: transparent;
+    border: 0;
+    outline: none;
+}
+
+.nodo-buscador__input::placeholder { color: var(--text-body-subtle); }
+
+/* La lista filtrable. Se despliega sobre el resto del formulario. */
+.nodo-buscador__lista {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    max-height: 240px;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    list-style: none;
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: var(--rounded-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.nodo-buscador__lista[hidden] { display: none; }
+
+.nodo-buscador__opcion {
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--text-heading);
+    border-radius: var(--rounded-md);
+    cursor: pointer;
+}
+
+.nodo-buscador__opcion:hover,
+.nodo-buscador__opcion[data-activa="1"] {
+    background: var(--bg-brand-softer);
+    color: var(--text-fg-brand);
+}
+
+.nodo-buscador__opcion[aria-selected="true"] {
+    font-weight: var(--font-weight-bold);
+    color: var(--text-fg-brand);
+}
+
+.nodo-buscador__vacio {
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text-body-subtle);
+}
+
+/* El <select> original sigue en el DOM —es el que viaja en el POST— pero deja
+   de verse una vez montado el control. Sin JS no se agrega esta clase y queda
+   el desplegable nativo. */
+.nodo-buscador__nativo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

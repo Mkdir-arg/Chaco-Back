@@ -9,10 +9,13 @@
        modalCrear: false,
        modalEdit: false,
        createTipo: 'STRING',
+       createPresentacion: 'LISTA',
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
-       openEdit(url, texto, tipo, obl, activo, orden, opc) {
+       editPresentacion: 'LISTA',
+       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
+         this.editPresentacion = presentacion || 'LISTA';
          this.modalEdit = true;
        }
      }"
@@ -120,6 +123,13 @@
             <textarea name="opciones_texto" rows="4" class="nodo-field"></textarea>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
+          <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
+            <select name="presentacion" x-model="createPresentacion" class="nodo-field">
+              {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
         </div>
 
         {% comment %}FOOTER{% endcomment %}
@@ -194,6 +204,13 @@
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
             <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
             <textarea name="opciones_texto" x-model="editOpciones" rows="4" class="nodo-field"></textarea>
+          </div>
+          <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
+            <select name="presentacion" x-model="editPresentacion" class="nodo-field">
+              {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
           </div>
         </div>
 

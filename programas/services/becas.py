@@ -44,6 +44,9 @@ def _campo_dict(obj, alcance):
         "texto": obj.texto,
         "tipo": obj.tipo,
         "opciones": obj.opciones or [],
+        # Cómo mostrar las opciones (Cambio 56). Solo aplica a los tipos
+        # selector; la app de campo decide su propio control con este dato.
+        "presentacion": obj.presentacion,
         "obligatorio": obj.obligatorio,
         "orden": obj.orden,
         "alcance": alcance,

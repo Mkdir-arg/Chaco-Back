@@ -45,7 +45,8 @@
                 '{{ p.obligatorio|yesno:'True,False' }}',
                 '{{ p.activo|yesno:'True,False' }}',
                 {{ p.orden }},
-                [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}]
+                [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                '{{ p.presentacion }}'
               )">
               <i class="fas fa-edit"></i>
             </button>

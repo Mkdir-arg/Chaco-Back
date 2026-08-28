@@ -58,6 +58,22 @@ def _validar_archivo(archivo):
         raise forms.ValidationError("El archivo no puede superar los 5 MB.")
 
 
+def _es_buscador(campo):
+    """¿El campo se configuró para elegir con buscador y píldoras? (Cambio 56).
+
+    La presentación llega en la misma definición que consume la app. Un campo
+    guardado antes del cambio no la trae: se lee como lista, que es como se veía.
+    """
+    return campo.get("presentacion") == "BUSCADOR"
+
+
+# Atributos que enganchan el control de búsqueda con píldoras sobre el <select>
+# nativo. El JS (static/custom/js/nodo-buscador.js) lo monta al cargar; si no
+# corre, queda el desplegable del navegador y el formulario funciona igual.
+def _attrs_buscador(placeholder):
+    return {"class": INPUT_CLASS, "data-buscador": "1", "data-buscador-placeholder": placeholder}
+
+
 def _field_para_campo(campo):
     """Traduce un campo de ``definicion_formulario`` (la misma definición que
     consume la app, RN-P12) a un field de Django. Tipos: ``TipoCampo``."""
@@ -72,14 +88,18 @@ def _field_para_campo(campo):
         )
     if tipo == "SELECTOR":
         opciones = [("", "Elegí una opción")] + [(o, o) for o in campo["opciones"]]
-        return forms.ChoiceField(
-            label=etiqueta, required=requerido, choices=opciones, widget=forms.Select(attrs={"class": INPUT_CLASS})
-        )
+        if _es_buscador(campo):
+            widget = forms.Select(attrs=_attrs_buscador("Buscá una opción"))
+        else:
+            widget = forms.Select(attrs={"class": INPUT_CLASS})
+        return forms.ChoiceField(label=etiqueta, required=requerido, choices=opciones, widget=widget)
     if tipo == "SELECTOR_MULTIPLE":
         opciones = [(o, o) for o in campo["opciones"]]
-        return forms.MultipleChoiceField(
-            label=etiqueta, required=requerido, choices=opciones, widget=forms.CheckboxSelectMultiple
-        )
+        if _es_buscador(campo):
+            widget = forms.SelectMultiple(attrs=_attrs_buscador("Buscá y elegí una o varias"))
+        else:
+            widget = forms.CheckboxSelectMultiple()
+        return forms.MultipleChoiceField(label=etiqueta, required=requerido, choices=opciones, widget=widget)
     if tipo == "DATE":
         return forms.DateField(
             label=etiqueta,
