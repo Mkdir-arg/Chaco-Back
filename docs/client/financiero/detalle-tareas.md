@@ -512,12 +512,14 @@
 | 27/08 | Pablo Cao | Becas | Panel de marca fijo en el formulario de inscripción — frontend | Ajuste del frontend de las pantallas del link para que el panel quede fijo y solo scrollee el formulario. | 1 h | — |
 | 27/08 | Pablo Cao | Transversal | Verificación de las integraciones en el entorno de pruebas | Comprobación de que el correo, la Base de Personas y el catálogo de SIIS traen datos en el entorno del organismo una vez configurados. | 1,5 h | — |
 | 27/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 27/08 | Juani Portilla | Dispositivos | Armado de reportes del Programa Dispositivos | Desarrollo del módulo de reportes del programa. | 5 h | — |
+| 27/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 27/08 | Matías Abate | Becas | Pruebas del flujo completo de Becas | Recorrido de punta a punta del programa sobre el entorno del organismo: convocatoria, relevamiento, carga en campo y por el link público, revisión, cupo y resolución. | 3,5 h | — |
 | 27/08 | Matías Abate | Becas | Pruebas de la reapertura, la validación manual de identidad y los textos | Casos de la vuelta a campo desde revisión, de la validación manual cuando la Base de Personas no valida y del vocabulario nuevo de la interfaz. | 2 h | — |
 | 27/08 | Matías Abate | Becas | Pruebas del formulario público con el arreglo de sesión y el panel fijo | Verificación del link con el backoffice abierto en otra pestaña, la pantalla de sesión vencida y el panel de marca fijo en escritorio y en celular. | 1,5 h | — |
 | 27/08 | Matías Abate | Becas | Reporte del error al crear un relevamiento con tipo de formulario | Detección, reproducción y reporte del error con sus pasos y su evidencia. | 0,5 h | — |
 | 27/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 20 al 27/08** | | **226 h** | **220 h** |
+| | | | **Total 20 al 27/08** | | **232 h** | **220 h** |
 
 !!! warning "Pendiente de imputación"
     **Pablo Cao — 26/08:** su jornada del 26 de agosto no está imputada todavía; se carga cuando se confirme el detalle.
@@ -527,9 +529,9 @@
 | Programa | Horas agosto |
 |---|---:|
 | Becas | 387 h 30 min |
-| Dispositivos | 135 h 30 min |
-| Transversal | 147 h 00 min |
-| **Total agosto 2026 (al 27/08)** | **670 h 00 min** |
+| Dispositivos | 140 h 30 min |
+| Transversal | 148 h 00 min |
+| **Total agosto 2026 (al 27/08)** | **676 h 00 min** |
 
 ---
 
@@ -559,9 +561,9 @@
 
 
 
-    **100.152 minutos** (1.669 h 12 min)
+    **100.512 minutos** (1.675 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 670 h 00 min (al 27/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 676 h 00 min (al 27/08).
 
 
 
