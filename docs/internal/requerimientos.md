@@ -199,6 +199,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 53 | «Relevamiento» y «caso» son dos cosas y la UI usaba la misma palabra para las dos | Becas / textos · revisión | `#textos` `#ui` `#metodo` | PM — fijó el vocabulario en sesión de trabajo: «relevamiento = parametría con sus estados; casos = personas que completaron el formulario» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 54 | Un relevamiento en revisión no se podía volver a poner en curso | Becas / relevamientos | `#relevamientos` `#rbac` `#ui` `#convocatorias` | PM — «cuando está en estado En revisión no lo puedo pasar a En curso, como para abrirlo de nuevo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
+| 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 
 **Notas del índice**
 
@@ -5622,6 +5623,161 @@ Deploy + `migrate`. Sin variables nuevas ni cron.
 Revertir el commit y la migración (`migrate programas 0053`). Los casos validados a mano quedan con
 `validado_renaper=True` —siguen aprobables— pero se pierde la marca de que fue manual; el motivo y
 el autor quedan igual en la traza, que es aditiva.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 56 — Los selectores se pueden mostrar como buscador con píldoras
+
+🟢 **HECHO — 28/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración de requisitos → Portal (inscripción pública) y API de campo |
+| **Etiquetas** | `#ui` `#relevamientos` `#datos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo |
+| **Fecha del pedido** | 28/08/2026 |
+| **Issue / épica** | Sin issue (cuelga de la configuración de Becas, #77) |
+| **Partes afectadas** | Modales de requisito en programa/segmento/subsegmento · Requisitos generales · Paso 2 del link público · `definicion_formulario` |
+| **Migración** | `programas.0055_presentacion_selector` |
+
+## Pedido original
+
+> «Vamos con un cambio de cómo se ven los campos del *Tipo de campo* de *Nuevo requisito*: cuando
+> el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como
+> buscador con selector y el valor seleccionado se ve en píldora, o como se ve actualmente, como
+> una lista y se puede seleccionar.»
+
+Y al cerrar el alcance, en la misma sesión: «exacto, en el portal y en la api», «requisitos nativos
+y requisitos generales de Becas, o sea en todos los requisitos que se pueden configurar en Becas»,
+«sí, también aplica al de una selección».
+
+## Alcance acordado
+
+- Un ajuste nuevo por requisito, **Presentación**, con dos valores: `Lista de opciones` (lo de
+  siempre) y `Buscador con píldoras`.
+- Se ofrece en **los dos configuradores de Becas**: requisitos nativos (programa, segmento y
+  subsegmento) y requisitos generales (preguntas globales).
+- Aplica a **los dos tipos de selector**, el de una opción y el múltiple.
+- Se ve en el **formulario público del portal** y viaja en la **definición que consume la app de
+  campo**.
+- **Afuera:** el control de la app móvil —la definición ya le llega, el widget lo implementa el
+  equipo móvil en su repo— y los campos de tipos de dispositivo, que comparten `TipoCampo` pero
+  son otra superficie y no se pidieron.
+
+## Decisiones tomadas
+
+- **Es presentación, no dato.** No cambia el valor guardado ni qué opciones son válidas: el mismo
+  requisito con `LISTA` o con `BUSCADOR` acepta y guarda exactamente lo mismo. Por eso vive en un
+  campo propio (`presentacion`) y no toca `opciones` ni `tipo`.
+- **El `<select>` nativo no se reemplaza: se envuelve.** El control se monta encima del
+  `<select data-buscador>` que sigue en el DOM y sigue siendo el que viaja en el POST. Así la
+  validación del servidor (`ChoiceField` / `MultipleChoiceField` contra las opciones configuradas)
+  queda intacta y **si el JS no corre, la persona ve el desplegable del navegador y el formulario
+  se envía igual**. Es mejora progresiva, no un requisito para completar el trámite.
+- **Sin librería de terceros.** El único `select2` del repo es el de Django admin y el backoffice
+  no lo usa; el shell del portal público tampoco carga Alpine. El control es JS propio sin
+  dependencias (`static/custom/js/nodo-buscador.js`), coherente con el autoalojado del Cambio 46:
+  la superficie pública no le pide recursos a nadie.
+- **El ajuste es opcional en el formulario.** El campo es `blank=True` y cae a `LISTA` si no viene.
+  Sin eso, cualquier alta que no mandara el campo —un modal viejo, un POST programático, los
+  propios tests— rompía con «este campo es obligatorio». Se detectó al correr la suite: el alta de
+  requisitos dejó de funcionar y volvió a andar con el campo opcional.
+- **Un tipo sin opciones normaliza a `LISTA` en silencio.** Guardar `BUSCADOR` sobre un texto o una
+  fecha sería un dato que nadie lee; se corrige en el `clean` en vez de rechazar el alta.
+- **Default `LISTA` para todo lo existente**, así el alta del campo no cambia el aspecto de ningún
+  formulario ya configurado. Pasar algo a buscador es una decisión explícita.
+- **El bloque nuevo aparece solo cuando el tipo es selector**, igual que el de *Opciones*: en los
+  modales de edición con `x-show` de Alpine y en los de alta con el script de toggle.
+- **Comparación tolerante al buscar:** sin acentos y sin mayúsculas, para que «educacion» encuentre
+  «Educación».
+- **Accesibilidad:** el `<label for>` apunta al `<select>`, que queda oculto, así que el input toma
+  su texto como `aria-label`; `role="combobox"` con `aria-expanded`, la lista como `listbox`,
+  navegación con flechas, Enter, Escape y Backspace, y ring de foco propio en el botón de quitar.
+
+## Implementación
+
+1. **Modelo** — `PresentacionCampo` (`LISTA` / `BUSCADOR`) y el campo `presentacion` en
+   `PreguntaGlobal` y `RequisitoNativo`. Se agregó `TipoCampo.selectores()` para no repetir la
+   tupla de los dos tipos con opciones en cuatro lugares.
+2. **Configurador** — `_PresentacionMixin` en `programas/forms.py`, aplicado a
+   `RequisitoNativoForm` y `PreguntaGlobalForm`: normaliza a `LISTA` si el tipo no es selector o si
+   el valor no viene.
+3. **Definición compartida** — `_campo_dict` en `programas/services/becas.py` expone
+   `presentacion`. Es la misma estructura que sirve al portal y a la API de campo (RN-P12): no se
+   creó una definición paralela.
+4. **Portal** — `_field_para_campo` elige el widget: con `BUSCADOR`, `Select` / `SelectMultiple`
+   con `data-buscador`; con `LISTA`, exactamente lo de antes (`Select` y `CheckboxSelectMultiple`).
+5. **El control** — `nodo-buscador.js` y `nodo-buscador.css`, cargados solo en el paso 2 del link
+   (nuevo bloque `extra_css` en el shell de inscripción).
+6. **UI del backoffice** — el ajuste entra en los modales de alta y edición de los tres detalles
+   (programa, segmento, subsegmento), en los dos modales de requisitos generales, y los paneles y
+   la tabla pasan el valor actual al modal de edición.
+7. **De paso:** el script que muestra u oculta los bloques dependientes del tipo estaba duplicado
+   en dos templates y **faltaba en el detalle de programa** —ahí el bloque de *Opciones* se veía
+   siempre, incluso en un campo de texto—. Ahora es un include único,
+   `config/_tipo_selector_js.html`.
+
+## Archivos
+
+- `programas/models/__init__.py` — `PresentacionCampo`, `TipoCampo.selectores()`, el campo en los
+  dos modelos.
+- `programas/migrations/0055_presentacion_selector.py`
+- `programas/forms.py` — `_PresentacionMixin`, el campo en los dos `Meta.fields`.
+- `programas/services/becas.py` — `presentacion` en `_campo_dict`.
+- `programas/views/configuracion.py` — `presentacion_choices` en los cinco contextos que pintan
+  modales de requisito.
+- `portal/forms/inscripcion.py` — `_es_buscador`, `_attrs_buscador` y la elección de widget.
+- `static/custom/js/nodo-buscador.js` · `static/custom/css/nodo-buscador.css` — nuevos.
+- `portal/templates/portal/inscripcion/base_inscripcion.html` — bloque `extra_css`.
+- `portal/templates/portal/inscripcion/paso2.html` — carga del CSS y del JS.
+- `programas/templates/programas/becas/config/` — `_tipo_selector_js.html` (nuevo),
+  `programa_detail.html`, `segmento_detail.html`, `subsegmento_detail.html`, `pregunta_list.html`,
+  `_requisitos_panel.html`, `_requisitos_programa_panel.html`, `_requisitos_propios_panel.html`,
+  `_preguntas_table.html`.
+- `programas/tests/test_presentacion_selector.py` (nuevo) · `portal/tests/test_inscripcion_envio.py`.
+
+## Base de datos
+
+`programas.0055_presentacion_selector`: agrega `presentacion` (varchar 20, default `LISTA`) a
+`programas_preguntaglobal` y `programas_requisitonativo`. Aditiva, sin backfill: el default cubre
+todo lo cargado.
+
+## Validación
+
+- `programas/tests/test_presentacion_selector.py` — 14 tests: default `LISTA`, las choices en los
+  dos formularios, alta con `BUSCADOR` por pantalla y por formulario, normalización de los tipos
+  sin opciones, y `definicion_formulario` exponiendo la presentación de globales y requisitos.
+- `portal/tests/test_inscripcion_envio.py` — 10 tests nuevos: widget con y sin el enganche por
+  tipo, que `LISTA` mantiene los checkboxes, que una definición sin la clave se lee como lista, que
+  el buscador **no cambia qué valores son válidos**, y que el paso 2 carga el CSS y el JS.
+- `manage.py check` sin observaciones · `makemigrations --check` sin cambios pendientes ·
+  `scripts/compile_templates.py` 332 plantillas, 0 errores · `scripts/design_audit.py --changed`
+  **0 errores** (2 WARN de `outline:none`: uno tiene su `box-shadow` de ring en la línea siguiente
+  y el otro es el input, cuyo ring lo pinta el contenedor con `:focus-within`).
+
+## Puesta en marcha en el servidor
+
+Deploy + `migrate`. Sin variables nuevas ni cron. El CSS y el JS entran por `collectstatic`.
+
+## Pendientes / a definir
+
+- **El control de la app de campo.** La definición ya le manda `presentacion`; el widget en React
+  Native lo tiene que implementar el equipo móvil en `Chaco-mobile`. Hasta entonces la app sigue
+  mostrando su lista de siempre y no se rompe nada.
+- **Los campos de tipos de dispositivo** comparten `TipoCampo` y quedaron sin el ajuste. Si se
+  pide, es agregar el campo al modelo y el mixin a `CampoTipoDispositivoForm`.
+- **Cuántas opciones justifican el buscador.** Hoy es una decisión manual por requisito; si se
+  quiere, se puede pasar a automático a partir de N opciones.
+
+## Reversión
+
+Revertir el commit y la migración (`migrate programas 0054`). Los requisitos que estaban en
+`BUSCADOR` vuelven a verse como lista: es solo presentación, no se pierde ningún dato de los
+formularios ya completados.
 
 ## Historial
 

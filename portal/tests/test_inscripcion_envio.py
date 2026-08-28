@@ -3,7 +3,12 @@
 from datetime import date, timedelta
 from uuid import uuid4
 
+from pathlib import Path
+
+from django import forms
+from django.contrib.staticfiles import finders
 from django.core.cache import cache
+from django.template.loader import get_template
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -307,3 +312,128 @@ class Paso2VistaTests(_BasePaso2Test):
         self.assertEqual(resp.status_code, 302)
         self.assertIn(reverse("portal:inscripcion_paso1", kwargs={"token": self.relevamiento.token_publico}), resp.url)
         self.assertEqual(self.relevamiento.formularios.count(), 1)
+
+
+class Paso2PresentacionSelectorTests(_BasePaso2Test):
+    """Cambio 56: el mismo campo se rinde como lista o como buscador con
+    píldoras según lo configurado, sin tocar qué valores son válidos."""
+
+    def _definicion_con(self, tipo, presentacion, opciones=None):
+        """Definición mínima con un solo selector, como la arma el servicio."""
+        return {
+            "requiere_gps": False,
+            "globales": [
+                {
+                    "id": 1,
+                    "texto": "Nivel educativo",
+                    "tipo": tipo,
+                    "opciones": opciones or ["Primario", "Secundario", "Terciario"],
+                    "presentacion": presentacion,
+                    "obligatorio": True,
+                    "orden": 1,
+                    "alcance": "global",
+                    "subsegmento_id": None,
+                }
+            ],
+            "requisitos": [],
+        }
+
+    def _widget(self, definicion):
+        form = InscripcionPaso2Form(definicion=definicion, identificacion=_identificacion())
+        return form.fields["g_1"].widget
+
+    def test_selector_con_buscador_usa_select_con_el_engache(self):
+        widget = self._widget(self._definicion_con("SELECTOR", "BUSCADOR"))
+        self.assertIsInstance(widget, forms.Select)
+        self.assertEqual(widget.attrs.get("data-buscador"), "1")
+        self.assertIn("data-buscador-placeholder", widget.attrs)
+
+    def test_selector_multiple_con_buscador_deja_de_ser_checkboxes(self):
+        widget = self._widget(self._definicion_con("SELECTOR_MULTIPLE", "BUSCADOR"))
+        self.assertIsInstance(widget, forms.SelectMultiple)
+        self.assertNotIsInstance(widget, forms.CheckboxSelectMultiple)
+        self.assertEqual(widget.attrs.get("data-buscador"), "1")
+
+    def test_lista_mantiene_lo_de_siempre(self):
+        simple = self._widget(self._definicion_con("SELECTOR", "LISTA"))
+        multiple = self._widget(self._definicion_con("SELECTOR_MULTIPLE", "LISTA"))
+        self.assertIsInstance(simple, forms.Select)
+        self.assertNotIn("data-buscador", simple.attrs)
+        self.assertIsInstance(multiple, forms.CheckboxSelectMultiple)
+
+    def test_campo_sin_presentacion_se_lee_como_lista(self):
+        """Una definición vieja —o un cliente que no manda la clave— no explota."""
+        definicion = self._definicion_con("SELECTOR", "LISTA")
+        del definicion["globales"][0]["presentacion"]
+        widget = self._widget(definicion)
+        self.assertNotIn("data-buscador", widget.attrs)
+
+    def test_el_buscador_no_cambia_que_valores_son_validos(self):
+        definicion = self._definicion_con("SELECTOR", "BUSCADOR")
+        base = {"celular": "3624123456", "email_contacto": "maria@correo.com"}
+
+        valido = InscripcionPaso2Form(
+            {**base, "g_1": "Secundario"}, definicion=definicion, identificacion=_identificacion()
+        )
+        self.assertTrue(valido.is_valid(), valido.errors)
+
+        invalido = InscripcionPaso2Form(
+            {**base, "g_1": "Universitario"}, definicion=definicion, identificacion=_identificacion()
+        )
+        self.assertFalse(invalido.is_valid())
+        self.assertIn("g_1", invalido.errors)
+
+
+class Paso2AssetsBuscadorTests(TestCase):
+    """El control necesita su CSS y su JS en la pantalla; sin ellos el campo
+    sigue funcionando como desplegable nativo, pero no habría buscador.
+
+    Se lee el template en vez de pedir la página: el render del test client se
+    cae en el entorno local (Python 3.14 + Django 4.2) por un bug ajeno a esto.
+    """
+
+    def _template(self, nombre):
+        return Path(get_template(nombre).origin.name).read_text(encoding="utf-8")
+
+    def test_el_paso_2_carga_el_buscador(self):
+        html = self._template("portal/inscripcion/paso2.html")
+        self.assertIn("custom/css/nodo-buscador.css", html)
+        self.assertIn("custom/js/nodo-buscador.js", html)
+
+    def test_el_shell_deja_el_hueco_para_el_css(self):
+        html = self._template("portal/inscripcion/base_inscripcion.html")
+        self.assertIn("{% block extra_css %}", html)
+
+    def test_los_assets_existen_en_el_repo(self):
+        for ruta in ("custom/css/nodo-buscador.css", "custom/js/nodo-buscador.js"):
+            with self.subTest(ruta=ruta):
+                self.assertIsNotNone(finders.find(ruta), f"falta {ruta}")
+
+    def test_el_select_configurado_se_renderiza_con_el_enganche(self):
+        pregunta = PreguntaGlobal.objects.create(
+            texto="Nivel educativo",
+            tipo="SELECTOR",
+            opciones=["Primario", "Secundario"],
+            presentacion="BUSCADOR",
+            orden=1,
+        )
+        segmento = Segmento.objects.create(nombre="SegB", cupo_maximo=10)
+        convocatoria = Convocatoria.objects.create(
+            nombre="C",
+            segmento=segmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=convocatoria,
+            tipo=Relevamiento.Tipo.PUBLICO,
+            fecha_asignada=timezone.now() - timedelta(days=1),
+            fecha_hasta=timezone.now() + timedelta(days=10),
+        )
+        form = InscripcionPaso2Form(
+            definicion=definicion_formulario(relevamiento),
+            identificacion=_identificacion(),
+        )
+        html = str(form[f"g_{pregunta.pk}"])
+        self.assertIn('data-buscador="1"', html)
+        self.assertIn("<select", html)

@@ -155,6 +155,8 @@ El formulario que completa el ciudadano se arma con **cuatro niveles de campos**
 
 Cada campo tiene un **tipo** —texto, número, selector, selección múltiple, fecha o archivo—, puede ser obligatorio u opcional, y tiene un **orden** dentro de su lista. El orden se autonumera si se deja vacío y no puede repetirse dentro de la misma lista.
 
+En los dos tipos de selector se elige además **cómo se ve**: como la lista de opciones de siempre, o como un **buscador con píldoras**, donde la persona escribe para filtrar y lo que elige queda a la vista arriba. Es útil en listas largas —nivel educativo, localidades, prestaciones—, donde recorrer treinta opciones cuesta más que tipear tres letras. Es solo presentación: no cambia qué respuestas son válidas ni lo que queda guardado, y todo lo ya configurado sigue viéndose como lista salvo que se lo cambie a propósito.
+
 Los **adjuntos** —foto del DNI, certificado de domicilio, constancia de estudios y demás— se modelan como campos de tipo archivo. No son una lista fija del sistema: cada programa configura los que necesita.
 
 Una pregunta general marcada como inactiva desaparece del formulario sin borrarse.
