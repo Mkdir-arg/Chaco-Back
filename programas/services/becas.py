@@ -13,32 +13,52 @@ from django.db.models.functions import Cast, Replace
 from legajos.models import Ciudadano
 from programas.models import (
     AsignacionCoordinador,
+    CanalFormulario,
+    OrigenRequisito,
     PreguntaGlobal,
     RequisitoNativo,
     Segmento,
 )
 
 
-def get_campos_formulario(convocatoria):
+def _filtro_canal(canal):
+    """Un requisito se pide en su canal o en ambos (Cambio 58, D14)."""
+    if not canal:
+        return models.Q()
+    return models.Q(canal=CanalFormulario.AMBOS) | models.Q(canal=canal)
+
+
+def get_campos_formulario(convocatoria, canal=None):
     """Devuelve ``(globales, requisitos)`` para renderizar el formulario.
 
-    - ``globales``: ``PreguntaGlobal`` activas, ordenadas (RN-31).
+    - ``globales``: ``PreguntaGlobal`` activas, ordenadas (RN-31). Solo las de
+      origen *pregunta*: los campos vinculados al legajo (Datos personales,
+      Contacto, Apoderado; Cambio 58) siguen rindiéndose como bloques fijos
+      hasta que el diseño por convocatoria los consuma.
     - ``requisitos``: ``RequisitoNativo`` del programa del segmento (los heredan
       todos sus segmentos), del segmento (subsegmento=None) y, si la convocatoria
       tiene subsegmento, también los del subsegmento (herencia; RN-32).
+    - ``canal``: ``CanalFormulario.APP`` o ``LINK`` filtra lo que no se pide en
+      ese canal; ``None`` devuelve todo.
     """
-    globales = PreguntaGlobal.objects.filter(activo=True).order_by("orden", "id")
+    globales = (
+        PreguntaGlobal.objects.filter(activo=True, origen=OrigenRequisito.PREGUNTA)
+        .filter(_filtro_canal(canal))
+        .select_related("grupo")
+        .order_by("orden", "id")
+    )
     filtros = models.Q(segmento_id=convocatoria.segmento_id, subsegmento__isnull=True)
     if convocatoria.subsegmento_id:
         filtros |= models.Q(subsegmento_id=convocatoria.subsegmento_id)
     programa_id = convocatoria.segmento.programa_id
     if programa_id:
         filtros |= models.Q(programa_id=programa_id)
-    requisitos = RequisitoNativo.objects.filter(filtros).order_by("orden", "id")
+    requisitos = RequisitoNativo.objects.filter(filtros).filter(_filtro_canal(canal)).order_by("orden", "id")
     return globales, requisitos
 
 
 def _campo_dict(obj, alcance):
+    grupo = getattr(obj, "grupo", None)
     return {
         "id": obj.pk,
         "texto": obj.texto,
@@ -51,19 +71,27 @@ def _campo_dict(obj, alcance):
         "orden": obj.orden,
         "alcance": alcance,
         "subsegmento_id": getattr(obj, "subsegmento_id", None),
+        # Cambio 58: canal, origen y grupo del catálogo. La app vieja los ignora.
+        "canal": obj.canal,
+        "origen": getattr(obj, "origen", OrigenRequisito.PREGUNTA),
+        "vinculo": getattr(obj, "vinculo", ""),
+        "grupo": {"clave": grupo.clave, "nombre": grupo.nombre} if grupo is not None else None,
     }
 
 
 def definicion_formulario(relevamiento):
-    """Definición del formulario para la app de campo (#82).
+    """Definición del formulario para la app de campo (#82) y el link público.
 
     Devuelve preguntas globales y requisitos (con herencia de subsegmento) según
-    la convocatoria del relevamiento, más el flag ``requiere_gps`` del segmento.
+    la convocatoria del relevamiento, filtrados por el canal del relevamiento
+    (Cambio 58), más el flag ``requiere_gps`` del segmento.
     """
     convocatoria = relevamiento.convocatoria
-    globales, requisitos = get_campos_formulario(convocatoria)
+    canal = CanalFormulario.del_relevamiento(relevamiento)
+    globales, requisitos = get_campos_formulario(convocatoria, canal=canal)
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
+        "canal": canal,
         "globales": [_campo_dict(p, "global") for p in globales],
         "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }

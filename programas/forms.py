@@ -23,6 +23,7 @@ from programas.models import (
     Dispositivo,
     EntregaMercaderia,
     Formulario,
+    GrupoRequisito,
     PreguntaGlobal,
     PresentacionCampo,
     PrestacionDiaria,
@@ -827,21 +828,60 @@ class PrestacionMensualForm(forms.Form):
 
 
 class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
-    """Requisitos generales: el orden es único entre todas las preguntas."""
+    """Requisitos generales: el orden es único entre todas las preguntas.
+
+    Cambio 58: cada pregunta pertenece a un grupo y declara su canal. Los
+    campos **protegidos** (vinculados al legajo o al apoderado) no cambian de
+    tipo ni de opciones —los dicta el legajo— y los de identidad tampoco de
+    obligatoriedad ni de estado (D12); lo demás (texto, grupo, orden, canal) sí.
+    """
 
     mensaje_orden_duplicado = "Ya hay otra pregunta con el orden {orden}. Elegí un número libre."
+    # Lo que un protegido no puede cambiar desde el backoffice.
+    _BLOQUEADOS_PROTEGIDO = ("tipo", "presentacion", "opciones_texto")
+    _BLOQUEADOS_IDENTIDAD = ("obligatorio", "activo")
 
     class Meta:
         model = PreguntaGlobal
-        fields = ["texto", "tipo", "presentacion", "obligatorio", "orden", "activo"]
+        fields = ["texto", "tipo", "presentacion", "grupo", "canal", "obligatorio", "orden", "activo"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
+            "grupo": forms.Select(attrs={"class": INPUT_CLASS}),
+            "canal": forms.Select(attrs={"class": INPUT_CLASS}),
             "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        grupo = self.fields["grupo"]
+        grupo.queryset = GrupoRequisito.objects.order_by("orden", "id")
+        grupo.required = False
+        grupo.empty_label = "Sin grupo (Cuestionario social)"
+        if self.instance and self.instance.pk and self.instance.protegido:
+            bloqueados = list(self._BLOQUEADOS_PROTEGIDO)
+            if self.instance.es_identidad:
+                bloqueados += list(self._BLOQUEADOS_IDENTIDAD)
+            for nombre in bloqueados:
+                self.fields[nombre].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("grupo") is None:
+            cleaned["grupo"] = GrupoRequisito.objects.filter(clave="cuestionario").first()
+        if self.instance and self.instance.pk and self.instance.protegido:
+            # Un campo disabled toma el valor de la instancia, pero un POST
+            # armado a mano no puede colar un cambio de tipo ni de opciones.
+            cleaned["tipo"] = self.instance.tipo
+            cleaned["presentacion"] = self.instance.presentacion
+            cleaned["_opciones"] = self.instance.opciones
+            if self.instance.es_identidad:
+                cleaned["obligatorio"] = True
+                cleaned["activo"] = True
+        return cleaned
 
     def hermanos_orden(self):
         return PreguntaGlobal.objects.all()
@@ -860,11 +900,12 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     class Meta:
         model = RequisitoNativo
-        fields = ["texto", "tipo", "presentacion", "obligatorio", "orden"]
+        fields = ["texto", "tipo", "presentacion", "canal", "obligatorio", "orden"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
+            "canal": forms.Select(attrs={"class": INPUT_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
         }
 

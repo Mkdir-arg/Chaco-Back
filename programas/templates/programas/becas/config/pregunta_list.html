@@ -10,12 +10,15 @@
        modalEdit: false,
        createTipo: 'STRING',
        createPresentacion: 'LISTA',
+       createGrupo: '', createCanal: 'ambos',
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
-       editPresentacion: 'LISTA',
-       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion) {
+       editPresentacion: 'LISTA', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
+       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
          this.editPresentacion = presentacion || 'LISTA';
+         this.editGrupo = grupo || ''; this.editCanal = canal || 'ambos';
+         this.editProtegido = !!protegido; this.editIdentidad = !!identidad;
          this.modalEdit = true;
        }
      }"
@@ -130,6 +133,20 @@
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Grupo</label>
+            <select name="grupo" x-model="createGrupo" class="nodo-field">
+              <option value="">Sin grupo (Cuestionario social)</option>
+              {% for g in grupos %}<option value="{{ g.pk }}">{{ g.nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select name="canal" x-model="createCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
+          </div>
         </div>
 
         {% comment %}FOOTER{% endcomment %}
@@ -177,20 +194,20 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
-              <select name="tipo" x-model="editTipo" class="nodo-field">
+              <select name="tipo" x-model="editTipo" :disabled="editProtegido" class="nodo-field">
                 {% for val, label in tipo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
-              <select name="obligatorio" x-model="editObl" class="nodo-field">
+              <select name="obligatorio" x-model="editObl" :disabled="editIdentidad" class="nodo-field">
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Estado</label>
-              <select name="activo" x-model="editActivo" class="nodo-field">
+              <select name="activo" x-model="editActivo" :disabled="editIdentidad" class="nodo-field">
                 <option value="True">Activa</option>
                 <option value="False">Inactiva</option>
               </select>
@@ -203,7 +220,8 @@
           </div>
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
             <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
-            <textarea name="opciones_texto" x-model="editOpciones" rows="4" class="nodo-field"></textarea>
+            <textarea name="opciones_texto" x-model="editOpciones" :disabled="editProtegido" rows="4" class="nodo-field"></textarea>
+            <p x-show="editProtegido" class="text-xs text-body-subtle mt-1">El tipo y las opciones de un campo del legajo los dicta el legajo.</p>
           </div>
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
             <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
@@ -211,6 +229,20 @@
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Grupo</label>
+            <select name="grupo" x-model="editGrupo" class="nodo-field">
+              <option value="">Sin grupo (Cuestionario social)</option>
+              {% for g in grupos %}<option value="{{ g.pk }}">{{ g.nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select name="canal" x-model="editCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
         </div>
 

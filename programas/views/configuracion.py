@@ -33,6 +33,8 @@ from programas.forms import (
 )
 from programas.models import (
     AsignacionCoordinador,
+    CanalFormulario,
+    GrupoRequisito,
     PreguntaGlobal,
     PresentacionCampo,
     ProgramaSiis,
@@ -252,6 +254,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_segmento"] = SegmentoCreateForm(initial={"programa": programa.pk})
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         return ctx
 
 
@@ -371,6 +374,7 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         return ctx
 
 
@@ -682,6 +686,7 @@ class RequisitosSegmentoView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["sub_actual"] = self.request.GET.get("subsegmento", "")
         ctx["tipo_choices"] = TipoCampo.choices
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         ctx["form_requisito"] = RequisitoNativoForm()
         return ctx
 
@@ -713,6 +718,7 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
         ctx["requisitos_propios"] = sub.requisitos.order_by("orden", "id")
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg, subsegmento=sub)
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         return ctx
 
 
@@ -736,7 +742,8 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
     context_object_name = "preguntas"
 
     def get_queryset(self):
-        queryset = PreguntaGlobal.objects.order_by("orden", "id")
+        # Cambio 58: agrupadas; dentro del grupo, por orden.
+        queryset = PreguntaGlobal.objects.select_related("grupo").order_by("grupo__orden", "grupo__id", "orden", "id")
         texto = self.request.GET.get("q", "").strip()
         tipo = self.request.GET.get("tipo", "").strip()
         obligatorio = self.request.GET.get("obligatorio", "").strip()
@@ -755,9 +762,11 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx = super().get_context_data(**kwargs)
         ctx["tipo_choices"] = TipoCampo.choices
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         ctx["hay_filtros_activos"] = any(
             self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
         )
+        ctx["grupos"] = GrupoRequisito.objects.order_by("orden", "id")
         return ctx
 
 
@@ -807,6 +816,10 @@ def pregunta_toggle_activo(request, pk):
     if request.method != "POST":
         return redirect("becas:preguntas")
     pregunta = get_object_or_404(PreguntaGlobal, pk=pk)
+    if pregunta.es_identidad:
+        # Cambio 58, D12: sin identidad no hay caso.
+        messages.error(request, "Los campos de identidad de la persona no se pueden desactivar.")
+        return redirect("becas:preguntas")
     pregunta.activo = not pregunta.activo
     pregunta.save(update_fields=["activo", "modificado"])
     messages.success(request, f"Pregunta {'activada' if pregunta.activo else 'desactivada'}.")
@@ -818,6 +831,10 @@ def pregunta_toggle_activo(request, pk):
 def pregunta_eliminar(request, pk):
     pregunta = get_object_or_404(PreguntaGlobal, pk=pk)
     if request.method == "POST":
+        if pregunta.protegido:
+            # Cambio 58, RN-5: los protegidos se renombran, agrupan y ordenan; no se borran.
+            messages.error(request, "Este campo viene con el sistema y no se puede eliminar; podés renombrarlo o moverlo de grupo.")
+            return redirect("becas:preguntas")
         pregunta.delete()
         messages.success(request, "Pregunta eliminada.")
     return redirect("becas:preguntas")

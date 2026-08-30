@@ -1157,6 +1157,54 @@ class PresentacionCampo(models.TextChoices):
     BUSCADOR = "BUSCADOR", "Buscador con píldoras"
 
 
+class CanalFormulario(models.TextChoices):
+    """En qué canal se pide un requisito o un grupo (Cambio 58, D14).
+
+    Hay preguntas que solo tienen sentido con el territorial adelante (foto del
+    DNI físico) o solo en el link. Vive donde vive el obligatorio: en el
+    catálogo para los requisitos, en el diseño para los campos propios.
+    """
+
+    AMBOS = "ambos", "Ambos canales"
+    APP = "app", "Solo app de campo"
+    LINK = "link", "Solo link público"
+
+    @classmethod
+    def del_relevamiento(cls, relevamiento):
+        return cls.LINK if relevamiento.es_publico else cls.APP
+
+
+class OrigenRequisito(models.TextChoices):
+    """De dónde sale y a dónde va la respuesta de un requisito general (Cambio 58, RN-4).
+
+    - ``PREGUNTA``: lo de siempre, la respuesta va al caso.
+    - ``LEGAJO``: vinculado a un campo del ciudadano que se inscribe; el tipo y
+      las opciones los dicta el legajo, la respuesta se vuelca a la ficha.
+    - ``PERSONA_VINCULADA``: campo de otra persona (el apoderado), resuelta por
+      DNI a su propio legajo.
+    """
+
+    PREGUNTA = "pregunta", "Pregunta"
+    LEGAJO = "legajo", "Campo del legajo de la persona"
+    PERSONA_VINCULADA = "persona_vinculada", "Campo del apoderado (persona vinculada)"
+
+
+# Campos del legajo que un requisito general puede vincular. El tipo y las
+# opciones salen de acá, no del operador (RN-4). ``identidad`` marca los que
+# vienen precargados y en solo lectura cuando la identidad está validada, no
+# se desactivan y no se pueden hacer opcionales; ``solo_lectura`` los que la
+# persona nunca edita (el DNI es la identificación del paso 1).
+VINCULOS_LEGAJO = {
+    "nombre": {"etiqueta": "Nombre", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True},
+    "apellido": {"etiqueta": "Apellido", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True},
+    "dni": {"etiqueta": "DNI", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True, "solo_lectura": True},
+    "fecha_nacimiento": {"etiqueta": "Fecha de nacimiento", "tipo": TipoCampo.DATE, "opciones": None, "identidad": True},
+    "genero": {"etiqueta": "Sexo", "tipo": TipoCampo.SELECTOR, "opciones": ["F", "M"], "identidad": True},
+    "telefono": {"etiqueta": "Celular", "tipo": TipoCampo.STRING, "opciones": None},
+    "email": {"etiqueta": "Correo electrónico", "tipo": TipoCampo.STRING, "opciones": None},
+}
+
+
 class CampoTipoDispositivo(TimeStamped):
     """Campo configurable del formulario propio de un tipo de dispositivo."""
 
@@ -1855,12 +1903,75 @@ class PadronHabilitado(TimeStamped):
         return bool(self.nombre.strip() and self.apellido.strip())
 
 
+class GrupoRequisito(TimeStamped):
+    """Grupo de requisitos generales (Cambio 58, RN-3). Es lo que la persona ve
+    como sección con título; en el constructor es el contenedor de los campos.
+
+    Los protegidos (Datos personales, Contacto, Apoderado) vienen sembrados por
+    ``seed_becas``: se renombran, ordenan y condicionan, pero no se borran.
+    ``condicion_defecto`` es la condición con la que el grupo entra a cada
+    diseño nuevo (el Apoderado nace con «edad < 18», la regla de hoy).
+    """
+
+    clave = models.SlugField(max_length=60, unique=True, verbose_name="Clave")
+    nombre = models.CharField(max_length=120, verbose_name="Nombre")
+    subtitulo = models.CharField(max_length=240, blank=True, verbose_name="Subtítulo")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    protegido = models.BooleanField(default=False, verbose_name="Protegido")
+    condicion_defecto = models.JSONField(null=True, blank=True, verbose_name="Condición por defecto")
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
+    )
+
+    class Meta:
+        verbose_name = "Grupo de requisitos"
+        verbose_name_plural = "Grupos de requisitos"
+        ordering = ["orden", "id"]
+
+    def __str__(self):
+        return self.nombre
+
+    def save(self, *args, **kwargs):
+        if not self.clave:
+            self.clave = f"grupo-{uuid.uuid4().hex[:8]}"
+        super().save(*args, **kwargs)
+
+
 class PreguntaGlobal(TimeStamped):
-    """Pregunta del cuestionario social (requisito general); aplica a todos los
-    formularios. Los adjuntos obligatorios fijos se modelan como tipo ARCHIVO."""
+    """Requisito general: aplica a todos los formularios. Desde el Cambio 58 se
+    agrupa y puede ser una pregunta (respuesta al caso), un campo del legajo de
+    la persona o un campo del apoderado. Los adjuntos obligatorios fijos se
+    modelan como tipo ARCHIVO."""
 
     texto = models.CharField(max_length=500, verbose_name="Texto")
     tipo = models.CharField(max_length=20, choices=TipoCampo.choices, verbose_name="Tipo de campo")
+    grupo = models.ForeignKey(
+        GrupoRequisito,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preguntas",
+        verbose_name="Grupo",
+    )
+    origen = models.CharField(
+        max_length=20,
+        choices=OrigenRequisito.choices,
+        default=OrigenRequisito.PREGUNTA,
+        verbose_name="Origen",
+    )
+    # Nombre del campo del legajo (o del apoderado) al que está vinculado; vacío
+    # para las preguntas. Con ``origen`` identifica a los protegidos.
+    vinculo = models.CharField(max_length=60, blank=True, verbose_name="Campo vinculado")
+    protegido = models.BooleanField(default=False, verbose_name="Protegido")
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
+    )
     opciones = models.JSONField(
         null=True,
         blank=True,
@@ -1892,6 +2003,31 @@ class PreguntaGlobal(TimeStamped):
     def __str__(self):
         return self.texto
 
+    def save(self, *args, **kwargs):
+        # RN-3 del Cambio 58: todo campo vive en un grupo. Sin uno explícito va
+        # al Cuestionario social (si el seed ya lo creó).
+        if self.grupo_id is None:
+            self.grupo = GrupoRequisito.objects.filter(clave="cuestionario").first()
+        super().save(*args, **kwargs)
+
+    @property
+    def es_pregunta(self):
+        return self.origen == OrigenRequisito.PREGUNTA
+
+    @property
+    def vinculo_info(self):
+        return {} if self.es_pregunta else VINCULOS_LEGAJO.get(self.vinculo, {})
+
+    @property
+    def es_identidad(self):
+        """Los campos de identidad de la persona (no del apoderado): no se
+        desactivan ni se hacen opcionales (D12)."""
+        return self.origen == OrigenRequisito.LEGAJO and bool(self.vinculo_info.get("identidad"))
+
+    @property
+    def solo_lectura(self):
+        return bool(self.vinculo_info.get("solo_lectura"))
+
 
 class RequisitoNativo(TimeStamped):
     """Requisito configurable de un programa, segmento o subsegmento. Genera un
@@ -1916,6 +2052,12 @@ class RequisitoNativo(TimeStamped):
         blank=True,
         verbose_name="Presentación",
         help_text="Solo para Selector / Selector múltiple: cómo elige la persona entre las opciones.",
+    )
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
     )
     programa = models.ForeignKey(
         ProgramaSiis,
@@ -2149,9 +2291,10 @@ class Formulario(TimeStamped):
         verbose_name="Motivo de la validación manual",
     )
 
-    # Bloque C — Contacto (manual, obligatorio)
-    celular = models.CharField(max_length=20, verbose_name="Celular")
-    email_contacto = models.EmailField(verbose_name="Correo electrónico")
+    # Bloque C — Contacto. Desde el Cambio 58 (D9) la obligatoriedad la decide
+    # el catálogo (grupo Contacto), no el modelo: pueden quedar vacíos.
+    celular = models.CharField(max_length=20, blank=True, verbose_name="Celular")
+    email_contacto = models.EmailField(blank=True, verbose_name="Correo electrónico")
 
     # Bloque D — Apoderado (solo si el ciudadano es menor; RN-22)
     apoderado_nombre = models.CharField(max_length=120, blank=True, verbose_name="Nombre del apoderado")

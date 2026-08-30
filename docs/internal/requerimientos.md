@@ -201,7 +201,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
-| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **Analizado — análisis #326 Definido, mockups entregados; tasks #336–#356 en Backlog (150 h)** | Pendiente (catálogo, diseño, caso) |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En desarrollo — Fase 1 hecha (#336 catálogo agrupado con orígenes, #338 canal; `programas.0057`); siguen #337 y el motor** | `programas.0057` + pendientes |
 
 **Notas del índice**
 
@@ -6014,7 +6014,21 @@ Por fase; la última (caso) es la única con migración destructiva.
 
 ## Historial
 
-No aplica: entrada nueva. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de formularios
-propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
+- **28/08/2026 — Fase 1 (catálogo) hecha, tasks #336 y #338.** `GrupoRequisito` (clave, nombre, subtítulo,
+  orden, protegido, condición por defecto, canal); `PreguntaGlobal` con `grupo`, `origen` (pregunta / legajo /
+  persona_vinculada), `vinculo`, `protegido` y `canal`; `RequisitoNativo.canal`; `Formulario.celular` y
+  `email_contacto` ahora `blank=True` (D9). `VINCULOS_LEGAJO` dicta tipo y opciones de los campos vinculados.
+  `seed_becas` siembra los grupos protegidos —Datos personales, Contacto, Apoderado (condición por defecto
+  `edad_menor 18`)— con sus doce campos, y manda al «Cuestionario social» toda pregunta sin grupo
+  (`PreguntaGlobal.save` también lo hace). El form bloquea tipo/opciones de los protegidos y obligatorio/estado de
+  la identidad; las vistas rechazan borrar protegidos y desactivar identidad. Los modales de los cuatro
+  configuradores ofrecen «Se pide en» y la lista de generales muestra grupo, origen y protegido.
+  `definicion_formulario` filtra por el canal del relevamiento (`CanalFormulario.del_relevamiento`) y expone
+  `canal`, `origen`, `vinculo` y `grupo` por campo; **excluye los campos vinculados** hasta que el diseño por
+  convocatoria los consuma (si entraran hoy se pedirían dos veces). Migración `programas.0057`. Tests:
+  `programas/tests/test_catalogo_grupos.py` (19). Pendiente de esta fase: la pantalla agrupada con drag & drop (#337).
+
+Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
+formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
 
 ---
