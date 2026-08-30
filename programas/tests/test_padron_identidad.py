@@ -22,6 +22,7 @@ from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento, TracaFormulario
 from programas.services.identidad import gran_base_activa, identificar
 from programas.services.padron import cargar_padron, validar_casos_pendientes
+from programas.tests.test_becas_api import _BaseApiTest
 
 GRAN_BASE = {
     "success": True,
@@ -366,3 +367,77 @@ class DiagnosticoTests(TestCase):
         self.assertIn("PERSONAS_API_ACTIVA", texto)
         self.assertIn("desactivada por configuración", texto)
         self.assertNotIn("configuración incompleta: el formulario público NUNCA", texto)
+
+
+# ── API de campo: consultar-persona con padrón ───────────────────────────────
+
+
+@override_settings(PERSONAS_API_ACTIVA=False)
+class ConsultarPersonaApiTests(_BaseApiTest):
+    """``consultar_persona_becas`` con la Gran Base apagada: el padrón de las
+    convocatorias del territorial es la única fuente, y solo las suyas."""
+
+    def _consultar(self, **extra):
+        return self.client.post(
+            reverse("becas_api:personas-consultar"),
+            {"dni": "36210951", "sexo": "F", **extra},
+            format="json",
+        )
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_devuelve_los_datos_del_padron_con_el_contrato_de_siempre(self, consultar):
+        cargar_padron(self.conv, None, [FILA_PAMELA])
+        self.autenticar(self.terri)
+        resp = self._consultar()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data["success"])
+        self.assertEqual(resp.data["origen"], "padron")
+        self.assertEqual(resp.data["data"]["dni"], "36210951")
+        self.assertEqual(resp.data["data"]["sexo"], "F")
+        self.assertEqual(resp.data["data"]["nombre"], "Pamela Janet")
+        self.assertEqual(resp.data["data"]["apellido"], "Romero")
+        self.assertEqual(resp.data["data"]["fecha_nacimiento"], "2010-03-14")
+        self.assertIn("datos_api", resp.data)
+        consultar.assert_not_called()
+
+    def test_con_el_relevamiento_indicado_usa_su_convocatoria(self):
+        cargar_padron(self.conv, None, [FILA_PAMELA])
+        self.autenticar(self.terri)
+        resp = self._consultar(relevamiento=self.rel.pk)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["origen"], "padron")
+
+    def test_no_ve_el_padron_de_una_convocatoria_ajena(self):
+        """Scoping: el padrón vive en una convocatoria cuyos relevamientos son
+        de otro territorial. Ni por defecto ni indicando ese relevamiento."""
+        otra = Convocatoria.objects.create(
+            nombre="Otra", segmento=self.seg, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+        )
+        rel_otro = Relevamiento.objects.create(
+            convocatoria=otra, territorial=self.terri2, fecha_asignada=timezone.localdate(), zona="Z"
+        )
+        cargar_padron(otra, None, [FILA_PAMELA])
+        self.autenticar(self.terri)
+        self.assertEqual(self._consultar().status_code, 404)
+        self.assertEqual(self._consultar(relevamiento=rel_otro.pk).status_code, 404)
+        # El dueño sí la ve.
+        self.autenticar(self.terri2)
+        resp = self._consultar(relevamiento=rel_otro.pk)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["origen"], "padron")
+
+    def test_sin_padron_y_gran_base_apagada_es_404_con_mensaje(self):
+        self.autenticar(self.terri)
+        resp = self._consultar()
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(resp.data["success"])
+        self.assertIn("padrón", resp.data["error"])
+
+    def test_fila_sin_identidad_no_valida(self):
+        cargar_padron(self.conv, None, [{"dni": "36210951", "sexo": "F"}])
+        self.autenticar(self.terri)
+        self.assertEqual(self._consultar().status_code, 404)
+
+    def test_requiere_sexo_valido(self):
+        self.autenticar(self.terri)
+        self.assertEqual(self._consultar(sexo="X").status_code, 400)

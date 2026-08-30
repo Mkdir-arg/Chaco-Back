@@ -357,7 +357,14 @@ def validar_casos_pendientes(convocatoria, usuario=None):
     """
     from programas.services.becas import registrar_traza
 
-    if not convocatoria.padron.exists():
+    # El padrón entero en memoria (está acotado a 2 MB, cientos de filas): el
+    # día que por fin llega un padrón con datos puede haber cientos de casos
+    # pendientes acumulados, y una consulta por caso no escala.
+    filas = {
+        (fila.dni, fila.sexo): fila
+        for fila in convocatoria.padron.exclude(nombre="").exclude(apellido="").select_related("localidad")
+    }
+    if not filas:
         return 0
     pendientes = Formulario.objects.filter(
         relevamiento__convocatoria=convocatoria,
@@ -368,8 +375,8 @@ def validar_casos_pendientes(convocatoria, usuario=None):
     validados = 0
     for formulario in pendientes:
         dni, sexo = _identidad_del_caso(formulario)
-        fila = fila_padron(convocatoria, dni, sexo) if dni else None
-        if fila is None or not fila.tiene_identidad:
+        fila = filas.get((normalizar_dni(dni), normalizar_sexo(sexo)))
+        if fila is None:
             continue
         cambios = [("Validación de identidad", "Pendiente", "Validada por padrón")]
         ciudadano = formulario.ciudadano

@@ -110,6 +110,7 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
     datos = datos if isinstance(datos, dict) else {}
     origen = str(datos.get("origen") or "").strip().lower()
     origen_validacion = ""
+    campos = []  # un solo UPDATE al final
 
     if origen in ("scan", "escaneo", "dni_scan"):
         validado = True
@@ -141,7 +142,7 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
             else:
                 actualizado["origen"] = "manual"
             formulario.datos_identificacion = actualizado
-            formulario.save(update_fields=["datos_identificacion", "modificado"])
+            campos.append("datos_identificacion")
         origen_validacion = Formulario.OrigenValidacion.PADRON if validado else ""
     elif origen == "manual":
         validado = False
@@ -152,7 +153,9 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
     if formulario.validado_renaper != validado or formulario.origen_validacion != origen_validacion:
         formulario.validado_renaper = validado
         formulario.origen_validacion = origen_validacion
-        formulario.save(update_fields=["validado_renaper", "origen_validacion", "modificado"])
+        campos.extend(["validado_renaper", "origen_validacion"])
+    if campos:
+        formulario.save(update_fields=[*campos, "modificado"])
 
 
 def _convocatorias_para_identificar(user, relevamiento_id):

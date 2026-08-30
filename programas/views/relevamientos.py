@@ -237,9 +237,12 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         # Padrón de habilitados (Cambio 57): uno por convocatoria, para los dos
         # canales. Se administra acá, no en el relevamiento.
-        padron = conv.padron.all()
-        ctx["n_padron"] = padron.count()
-        ctx["n_padron_identidad"] = padron.exclude(nombre="").exclude(apellido="").count()
+        conteo_padron = conv.padron.aggregate(
+            total=Count("pk"),
+            con_identidad=Count("pk", filter=~Q(nombre="") & ~Q(apellido="")),
+        )
+        ctx["n_padron"] = conteo_padron["total"] or 0
+        ctx["n_padron_identidad"] = conteo_padron["con_identidad"] or 0
         ctx["puede_padron"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
         ctx["tiene_publicos"] = any(r.es_publico for r in relevamientos)
         return ctx

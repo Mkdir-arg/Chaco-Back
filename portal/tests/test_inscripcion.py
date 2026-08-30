@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -77,6 +77,47 @@ class _BaseInscripcionTest(TestCase):
             self._url(rel),
             {"dni": dni, "sexo": sexo, "captcha": captcha if captcha is not None else "7"},
         )
+
+
+@override_settings(PERSONAS_API_ACTIVA=False)
+class PadronComoIdentidadPaso1Tests(_BaseInscripcionTest):
+    """Cambio 57: con la Gran Base apagada, el padrón de la convocatoria
+    identifica a la persona en el paso 1."""
+
+    FILA = {
+        "dni": "30123456",
+        "sexo": "F",
+        "nombre": "María Luján",
+        "apellido": "Gómez",
+        "fecha_nacimiento": date(1991, 3, 14),
+        "localidad_texto": "Resistencia",
+    }
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_fila_con_datos_precarga_y_valida_sin_consultar(self, mock_consulta):
+        cargar_padron(self.convocatoria, None, [self.FILA])
+        # El DNI con puntos lo normaliza el form; el sexo del paso 1 es F/M.
+        resp = self._post_paso1(dni="30.123.456", sexo="F")
+        self.assertEqual(resp.status_code, 302)
+        mock_consulta.assert_not_called()
+        identificacion = self.client.session[servicio.clave_sesion(self.relevamiento)]
+        self.assertEqual(identificacion["origen"], "padron")
+        self.assertEqual(identificacion["datos"]["nombre"], "María Luján")
+        self.assertEqual(identificacion["datos"]["apellido"], "Gómez")
+        self.assertEqual(identificacion["datos"]["fecha_nacimiento"], "1991-03-14")
+        # RN-P7: a la sesión nunca viaja el domicilio ni la localidad como texto.
+        self.assertNotIn("localidad_texto", identificacion["datos"])
+        self.assertNotIn("domicilio", identificacion["datos"])
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_fila_sin_datos_deja_pasar_como_manual(self, mock_consulta):
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        resp = self._post_paso1(dni="30123456", sexo="F")
+        self.assertEqual(resp.status_code, 302)
+        mock_consulta.assert_not_called()
+        identificacion = self.client.session[servicio.clave_sesion(self.relevamiento)]
+        self.assertEqual(identificacion["origen"], "manual")
+        self.assertIsNone(identificacion["datos"])
 
 
 class ServiciosInscripcionTests(_BaseInscripcionTest):
