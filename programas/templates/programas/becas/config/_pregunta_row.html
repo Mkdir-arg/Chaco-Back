@@ -1,0 +1,77 @@
+{% load rbac %}
+{# Fila de una pregunta del catálogo. `con_grip`: vista agrupada (manija en vez de orden, sin columna Grupo). #}
+<tr class="hover:bg-secondary" data-pregunta-id="{{ p.pk }}">
+  {% if con_grip %}
+  <td class="px-3 py-[13px] border-t border-light w-10">
+    {% if puede_ordenar %}<span class="grip pregunta-grip" aria-hidden="true" title="Arrastrar para mover"><i class="fas fa-grip-vertical"></i></span>{% endif %}
+  </td>
+  {% else %}
+  <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle text-right font-semibold">{{ p.orden }}</td>
+  {% endif %}
+  <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
+    {{ p.texto }}
+    {% if p.protegido %}<span class="badge badge-info ml-1" title="Viene con el sistema: se renombra y se mueve, no se borra"><i class="fas fa-lock" style="font-size:10px;"></i> Protegido</span>{% endif %}
+  </td>
+  {% if not con_grip %}
+  <td class="px-4 py-[13px] text-sm border-t border-light text-body">{{ p.grupo.nombre|default:"—" }}</td>
+  {% endif %}
+  <td class="px-4 py-[13px] text-sm border-t border-light">
+    <div class="flex flex-wrap gap-1">
+      <span class="badge badge-white">{{ p.get_tipo_display }}</span>
+      {% if not p.es_pregunta %}<span class="badge badge-info">{% if p.origen == "legajo" %}Legajo → {{ p.vinculo }}{% else %}Apoderado → {{ p.vinculo }}{% endif %}</span>{% endif %}
+      {% if p.canal != "ambos" %}<span class="badge badge-white">{{ p.get_canal_display }}</span>{% endif %}
+    </div>
+  </td>
+  <td class="px-4 py-[13px] text-sm border-t border-light text-center">
+    {% if p.obligatorio %}
+      <span class="badge badge-brand">Obligatorio</span>
+    {% else %}
+      <span class="badge badge-gray">Opcional</span>
+    {% endif %}
+  </td>
+  <td class="px-4 py-[13px] text-sm border-t border-light text-center">
+    {% if p.activo %}
+      <span class="badge badge-success badge-dot">Activa</span>
+    {% else %}
+      <span class="badge badge-danger badge-dot">Inactiva</span>
+    {% endif %}
+  </td>
+  <td class="px-4 py-[13px] text-sm border-t border-light text-right">
+    <div class="flex items-center justify-end gap-2">
+      {% if request.user|puede:"becas.pregunta.editar" %}
+      <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar" aria-label="Editar {{ p.texto }}"
+        @click="openEdit(
+          '{% url 'becas:pregunta_editar' p.pk %}',
+          '{{ p.texto|escapejs }}',
+          '{{ p.tipo }}',
+          '{{ p.obligatorio|yesno:'True,False' }}',
+          '{{ p.activo|yesno:'True,False' }}',
+          {{ p.orden }},
+          [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+          '{{ p.presentacion }}',
+          '{{ p.grupo_id|default_if_none:'' }}',
+          '{{ p.canal }}',
+          {{ p.protegido|yesno:'true,false' }},
+          {{ p.es_identidad|yesno:'true,false' }}
+        )">
+        <i class="fas fa-edit"></i>
+      </button>
+      {% if not p.es_identidad %}
+      <button type="button" class="text-body-subtle hover:text-fg-warning p-1" title="Activar/Desactivar" aria-label="Activar o desactivar {{ p.texto }}"
+              data-confirm-url="{% url 'becas:pregunta_toggle' p.pk %}"
+              data-confirm-title="{% if p.activo %}¿Desactivar pregunta?{% else %}¿Activar pregunta?{% endif %}"
+              data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí">
+        <i class="fas fa-power-off"></i>
+      </button>
+      {% endif %}
+      {% if not p.protegido %}
+      <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar" aria-label="Eliminar {{ p.texto }}"
+              data-confirm-url="{% url 'becas:pregunta_eliminar' p.pk %}"
+              data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar">
+        <i class="fas fa-trash"></i>
+      </button>
+      {% endif %}
+      {% endif %}
+    </div>
+  </td>
+</tr>

@@ -211,6 +211,10 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["n_aprobados"] = conteos["aprobados"] or 0
         ctx["beneficiarios_querystring"] = _querystring_without(self.request, "beneficiarios_page", "tab")
         ctx["puede_reportes"] = puede(self.request.user, CAP_REPORTES)
+        # Cambio 58: «Configurar formulario» (admin del programa y coordinador del segmento, D7).
+        ctx["puede_formulario"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR) and puede_gestionar_segmento(
+            self.request.user, conv.segmento
+        )
         ctx["cupo_segmento"] = conv.segmento.cupo_maximo
         segmentos = segmentos_visibles(self.request.user)
         form = ConvocatoriaForm(
@@ -624,7 +628,11 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
 class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = Relevamiento
     # El template y _assert_scope recorren convocatoria/segmento/territorial.
-    queryset = Relevamiento.objects.select_related("convocatoria__segmento", "convocatoria__subsegmento", "territorial")
+    # El padrón es de la convocatoria (Cambio 57): su tamaño viaja anotado en
+    # la misma consulta para no sumar una lectura al presupuesto de la ruta.
+    queryset = Relevamiento.objects.select_related(
+        "convocatoria__segmento", "convocatoria__subsegmento", "territorial"
+    ).annotate(n_padron=Count("convocatoria__padron"))
     capacidades_requeridas = CAP_RELEVAMIENTO_VER
     template_name = "programas/becas/relevamientos/relevamiento_detail.html"
     context_object_name = "relevamiento"
@@ -640,8 +648,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx = super().get_context_data(**kwargs)
         rel = self.object
         ctx["link_publico"] = self.request.build_absolute_uri(rel.url_publica) if rel.es_publico else ""
-        # El padrón es de la convocatoria (Cambio 57); acá solo se informa.
-        ctx["n_padron"] = rel.convocatoria.padron.count()
+        ctx["n_padron"] = rel.n_padron  # anotado en el queryset (Cambio 57)
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
@@ -742,7 +749,10 @@ def relevamiento_reabrir(request, pk):
         request.user.pk,
         rel.fecha_hasta.isoformat() if rel.fecha_hasta else None,
     )
-    messages.success(request, f"Relevamiento en curso otra vez, con fecha hasta {timezone.localtime(rel.fecha_hasta):%d/%m/%Y %H:%M}.")
+    messages.success(
+        request,
+        f"Relevamiento en curso otra vez, con fecha hasta {timezone.localtime(rel.fecha_hasta):%d/%m/%Y %H:%M}.",
+    )
     return redirect("becas:relevamiento_detalle", pk=rel.pk)
 
 
@@ -782,7 +792,9 @@ def convocatoria_padron(request, pk):
     destino = reverse("becas:convocatoria_detalle", kwargs={"pk": conv.pk})
     archivo = request.FILES.get("padron")
     if archivo is None:
-        messages.error(request, "Adjuntá el Excel del padrón (.xlsx): documento, sexo y, si los tenés, los datos de identidad.")
+        messages.error(
+            request, "Adjuntá el Excel del padrón (.xlsx): documento, sexo y, si los tenés, los datos de identidad."
+        )
         return redirect(destino)
     from django.core.exceptions import ValidationError as DjangoValidationError
 

@@ -140,7 +140,9 @@ class GenerarYReconciliarTests(_Base):
     def test_una_pregunta_nueva_va_a_su_grupo_del_catalogo(self):
         diseno, _ = obtener_o_crear_diseno(self.convocatoria)
         contacto = GrupoRequisito.objects.get(clave="contacto")
-        nueva = PreguntaGlobal.objects.create(texto="Teléfono alternativo", tipo=TipoCampo.STRING, grupo=contacto, orden=650)
+        nueva = PreguntaGlobal.objects.create(
+            texto="Teléfono alternativo", tipo=TipoCampo.STRING, grupo=contacto, orden=650
+        )
         reconciliar(diseno)
         item = diseno.items.get(clave=clave_pregunta(nueva))
         self.assertEqual(item.padre.clave, "g-contacto")
@@ -158,7 +160,10 @@ class GenerarYReconciliarTests(_Base):
     def test_quitar_la_fuente_elimina_la_condicion_con_aviso(self):
         diseno, _ = obtener_o_crear_diseno(self.convocatoria)
         cert = diseno.items.get(clave=clave_requisito(self.certificado))
-        cert.condicion = {"modo": "todas", "reglas": [{"fuente": clave_requisito(self.nivel), "op": "es", "valor": "Terciario"}]}
+        cert.condicion = {
+            "modo": "todas",
+            "reglas": [{"fuente": clave_requisito(self.nivel), "op": "es", "valor": "Terciario"}],
+        }
         cert.save(update_fields=["condicion"])
         RequisitoNativo.objects.filter(pk=self.nivel.pk).delete()
         avisos = reconciliar(diseno)
@@ -207,9 +212,13 @@ class SerializacionTests(_Base):
         self.assertTrue(dni["clave"].startswith("pg-"))
 
     def test_filtra_por_canal_y_omite_grupos_vacios(self):
-        solo_app = PreguntaGlobal.objects.create(texto="Foto DNI físico", tipo=TipoCampo.ARCHIVO, canal="app", orden=700)
+        solo_app = PreguntaGlobal.objects.create(
+            texto="Foto DNI físico", tipo=TipoCampo.ARCHIVO, canal="app", orden=700
+        )
         grupo_app = GrupoRequisito.objects.create(clave="solo-app", nombre="Solo en campo", orden=6, canal="app")
-        PreguntaGlobal.objects.create(texto="Observación del territorial", tipo=TipoCampo.STRING, grupo=grupo_app, orden=701)
+        PreguntaGlobal.objects.create(
+            texto="Observación del territorial", tipo=TipoCampo.STRING, grupo=grupo_app, orden=701
+        )
         items = plan_por_defecto(self.convocatoria)
         link = serializar(items, CanalFormulario.LINK)
         app = serializar(items, CanalFormulario.APP)
@@ -238,9 +247,22 @@ class SerializacionTests(_Base):
             padre=grupo,
             orden=9,
             canal="link",
-            propio={"texto": "Escuela a la que asistís", "tipo": "SELECTOR", "opciones": ["A", "B"], "presentacion": "BUSCADOR", "obligatorio": False},
+            propio={
+                "texto": "Escuela a la que asistís",
+                "tipo": "SELECTOR",
+                "opciones": ["A", "B"],
+                "presentacion": "BUSCADOR",
+                "obligatorio": False,
+            },
         )
-        ItemDiseno.objects.create(diseno=diseno, tipo=ItemDiseno.Tipo.TEXTO, clave="t-1", padre=grupo, orden=8, texto="Adjuntá el certificado.")
+        ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.TEXTO,
+            clave="t-1",
+            padre=grupo,
+            orden=8,
+            texto="Adjuntá el certificado.",
+        )
         link = serializar(items_ordenados(diseno), CanalFormulario.LINK)
         segmento = next(g for g in link if g["clave"] == "g-segmento")
         tipos = [c.get("tipo_item") or c["tipo"] for c in segmento["items"]]
@@ -258,7 +280,9 @@ class DefinicionV2Tests(_Base):
         definicion = definicion_formulario(self.rel_link)
         self.assertEqual(definicion["version"], 0)
         self.assertEqual(definicion["canal"], "link")
-        self.assertEqual([g["clave"] for g in definicion["items"]][:3], ["g-datos_personales", "g-contacto", "g-apoderado"])
+        self.assertEqual(
+            [g["clave"] for g in definicion["items"]][:3], ["g-datos_personales", "g-contacto", "g-apoderado"]
+        )
         self.assertFalse(DisenoFormulario.objects.exists())
 
     def test_con_diseno_sirve_lo_guardado_con_su_version(self):
@@ -270,9 +294,15 @@ class DefinicionV2Tests(_Base):
 
     def test_las_listas_planas_siguen_igual_para_la_app_vieja(self):
         definicion = definicion_formulario(self.rel_app)
-        self.assertEqual([c["texto"] for c in definicion["globales"] if c["origen"] == "pregunta"], [c["texto"] for c in definicion["globales"]])
+        self.assertEqual(
+            [c["texto"] for c in definicion["globales"] if c["origen"] == "pregunta"],
+            [c["texto"] for c in definicion["globales"]],
+        )
         self.assertIn("Tenencia de la vivienda", [c["texto"] for c in definicion["globales"]])
-        self.assertEqual({c["texto"] for c in definicion["requisitos"]}, {"Nivel educativo", "Certificado de alumno regular", "Barrio"})
+        self.assertEqual(
+            {c["texto"] for c in definicion["requisitos"]},
+            {"Nivel educativo", "Certificado de alumno regular", "Barrio"},
+        )
         for clave in ("requiere_gps", "globales", "requisitos"):
             self.assertIn(clave, definicion)
 

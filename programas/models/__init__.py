@@ -1198,7 +1198,12 @@ VINCULOS_LEGAJO = {
     "nombre": {"etiqueta": "Nombre", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True},
     "apellido": {"etiqueta": "Apellido", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True},
     "dni": {"etiqueta": "DNI", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True, "solo_lectura": True},
-    "fecha_nacimiento": {"etiqueta": "Fecha de nacimiento", "tipo": TipoCampo.DATE, "opciones": None, "identidad": True},
+    "fecha_nacimiento": {
+        "etiqueta": "Fecha de nacimiento",
+        "tipo": TipoCampo.DATE,
+        "opciones": None,
+        "identidad": True,
+    },
     "genero": {"etiqueta": "Sexo", "tipo": TipoCampo.SELECTOR, "opciones": ["F", "M"], "identidad": True},
     "telefono": {"etiqueta": "Celular", "tipo": TipoCampo.STRING, "opciones": None},
     "email": {"etiqueta": "Correo electrónico", "tipo": TipoCampo.STRING, "opciones": None},

@@ -24,7 +24,7 @@ from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from programas.forms import CiudadanoGeneroRevisionForm, ForzarIdentidadForm, FormularioRevisionForm
+from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm, ForzarIdentidadForm
 from programas.models import (
     Formulario,
     PreguntaGlobal,
@@ -682,10 +682,7 @@ def formulario_revalidar_renaper(request, pk):
                 cambios.append((f"Ciudadano · {campo}", anterior, nuevo))
         if campos_actualizados:
             ciudadano.save(update_fields=[*campos_actualizados, "modificado"])
-        if (
-            not formulario.validado_renaper
-            or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS
-        ):
+        if not formulario.validado_renaper or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS:
             anterior = formulario.get_origen_validacion_display() if formulario.validado_renaper else "Pendiente"
             formulario.validado_renaper = True
             # La Gran Base es la fuente oficial: manda sobre el padrón (RN-6).
@@ -705,9 +702,7 @@ def formulario_validar_padron(request, pk):
     convocatoria (Cambio 57). Es lo mismo que hace el cruce automático al
     subir el padrón, para un caso puntual: sirve cuando el padrón se corrigió
     después, o cuando la Gran Base está apagada y el caso entró como manual."""
-    formulario = get_object_or_404(
-        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk
-    )
+    formulario = get_object_or_404(Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)

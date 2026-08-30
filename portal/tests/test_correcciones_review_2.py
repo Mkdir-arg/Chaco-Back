@@ -20,7 +20,6 @@ from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest,
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
 from portal.views.inscripcion import MENSAJE_RECHAZO
 from programas.admin import RelevamientoAdmin
-from programas.forms import RelevamientoForm
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
 from programas.services.inscripcion_publica import crear_formulario_publico
 from programas.views import relevamientos as vistas_rel

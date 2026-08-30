@@ -38,6 +38,7 @@ from portal.services.inscripcion import (
 )
 from programas.models import Relevamiento
 from programas.services.becas import definicion_formulario
+from programas.services.identidad import identificar
 from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
     InscripcionNoDisponible,
@@ -46,7 +47,6 @@ from programas.services.inscripcion_publica import (
     enmascarar_email,
     enviar_confirmacion_inscripcion,
 )
-from programas.services.identidad import identificar
 from programas.services.padron import esta_habilitado
 
 logger = logging.getLogger(__name__)

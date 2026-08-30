@@ -57,6 +57,10 @@
               :class="tab==='rep' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
         <i class="fas fa-chart-simple"></i> Reportes
       </button>{% endif %}
+      {% if puede_formulario %}<a href="{% url 'becas:convocatoria_formulario' convocatoria.pk %}"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 text-body-subtle border-transparent hover:text-body font-medium ml-auto">
+        <i class="fas fa-wand-magic-sparkles"></i> Configurar formulario
+      </a>{% endif %}
     </div>
 
     {# ===== TAB: Información general ===== #}

@@ -122,13 +122,17 @@ class ResumenPadron:
         partes = [f"{self.validas} habilitado{'s' if self.validas != 1 else ''}"]
         partes.append(f"{self.con_identidad} con identidad completa")
         if self.rechazadas:
-            partes.append(f"{self.rechazadas} fila{'s' if self.rechazadas != 1 else ''} ignorada{'s' if self.rechazadas != 1 else ''}")
+            partes.append(
+                f"{self.rechazadas} fila{'s' if self.rechazadas != 1 else ''} ignorada{'s' if self.rechazadas != 1 else ''}"
+            )
         if self.fechas_invalidas:
             partes.append(f"{self.fechas_invalidas} fecha{'s' if self.fechas_invalidas != 1 else ''} sin interpretar")
         if self.localidades_no_reconocidas:
             partes.append(f"{len(self.localidades_no_reconocidas)} localidad(es) no reconocida(s)")
         if self.casos_validados:
-            partes.append(f"{self.casos_validados} caso{'s' if self.casos_validados != 1 else ''} pendiente{'s' if self.casos_validados != 1 else ''} validado{'s' if self.casos_validados != 1 else ''}")
+            partes.append(
+                f"{self.casos_validados} caso{'s' if self.casos_validados != 1 else ''} pendiente{'s' if self.casos_validados != 1 else ''} validado{'s' if self.casos_validados != 1 else ''}"
+            )
         return "Padrón cargado: " + " · ".join(partes) + "."
 
 

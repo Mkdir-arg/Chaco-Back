@@ -67,7 +67,14 @@ class OperadoresTests(SimpleTestCase):
         self.assertTrue(evaluar_regla(regla("no_adjuntado"), None))
 
     def test_fuente_vacia_no_cumple_salvo_vacio(self):
-        for op, valor in (("es", "X"), ("lt", 3), ("edad_menor", 18), ("incluye", "A"), ("completo", None), ("adjuntado", None)):
+        for op, valor in (
+            ("es", "X"),
+            ("lt", 3),
+            ("edad_menor", 18),
+            ("incluye", "A"),
+            ("completo", None),
+            ("adjuntado", None),
+        ):
             self.assertFalse(evaluar_regla(regla(op, valor=valor), None), op)
             self.assertFalse(evaluar_regla(regla(op, valor=valor), ""), op)
         self.assertTrue(evaluar_regla(regla("vacio"), None))
@@ -109,21 +116,48 @@ class EvaluarTests(SimpleTestCase):
 ITEMS = [
     {"clave": "g-datos", "tipo": "grupo", "padre": None, "condicion": None},
     {"clave": "pg-fecha", "tipo": "campo", "tipo_campo": TipoCampo.DATE, "padre": "g-datos", "condicion": None},
-    {"clave": "g-apoderado", "tipo": "grupo", "padre": None, "condicion": {"modo": "todas", "reglas": [regla("edad_menor", "pg-fecha", 18)]}},
-    {"clave": "pg-apo-nombre", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "padre": "g-apoderado", "condicion": None},
+    {
+        "clave": "g-apoderado",
+        "tipo": "grupo",
+        "padre": None,
+        "condicion": {"modo": "todas", "reglas": [regla("edad_menor", "pg-fecha", 18)]},
+    },
+    {
+        "clave": "pg-apo-nombre",
+        "tipo": "campo",
+        "tipo_campo": TipoCampo.STRING,
+        "padre": "g-apoderado",
+        "condicion": None,
+    },
     {"clave": "g-edu", "tipo": "grupo", "padre": None, "condicion": None},
     {"clave": "rn-nivel", "tipo": "campo", "tipo_campo": TipoCampo.SELECTOR, "padre": "g-edu", "condicion": None},
     {"clave": "t-1", "tipo": "texto", "padre": "g-edu", "condicion": None},
-    {"clave": "rn-cert", "tipo": "campo", "tipo_campo": TipoCampo.ARCHIVO, "padre": "g-edu",
-     "condicion": {"modo": "todas", "reglas": [regla("es_alguno", "rn-nivel", ["Terciario", "Universitario"])]}},
-    {"clave": "rn-univ", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "padre": "g-edu",
-     "condicion": {"modo": "todas", "reglas": [regla("adjuntado", "rn-cert")]}},
+    {
+        "clave": "rn-cert",
+        "tipo": "campo",
+        "tipo_campo": TipoCampo.ARCHIVO,
+        "padre": "g-edu",
+        "condicion": {"modo": "todas", "reglas": [regla("es_alguno", "rn-nivel", ["Terciario", "Universitario"])]},
+    },
+    {
+        "clave": "rn-univ",
+        "tipo": "campo",
+        "tipo_campo": TipoCampo.STRING,
+        "padre": "g-edu",
+        "condicion": {"modo": "todas", "reglas": [regla("adjuntado", "rn-cert")]},
+    },
 ]
 
 
 class AplicarTests(SimpleTestCase):
     def test_menor_con_terciario(self):
-        respuestas = {"pg-fecha": "2010-03-14", "pg-apo-nombre": "Graciela", "rn-nivel": "Terciario", "rn-cert": "c.pdf", "rn-univ": "UNNE"}
+        respuestas = {
+            "pg-fecha": "2010-03-14",
+            "pg-apo-nombre": "Graciela",
+            "rn-nivel": "Terciario",
+            "rn-cert": "c.pdf",
+            "rn-univ": "UNNE",
+        }
         visibles, ocultos, efectivas = aplicar(ITEMS, respuestas, HOY)
         self.assertIn("g-apoderado", visibles)
         self.assertIn("pg-apo-nombre", visibles)
@@ -133,7 +167,13 @@ class AplicarTests(SimpleTestCase):
         self.assertEqual(efectivas["rn-univ"], "UNNE")
 
     def test_mayor_con_secundario_descarta_lo_oculto(self):
-        respuestas = {"pg-fecha": "1991-03-14", "pg-apo-nombre": "basura", "rn-nivel": "Secundario", "rn-cert": "c.pdf", "rn-univ": "basura"}
+        respuestas = {
+            "pg-fecha": "1991-03-14",
+            "pg-apo-nombre": "basura",
+            "rn-nivel": "Secundario",
+            "rn-cert": "c.pdf",
+            "rn-univ": "basura",
+        }
         visibles, ocultos, efectivas = aplicar(ITEMS, respuestas, HOY)
         self.assertIn("g-apoderado", ocultos)
         self.assertIn("pg-apo-nombre", ocultos)  # hijo de grupo oculto
@@ -156,8 +196,18 @@ class CoherenciaTests(SimpleTestCase):
 
     def test_fuente_posterior_o_inexistente(self):
         items = [
-            {"clave": "a", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "todas", "reglas": [regla("completo", "b")]}},
-            {"clave": "b", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "todas", "reglas": [regla("completo", "zzz")]}},
+            {
+                "clave": "a",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "todas", "reglas": [regla("completo", "b")]},
+            },
+            {
+                "clave": "b",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "todas", "reglas": [regla("completo", "zzz")]},
+            },
         ]
         errores = validar_coherencia(items)
         self.assertIn("a", errores)
@@ -165,13 +215,25 @@ class CoherenciaTests(SimpleTestCase):
         self.assertIn("está después", errores["a"][0])
 
     def test_no_depende_de_si_mismo(self):
-        items = [{"clave": "a", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "todas", "reglas": [regla("completo", "a")]}}]
+        items = [
+            {
+                "clave": "a",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "todas", "reglas": [regla("completo", "a")]},
+            }
+        ]
         self.assertIn("sí mismo", validar_coherencia(items)["a"][0])
 
     def test_operador_incompatible_con_el_tipo(self):
         items = [
             {"clave": "txt", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": None},
-            {"clave": "b", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "todas", "reglas": [regla("edad_menor", "txt", 18)]}},
+            {
+                "clave": "b",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "todas", "reglas": [regla("edad_menor", "txt", 18)]},
+            },
         ]
         self.assertIn("no aplica", validar_coherencia(items)["b"][0])
 
@@ -179,14 +241,24 @@ class CoherenciaTests(SimpleTestCase):
         items = [
             {"clave": "g", "tipo": "grupo", "condicion": None},
             {"clave": "t", "tipo": "texto", "condicion": None},
-            {"clave": "b", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "alguna", "reglas": [regla("completo", "g"), regla("completo", "t")]}},
+            {
+                "clave": "b",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "alguna", "reglas": [regla("completo", "g"), regla("completo", "t")]},
+            },
         ]
         self.assertEqual(len(validar_coherencia(items)["b"]), 2)
 
     def test_valor_requerido_y_listas(self):
         items = [
             {"clave": "sel", "tipo": "campo", "tipo_campo": TipoCampo.SELECTOR, "condicion": None},
-            {"clave": "b", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "todas", "reglas": [regla("es", "sel", ""), regla("es_alguno", "sel", "A")]}},
+            {
+                "clave": "b",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "todas", "reglas": [regla("es", "sel", ""), regla("es_alguno", "sel", "A")]},
+            },
         ]
         errores = validar_coherencia(items)["b"]
         self.assertTrue(any("necesita un valor" in e for e in errores))
@@ -195,7 +267,12 @@ class CoherenciaTests(SimpleTestCase):
     def test_modo_desconocido(self):
         items = [
             {"clave": "a", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": None},
-            {"clave": "b", "tipo": "campo", "tipo_campo": TipoCampo.STRING, "condicion": {"modo": "quizas", "reglas": [regla("completo", "a")]}},
+            {
+                "clave": "b",
+                "tipo": "campo",
+                "tipo_campo": TipoCampo.STRING,
+                "condicion": {"modo": "quizas", "reglas": [regla("completo", "a")]},
+            },
         ]
         self.assertIn("Modo desconocido", validar_coherencia(items)["b"][0])
 

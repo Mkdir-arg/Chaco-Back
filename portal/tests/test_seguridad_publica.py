@@ -467,7 +467,6 @@ class SinRecursosDeTercerosTests(TestCase):
         from pathlib import Path
 
         from django.conf import settings
-
         from django.template.utils import get_app_template_dirs
 
         patron = re.compile(r'(?:src|href)="(https?://[^"]+)"')

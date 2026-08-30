@@ -19,7 +19,7 @@ from django.urls import reverse
 from core.models import Localidad, Municipio, Provincia
 from programas.forms import RelevamientoForm
 from programas.management.commands.seed_becas import ROL_ADMIN
-from programas.models import Convocatoria, PadronHabilitado, Relevamiento, Segmento
+from programas.models import Convocatoria, Relevamiento, Segmento
 from programas.services.padron import (
     cargar_padron,
     clave_localidad,
@@ -319,7 +319,9 @@ class PadronConvocatoriaViewTests(_BasePadronTest):
 
     def test_la_plantilla_se_puede_volver_a_cargar(self):
         """El ejemplo que descargamos tiene que pasar por nuestro propio parser."""
-        entradas, resumen = parsear_padron(SimpleUploadedFile("plantilla.xlsx", plantilla_padron(), content_type=XLSX_MIME))
+        entradas, resumen = parsear_padron(
+            SimpleUploadedFile("plantilla.xlsx", plantilla_padron(), content_type=XLSX_MIME)
+        )
         self.assertEqual(resumen.validas, 2)
         self.assertEqual(resumen.con_identidad, 1)
         self.assertEqual(entradas[0]["fecha_nacimiento"], date(1991, 3, 14))

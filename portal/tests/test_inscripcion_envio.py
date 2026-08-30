@@ -1,15 +1,14 @@
 """Tests del paso 2 y la ingesta del formulario público (#294/#295, análisis #289)."""
 
 from datetime import date, timedelta
-from uuid import uuid4
-
 from pathlib import Path
+from uuid import uuid4
 
 from django import forms
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
-from django.template.loader import get_template
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template.loader import get_template
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone

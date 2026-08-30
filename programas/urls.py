@@ -4,6 +4,7 @@ from django.urls import path
 
 from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
+from programas.views import diseno as dis
 from programas.views import pausas as pau
 from programas.views import relevamientos as rel
 from programas.views import reportes_becas as rpt
@@ -58,6 +59,10 @@ urlpatterns = [
     path("config/preguntas/<int:pk>/editar/", cfg.PreguntaGlobalUpdateView.as_view(), name="pregunta_editar"),
     path("config/preguntas/<int:pk>/toggle/", cfg.pregunta_toggle_activo, name="pregunta_toggle"),
     path("config/preguntas/<int:pk>/eliminar/", cfg.pregunta_eliminar, name="pregunta_eliminar"),
+    path("config/preguntas/reordenar/", cfg.preguntas_reordenar, name="preguntas_reordenar"),
+    path("config/grupos/nuevo/", cfg.grupo_crear, name="grupo_crear"),
+    path("config/grupos/<int:pk>/editar/", cfg.grupo_editar, name="grupo_editar"),
+    path("config/grupos/<int:pk>/eliminar/", cfg.grupo_eliminar, name="grupo_eliminar"),
     # --- Convocatorias ---
     path("convocatorias/", rel.ConvocatoriaListView.as_view(), name="convocatorias"),
     path("convocatorias/nueva/", rel.ConvocatoriaCreateView.as_view(), name="convocatoria_crear"),
@@ -89,6 +94,33 @@ urlpatterns = [
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     # Cambio 57: el padrón es de la convocatoria (lo usan los dos canales).
     path("convocatorias/<int:pk>/padron/", rel.convocatoria_padron, name="convocatoria_padron"),
+    # Constructor del formulario de la convocatoria (Cambio 58, fase 3).
+    path(
+        "convocatorias/<int:pk>/formulario/", dis.ConvocatoriaFormularioView.as_view(), name="convocatoria_formulario"
+    ),
+    path("convocatorias/<int:pk>/formulario/datos/", dis.formulario_datos, name="formulario_datos"),
+    path("convocatorias/<int:pk>/formulario/mover/", dis.formulario_mover, name="formulario_mover"),
+    path("convocatorias/<int:pk>/formulario/grupo/", dis.formulario_grupo_crear, name="formulario_grupo_crear"),
+    path("convocatorias/<int:pk>/formulario/texto/", dis.formulario_texto_crear, name="formulario_texto_crear"),
+    path(
+        "convocatorias/<int:pk>/formulario/campo-propio/", dis.formulario_propio_crear, name="formulario_propio_crear"
+    ),
+    path("convocatorias/<int:pk>/formulario/restablecer/", dis.formulario_restablecer, name="formulario_restablecer"),
+    path(
+        "convocatorias/<int:pk>/formulario/<str:clave>/editar/",
+        dis.formulario_item_editar,
+        name="formulario_item_editar",
+    ),
+    path(
+        "convocatorias/<int:pk>/formulario/<str:clave>/condicion/",
+        dis.formulario_condicion,
+        name="formulario_condicion",
+    ),
+    path(
+        "convocatorias/<int:pk>/formulario/<str:clave>/eliminar/",
+        dis.formulario_item_eliminar,
+        name="formulario_item_eliminar",
+    ),
     path(
         "convocatorias/<int:pk>/padron/plantilla/",
         rel.convocatoria_padron_plantilla,

@@ -1,0 +1,89 @@
+{# Columna izquierda del constructor (Cambio 58, task 342): el diseño, grupo por grupo. Lo reemplaza cada guardado. #}
+{{ datos|json_script:"constructor-datos" }}
+<div data-constructor-root class="space-y-3">
+  {% for grupo, hijos in arbol %}
+  <section class="cons-grupo rounded-xl border border-base bg-white overflow-hidden" data-clave="{{ grupo.clave|default:'' }}" data-tipo="grupo">
+    <header class="flex items-center gap-2 px-3 py-2.5 bg-secondary border-b border-light">
+      {% if grupo %}<span class="grip grupo-grip" aria-hidden="true" title="Arrastrar para ordenar el grupo"><i class="fas fa-grip-vertical"></i></span>{% endif %}
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-heading font-bold text-[14px]">{% if grupo %}{{ grupo.titulo|default:"(grupo sin título)" }}{% else %}Sin grupo{% endif %}</span>
+          {% if grupo.ui.protegido %}<span class="badge badge-info" title="Grupo protegido del catálogo: se renombra y se ordena, siempre está"><i class="fas fa-lock" style="font-size:10px;"></i></span>
+          {% elif grupo.ui.catalogo %}<span class="badge badge-info">Catálogo</span>{% endif %}
+          {% if grupo and grupo.canal != "ambos" %}<span class="badge badge-white">{{ grupo.get_canal_display }}</span>{% endif %}
+          {% if grupo.condicion %}
+          <button type="button" class="badge badge-warning" data-accion="condicion" data-clave="{{ grupo.clave }}" title="Este grupo se muestra solo si se cumple una condición">
+            <i class="fas fa-code-branch" style="font-size:10px;"></i> Condicional
+          </button>
+          {% endif %}
+        </div>
+        {% if grupo.subtitulo %}<p class="text-xs text-body-subtle mt-0.5">{{ grupo.subtitulo }}</p>{% endif %}
+      </div>
+      {% if grupo %}
+      <div class="flex items-center gap-0.5">
+        <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" data-accion="condicion" data-clave="{{ grupo.clave }}" title="Condición" aria-label="Condición del grupo {{ grupo.titulo }}"><i class="fas fa-code-branch"></i></button>
+        <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" data-accion="editar" data-clave="{{ grupo.clave }}" title="Editar grupo" aria-label="Editar grupo {{ grupo.titulo }}"><i class="fas fa-edit"></i></button>
+        {% if grupo.ui.eliminable %}
+        <button type="button" class="text-body-subtle hover:text-fg-danger p-1.5 rounded-lg hover:bg-white" data-accion="eliminar" data-clave="{{ grupo.clave }}" title="Eliminar grupo" aria-label="Eliminar grupo {{ grupo.titulo }}"><i class="fas fa-trash"></i></button>
+        {% endif %}
+      </div>
+      {% endif %}
+    </header>
+    <ul class="cons-hijos divide-y divide-light" data-sortable-hijos data-clave="{{ grupo.clave|default:'' }}">
+      {% for item in hijos %}
+      <li class="cons-item flex items-center gap-2 px-3 py-2 hover:bg-secondary" data-clave="{{ item.clave }}" data-tipo="{{ item.tipo }}">
+        <span class="grip item-grip" aria-hidden="true" title="Arrastrar para mover"><i class="fas fa-grip-vertical"></i></span>
+        <span class="cons-icono" aria-hidden="true">
+          {% if item.es_texto %}<i class="fas fa-align-left"></i>
+          {% elif item.ui.tipo_campo == "DATE" %}<i class="fas fa-calendar"></i>
+          {% elif item.ui.tipo_campo == "INT" %}<i class="fas fa-hashtag"></i>
+          {% elif item.ui.tipo_campo == "SELECTOR" %}<i class="fas fa-circle-dot"></i>
+          {% elif item.ui.tipo_campo == "SELECTOR_MULTIPLE" %}<i class="fas fa-list-check"></i>
+          {% elif item.ui.tipo_campo == "ARCHIVO" %}<i class="fas fa-paperclip"></i>
+          {% else %}<i class="fas fa-font"></i>{% endif %}
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="text-sm text-heading font-medium truncate">
+            {% if item.es_texto %}{{ item.texto|truncatechars:90 }}{% else %}{{ item.titulo }}{% endif %}
+            {% if item.es_campo and item.ui.obligatorio %}<span class="text-fg-danger" title="Obligatorio">*</span>{% endif %}
+          </div>
+          <div class="flex items-center gap-1 flex-wrap mt-0.5">
+            {% if item.es_texto %}<span class="badge badge-gray">Texto</span>
+            {% else %}
+              {% if item.ui.origen == "legajo" %}<span class="badge badge-info" title="Vinculado al legajo ciudadano">Legajo → {{ item.ui.vinculo }}</span>
+              {% elif item.ui.origen == "persona_vinculada" %}<span class="badge badge-info" title="Datos del apoderado">Apoderado → {{ item.ui.vinculo }}</span>
+              {% elif item.ui.propio %}<span class="badge badge-brand" title="Solo en este formulario">Propio</span>
+              {% elif item.ui.alcance == "programa" %}<span class="badge badge-white">Programa</span>
+              {% elif item.ui.alcance == "segmento" %}<span class="badge badge-white">Segmento</span>
+              {% elif item.ui.alcance == "subsegmento" %}<span class="badge badge-white">Subsegmento</span>
+              {% else %}<span class="badge badge-white">General</span>{% endif %}
+              {% if item.etiqueta and item.ui.texto_catalogo and item.etiqueta != item.ui.texto_catalogo %}<span class="badge badge-gray" title="En el catálogo: {{ item.ui.texto_catalogo }}">Renombrado</span>{% endif %}
+            {% endif %}
+            {% if item.ui.canal != "ambos" %}<span class="badge badge-white">{% if item.ui.canal == "app" %}Solo app{% else %}Solo link{% endif %}</span>{% endif %}
+            {% if item.condicion %}
+            <button type="button" class="badge badge-warning" data-accion="condicion" data-clave="{{ item.clave }}" title="Se muestra solo si se cumple una condición"><i class="fas fa-code-branch" style="font-size:10px;"></i> Condicional</button>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex items-center gap-0.5">
+          <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" data-accion="condicion" data-clave="{{ item.clave }}" title="Condición" aria-label="Condición de {{ item.titulo }}"><i class="fas fa-code-branch"></i></button>
+          <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" data-accion="editar" data-clave="{{ item.clave }}" title="Editar" aria-label="Editar {{ item.titulo }}"><i class="fas fa-edit"></i></button>
+          {% if item.ui.eliminable %}
+          <button type="button" class="text-body-subtle hover:text-fg-danger p-1.5 rounded-lg hover:bg-white" data-accion="eliminar" data-clave="{{ item.clave }}" title="Eliminar" aria-label="Eliminar {{ item.titulo }}"><i class="fas fa-trash"></i></button>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+      {% if not hijos %}
+      <li class="sortable-placeholder px-3 py-3 text-xs text-body-subtle text-center italic">Grupo vacío: arrastrá campos acá o agregá un texto o un campo propio.</li>
+      {% endif %}
+    </ul>
+  </section>
+  {% empty %}
+  <div class="py-12 px-6 text-center flex flex-col items-center gap-3 rounded-xl border border-base bg-white">
+    <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+    <p class="text-[17px] font-bold text-heading">El formulario está vacío</p>
+    <p class="text-sm text-body max-w-xs">No hay requisitos activos en el catálogo ni en los niveles de esta convocatoria. Agregá un grupo para empezar.</p>
+  </div>
+  {% endfor %}
+</div>

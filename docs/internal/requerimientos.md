@@ -201,7 +201,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
-| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En desarrollo — Fases 1 y 2 hechas (#336, #338 catálogo; #339, #340, #341 motor: diseño por convocatoria, definición v2, condiciones); siguen #337 y el constructor** | `programas.0057`, `programas.0058` + pendientes |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En desarrollo — Fases 1 a 3 hechas (#336, #338 catálogo; #339, #340, #341 motor; #337, #342, #343, #344 constructor con drag & drop, condiciones y vista previa); sigue la fase 4 (#345, #346, #347 portal y caso)** | `programas.0057`, `programas.0058` + pendientes |
 
 **Notas del índice**
 
@@ -6044,6 +6044,26 @@ Por fase; la última (caso) es la única con migración destructiva.
   `globales`/`requisitos` siguen iguales** para la app vieja y el paso 2 actual; los campos vinculados viajan solo
   en `items`. Migración `programas.0058`. Tests: `test_condiciones.py` (24), `test_diseno.py` (21); presupuesto de
   consultas sin cambios. Sin espejo JS del motor todavía (va con la vista previa, #344).
+- **30/08/2026 — Fase 3 (constructor) hecha, tasks #337, #342, #343 y #344.** Catálogo agrupado con drag & drop
+  (`pregunta_list.html` + `_preguntas_grupos.html` + `_pregunta_row.html`, `nodo-catalogo-grupos.js`, SortableJS
+  1.15.6 vendorizado): sin filtros la lista se ve por grupos y se arrastra desde la manija —grupos entre sí,
+  preguntas dentro de un grupo o a otro—; `preguntas_reordenar` renumera el orden único del catálogo en el orden
+  recibido (los que no vienen quedan detrás); con filtros vuelve la tabla plana. Grupos: `GrupoRequisitoForm`
+  (nombre único, subtítulo, canal), alta/edición por modal AJAX, eliminación solo si no es protegido y está vacío.
+  Constructor «Configurar formulario» (`becas:convocatoria_formulario`, enlazado desde las tabs del detalle de la
+  convocatoria para admin del programa o coordinador del segmento, D7): dos columnas —diseño con drag & drop a la
+  izquierda, vista previa en vivo a la derecha con toggle de canal—. `programas/views/diseno.py`: cada mutación
+  (`mover`, grupo/texto/campo propio nuevos, editar, condición, eliminar, restablecer) corre en transacción, valida
+  `validar_coherencia` sobre el diseño resultante y **deshace con 400** si una condición queda apuntando a una fuente
+  posterior (RN-6); en éxito responde `{ok, target, html, datos}` y sube la versión (D8). RN-2 en la edición: grupo →
+  título/subtítulo/canal; texto → texto/canal; propio → todo; requisito del catálogo → solo la etiqueta (vacía =
+  texto del catálogo). Los requisitos del catálogo no se eliminan del diseño; los grupos solo vacíos. Editor de
+  condiciones (modal Alpine): fuentes = campos anteriores, operadores por tipo desde `OPERADORES_POR_TIPO`, valor
+  por opciones cuando la fuente es selector, «todas/alguna», quitar condición. `nodo-condiciones.js` es el espejo del
+  motor (mismos operadores y semántica) y alimenta la vista previa: se responde en la vista previa y se ve qué se
+  oculta. `nodo-constructor.css` (manija `.grip`, estados Sortable, `.cons-*`, `.pv-*`), inventariado en el agente de
+  diseño. Tests: `test_catalogo_drag.py` (13), `test_constructor.py` (19). Pendiente: fase 4 (#345 paso 2 con
+  `items`, #346 caso con `respuestas` + foto y migración destructiva, #347 revisión desde la foto).
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

@@ -1,9 +1,10 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac static %}
 {% block title %}Becas · Requisitos generales{% endblock %}
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
+<link rel="stylesheet" href="{% static 'custom/css/nodo-constructor.css' %}">
 <div class="mb-8"
      x-data="{
        modalCrear: false,
@@ -13,6 +14,11 @@
        createGrupo: '', createCanal: 'ambos',
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
        editPresentacion: 'LISTA', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
+       modalGrupo: false, grupoUrl: '', grupoNombre: '', grupoSubtitulo: '', grupoCanal: 'ambos', grupoEsNuevo: true,
+       openGrupo(url, nombre, subtitulo, canal) {
+         this.grupoUrl = url; this.grupoNombre = nombre || ''; this.grupoSubtitulo = subtitulo || '';
+         this.grupoCanal = canal || 'ambos'; this.grupoEsNuevo = !nombre; this.modalGrupo = true;
+       },
        openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
@@ -22,18 +28,25 @@
          this.modalEdit = true;
        }
      }"
-     @becas-saved.window="modalCrear=false; modalEdit=false">
+     @becas-saved.window="modalCrear=false; modalEdit=false; modalGrupo=false">
 
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos generales</h1>
-      <p class="text-sm text-body-subtle mt-1">Preguntas globales que aparecen en todos los formularios</p>
+      <p class="text-sm text-body-subtle mt-1">Catálogo agrupado que alimenta todos los formularios. Arrastrá desde la manija para ordenar grupos y preguntas; se guarda al soltar.</p>
     </div>
-    {% if request.user|puede:"becas.pregunta.crear" %}
-    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
-      <i class="fas fa-plus"></i> Nueva pregunta
-    </button>
-    {% endif %}
+    <div class="flex items-center gap-2 flex-wrap">
+      {% if request.user|puede:"becas.pregunta.editar" %}
+      <button type="button" @click="openGrupo('{% url 'becas:grupo_crear' %}', '', '', 'ambos')" class="btn-nodo btn-secondary btn-base">
+        <i class="fas fa-layer-group"></i> Nuevo grupo
+      </button>
+      {% endif %}
+      {% if request.user|puede:"becas.pregunta.crear" %}
+      <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-plus"></i> Nueva pregunta
+      </button>
+      {% endif %}
+    </div>
   </div>
 
   <form method="get" data-dynamic-list-filters class="mb-4">
@@ -64,7 +77,11 @@
   </form>
 
   <div id="preguntas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-    {% include "programas/becas/config/_preguntas_table.html" %}
+    {% if grupos_con_preguntas is not None %}
+      {% include "programas/becas/config/_preguntas_grupos.html" %}
+    {% else %}
+      {% include "programas/becas/config/_preguntas_table.html" %}
+    {% endif %}
   </div>
 
   {# Modal: Nueva pregunta #}
@@ -254,7 +271,57 @@
       </form>
     </div>
   </div>
+
+  {# Modal: Nuevo / editar grupo (Cambio 58, task 337) #}
+  <div x-show="modalGrupo" x-cloak @click="modalGrupo=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" @click.stop>
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading" x-text="grupoEsNuevo ? 'Nuevo grupo' : 'Editar grupo'"></h3>
+        </div>
+        <button type="button" @click="modalGrupo=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form method="post" :action="grupoUrl" data-ajax data-reset="false">
+        {% csrf_token %}
+        <div class="p-6 space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="grupo-nombre">Nombre <span class="text-fg-danger">*</span></label>
+            <input id="grupo-nombre" type="text" name="nombre" x-model="grupoNombre" required maxlength="120" class="nodo-field" placeholder="Ej.: Situación habitacional">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="grupo-subtitulo">Subtítulo</label>
+            <input id="grupo-subtitulo" type="text" name="subtitulo" x-model="grupoSubtitulo" maxlength="200" class="nodo-field" placeholder="Texto de ayuda debajo del título del grupo">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="subtitulo"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="grupo-canal">Se pide en</label>
+            <select id="grupo-canal" name="canal" x-model="grupoCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">El canal del grupo acota a todas sus preguntas.</p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalGrupo=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> <span x-text="grupoEsNuevo ? 'Crear grupo' : 'Guardar cambios'"></span></button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}
+{% block customJS %}
+{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
+<script src="{% static 'custom/js/nodo-catalogo-grupos.js' %}"></script>
+{% endblock %}

@@ -347,7 +347,9 @@ class Command(BaseCommand):
 
             fila = fila_padron(rel.convocatoria, dni, sexo_norm)
             if fila is not None and fila.tiene_identidad:
-                self._ok(f"el DNI {dni} está en el padrón con identidad: el paso 2 precarga {fila.apellido}, {fila.nombre}")
+                self._ok(
+                    f"el DNI {dni} está en el padrón con identidad: el paso 2 precarga {fila.apellido}, {fila.nombre}"
+                )
             else:
                 self._aviso(f"el DNI {dni} está en el padrón pero sin nombre y apellido: no valida por padrón")
         if dni_ya_inscripto(rel.convocatoria, dni):

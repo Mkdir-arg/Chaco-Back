@@ -8,7 +8,7 @@ from datetime import datetime, time
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -19,6 +19,7 @@ from programas.models import (
     AsignacionCoordinador,
     Cama,
     CampoTipoDispositivo,
+    CanalFormulario,
     Convocatoria,
     Dispositivo,
     EntregaMercaderia,
@@ -827,6 +828,29 @@ class PrestacionMensualForm(forms.Form):
         return cleaned_data
 
 
+class GrupoRequisitoForm(forms.ModelForm):
+    """Grupo de requisitos generales (Cambio 58). Los protegidos se renombran
+    y cambian de canal; su clave y su carácter de protegido no se tocan."""
+
+    class Meta:
+        model = GrupoRequisito
+        fields = ["nombre", "subtitulo", "canal"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "subtitulo": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "canal": forms.Select(attrs={"class": INPUT_CLASS}),
+        }
+
+    def clean_nombre(self):
+        nombre = (self.cleaned_data.get("nombre") or "").strip()
+        duplicado = GrupoRequisito.objects.filter(nombre__iexact=nombre)
+        if self.instance.pk:
+            duplicado = duplicado.exclude(pk=self.instance.pk)
+        if duplicado.exists():
+            raise forms.ValidationError("Ya existe un grupo con ese nombre.")
+        return nombre
+
+
 class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """Requisitos generales: el orden es único entre todas las preguntas.
 
@@ -861,6 +885,8 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
         grupo.queryset = GrupoRequisito.objects.order_by("orden", "id")
         grupo.required = False
         grupo.empty_label = "Sin grupo (Cuestionario social)"
+        # Un POST sin canal (pantallas o clientes anteriores al Cambio 58) vale «ambos».
+        self.fields["canal"].required = False
         if self.instance and self.instance.pk and self.instance.protegido:
             bloqueados = list(self._BLOQUEADOS_PROTEGIDO)
             if self.instance.es_identidad:
@@ -872,6 +898,8 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
         cleaned = super().clean()
         if cleaned.get("grupo") is None:
             cleaned["grupo"] = GrupoRequisito.objects.filter(clave="cuestionario").first()
+        if not cleaned.get("canal"):
+            cleaned["canal"] = CanalFormulario.AMBOS
         if self.instance and self.instance.pk and self.instance.protegido:
             # Un campo disabled toma el valor de la instancia, pero un POST
             # armado a mano no puede colar un cambio de tipo ni de opciones.
@@ -911,6 +939,8 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     def __init__(self, *args, programa=None, segmento=None, subsegmento=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Un POST sin canal (pantallas o clientes anteriores al Cambio 58) vale «ambos».
+        self.fields["canal"].required = False
         if programa is not None:
             self.instance.programa = programa
         if segmento is not None:
@@ -928,6 +958,12 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
         self.mensaje_orden_duplicado = (
             f"Ya hay otro requisito con el orden {{orden}} en este {alcance}. Elegí un número libre."
         )
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get("canal"):
+            cleaned["canal"] = CanalFormulario.AMBOS
+        return cleaned
 
     def hermanos_orden(self):
         # Por ``_id`` para no explotar cuando el form se instancia sin ancla
@@ -1574,3 +1610,108 @@ class CiudadanoGeneroRevisionForm(forms.Form):
         choices=[("", "Seleccionar..."), ("M", "M"), ("F", "F"), ("X", "X")],
         widget=forms.RadioSelect(),
     )
+
+
+# ── Constructor del formulario de la convocatoria (Cambio 58, fase 3) ────────
+
+
+class ItemGrupoForm(forms.Form):
+    """Grupo del diseño: título, subtítulo y canal (RN-2: el diseño es dueño
+    de estos datos; los grupos del catálogo pueden renombrarse acá sin tocar el
+    catálogo)."""
+
+    etiqueta = forms.CharField(label="Título", max_length=240, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    subtitulo = forms.CharField(
+        label="Subtítulo", required=False, max_length=240, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    canal = forms.ChoiceField(
+        label="Se pide en",
+        choices=CanalFormulario.choices,
+        initial=CanalFormulario.AMBOS,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    def clean_etiqueta(self):
+        return (self.cleaned_data.get("etiqueta") or "").strip()
+
+
+class ItemTextoForm(forms.Form):
+    """Párrafo informativo del formulario (texto plano, D13)."""
+
+    texto = forms.CharField(
+        label="Texto", max_length=2000, widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 4})
+    )
+    canal = forms.ChoiceField(
+        label="Se pide en",
+        choices=CanalFormulario.choices,
+        initial=CanalFormulario.AMBOS,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    def clean_texto(self):
+        return (self.cleaned_data.get("texto") or "").strip()
+
+
+class ItemEtiquetaForm(forms.Form):
+    """Etiqueta de un campo del catálogo dentro del diseño: vacía = el texto
+    del catálogo (RN-2)."""
+
+    etiqueta = forms.CharField(
+        label="Etiqueta en este formulario",
+        required=False,
+        max_length=240,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+        help_text="Dejala vacía para usar el texto del catálogo.",
+    )
+
+    def clean_etiqueta(self):
+        return (self.cleaned_data.get("etiqueta") or "").strip()
+
+
+class ItemCampoPropioForm(forms.Form):
+    """Campo propio de la convocatoria (D2): vive solo en este diseño y no se
+    suma al catálogo."""
+
+    texto = forms.CharField(label="Texto", max_length=240, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    tipo = forms.ChoiceField(
+        label="Tipo de campo", choices=TipoCampo.choices, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    opciones_texto = forms.CharField(
+        label="Opciones (una por línea)",
+        required=False,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 4}),
+    )
+    presentacion = forms.ChoiceField(
+        label="Presentación",
+        choices=PresentacionCampo.choices,
+        initial=PresentacionCampo.LISTA,
+        required=False,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    obligatorio = forms.BooleanField(label="Obligatorio", required=False)
+    canal = forms.ChoiceField(
+        label="Se pide en",
+        choices=CanalFormulario.choices,
+        initial=CanalFormulario.AMBOS,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        tipo = cleaned.get("tipo")
+        texto = (cleaned.get("opciones_texto") or "").strip()
+        opciones = []
+        presentacion = PresentacionCampo.LISTA
+        if tipo in TipoCampo.selectores():
+            opciones = [linea.strip() for linea in texto.splitlines() if linea.strip()]
+            if not opciones:
+                self.add_error("opciones_texto", "Indicá al menos una opción para este tipo de campo.")
+            presentacion = cleaned.get("presentacion") or PresentacionCampo.LISTA
+        cleaned["propio"] = {
+            "texto": (cleaned.get("texto") or "").strip(),
+            "tipo": tipo,
+            "opciones": opciones,
+            "presentacion": presentacion,
+            "obligatorio": bool(cleaned.get("obligatorio")),
+        }
+        return cleaned

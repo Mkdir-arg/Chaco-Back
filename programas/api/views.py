@@ -165,11 +165,7 @@ def _convocatorias_para_identificar(user, relevamiento_id):
     relevamientos vigentes del territorial (la app vieja no manda nada).
     """
     if relevamiento_id:
-        rel = (
-            Relevamiento.objects.filter(pk=relevamiento_id, territorial=user)
-            .select_related("convocatoria")
-            .first()
-        )
+        rel = Relevamiento.objects.filter(pk=relevamiento_id, territorial=user).select_related("convocatoria").first()
         return [rel.convocatoria] if rel else []
     return list(
         Convocatoria.objects.filter(

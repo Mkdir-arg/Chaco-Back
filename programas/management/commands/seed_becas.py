@@ -277,7 +277,9 @@ def asegurar_catalogo_protegido():
                     "obligatorio": obligatorio,
                     "activo": True,
                     "canal": CanalFormulario.AMBOS,
-                    "orden": orden_libre(orden * 10 + indice + 1),
+                    # Desde 1000: el rango bajo queda libre para las preguntas que
+                    # carga el operador (el orden del catálogo es único, Cambio 23).
+                    "orden": orden_libre(1000 + orden * 10 + indice + 1),
                 },
             )
             creados += int(created)

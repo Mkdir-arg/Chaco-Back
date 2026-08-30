@@ -130,7 +130,9 @@ class FormProtegidoTests(TestCase):
 
     def test_el_contacto_si_puede_ser_opcional_y_cambiar_de_grupo(self):
         datos = GrupoRequisito.objects.get(clave="datos_personales")
-        form = PreguntaGlobalForm(self._data(self.email, obligatorio="", grupo=datos.pk, canal="link"), instance=self.email)
+        form = PreguntaGlobalForm(
+            self._data(self.email, obligatorio="", grupo=datos.pk, canal="link"), instance=self.email
+        )
         self.assertTrue(form.is_valid(), form.errors)
         guardado = form.save()
         self.assertFalse(guardado.obligatorio)
@@ -139,7 +141,13 @@ class FormProtegidoTests(TestCase):
 
     def test_una_pregunta_nueva_sin_grupo_va_al_cuestionario(self):
         form = PreguntaGlobalForm(
-            {"texto": "¿Tenés obra social?", "tipo": TipoCampo.STRING, "canal": "ambos", "obligatorio": "on", "activo": "on"}
+            {
+                "texto": "¿Tenés obra social?",
+                "tipo": TipoCampo.STRING,
+                "canal": "ambos",
+                "obligatorio": "on",
+                "activo": "on",
+            }
         )
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.save().grupo.clave, "cuestionario")
@@ -210,8 +218,12 @@ class DefinicionPorCanalTests(TestCase):
         PreguntaGlobal.objects.create(texto="Solo app", tipo=TipoCampo.ARCHIVO, canal="app", orden=501)
         PreguntaGlobal.objects.create(texto="Solo link", tipo=TipoCampo.STRING, canal="link", orden=502)
         PreguntaGlobal.objects.create(texto="Ambos", tipo=TipoCampo.STRING, canal="ambos", orden=503)
-        RequisitoNativo.objects.create(texto="Req app", tipo=TipoCampo.STRING, segmento=self.segmento, canal="app", orden=1)
-        RequisitoNativo.objects.create(texto="Req ambos", tipo=TipoCampo.STRING, segmento=self.segmento, canal="ambos", orden=2)
+        RequisitoNativo.objects.create(
+            texto="Req app", tipo=TipoCampo.STRING, segmento=self.segmento, canal="app", orden=1
+        )
+        RequisitoNativo.objects.create(
+            texto="Req ambos", tipo=TipoCampo.STRING, segmento=self.segmento, canal="ambos", orden=2
+        )
 
     def _textos(self, definicion, clave):
         return [c["texto"] for c in definicion[clave]]

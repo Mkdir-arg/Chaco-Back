@@ -73,7 +73,11 @@ def _requisitos_por_nivel(convocatoria):
         (
             "segmento",
             segmento.nombre,
-            list(RequisitoNativo.objects.filter(segmento_id=segmento.pk, subsegmento__isnull=True).order_by("orden", "id")),
+            list(
+                RequisitoNativo.objects.filter(segmento_id=segmento.pk, subsegmento__isnull=True).order_by(
+                    "orden", "id"
+                )
+            ),
         )
     )
     if convocatoria.subsegmento_id:
@@ -239,7 +243,14 @@ def _grupo_para_pregunta(diseno, pregunta, grupos_por_clave, preguntas):
         etiqueta, subtitulo, canal, catalogo = "", pregunta.grupo.subtitulo, pregunta.grupo.canal, pregunta.grupo
         condicion = _resolver_condicion(pregunta.grupo.condicion_defecto, preguntas)
     else:
-        clave, etiqueta, subtitulo, condicion, canal, catalogo = CLAVE_GENERALES_SUELTAS, "Requisitos generales", "", None, CanalFormulario.AMBOS, None
+        clave, etiqueta, subtitulo, condicion, canal, catalogo = (
+            CLAVE_GENERALES_SUELTAS,
+            "Requisitos generales",
+            "",
+            None,
+            CanalFormulario.AMBOS,
+            None,
+        )
     if clave not in grupos_por_clave:
         grupos_por_clave[clave] = ItemDiseno.objects.create(
             diseno=diseno,
@@ -294,7 +305,6 @@ def reconciliar(diseno, usuario=None):
         if sobra:
             quitados.append((item.clave, item.titulo))
             item.delete()
-    claves_quitadas = {clave for clave, _ in quitados}
 
     for pk, pregunta in esperadas.items():
         if pk in por_pregunta:
@@ -323,6 +333,19 @@ def reconciliar(diseno, usuario=None):
         )
         agregados.append(requisito.texto)
 
+    # Un grupo automático —del catálogo o de nivel— que quedó sin hijos no se
+    # muestra (RN-3) y tampoco se guarda: se borra y, si vuelve a hacer falta,
+    # ``_grupo_para_pregunta``/``_grupo_para_nivel`` lo recrean. Los grupos que
+    # creó el operador (sin catálogo) se conservan aunque estén vacíos.
+    automaticas = {clave for clave, _ in NIVELES.values()} | {CLAVE_GENERALES_SUELTAS}
+    grupos_vacios = [
+        g
+        for g in diseno.items.filter(tipo=GRUPO).annotate(n_hijos=models.Count("hijos")).filter(n_hijos=0)
+        if g.grupo_catalogo_id or g.clave in automaticas
+    ]
+    for grupo in grupos_vacios:
+        grupo.delete()
+
     # Una condición cuya fuente ya no está en el diseño (quitada acá, o borrada
     # del catálogo con CASCADE antes de llegar) se elimina con aviso.
     condiciones_quitadas = []
@@ -334,7 +357,7 @@ def reconciliar(diseno, usuario=None):
             item.condicion = None
             item.save(update_fields=["condicion", "modificado"])
 
-    if agregados or quitados or condiciones_quitadas:
+    if agregados or quitados or condiciones_quitadas or grupos_vacios:
         diseno.tocar(usuario)
     return {"agregados": agregados, "quitados": [t for _, t in quitados], "condiciones_quitadas": condiciones_quitadas}
 
@@ -417,7 +440,9 @@ def serializar(items, canal=None):
         if actual is None:
             continue  # ítem suelto sin grupo: no se muestra
         if item.es_texto:
-            actual["items"].append({"tipo": "texto", "clave": item.clave, "texto": item.texto, "condicion": item.condicion})
+            actual["items"].append(
+                {"tipo": "texto", "clave": item.clave, "texto": item.texto, "condicion": item.condicion}
+            )
         else:
             datos = campo_dict(item)
             datos["tipo_item"] = "campo"

@@ -1,0 +1,52 @@
+/* Constructor de formularios y catálogo agrupado (Cambio 58).
+   Manijas de arrastre y estados de SortableJS. Solo tokens semánticos. */
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-body-subtle);
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+.grip:hover { background: var(--bg-secondary); color: var(--text-heading); }
+.grip:active { cursor: grabbing; }
+
+.sortable-ghost { opacity: .35; background: var(--bg-brand-soft); }
+.sortable-chosen { background: var(--bg-brand-softer); }
+.sortable-drag { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+
+[data-sortable-grupos].is-saving { opacity: .6; pointer-events: none; }
+tbody[data-sortable-preguntas]:empty { display: block; min-height: 44px; }
+
+/* Constructor: columna del diseño */
+.cons-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-body-subtle);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.cons-item.sortable-chosen { background: var(--bg-brand-softer); }
+.cons-hijos:empty { min-height: 40px; }
+
+/* Vista previa (imita la densidad del paso 2 del portal sin cargar su shell) */
+.pv-grupo { border: 1px solid var(--border-base); border-radius: var(--radius-xl); padding: 16px 18px 18px; margin: 0 0 16px; min-width: 0; }
+.pv-legend { font-weight: var(--font-weight-bold, 700); color: var(--text-heading); font-size: 15px; padding: 0 6px; }
+.pv-subtitulo { margin: -4px 0 12px; font-size: 12px; color: var(--text-body-subtle); }
+.pv-campos { display: grid; gap: 14px; }
+.pv-campo { min-width: 0; }
+.pv-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-heading); margin-bottom: 4px; }
+.pv-texto { font-size: 13px; color: var(--text-body); line-height: 1.5; margin: 0; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-lg); }
+.pv-checks { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; color: var(--text-body); }
+.pv-checks label, .pv-archivo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-body); cursor: pointer; }
+.pv-ayuda { margin: 4px 0 0; font-size: 11px; color: var(--text-body-subtle); }
+.pv-ocultos { margin-top: 8px; padding: 10px 12px; font-size: 12px; color: var(--text-body-subtle); background: var(--bg-secondary); border-radius: var(--radius-lg); }
