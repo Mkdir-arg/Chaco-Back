@@ -201,7 +201,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
-| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En desarrollo — Fase 1 hecha (#336 catálogo agrupado con orígenes, #338 canal; `programas.0057`); siguen #337 y el motor** | `programas.0057` + pendientes |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En desarrollo — Fases 1 y 2 hechas (#336, #338 catálogo; #339, #340, #341 motor: diseño por convocatoria, definición v2, condiciones); siguen #337 y el constructor** | `programas.0057`, `programas.0058` + pendientes |
 
 **Notas del índice**
 
@@ -6027,6 +6027,23 @@ Por fase; la última (caso) es la única con migración destructiva.
   `canal`, `origen`, `vinculo` y `grupo` por campo; **excluye los campos vinculados** hasta que el diseño por
   convocatoria los consuma (si entraran hoy se pedirían dos veces). Migración `programas.0057`. Tests:
   `programas/tests/test_catalogo_grupos.py` (19). Pendiente de esta fase: la pantalla agrupada con drag & drop (#337).
+- **28/08/2026 — Fase 2 (motor) hecha, tasks #339, #340 y #341.** `DisenoFormulario` (uno por convocatoria,
+  `version`, `actualizado_por`) e `ItemDiseno` (grupo / campo / texto; clave estable `g-…`, `pg-<pk>`, `rn-<pk>`,
+  `cp-…`, `t-…`; padre, orden, etiqueta, subtítulo, texto, condición JSON, canal; referencia a `PreguntaGlobal` /
+  `RequisitoNativo` / `GrupoRequisito` o definición `propio`). `programas/services/diseno.py`: `plan_por_defecto`
+  (los grupos del catálogo con sus preguntas activas + un grupo por nivel de requisitos, **sin escribir**),
+  `obtener_o_crear_diseno` (persiste el plan la primera vez, reconcilia después), `reconciliar` (agrega al final
+  de su grupo lo nuevo, quita lo borrado o inactivo, elimina con aviso las condiciones cuya fuente ya no está,
+  sube la versión), `items_ordenados`, `items_planos`, `serializar`. Las condiciones por defecto del catálogo
+  usan fuentes simbólicas (`legajo:fecha_nacimiento`) que se resuelven a la clave real del ítem.
+  `programas/services/condiciones.py`: operadores por tipo (RN-7), `evaluar` con «todas/alguna», `aplicar` (recorre
+  en orden: hijo de grupo oculto está oculto, fuente oculta cuenta como vacía, descarta respuestas de ocultos),
+  `validar_coherencia` (fuente existe y está antes, es campo, operador compatible, valor requerido/lista) y
+  `fuentes_disponibles`. `definicion_formulario` v2: suma `version` e `items` (grupos → campos y textos con
+  condiciones, filtrados por canal) desde el diseño guardado o desde el plan por defecto; **las listas planas
+  `globales`/`requisitos` siguen iguales** para la app vieja y el paso 2 actual; los campos vinculados viajan solo
+  en `items`. Migración `programas.0058`. Tests: `test_condiciones.py` (24), `test_diseno.py` (21); presupuesto de
+  consultas sin cambios. Sin espejo JS del motor todavía (va con la vista previa, #344).
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

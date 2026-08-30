@@ -2529,3 +2529,180 @@ class ListaEspera(TimeStamped):
 
     def __str__(self):
         return f"{self.segmento.nombre} #{self.posicion}"
+
+
+# ---------------------------------------------------------------------------
+# Diseño del formulario por convocatoria (Cambio 58, RN-1..RN-3)
+# ---------------------------------------------------------------------------
+
+
+class DisenoFormulario(TimeStamped):
+    """El formulario que ve la persona en una convocatoria: un **orden sobre el
+    catálogo vivo** (RN-1) con grupos, textos, condiciones y campos propios.
+
+    Nunca falta un requisito del catálogo ni sobra uno borrado: se genera por
+    defecto desde la herencia al abrirlo por primera vez y se reconcilia cada
+    vez que se sirve (``programas.services.diseno``). Cada guardado sube
+    ``version``; cada caso guarda la foto de la definición que respondió (D3),
+    así un caso viejo nunca se reinterpreta con un diseño posterior.
+    """
+
+    convocatoria = models.OneToOneField(
+        Convocatoria,
+        on_delete=models.CASCADE,
+        related_name="diseno",
+        verbose_name="Convocatoria",
+    )
+    version = models.PositiveIntegerField(default=1, verbose_name="Versión")
+    actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Actualizado por",
+    )
+
+    class Meta:
+        verbose_name = "Diseño de formulario"
+        verbose_name_plural = "Diseños de formulario"
+
+    def __str__(self):
+        return f"Formulario de {self.convocatoria} · v{self.version}"
+
+    def tocar(self, usuario=None):
+        """Cada guardado del constructor es una versión nueva (D8)."""
+        self.version += 1
+        if usuario is not None:
+            self.actualizado_por = usuario
+        self.save(update_fields=["version", "actualizado_por", "modificado"])
+
+
+class ItemDiseno(TimeStamped):
+    """Un ítem del diseño: grupo (contenedor con título), campo (del catálogo o
+    propio de la convocatoria) o texto (párrafo informativo). RN-2: el
+    catálogo es dueño de texto, tipo, opciones, presentación, obligatorio y
+    canal del requisito; el diseño es dueño de orden, grupo, condición y una
+    etiqueta opcional. Los campos propios (D2) tienen todo acá, en ``propio``.
+    """
+
+    class Tipo(models.TextChoices):
+        GRUPO = "grupo", "Grupo"
+        CAMPO = "campo", "Campo"
+        TEXTO = "texto", "Texto"
+
+    diseno = models.ForeignKey(
+        DisenoFormulario,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Diseño",
+    )
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, verbose_name="Tipo de ítem")
+    # Clave estable del ítem: ``g-…`` grupos, ``pg-<pk>`` preguntas generales,
+    # ``rn-<pk>`` requisitos, ``cp-…`` campos propios, ``t-…`` textos. Es la
+    # clave de la respuesta en el caso y de la fuente en una condición.
+    clave = models.CharField(max_length=60, verbose_name="Clave")
+    padre = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="hijos",
+        verbose_name="Grupo contenedor",
+    )
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    # Sobreescribe el texto del catálogo (campos) o es el título (grupos).
+    etiqueta = models.CharField(max_length=240, blank=True, verbose_name="Etiqueta")
+    subtitulo = models.CharField(max_length=240, blank=True, verbose_name="Subtítulo")
+    # Párrafo de los ítems TEXTO (texto plano; los links se detectan al mostrar, D13).
+    texto = models.TextField(blank=True, verbose_name="Texto")
+    condicion = models.JSONField(null=True, blank=True, verbose_name="Condición")
+    # Canal de los grupos y de los campos propios; los del catálogo usan el suyo.
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
+    )
+    pregunta = models.ForeignKey(
+        PreguntaGlobal,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Requisito general",
+    )
+    requisito = models.ForeignKey(
+        RequisitoNativo,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Requisito nativo",
+    )
+    grupo_catalogo = models.ForeignKey(
+        GrupoRequisito,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Grupo del catálogo",
+    )
+    # Campo propio de la convocatoria: {texto, tipo, opciones, presentacion, obligatorio}.
+    propio = models.JSONField(null=True, blank=True, verbose_name="Campo propio")
+
+    class Meta:
+        verbose_name = "Ítem del diseño"
+        verbose_name_plural = "Ítems del diseño"
+        ordering = ["orden", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["diseno", "clave"], name="uniq_item_diseno_clave"),
+        ]
+        indexes = [models.Index(fields=["diseno", "padre", "orden"], name="prog_item_diseno_orden_idx")]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} {self.clave}"
+
+    @property
+    def es_grupo(self):
+        return self.tipo == self.Tipo.GRUPO
+
+    @property
+    def es_campo(self):
+        return self.tipo == self.Tipo.CAMPO
+
+    @property
+    def es_texto(self):
+        return self.tipo == self.Tipo.TEXTO
+
+    @property
+    def es_propio(self):
+        return self.es_campo and self.propio is not None
+
+    @property
+    def objeto_catalogo(self):
+        return self.pregunta if self.pregunta_id else (self.requisito if self.requisito_id else None)
+
+    @property
+    def canal_efectivo(self):
+        """El canal lo decide el catálogo para sus requisitos (RN-2)."""
+        objeto = self.objeto_catalogo
+        return objeto.canal if objeto is not None else self.canal
+
+    @property
+    def titulo(self):
+        """Lo que ve la persona: la etiqueta del diseño o el texto del catálogo."""
+        if self.etiqueta:
+            return self.etiqueta
+        if self.es_grupo:
+            return self.grupo_catalogo.nombre if self.grupo_catalogo_id else ""
+        objeto = self.objeto_catalogo
+        if objeto is not None:
+            return objeto.texto
+        return (self.propio or {}).get("texto", "")
+
+    def se_pide_en(self, canal):
+        """¿Este ítem entra en ``canal``? (``None`` = todos)."""
+        if not canal:
+            return True
+        return self.canal_efectivo in (CanalFormulario.AMBOS, canal)

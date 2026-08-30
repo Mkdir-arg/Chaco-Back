@@ -86,12 +86,22 @@ def definicion_formulario(relevamiento):
     la convocatoria del relevamiento, filtrados por el canal del relevamiento
     (Cambio 58), más el flag ``requiere_gps`` del segmento.
     """
+    from programas.services.diseno import items_ordenados, plan_por_defecto, serializar
+
     convocatoria = relevamiento.convocatoria
     canal = CanalFormulario.del_relevamiento(relevamiento)
     globales, requisitos = get_campos_formulario(convocatoria, canal=canal)
+    # Cambio 58: la estructura anidada (grupos → campos y textos, con
+    # condiciones) sale del diseño de la convocatoria; si todavía no lo abrió
+    # nadie, del plan por defecto, sin escribir nada. Las listas planas de
+    # siempre se conservan para la app vieja y para el paso 2 actual.
+    diseno = getattr(convocatoria, "diseno", None) if hasattr(convocatoria, "diseno") else None
+    items = items_ordenados(diseno) if diseno is not None else plan_por_defecto(convocatoria)
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
         "canal": canal,
+        "version": diseno.version if diseno is not None else 0,
+        "items": serializar(items, canal),
         "globales": [_campo_dict(p, "global") for p in globales],
         "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }
