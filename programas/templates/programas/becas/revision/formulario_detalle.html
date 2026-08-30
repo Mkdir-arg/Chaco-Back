@@ -335,6 +335,46 @@
     </div>
   </form>
 
+  {# 3. Respuestas del formulario que respondio (Cambio 58, task 347) #}
+  {% if bloques %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h2 class="text-heading font-bold" style="font-size:16px;">Respuestas</h2>
+        <p class="text-xs text-body-subtle mt-0.5">En el orden del formulario que respondio esta persona.</p>
+      </div>
+      {% if formulario.definicion.version %}<span class="badge badge-gray" title="El formulario cambio despues: este caso se lee con la version que respondio">Formulario v{{ formulario.definicion.version }}</span>{% endif %}
+    </div>
+    <div class="p-6 space-y-6">
+      {% for bloque in bloques %}
+      <div{% if bloque.oculto %} class="opacity-60"{% endif %}>
+        <div class="flex items-center gap-2 flex-wrap mb-3">
+          <h3 class="text-heading font-semibold text-sm">{{ bloque.grupo.titulo|default:"Sin titulo" }}</h3>
+          {% if bloque.oculto %}<span class="badge badge-gray" title="Sus condiciones no se cumplieron: no se le pidio a la persona"><i class="fas fa-eye-slash" style="font-size:10px;"></i> No se pidio</span>{% endif %}
+        </div>
+        {% if bloque.grupo.subtitulo %}<p class="text-xs text-body-subtle -mt-2 mb-3">{{ bloque.grupo.subtitulo }}</p>{% endif %}
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+          {% for item in bloque.items %}
+            {% if item.tipo == "texto" %}
+            <div class="sm:col-span-2 text-sm text-body">{{ item.texto }}</div>
+            {% else %}
+            <div{% if item.oculto and not bloque.oculto %} class="opacity-60"{% endif %}>
+              <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">
+                {{ item.label }}
+                {% if item.oculto and not bloque.oculto %}<span class="badge badge-gray ml-1" title="Sus condiciones no se cumplieron: no se le pidio a la persona">No se pidio</span>{% endif %}
+              </dt>
+              <dd class="text-heading text-sm">{% if item.oculto %}<span class="text-body-subtle">-</span>{% else %}{% include "programas/becas/_respuesta_valor.html" %}{% endif %}</dd>
+            </div>
+            {% endif %}
+          {% empty %}
+          <p class="text-sm text-body-subtle sm:col-span-2">Sin campos en este grupo.</p>
+          {% endfor %}
+        </dl>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
   {# 3. Requisitos generales #}
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     <div class="px-5 py-4 border-b border-light">
@@ -391,6 +431,8 @@
       {% else %}<p class="text-sm text-body-subtle">Sin respuestas.</p>{% endif %}
     </div>
   </section>
+
+  {% endif %}
 
   {# 6. Resultado SIIS #}
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">

@@ -41,6 +41,7 @@ from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_ap
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
+from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 
@@ -339,6 +340,7 @@ def formulario_detalle(request, pk):
                 if anteriores[campo] != nuevo:
                     cambios.append((FormularioRevisionForm.LABELS[campo], anteriores[campo], nuevo))
             form.save()
+            sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
             resolver_ciudadano_offline(formulario)
             n = registrar_traza(formulario, request.user, cambios)
             if n:
@@ -349,7 +351,12 @@ def formulario_detalle(request, pk):
     else:
         form = FormularioRevisionForm(instance=formulario)
 
-    globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
+    # Cambio 58 (#347): un caso con foto se lee desde la foto; uno anterior, por pk.
+    bloques = respuestas_legibles(formulario)
+    if bloques is None:
+        globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
+    else:
+        globales_list, requisitos_segmento, requisitos_subsegmento = [], [], []
     fecha_nacimiento = None
     if formulario.ciudadano_id:
         fecha_nacimiento = formulario.ciudadano.fecha_nacimiento
@@ -400,6 +407,9 @@ def formulario_detalle(request, pk):
                 initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
             ),
             "mostrar_apoderado": mostrar_apoderado,
+            # Cambio 58 (#347): con foto, un solo listado en el orden del formulario
+            # que respondio; sin foto, las tres listas historicas por alcance.
+            "bloques": bloques,
             "globales_list": globales_list,
             "requisitos_segmento": requisitos_segmento,
             "requisitos_subsegmento": requisitos_subsegmento,

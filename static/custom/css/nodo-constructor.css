@@ -36,6 +36,9 @@ tbody[data-sortable-preguntas]:empty { display: block; min-height: 44px; }
   flex-shrink: 0;
 }
 .cons-item.sortable-chosen { background: var(--bg-brand-softer); }
+/* Separadores entre hermanos: Tailwind no compila `divide-light`. */
+.cons-hijos > li + li { border-top: 1px solid var(--border-light); }
+.grupo-card + .grupo-card { border-top: 1px solid var(--border-light); }
 .cons-hijos:empty { min-height: 40px; }
 
 /* Vista previa (imita la densidad del paso 2 del portal sin cargar su shell) */

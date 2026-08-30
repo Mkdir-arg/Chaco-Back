@@ -1,9 +1,12 @@
 {% extends 'portal/inscripcion/base_inscripcion.html' %}
 {% load static %}
 
-{% comment %}Los campos selector configurados como «Buscador con píldoras»
-(Cambio 56) se montan sobre el <select> nativo. Si el JS no corre queda el
-desplegable del navegador y el formulario se envía igual.{% endcomment %}
+{% comment %}El formulario es el que diseñó la convocatoria (Cambio 58): grupos,
+textos y campos en el orden configurado, con las condiciones que deciden qué se
+muestra. El JS las evalúa mientras se completa y el servidor las vuelve a
+evaluar al enviar. Los selectores «Buscador con píldoras» (Cambio 56) se montan
+sobre el <select> nativo; si el JS no corre queda el desplegable del navegador,
+todo el formulario se muestra y el envío funciona igual.{% endcomment %}
 {% block extra_css %}<link href="{% static 'custom/css/nodo-buscador.css' %}" rel="stylesheet">{% endblock %}
 
 {% block title %}Inscripción a {{ convocatoria.nombre }} - Portal Ciudadano{% endblock %}
@@ -30,9 +33,10 @@ desplegable del navegador y el formulario se envía igual.{% endcomment %}
     </div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" novalidate id="form-inscripcion">
+    <form method="post" enctype="multipart/form-data" novalidate id="form-inscripcion" data-formulario-dinamico>
         {% csrf_token %}
         {{ form.gps_lat }}{{ form.gps_lng }}
+        {{ planos|json_script:"formulario-items" }}
 
         {% if form.non_field_errors %}
             <div class="mb-4 p-3 text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); border-radius: var(--radius-lg); color: var(--text-fg-danger);" role="alert">
@@ -40,69 +44,31 @@ desplegable del navegador y el formulario se envía igual.{% endcomment %}
             </div>
         {% endif %}
 
-        {% if form.es_manual or "fecha_nacimiento" in form.fields %}
-        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Tus datos</h2>
-        {% if not form.es_manual %}<p class="text-xs mb-3" style="color: var(--text-body-subtle);">No pudimos obtener tu fecha de nacimiento: completala.</p>{% endif %}
-        <div class="space-y-4 mb-6">
-            {% for campo in form %}{% if campo.name == "nombre" or campo.name == "apellido" or campo.name == "fecha_nacimiento" %}
-            <div>
-                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }} <span style="color: var(--text-fg-danger);">*</span></label>
-                {{ campo }}
-                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+        {% for grupo in form.grupos %}
+        <section data-item="{{ grupo.clave }}" class="mb-6">
+            {% if grupo.titulo %}<h2 class="text-sm font-bold uppercase tracking-wide mb-1" style="color: var(--text-body-subtle);">{{ grupo.titulo }}</h2>{% endif %}
+            {% if grupo.subtitulo %}<p class="text-xs mb-3" style="color: var(--text-body-subtle);">{{ grupo.subtitulo }}</p>{% endif %}
+            <div class="space-y-4 {% if not grupo.subtitulo %}mt-3{% endif %}">
+                {% for item in grupo.items %}
+                    {% if item.tipo == "texto" %}
+                    <p data-item="{{ item.clave }}" class="text-sm" style="color: var(--text-body);">{{ item.texto }}</p>
+                    {% elif item.fijo %}
+                    <div data-item="{{ item.clave }}">
+                        <p class="block text-xs font-semibold mb-1" style="color: var(--text-body-subtle);">{{ item.label }}</p>
+                        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ item.fijo }}</p>
+                    </div>
+                    {% else %}
+                    <div data-item="{{ item.clave }}">
+                        <label for="{{ item.bound.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ item.label }}{% if item.obligatorio %} <span style="color: var(--text-fg-danger);">*</span>{% endif %}</label>
+                        {{ item.bound }}
+                        {% if item.es_archivo %}<p class="text-xs mt-1" style="color: var(--text-body-subtle);">JPG, PNG o PDF, hasta 5 MB.</p>{% endif %}
+                        {% for error in item.bound.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
             </div>
-            {% endif %}{% endfor %}
-        </div>
-        {% endif %}
-
-        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Datos de contacto</h2>
-        <div class="space-y-4 mb-6">
-            {% for campo in form %}{% if campo.name == "celular" or campo.name == "email_contacto" %}
-            <div>
-                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }} <span style="color: var(--text-fg-danger);">*</span></label>
-                {{ campo }}
-                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
-            </div>
-            {% endif %}{% endfor %}
-        </div>
-
-        {% if form.campos_globales %}
-        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Sobre vos</h2>
-        <div class="space-y-4 mb-6">
-            {% for campo in form.campos_globales %}
-            <div>
-                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}{% if campo.field.required %} <span style="color: var(--text-fg-danger);">*</span>{% endif %}</label>
-                {{ campo }}
-                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if form.campos_requisitos %}
-        <h2 class="text-sm font-bold uppercase tracking-wide mb-3" style="color: var(--text-body-subtle);">Requisitos</h2>
-        <div class="space-y-4 mb-6">
-            {% for campo in form.campos_requisitos %}
-            <div>
-                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}{% if campo.field.required %} <span style="color: var(--text-fg-danger);">*</span>{% endif %}</label>
-                {{ campo }}
-                {% if campo.field.widget.input_type == "file" %}<p class="text-xs mt-1" style="color: var(--text-body-subtle);">JPG, PNG o PDF, hasta 5 MB.</p>{% endif %}
-                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <h2 class="text-sm font-bold uppercase tracking-wide mb-1" style="color: var(--text-body-subtle);">Apoderado</h2>
-        <p class="text-xs mb-3" style="color: var(--text-body-subtle);">Completalo solo si la persona que se inscribe es menor de 18 años.</p>
-        <div class="space-y-4 mb-6">
-            {% for campo in form %}{% if campo.name == "apoderado_nombre" or campo.name == "apoderado_apellido" or campo.name == "apoderado_dni" or campo.name == "apoderado_genero" or campo.name == "apoderado_fecha_nacimiento" %}
-            <div>
-                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}</label>
-                {{ campo }}
-                {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
-            </div>
-            {% endif %}{% endfor %}
-        </div>
+        </section>
+        {% endfor %}
 
         {% if requiere_gps %}
         <div class="p-3 mb-6 flex items-start gap-2 text-xs" style="background: var(--bg-brand-tint); border-radius: var(--radius-lg); color: var(--text-heading);">
@@ -126,6 +92,8 @@ desplegable del navegador y el formulario se envía igual.{% endcomment %}
 </div>
 
 <script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
+<script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-formulario.js' %}"></script>
 
 {% if requiere_gps %}
 <script>

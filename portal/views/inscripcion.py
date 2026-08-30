@@ -254,6 +254,8 @@ def inscripcion_paso2(request, token):
             "identificacion": identificacion,
             "form": form,
             "requiere_gps": definicion["requiere_gps"],
+            # Los items con sus condiciones para el motor del navegador (Cambio 58).
+            "planos": form.planos(),
         },
     )
 

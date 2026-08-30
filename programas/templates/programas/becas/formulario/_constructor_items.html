@@ -29,7 +29,7 @@
       </div>
       {% endif %}
     </header>
-    <ul class="cons-hijos divide-y divide-light" data-sortable-hijos data-clave="{{ grupo.clave|default:'' }}">
+    <ul class="cons-hijos" data-sortable-hijos data-clave="{{ grupo.clave|default:'' }}">
       {% for item in hijos %}
       <li class="cons-item flex items-center gap-2 px-3 py-2 hover:bg-secondary" data-clave="{{ item.clave }}" data-tipo="{{ item.tipo }}">
         <span class="grip item-grip" aria-hidden="true" title="Arrastrar para mover"><i class="fas fa-grip-vertical"></i></span>

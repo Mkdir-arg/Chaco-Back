@@ -2329,6 +2329,14 @@ class Formulario(TimeStamped):
 
     # Respuestas dinámicas: {"globales": {pk: valor}, "requisitos": {pk: valor}}
     data = models.JSONField(default=dict, blank=True, verbose_name="Respuestas")
+    # Cambio 58 (D3): lo respondido por clave de ítem del diseño (``pg-<pk>``,
+    # ``rn-<pk>``, ``cp-…``) y la **foto** de la definición que se respondió
+    # (``{version, canal, items}``). Un caso viejo no se reinterpreta con un
+    # diseño posterior: la revisión lee la foto. ``data`` y las columnas fijas
+    # se siguen escribiendo como puente para la app vieja y los lectores
+    # que todavía no migraron.
+    respuestas = models.JSONField(default=dict, blank=True, verbose_name="Respuestas por ítem")
+    definicion = models.JSONField(null=True, blank=True, verbose_name="Foto de la definición")
 
     # Identificación offline (cuando ciudadano=null en el sync)
     datos_identificacion = models.JSONField(

@@ -30,6 +30,7 @@ from programas.models import Convocatoria, Formulario, Relevamiento
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.identidad import identificar
 from programas.services.padron import convocatoria_con_identidad, fila_padron, normalizar_dni
+from programas.services.respuestas import sincronizar_desde_legacy
 
 CAP = "becas.campo"
 DNI_DUPLICADO_MENSAJE = "Este DNI ya fue relevado en este relevamiento."
@@ -369,6 +370,10 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 duplicado_de=formulario_existente,
             )
             _actualizar_validacion_identidad(formulario, datos_identificacion)
+            # Cambio 58: la app manda el contrato anterior (data por pk +
+            # columnas fijas); acá se traduce a respuestas por clave y se
+            # guarda la foto de la definición que respondió (D3).
+            sincronizar_desde_legacy(formulario, rel)
             resolver_ciudadano_offline(formulario)
             formulario.refresh_from_db()
         return Response(FormularioSerializer(formulario).data, status=status.HTTP_201_CREATED)
@@ -405,6 +410,7 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
             formulario,
             serializer.validated_data.get("datos_identificacion"),
         )
+        sincronizar_desde_legacy(formulario)
         resolver_ciudadano_offline(formulario)
 
     @action(detail=True, methods=["get", "post"])

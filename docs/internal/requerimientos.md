@@ -201,7 +201,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
-| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En desarrollo — Fases 1 a 3 hechas (#336, #338 catálogo; #339, #340, #341 motor; #337, #342, #343, #344 constructor con drag & drop, condiciones y vista previa); sigue la fase 4 (#345, #346, #347 portal y caso)** | `programas.0057`, `programas.0058` + pendientes |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟢 **Hecho — las cuatro fases (catálogo #336/#338, motor #339-#341, constructor #337/#342-#344, portal y caso #345-#347); pendientes fuera de este repo: app móvil #348/#349** | `programas.0057`, `programas.0058`, `programas.0059`, `programas.0060` |
 
 **Notas del índice**
 
@@ -5992,25 +5992,41 @@ Pendiente. Previstos: `programas/models/__init__.py`, `programas/services/diseno
 
 ## Base de datos
 
-Pendiente. `GrupoRequisito`; `PreguntaGlobal` (grupo, origen, vinculo, protegido, canal); `RequisitoNativo.canal`;
-`DisenoFormulario` + `ItemDiseno`; `Formulario.respuestas` + `definicion`, eliminación de `data`, `celular`,
-`email_contacto`, `apoderado_*`. Migración destructiva viable solo sin carga real (confirmado 28/08/2026).
+`GrupoRequisito`; `PreguntaGlobal` (grupo, origen, vinculo, protegido, canal); `RequisitoNativo.canal`
+(`programas.0057`). `DisenoFormulario` + `ItemDiseno` (`programas.0058`). `Formulario.respuestas` +
+`Formulario.definicion` (`programas.0059`); siembra del catálogo protegido (`programas.0060`, datos).
+**Las cuatro migraciones son aditivas.** `data`, `celular`,
+`email_contacto` y `apoderado_*` **se conservan y se siguen escribiendo** como puente para la app móvil y
+los lectores que todavía no migraron: la eliminación destructiva que preveía el análisis se descartó al
+implementar (no hacía falta y obligaba a coordinar una ventana con ECOM). Borrarlas queda como deuda para
+cuando ningún lector las use — el adaptador `programas/services/respuestas.py` es el único punto a tocar.
 
 ## Validación
 
-Pendiente. Criterios en #326; casos QA por task; plan de pruebas de la épica al cierre.
+Criterios en #326; casos QA por task; plan de pruebas de la épica al cierre. Tests propios:
+`test_catalogo_grupos` (19), `test_condiciones` (24), `test_diseno` (21), `test_catalogo_drag` (13),
+`test_constructor` (19), `test_respuestas` (14) y `test_inscripcion_envio` reescrito (32). Regresión de
+`programas`, `portal`, `core`, `users` y `legajos` en verde con Python 3.12 / Django 5.2 (el mismo par que
+el CI); el `.venv` del repo no sirve para medir esto (ver `docs/internal/venv-setup.md`).
 
 ## Puesta en marcha en el servidor
 
-Por fase, a `test` de ECOM; `main` (producción) una sola vez al cierre, con la migración destructiva coordinada.
+A `test` de ECOM y después a `main` (producción) cuando el PM lo indique. **Sin ventana de
+coordinación**: las tres migraciones son aditivas y el contrato anterior se sigue escribiendo, así que la
+app móvil actual sigue funcionando sin cambios mientras el equipo móvil hace #348.
 
 ## Pendientes / a definir
 
-- La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el formulario plano.
+- La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el
+  formulario plano y el backend traduce lo que manda (`sincronizar_desde_legacy`).
+- Borrar `data` y las columnas fijas del caso cuando ningún lector las use (deuda, no bloquea).
+- El motor de condiciones no filtra todavía los reportes ni las exportaciones: leen `data` como siempre.
 
 ## Reversión
 
-Por fase; la última (caso) es la única con migración destructiva.
+Por fase, y ninguna es destructiva: revertir el código deja las columnas nuevas sin usar y el caso
+sigue legible por `data`. Un caso cargado con el constructor y leído con el código anterior pierde los
+campos propios y las condiciones (no viajan en `data`), no los requisitos del catálogo.
 
 ## Historial
 
@@ -6064,6 +6080,34 @@ Por fase; la última (caso) es la única con migración destructiva.
   oculta. `nodo-constructor.css` (manija `.grip`, estados Sortable, `.cons-*`, `.pv-*`), inventariado en el agente de
   diseño. Tests: `test_catalogo_drag.py` (13), `test_constructor.py` (19). Pendiente: fase 4 (#345 paso 2 con
   `items`, #346 caso con `respuestas` + foto y migración destructiva, #347 revisión desde la foto).
+- **30/08/2026 — Fase 4 (portal y caso) hecha, tasks #345, #346 y #347.** El caso guarda `respuestas`
+  (por clave de ítem: `pg-<pk>`, `rn-<pk>`, `cp-…`) y `definicion`, la **foto** de lo que respondió
+  (`{version, canal, items}`, D3): un caso viejo no se reinterpreta con un diseño posterior.
+  Migración `programas.0059`, **aditiva**: `data` y las columnas fijas (celular, correo, apoderado)
+  se siguen escribiendo como puente, así que **no** hay migración destructiva ni coordinación con
+  ECOM en esta fase; borrarlas queda para cuando ningún lector las use.
+  `programas/services/respuestas.py` es la pieza única: `foto_definicion`, `campos_de`, `planos_de`,
+  `aplicar` (condiciones sobre la foto), `respuestas_desde_legacy` / `legacy_desde_respuestas` /
+  `identidad_desde_respuestas` (traducción en los dos sentidos, ignorando lo que no está en la foto),
+  `sincronizar_desde_legacy` (un caso que entra o se edita por el contrato anterior actualiza sus
+  respuestas sin pisar los campos propios ni la foto) y `respuestas_legibles` (bloques en orden, con
+  lo oculto marcado). Paso 2 del link (#345): `InscripcionPaso2Form` se arma desde los `items` —cada
+  campo se llama por su clave—, la identidad que validó el paso 1 se muestra fija y viaja igual, las
+  condiciones se evalúan en el navegador (`nodo-formulario.js` sobre `nodo-condiciones.js`) y **otra
+  vez en el servidor**: un campo oculto no se exige y lo respondido para él se descarta (D11); la
+  obligatoriedad la decide `clean()` con las condiciones ya aplicadas. La URL del paso 2 no cambia.
+  Ingesta (#346): `crear_formulario_publico` guarda respuestas + foto y deriva `data`, las columnas
+  fijas y `datos_identificacion` desde ellas; los adjuntos se atan por la clave del ítem. La API de
+  la app (#346, adaptador): al crear y al editar un caso, `sincronizar_desde_legacy` traduce lo que
+  manda la app vieja, así el caso queda completo aunque el móvil no haya migrado (#348).
+  Revisión (#347): el detalle lee la foto y muestra un solo listado en el orden del formulario que
+  respondió esa persona, con badge de versión y «No se pidió» en lo que ocultó una condición; un caso
+  anterior al Cambio 58 (sin foto) sigue por el camino de siempre. Editar contacto/apoderado también
+  actualiza las respuestas. Un campo propio no puede ser ARCHIVO (los adjuntos referencian catálogo).
+  `programas.0060` siembra el catálogo protegido en las bases que ya existían: hasta ahora solo lo creaba
+  `seed_becas`, y sin esos campos el portal no pediría identidad, contacto ni apoderado. Es un snapshot
+  idempotente que no pisa lo renombrado ni lo reordenado. Tests: `test_respuestas.py` (14),
+  `test_migracion_catalogo.py` (5) y `test_inscripcion_envio.py` reescrito al contrato nuevo (32).
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

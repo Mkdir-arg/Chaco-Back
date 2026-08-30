@@ -2,7 +2,7 @@
 {# Catálogo agrupado con drag & drop (Cambio 58, task 337). Se renderiza sin filtros; con filtros va _preguntas_table.html. #}
 {% with puede_ordenar=request.user|puede:"becas.pregunta.editar" %}
 {% if grupos_con_preguntas %}
-<div data-sortable-grupos data-url-reordenar="{% url 'becas:preguntas_reordenar' %}" data-puede-ordenar="{% if puede_ordenar %}1{% else %}0{% endif %}" class="divide-y divide-light">
+<div data-sortable-grupos data-url-reordenar="{% url 'becas:preguntas_reordenar' %}" data-puede-ordenar="{% if puede_ordenar %}1{% else %}0{% endif %}">
   {% for grupo, preguntas in grupos_con_preguntas %}
   <section class="grupo-card bg-white" data-grupo-id="{{ grupo.pk|default_if_none:'' }}" aria-label="Grupo {{ grupo.nombre|default:'Sin grupo' }}">
     <header class="flex items-center gap-3 px-4 py-3 bg-secondary border-b border-light">
