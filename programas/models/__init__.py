@@ -2493,7 +2493,9 @@ class ValidacionSIS(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-creado"]
+        # Con dos validaciones en el mismo instante (un reintento inmediato, o
+        # un test) `-creado` sola no desempata y el orden queda al azar.
+        ordering = ["-creado", "-id"]
         verbose_name = "Validación SIIS"
         verbose_name_plural = "Validaciones SIIS"
 

@@ -7,7 +7,7 @@
       {% if grupo %}<span class="grip grupo-grip" aria-hidden="true" title="Arrastrar para ordenar el grupo"><i class="fas fa-grip-vertical"></i></span>{% endif %}
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-heading font-bold text-[14px]">{% if grupo %}{{ grupo.titulo|default:"(grupo sin título)" }}{% else %}Sin grupo{% endif %}</span>
+          <span class="text-heading font-bold" style="font-size:14px;">{% if grupo %}{{ grupo.titulo|default:"(grupo sin título)" }}{% else %}Sin grupo{% endif %}</span>
           {% if grupo.ui.protegido %}<span class="badge badge-info" title="Grupo protegido del catálogo: se renombra y se ordena, siempre está"><i class="fas fa-lock" style="font-size:10px;"></i></span>
           {% elif grupo.ui.catalogo %}<span class="badge badge-info">Catálogo</span>{% endif %}
           {% if grupo and grupo.canal != "ambos" %}<span class="badge badge-white">{{ grupo.get_canal_display }}</span>{% endif %}

@@ -201,7 +201,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
-| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟢 **Hecho — las cuatro fases (catálogo #336/#338, motor #339-#341, constructor #337/#342-#344, portal y caso #345-#347); pendientes fuera de este repo: app móvil #348/#349** | `programas.0057`, `programas.0058`, `programas.0059`, `programas.0060` |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟢 **Hecho — las cuatro fases (catálogo #336/#338, motor #339-#341, constructor #337/#342-#344, portal y caso #345-#347); pendientes fuera de este repo: app móvil #348/#349** | `programas.0057`, `programas.0058`, `programas.0059`, `programas.0060`, `programas.0061` |
 
 **Notas del índice**
 
@@ -6107,7 +6107,21 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   `programas.0060` siembra el catálogo protegido en las bases que ya existían: hasta ahora solo lo creaba
   `seed_becas`, y sin esos campos el portal no pediría identidad, contacto ni apoderado. Es un snapshot
   idempotente que no pisa lo renombrado ni lo reordenado. Tests: `test_respuestas.py` (14),
-  `test_migracion_catalogo.py` (5) y `test_inscripcion_envio.py` reescrito al contrato nuevo (32).
+  `test_migracion_catalogo.py` (5) y `test_inscripcion_envio.py` reescrito al contrato nuevo (33).
+- **30/08/2026 — Revisión visual y el build de Tailwind.** El constructor **nunca se vio a dos columnas**:
+  `static/custom/css/tailwind.css` está committeado y se genera con `npm run build:tailwind`, y las clases
+  nuevas de estas pantallas (`xl:grid-cols-2`, `max-h-[…]`, `text-[15px]`, `gap-0.5`, `space-y-0.5`, `-mt-2`,
+  el grid del editor de condiciones) no estaban en el build. El template compila, la auditoría pasa y la
+  pantalla se ve mal en silencio. Se recompiló (diff puramente aditivo: 12 reglas, ninguna quitada) y donde
+  había un valor equivalente ya compilado se reutilizó (`xl:top-6`, `max-h-[82vh]`, `style="font-size:…"`,
+  la clase de componente `cons-regla-grid`). Para que no vuelva a pasar, `scripts/design_audit.py` suma la
+  regla **TWBUILD**: marca como error toda utilidad con variante (`xl:`, `hover:`) o valor arbitrario
+  (`[82vh]`) que un template use y el build no declare. Corriéndola sobre todo el repo aparecen 35 casos
+  preexistentes ajenos a este cambio —`hover:bg-gray-*` y `focus:ring-brand` que no hacen nada porque el
+  config reemplaza la escala `gray`—; como el auditor se usa por archivo tocado, no bloquean a nadie hasta
+  que se editen esas pantallas. También se desempató `ValidacionSIS.Meta.ordering` (`programas.0061`): con
+  `-creado` sola, dos validaciones del mismo instante quedaban en orden aleatorio y el historial de la
+  revisión —y un test— fallaban de a ratos.
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

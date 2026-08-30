@@ -11,7 +11,7 @@
       {% endif %}
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 flex-wrap">
-          <h2 class="text-heading font-bold text-[15px]">{{ grupo.nombre|default:"Sin grupo" }}</h2>
+          <h2 class="text-heading font-bold" style="font-size:15px;">{{ grupo.nombre|default:"Sin grupo" }}</h2>
           <span class="badge badge-gray">{{ preguntas|length }}</span>
           {% if grupo.protegido %}<span class="badge badge-info" title="Viene con el sistema: se renombra y se ordena, no se borra"><i class="fas fa-lock" style="font-size:10px;"></i> Protegido</span>{% endif %}
           {% if grupo and grupo.canal != "ambos" %}<span class="badge badge-white">{{ grupo.get_canal_display }}</span>{% endif %}

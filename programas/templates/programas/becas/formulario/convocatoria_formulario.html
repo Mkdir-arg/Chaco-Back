@@ -81,7 +81,7 @@
     </section>
 
     {# Columna derecha: vista previa #}
-    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden xl:sticky xl:top-4" aria-labelledby="titulo-preview">
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden xl:sticky xl:top-6" aria-labelledby="titulo-preview">
       <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 id="titulo-preview" class="text-heading font-bold">Vista previa</h2>
@@ -96,7 +96,7 @@
           </button>
         </div>
       </div>
-      <div id="constructor-preview" class="p-5 max-h-[78vh] overflow-y-auto"></div>
+      <div id="constructor-preview" class="p-5 max-h-[82vh] overflow-y-auto"></div>
     </section>
   </div>
 
@@ -298,7 +298,7 @@
         </div>
         <div class="space-y-2" x-show="cond.fuentes.length">
           <template x-for="(r, i) in cond.reglas" :key="i">
-            <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center">
+            <div class="grid grid-cols-1 cons-regla-grid gap-2 items-center">
               <select x-model="r.fuente" @change="r.op = ''; r.valor = ''" class="nodo-field" aria-label="Campo fuente">
                 <option value="">Campo…</option>
                 <template x-for="fu in cond.fuentes" :key="fu.clave"><option :value="fu.clave" x-text="fu.titulo"></option></template>
