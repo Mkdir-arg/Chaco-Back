@@ -257,7 +257,7 @@ class PersonasBecasApiTests(_BaseApiTest):
         )
         self.assertIn(resp.status_code, (401, 403))
 
-    @patch("programas.api.views.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_consultar_persona_ok(self, mock_consultar):
         mock_consultar.return_value = {
             "success": True,
@@ -282,7 +282,7 @@ class PersonasBecasApiTests(_BaseApiTest):
         self.assertEqual(resp.data["data"]["sexo"], "M")
         mock_consultar.assert_called_once_with("40400400", "M")
 
-    @patch("programas.api.views.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_consultar_persona_error_controlado(self, mock_consultar):
         mock_consultar.return_value = {"success": False, "error": "Servicio no disponible"}
         self.autenticar(self.terri)
@@ -295,7 +295,7 @@ class PersonasBecasApiTests(_BaseApiTest):
         self.assertFalse(resp.data["success"])
         self.assertEqual(resp.data["error"], "Servicio no disponible")
 
-    @patch("programas.api.views.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_consultar_persona_no_encontrada_devuelve_404(self, mock_consultar):
         mock_consultar.return_value = {
             "success": False,

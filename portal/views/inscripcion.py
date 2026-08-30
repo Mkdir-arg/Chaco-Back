@@ -46,8 +46,8 @@ from programas.services.inscripcion_publica import (
     enmascarar_email,
     enviar_confirmacion_inscripcion,
 )
+from programas.services.identidad import identificar
 from programas.services.padron import esta_habilitado
-from programas.services.personas import consultar_persona
 
 logger = logging.getLogger(__name__)
 
@@ -97,11 +97,15 @@ def _no_disponible(request, relevamiento):
 
 def _datos_basicos(data):
     """Lo único que puede viajar del servicio de identidad a la sesión y a la
-    pantalla: nombre, apellido y fecha de nacimiento (RN-P7). Nunca domicilio."""
+    pantalla: nombre, apellido y fecha de nacimiento (RN-P7). Nunca domicilio.
+    La localidad del padrón (Cambio 57) viaja solo como id para el legajo: no
+    se muestra."""
+    data = data or {}
     return {
         "nombre": data.get("nombre", ""),
         "apellido": data.get("apellido", ""),
         "fecha_nacimiento": data.get("fecha_nacimiento", ""),
+        "localidad_id": data.get("localidad_id"),
     }
 
 
@@ -132,19 +136,20 @@ def inscripcion_paso1(request, token):
             elif dni_ya_inscripto(relevamiento.convocatoria, dni):
                 form.add_error(None, MENSAJE_RECHAZO)
             else:
-                resultado = consultar_persona(dni, sexo)
-                if resultado.get("fallecido"):
+                # Cascada del Cambio 57: padrón de la convocatoria → Base de
+                # Personas (si está activa) → manual.
+                resultado = identificar(relevamiento.convocatoria, dni, sexo)
+                if resultado["fallecido"]:
                     form.add_error(None, MENSAJE_RECHAZO)
                 else:
-                    datos = _datos_basicos(resultado.get("data") or {}) if resultado.get("success") else None
-                    validado = bool(datos and datos["nombre"] and datos["apellido"])
+                    validado = resultado["validado"]
                     request.session[clave_sesion(relevamiento)] = {
                         "dni": dni,
                         "sexo": sexo,
-                        "datos": datos if validado else None,
+                        "datos": _datos_basicos(resultado["datos"]) if validado else None,
                         # Mismo contrato de origen que la app de campo (#82):
-                        # "personas" acredita identidad; "manual" no.
-                        "origen": "personas" if validado else "manual",
+                        # "personas" y "padron" acreditan identidad; "manual" no.
+                        "origen": resultado["origen"] if validado else "manual",
                     }
                     # Caduca por sí misma, sin tocar la expiración de la
                     # sesión: acortar la sesión entera hacía perder el paso 2 a

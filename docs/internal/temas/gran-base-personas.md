@@ -92,6 +92,14 @@ La forma de `data` **cambia según la fuente**:
 - Configuración por settings/env: `PERSONAS_API_URL`, `PERSONAS_API_CLIENT_ID`,
   `PERSONAS_API_CLIENT_SECRET`, `PERSONAS_API_ENTIDAD_UUID`,
   `PERSONAS_API_FUENTE_ID`, timeouts.
+- **`PERSONAS_API_ACTIVA` (Cambio 57, 28/08/2026):** la Gran Base ya no es la
+  única fuente de identidad. `programas/services/identidad.py::identificar`
+  hace la cascada **padrón de la convocatoria → Gran Base (si está activa) →
+  manual**, para el link y para la app. Con la variable en `False` no se la
+  consulta en ningún lugar (paso 1, `consultar_persona_becas`, «Revalidar»,
+  diagnóstico); las personas del padrón con nombre y apellido se validan
+  igual. Cuando el servicio vuelve, se prende y manda sobre el padrón si
+  difieren. No es un plan B: el padrón se consulta primero siempre.
 - `normalizar_persona()` hoy solo toma `dni, apellido, nombre, fecha_nacimiento,
   sexo` y tolera variantes de nombres "hasta que se cierre el contrato
   definitivo" — ampliar qué campos se consumen es exactamente el pedido de la

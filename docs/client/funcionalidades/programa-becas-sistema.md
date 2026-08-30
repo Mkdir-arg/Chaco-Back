@@ -92,7 +92,8 @@ Un relevamiento no se edita ni se elimina como tal. Lo que sí se puede hacer es
 - **Reasignar** el territorial a cargo
 - **Reprogramar** las fechas, siempre dentro del período de la convocatoria
 - **Modificar el cupo**, nunca por debajo de las personas ya cargadas
-- **Reemplazar el padrón**, en los públicos
+
+El **padrón de habilitados** ya no se carga por relevamiento: es **uno por convocatoria** y lo usan todos sus relevamientos, tanto el link público como la app de campo (ver «Quién puede inscribirse y quién es», más abajo).
 
 Reasignar, reprogramar, finalizar y reabrir quedan bloqueados mientras el relevamiento esté pausado.
 
@@ -192,11 +193,11 @@ Pensado para que un público objetivo se inscriba solo. Se genera un link con un
 **Paso 1 — Identificación.** La persona ingresa su documento y sexo, y resuelve una verificación anti-robots. El sistema controla, en orden:
 
 - Que no haya demasiados intentos desde la misma conexión ni sobre el mismo documento
-- Que el documento esté en el **padrón de habilitados**, si el relevamiento tiene uno cargado
+- Que el documento esté en el **padrón de habilitados**, si la convocatoria tiene uno cargado
 - Que esa persona **no se haya inscripto ya** en esa convocatoria
-- Los datos de identidad contra la base de personas provincial
+- La identidad, en este orden: **el padrón de la convocatoria** (si figura con nombre y apellido, queda validada) y después **la Base de Personas provincial**, cuando está disponible
 
-**Paso 2 — Formulario.** Si la identidad se validó, los datos personales aparecen precargados y en solo lectura; si no, se completan a mano. Debajo van los datos de contacto, las preguntas y requisitos de la convocatoria, los adjuntos y —si corresponde— el apoderado. La ubicación se toma del navegador si la persona la autoriza.
+**Paso 2 — Formulario.** Si la identidad se validó, los datos personales aparecen precargados y en solo lectura, indicando si vinieron del padrón o de la Base de Personas; si no, se completan a mano. Debajo van los datos de contacto, las preguntas y requisitos de la convocatoria, los adjuntos y —si corresponde— el apoderado. La ubicación se toma del navegador si la persona la autoriza.
 
 **Paso 3 — Comprobante.** Se muestra el número de formulario y, si el relevamiento tiene activado el aviso por correo, se informa que el comprobante fue enviado.
 
@@ -206,6 +207,27 @@ Pensado para que un público objetivo se inscriba solo. Se genera un link con un
     - **Una sola pantalla** cubre los casos de relevamiento vencido, pausado, con cupo lleno o cerrado, sin decir cuál de los cuatro es.
     - **La identificación caduca a los 45 minutos**, para que en una computadora compartida no quede disponible el documento de la persona anterior.
     - **Los mensajes de rechazo son idénticos** entre sí, para que nadie pueda reconstruir el padrón ni averiguar quién ya está inscripto probando documentos.
+
+### Quién puede inscribirse y quién es: el padrón de la convocatoria
+
+Cada convocatoria puede tener un **padrón de habilitados**: un Excel que se carga desde la propia convocatoria (solapa Información general, con plantilla descargable) y que vale para todos sus relevamientos, del link y de la app de campo. Tiene seis columnas:
+
+| Columna | Para qué sirve |
+|---|---|
+| **Documento** y **sexo** (F/M) | Definen **quién puede inscribirse**. Con solo estas dos columnas el padrón es una lista de habilitados, como hasta ahora. |
+| **Nombre** y **apellido** | Si están, la persona queda **validada** al identificarse y sus datos aparecen precargados, sin depender de la Base de Personas. |
+| **Fecha de nacimiento** y **localidad** | Completan la ficha de la persona en el legajo. No condicionan la validación. La localidad se reconoce contra el catálogo de localidades; si el nombre no coincide, queda como texto y la carga lo informa. |
+
+Cómo se usa:
+
+- **El padrón se consulta siempre primero.** Si la persona figura con nombre y apellido, queda validada por padrón. La Base de Personas provincial, cuando está disponible, confirma y —si difiere— prevalece por ser la fuente oficial.
+- **Si la Base de Personas no responde**, el sistema puede apagarla por configuración: las personas del padrón siguen validándose igual y sin demora; las que no figuran con datos completan los suyos a mano y quedan pendientes de validación, como hasta ahora.
+- **Al cargar o reemplazar el padrón**, los casos de la convocatoria que estaban pendientes de validación y ahora figuran con nombre y apellido **se validan solos**, con registro en el historial de cada caso. Un caso ya validado nunca se desvalida.
+- En la revisión, cada caso dice **de dónde salió su validación**: Base de Personas, padrón o validación manual. Cuando la Base de Personas está apagada, el revisor puede **validar contra el padrón** un caso puntual.
+- Reemplazar el padrón es un reemplazo total: se carga el Excel completo cada vez.
+
+!!! warning "El padrón es tan bueno como el Excel"
+    Lo que diga el Excel se toma como nombre y apellido de la persona. Un error de tipeo del organismo queda en la ficha hasta que la Base de Personas vuelva y lo corrija.
 
 ### Qué protege el link
 

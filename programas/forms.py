@@ -1080,14 +1080,8 @@ class RelevamientoForm(forms.ModelForm):
         widget=forms.Select(attrs={"class": INPUT_CLASS, "data-municipio": "1"}),
         help_text="Filtra las localidades disponibles.",
     )
-    # Padrón de habilitados (RN-P14): opcional, solo para tipo público. Se
-    # parsea al validar; el resumen queda en ``padron_resumen``.
-    padron = forms.FileField(
-        required=False,
-        label="Padrón de habilitados",
-        help_text="Excel (.xlsx) de dos columnas: documento y sexo. Sin padrón, el link queda abierto.",
-        widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ".xlsx"}),
-    )
+    # El padrón de habilitados (RN-P14) se carga en la convocatoria desde el
+    # Cambio 57: ya no es un campo del relevamiento.
     # Pisa el CharField del modelo: el operador elige una Localidad y
     # ``clean_zona`` la reduce al texto que se guarda.
     zona = forms.ModelChoiceField(
@@ -1161,9 +1155,8 @@ class RelevamientoForm(forms.ModelForm):
             # ``confirmar_por_email`` no se remueve (Cambio 44): los avisos por
             # correo ya no son exclusivos del link público —también avisan cómo
             # se resolvió un formulario cargado por el territorial—, así que el
-            # toggle se ofrece en los dos tipos. ``tipo`` y ``padron`` sí siguen
-            # siendo del flujo público y siguen gateados por RBAC (RN-P13).
-            self.fields.pop("padron")
+            # toggle se ofrece en los dos tipos. ``tipo`` sí sigue siendo del
+            # flujo público y sigue gateado por RBAC (RN-P13).
         else:
             # Retrocompatibilidad: un POST sin tipo sigue siendo un alta
             # territorial (clean_tipo aplica el default del modelo).
@@ -1256,36 +1249,6 @@ class RelevamientoForm(forms.ModelForm):
 
     def clean_tipo(self):
         return self.cleaned_data.get("tipo") or Relevamiento.Tipo.TERRITORIAL
-
-    def clean_padron(self):
-        archivo = self.cleaned_data.get("padron")
-        self._padron_entradas = None
-        self.padron_resumen = None
-        if not archivo:
-            return archivo
-        if self._tipo_elegido() != Relevamiento.Tipo.PUBLICO:
-            raise forms.ValidationError("El padrón solo aplica a relevamientos de formulario público.")
-        from programas.services.padron import parsear_padron
-
-        entradas, rechazadas = parsear_padron(archivo)
-        self._padron_entradas = entradas
-        self.padron_resumen = (len(entradas), rechazadas)
-        return archivo
-
-    def save(self, commit=True):
-        entradas = getattr(self, "_padron_entradas", None) if commit else None
-        if not entradas:
-            # Sin padrón no hace falta una transacción propia: ``Relevamiento.save``
-            # ya abre la suya para numerar, y anidar otra cuesta un SAVEPOINT +
-            # RELEASE por alta (presupuesto de consultas de carga_relevamiento).
-            return super().save(commit)
-        # Con padrón, relevamiento y habilitados se guardan todo-o-nada.
-        from programas.services.padron import cargar_padron
-
-        with transaction.atomic():
-            instance = super().save(commit)
-            cargar_padron(instance, self.cleaned_data["padron"], entradas)
-            return instance
 
     def clean_zona(self):
         """Del catálogo al texto: se guarda el nombre de la localidad.

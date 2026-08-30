@@ -295,7 +295,7 @@ class LinkPublicoTests(BaseDiagnosticoTests):
 
     def test_dni_fuera_del_padron_es_falla(self):
         rel = self._publico()
-        rel.padron.create(dni="36210951", sexo="F")
+        rel.convocatoria.padron.create(dni="36210951", sexo="F")
 
         salida, codigo = _correr("--relevamiento", str(rel.pk), "--dni", "40999888", "--sexo", "M")
 
@@ -304,7 +304,7 @@ class LinkPublicoTests(BaseDiagnosticoTests):
 
     def test_dni_en_el_padron_es_ok(self):
         rel = self._publico()
-        rel.padron.create(dni="36210951", sexo="F")
+        rel.convocatoria.padron.create(dni="36210951", sexo="F")
 
         salida, codigo = _correr("--relevamiento", str(rel.pk), "--dni", "36.210.951", "--sexo", "Femenino")
 

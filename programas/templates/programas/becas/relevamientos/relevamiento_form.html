@@ -33,15 +33,14 @@
     {% with field=form.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
     {% if form.tipo %}
     <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="border-0 p-0 m-0">
-      {% comment %}El padrón es opcional por decisión del programa (RN-P14), pero
-      sin él el link acepta a cualquiera: el aviso hace explícita la consecuencia
-      en el momento de decidir, no después (revisión de seguridad 26/08/2026).{% endcomment %}
+      {% comment %}El padrón vive en la convocatoria desde el Cambio 57 (sirve al
+      link y a la app). Sin padrón el link acepta a cualquiera (RN-P14): el aviso
+      hace explícita la consecuencia en el momento de decidir.{% endcomment %}
       <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-3" role="alert">
         <i class="fas fa-triangle-exclamation text-fg-warning mr-1"></i>
-        <strong>Sin padrón el link queda abierto:</strong> cualquier persona que lo reciba puede inscribirse y
-        ocupar cupo. Cargá el Excel de habilitados si la convocatoria es para un grupo definido.
+        <strong>El padrón de habilitados se carga en la convocatoria.</strong> Si la convocatoria no tiene padrón,
+        el link queda abierto: cualquier persona que lo reciba puede inscribirse y ocupar cupo.
       </div>
-      {% with field=form.padron %}{% include "programas/becas/_field.html" %}{% endwith %}
     </fieldset>
     {% endif %}
     {% comment %}Fuera del fieldset de tipo público (Cambio 44): los avisos por

@@ -455,6 +455,11 @@ PERSONAS_API_ENTIDAD_UUID = os.getenv("PERSONAS_API_ENTIDAD_UUID", "")
 PERSONAS_API_FUENTE_ID = int(os.getenv("PERSONAS_API_FUENTE_ID", "13"))
 PERSONAS_API_CONNECT_TIMEOUT = int(os.getenv("PERSONAS_API_CONNECT_TIMEOUT", "10"))
 PERSONAS_API_TIMEOUT = int(os.getenv("PERSONAS_API_TIMEOUT", "20"))
+# Cambio 57: en False no se consulta Base de Personas en ningún lugar (link,
+# app de campo, «Revalidar», diagnóstico). La identidad se resuelve con el
+# padrón de la convocatoria. No cambia el resultado de quien está en el padrón:
+# le saca la espera del timeout a una API que no responde.
+PERSONAS_API_ACTIVA = os.getenv("PERSONAS_API_ACTIVA", "True").strip().lower() in ("true", "1", "si", "sí", "yes")
 SIIS_API_URL = os.getenv("SIIS_API_URL", "https://siisapi.ecomdev.ar").strip().rstrip("/")
 SIIS_API_CLIENT_ID = os.getenv("SIIS_API_CLIENT_ID", "")
 SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")

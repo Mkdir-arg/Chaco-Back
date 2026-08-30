@@ -38,6 +38,8 @@ from programas.services.autorizacion import convocatorias_visibles, puede_gestio
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
+from programas.services.identidad import gran_base_activa
+from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
@@ -404,6 +406,10 @@ def formulario_detalle(request, pk):
             "mapa": mapa,
             "trazas": formulario.trazas.select_related("editado_por")[:50],
             "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
+            # Cambio 57: con la Gran Base apagada, «Revalidar» se deshabilita y
+            # se ofrece validar contra el padrón de la convocatoria.
+            "gran_base_activa": gran_base_activa(),
+            "convocatoria_tiene_padron": formulario.relevamiento.convocatoria.padron.exists(),
             "forzar_identidad_form": ForzarIdentidadForm(),
             "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
             "validacion_sis": validacion_sis,
@@ -629,6 +635,14 @@ def formulario_revalidar_renaper(request, pk):
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if not gran_base_activa():
+        # Cambio 57: apagada por configuración mientras el servicio no responde.
+        messages.error(
+            request,
+            "Base de Personas está desactivada por configuración. Usá «Validar contra el padrón» "
+            "o la validación manual.",
+        )
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
     ciudadano = formulario.ciudadano
     if ciudadano is None:
         messages.error(request, "El caso no tiene un ciudadano vinculado para revalidar.")
@@ -668,13 +682,73 @@ def formulario_revalidar_renaper(request, pk):
                 cambios.append((f"Ciudadano · {campo}", anterior, nuevo))
         if campos_actualizados:
             ciudadano.save(update_fields=[*campos_actualizados, "modificado"])
-        if not formulario.validado_renaper:
+        if (
+            not formulario.validado_renaper
+            or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS
+        ):
+            anterior = formulario.get_origen_validacion_display() if formulario.validado_renaper else "Pendiente"
             formulario.validado_renaper = True
-            formulario.save(update_fields=["validado_renaper", "modificado"])
-            cambios.append(("Base de Personas", "Pendiente", "Validado"))
+            # La Gran Base es la fuente oficial: manda sobre el padrón (RN-6).
+            formulario.origen_validacion = Formulario.OrigenValidacion.PERSONAS
+            formulario.save(update_fields=["validado_renaper", "origen_validacion", "modificado"])
+            cambios.append(("Base de Personas", anterior, "Validado"))
         registrar_traza(formulario, request.user, cambios)
 
     messages.success(request, "Identidad revalidada correctamente con Base de Personas.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVALIDAR_RENAPER)
+def formulario_validar_padron(request, pk):
+    """Valida la identidad de un caso pendiente contra el padrón de su
+    convocatoria (Cambio 57). Es lo mismo que hace el cruce automático al
+    subir el padrón, para un caso puntual: sirve cuando el padrón se corrigió
+    después, o cuando la Gran Base está apagada y el caso entró como manual."""
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk
+    )
+    _assert_scope_formulario(request, formulario)
+    if request.method != "POST":
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if formulario.validado_renaper:
+        messages.error(request, "La identidad de este caso ya está validada.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    ciudadano = formulario.ciudadano
+    if ciudadano is None or not ciudadano.dni:
+        messages.error(request, "El caso necesita un ciudadano con DNI para buscarlo en el padrón.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    fila = fila_padron(formulario.relevamiento.convocatoria, ciudadano.dni, ciudadano.genero)
+    if fila is None:
+        messages.error(request, f"El DNI {ciudadano.dni} no figura en el padrón de la convocatoria con ese sexo.")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    if not fila.tiene_identidad:
+        messages.error(
+            request,
+            "La persona figura en el padrón pero sin nombre y apellido: subí un padrón con esos datos o validá a mano.",
+        )
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+    with transaction.atomic():
+        cambios = [("Validación de identidad", "Pendiente", "Validada por padrón")]
+        actualizados = []
+        for campo, valor in (
+            ("nombre", fila.nombre),
+            ("apellido", fila.apellido),
+            ("fecha_nacimiento", fila.fecha_nacimiento),
+            ("localidad", fila.localidad),
+        ):
+            if valor and not getattr(ciudadano, campo):
+                setattr(ciudadano, campo, valor)
+                actualizados.append(campo)
+                cambios.append((f"Ciudadano · {campo}", "", str(valor)))
+        if actualizados:
+            ciudadano.save(update_fields=[*actualizados, "modificado"])
+        formulario.validado_renaper = True
+        formulario.origen_validacion = Formulario.OrigenValidacion.PADRON
+        formulario.save(update_fields=["validado_renaper", "origen_validacion", "modificado"])
+        registrar_traza(formulario, request.user, cambios)
+    messages.success(request, "Identidad validada contra el padrón de la convocatoria.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
 
 
@@ -714,8 +788,15 @@ def formulario_forzar_identidad(request, pk):
         formulario.validado_renaper = True
         formulario.identidad_forzada = True
         formulario.identidad_forzada_motivo = motivo
+        formulario.origen_validacion = Formulario.OrigenValidacion.FORZADA
         formulario.save(
-            update_fields=["validado_renaper", "identidad_forzada", "identidad_forzada_motivo", "modificado"]
+            update_fields=[
+                "validado_renaper",
+                "identidad_forzada",
+                "identidad_forzada_motivo",
+                "origen_validacion",
+                "modificado",
+            ]
         )
         registrar_traza(
             formulario,

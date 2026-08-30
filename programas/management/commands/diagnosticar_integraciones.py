@@ -108,7 +108,19 @@ class Command(BaseCommand):
     def _base_de_personas(self, dni, sexo):
         """Gran Base: la que usa el paso 1 del formulario público y la app de campo."""
         self._titulo("Base de Personas / Gran Base  [la usa el formulario público]")
+        from programas.services.identidad import gran_base_activa
         from programas.services.personas import PersonasAPIClient, consultar_persona
+
+        self._var("PERSONAS_API_ACTIVA", "True" if gran_base_activa() else "False")
+        if not gran_base_activa():
+            # Cambio 57: apagada a propósito mientras el servicio no responde.
+            # No es una falla: la identidad sale del padrón de la convocatoria.
+            self._ok(
+                "desactivada por configuración: no se consulta en el link, en la app ni en «Revalidar». "
+                "La identidad se resuelve con el padrón de la convocatoria (nombre y apellido en el Excel)."
+            )
+            self._aviso("cuando el servicio vuelva, poné PERSONAS_API_ACTIVA=True: manda sobre el padrón si difieren")
+            return None
 
         cliente = PersonasAPIClient()
         self._var("PERSONAS_API_URL", cliente.base_url)
@@ -292,8 +304,13 @@ class Command(BaseCommand):
         )
         self.stdout.write(f"       estado       : {rel.get_estado_display()}")
         self.stdout.write(f"       cupo         : {rel.cupo_utilizado} / {rel.cupo_maximo}")
-        padron = rel.padron.count()
-        self.stdout.write(f"       padrón       : {padron or 'sin padrón (link abierto)'}")
+        # El padrón es de la convocatoria (Cambio 57).
+        padron_qs = rel.convocatoria.padron.all()
+        padron = padron_qs.count()
+        con_identidad = padron_qs.exclude(nombre="").exclude(apellido="").count()
+        self.stdout.write(
+            f"       padrón       : {f'{padron} habilitados, {con_identidad} con identidad' if padron else 'sin padrón (link abierto)'}"
+        )
         self.stdout.write(f"       correo       : {'sí' if rel.confirmar_por_email else 'no'}")
 
         # Los cuatro motivos que muestran la MISMA pantalla "no disponible".
@@ -322,10 +339,17 @@ class Command(BaseCommand):
         dni = options["dni"]
         if not dni:
             return
-        if padron and not esta_habilitado(rel, dni, self._normalizar_sexo(options["sexo"])):
+        sexo_norm = self._normalizar_sexo(options["sexo"])
+        if padron and not esta_habilitado(rel.convocatoria, dni, sexo_norm):
             self._error(f"el DNI {dni} NO está en el padrón (con ese sexo): el paso 1 lo rechaza")
         elif padron:
-            self._ok(f"el DNI {dni} está en el padrón")
+            from programas.services.padron import fila_padron
+
+            fila = fila_padron(rel.convocatoria, dni, sexo_norm)
+            if fila is not None and fila.tiene_identidad:
+                self._ok(f"el DNI {dni} está en el padrón con identidad: el paso 2 precarga {fila.apellido}, {fila.nombre}")
+            else:
+                self._aviso(f"el DNI {dni} está en el padrón pero sin nombre y apellido: no valida por padrón")
         if dni_ya_inscripto(rel.convocatoria, dni):
             self._aviso(f"el DNI {dni} ya tiene un formulario en esta convocatoria: el paso 1 corta por duplicado")
         if resultado_personas is not None and not resultado_personas.get("success"):

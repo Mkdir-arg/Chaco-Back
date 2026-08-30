@@ -87,7 +87,13 @@ urlpatterns = [
     path("relevamientos/<int:pk>/finalizar/", rel.relevamiento_finalizar, name="relevamiento_finalizar"),
     path("relevamientos/<int:pk>/reabrir/", rel.relevamiento_reabrir, name="relevamiento_reabrir"),
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
-    path("relevamientos/<int:pk>/padron/", rel.relevamiento_reemplazar_padron, name="relevamiento_padron"),
+    # Cambio 57: el padrón es de la convocatoria (lo usan los dos canales).
+    path("convocatorias/<int:pk>/padron/", rel.convocatoria_padron, name="convocatoria_padron"),
+    path(
+        "convocatorias/<int:pk>/padron/plantilla/",
+        rel.convocatoria_padron_plantilla,
+        name="convocatoria_padron_plantilla",
+    ),
     path("relevamientos/<int:pk>/reprogramar/", rel.relevamiento_reprogramar, name="relevamiento_reprogramar"),
     path("relevamientos/<int:pk>/cupo/", rel.relevamiento_modificar_cupo, name="relevamiento_modificar_cupo"),
     # --- Revisión de casos ---
@@ -118,6 +124,11 @@ urlpatterns = [
         "revision/formulario/<int:pk>/forzar-identidad/",
         rev.formulario_forzar_identidad,
         name="formulario_forzar_identidad",
+    ),
+    path(
+        "revision/formulario/<int:pk>/validar-padron/",
+        rev.formulario_validar_padron,
+        name="formulario_validar_padron",
     ),
     # --- Cupo y lista de espera (#78) ---
     path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),

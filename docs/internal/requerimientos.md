@@ -200,7 +200,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 54 | Un relevamiento en revisión no se podía volver a poner en curso | Becas / relevamientos | `#relevamientos` `#rbac` `#ui` `#convocatorias` | PM — «cuando está en estado En revisión no lo puedo pasar a En curso, como para abrirlo de nuevo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
-| 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟡 **Analizado — análisis #325 Definido; tasks #327–#335 en Backlog (~21,5 h)** | Pendiente (padrón a convocatoria, `origen_validacion`) |
+| 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
 | 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **Analizado — análisis #326 Definido, mockups entregados; tasks #336–#356 en Backlog (150 h)** | Pendiente (catálogo, diseño, caso) |
 
 **Notas del índice**
@@ -5789,7 +5789,7 @@ No aplica: entrada nueva.
 
 # Cambio 57 — Padrón de la convocatoria como fuente de identidad
 
-🟡 **ANALIZADO — 28/08/2026** · Análisis #325 `Definido` · Tasks #327–#335 en Backlog, Iteration 7
+🟢 **HECHO — 28/08/2026** · Análisis #325 `Definido` · Desarrollo de #327–#333; pruebas #334 (automatizadas) y #335 (funcionales) en Backlog
 
 | | |
 |---|---|
@@ -5799,7 +5799,7 @@ No aplica: entrada nueva.
 | **Fecha del pedido** | 28/08/2026 |
 | **Issue / épica** | #325 (épica #69) |
 | **Partes afectadas** | Padrón (modelo y carga) · paso 1 y 2 del link · `consultar_persona_becas` · revisión · diagnóstico de integraciones |
-| **Migración** | Pendiente: padrón a convocatoria, seis columnas, `Formulario.origen_validacion` |
+| **Migración** | `programas.0056_padron_convocatoria_identidad` |
 
 ## Pedido original
 
@@ -5835,24 +5835,82 @@ No aplica: entrada nueva.
 
 ## Implementación
 
-Pendiente. El detalle ejecutable está en las tasks #327 (padrón a convocatoria), #328 (seis columnas), #329 (cascada +
-variable), #330 (origen `padron` en link y API), #331 (cruce automático), #332 (revisión), #333 (diagnóstico y docs),
-#334 (pruebas automatizadas), #335 (pruebas funcionales). Estimación ~21,5 h. **Se hace antes que el Cambio 58**, que lo hereda.
+- **Padrón a la convocatoria** (#327): `PadronHabilitado.convocatoria` reemplaza a `relevamiento`;
+  `Convocatoria.padron_archivo` reemplaza a `Relevamiento.padron_archivo`. El alta/reemplazo vive en la solapa
+  Información general de la convocatoria (`convocatoria_padron`, POST, capacidad `becas.convocatoria.editar`,
+  acotada a `convocatorias_visibles`), con plantilla descargable (`convocatoria_padron_plantilla`). El alta de
+  relevamiento ya no tiene el campo; el detalle del relevamiento informa y linkea. La URL
+  `relevamiento_padron` desaparece.
+- **Seis columnas** (#328): `parsear_padron` devuelve `(entradas, ResumenPadron)` con dicts por fila; fecha en
+  celda de Excel, serial o texto (`dd/mm/aaaa`, `aaaa-mm-dd`, …); una fecha ilegible se reporta y la fila queda sin
+  fecha. La localidad se cruza por nombre normalizado (`clave_localidad`) contra `core.Localidad`; si no coincide
+  queda `localidad_texto` y la carga la lista. `cargar_padron` acepta Convocatoria o Relevamiento y tuplas
+  `(dni, sexo)` o dicts (compatibilidad con los llamadores del Cambio 41).
+- **Cascada** (#329): `programas/services/identidad.py::identificar(convocatoria, dni, sexo)` → padrón (fila con
+  nombre y apellido = `padron`) → `consultar_persona` solo si `settings.PERSONAS_API_ACTIVA` → `manual`. La Gran
+  Base manda si difieren y devuelve `diferencias`; si falla, queda lo del padrón con `error`; `no_encontrado`
+  distingue "no está en la fuente" de "la fuente falló". `fallecido` solo viene de la Gran Base.
+- **Origen `padron`** (#330): el paso 1 del link usa `identificar`; `crear_formulario_publico` acepta `personas` y
+  `padron` como validados y guarda `origen_validacion`. En la API, `_actualizar_validacion_identidad` verifica la
+  fila en el servidor (RN-4): sin respaldo el caso queda `manual` y el `origen` del payload se corrige; con respaldo
+  toma nombre, apellido, fecha y localidad del padrón. `consultar_persona_becas` mira el padrón de todas las
+  convocatorias vigentes del territorial en una consulta (`convocatoria_con_identidad`) y consulta la Gran Base
+  una sola vez; contrato de respuesta igual, más `origen`. Una validación manual (`identidad_forzada`) no la
+  deshace un sync.
+- **Cruce automático** (#331): `validar_casos_pendientes(convocatoria, usuario)` corre dentro de `cargar_padron`:
+  solo casos `validado_renaper=False` sin `identidad_forzada`; completa en el ciudadano lo vacío (nombre, apellido,
+  fecha, localidad), en los offline completa `datos_identificacion`; traza «Validación de identidad → Validada por
+  padrón» por caso; el resumen de la carga informa cuántos.
+- **Revisión** (#332): `Formulario.origen_validacion` (`personas` / `padron` / `scan` / `forzada`; vacío = sin
+  validar) con backfill en la migración. Badges por fuente en `formulario_detalle.html`; «Validar contra el padrón»
+  (`formulario_validar_padron`, misma capacidad que «Revalidar»); «Revalidar» deshabilitado con tooltip cuando la
+  Gran Base está apagada y rechazado en el POST; al revalidar, el origen pasa a `personas`; al forzar, a `forzada`.
+- **Diagnóstico y variables** (#333): `PERSONAS_API_ACTIVA` (default `True`) en `settings` y `.env.qa.example`;
+  `diagnosticar_integraciones` la muestra y, en `False`, reporta la Gran Base como «desactivada por configuración»
+  (OK, no falla) y el padrón con su conteo de identidades.
 
 ## Archivos
 
-Pendiente. Previstos: `programas/models/__init__.py`, `programas/services/padron.py`, `programas/services/identidad.py`
-(nuevo), `portal/views/inscripcion.py`, `programas/api/views.py`, `programas/views/revision.py`,
-`programas/management/commands/diagnosticar_integraciones.py`, `config/settings.py`, `.env.qa.example`.
+- `programas/models/__init__.py` — `Convocatoria.padron_archivo`, `PadronHabilitado` (convocatoria, identidad,
+  `tiene_identidad`), `Formulario.OrigenValidacion` y `origen_validacion`.
+- `programas/migrations/0056_padron_convocatoria_identidad.py` — escrita a mano: mueve las filas a la convocatoria,
+  deduplica, cambia FK/índice/constraint, backfill de `origen_validacion`.
+- `programas/services/padron.py` — reescrito: seis columnas, `ResumenPadron`, `fila_padron`, `datos_de_fila`,
+  `convocatoria_con_identidad`, `validar_casos_pendientes`, `plantilla_padron`.
+- `programas/services/identidad.py` — nuevo: `identificar`, `gran_base_activa`.
+- `programas/services/inscripcion_publica.py`, `programas/services/becas.py` (localidad en
+  `resolver_ciudadano_offline`), `portal/views/inscripcion.py`, `portal/templates/portal/inscripcion/paso2.html`.
+- `programas/api/views.py` — `_actualizar_validacion_identidad`, `_convocatorias_para_identificar`,
+  `consultar_persona_becas`.
+- `programas/views/relevamientos.py` (`convocatoria_padron`, `convocatoria_padron_plantilla`, contexto del detalle),
+  `programas/views/revision.py` (`formulario_validar_padron`, revalidar/forzar), `programas/urls.py`,
+  `programas/forms.py` (sin `padron`).
+- Templates: `convocatoria_detail.html` (bloque de padrón), `relevamiento_detail.html`, `relevamiento_form.html`,
+  `relevamiento_list.html`, `revision/formulario_detalle.html`.
+- `programas/management/commands/diagnosticar_integraciones.py`, `config/settings.py`, `.env.qa.example`.
+- Tests: `programas/tests/test_padron.py` (reescrito), `programas/tests/test_padron_identidad.py` (nuevo),
+  ajustes en `test_becas_api`, `test_diagnosticar_integraciones` y en los tests del portal (patch target
+  `programas.services.identidad.consultar_persona`).
 
 ## Base de datos
 
-Pendiente: `PadronHabilitado.convocatoria` (reemplaza `relevamiento`) + campos de identidad; `Convocatoria.padron_archivo`;
-`Formulario.origen_validacion`. Sin conversión de datos (no hay carga real).
+`programas.0056`: `Convocatoria.padron_archivo`; en `PadronHabilitado` la FK `convocatoria` (con `RunPython` que
+copia la convocatoria de cada relevamiento y deduplica por DNI), `nombre`, `apellido`, `fecha_nacimiento`,
+`localidad` (FK a `core.Localidad`), `localidad_texto`, constraint `uniq_padron_dni_convocatoria` e índice
+`programas_padron_conv_dni_idx`; se eliminan `PadronHabilitado.relevamiento` y `Relevamiento.padron_archivo`;
+`Formulario.origen_validacion` con backfill (`forzada` si `identidad_forzada`, `personas` si estaba validado).
 
 ## Validación
 
-Pendiente. Criterios de aceptación en #325; casos QA en cada task.
+- `programas/tests/test_padron.py` (reescrito, 27 tests): parser de seis columnas, fechas, localidad, habilitación
+  compartida entre relevamientos de la convocatoria, alta/reemplazo desde la convocatoria, permisos, plantilla.
+- `programas/tests/test_padron_identidad.py` (nuevo, 30 tests): cascada con y sin Gran Base, precedencia y
+  diferencias, error vs no encontrado, fallecido; origen `padron` verificado en el servidor; cruce automático;
+  revisión (validar contra padrón, revalidar apagado, orígenes); diagnóstico.
+- Suites `test_becas_api`, `test_becas_revision`, `test_diagnosticar_integraciones`, `test_relevamiento_publico` y
+  todo `portal`: sin fallos propios (los 12 errores restantes son el bug local `dicts` de Python 3.14 + Django 4.2).
+- `manage.py check` sin observaciones · `makemigrations --check` sin cambios · `scripts/compile_templates.py` 331,
+  0 errores · `scripts/design_audit.py --changed` 0 errores.
 
 ## Puesta en marcha en el servidor
 
@@ -5865,7 +5923,8 @@ Deploy + `migrate` + `PERSONAS_API_ACTIVA=false` en el ConfigMap de ECOM mientra
 
 ## Reversión
 
-Revertir las tasks y la migración. Mientras no esté hecho, no hay nada que revertir.
+Revertir el commit y `migrate programas 0055`. Se pierde el padrón por convocatoria (vuelve a ser por relevamiento,
+sin identidad) y `origen_validacion`; `validado_renaper` se conserva, así que ningún caso deja de estar validado.
 
 ## Historial
 

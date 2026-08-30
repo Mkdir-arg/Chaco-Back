@@ -1479,6 +1479,15 @@ class Convocatoria(PausableMixin, TimeStamped):
         blank=True,
         verbose_name="Fecha de cierre automático",
     )
+    # Excel original del padrón de habilitados (Cambio 57): uno por
+    # convocatoria, lo usan todos sus relevamientos de los dos canales. Las
+    # filas parseadas viven en PadronHabilitado; el archivo es trazabilidad.
+    padron_archivo = models.FileField(
+        upload_to=ruta_padron_becas,
+        null=True,
+        blank=True,
+        verbose_name="Padrón de habilitados (archivo)",
+    )
 
     class Meta:
         verbose_name = "Convocatoria"
@@ -1583,14 +1592,8 @@ class Relevamiento(PausableMixin, TimeStamped):
             "inscribirse."
         ),
     )
-    # Excel original del padrón de habilitados (RN-P14); las entradas parseadas
-    # viven en PadronHabilitado. Solo trazabilidad: nunca se lee por request.
-    padron_archivo = models.FileField(
-        upload_to=ruta_padron_becas,
-        null=True,
-        blank=True,
-        verbose_name="Padrón de habilitados (archivo)",
-    )
+    # El padrón de habilitados vive en la convocatoria desde el Cambio 57
+    # (antes era por relevamiento público): ``relevamiento.convocatoria.padron``.
     # Se conserva el nombre técnico histórico para evitar romper integraciones;
     # funcionalmente representa el inicio del período.
     fecha_asignada = models.DateTimeField(verbose_name="Fecha y hora desde")
@@ -1796,38 +1799,60 @@ class Relevamiento(PausableMixin, TimeStamped):
 
 
 class PadronHabilitado(TimeStamped):
-    """Entrada del padrón de habilitados de un relevamiento público (RN-P14).
+    """Entrada del padrón de habilitados de una convocatoria (RN-P14, Cambio 57).
 
-    Lista blanca del paso 1 del link: si el relevamiento tiene padrón, solo
-    avanza quien figura con DNI **y** sexo coincidentes (normalizados al
-    cargar). Se puebla parseando el Excel al crear/reemplazar el padrón
-    (``programas.services.padron``); el chequeo por request es una consulta
-    indexada, nunca una lectura del archivo.
+    Dos funciones: **lista blanca** del paso 1 del link (si la convocatoria
+    tiene padrón, solo avanza quien figura con DNI **y** sexo coincidentes) y,
+    desde el Cambio 57, **fuente de identidad**: si la fila trae nombre y
+    apellido, la persona queda validada por padrón y sus datos se precargan,
+    sin depender de Base de Personas. Se puebla parseando el Excel al
+    cargar/reemplazar el padrón (``programas.services.padron``); el chequeo por
+    request es una consulta indexada, nunca una lectura del archivo.
     """
 
     class Sexo(models.TextChoices):
         FEMENINO = "F", "Femenino"
         MASCULINO = "M", "Masculino"
 
-    relevamiento = models.ForeignKey(
-        Relevamiento,
+    convocatoria = models.ForeignKey(
+        Convocatoria,
         on_delete=models.CASCADE,
         related_name="padron",
-        verbose_name="Relevamiento",
+        verbose_name="Convocatoria",
     )
     dni = models.CharField(max_length=20, verbose_name="DNI")
     sexo = models.CharField(max_length=1, choices=Sexo.choices, verbose_name="Sexo")
+    # Identidad (opcional por fila). Con nombre y apellido la fila valida;
+    # fecha y localidad completan el legajo pero no condicionan.
+    nombre = models.CharField(max_length=120, blank=True, verbose_name="Nombre")
+    apellido = models.CharField(max_length=120, blank=True, verbose_name="Apellido")
+    fecha_nacimiento = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+    localidad = models.ForeignKey(
+        "core.Localidad",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Localidad",
+    )
+    # Lo que decía el Excel, reconocida o no contra el catálogo.
+    localidad_texto = models.CharField(max_length=120, blank=True, verbose_name="Localidad (texto del Excel)")
 
     class Meta:
         verbose_name = "Habilitado del padrón"
         verbose_name_plural = "Habilitados del padrón"
         constraints = [
-            models.UniqueConstraint(fields=["relevamiento", "dni"], name="uniq_padron_dni_relevamiento"),
+            models.UniqueConstraint(fields=["convocatoria", "dni"], name="uniq_padron_dni_convocatoria"),
         ]
-        indexes = [models.Index(fields=["relevamiento", "dni", "sexo"])]
+        indexes = [models.Index(fields=["convocatoria", "dni", "sexo"], name="programas_padron_conv_dni_idx")]
 
     def __str__(self):
         return f"{self.dni} ({self.sexo})"
+
+    @property
+    def tiene_identidad(self):
+        """RN-2 del Cambio 57: valida solo con nombre **y** apellido."""
+        return bool(self.nombre.strip() and self.apellido.strip())
 
 
 class PreguntaGlobal(TimeStamped):
@@ -2089,6 +2114,25 @@ class Formulario(TimeStamped):
         verbose_name="Formulario previo con el mismo DNI",
     )
     validado_renaper = models.BooleanField(default=False, verbose_name="Validado RENAPER")
+
+    class OrigenValidacion(models.TextChoices):
+        """De dónde salió la validación de identidad (Cambio 57). Vacío = sin validar."""
+
+        PERSONAS = "personas", "Base de Personas"
+        PADRON = "padron", "Padrón de la convocatoria"
+        SCAN = "scan", "Escaneo del DNI"
+        FORZADA = "forzada", "Validación manual"
+
+    # Acompaña a ``validado_renaper``: el flag dice *si* está validada y este
+    # campo *por quién*. Un caso validado por padrón nunca se lee como si lo
+    # hubiera devuelto Base de Personas.
+    origen_validacion = models.CharField(
+        max_length=10,
+        choices=OrigenValidacion.choices,
+        blank=True,
+        default="",
+        verbose_name="Origen de la validación de identidad",
+    )
     # Salida de emergencia cuando Base de Personas no puede validar a alguien
     # que sí existe (no está en la fuente, la fuente no responde, el DNI no
     # figura). Sin esto la aprobación queda bloqueada para siempre, porque
