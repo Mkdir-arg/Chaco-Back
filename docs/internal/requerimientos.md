@@ -6146,6 +6146,21 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   inscribe»). Deuda visible que no es de este cambio: `CheckboxSelectMultiple` del portal se rinde sin
   estilo (desde el Cambio 56); la vista previa ahora lo imita apilado para no prometer otra cosa. Las
   manijas de arrastre no tienen alternativa de teclado (limitación del patrón, a priorizar por el PM).
+- **30/08/2026 — Revisión integral de desarrollo (segunda pasada).** Dos bugs graves que las pasadas
+  anteriores no vieron: (1) el drag & drop del catálogo mandaba el **CSRF vacío** —en `nodo-catalogo-grupos.js`
+  el patrón de la cookie tenía `\s` con una sola barra, que en un string JS es la letra «s»; solo funcionaba
+  si `csrftoken` era la primera cookie, en producción el reordenamiento fallaba con 403— y (2) `reconciliar`
+  **borraba un grupo del catálogo que el operador vaciaba a mano** (p. ej. mover los campos del Apoderado a
+  otro grupo) y con él su condición `edad < 18`, dejando esos campos pedidos siempre; ahora solo se borra el
+  grupo automático que el catálogo dejó sin campos en esa misma pasada, y el vaciado a mano se conserva (no
+  se muestra mientras esté vacío, RN-3). Además: el bloque editable «Apoderado» de la revisión sigue la
+  condición real de la foto y no la regla fija de 18 (D10; sin foto cae a `es_menor`); **volcado al legajo
+  (RN-10)**: el celular y el correo respondidos completan `Ciudadano.telefono/email` si estaban vacíos, nunca
+  pisan; `DisenoFormulario.tocar` incrementa la versión en la base (`F`) para que dos pestañas no pierdan una;
+  el placeholder `{"pendiente_upload": true}` de la app no se muestra como valor; los textos dentro de un grupo
+  protegido siguen visibles en «Respuestas»; la vista previa muestra el sexo del apoderado con nombre. Tests:
+  `GruposVaciosTests`, `JsCatalogoTests`, `VolcadoAlLegajoTests`, `ApoderadoSegunLaFotoTests`,
+  `PlaceholderArchivoTests`. Se quitó el endpoint `formulario_datos`, que nada llamaba.
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

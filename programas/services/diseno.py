@@ -298,12 +298,15 @@ def reconciliar(diseno, usuario=None):
             esperados[requisito.pk] = (nivel, nombre, requisito)
 
     quitados, agregados = [], []
+    padres_vaciados = set()
     for item in items:
         sobra = (item.pregunta_id and item.pregunta_id not in esperadas) or (
             item.requisito_id and item.requisito_id not in esperados
         )
         if sobra:
             quitados.append((item.clave, item.titulo))
+            if item.padre_id:
+                padres_vaciados.add(item.padre_id)
             item.delete()
 
     for pk, pregunta in esperadas.items():
@@ -333,14 +336,19 @@ def reconciliar(diseno, usuario=None):
         )
         agregados.append(requisito.texto)
 
-    # Un grupo automático —del catálogo o de nivel— que quedó sin hijos no se
-    # muestra (RN-3) y tampoco se guarda: se borra y, si vuelve a hacer falta,
-    # ``_grupo_para_pregunta``/``_grupo_para_nivel`` lo recrean. Los grupos que
-    # creó el operador (sin catálogo) se conservan aunque estén vacíos.
+    # Un grupo automático —del catálogo o de nivel— que se quedó sin hijos
+    # **porque el catálogo se los quitó en esta pasada** no se muestra (RN-3) y
+    # tampoco se guarda: se borra y, si vuelve a hacer falta, lo recrean
+    # ``_grupo_para_pregunta``/``_grupo_para_nivel``. Un grupo que el operador
+    # vació a mano (movió sus campos a otro lado) se conserva con su condición y
+    # su etiqueta: borrarlo perdería, por ejemplo, el «edad < 18» del Apoderado
+    # sin aviso. Los grupos propios del operador se conservan siempre.
     automaticas = {clave for clave, _ in NIVELES.values()} | {CLAVE_GENERALES_SUELTAS}
     grupos_vacios = [
         g
-        for g in diseno.items.filter(tipo=GRUPO).annotate(n_hijos=models.Count("hijos")).filter(n_hijos=0)
+        for g in diseno.items.filter(tipo=GRUPO, pk__in=padres_vaciados)
+        .annotate(n_hijos=models.Count("hijos"))
+        .filter(n_hijos=0)
         if g.grupo_catalogo_id or g.clave in automaticas
     ]
     for grupo in grupos_vacios:

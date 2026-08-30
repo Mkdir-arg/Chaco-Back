@@ -198,6 +198,38 @@ class GenerarYReconciliarTests(_Base):
         self.assertEqual(campo["tipo"], TipoCampo.SELECTOR)  # el catálogo sigue mandando el tipo
 
 
+class GruposVaciosTests(_Base):
+    """Un grupo del catálogo que el operador vació a mano conserva su condición;
+    uno que el catálogo dejó sin campos desaparece (RN-3)."""
+
+    def test_vaciar_a_mano_conserva_el_grupo_y_su_condicion(self):
+        diseno, _ = obtener_o_crear_diseno(self.convocatoria)
+        apoderado = diseno.items.get(clave="g-apoderado")
+        self.assertIsNotNone(apoderado.condicion)
+        destino = diseno.items.get(clave="g-cuestionario")
+        diseno.items.filter(padre=apoderado).update(padre=destino)
+
+        avisos = reconciliar(diseno)
+
+        self.assertTrue(diseno.items.filter(clave="g-apoderado").exists())
+        apoderado.refresh_from_db()
+        self.assertEqual(apoderado.condicion["reglas"][0]["op"], "edad_menor")
+        self.assertEqual(avisos["quitados"], [])
+        # Vacío, no se emite (RN-3), pero sigue ahí para cuando vuelva a tener campos.
+        claves = [g["clave"] for g in serializar(items_ordenados(diseno))]
+        self.assertNotIn("g-apoderado", claves)
+
+    def test_vaciado_por_el_catalogo_desaparece(self):
+        diseno, _ = obtener_o_crear_diseno(self.convocatoria)
+        self.assertTrue(diseno.items.filter(clave="g-contacto").exists())
+        PreguntaGlobal.objects.filter(grupo__clave="contacto").update(activo=False)
+
+        avisos = reconciliar(diseno)
+
+        self.assertFalse(diseno.items.filter(clave="g-contacto").exists())
+        self.assertEqual(len(avisos["quitados"]), 2)
+
+
 class SerializacionTests(_Base):
     def test_grupos_con_campos_y_condiciones(self):
         grupos = serializar(plan_por_defecto(self.convocatoria), CanalFormulario.LINK)

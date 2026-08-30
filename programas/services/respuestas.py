@@ -236,6 +236,10 @@ def legible(item, valor):
     nombre; lo demás tal cual. Una lista se devuelve como lista."""
     if valor in (None, "", []):
         return ""
+    if isinstance(valor, dict):
+        # Placeholder de la app vieja para un archivo aún no subido
+        # ({"pendiente_upload": true}): no es un valor para mostrar.
+        return ""
     if isinstance(valor, (list, tuple)):
         return list(valor)
     texto = str(valor)

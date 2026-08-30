@@ -11,7 +11,7 @@
   'use strict';
 
   function getCookie(name) {
-    var m = document.cookie.match('(^|;)\s*' + name + '\s*=\s*([^;]+)');
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
     return m ? decodeURIComponent(m.pop()) : '';
   }
 

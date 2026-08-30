@@ -289,3 +289,93 @@ class LecturaRevisionTests(_Base):
         formulario.refresh_from_db()
         self.assertEqual(formulario.respuestas[self._clave(OrigenRequisito.LEGAJO, "telefono")], "3629999999")
         self.assertEqual(formulario.respuestas[self._clave(OrigenRequisito.LEGAJO, "email")], "nuevo@correo.com")
+
+
+class VolcadoAlLegajoTests(_Base):
+    def test_el_contacto_completa_el_legajo_sin_pisar(self):
+        from programas.services.becas import resolver_ciudadano_offline
+
+        nuevo = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            celular="3624000111",
+            email_contacto="nuevo@correo.com",
+            datos_identificacion={"dni": "28111222", "nombre": "Ana", "apellido": "Ruiz", "sexo": "F"},
+        )
+        resolver_ciudadano_offline(nuevo)
+        nuevo.refresh_from_db()
+        self.assertEqual(nuevo.ciudadano.telefono, "3624000111")
+        self.assertEqual(nuevo.ciudadano.email, "nuevo@correo.com")
+
+        existente = Ciudadano.objects.create(dni="30123456", nombre="María", apellido="Gómez", telefono="3620000000")
+        otro = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            celular="3629999999",
+            email_contacto="maria@correo.com",
+            datos_identificacion={"dni": "30123456", "nombre": "María", "apellido": "Gómez", "sexo": "F"},
+        )
+        resolver_ciudadano_offline(otro)
+        existente.refresh_from_db()
+        self.assertEqual(existente.telefono, "3620000000")  # no se pisa
+        self.assertEqual(existente.email, "maria@correo.com")  # se completa
+
+
+class ApoderadoSegunLaFotoTests(_Base):
+    def _detalle(self, formulario):
+        admin = User.objects.create_user(f"admin-apo-{formulario.pk}", password="x")
+        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(admin)
+        return self.client.get(reverse("becas:formulario_detalle", args=[formulario.pk]))
+
+    def _caso_adulto(self):
+        formulario = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            celular="3624123456",
+            datos_identificacion={"dni": "30123456", "nombre": "María", "apellido": "Gómez", "sexo": "F"},
+        )
+        sincronizar_desde_legacy(formulario, self.relevamiento)
+        formulario.ciudadano = Ciudadano.objects.create(
+            dni="30123456", nombre="María", apellido="Gómez", fecha_nacimiento=date(1990, 1, 1)
+        )
+        formulario.save(update_fields=["ciudadano"])
+        formulario.respuestas[self._clave(OrigenRequisito.LEGAJO, "fecha_nacimiento")] = "1990-01-01"
+        formulario.save(update_fields=["respuestas"])
+        return formulario
+
+    def test_adulto_con_la_condicion_por_defecto_no_ve_el_bloque(self):
+        resp = self._detalle(self._caso_adulto())
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context["mostrar_apoderado"])
+
+    def test_la_condicion_configurada_manda_sobre_la_regla_fija(self):
+        """La convocatoria pidió apoderado hasta los 40: el revisor lo ve aunque
+        la regla legacy (menor de 18) diga que no (D10)."""
+        formulario = self._caso_adulto()
+        for grupo in formulario.definicion["items"]:
+            if grupo["clave"] == "g-apoderado":
+                grupo["condicion"]["reglas"][0]["valor"] = 40
+        formulario.save(update_fields=["definicion"])
+        resp = self._detalle(formulario)
+        self.assertTrue(resp.context["mostrar_apoderado"])
+
+
+class PlaceholderArchivoTests(_Base):
+    def test_el_pendiente_upload_de_la_app_no_rompe_ni_se_muestra(self):
+        certificado = RequisitoNativo.objects.create(
+            texto="Certificado", tipo=TipoCampo.ARCHIVO, segmento=self.segmento, orden=2
+        )
+        foto = foto_definicion(self.relevamiento)
+        data = {"globales": {}, "requisitos": {str(certificado.pk): {"pendiente_upload": True}}}
+        respuestas = respuestas_desde_legacy(data, {}, {}, foto)
+        clave = clave_requisito(certificado)
+        self.assertEqual(respuestas[clave], {"pendiente_upload": True})
+        vuelta, _ = legacy_desde_respuestas(respuestas, foto)
+        self.assertEqual(vuelta["requisitos"][str(certificado.pk)], {"pendiente_upload": True})
+        formulario = Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            respuestas=respuestas,
+            definicion=foto,
+            datos_identificacion={"dni": "1"},
+        )
+        fila = next(i for b in respuestas_legibles(formulario) for i in b["items"] if i.get("clave") == clave)
+        self.assertTrue(fila["es_archivo"])
+        self.assertEqual(fila["valor"], "")

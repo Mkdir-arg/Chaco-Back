@@ -2586,11 +2586,14 @@ class DisenoFormulario(TimeStamped):
         return f"Formulario de {self.convocatoria} · v{self.version}"
 
     def tocar(self, usuario=None):
-        """Cada guardado del constructor es una versión nueva (D8)."""
-        self.version += 1
+        """Cada guardado del constructor es una versión nueva (D8). El
+        incremento va en la base (``F``): dos operadores a la vez no pierden
+        una versión."""
+        campos = {"version": models.F("version") + 1, "modificado": timezone.now()}
         if usuario is not None:
-            self.actualizado_por = usuario
-        self.save(update_fields=["version", "actualizado_por", "modificado"])
+            campos["actualizado_por"] = usuario
+        type(self).objects.filter(pk=self.pk).update(**campos)
+        self.refresh_from_db(fields=["version", "actualizado_por", "modificado"])
 
 
 class ItemDiseno(TimeStamped):

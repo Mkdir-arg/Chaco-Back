@@ -197,3 +197,15 @@ class GruposTests(_Base):
 
     def test_grupo_eliminar_no_acepta_get(self):
         self.assertEqual(self.client.get(reverse("becas:grupo_eliminar", args=[self.contacto.pk])).status_code, 405)
+
+
+class JsCatalogoTests(TestCase):
+    def test_el_patron_de_la_cookie_csrf_escapa_las_barras(self):
+        r"""`'\s'` en un string JS es la letra s: el patrón solo encontraba la
+        cookie si `csrftoken` iba primera y el drag & drop fallaba con 403."""
+        from pathlib import Path
+
+        from django.conf import settings
+
+        js = Path(settings.BASE_DIR, "static", "custom", "js", "nodo-catalogo-grupos.js").read_text(encoding="utf-8")
+        self.assertIn("'(^|;)\\\\s*' + name + '\\\\s*=\\\\s*([^;]+)'", js)

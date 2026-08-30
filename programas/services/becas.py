@@ -184,6 +184,22 @@ def registrar_traza(formulario, usuario, cambios):
 
 
 @transaction.atomic
+def _completar_contacto(ciudadano, formulario):
+    """RN-10, volcado al legajo: el celular y el correo que la persona respondió
+    en el formulario completan el legajo **solo si estaba vacío**; nunca pisan
+    un dato ya cargado por otro programa."""
+    completar = []
+    if formulario.celular and not ciudadano.telefono:
+        ciudadano.telefono = formulario.celular
+        completar.append("telefono")
+    if formulario.email_contacto and not ciudadano.email:
+        ciudadano.email = formulario.email_contacto
+        completar.append("email")
+    if completar:
+        ciudadano.save(update_fields=[*completar, "modificado"])
+    return completar
+
+
 def resolver_ciudadano_offline(formulario):
     """Resuelve el ciudadano de un formulario que llegó por sync offline.
 
@@ -222,9 +238,14 @@ def resolver_ciudadano_offline(formulario):
                     completar.append("localidad")
                 if completar:
                     ciudadano.save(update_fields=[*completar, "modificado"])
+            _completar_contacto(ciudadano, formulario)
             formulario.ciudadano = ciudadano
             formulario.datos_identificacion = None
             campos_actualizados.extend(["ciudadano", "datos_identificacion"])
+
+    if formulario.ciudadano_id and not campos_actualizados:
+        # Ya tenía legajo (p. ej. edición de contacto en revisión): igual completa.
+        _completar_contacto(formulario.ciudadano, formulario)
 
     apoderado_desactualizado = bool(
         formulario.apoderado_ciudadano_id and formulario.apoderado_ciudadano.dni != formulario.apoderado_dni

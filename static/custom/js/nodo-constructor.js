@@ -243,8 +243,10 @@
           return '<input type="text" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '" readonly placeholder="Se toma de la identificación del paso 1">';
         }
         var out = '<select class="nodo-field" data-clave="' + clave + '"><option value="">Elegí…</option>';
+        // El sexo se elige con nombre, como lo rinde el portal (F/M es el valor).
+        var etiquetas = item.vinculo === 'genero' ? { F: 'Femenino', M: 'Masculino' } : {};
         (item.opciones || []).forEach(function (o) {
-          out += '<option value="' + esc(o) + '"' + (String(v) === String(o) ? ' selected' : '') + '>' + esc(o) + '</option>';
+          out += '<option value="' + esc(o) + '"' + (String(v) === String(o) ? ' selected' : '') + '>' + esc(etiquetas[o] || o) + '</option>';
         });
         return out + '</select>' + (item.presentacion === 'BUSCADOR' ? '<p class="pv-ayuda">Se muestra como buscador con píldoras.</p>' : '');
       }

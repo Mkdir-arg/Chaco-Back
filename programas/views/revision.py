@@ -311,7 +311,7 @@ def _respuestas_resueltas(formulario):
 def _sin_vinculados(bloques):
     """Los campos vinculados al legajo y al apoderado ya tienen su sección en
     el detalle (identidad, contacto, apoderado): en «Respuestas» quedan solo
-    las preguntas. Un grupo que se queda sin nada no se muestra."""
+    las preguntas y los textos. Un grupo que se queda sin nada no se muestra."""
     if bloques is None:
         return None
     filtrados = []
@@ -319,9 +319,21 @@ def _sin_vinculados(bloques):
         items = [
             i for i in bloque["items"] if i.get("tipo") != "campo" or not i.get("origen") or i["origen"] == "pregunta"
         ]
-        if any(i.get("tipo") == "campo" for i in items):
+        if items:
             filtrados.append({**bloque, "items": items})
     return filtrados
+
+
+def _apoderado_pedido(bloques, por_defecto):
+    """¿El formulario le pidió el apoderado a esta persona? Con foto, lo dice
+    la condición del grupo que tiene los campos del apoderado; sin foto (o sin
+    ese grupo en el diseño), ``por_defecto``."""
+    if not bloques:
+        return por_defecto
+    con_apoderado = [b for b in bloques if any(i.get("origen") == "persona_vinculada" for i in b["items"])]
+    if not con_apoderado:
+        return por_defecto
+    return any(not b["oculto"] for b in con_apoderado)
 
 
 @login_required
@@ -368,7 +380,8 @@ def formulario_detalle(request, pk):
         form = FormularioRevisionForm(instance=formulario)
 
     # Cambio 58 (#347): un caso con foto se lee desde la foto; uno anterior, por pk.
-    bloques = _sin_vinculados(respuestas_legibles(formulario))
+    bloques_completos = respuestas_legibles(formulario)
+    bloques = _sin_vinculados(bloques_completos)
     if bloques is None:
         globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
     else:
@@ -387,7 +400,10 @@ def formulario_detalle(request, pk):
         or formulario.apoderado_genero
         or formulario.apoderado_fecha_nacimiento
     )
-    mostrar_apoderado = bool(es_menor(fecha_nacimiento) or tiene_datos_apoderado)
+    # Con foto manda la condición que configuró la convocatoria (D10); sin foto
+    # (caso anterior al Cambio 58), la regla fija de siempre: menor de 18.
+    apoderado_pedido = _apoderado_pedido(bloques_completos, es_menor(fecha_nacimiento))
+    mostrar_apoderado = bool(apoderado_pedido or tiene_datos_apoderado)
     mapa = None
     if formulario.gps_lat is not None and formulario.gps_lng is not None:
         lat = float(formulario.gps_lat)
