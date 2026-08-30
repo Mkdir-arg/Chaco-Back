@@ -6020,7 +6020,15 @@ app móvil actual sigue funcionando sin cambios mientras el equipo móvil hace #
 - La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el
   formulario plano y el backend traduce lo que manda (`sincronizar_desde_legacy`).
 - Borrar `data` y las columnas fijas del caso cuando ningún lector las use (deuda, no bloquea).
-- El motor de condiciones no filtra todavía los reportes ni las exportaciones: leen `data` como siempre.
+- La **condición por defecto** de un grupo del catálogo (la del Apoderado: `edad_menor 18`) se ajusta en
+  cada convocatoria desde el constructor (D10), pero no tiene editor en la pantalla del catálogo: la
+  siembra el seed y se ve como badge. Si el PM quiere cambiar el default para todas las convocatorias
+  nuevas, hoy es por seed/admin. El mockup del catálogo la mostraba editable; queda como mejora.
+- Las manijas de arrastre no tienen alternativa de teclado (el patrón SortableJS no la trae): reordenar
+  exige mouse o touch. A priorizar por el PM como mejora de accesibilidad transversal.
+- Las exportaciones y los reportes de Becas no incluyen respuestas del formulario (solo identidad, estado y
+  fechas), así que los campos propios y las condiciones no los afectan; si algún día exportan respuestas,
+  tienen que leer `respuestas` + la foto (`respuestas_legibles`), no `data`.
 
 ## Reversión
 

@@ -268,14 +268,6 @@ class ConvocatoriaFormularioView(CapacidadRequeridaMixin, LoginRequiredMixin, Vi
         return render(request, "programas/becas/formulario/convocatoria_formulario.html", ctx)
 
 
-@login_required
-@requiere(CAP_CONVOCATORIA_EDITAR)
-def formulario_datos(request, pk):
-    """Los datos del diseño (para refrescar la vista previa sin recargar)."""
-    diseno, avisos = _diseno(request, pk)
-    return JsonResponse({"ok": True, "datos": _datos(diseno, items_ordenados(diseno)), "avisos": avisos})
-
-
 # ── Mutaciones ───────────────────────────────────────────────────────────────
 
 

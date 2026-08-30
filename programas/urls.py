@@ -98,7 +98,6 @@ urlpatterns = [
     path(
         "convocatorias/<int:pk>/formulario/", dis.ConvocatoriaFormularioView.as_view(), name="convocatoria_formulario"
     ),
-    path("convocatorias/<int:pk>/formulario/datos/", dis.formulario_datos, name="formulario_datos"),
     path("convocatorias/<int:pk>/formulario/mover/", dis.formulario_mover, name="formulario_mover"),
     path("convocatorias/<int:pk>/formulario/grupo/", dis.formulario_grupo_crear, name="formulario_grupo_crear"),
     path("convocatorias/<int:pk>/formulario/texto/", dis.formulario_texto_crear, name="formulario_texto_crear"),
