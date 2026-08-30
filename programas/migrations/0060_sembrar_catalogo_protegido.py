@@ -24,7 +24,7 @@ CATALOGO_PROTEGIDO = [
     (
         "datos_personales",
         "Datos personales",
-        "Tomamos estos datos de tu identificación.",
+        "Los datos de la persona que se inscribe.",
         0,
         None,
         [

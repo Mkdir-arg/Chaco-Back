@@ -6122,6 +6122,22 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   que se editen esas pantallas. También se desempató `ValidacionSIS.Meta.ordering` (`programas.0061`): con
   `-creado` sola, dos validaciones del mismo instante quedaban en orden aleatorio y el historial de la
   revisión —y un test— fallaban de a ratos.
+- **30/08/2026 — Revisión visual en navegador real.** Se recorrieron las cuatro pantallas con Chromium
+  (Playwright, servidor local con SQLite) en escritorio y móvil, y se corrigió lo que se vio: el modal de
+  condición **no mostraba la regla guardada** (los `<option>` nacen después de que `x-model` fija el valor;
+  ahora llevan `:selected`); una pregunta con texto largo empujaba las acciones del catálogo fuera de la
+  pantalla (`td.pregunta-texto` parte el texto); Escape no cerraba los modales; el sexo se mostraba como
+  «F» y las fechas en ISO al ciudadano y al revisor (`respuestas.legible`: «Femenino», dd/mm/aaaa; el valor
+  crudo viaja en `data-valor` para las condiciones); la revisión repetía identidad, contacto y apoderado en
+  «Respuestas» cuando ya tienen sección propia (`_sin_vinculados`); los textos no detectaban links (D13:
+  `urlize` en paso 2 y revisión); la vista previa pedía DNI y sexo que el paso 2 real toma del paso 1; los
+  cinco modales del constructor sin `max-h-[90vh] overflow-y-auto` como el resto de Becas; «Configurar
+  formulario» se veía como una quinta tab en vez de un enlace a otra pantalla; foco recortado en el toggle
+  de canal; doble scroll de la vista previa bajo 1280px; el subtítulo «Tomamos estos datos de tu
+  identificación» aparecía cuando la persona los tiene que escribir (ahora «Los datos de la persona que se
+  inscribe»). Deuda visible que no es de este cambio: `CheckboxSelectMultiple` del portal se rinde sin
+  estilo (desde el Cambio 56); la vista previa ahora lo imita apilado para no prometer otra cosa. Las
+  manijas de arrastre no tienen alternativa de teclado (limitación del patrón, a priorizar por el PM).
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

@@ -17,6 +17,7 @@ escribiendo ``data`` y las columnas fijas mientras haya lectores que las usen.
 from __future__ import annotations
 
 from django.db import transaction
+from django.utils.dateparse import parse_date
 
 from programas.models import OrigenRequisito
 from programas.services import condiciones
@@ -225,6 +226,27 @@ def sincronizar_desde_legacy(formulario, relevamiento=None):
     return respuestas
 
 
+# ── Valores legibles ─────────────────────────────────────────────────────────
+
+SEXO_LEGIBLE = {"F": "Femenino", "M": "Masculino"}
+
+
+def legible(item, valor):
+    """El valor como lo lee una persona: fechas en dd/mm/aaaa y el sexo con su
+    nombre; lo demás tal cual. Una lista se devuelve como lista."""
+    if valor in (None, "", []):
+        return ""
+    if isinstance(valor, (list, tuple)):
+        return list(valor)
+    texto = str(valor)
+    if item.get("tipo") == "DATE":
+        fecha = parse_date(texto[:10])
+        return fecha.strftime("%d/%m/%Y") if fecha else texto
+    if (item.get("vinculo") or "") == "genero" or item.get("opciones") == ["F", "M"]:
+        return SEXO_LEGIBLE.get(texto.upper(), texto)
+    return texto
+
+
 # ── Lectura para la revisión ─────────────────────────────────────────────────
 
 EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -257,7 +279,7 @@ def respuestas_legibles(formulario, definicion=None, adjuntos=None):
                     {
                         "tipo": "campo",
                         "label": item.get("texto", ""),
-                        "valor": "" if valor in (None, [], "") else valor,
+                        "valor": legible(item, valor),
                         "es_multiple": isinstance(valor, list),
                         "es_archivo": item.get("tipo") == "ARCHIVO",
                         "adjunto": adjunto,

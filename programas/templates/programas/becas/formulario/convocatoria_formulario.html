@@ -18,6 +18,7 @@
      data-url-propio="{% url 'becas:formulario_propio_crear' convocatoria.pk %}"
      @constructor-abrir.window="abrir($event.detail)"
      @constructor-datos.window="version = $event.detail.version"
+     @keydown.escape.window="cerrar()"
      @becas-saved.window="cerrar()">
 
   {# Header #}
@@ -88,21 +89,21 @@
           <p class="text-xs text-body-subtle">Así lo ve la persona. Respondé acá para probar las condiciones; no se guarda nada.</p>
         </div>
         <div class="flex rounded-lg border border-base overflow-hidden text-xs font-medium" role="group" aria-label="Canal de la vista previa">
-          <button type="button" class="px-3 py-1.5 transition" :class="canal === 'link' ? 'bg-brand-soft text-fg-brand' : 'text-body-subtle hover:bg-secondary'" :aria-pressed="canal === 'link'" @click="canal = 'link'">
+          <button type="button" class="pv-canal-btn px-3 py-1.5 transition" :class="canal === 'link' ? 'bg-brand-soft text-fg-brand' : 'text-body-subtle hover:bg-secondary'" :aria-pressed="canal === 'link'" @click="canal = 'link'">
             <i class="fas fa-link"></i> Link público
           </button>
-          <button type="button" class="px-3 py-1.5 transition border-l border-base" :class="canal === 'app' ? 'bg-brand-soft text-fg-brand' : 'text-body-subtle hover:bg-secondary'" :aria-pressed="canal === 'app'" @click="canal = 'app'">
+          <button type="button" class="pv-canal-btn px-3 py-1.5 transition border-l border-base" :class="canal === 'app' ? 'bg-brand-soft text-fg-brand' : 'text-body-subtle hover:bg-secondary'" :aria-pressed="canal === 'app'" @click="canal = 'app'">
             <i class="fas fa-mobile-screen"></i> App de campo
           </button>
         </div>
       </div>
-      <div id="constructor-preview" class="p-5 max-h-[82vh] overflow-y-auto"></div>
+      <div id="constructor-preview" class="p-5 xl:max-h-[82vh] xl:overflow-y-auto"></div>
     </section>
   </div>
 
   {# ── Modal: grupo (crear / editar) ── #}
   <div x-show="modal === 'grupo'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-layer-group"></i></div>
@@ -138,7 +139,7 @@
 
   {# ── Modal: texto (crear / editar) ── #}
   <div x-show="modal === 'texto'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-align-left"></i></div>
@@ -176,7 +177,7 @@
 
   {# ── Modal: campo propio (crear / editar) ── #}
   <div x-show="modal === 'propio'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-plus"></i></div>
@@ -240,7 +241,7 @@
 
   {# ── Modal: etiqueta de un campo del catálogo ── #}
   <div x-show="modal === 'etiqueta'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)"><i class="fas fa-tag"></i></div>
@@ -272,7 +273,7 @@
 
   {# ── Modal: condición ── #}
   <div x-show="modal === 'condicion'" x-cloak @click="cerrar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-warning-soft);color:var(--text-fg-warning)"><i class="fas fa-code-branch"></i></div>
@@ -301,16 +302,16 @@
             <div class="grid grid-cols-1 cons-regla-grid gap-2 items-center">
               <select x-model="r.fuente" @change="r.op = ''; r.valor = ''" class="nodo-field" aria-label="Campo fuente">
                 <option value="">Campo…</option>
-                <template x-for="fu in cond.fuentes" :key="fu.clave"><option :value="fu.clave" x-text="fu.titulo"></option></template>
+                <template x-for="fu in cond.fuentes" :key="fu.clave"><option :value="fu.clave" :selected="fu.clave === r.fuente" x-text="fu.titulo"></option></template>
               </select>
               <select x-model="r.op" class="nodo-field" aria-label="Operador" :disabled="!r.fuente">
                 <option value="">Operador…</option>
-                <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" x-text="etiquetaOp(op)"></option></template>
+                <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
               </select>
               <div>
                 <select x-show="necesitaValor(r) && opcionesDe(r.fuente).length && !conLista(r.op)" x-model="r.valor" class="nodo-field" aria-label="Valor">
                   <option value="">Valor…</option>
-                  <template x-for="o in opcionesDe(r.fuente)" :key="o"><option :value="o" x-text="o"></option></template>
+                  <template x-for="o in opcionesDe(r.fuente)" :key="o"><option :value="o" :selected="String(o) === String(r.valor)" x-text="o"></option></template>
                 </select>
                 <input x-show="necesitaValor(r) && (!opcionesDe(r.fuente).length || conLista(r.op))" x-model="r.valor" :type="tipoInput(r)" class="nodo-field" aria-label="Valor" :placeholder="conLista(r.op) ? 'valores separados por coma' : ''">
                 <span x-show="!necesitaValor(r)" class="text-xs text-body-subtle">Sin valor</span>

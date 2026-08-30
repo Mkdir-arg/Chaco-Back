@@ -265,8 +265,14 @@ class LecturaRevisionTests(_Base):
         self.assertEqual(resp.status_code, 200)
         self.assertIsNotNone(resp.context["bloques"])
         html = resp.content.decode()
-        self.assertIn("Datos personales", html)
-        self.assertIn("3624123456", html)
+        # Las preguntas van en «Respuestas», en el orden de la foto; identidad,
+        # contacto y apoderado no se repiten ahí porque tienen su sección arriba.
+        titulos = [b["grupo"]["titulo"] for b in resp.context["bloques"]]
+        self.assertIn("Cuestionario social", titulos)
+        self.assertNotIn("Datos personales", titulos)
+        self.assertNotIn("Contacto", titulos)
+        self.assertIn("Tenencia de la vivienda", html)
+        self.assertIn("3624123456", html)  # el contacto sigue en su form
 
     def test_editar_el_contacto_actualiza_las_respuestas(self):
         formulario = self._caso_con_foto()

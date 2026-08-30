@@ -49,8 +49,8 @@
         var control = caja.querySelector('select, textarea, input');
         if (!control) {
           // Dato fijo del paso 1 (identidad ya validada): se muestra como texto.
-          var fijo = caja.querySelector('p + p');
-          if (fijo && fijo.textContent.trim()) { out[item.clave] = fijo.textContent.trim(); }
+          // El dato fijo viaja crudo en data-valor (lo que se ve está formateado).
+          if (caja.dataset.valor) { out[item.clave] = caja.dataset.valor; }
           return;
         }
         if (control.multiple) {

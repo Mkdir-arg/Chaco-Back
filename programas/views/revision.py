@@ -308,6 +308,22 @@ def _respuestas_resueltas(formulario):
     return globales_list, requisitos_segmento, requisitos_subsegmento
 
 
+def _sin_vinculados(bloques):
+    """Los campos vinculados al legajo y al apoderado ya tienen su sección en
+    el detalle (identidad, contacto, apoderado): en «Respuestas» quedan solo
+    las preguntas. Un grupo que se queda sin nada no se muestra."""
+    if bloques is None:
+        return None
+    filtrados = []
+    for bloque in bloques:
+        items = [
+            i for i in bloque["items"] if i.get("tipo") != "campo" or not i.get("origen") or i["origen"] == "pregunta"
+        ]
+        if any(i.get("tipo") == "campo" for i in items):
+            filtrados.append({**bloque, "items": items})
+    return filtrados
+
+
 @login_required
 @requiere(CAP_REVISION_VER, CAP_REVISION_EDITAR)
 def formulario_detalle(request, pk):
@@ -352,7 +368,7 @@ def formulario_detalle(request, pk):
         form = FormularioRevisionForm(instance=formulario)
 
     # Cambio 58 (#347): un caso con foto se lee desde la foto; uno anterior, por pk.
-    bloques = respuestas_legibles(formulario)
+    bloques = _sin_vinculados(respuestas_legibles(formulario))
     if bloques is None:
         globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
     else:

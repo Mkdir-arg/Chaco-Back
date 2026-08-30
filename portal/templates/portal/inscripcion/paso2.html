@@ -51,11 +51,11 @@ todo el formulario se muestra y el envío funciona igual.{% endcomment %}
             <div class="space-y-4 {% if not grupo.subtitulo %}mt-3{% endif %}">
                 {% for item in grupo.items %}
                     {% if item.tipo == "texto" %}
-                    <p data-item="{{ item.clave }}" class="text-sm" style="color: var(--text-body);">{{ item.texto }}</p>
+                    <p data-item="{{ item.clave }}" class="text-sm" style="color: var(--text-body);">{{ item.texto|urlize }}</p>
                     {% elif item.fijo %}
-                    <div data-item="{{ item.clave }}">
+                    <div data-item="{{ item.clave }}" data-valor="{{ item.fijo }}">
                         <p class="block text-xs font-semibold mb-1" style="color: var(--text-body-subtle);">{{ item.label }}</p>
-                        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ item.fijo }}</p>
+                        <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ item.fijo_texto }}</p>
                     </div>
                     {% else %}
                     <div data-item="{{ item.clave }}">

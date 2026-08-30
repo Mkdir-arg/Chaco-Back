@@ -229,7 +229,8 @@
 
   function inputDe(item) {
     var clave = esc(item.clave), v = respuestas[item.clave];
-    var solo_lectura = item.vinculo === 'dni';
+    // Lo que el paso 1 ya sabe del titular no se pide en el paso 2.
+    var solo_lectura = item.origen === 'legajo' && (item.vinculo === 'dni' || item.vinculo === 'genero');
     switch (item.tipo_campo) {
       case 'INT':
         return '<input type="number" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '">';
@@ -238,6 +239,9 @@
       case 'ARCHIVO':
         return '<label class="pv-archivo"><input type="checkbox" data-clave="' + clave + '" ' + (v ? 'checked' : '') + '> <span>Simular archivo adjuntado</span></label>';
       case 'SELECTOR': {
+        if (solo_lectura) {
+          return '<input type="text" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '" readonly placeholder="Se toma de la identificación del paso 1">';
+        }
         var out = '<select class="nodo-field" data-clave="' + clave + '"><option value="">Elegí…</option>';
         (item.opciones || []).forEach(function (o) {
           out += '<option value="' + esc(o) + '"' + (String(v) === String(o) ? ' selected' : '') + '>' + esc(o) + '</option>';
@@ -254,7 +258,7 @@
       }
       default:
         if (solo_lectura) {
-          return '<input type="text" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '" readonly placeholder="Se toma de la identificación">';
+          return '<input type="text" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '" readonly placeholder="Se toma de la identificación del paso 1">';
         }
         return '<input type="text" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '">';
     }

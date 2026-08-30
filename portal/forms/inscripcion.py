@@ -4,7 +4,7 @@ from django import forms
 
 from programas.services.padron import normalizar_dni
 from programas.services.personas import fecha_iso
-from programas.services.respuestas import aplicar, foto_definicion, planos_de
+from programas.services.respuestas import aplicar, foto_definicion, legible, planos_de
 
 INPUT_CLASS = "nodo-field w-full"
 
@@ -183,12 +183,14 @@ class InscripcionPaso2Form(forms.Form):
             "obligatorio": bool(item.get("obligatorio")),
             "es_archivo": item.get("tipo") == "ARCHIVO",
             "fijo": None,
+            "fijo_texto": "",
             "bound": None,
         }
         valor_fijo = self._valor_fijo(origen, vinculo, datos)
         if valor_fijo:
             self.fijas[clave] = valor_fijo
             fila["fijo"] = valor_fijo
+            fila["fijo_texto"] = legible(item, valor_fijo)
             return fila
         field = self._field_vinculado(origen, vinculo, item) or _field_para_campo(item)
         obligatorio = bool(item.get("obligatorio"))

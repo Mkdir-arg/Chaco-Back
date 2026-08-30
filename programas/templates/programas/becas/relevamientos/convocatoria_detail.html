@@ -58,7 +58,8 @@
         <i class="fas fa-chart-simple"></i> Reportes
       </button>{% endif %}
       {% if puede_formulario %}<a href="{% url 'becas:convocatoria_formulario' convocatoria.pk %}"
-              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 text-body-subtle border-transparent hover:text-body font-medium ml-auto">
+              class="px-4 py-3 text-sm flex items-center gap-1.5 text-fg-brand font-bold hover:bg-secondary transition ml-auto border-l border-base"
+              title="Abre el constructor del formulario en otra pantalla">
         <i class="fas fa-wand-magic-sparkles"></i> Configurar formulario
       </a>{% endif %}
     </div>
@@ -103,7 +104,7 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-heading mb-1">Estado</label>
-                <select name="activo" class="w-full rounded-lg border border-base bg-secondary-soft px-3 py-2 text-sm text-body focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                <select name="activo" class="nodo-field">
                   <option value="True" {% if convocatoria.activo %}selected{% endif %}>Activa</option>
                   <option value="False" {% if not convocatoria.activo %}selected{% endif %}>Inactiva</option>
                 </select>
