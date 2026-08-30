@@ -185,7 +185,9 @@ class InscripcionPaso2Form(forms.Form):
         super().__init__(*args, **kwargs)
         self.definicion = definicion
         self.identificacion = identificacion
-        self.es_manual = identificacion.get("origen") != "personas"
+        # "personas" (Base de Personas) y "padron" (Cambio 57) traen la
+        # identidad validada: no se le vuelve a pedir a la persona.
+        self.es_manual = identificacion.get("origen") not in ("personas", "padron")
         if not self.es_manual:
             # La identidad ya vino validada del paso 1: no se pide ni se pisa.
             del self.fields["nombre"], self.fields["apellido"]

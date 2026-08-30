@@ -74,7 +74,9 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
     """
     dni = identificacion["dni"]
     datos_basicos = identificacion.get("datos") or {}
-    es_validado = identificacion.get("origen") == "personas"
+    # "personas" (Base de Personas) y "padron" (Cambio 57) acreditan identidad.
+    origen = identificacion.get("origen") or "manual"
+    es_validado = origen in ("personas", "padron")
     cleaned = form.cleaned_data
     pide_gps = bool(definicion_formulario(relevamiento).get("requiere_gps"))
 
@@ -136,12 +138,15 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
                 "nombre": nombre,
                 "apellido": apellido,
                 "fecha_nacimiento": fecha_nacimiento,
-                "origen": "personas" if es_validado else "manual",
+                "origen": origen if es_validado else "manual",
+                # Localidad del padrón: solo para completar el legajo.
+                "localidad_id": datos_basicos.get("localidad_id") if es_validado else None,
             },
             client_uuid=client_uuid,
             capturado_en=timezone.now(),
             created_by=None,
             validado_renaper=bool(es_validado and nombre and apellido),
+            origen_validacion=(origen if es_validado and nombre and apellido else ""),
         )
         for alcance, campo_id, archivo in form.archivos():
             AdjuntoFormulario.objects.create(

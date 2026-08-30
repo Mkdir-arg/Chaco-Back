@@ -179,21 +179,49 @@
               <span class="badge badge-warning">Validada manualmente</span>
               <p class="text-xs text-body-subtle mt-1">{{ formulario.identidad_forzada_motivo }}</p>
               <p class="text-xs text-body-subtle">Base de Personas no la validó: el detalle de quién y cuándo está en la traza.</p>
+            {% elif formulario.validado_renaper and formulario.origen_validacion == "padron" %}
+              <span class="badge badge-success">Validada · Padrón</span>
+              <p class="text-xs text-body-subtle mt-1">Contra el padrón de la convocatoria: los datos son los que informó el organismo.</p>
+              {% if puede_revalidar_renaper and gran_base_activa %}
+              <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}" class="mt-2">
+                {% csrf_token %}
+                <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Confirmar con Base de Personas</button>
+              </form>
+              {% endif %}
+            {% elif formulario.validado_renaper and formulario.origen_validacion == "scan" %}
+              <span class="badge badge-success">Validada · Escaneo del DNI</span>
+              <p class="text-xs text-body-subtle mt-1">El territorial escaneó el documento en la app de campo.</p>
             {% elif formulario.validado_renaper %}
-              <span class="badge badge-success">Validado</span>
+              <span class="badge badge-success">Validada · Base de Personas</span>
               <p class="text-xs text-body-subtle mt-1">Contra Base de Personas del Chaco.</p>
             {% else %}
               <span class="badge badge-warning">Pendiente</span>
               {% if puede_revalidar_renaper %}
               <div class="flex flex-wrap items-center gap-2 mt-2">
+                {% if gran_base_activa %}
                 <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}">
                   {% csrf_token %}
                   <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
                 </form>
+                {% else %}
+                <button type="button" class="btn-nodo btn-tertiary btn-sm" disabled
+                        title="Base de Personas está desactivada por configuración (PERSONAS_API_ACTIVA=false)">
+                  <i class="fas fa-rotate"></i> Revalidar
+                </button>
+                {% endif %}
+                {% if convocatoria_tiene_padron %}
+                <form method="post" action="{% url 'becas:formulario_validar_padron' formulario.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-file-excel"></i> Validar contra el padrón</button>
+                </form>
+                {% endif %}
                 <button type="button" id="btn-forzar-identidad" class="btn-nodo btn-tertiary btn-sm">
                   <i class="fas fa-user-check"></i> Validar manualmente
                 </button>
               </div>
+              {% if not gran_base_activa %}
+              <p class="text-xs text-body-subtle mt-1">Base de Personas está desactivada por configuración: la identidad se resuelve con el padrón de la convocatoria.</p>
+              {% endif %}
               {% endif %}
             {% endif %}
           </dd>

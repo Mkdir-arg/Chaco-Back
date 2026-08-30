@@ -132,11 +132,11 @@ class RechazosIndistinguiblesTests(_BaseFlujoTest):
     """Los tres rechazos tienen que verse exactamente igual desde afuera."""
 
     def _respuesta_de_rechazo(self):
-        with patch("portal.views.inscripcion.consultar_persona", return_value=PERSONA_OK):
+        with patch("programas.services.identidad.consultar_persona", return_value=PERSONA_OK):
             return self._post()
 
     def test_fuera_del_padron(self):
-        self.relevamiento.padron.create(dni="99999999", sexo="M")
+        self.relevamiento.convocatoria.padron.create(dni="99999999", sexo="M")
 
         resp = self._respuesta_de_rechazo()
 
@@ -161,7 +161,7 @@ class RechazosIndistinguiblesTests(_BaseFlujoTest):
 
     def test_documento_no_disponible(self):
         with patch(
-            "portal.views.inscripcion.consultar_persona",
+            "programas.services.identidad.consultar_persona",
             return_value={"success": False, "fallecido": True},
         ):
             resp = self._post()
@@ -171,13 +171,13 @@ class RechazosIndistinguiblesTests(_BaseFlujoTest):
 
     def test_los_tres_casos_dan_el_mismo_cuerpo(self):
         """Si los cuerpos difieren, el rechazo vuelve a ser un oráculo."""
-        self.relevamiento.padron.create(dni="99999999", sexo="M")
+        self.relevamiento.convocatoria.padron.create(dni="99999999", sexo="M")
         fuera_del_padron = self._respuesta_de_rechazo().content
 
         cache.clear()
-        self.relevamiento.padron.all().delete()
+        self.relevamiento.convocatoria.padron.all().delete()
         with patch(
-            "portal.views.inscripcion.consultar_persona",
+            "programas.services.identidad.consultar_persona",
             return_value={"success": False, "fallecido": True},
         ):
             no_disponible = self._post().content
@@ -208,7 +208,7 @@ class LimitePorDocumentoTests(_BaseFlujoTest):
     def test_la_cubeta_del_documento_se_consume_despues_del_captcha(self):
         """Si se contara antes, cualquiera podría dejar a otro sin inscribirse."""
         with patch.object(servicio, "MAX_INTENTOS_DNI", 1):
-            with patch("portal.views.inscripcion.consultar_persona", return_value=PERSONA_OK):
+            with patch("programas.services.identidad.consultar_persona", return_value=PERSONA_OK):
                 # Diez POST con el captcha mal: no deben gastar la cuota del documento.
                 for _ in range(10):
                     session = self.client.session
@@ -354,7 +354,7 @@ class RecaptchaExtremoAExtremoTests(_BaseFlujoTest):
         with patch("portal.services.inscripcion.requests.post") as post:
             post.return_value.json.return_value = {"success": exito}
             post.return_value.raise_for_status.return_value = None
-            with patch("portal.views.inscripcion.consultar_persona", return_value=PERSONA_OK):
+            with patch("programas.services.identidad.consultar_persona", return_value=PERSONA_OK):
                 return self.client.post(
                     self._url(),
                     {"dni": "30123456", "sexo": "F", servicio.CAMPO_RECAPTCHA: "token-de-google"},

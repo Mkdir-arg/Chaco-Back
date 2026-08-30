@@ -86,7 +86,7 @@ class RateLimitHeaderTests(TestCase):
 
 
 class CaptchaConsumeTests(_BaseInscripcionTest):
-    @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
     def test_captcha_correcto_se_consume_y_no_se_reutiliza(self, mock_consulta):
         primero = self._post_paso1()
         self.assertEqual(primero.status_code, 302)
@@ -98,7 +98,7 @@ class CaptchaConsumeTests(_BaseInscripcionTest):
 
 
 class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
-    @patch("portal.views.inscripcion.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_duplicado_en_paso1_no_revela_que_el_dni_ya_esta_inscripto(self, mock_consulta):
         Formulario.objects.create(
             relevamiento=self.relevamiento,
@@ -199,26 +199,22 @@ class FechaProveedorYApoderadoTests(_BasePaso2Test):
 
 
 class PadronAtomicidadTests(TestCase):
-    def test_si_falla_carga_de_padron_no_queda_relevamiento_publico(self):
+    def test_si_falla_la_carga_el_padron_anterior_queda_intacto(self):
+        """Cambio 57: el padrón es de la convocatoria y el reemplazo es todo o
+        nada — si falla a mitad, ni se borra el anterior ni cambia el archivo."""
+        from programas.services.padron import cargar_padron
+
         seg = Segmento.objects.create(nombre="Seg", cupo_maximo=10)
         conv = Convocatoria.objects.create(
             nombre="Conv", segmento=seg, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
         )
-        data = {
-            "tipo": Relevamiento.Tipo.PUBLICO,
-            "convocatoria": conv.pk,
-            "fecha_asignada": "2026-06-01T10:00",
-            "fecha_hasta": "2026-06-30T18:00",
-            "cupo_maximo": "10",
-            "confirmar_por_email": "on",
-        }
-        form = RelevamientoForm(data, {"padron": _xlsx([("documento", "sexo"), ("30123456", "F")])}, puede_publico=True)
-        self.assertTrue(form.is_valid(), form.errors)
-        inicial = Relevamiento.objects.count()
+        cargar_padron(conv, None, [("11111111", "M")])
         with patch("programas.services.padron.PadronHabilitado.objects.bulk_create", side_effect=RuntimeError):
             with self.assertRaises(RuntimeError):
-                form.save()
-        self.assertEqual(Relevamiento.objects.count(), inicial)
+                cargar_padron(conv, _xlsx([("documento", "sexo"), ("30123456", "F")]), [("30123456", "F")])
+        self.assertEqual(list(conv.padron.values_list("dni", flat=True)), ["11111111"])
+        conv.refresh_from_db()
+        self.assertFalse(conv.padron_archivo)
 
 
 class ListadosPublicosScopeTests(TestCase):

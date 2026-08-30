@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -79,6 +79,47 @@ class _BaseInscripcionTest(TestCase):
         )
 
 
+@override_settings(PERSONAS_API_ACTIVA=False)
+class PadronComoIdentidadPaso1Tests(_BaseInscripcionTest):
+    """Cambio 57: con la Gran Base apagada, el padrón de la convocatoria
+    identifica a la persona en el paso 1."""
+
+    FILA = {
+        "dni": "30123456",
+        "sexo": "F",
+        "nombre": "María Luján",
+        "apellido": "Gómez",
+        "fecha_nacimiento": date(1991, 3, 14),
+        "localidad_texto": "Resistencia",
+    }
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_fila_con_datos_precarga_y_valida_sin_consultar(self, mock_consulta):
+        cargar_padron(self.convocatoria, None, [self.FILA])
+        # El DNI con puntos lo normaliza el form; el sexo del paso 1 es F/M.
+        resp = self._post_paso1(dni="30.123.456", sexo="F")
+        self.assertEqual(resp.status_code, 302)
+        mock_consulta.assert_not_called()
+        identificacion = self.client.session[servicio.clave_sesion(self.relevamiento)]
+        self.assertEqual(identificacion["origen"], "padron")
+        self.assertEqual(identificacion["datos"]["nombre"], "María Luján")
+        self.assertEqual(identificacion["datos"]["apellido"], "Gómez")
+        self.assertEqual(identificacion["datos"]["fecha_nacimiento"], "1991-03-14")
+        # RN-P7: a la sesión nunca viaja el domicilio ni la localidad como texto.
+        self.assertNotIn("localidad_texto", identificacion["datos"])
+        self.assertNotIn("domicilio", identificacion["datos"])
+
+    @patch("programas.services.identidad.consultar_persona")
+    def test_fila_sin_datos_deja_pasar_como_manual(self, mock_consulta):
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        resp = self._post_paso1(dni="30123456", sexo="F")
+        self.assertEqual(resp.status_code, 302)
+        mock_consulta.assert_not_called()
+        identificacion = self.client.session[servicio.clave_sesion(self.relevamiento)]
+        self.assertEqual(identificacion["origen"], "manual")
+        self.assertIsNone(identificacion["datos"])
+
+
 class ServiciosInscripcionTests(_BaseInscripcionTest):
     def test_disponibilidad(self):
         self.assertTrue(servicio.relevamiento_disponible(self.relevamiento))
@@ -146,7 +187,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
             return
         self.assertEqual(resp.status_code, 404)
 
-    @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
     def test_match_redirige_con_datos_basicos_en_sesion(self, mock_consulta):
         resp = self._post_paso1()
         self.assertRedirects(
@@ -161,7 +202,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         # RN-P7: solo datos básicos — el domicilio de Gran Base no viaja.
         self.assertNotIn("domicilio", sesion["datos"])
 
-    @patch("portal.views.inscripcion.consultar_persona", return_value={"success": False, "not_found": True})
+    @patch("programas.services.identidad.consultar_persona", return_value={"success": False, "not_found": True})
     def test_sin_match_avanza_como_manual(self, mock_consulta):
         resp = self._post_paso1()
         self.assertEqual(resp.status_code, 302)
@@ -169,7 +210,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         self.assertEqual(sesion["origen"], "manual")
         self.assertIsNone(sesion["datos"])
 
-    @patch("portal.views.inscripcion.consultar_persona", return_value={"success": False, "fallecido": True})
+    @patch("programas.services.identidad.consultar_persona", return_value={"success": False, "fallecido": True})
     def test_fallecido_no_avanza(self, mock_consulta):
         try:
             self._post_paso1()
@@ -177,7 +218,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
             _tolerar_render_local(exc)
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
-    @patch("portal.views.inscripcion.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_captcha_incorrecto_no_consulta_identidad(self, mock_consulta):
         try:
             self._post_paso1(captcha="999")
@@ -186,7 +227,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         mock_consulta.assert_not_called()
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
-    @patch("portal.views.inscripcion.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_padron_bloquea_a_quien_no_figura_sin_consultar(self, mock_consulta):
         cargar_padron(self.relevamiento, None, [("28111222", "M")])
         try:
@@ -196,14 +237,14 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         mock_consulta.assert_not_called()
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
-    @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
     def test_padron_deja_pasar_a_quien_figura_normalizado(self, mock_consulta):
         cargar_padron(self.relevamiento, None, [("30123456", "F")])
         resp = self._post_paso1(dni="30123456", sexo="F")
         self.assertEqual(resp.status_code, 302)
         mock_consulta.assert_called_once()
 
-    @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
     def test_duplicado_en_convocatoria_no_avanza_ni_consulta(self, mock_consulta):
         Formulario.objects.create(
             relevamiento=self.relevamiento,
@@ -218,7 +259,7 @@ class Paso1FlujoTests(_BaseInscripcionTest):
         mock_consulta.assert_not_called()
         self.assertNotIn(servicio.clave_sesion(self.relevamiento), self.client.session)
 
-    @patch("portal.views.inscripcion.consultar_persona", return_value=DATOS_GRAN_BASE)
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
     def test_rate_limit_corta_sin_consultar(self, mock_consulta):
         with (
             patch.object(servicio, "MAX_INTENTOS_IP", 0),
