@@ -200,6 +200,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 54 | Un relevamiento en revisión no se podía volver a poner en curso | Becas / relevamientos | `#relevamientos` `#rbac` `#ui` `#convocatorias` | PM — «cuando está en estado En revisión no lo puedo pasar a En curso, como para abrirlo de nuevo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
+| 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟡 **Analizado — análisis #325 Definido; tasks #327–#335 en Backlog (~21,5 h)** | Pendiente (padrón a convocatoria, `origen_validacion`) |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **Analizado — análisis #326 Definido, mockups entregados; tasks #336–#356 en Backlog (150 h)** | Pendiente (catálogo, diseño, caso) |
 
 **Notas del índice**
 
@@ -5782,5 +5784,178 @@ formularios ya completados.
 ## Historial
 
 No aplica: entrada nueva.
+
+---
+
+# Cambio 57 — Padrón de la convocatoria como fuente de identidad
+
+🟡 **ANALIZADO — 28/08/2026** · Análisis #325 `Definido` · Tasks #327–#335 en Backlog, Iteration 7
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · identificación de la persona (link público, app de campo, revisión) |
+| **Etiquetas** | `#relevamientos` `#siis` `#datos` `#infra` |
+| **Solicitante** | PM — sesión de análisis del 28/08/2026 |
+| **Fecha del pedido** | 28/08/2026 |
+| **Issue / épica** | #325 (épica #69) |
+| **Partes afectadas** | Padrón (modelo y carga) · paso 1 y 2 del link · `consultar_persona_becas` · revisión · diagnóstico de integraciones |
+| **Migración** | Pendiente: padrón a convocatoria, seis columnas, `Formulario.origen_validacion` |
+
+## Pedido original
+
+> «Hoy en día en los formularios la validación de la persona le pega a la Gran Base, en base a eso te dice si el registro
+> es validado o no, trae datos como nombre, apellido y fecha de nacimiento. Vamos a cambiar porque la Gran Base no está
+> funcionando: vamos a agregar esos datos al Excel y vamos a autocompletar los datos de ahí y marcar válido o no. No borremos
+> la integración a la Gran Base porque la idea es usarla después.»
+
+## Alcance acordado
+
+- El padrón pasa a ser **uno por convocatoria** (sirve a los dos canales) y trae identidad: `documento, sexo (F/M), nombre,
+  apellido, fecha de nacimiento, localidad`.
+- **Validado = figura en el Excel con nombre y apellido.** Fecha y localidad no condicionan.
+- **Cascada** de identidad en el servidor: padrón → Base de Personas si `PERSONAS_API_ACTIVA` → manual. La Gran Base no se
+  borra: se apaga por configuración y, cuando vuelve, **manda sobre el padrón** si difieren.
+- Al subir un padrón con datos, los casos **sin validar** de la convocatoria se validan **automáticamente**, con traza.
+- Datos precargados **completos** (se descartó enmascarar). Localidad cruzada por nombre contra el catálogo, con reporte de
+  las que no coinciden.
+- **Afuera:** base de personas local independiente del padrón (alternativa A2), borrar la integración, aplicar «fallecido»
+  desde el padrón.
+
+## Decisiones tomadas
+
+- El Excel se consulta **siempre primero**, esté la Gran Base como esté: no es un plan B, es el primer paso. Con la Gran Base
+  caída pero prendida, la persona del Excel ya quedó validada y el error solo cuesta la espera del timeout; la variable la
+  saca, no cambia el resultado.
+- El origen `padron` lo asigna **solo el servidor** tras verificar la fila en la tabla: la app no puede autovalidarse (mismo
+  principio que hoy con `personas`/`scan`).
+- Los ya validados nunca se desvalidan por un padrón nuevo; el cruce automático solo toca casos pendientes y sin forzar.
+- «Revalidar» se deshabilita con la Gran Base apagada; se suma «Validar contra el padrón». El diagnóstico reporta
+  «desactivada por configuración» como estado normal.
+- RENAPER ≠ Gran Base: Becas usa la Gran Base; el campo se llama `validado_renaper` por herencia. RENAPER caído no afecta a Becas.
+
+## Implementación
+
+Pendiente. El detalle ejecutable está en las tasks #327 (padrón a convocatoria), #328 (seis columnas), #329 (cascada +
+variable), #330 (origen `padron` en link y API), #331 (cruce automático), #332 (revisión), #333 (diagnóstico y docs),
+#334 (pruebas automatizadas), #335 (pruebas funcionales). Estimación ~21,5 h. **Se hace antes que el Cambio 58**, que lo hereda.
+
+## Archivos
+
+Pendiente. Previstos: `programas/models/__init__.py`, `programas/services/padron.py`, `programas/services/identidad.py`
+(nuevo), `portal/views/inscripcion.py`, `programas/api/views.py`, `programas/views/revision.py`,
+`programas/management/commands/diagnosticar_integraciones.py`, `config/settings.py`, `.env.qa.example`.
+
+## Base de datos
+
+Pendiente: `PadronHabilitado.convocatoria` (reemplaza `relevamiento`) + campos de identidad; `Convocatoria.padron_archivo`;
+`Formulario.origen_validacion`. Sin conversión de datos (no hay carga real).
+
+## Validación
+
+Pendiente. Criterios de aceptación en #325; casos QA en cada task.
+
+## Puesta en marcha en el servidor
+
+Deploy + `migrate` + `PERSONAS_API_ACTIVA=false` en el ConfigMap de ECOM mientras la Gran Base no responda.
+
+## Pendientes / a definir
+
+- Confirmar con la app de campo si puede mandar el id del relevamiento al consultar identidad; si no, el servidor lo
+  resuelve por los relevamientos vigentes del territorial.
+
+## Reversión
+
+Revertir las tasks y la migración. Mientras no esté hecho, no hay nada que revertir.
+
+## Historial
+
+No aplica: entrada nueva. Reabre parcialmente lo dejado fuera en el Cambio 41 («sin form-builder», «RENAPER como única
+fuente»): la identidad pasa a tener dos fuentes.
+
+---
+
+# Cambio 58 — Constructor de formularios por convocatoria
+
+🟡 **ANALIZADO — 28/08/2026** · Análisis #326 `Definido` · Mockups entregados · Tasks #336–#356 en Backlog, Iteration 7 (150 h)
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración de requisitos → convocatoria → link público y app de campo |
+| **Etiquetas** | `#relevamientos` `#ui` `#datos` `#rbac` |
+| **Solicitante** | PM — sesión de análisis del 28/08/2026 |
+| **Fecha del pedido** | 28/08/2026 |
+| **Issue / épica** | #326 (épica #69) · mockups https://claude.ai/code/artifact/84861117-5a64-433d-a2e1-aeaedea723c8 |
+| **Partes afectadas** | Catálogo de requisitos · convocatoria (solapa nueva) · `definicion_formulario` · paso 2 del link · caso · revisión · API y app de campo |
+| **Migración** | Pendiente: grupos y orígenes en el catálogo; diseño por convocatoria; `respuestas` + foto en el caso, caen columnas fijas |
+
+## Pedido original
+
+> «Me gustaría poder agregar textos como títulos, subtítulos, preguntas que dependen de respuestas de otras preguntas,
+> configurar por ejemplo si se pide el Apoderado en base al campo fecha de nacimiento del legajo… el form se quedó corto.»
+> Y después: «mantenemos los requisitos globales, de segmento y de subsegmento, pero al configurar la convocatoria hay algo
+> que sea Configurar formulario: por un lado el formulario configurado y al lado cómo quedaría publicado; los requisitos
+> configurados son campos que se van a arrastrar.» Y sobre los bloques fijos: «que esos bloques sean requisitos generales y
+> que estén agrupados; un grupo llamado Datos personales que siempre haga referencia al legajo ciudadano.»
+
+## Alcance acordado
+
+Catálogo (generales · programa · segmento · subsegmento) = campos disponibles, por referencia. Diseño por convocatoria =
+orden, grupos, textos y condiciones sobre el catálogo vivo, más campos propios. Bloques fijos → requisitos generales
+protegidos vinculados al legajo (Datos personales, Contacto) y a una persona vinculada (Apoderado). Aplica al link
+público y a la app de campo; el F-00 de Dispositivos queda afuera.
+
+## Decisiones tomadas
+
+Las catorce de la sesión, tabuladas en #326 (D1–D14): todos los requisitos se ven; campos propios de la convocatoria;
+un caso viejo no muestra lo nuevo (foto por caso); referencia, no copia; bloques fijos protegidos y agrupados; drag &
+drop real; admin del programa y coordinador del segmento arman el formulario; guardado en vivo; celular y correo
+pueden ser opcionales; condición del apoderado configurable (default `edad < 18`); condiciones compuestas «todas /
+alguna» sin anidar, único efecto mostrar/ocultar; fecha de nacimiento siempre obligatoria; texto plano y grupos
+desplegados; «se pide en» (canal) por campo y grupo.
+
+Reglas derivadas que cierran la consistencia: el catálogo es dueño de texto/tipo/opciones/presentación/obligatorio/
+canal y el diseño de orden/grupo/condición/etiqueta; el diseño sigue al catálogo (auto-append, remove); la fuente de
+una condición va antes y un drop que lo viole se rechaza con aviso; el servidor re-evalúa y descarta respuestas de
+ítems ocultos; la identidad validada nunca se pisa al volcar al legajo; sin correo no se envían avisos; el GPS no es un
+campo; la app vieja entra por un adaptador y el servidor arma su foto.
+
+## Implementación
+
+Pendiente. 21 tasks (#336–#356) en seis fases: catálogo → motor → constructor → portal y caso → app de campo → calidad e
+integración. 150 h aprobadas por el PM (134 h en tasks + análisis, casos QA y reunión de definición).
+
+## Archivos
+
+Pendiente. Previstos: `programas/models/__init__.py`, `programas/services/diseno.py` y `condiciones.py` (nuevos),
+`programas/services/becas.py`, `programas/views/diseno.py` (nuevo), templates de `config/`, `diseno/`, `revision/`,
+`convocatoria_detail.html`, `portal/forms/inscripcion.py`, `portal/templates/portal/inscripcion/paso2.html`,
+`programas/api/`, `static/vendor/sortablejs/`, `static/custom/js/nodo-condiciones.js`, repo `Chaco-mobile`.
+
+## Base de datos
+
+Pendiente. `GrupoRequisito`; `PreguntaGlobal` (grupo, origen, vinculo, protegido, canal); `RequisitoNativo.canal`;
+`DisenoFormulario` + `ItemDiseno`; `Formulario.respuestas` + `definicion`, eliminación de `data`, `celular`,
+`email_contacto`, `apoderado_*`. Migración destructiva viable solo sin carga real (confirmado 28/08/2026).
+
+## Validación
+
+Pendiente. Criterios en #326; casos QA por task; plan de pruebas de la épica al cierre.
+
+## Puesta en marcha en el servidor
+
+Por fase, a `test` de ECOM; `main` (producción) una sola vez al cierre, con la migración destructiva coordinada.
+
+## Pendientes / a definir
+
+- La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el formulario plano.
+
+## Reversión
+
+Por fase; la última (caso) es la única con migración destructiva.
+
+## Historial
+
+No aplica: entrada nueva. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de formularios
+propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
 
 ---
