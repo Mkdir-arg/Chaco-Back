@@ -176,6 +176,7 @@
             {% else %}
               <p class="text-sm text-body">Quién puede inscribirse y quién es. Con documento y sexo habilita; con nombre y apellido además valida la identidad.</p>
             {% endif %}
+            <p class="text-xs text-body-subtle">Lo heredan todos los relevamientos de la convocatoria, salvo los que tengan padrón propio.{% if n_rels_padron_propio %} <span class="text-heading font-medium">{{ n_rels_padron_propio }} relevamiento{{ n_rels_padron_propio|pluralize }}</span> usa{{ n_rels_padron_propio|pluralize:",n" }} padrón propio y no hereda{{ n_rels_padron_propio|pluralize:",n" }} este.{% endif %}</p>
             {% if tiene_publicos and not n_padron %}
               <div class="rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm" role="alert">
                 <i class="fas fa-triangle-exclamation text-fg-warning mr-1"></i>

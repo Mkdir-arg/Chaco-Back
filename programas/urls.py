@@ -94,6 +94,8 @@ urlpatterns = [
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     # Cambio 57: el padrón es de la convocatoria (lo usan los dos canales).
     path("convocatorias/<int:pk>/padron/", rel.convocatoria_padron, name="convocatoria_padron"),
+    path("relevamientos/<int:pk>/padron/", rel.relevamiento_padron, name="relevamiento_padron"),
+    path("relevamientos/<int:pk>/padron/quitar/", rel.relevamiento_padron_quitar, name="relevamiento_padron_quitar"),
     # Constructor del formulario de la convocatoria (Cambio 58, fase 3).
     path(
         "convocatorias/<int:pk>/formulario/", dis.ConvocatoriaFormularioView.as_view(), name="convocatoria_formulario"

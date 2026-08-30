@@ -299,11 +299,12 @@ class PadronConvocatoriaViewTests(_BasePadronTest):
         resp = self.client.get(self._url())
         self.assertEqual(resp.status_code, 405)
 
-    def test_la_url_vieja_por_relevamiento_ya_no_existe(self):
-        from django.urls import NoReverseMatch
-
-        with self.assertRaises(NoReverseMatch):
-            reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
+    def test_la_url_por_relevamiento_es_el_padron_propio(self):
+        """Cambio 59: la ruta por relevamiento volvió, pero como padrón PROPIO
+        (pisa al de la convocatoria), y solo por POST."""
+        url = reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(url).status_code, 405)
 
     def test_plantilla_descargable(self):
         self.client.force_login(self.admin)
@@ -343,3 +344,153 @@ class PadronConvocatoriaViewTests(_BasePadronTest):
         self.assertContains(resp, "Padrón de habilitados")
         self.assertContains(resp, "2 habilitados")
         self.assertContains(resp, reverse("becas:convocatoria_padron_plantilla", args=[self.convocatoria.pk]))
+
+
+class PadronPorRelevamientoTests(_BasePadronTest):
+    """Cambio 59: el padrón de la convocatoria se hereda; el propio de un
+    relevamiento lo pisa solo para ese relevamiento."""
+
+    def setUp(self):
+        super().setUp()
+        territorial = User.objects.create_user("terri_c59")
+        self.rel_campo = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Zona",
+        )
+
+    def test_hereda_hasta_tener_propio_y_el_propio_pisa(self):
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        # Los dos relevamientos heredan.
+        self.assertTrue(esta_habilitado(self.relevamiento, "30123456", "F"))
+        self.assertTrue(esta_habilitado(self.rel_campo, "30123456", "F"))
+        # El público carga padrón propio: pisa al heredado SOLO para él.
+        cargar_padron(self.relevamiento, None, [("28111222", "M")])
+        self.assertFalse(esta_habilitado(self.relevamiento, "30123456", "F"))
+        self.assertTrue(esta_habilitado(self.relevamiento, "28111222", "M"))
+        self.assertTrue(esta_habilitado(self.rel_campo, "30123456", "F"))  # sigue heredando
+        self.assertFalse(esta_habilitado(self.rel_campo, "28111222", "M"))
+
+    def test_quitar_el_propio_vuelve_a_heredar(self):
+        from programas.services.padron import origen_padron, quitar_padron_propio
+
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        cargar_padron(self.relevamiento, None, [("28111222", "M")])
+        self.assertEqual(origen_padron(self.relevamiento), "propio")
+        filas = quitar_padron_propio(self.relevamiento)
+        self.assertEqual(filas, 1)
+        self.assertEqual(origen_padron(self.relevamiento), "convocatoria")
+        self.assertTrue(esta_habilitado(self.relevamiento, "30123456", "F"))
+        self.assertFalse(esta_habilitado(self.relevamiento, "28111222", "M"))
+
+    def test_identificar_usa_el_padron_efectivo(self):
+        from programas.services.identidad import identificar
+
+        cargar_padron(
+            self.convocatoria,
+            None,
+            [{"dni": "30123456", "sexo": "F", "nombre": "Ana", "apellido": "Paz"}],
+        )
+        cargar_padron(
+            self.relevamiento,
+            None,
+            [{"dni": "30123456", "sexo": "F", "nombre": "Maria", "apellido": "Gomez"}],
+        )
+        con_propio = identificar(self.relevamiento, "30123456", "F")
+        heredado = identificar(self.rel_campo, "30123456", "F")
+        self.assertEqual(con_propio["datos"]["nombre"], "Maria")
+        self.assertEqual(heredado["datos"]["nombre"], "Ana")
+
+    def test_la_carga_valida_los_casos_de_su_alcance(self):
+        from programas.models import Formulario
+
+        pendiente_publico = Formulario.objects.create(
+            relevamiento=self.relevamiento, datos_identificacion={"dni": "30123456", "sexo": "F"}
+        )
+        pendiente_campo = Formulario.objects.create(
+            relevamiento=self.rel_campo, datos_identificacion={"dni": "30123456", "sexo": "F"}
+        )
+        # El público tiene padrón propio SIN identidad: su caso no valida acá.
+        cargar_padron(self.relevamiento, None, [("30123456", "F")])
+        resumen = cargar_padron(
+            self.convocatoria,
+            None,
+            [{"dni": "30123456", "sexo": "F", "nombre": "Ana", "apellido": "Paz"}],
+        )
+        pendiente_publico.refresh_from_db()
+        pendiente_campo.refresh_from_db()
+        self.assertEqual(resumen.casos_validados, 1)
+        self.assertTrue(pendiente_campo.validado_renaper)  # hereda: lo valida la convocatoria
+        self.assertFalse(pendiente_publico.validado_renaper)  # su padrón propio manda
+        # Reemplazo el propio por uno con identidad: ahora valida su caso.
+        resumen = cargar_padron(
+            self.relevamiento,
+            None,
+            [{"dni": "30123456", "sexo": "F", "nombre": "Maria", "apellido": "Gomez"}],
+        )
+        pendiente_publico.refresh_from_db()
+        self.assertEqual(resumen.casos_validados, 1)
+        self.assertTrue(pendiente_publico.validado_renaper)
+
+    def test_objetivo_con_identidad_prefiere_el_efectivo(self):
+        from programas.services.padron import objetivo_con_identidad
+
+        cargar_padron(
+            self.convocatoria,
+            None,
+            [{"dni": "30123456", "sexo": "F", "nombre": "Ana", "apellido": "Paz"}],
+        )
+        # Sin propios: cualquiera de los dos sirve (el primero de la lista).
+        elegido = objetivo_con_identidad([self.rel_campo, self.relevamiento], "30123456", "F")
+        self.assertEqual(elegido, self.rel_campo)
+        # El de campo carga un propio SIN esa persona: deja de servir.
+        cargar_padron(self.rel_campo, None, [("28111222", "M")])
+        elegido = objetivo_con_identidad([self.rel_campo, self.relevamiento], "30123456", "F")
+        self.assertEqual(elegido, self.relevamiento)
+
+
+class PadronRelevamientoViewTests(_BasePadronTest):
+    """Carga y quita del padrón propio desde el detalle del relevamiento."""
+
+    def setUp(self):
+        super().setUp()
+        call_command("seed_becas", stdout=StringIO())
+        self.admin = User.objects.create_user("admin_pad59", password="x")
+        grupo = Group.objects.get(name=ROL_ADMIN)
+        # El relevamiento del fixture es público: el alcance exige la capacidad
+        # de públicos (en la base real la asigna users.0025; acá, syncdb).
+        from django.contrib.auth.models import Permission
+
+        from core.rbac import APP_LABEL, codename_de
+
+        grupo.permissions.add(
+            Permission.objects.get(
+                content_type__app_label=APP_LABEL, codename=codename_de("becas.relevamiento.publico")
+            )
+        )
+        self.admin.groups.add(grupo)
+
+    def test_carga_quita_y_permisos(self):
+        self.client.force_login(self.admin)
+        url = reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
+        resp = self.client.post(
+            url, {"padron": _xlsx([("documento", "sexo", "nombre", "apellido"), ("30123456", "F", "Ana", "Paz")])}
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("becas:relevamiento_detalle", args=[self.relevamiento.pk]), resp.url)
+        self.relevamiento.refresh_from_db()
+        self.assertEqual(self.relevamiento.padron_propio.count(), 1)
+        self.assertTrue(self.relevamiento.padron_archivo)
+
+        resp = self.client.post(reverse("becas:relevamiento_padron_quitar", args=[self.relevamiento.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.relevamiento.refresh_from_db()
+        self.assertEqual(self.relevamiento.padron_propio.count(), 0)
+        self.assertFalse(self.relevamiento.padron_archivo)
+
+        sin_permiso = User.objects.create_user("sin_pad59", password="x")
+        self.client.force_login(sin_permiso)
+        resp = self.client.post(url, {"padron": _xlsx([("30123456", "F")])})
+        self.assertNotEqual(resp.status_code, 200)
+        self.assertEqual(self.relevamiento.padron_propio.count(), 0)

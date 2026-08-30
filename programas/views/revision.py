@@ -39,7 +39,7 @@ from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.identidad import gran_base_activa
-from programas.services.padron import fila_padron
+from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.validacion_siis import validar_formulario_en_siis
@@ -451,7 +451,7 @@ def formulario_detalle(request, pk):
             # Cambio 57: con la Gran Base apagada, «Revalidar» se deshabilita y
             # se ofrece validar contra el padrón de la convocatoria.
             "gran_base_activa": gran_base_activa(),
-            "convocatoria_tiene_padron": formulario.relevamiento.convocatoria.padron.exists(),
+            "convocatoria_tiene_padron": padron_de(formulario.relevamiento).exists(),
             "forzar_identidad_form": ForzarIdentidadForm(),
             "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
             "validacion_sis": validacion_sis,
@@ -755,7 +755,7 @@ def formulario_validar_padron(request, pk):
     if ciudadano is None or not ciudadano.dni:
         messages.error(request, "El caso necesita un ciudadano con DNI para buscarlo en el padrón.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    fila = fila_padron(formulario.relevamiento.convocatoria, ciudadano.dni, ciudadano.genero)
+    fila = fila_padron(formulario.relevamiento, ciudadano.dni, ciudadano.genero)
     if fila is None:
         messages.error(request, f"El DNI {ciudadano.dni} no figura en el padrón de la convocatoria con ese sexo.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)

@@ -202,6 +202,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
 | 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟢 **Hecho — las cuatro fases (catálogo #336/#338, motor #339-#341, constructor #337/#342-#344, portal y caso #345-#347); pendientes fuera de este repo: app móvil #348/#349** | `programas.0057`, `programas.0058`, `programas.0059`, `programas.0060`, `programas.0061` |
+| 59 | Padrón con herencia: el de la convocatoria se hereda y un relevamiento puede tener el suyo | Becas · convocatorias → Portal · App | `#relevamientos` `#datos` `#rbac` | PM — «si se configura en el relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente» | 31/08/2026 | 🟢 **Hecho** | `programas.0062` |
 
 **Notas del índice**
 
@@ -6164,5 +6165,58 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
+
+# Cambio 59 — Padrón con herencia: convocatoria → relevamientos, con padrón propio por relevamiento
+
+**Pedido (PM, 31/08/2026):** «el padrón puede ser solo para un relevamiento o no: si se configura en el
+relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente». Supersede
+parcialmente la decisión A1 del Cambio 57 («un solo Excel por convocatoria»): la convocatoria sigue siendo el
+lugar principal, pero deja de ser el único.
+
+## Decisiones tomadas
+
+- **Herencia con override, no fusión.** El padrón de la convocatoria rige para todos sus relevamientos; un
+  relevamiento con padrón **propio** habilita e identifica **solo** con el suyo (no se combinan). Quitar el
+  propio vuelve a heredar en el acto.
+- El padrón **efectivo** de un relevamiento decide todo: habilitación del paso 1 y de la app, identificación
+  (cascada del Cambio 57), «Validar contra el padrón» en revisión y el cruce automático de pendientes (RN-5).
+- El cruce automático respeta el alcance de la carga: subir el de la convocatoria valida los casos de los
+  relevamientos que la heredan (los que tienen propio no se tocan); subir el propio valida solo sus casos.
+- Permisos: los mismos del padrón de la convocatoria (`becas.convocatoria.editar` + alcance del segmento vía
+  `_assert_scope`). La plantilla es la misma.
+- Sin migración de datos: todas las filas existentes quedan como nivel convocatoria (relevamiento NULL) y el
+  comportamiento previo no cambia hasta que alguien cargue un padrón propio.
+
+## Cómo quedó
+
+- `PadronHabilitado.relevamiento` (FK nullable, `related_name="padron_propio"`): NULL = nivel convocatoria.
+  Única `(convocatoria, relevamiento, dni)` + índice por relevamiento; la unicidad del nivel convocatoria la
+  garantiza la carga (reemplazo total + dedupe del parser), porque MySQL no aplica únicos con NULL.
+  `Relevamiento.padron_archivo` guarda el Excel propio (trazabilidad). Migración `programas.0062`, aditiva.
+- `services/padron.py`: `padron_de(objetivo)` (queryset efectivo), `origen_padron(relevamiento)`
+  (`propio`/`convocatoria`/None), `cargar_padron(objetivo, …)` escribe en el alcance del objetivo,
+  `quitar_padron_propio(relevamiento)`, `esta_habilitado`/`fila_padron` sobre el efectivo,
+  `objetivo_con_identidad(relevamientos, …)` reemplaza a `convocatoria_con_identidad` (la app elige entre sus
+  relevamientos vigentes por padrón efectivo), `validar_casos_pendientes(objetivo, …)` con el alcance descrito.
+- `identidad.identificar(objetivo, …)` acepta relevamiento o convocatoria; el paso 1 del portal y la API de la
+  app pasan el relevamiento. `_relevamientos_para_identificar` reemplaza a `_convocatorias_para_identificar`.
+- UI: el detalle del relevamiento muestra el origen del padrón (propio N / heredado N / sin padrón), permite
+  cargar el propio y quitarlo (con confirmación); el detalle de la convocatoria aclara la herencia y cuántos
+  relevamientos usan padrón propio. Vistas `relevamiento_padron` / `relevamiento_padron_quitar`.
+
+## Validación
+
+`test_padron.py`: `PadronPorRelevamientoTests` (herencia, override, quitar, identificación efectiva, cruce por
+alcance, elección multi-relevamiento) y `PadronRelevamientoViewTests` (carga/quita/permisos); los tests del
+Cambio 57 siguen en verde con la semántica nueva. Regresión de padrón + identidad + API + portal en verde.
+
+## Reversión
+
+Revertir el commit y `migrate programas 0061`. Las filas propias y los Excel propios se pierden; el nivel
+convocatoria no se toca.
+
+## Historial
+
+- **31/08/2026 — Implementado completo** en la rama única `feature/constructor-formularios` (sin mergear).
 
 ---

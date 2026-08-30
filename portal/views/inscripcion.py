@@ -136,9 +136,9 @@ def inscripcion_paso1(request, token):
             elif dni_ya_inscripto(relevamiento.convocatoria, dni):
                 form.add_error(None, MENSAJE_RECHAZO)
             else:
-                # Cascada del Cambio 57: padrón de la convocatoria → Base de
-                # Personas (si está activa) → manual.
-                resultado = identificar(relevamiento.convocatoria, dni, sexo)
+                # Cascada del Cambio 57 sobre el padrón efectivo del
+                # relevamiento (propio o heredado, Cambio 59) → Gran Base → manual.
+                resultado = identificar(relevamiento, dni, sexo)
                 if resultado["fallecido"]:
                     form.add_error(None, MENSAJE_RECHAZO)
                 else:

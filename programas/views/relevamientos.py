@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -239,14 +239,18 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
         ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
-        # Padrón de habilitados (Cambio 57): uno por convocatoria, para los dos
-        # canales. Se administra acá, no en el relevamiento.
+        # Padrón de habilitados (Cambio 57; herencia por relevamiento, Cambio 59):
+        # acá se administra el de la convocatoria, que heredan los relevamientos
+        # sin padrón propio. Un solo aggregate trae los dos niveles.
+        nivel_convocatoria = Q(relevamiento__isnull=True)
         conteo_padron = conv.padron.aggregate(
-            total=Count("pk"),
-            con_identidad=Count("pk", filter=~Q(nombre="") & ~Q(apellido="")),
+            total=Count("pk", filter=nivel_convocatoria),
+            con_identidad=Count("pk", filter=nivel_convocatoria & ~Q(nombre="") & ~Q(apellido="")),
+            rels_propios=Count("relevamiento", distinct=True),
         )
         ctx["n_padron"] = conteo_padron["total"] or 0
         ctx["n_padron_identidad"] = conteo_padron["con_identidad"] or 0
+        ctx["n_rels_padron_propio"] = conteo_padron["rels_propios"] or 0
         ctx["puede_padron"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
         ctx["tiene_publicos"] = any(r.es_publico for r in relevamientos)
         return ctx
@@ -630,9 +634,14 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     # El template y _assert_scope recorren convocatoria/segmento/territorial.
     # El padrón es de la convocatoria (Cambio 57): su tamaño viaja anotado en
     # la misma consulta para no sumar una lectura al presupuesto de la ruta.
+    # Los dos niveles del padrón en la misma consulta (Cambio 59): el propio
+    # del relevamiento y el de la convocatoria que heredaría si no tiene.
     queryset = Relevamiento.objects.select_related(
         "convocatoria__segmento", "convocatoria__subsegmento", "territorial"
-    ).annotate(n_padron=Count("convocatoria__padron"))
+    ).annotate(
+        n_padron_propio=Count("convocatoria__padron", filter=Q(convocatoria__padron__relevamiento_id=F("pk"))),
+        n_padron_convocatoria=Count("convocatoria__padron", filter=Q(convocatoria__padron__relevamiento__isnull=True)),
+    )
     capacidades_requeridas = CAP_RELEVAMIENTO_VER
     template_name = "programas/becas/relevamientos/relevamiento_detail.html"
     context_object_name = "relevamiento"
@@ -648,7 +657,14 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx = super().get_context_data(**kwargs)
         rel = self.object
         ctx["link_publico"] = self.request.build_absolute_uri(rel.url_publica) if rel.es_publico else ""
-        ctx["n_padron"] = rel.n_padron  # anotado en el queryset (Cambio 57)
+        # Anotados en el queryset (Cambios 57 y 59): propio pisa a heredado.
+        ctx["n_padron_propio"] = rel.n_padron_propio
+        ctx["n_padron_convocatoria"] = rel.n_padron_convocatoria
+        ctx["n_padron"] = rel.n_padron_propio or rel.n_padron_convocatoria
+        ctx["padron_origen"] = (
+            "propio" if rel.n_padron_propio else ("convocatoria" if rel.n_padron_convocatoria else "")
+        )
+        ctx["puede_padron"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
@@ -819,6 +835,68 @@ def convocatoria_padron(request, pk):
             "Corregí el Excel si querés que se vinculen al legajo.",
         )
     return redirect(destino)
+
+
+@login_required
+@requiere(CAP_CONVOCATORIA_EDITAR)
+@require_POST
+def relevamiento_padron(request, pk):
+    """Carga o reemplaza el padrón **propio** de un relevamiento (Cambio 59).
+
+    Con padrón propio, el relevamiento deja de heredar el de la convocatoria:
+    habilita e identifica solo con el suyo. Al cargar, se cruzan y validan los
+    casos pendientes de este relevamiento (RN-5).
+    """
+    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
+    _assert_scope(request, rel)
+    destino = reverse("becas:relevamiento_detalle", kwargs={"pk": rel.pk})
+    archivo = request.FILES.get("padron")
+    if archivo is None:
+        messages.error(
+            request, "Adjuntá el Excel del padrón (.xlsx): documento, sexo y, si los tenés, los datos de identidad."
+        )
+        return redirect(destino)
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    from programas.services.padron import cargar_padron, parsear_padron
+
+    try:
+        entradas, resumen_parseo = parsear_padron(archivo)
+    except DjangoValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect(destino)
+    resumen = cargar_padron(rel, archivo, entradas, usuario=request.user)
+    resumen.rechazadas = resumen_parseo.rechazadas
+    resumen.fechas_invalidas = resumen_parseo.fechas_invalidas
+    messages.success(request, "Padrón propio de este relevamiento. " + resumen.mensaje())
+    if resumen.localidades_no_reconocidas:
+        muestra = ", ".join(resumen.localidades_no_reconocidas[:8])
+        if len(resumen.localidades_no_reconocidas) > 8:
+            muestra += ", …"
+        messages.warning(
+            request,
+            f"Localidades que no coinciden con el catálogo (quedan como texto): {muestra}. "
+            "Corregí el Excel si querés que se vinculen al legajo.",
+        )
+    return redirect(destino)
+
+
+@login_required
+@requiere(CAP_CONVOCATORIA_EDITAR)
+@require_POST
+def relevamiento_padron_quitar(request, pk):
+    """Quita el padrón propio: el relevamiento vuelve a heredar el de la
+    convocatoria (o queda abierto si la convocatoria no tiene)."""
+    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
+    _assert_scope(request, rel)
+    from programas.services.padron import quitar_padron_propio
+
+    filas = quitar_padron_propio(rel)
+    if filas:
+        messages.success(request, f"Padrón propio quitado ({filas} personas): vuelve a regir el de la convocatoria.")
+    else:
+        messages.info(request, "Este relevamiento no tenía padrón propio.")
+    return redirect(reverse("becas:relevamiento_detalle", kwargs={"pk": rel.pk}))
 
 
 @login_required

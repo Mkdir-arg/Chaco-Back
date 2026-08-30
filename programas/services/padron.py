@@ -212,14 +212,39 @@ def parsear_padron(archivo):
 
 
 def _convocatoria_de(objetivo):
-    """El padrón es de la convocatoria; se acepta también un relevamiento y se
-    resuelve la suya (compatibilidad con los llamadores del Cambio 41)."""
+    """La convocatoria dueña, venga ella misma o uno de sus relevamientos."""
     if isinstance(objetivo, Convocatoria):
         return objetivo
     convocatoria = getattr(objetivo, "convocatoria", None)
     if convocatoria is None:
         raise TypeError("Se espera una Convocatoria o un Relevamiento.")
     return convocatoria
+
+
+def _es_relevamiento(objetivo):
+    return not isinstance(objetivo, Convocatoria) and hasattr(objetivo, "convocatoria")
+
+
+def padron_de(objetivo):
+    """El padrón **efectivo** (Cambio 59): el propio del relevamiento si cargó
+    uno; si no, el de su convocatoria. Para una convocatoria, el suyo (las
+    filas de nivel convocatoria, sin las propias de sus relevamientos)."""
+    if _es_relevamiento(objetivo):
+        propio = objetivo.padron_propio.all()
+        if propio.exists():
+            return propio
+        return _convocatoria_de(objetivo).padron.filter(relevamiento__isnull=True)
+    return objetivo.padron.filter(relevamiento__isnull=True)
+
+
+def origen_padron(relevamiento):
+    """``"propio"`` | ``"convocatoria"`` | ``None`` — de dónde sale el padrón
+    que rige a este relevamiento."""
+    if relevamiento.padron_propio.exists():
+        return "propio"
+    if _convocatoria_de(relevamiento).padron.filter(relevamiento__isnull=True).exists():
+        return "convocatoria"
+    return None
 
 
 def _entrada(item):
@@ -255,11 +280,16 @@ def _indice_localidades():
 
 @transaction.atomic
 def cargar_padron(objetivo, archivo, entradas, usuario=None):
-    """Reemplaza el padrón de la convocatoria por ``entradas`` (reemplazo total,
+    """Reemplaza el padrón de ``objetivo`` por ``entradas`` (reemplazo total,
     no merge), guarda el Excel original para trazabilidad y **valida los casos
-    pendientes** que ahora figuren con nombre y apellido (RN-5). Devuelve el
-    ``ResumenPadron`` de la carga."""
+    pendientes** que ahora figuren con nombre y apellido (RN-5).
+
+    Cambio 59: con una convocatoria, es el padrón que heredan sus
+    relevamientos sin padrón propio; con un relevamiento, es el padrón propio
+    de **ese** relevamiento y deja de heredar. Devuelve el ``ResumenPadron``.
+    """
     convocatoria = _convocatoria_de(objetivo)
+    relevamiento = objetivo if _es_relevamiento(objetivo) else None
     filas = [_entrada(item) for item in entradas]
     resumen = ResumenPadron(validas=len(filas))
     localidades = _indice_localidades() if any(f["localidad_texto"] for f in filas) else {}
@@ -274,6 +304,7 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
         objetos.append(
             PadronHabilitado(
                 convocatoria=convocatoria,
+                relevamiento=relevamiento,
                 dni=fila["dni"],
                 sexo=fila["sexo"],
                 nombre=fila["nombre"],
@@ -285,51 +316,78 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
         )
     resumen.con_identidad = sum(1 for o in objetos if o.tiene_identidad)
 
-    convocatoria.padron.all().delete()
+    if relevamiento is not None:
+        relevamiento.padron_propio.all().delete()
+    else:
+        convocatoria.padron.filter(relevamiento__isnull=True).delete()
     PadronHabilitado.objects.bulk_create(objetos)
     if archivo is not None:
         # El parser ya consumió el stream: rebobinar antes de persistirlo.
         if hasattr(archivo, "seek"):
             archivo.seek(0)
-        convocatoria.padron_archivo = archivo
-        convocatoria.save(update_fields=["padron_archivo", "modificado"])
-    resumen.casos_validados = validar_casos_pendientes(convocatoria, usuario)
+        duenio = relevamiento or convocatoria
+        duenio.padron_archivo = archivo
+        duenio.save(update_fields=["padron_archivo", "modificado"])
+    resumen.casos_validados = validar_casos_pendientes(objetivo, usuario)
     return resumen
 
 
+@transaction.atomic
+def quitar_padron_propio(relevamiento):
+    """El relevamiento vuelve a heredar el padrón de la convocatoria: borra sus
+    filas propias y su Excel. Devuelve cuántas filas tenía."""
+    filas = relevamiento.padron_propio.count()
+    relevamiento.padron_propio.all().delete()
+    if relevamiento.padron_archivo:
+        relevamiento.padron_archivo.delete(save=False)
+        relevamiento.padron_archivo = None
+        relevamiento.save(update_fields=["padron_archivo", "modificado"])
+    return filas
+
+
 def esta_habilitado(objetivo, dni, sexo):
-    """¿DNI+sexo pueden inscribirse? Sin padrón el link es abierto (RN-P14)."""
-    convocatoria = _convocatoria_de(objetivo)
-    if not convocatoria.padron.exists():
+    """¿DNI+sexo pueden inscribirse? Se decide contra el padrón **efectivo**
+    (el propio del relevamiento o el heredado); sin ninguno, el link es
+    abierto (RN-P14)."""
+    padron = padron_de(objetivo)
+    if not padron.exists():
         return True
-    return convocatoria.padron.filter(dni=normalizar_dni(dni), sexo=normalizar_sexo(sexo)).exists()
+    return padron.filter(dni=normalizar_dni(dni), sexo=normalizar_sexo(sexo)).exists()
 
 
 def fila_padron(objetivo, dni, sexo):
-    """La fila del padrón para DNI + sexo, o ``None``."""
+    """La fila del padrón **efectivo** para DNI + sexo, o ``None``."""
     dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
     if not dni or not sexo:
         return None
-    return _convocatoria_de(objetivo).padron.filter(dni=dni, sexo=sexo).first()
+    return padron_de(objetivo).filter(dni=dni, sexo=sexo).first()
 
 
-def convocatoria_con_identidad(convocatorias, dni, sexo):
-    """Entre varias convocatorias, la primera cuyo padrón tiene a DNI + sexo
-    **con** nombre y apellido; ``None`` si ninguna. Una sola consulta (la app
-    de campo puede tener varios relevamientos vigentes)."""
+def objetivo_con_identidad(relevamientos, dni, sexo):
+    """Entre varios relevamientos, el primero cuyo padrón **efectivo** tiene a
+    DNI + sexo con nombre y apellido; ``None`` si ninguno. Dos consultas como
+    mucho (la app de campo puede tener varios relevamientos vigentes)."""
     dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
-    convocatorias = list(convocatorias)
-    if not convocatorias or not dni or not sexo:
+    relevamientos = list(relevamientos)
+    if not relevamientos or not dni or not sexo:
         return None
-    orden = {c.pk: i for i, c in enumerate(convocatorias)}
-    filas = (
-        PadronHabilitado.objects.filter(convocatoria__in=convocatorias, dni=dni, sexo=sexo)
-        .exclude(nombre="")
-        .exclude(apellido="")
-        .values_list("convocatoria_id", flat=True)
+    con_propio = set(
+        PadronHabilitado.objects.filter(relevamiento__in=relevamientos).values_list("relevamiento_id", flat=True)
     )
-    ids = sorted(set(filas), key=orden.get)
-    return next((c for c in convocatorias if c.pk == ids[0]), None) if ids else None
+    filas = PadronHabilitado.objects.filter(dni=dni, sexo=sexo).exclude(nombre="").exclude(apellido="")
+    propios = set(filas.filter(relevamiento__in=relevamientos).values_list("relevamiento_id", flat=True))
+    heredables = set(
+        filas.filter(
+            relevamiento__isnull=True,
+            convocatoria__in={r.convocatoria_id for r in relevamientos},
+        ).values_list("convocatoria_id", flat=True)
+    )
+    for rel in relevamientos:
+        if rel.pk in propios:
+            return rel
+        if rel.pk not in con_propio and rel.convocatoria_id in heredables:
+            return rel
+    return None
 
 
 def datos_de_fila(fila):
@@ -351,13 +409,15 @@ def _identidad_del_caso(formulario):
     return datos.get("dni", ""), datos.get("sexo") or datos.get("genero") or ""
 
 
-def validar_casos_pendientes(convocatoria, usuario=None):
-    """Cruce automático (RN-5): los casos de la convocatoria **sin validar** que
-    figuran en el padrón con nombre y apellido pasan a validados por padrón.
+def validar_casos_pendientes(objetivo, usuario=None):
+    """Cruce automático (RN-5): los casos **sin validar** que figuran en el
+    padrón efectivo con nombre y apellido pasan a validados por padrón.
 
-    Solo toca casos pendientes y no forzados; nunca desvalida. Completa en el
-    ciudadano lo que estaba vacío (no pisa lo cargado) y deja traza por caso.
-    Devuelve cuántos validó.
+    Cambio 59: al cargar el padrón de un relevamiento se cruzan solo sus
+    casos; al cargar el de la convocatoria, los de sus relevamientos que lo
+    heredan (los que tienen padrón propio no se tocan). Solo casos pendientes
+    y no forzados; nunca desvalida. Completa en el ciudadano lo vacío (no pisa)
+    y deja traza por caso. Devuelve cuántos validó.
     """
     from programas.services.becas import registrar_traza
 
@@ -366,15 +426,22 @@ def validar_casos_pendientes(convocatoria, usuario=None):
     # pendientes acumulados, y una consulta por caso no escala.
     filas = {
         (fila.dni, fila.sexo): fila
-        for fila in convocatoria.padron.exclude(nombre="").exclude(apellido="").select_related("localidad")
+        for fila in padron_de(objetivo).exclude(nombre="").exclude(apellido="").select_related("localidad")
     }
     if not filas:
         return 0
     pendientes = Formulario.objects.filter(
-        relevamiento__convocatoria=convocatoria,
         validado_renaper=False,
         identidad_forzada=False,
     ).select_related("ciudadano")
+    if _es_relevamiento(objetivo):
+        pendientes = pendientes.filter(relevamiento=objetivo)
+    else:
+        pendientes = pendientes.filter(relevamiento__convocatoria=objetivo).exclude(
+            relevamiento__in=PadronHabilitado.objects.filter(relevamiento__convocatoria=objetivo).values(
+                "relevamiento_id"
+            )
+        )
 
     validados = 0
     for formulario in pendientes:

@@ -1632,6 +1632,15 @@ class Relevamiento(PausableMixin, TimeStamped):
         editable=False,
         verbose_name="Token del link público",
     )
+    # Cambio 59: padrón PROPIO de este relevamiento (Excel original, para
+    # trazabilidad). Con filas propias en PadronHabilitado, este relevamiento
+    # no hereda el padrón de la convocatoria.
+    padron_archivo = models.FileField(
+        upload_to=ruta_padron_becas,
+        null=True,
+        blank=True,
+        verbose_name="Padrón propio (Excel)",
+    )
     # Un único interruptor para todo el correo que le llega a la persona por
     # este relevamiento: el comprobante de inscripción (solo link público) y
     # los avisos de resolución del Cambio 44, que aplican también al canal
@@ -1873,6 +1882,17 @@ class PadronHabilitado(TimeStamped):
         related_name="padron",
         verbose_name="Convocatoria",
     )
+    # Cambio 59: con valor, la fila pertenece SOLO a ese relevamiento (padron
+    # propio, pisa al de la convocatoria); en NULL, es el padron de la
+    # convocatoria y lo heredan los relevamientos sin padron propio.
+    relevamiento = models.ForeignKey(
+        "Relevamiento",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="padron_propio",
+        verbose_name="Relevamiento (padron propio)",
+    )
     dni = models.CharField(max_length=20, verbose_name="DNI")
     sexo = models.CharField(max_length=1, choices=Sexo.choices, verbose_name="Sexo")
     # Identidad (opcional por fila). Con nombre y apellido la fila valida;
@@ -1895,9 +1915,15 @@ class PadronHabilitado(TimeStamped):
         verbose_name = "Habilitado del padrón"
         verbose_name_plural = "Habilitados del padrón"
         constraints = [
-            models.UniqueConstraint(fields=["convocatoria", "dni"], name="uniq_padron_dni_convocatoria"),
+            # MySQL trata los NULL como distintos: la unicidad del nivel
+            # convocatoria (relevamiento NULL) la garantiza la carga (reemplazo
+            # total + dedupe del parser); la del nivel relevamiento, la base.
+            models.UniqueConstraint(fields=["convocatoria", "relevamiento", "dni"], name="uniq_padron_dni_alcance"),
         ]
-        indexes = [models.Index(fields=["convocatoria", "dni", "sexo"], name="programas_padron_conv_dni_idx")]
+        indexes = [
+            models.Index(fields=["convocatoria", "dni", "sexo"], name="programas_padron_conv_dni_idx"),
+            models.Index(fields=["relevamiento", "dni", "sexo"], name="programas_padron_rel_dni_idx"),
+        ]
 
     def __str__(self):
         return f"{self.dni} ({self.sexo})"

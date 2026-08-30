@@ -229,7 +229,7 @@ Pensado para que un público objetivo se inscriba solo. Se genera un link con un
     - **La identificación caduca a los 45 minutos**, para que en una computadora compartida no quede disponible el documento de la persona anterior.
     - **Los mensajes de rechazo son idénticos** entre sí, para que nadie pueda reconstruir el padrón ni averiguar quién ya está inscripto probando documentos.
 
-### Quién puede inscribirse y quién es: el padrón de la convocatoria
+### Quién puede inscribirse y quién es: el padrón
 
 Cada convocatoria puede tener un **padrón de habilitados**: un Excel que se carga desde la propia convocatoria (solapa Información general, con plantilla descargable) y que vale para todos sus relevamientos, del link y de la app de campo. Tiene seis columnas:
 
@@ -249,6 +249,12 @@ Cómo se usa:
 
 !!! warning "El padrón es tan bueno como el Excel"
     Lo que diga el Excel se toma como nombre y apellido de la persona. Un error de tipeo del organismo queda en la ficha hasta que la Base de Personas vuelva y lo corrija.
+
+**El padrón se carga en la convocatoria y lo heredan todos sus relevamientos.** Si un relevamiento
+necesita su propia lista (un barrio, una escuela, un grupo puntual), se le carga un **padrón propio** desde su
+detalle: ese relevamiento pasa a habilitar e identificar solo con su lista y deja de mirar la de la
+convocatoria. Quitarle el padrón propio lo devuelve a la herencia. En ambos niveles vale lo mismo: reemplazo
+total al cargar, y el cruce automático valida los casos pendientes que figuren con nombre y apellido.
 
 ### Qué protege el link
 
