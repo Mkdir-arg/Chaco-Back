@@ -523,14 +523,59 @@
 | 27/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | | | | **Total 20 al 27/08** | | **238 h** | **220 h** |
 
+### :material-package-variant-closed: Consumo del 29 al 30 de agosto — fin de semana, por entregable
+
+!!! note "Fin de semana de desarrollo del constructor de formularios"
+    El equipo completo trabajó sábado y domingo (11 h por persona por día) sobre el **constructor de
+    formularios por convocatoria**: desarrollo, pruebas manuales y automatizadas, documentación y el
+    despliegue al servidor de pruebas del proyecto. Cada día tuvo **reunión de inicio y reunión de
+    cierre**. **El desarrollo continúa**: ninguna línea de este bloque se da por terminada.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 29/08 | Matías Fariña | Transversal | Reunión de inicio del sábado | Apertura del fin de semana de trabajo: alcance, reparto y criterios. | 1 h | — |
+| 29/08 | Matías Fariña | Becas | Constructor de formularios — conducción y definiciones de alcance | Decisiones funcionales del constructor sobre el código real: grupos del catálogo, campos vinculados al legajo, condiciones entre respuestas, campos propios de la convocatoria y canales (app / link). | 5 h | — |
+| 29/08 | Matías Fariña | Becas | Documentación funcional del constructor | Registro de las definiciones y del avance en la documentación viva del proyecto. | 2 h | — |
+| 29/08 | Matías Fariña | Transversal | Coordinación del fin de semana | Seguimiento del trabajo de las cuatro personas durante la jornada. | 2 h | — |
+| 29/08 | Matías Fariña | Transversal | Reunión de cierre del sábado | Cierre de jornada: estado de cada frente y plan del domingo. | 1 h | — |
+| 29/08 | Pablo Cao | Transversal | Reuniones de inicio y cierre del sábado | Apertura y cierre de la jornada de trabajo. | 2 h | — |
+| 29/08 | Pablo Cao | Becas | Catálogo de requisitos con grupos y canales — desarrollo | Los requisitos generales pasan a organizarse en grupos (con los datos del legajo y del apoderado como campos protegidos) y cada campo declara en qué canal se pide. En desarrollo. | 4,5 h | 9 h |
+| 29/08 | Pablo Cao | Becas | Motor de condiciones del formulario — desarrollo | Diseño por convocatoria y motor de condiciones entre respuestas (mostrar u ocultar campos y grupos según lo respondido), con validación de coherencia. En desarrollo. | 4,5 h | 9 h |
+| 29/08 | Juani Portilla | Transversal | Reuniones de inicio y cierre del sábado | Apertura y cierre de la jornada de trabajo. | 2 h | — |
+| 29/08 | Juani Portilla | Becas | Cobertura automatizada del catálogo y del motor de condiciones | Suites de pruebas automáticas del catálogo agrupado, de los operadores de condición y del diseño por convocatoria. | 5 h | 10 h |
+| 29/08 | Juani Portilla | Becas | Entorno de pruebas equivalente al de integración continua | Puesta a punto de un entorno local con las mismas versiones que el pipeline, para que las corridas locales valgan como las del servidor. | 2 h | 4 h |
+| 29/08 | Juani Portilla | Becas | Documentación técnica del cambio | Registro técnico del avance en el archivo de requerimientos del proyecto. | 2 h | — |
+| 29/08 | Matías Abate | Transversal | Reuniones de inicio y cierre del sábado | Apertura y cierre de la jornada de trabajo. | 2 h | — |
+| 29/08 | Matías Abate | Becas | Casos de prueba del constructor | Diseño de los casos de prueba de las tareas del constructor en el tablero. | 4 h | — |
+| 29/08 | Matías Abate | Becas | Pruebas manuales del catálogo agrupado | Recorrido manual del catálogo con grupos: alta, edición, protecciones y filtros. | 3 h | — |
+| 29/08 | Matías Abate | Becas | Reporte de hallazgos del día | Registro y reporte de los problemas encontrados durante las pruebas. | 2 h | — |
+| 30/08 | Matías Fariña | Transversal | Reunión de inicio del domingo | Apertura de jornada: prioridades sobre lo encontrado el sábado. | 1 h | — |
+| 30/08 | Matías Fariña | Becas | Revisión visual del constructor en navegador real | Recorrido de las pantallas nuevas en escritorio y celular, detección de errores visuales y priorización de los arreglos. | 3 h | — |
+| 30/08 | Matías Fariña | Becas | Despliegue del desarrollo al servidor de pruebas del proyecto | Respaldo de la base, actualización del servidor con el desarrollo del fin de semana, migraciones y verificación del servicio. | 3 h | 5 h |
+| 30/08 | Matías Fariña | Becas | Padrón con herencia por relevamiento — definición | Definición del comportamiento nuevo del padrón: el de la convocatoria se hereda y un relevamiento puede tener el suyo propio. En desarrollo. | 2 h | — |
+| 30/08 | Matías Fariña | Transversal | Coordinación e informe del fin de semana | Seguimiento del día y armado del estado para el equipo. | 1 h | — |
+| 30/08 | Matías Fariña | Transversal | Reunión de cierre del domingo | Cierre del fin de semana: estado real de cada frente y lo que sigue. | 1 h | — |
+| 30/08 | Pablo Cao | Transversal | Reuniones de inicio y cierre del domingo | Apertura y cierre de la jornada de trabajo. | 2 h | — |
+| 30/08 | Pablo Cao | Becas | Constructor con vista previa en vivo — desarrollo | Pantalla de configuración del formulario por convocatoria: arrastrar y soltar, textos, campos propios, editor de condiciones y vista previa que se actualiza al responder. En desarrollo. | 5 h | 10 h |
+| 30/08 | Pablo Cao | Becas | El caso guarda sus respuestas y la foto del formulario — desarrollo | Cada caso guarda lo respondido junto con la versión del formulario que la persona tuvo delante, para que los casos viejos no se reinterpreten. En desarrollo. | 4 h | 8 h |
+| 30/08 | Juani Portilla | Transversal | Reuniones de inicio y cierre del domingo | Apertura y cierre de la jornada de trabajo. | 2 h | — |
+| 30/08 | Juani Portilla | Becas | Regresión automatizada completa y corrección de hallazgos | Corridas de regresión del sistema completo tras cada etapa y corrección de los problemas detectados por las revisiones técnicas. | 5 h | 10 h |
+| 30/08 | Juani Portilla | Becas | Pruebas automatizadas del formulario público por diseño | Cobertura del paso 2 del link construido desde el diseño de la convocatoria, con las condiciones evaluadas también en el servidor. | 2 h | 4 h |
+| 30/08 | Juani Portilla | Becas | Documentación cliente de la funcionalidad | Actualización de la documentación del programa con el constructor y el padrón. | 2 h | — |
+| 30/08 | Matías Abate | Transversal | Reuniones de inicio y cierre del domingo | Apertura y cierre de la jornada de trabajo. | 2 h | — |
+| 30/08 | Matías Abate | Becas | Pruebas manuales de las pantallas nuevas | Recorrido manual del catálogo, el constructor, el formulario público y la revisión de casos, en escritorio y celular. | 5 h | — |
+| 30/08 | Matías Abate | Becas | Verificación del despliegue en el servidor | Prueba del flujo completo sobre el servidor recién actualizado. | 2 h | — |
+| 30/08 | Matías Abate | Becas | Casos de prueba del padrón con herencia | Diseño de los casos del comportamiento nuevo del padrón por relevamiento. | 2 h | — |
+| | | | **Total 29 al 30/08 (fin de semana)** | | **88 h** | **69 h** |
+
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 392 h 30 min |
+| Becas | 461 h 30 min |
 | Dispositivos | 140 h 30 min |
-| Transversal | 149 h 00 min |
-| **Total agosto 2026 (al 27/08)** | **682 h 00 min** |
+| Transversal | 168 h 00 min |
+| **Total agosto 2026 (al 30/08)** | **770 h 00 min** |
 
 ---
 
@@ -560,9 +605,9 @@
 
 
 
-    **100.872 minutos** (1.681 h 12 min)
+    **106.152 minutos** (1.769 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 682 h 00 min (al 27/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 770 h 00 min (al 30/08).
 
 
 
