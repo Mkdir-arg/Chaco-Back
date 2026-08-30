@@ -170,6 +170,10 @@ class MoverTests(_Base):
         data = resp.json()
         self.assertFalse(data["ok"])
         self.assertIn("g-apoderado", data["errores"])
+        # El motivo habla en nombres, no en claves.
+        self.assertIn("Apoderado", data["message"])
+        self.assertIn("Fecha de nacimiento", data["message"])
+        self.assertNotIn("pg-", data["message"])
         self.assertEqual(self._claves(), orden_antes)  # rollback completo
         diseno.refresh_from_db()
         self.assertEqual(diseno.version, version)

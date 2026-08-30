@@ -206,10 +206,16 @@ def _respuesta(request, diseno, mensaje, avisos=None, items=None):
     )
 
 
-def _mensaje(errores):
+def _mensaje(errores, titulos=None):
+    """El motivo del rechazo para el operador: con el nombre de los ítems, no
+    sus claves («Fecha de nacimiento», no «pg-9»)."""
+    titulos = titulos or {}
     partes = []
-    for mensajes in errores.values():
-        partes.extend(mensajes)
+    for clave, mensajes in errores.items():
+        for mensaje in mensajes:
+            for otra, titulo in titulos.items():
+                mensaje = mensaje.replace(f"«{otra}»", f"«{titulo}»")
+            partes.append(f"{titulos.get(clave, clave)}: {mensaje}")
     return " ".join(partes) if partes else "El diseño quedó incoherente."
 
 
@@ -232,7 +238,10 @@ def _mutar(request, diseno, mensaje, operacion):
             items = _asegurar_coherencia(diseno)
             diseno.tocar(request.user)
     except DisenoInvalido as exc:
-        return JsonResponse({"ok": False, "message": _mensaje(exc.errores), "errores": exc.errores}, status=400)
+        titulos = {i.clave: i.titulo or i.get_tipo_display() for i in items_ordenados(diseno)}
+        return JsonResponse(
+            {"ok": False, "message": _mensaje(exc.errores, titulos), "errores": exc.errores}, status=400
+        )
     return _respuesta(request, diseno, mensaje, items=items)
 
 
