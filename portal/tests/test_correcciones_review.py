@@ -57,7 +57,7 @@ class ReporteProduccionConPublicosTests(TestCase):
 
 
 class RateLimitDevuelveMensajeTests(_BaseInscripcionTest):
-    @patch("portal.views.inscripcion.consultar_persona")
+    @patch("programas.services.identidad.consultar_persona")
     def test_rate_limit_no_es_un_500(self, mock_consulta):
         with patch("portal.views.inscripcion.paso1_excedido", return_value=True):
             try:
@@ -155,11 +155,11 @@ class GateEnScopesTests(TestCase):
 
 class PadronFloatsTests(TestCase):
     def test_dni_float_y_largo_invalido(self):
-        entradas, rechazadas = parsear_padron(
+        entradas, resumen = parsear_padron(
             _xlsx([("documento", "sexo"), (30123456.0, "M"), (301234560, "F"), ("28.111.222", "f")])
         )
-        self.assertEqual(entradas, [("30123456", "M"), ("28111222", "F")])
-        self.assertEqual(rechazadas, 1)  # el de 9 dígitos
+        self.assertEqual([(e["dni"], e["sexo"]) for e in entradas], [("30123456", "M"), ("28111222", "F")])
+        self.assertEqual(resumen.rechazadas, 1)  # el de 9 dígitos
 
 
 class PadronSeRechequeaAlEnviarTests(_BasePaso2Test):

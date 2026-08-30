@@ -235,6 +235,16 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
         ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
+        # Padrón de habilitados (Cambio 57): uno por convocatoria, para los dos
+        # canales. Se administra acá, no en el relevamiento.
+        conteo_padron = conv.padron.aggregate(
+            total=Count("pk"),
+            con_identidad=Count("pk", filter=~Q(nombre="") & ~Q(apellido="")),
+        )
+        ctx["n_padron"] = conteo_padron["total"] or 0
+        ctx["n_padron_identidad"] = conteo_padron["con_identidad"] or 0
+        ctx["puede_padron"] = puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
+        ctx["tiene_publicos"] = any(r.es_publico for r in relevamientos)
         return ctx
 
 
@@ -586,10 +596,8 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
             # El link se muestra en el detalle: se navega ahí directamente.
             detalle = reverse("becas:relevamiento_detalle", kwargs={"pk": self.object.pk})
             mensaje = "Relevamiento público creado. Compartí el link de inscripción."
-            if getattr(form, "padron_resumen", None):
-                validas, rechazadas = form.padron_resumen
-                mensaje += f" Padrón: {validas} habilitados"
-                mensaje += f" ({rechazadas} filas ignoradas)." if rechazadas else "."
+            if not self.object.convocatoria.padron.exists():
+                mensaje += " La convocatoria no tiene padrón: el link queda abierto."
             if is_ajax(self.request):
                 return ajax_redirect(detalle, mensaje)
             messages.success(self.request, mensaje)
@@ -632,7 +640,8 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx = super().get_context_data(**kwargs)
         rel = self.object
         ctx["link_publico"] = self.request.build_absolute_uri(rel.url_publica) if rel.es_publico else ""
-        ctx["n_padron"] = rel.padron.count() if rel.es_publico else 0
+        # El padrón es de la convocatoria (Cambio 57); acá solo se informa.
+        ctx["n_padron"] = rel.convocatoria.padron.count()
         ctx["form_reasignar"] = ReasignarTerritorialForm(
             initial={"territorial": rel.territorial}, segmento=rel.convocatoria.segmento
         )
@@ -759,37 +768,61 @@ def relevamiento_reasignar(request, pk):
 
 
 @login_required
-@requiere(CAP_RELEVAMIENTO_PUBLICO)
+@requiere(CAP_CONVOCATORIA_EDITAR)
 @require_POST
-def relevamiento_reemplazar_padron(request, pk):
-    """Reemplaza (o carga) el padrón de habilitados de un público (RN-P14).
+def convocatoria_padron(request, pk):
+    """Carga o reemplaza el padrón de habilitados de la convocatoria (Cambio 57).
 
-    Reemplazo total, con efecto inmediato en el paso 1 del link. Gateado por
-    la capacidad del formulario público, igual que el resto de la superficie.
+    Reemplazo total, con efecto inmediato en el paso 1 del link y en la app de
+    campo. Al terminar, los casos pendientes que figuren con nombre y apellido
+    quedan validados por padrón (cruce automático, RN-5). Quien edita la
+    convocatoria administra su padrón: admin del programa y coordinador.
     """
-    rel = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
-    _assert_scope(request, rel)
-    if not rel.es_publico:
-        messages.error(request, "El padrón solo aplica a relevamientos de formulario público.")
-        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+    conv = get_object_or_404(convocatorias_visibles(request.user).select_related("segmento"), pk=pk)
+    destino = reverse("becas:convocatoria_detalle", kwargs={"pk": conv.pk})
     archivo = request.FILES.get("padron")
     if archivo is None:
-        messages.error(request, "Adjuntá el Excel del padrón (.xlsx con documento y sexo).")
-        return redirect("becas:relevamiento_detalle", pk=rel.pk)
+        messages.error(request, "Adjuntá el Excel del padrón (.xlsx): documento, sexo y, si los tenés, los datos de identidad.")
+        return redirect(destino)
     from django.core.exceptions import ValidationError as DjangoValidationError
 
     from programas.services.padron import cargar_padron, parsear_padron
 
     try:
-        entradas, rechazadas = parsear_padron(archivo)
+        entradas, resumen_parseo = parsear_padron(archivo)
     except DjangoValidationError as exc:
         messages.error(request, " ".join(exc.messages))
-        return redirect("becas:relevamiento_detalle", pk=rel.pk)
-    cargar_padron(rel, archivo, entradas)
-    mensaje = f"Padrón reemplazado: {len(entradas)} habilitados"
-    mensaje += f" ({rechazadas} filas ignoradas)." if rechazadas else "."
-    messages.success(request, mensaje)
-    return redirect("becas:relevamiento_detalle", pk=rel.pk)
+        return redirect(destino)
+    resumen = cargar_padron(conv, archivo, entradas, usuario=request.user)
+    resumen.rechazadas = resumen_parseo.rechazadas
+    resumen.fechas_invalidas = resumen_parseo.fechas_invalidas
+    messages.success(request, resumen.mensaje())
+    if resumen.localidades_no_reconocidas:
+        muestra = ", ".join(resumen.localidades_no_reconocidas[:8])
+        if len(resumen.localidades_no_reconocidas) > 8:
+            muestra += ", …"
+        messages.warning(
+            request,
+            f"Localidades que no coinciden con el catálogo (quedan como texto): {muestra}. "
+            "Corregí el Excel si querés que se vinculen al legajo.",
+        )
+    return redirect(destino)
+
+
+@login_required
+@requiere(CAP_CONVOCATORIA_VER)
+def convocatoria_padron_plantilla(request, pk):
+    """El .xlsx de ejemplo con las seis columnas, para que el organismo arme el
+    padrón con el formato que el sistema espera."""
+    get_object_or_404(convocatorias_visibles(request.user), pk=pk)
+    from programas.services.padron import plantilla_padron
+
+    respuesta = HttpResponse(
+        plantilla_padron(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    respuesta["Content-Disposition"] = 'attachment; filename="plantilla-padron-habilitados.xlsx"'
+    return respuesta
 
 
 @login_required

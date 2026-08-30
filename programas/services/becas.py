@@ -161,6 +161,9 @@ def resolver_ciudadano_offline(formulario):
             genero = str(datos.get("sexo") or datos.get("genero") or "").strip().upper()
             if genero not in Ciudadano.Genero.values:
                 genero = ""
+            # La localidad viene del padrón (Cambio 57) y solo completa el legajo:
+            # nunca pisa una ya cargada.
+            localidad_id = datos.get("localidad_id") or None
             ciudadano, creado = Ciudadano.objects.get_or_create(
                 dni=dni,
                 defaults={
@@ -168,11 +171,19 @@ def resolver_ciudadano_offline(formulario):
                     "apellido": datos.get("apellido", ""),
                     "fecha_nacimiento": datos.get("fecha_nacimiento") or None,
                     "genero": genero,
+                    "localidad_id": localidad_id,
                 },
             )
-            if not creado and not ciudadano.genero and genero:
-                ciudadano.genero = genero
-                ciudadano.save(update_fields=["genero", "modificado"])
+            if not creado:
+                completar = []
+                if not ciudadano.genero and genero:
+                    ciudadano.genero = genero
+                    completar.append("genero")
+                if not ciudadano.localidad_id and localidad_id:
+                    ciudadano.localidad_id = localidad_id
+                    completar.append("localidad")
+                if completar:
+                    ciudadano.save(update_fields=[*completar, "modificado"])
             formulario.ciudadano = ciudadano
             formulario.datos_identificacion = None
             campos_actualizados.extend(["ciudadano", "datos_identificacion"])

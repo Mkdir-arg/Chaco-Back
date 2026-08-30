@@ -21,7 +21,7 @@ desplegable del navegador y el formulario se envía igual.{% endcomment %}
     <div class="p-4 mb-4" style="background: var(--bg-brand-softer); border: 1px solid var(--border-brand-subtle); border-radius: var(--radius-xl);">
         <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ identificacion.datos.nombre }} {{ identificacion.datos.apellido }}</p>
         <p class="text-xs mt-1" style="color: var(--text-body-subtle);">DNI {{ identificacion.dni }}{% if identificacion.datos.fecha_nacimiento %} · Nacimiento {{ identificacion.datos.fecha_nacimiento }}{% endif %}</p>
-        <p class="text-xs mt-1 font-semibold" style="color: var(--text-fg-brand);">Identidad validada · RENAPER</p>
+        <p class="text-xs mt-1 font-semibold" style="color: var(--text-fg-brand);">Identidad validada · {% if identificacion.origen == "padron" %}Padrón de la convocatoria{% else %}Base de Personas{% endif %}</p>
     </div>
     {% else %}
     <div class="p-4 mb-4" style="background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: var(--radius-xl);">

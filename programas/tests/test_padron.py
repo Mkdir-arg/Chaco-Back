@@ -1,4 +1,10 @@
-"""Tests del padrón de habilitados por Excel (#299, análisis #289)."""
+"""Tests del padrón de habilitados por Excel (#299, análisis #289; Cambio 57).
+
+Desde el Cambio 57 el padrón es de la **convocatoria** (lo usan el link y la
+app), tiene seis columnas y valida la identidad cuando trae nombre y apellido.
+La cascada de identidad y el cruce automático se prueban en
+``test_padron_identidad``; acá queda el parser, la carga y la pantalla.
+"""
 
 from datetime import date
 from io import BytesIO, StringIO
@@ -10,11 +16,19 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from core.models import Localidad, Municipio, Provincia
 from programas.forms import RelevamientoForm
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import Convocatoria, PadronHabilitado, Relevamiento, Segmento
-from programas.services.padron import cargar_padron, esta_habilitado, parsear_padron
-from programas.tests.test_relevamiento_publico import _dar_capacidad_publico
+from programas.services.padron import (
+    cargar_padron,
+    clave_localidad,
+    esta_habilitado,
+    fila_padron,
+    normalizar_fecha,
+    parsear_padron,
+    plantilla_padron,
+)
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -29,6 +43,10 @@ def _xlsx(filas, nombre="padron.xlsx"):
     buffer = BytesIO()
     libro.save(buffer)
     return SimpleUploadedFile(nombre, buffer.getvalue(), content_type=XLSX_MIME)
+
+
+def _pares(entradas):
+    return [(e["dni"], e["sexo"]) for e in entradas]
 
 
 class _BasePadronTest(TestCase):
@@ -60,14 +78,49 @@ class ParserPadronTests(TestCase):
                 ("30123456", "M"),  # dni duplicado: rechazada
             ]
         )
-        entradas, rechazadas = parsear_padron(archivo)
-        self.assertEqual(entradas, [("30123456", "F"), ("28111222", "M")])
-        self.assertEqual(rechazadas, 3)
+        entradas, resumen = parsear_padron(archivo)
+        self.assertEqual(_pares(entradas), [("30123456", "F"), ("28111222", "M")])
+        self.assertEqual(resumen.rechazadas, 3)
+        self.assertEqual(resumen.validas, 2)
+        self.assertEqual(resumen.con_identidad, 0)
 
     def test_sin_encabezado_tambien_funciona(self):
-        entradas, rechazadas = parsear_padron(_xlsx([("30123456", "F")]))
-        self.assertEqual(entradas, [("30123456", "F")])
-        self.assertEqual(rechazadas, 0)
+        entradas, resumen = parsear_padron(_xlsx([("30123456", "F")]))
+        self.assertEqual(_pares(entradas), [("30123456", "F")])
+        self.assertEqual(resumen.rechazadas, 0)
+
+    def test_seis_columnas_con_identidad(self):
+        """Cambio 57: nombre, apellido, fecha y localidad viajan por fila; la
+        identidad completa se cuenta aparte."""
+        entradas, resumen = parsear_padron(
+            _xlsx(
+                [
+                    ("documento", "sexo", "nombre", "apellido", "fecha de nacimiento", "localidad"),
+                    ("36210951", "F", " Pamela  Janet ", "Romero", "14/03/2010", "Resistencia"),
+                    ("28111222", "M", "", "", "", ""),
+                    ("20111333", "F", "Ana", "", "2001-05-09", "Sáenz Peña"),
+                ]
+            )
+        )
+        self.assertEqual(resumen.validas, 3)
+        self.assertEqual(resumen.con_identidad, 1)  # Ana no tiene apellido
+        pamela = entradas[0]
+        self.assertEqual(pamela["nombre"], "Pamela Janet")
+        self.assertEqual(pamela["apellido"], "Romero")
+        self.assertEqual(pamela["fecha_nacimiento"], date(2010, 3, 14))
+        self.assertEqual(pamela["localidad_texto"], "Resistencia")
+        self.assertEqual(entradas[2]["fecha_nacimiento"], date(2001, 5, 9))
+
+    def test_fecha_invalida_no_rechaza_la_fila(self):
+        entradas, resumen = parsear_padron(_xlsx([("30123456", "F", "Ana", "Paz", "ayer", "")]))
+        self.assertEqual(len(entradas), 1)
+        self.assertIsNone(entradas[0]["fecha_nacimiento"])
+        self.assertEqual(resumen.fechas_invalidas, 1)
+        self.assertEqual(resumen.con_identidad, 1)
+
+    def test_fecha_como_celda_de_excel(self):
+        entradas, _ = parsear_padron(_xlsx([("30123456", "F", "Ana", "Paz", date(1991, 3, 14), "")]))
+        self.assertEqual(entradas[0]["fecha_nacimiento"], date(1991, 3, 14))
 
     def test_extension_invalida(self):
         archivo = SimpleUploadedFile("padron.csv", b"30123456,F", content_type="text/csv")
@@ -84,9 +137,26 @@ class ParserPadronTests(TestCase):
             parsear_padron(_xlsx([("documento", "sexo"), ("", "")]))
 
 
+class NormalizacionTests(TestCase):
+    def test_fechas(self):
+        self.assertEqual(normalizar_fecha("14/03/2010"), (date(2010, 3, 14), False))
+        self.assertEqual(normalizar_fecha("2010-03-14"), (date(2010, 3, 14), False))
+        self.assertEqual(normalizar_fecha(None), (None, False))
+        self.assertEqual(normalizar_fecha("   "), (None, False))
+        self.assertEqual(normalizar_fecha("14/13/2010"), (None, True))
+        # Serial de Excel: 40251 = 14/03/2010.
+        self.assertEqual(normalizar_fecha(40251), (date(2010, 3, 14), False))
+
+    def test_clave_localidad(self):
+        self.assertEqual(clave_localidad("Sáenz Peña"), clave_localidad("SAENZ PENA"))
+        self.assertEqual(clave_localidad("  Resistencia "), "resistencia")
+        self.assertNotEqual(clave_localidad("Rcia."), clave_localidad("Resistencia"))
+
+
 class EstaHabilitadoTests(_BasePadronTest):
     def test_sin_padron_el_link_es_abierto(self):
         self.assertTrue(esta_habilitado(self.relevamiento, "99999999", "F"))
+        self.assertTrue(esta_habilitado(self.convocatoria, "99999999", "F"))
 
     def test_matchea_con_normalizacion_en_ambos_sentidos(self):
         cargar_padron(self.relevamiento, None, [("30123456", "F")])
@@ -95,87 +165,179 @@ class EstaHabilitadoTests(_BasePadronTest):
         self.assertFalse(esta_habilitado(self.relevamiento, "11111111", "F"))
 
     def test_reemplazo_total_con_efecto_inmediato(self):
-        cargar_padron(self.relevamiento, None, [("30123456", "F")])
-        cargar_padron(self.relevamiento, None, [("28111222", "M")])
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        cargar_padron(self.convocatoria, None, [("28111222", "M")])
         self.assertFalse(esta_habilitado(self.relevamiento, "30123456", "F"))
         self.assertTrue(esta_habilitado(self.relevamiento, "28111222", "M"))
-        self.assertEqual(self.relevamiento.padron.count(), 1)
+        self.assertEqual(self.convocatoria.padron.count(), 1)
+
+    def test_el_padron_es_de_la_convocatoria_y_lo_comparten_sus_relevamientos(self):
+        """Cambio 57: un solo Excel para el link y para el territorial."""
+        territorial = User.objects.create_user("terri_pad")
+        rel_campo = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=territorial,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Zona",
+        )
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        self.assertTrue(esta_habilitado(rel_campo, "30123456", "F"))
+        self.assertTrue(esta_habilitado(self.relevamiento, "30123456", "F"))
+        self.assertFalse(esta_habilitado(rel_campo, "99999999", "F"))
 
 
-class FormConPadronTests(_BasePadronTest):
-    def _data(self):
-        return {
-            "tipo": Relevamiento.Tipo.PUBLICO,
-            "convocatoria": self.convocatoria.pk,
-            "fecha_asignada": "2026-07-01T08:00",
-            "fecha_hasta": "2026-07-31T18:00",
-        }
+class CargaConIdentidadTests(_BasePadronTest):
+    def setUp(self):
+        super().setUp()
+        provincia = Provincia.objects.create(nombre="Chaco")
+        municipio = Municipio.objects.create(nombre="San Fernando", provincia=provincia)
+        self.resistencia = Localidad.objects.create(nombre="Resistencia", municipio=municipio)
 
-    def test_alta_con_padron_crea_entradas_y_resumen(self):
+    def test_guarda_identidad_y_cruza_localidad_por_nombre(self):
+        resumen = cargar_padron(
+            self.convocatoria,
+            None,
+            [
+                {
+                    "dni": "36210951",
+                    "sexo": "F",
+                    "nombre": "Pamela Janet",
+                    "apellido": "Romero",
+                    "fecha_nacimiento": date(2010, 3, 14),
+                    "localidad_texto": "RESISTENCIA",
+                },
+                {"dni": "28111222", "sexo": "M", "localidad_texto": "Rcia."},
+            ],
+        )
+        fila = fila_padron(self.convocatoria, "36.210.951", "femenino")
+        self.assertTrue(fila.tiene_identidad)
+        self.assertEqual(fila.localidad, self.resistencia)
+        self.assertEqual(fila.localidad_texto, "RESISTENCIA")
+        otra = fila_padron(self.convocatoria, "28111222", "M")
+        self.assertFalse(otra.tiene_identidad)
+        self.assertIsNone(otra.localidad)
+        self.assertEqual(otra.localidad_texto, "Rcia.")
+        self.assertEqual(resumen.validas, 2)
+        self.assertEqual(resumen.con_identidad, 1)
+        self.assertEqual(resumen.localidades_no_reconocidas, ["Rcia."])
+
+    def test_las_tuplas_historicas_siguen_valiendo(self):
+        """RN-7: un padrón de dos columnas habilita y no valida."""
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        fila = fila_padron(self.convocatoria, "30123456", "F")
+        self.assertFalse(fila.tiene_identidad)
+
+    def test_fila_padron_sin_dni_o_sexo_es_none(self):
+        cargar_padron(self.convocatoria, None, [("30123456", "F")])
+        self.assertIsNone(fila_padron(self.convocatoria, "", "F"))
+        self.assertIsNone(fila_padron(self.convocatoria, "30123456", "X"))
+
+
+class FormSinPadronTests(_BasePadronTest):
+    def test_el_alta_de_relevamiento_ya_no_tiene_padron(self):
         form = RelevamientoForm(
-            data=self._data(),
-            files={"padron": _xlsx([("documento", "sexo"), ("30123456", "F"), ("bad", ""), ("28111222", "m")])},
+            data={
+                "tipo": Relevamiento.Tipo.PUBLICO,
+                "convocatoria": self.convocatoria.pk,
+                "fecha_asignada": "2026-07-01T08:00",
+                "fecha_hasta": "2026-07-31T18:00",
+            },
             puede_publico=True,
         )
+        self.assertNotIn("padron", form.fields)
         self.assertTrue(form.is_valid(), form.errors)
         rel = form.save()
-        self.assertEqual(rel.padron.count(), 2)
-        self.assertEqual(form.padron_resumen, (2, 1))
-        self.assertTrue(rel.padron_archivo)
-
-    def test_alta_sin_padron_queda_abierta(self):
-        form = RelevamientoForm(data=self._data(), puede_publico=True)
-        self.assertTrue(form.is_valid(), form.errors)
-        rel = form.save()
-        self.assertEqual(rel.padron.count(), 0)
         self.assertTrue(esta_habilitado(rel, "1234567", "F"))
 
-    def test_archivo_invalido_rechaza_el_alta(self):
-        form = RelevamientoForm(
-            data=self._data(),
-            files={"padron": SimpleUploadedFile("p.xlsx", b"no excel", content_type=XLSX_MIME)},
-            puede_publico=True,
-        )
-        self.assertFalse(form.is_valid())
-        self.assertIn("padron", form.errors)
-        self.assertFalse(Relevamiento.objects.filter(pk__isnull=False, tipo="PUBLICO", padron__isnull=False).exists())
 
+class PadronConvocatoriaViewTests(_BasePadronTest):
+    """Alta y reemplazo desde la convocatoria (Cambio 57)."""
 
-class ReemplazoPadronViewTests(_BasePadronTest):
     def setUp(self):
         super().setUp()
         call_command("seed_becas", stdout=StringIO())
         grupo_admin = Group.objects.get(name=ROL_ADMIN)
-        self.admin_publico = User.objects.create_user("admin_pub", password="x")
-        self.admin_publico.groups.add(grupo_admin)
-        _dar_capacidad_publico(grupo_admin)
-        self.admin_sin = User.objects.create_user("admin_sin", password="x")
+        self.admin = User.objects.create_user("admin_pad", password="x")
+        self.admin.groups.add(grupo_admin)
+        self.sin_permiso = User.objects.create_user("sin_pad", password="x")
 
     def _url(self):
-        return reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
+        return reverse("becas:convocatoria_padron", args=[self.convocatoria.pk])
 
-    def test_reemplazo_ok(self):
-        self.client.force_login(self.admin_publico)
-        resp = self.client.post(self._url(), {"padron": _xlsx([("30123456", "F")])})
+    def test_carga_ok_y_redirige_a_la_convocatoria(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            self._url(),
+            {"padron": _xlsx([("documento", "sexo", "nombre", "apellido"), ("30123456", "F", "Ana", "Paz")])},
+        )
         self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("becas:convocatoria_detalle", args=[self.convocatoria.pk]), resp.url)
         self.assertTrue(esta_habilitado(self.relevamiento, "30123456", "F"))
+        self.convocatoria.refresh_from_db()
+        self.assertTrue(self.convocatoria.padron_archivo)
+
+    def test_sin_archivo_avisa(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(self._url(), {})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.convocatoria.padron.count(), 0)
+
+    def test_archivo_invalido_no_borra_el_padron_anterior(self):
+        cargar_padron(self.convocatoria, None, [("11111111", "M")])
+        self.client.force_login(self.admin)
+        self.client.post(self._url(), {"padron": SimpleUploadedFile("p.xlsx", b"no excel", content_type=XLSX_MIME)})
+        self.assertEqual(list(self.convocatoria.padron.values_list("dni", flat=True)), ["11111111"])
 
     def test_sin_capacidad_no_puede(self):
-        self.client.force_login(self.admin_sin)
+        self.client.force_login(self.sin_permiso)
         resp = self.client.post(self._url(), {"padron": _xlsx([("30123456", "F")])})
         self.assertNotEqual(resp.status_code, 200)
-        self.assertEqual(self.relevamiento.padron.count(), 0)
+        self.assertEqual(self.convocatoria.padron.count(), 0)
 
-    def test_no_aplica_a_territoriales(self):
-        terr_user = User.objects.create_user("terr")
-        rel_terr = Relevamiento.objects.create(
-            convocatoria=self.convocatoria,
-            territorial=terr_user,
-            fecha_asignada=date(2026, 6, 1),
-            zona="Zona",
+    def test_solo_post(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 405)
+
+    def test_la_url_vieja_por_relevamiento_ya_no_existe(self):
+        from django.urls import NoReverseMatch
+
+        with self.assertRaises(NoReverseMatch):
+            reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
+
+    def test_plantilla_descargable(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("becas:convocatoria_padron_plantilla", args=[self.convocatoria.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], XLSX_MIME)
+        self.assertIn("plantilla-padron-habilitados.xlsx", resp["Content-Disposition"])
+        from openpyxl import load_workbook
+
+        hoja = load_workbook(BytesIO(resp.content)).active
+        encabezados = [c.value for c in next(hoja.iter_rows(min_row=1, max_row=1))]
+        self.assertEqual(encabezados, ["documento", "sexo", "nombre", "apellido", "fecha de nacimiento", "localidad"])
+
+    def test_la_plantilla_se_puede_volver_a_cargar(self):
+        """El ejemplo que descargamos tiene que pasar por nuestro propio parser."""
+        entradas, resumen = parsear_padron(SimpleUploadedFile("plantilla.xlsx", plantilla_padron(), content_type=XLSX_MIME))
+        self.assertEqual(resumen.validas, 2)
+        self.assertEqual(resumen.con_identidad, 1)
+        self.assertEqual(entradas[0]["fecha_nacimiento"], date(1991, 3, 14))
+
+    def test_el_detalle_de_la_convocatoria_muestra_el_padron(self):
+        cargar_padron(
+            self.convocatoria,
+            None,
+            [{"dni": "30123456", "sexo": "F", "nombre": "Ana", "apellido": "Paz"}, ("28111222", "M")],
         )
-        self.client.force_login(self.admin_publico)
-        self.client.post(
-            reverse("becas:relevamiento_padron", args=[rel_terr.pk]), {"padron": _xlsx([("1234567", "F")])}
-        )
-        self.assertEqual(PadronHabilitado.objects.filter(relevamiento=rel_terr).count(), 0)
+        self.client.force_login(self.admin)
+        try:
+            resp = self.client.get(reverse("becas:convocatoria_detalle", args=[self.convocatoria.pk]))
+        except AttributeError as exc:  # bug conocido del test client local (Py3.14 + Dj4.2)
+            if "dicts" not in str(exc):
+                raise
+            return
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Padrón de habilitados")
+        self.assertContains(resp, "2 habilitados")
+        self.assertContains(resp, reverse("becas:convocatoria_padron_plantilla", args=[self.convocatoria.pk]))

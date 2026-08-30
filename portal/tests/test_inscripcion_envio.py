@@ -437,3 +437,47 @@ class Paso2AssetsBuscadorTests(TestCase):
         html = str(form[f"g_{pregunta.pk}"])
         self.assertIn('data-buscador="1"', html)
         self.assertIn("<select", html)
+
+
+class IngestaConOrigenPadronTests(_BasePaso2Test):
+    """Cambio 57: una identificación por padrón crea el caso validado, con su
+    origen, y completa la localidad del legajo."""
+
+    def test_origen_padron_valida_y_carga_la_localidad(self):
+        from core.models import Localidad, Municipio, Provincia
+
+        provincia = Provincia.objects.create(nombre="Chaco")
+        municipio = Municipio.objects.create(nombre="San Fernando", provincia=provincia)
+        resistencia = Localidad.objects.create(nombre="Resistencia", municipio=municipio)
+        ident = _identificacion(
+            origen="padron",
+            datos={
+                "nombre": "María Luján",
+                "apellido": "Gómez",
+                "fecha_nacimiento": "1991-03-14",
+                "localidad_id": resistencia.pk,
+            },
+        )
+        form = self._form(identificacion=ident)
+        self.assertTrue(form.is_valid(), form.errors)
+        formulario, creado = crear_formulario_publico(
+            self.relevamiento, identificacion=ident, form=form, client_uuid=str(uuid4())
+        )
+        self.assertTrue(creado)
+        self.assertTrue(formulario.validado_renaper)
+        self.assertEqual(formulario.origen_validacion, Formulario.OrigenValidacion.PADRON)
+        self.assertEqual(formulario.ciudadano.nombre, "María Luján")
+        self.assertEqual(formulario.ciudadano.localidad, resistencia)
+
+    def test_origen_manual_sigue_sin_validar(self):
+        ident = _identificacion(origen="manual")
+        form = self._form(
+            identificacion=ident,
+            data=self._data(nombre="Juan", apellido="Pérez", fecha_nacimiento="1990-01-01"),
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        formulario, _ = crear_formulario_publico(
+            self.relevamiento, identificacion=ident, form=form, client_uuid=str(uuid4())
+        )
+        self.assertFalse(formulario.validado_renaper)
+        self.assertEqual(formulario.origen_validacion, "")
