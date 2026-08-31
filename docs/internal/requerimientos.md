@@ -5983,6 +5983,9 @@ campo; la app vieja entra por un adaptador y el servidor arma su foto.
 
 Pendiente. 21 tasks (#336–#356) en seis fases: catálogo → motor → constructor → portal y caso → app de campo → calidad e
 integración. 150 h aprobadas por el PM (134 h en tasks + análisis, casos QA y reunión de definición).
+**31/08/2026 — el PM llevó el alcance aprobado a 220 h** (más realista con el desarrollo en curso: al ajustarlo
+había 110 h 30 min ejecutadas —fin de semana 29-30 + lunes parcial— y quedaban mejoras y la etapa de la app de
+campo por delante). Es la cifra que se comunica al cliente.
 
 ## Archivos
 
