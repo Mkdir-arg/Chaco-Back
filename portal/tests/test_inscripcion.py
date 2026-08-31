@@ -285,3 +285,29 @@ class Paso1FlujoTests(_BaseInscripcionTest):
             _tolerar_render_local(exc)
             return
         self.assertTemplateUsed(resp, "portal/inscripcion/no_disponible.html")
+        self.assertContains(resp, "ya no admite inscripciones")
+        self.assertNotContains(resp, "todavía no está abierto")
+
+    def test_no_disponible_distingue_aun_no_abierto(self):
+        """Si lo único que falta es la fecha de inicio se dice eso; el resto de
+        los motivos (vencido, pausado, cupo, cerrado) comparte el texto genérico."""
+        futuro = self._rel_publico(
+            fecha_asignada=timezone.now() + timedelta(days=3), fecha_hasta=timezone.now() + timedelta(days=10)
+        )
+        try:
+            resp = self.client.get(self._url(futuro))
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertTemplateUsed(resp, "portal/inscripcion/no_disponible.html")
+        self.assertContains(resp, "todavía no está abierto")
+        self.assertNotContains(resp, "ya no admite inscripciones")
+
+    def test_aun_no_abierto_pausado_muestra_el_generico(self):
+        """La pausa no revela motivo aunque la fecha de inicio esté en el futuro (RN-P4)."""
+        pausado = self._rel_publico(
+            fecha_asignada=timezone.now() + timedelta(days=3),
+            fecha_hasta=timezone.now() + timedelta(days=10),
+            pausado=True,
+        )
+        self.assertFalse(servicio.relevamiento_aun_no_abierto(pausado))

@@ -202,6 +202,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
 | 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **Analizado — análisis #326 Definido, mockups entregados; tasks #336–#356 en Backlog (150 h)** | Pendiente (catálogo, diseño, caso) |
+| 59 | El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de problemas técnicos» y «opción A que todavía no está abierto, opción B que está cerrado: que se vea un texto o el otro» | 31/08/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -6016,5 +6017,108 @@ Por fase; la última (caso) es la única con migración destructiva.
 
 No aplica: entrada nueva. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de formularios
 propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
+
+---
+
+# Cambio 59 — El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió
+
+🟢 **HECHO — 31/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (el link productivo es del programa Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, sobre el link productivo `/portal/inscripcion/f02de490-…/formulario/` |
+| **Fecha del pedido** | 31/08/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Pie del shell de inscripción (todas las pantallas del link) · pantalla «Formulario no disponible» |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «¿Necesitás ayuda? +54 362 430-0002 · datanach@chaco.gob.ar / © 2026 DATAÑACH — Gobierno del Chaco:
+> cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de
+> problemas técnicos.» Y sobre la pantalla de no disponible: «tenemos la opción A que todavía no está
+> abierto y la opción B que está cerrado; quiero que en base a esas opciones se vea un texto o el otro».
+
+## Alcance acordado
+
+- El **pie del shell de inscripción** (visible en las seis pantallas del link) reemplaza teléfono, mail
+  institucional y línea de copyright por: casilla de Gmail + WhatsApp 3625153720 + «Solo en caso de
+  problemas técnicos.».
+- La pantalla **«Formulario no disponible»** gana dos textos: **A** — «todavía no está abierto», con la
+  fecha en que comienzan las inscripciones; **B** — «ya no admite inscripciones» (el texto que ya
+  existía). La línea de contacto de esa pantalla también pasa a los datos nuevos.
+- **Afuera:** el resto de las menciones del teléfono viejo (+54 362 430-0002): el mensaje de rechazo del
+  paso 1 (`MENSAJE_RECHAZO`), «ya estás inscripto», «demasiados intentos», el comprobante y su correo,
+  «sesión vencida», y el home y el pie del portal ciudadano. Quedan como pendiente a decidir.
+
+## Decisiones tomadas
+
+- **Matiza RN-P4 del Cambio 41** (pantalla única «sin motivo»): solo «todavía no abrió» gana texto
+  propio, porque no revela nada sensible y le dice al ciudadano algo accionable (volvé tal fecha).
+  Pausado, cupo lleno, vencido y cerrado **siguen compartiendo el genérico**: comunicar cupo o motivo de
+  cierre sigue explícitamente fuera, como se decidió en el Cambio 41. `relevamiento_aun_no_abierto()`
+  exige público + EN_CURSO + sin pausa + con cupo + `fecha_asignada` en el futuro; cualquier otra
+  combinación cae al texto B.
+- **El WhatsApp va como texto plano, sin deep-link `wa.me`**: `SinRecursosDeTercerosTests` prohíbe
+  cualquier `href` `http(s)://` en plantillas servidas y no vale la pena agujerear esa red por un link de
+  cortesía. El email sí es `mailto:` (no es http y pasa).
+- **El contacto queda hardcodeado en el shell**, compartido por todos los links públicos. Hoy el único
+  link vivo es el de Incentivo Juventud; si otro programa publica un link y necesita contacto propio, el
+  paso siguiente es un campo por relevamiento (evolutivo, no pedido).
+- **El email se transcribió tal cual lo pasó el cliente**, con «junvetud» (sic). Ver Pendientes.
+
+## Implementación
+
+- `portal/services/inscripcion.py` — `relevamiento_aun_no_abierto()`, al lado de
+  `relevamiento_disponible()` que ya concentraba la disponibilidad (RN-P4).
+- `portal/views/inscripcion.py` — `_no_disponible()` pasa `aun_no_abierto` al template.
+- `portal/templates/portal/inscripcion/no_disponible.html` — las dos variantes; la A muestra
+  `fecha_asignada` como `d/m/Y`.
+- `portal/templates/portal/inscripcion/base_inscripcion.html` — el pie nuevo.
+
+## Archivos
+
+`portal/services/inscripcion.py` · `portal/views/inscripcion.py` ·
+`portal/templates/portal/inscripcion/no_disponible.html` ·
+`portal/templates/portal/inscripcion/base_inscripcion.html` · tests: `portal/tests/test_inscripcion.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos: el vencido muestra el texto B y no el A; un link con `fecha_asignada` futura muestra el A
+  y no el B; un link pausado con fecha futura **no** califica como «aún no abierto» (RN-P4). Suite
+  `portal.tests.test_inscripcion` 18/18 en verde (SQLite en memoria).
+- `SinRecursosDeTercerosTests` en verde (el pie nuevo no introduce URLs externas).
+- `manage.py check` OK · `design_audit.py --changed` 0 errores / 0 warnings · `compile_templates.py`
+  331 plantillas, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. El servidor está sobre la rama `feature/constructor-formularios`.
+
+## Pendientes / a definir
+
+- **Confirmar la casilla** `consultasincentivojunvetud@gmail.com`: «junvetud» parece un typo de
+  «juventud». Se cargó tal cual la pasó el cliente; verificar que la casilla exista antes de difundir el
+  link masivamente.
+- Decidir si el teléfono +54 362 430-0002 que sigue en el resto de las superficies (mensaje de rechazo
+  del paso 1, «ya estás inscripto», «demasiados intentos», comprobante y correo de confirmación, «sesión
+  vencida», home y pie del portal) también se reemplaza, y por qué dato (es contacto del organismo, no
+  del programa).
+
+## Reversión
+
+Revertir el commit; no hay migraciones ni datos involucrados.
+
+## Historial
+
+No aplica: entrada nueva. Matiza una decisión del Cambio 41 («Formulario no disponible» única para
+vencido/pausado/cupo/cerrado, sin motivo): el caso «todavía no abrió» se separa por pedido del PM; el
+resto sigue sin revelar motivo.
 
 ---
