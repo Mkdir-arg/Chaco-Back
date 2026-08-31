@@ -905,8 +905,10 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         # drag & drop; con filtros, la tabla plana de siempre.
         ctx["grupos_con_preguntas"] = None if ctx["hay_filtros_activos"] else _grupos_con_preguntas()
         ctx["form_grupo"] = GrupoRequisitoForm()
-        if not ctx["hay_filtros_activos"]:
-            ctx["condicion_datos"] = _datos_condicion()
+        # Siempre: con filtros el partial no se rinde, pero «Nuevo grupo» sigue
+        # visible y su editor necesita las fuentes (el template lo sirve a nivel
+        # página solo en ese caso, así el id nunca se duplica).
+        ctx["condicion_datos"] = _datos_condicion()
         from programas.views.diseno import _operadores
 
         ctx["operadores"] = _operadores()

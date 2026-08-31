@@ -71,8 +71,17 @@ class VistaAgrupadaTests(_Base):
         self.assertIsNone(resp.context["grupos_con_preguntas"])
         html = resp.content.decode()
         self.assertNotIn("data-sortable-grupos", html)
-        self.assertIn("Pregunta uno", html)
-        self.assertNotIn("Pregunta dos", html)
+        # El filtro se aplica sobre el listado (el HTML entero ya no sirve de
+        # testigo: las fuentes del editor de condición listan todo el catálogo).
+        self.assertIn(self.p1, resp.context["preguntas"])
+        self.assertNotIn(self.p2, resp.context["preguntas"])
+        # «Nuevo grupo» sigue visible con filtros: sus fuentes tienen que estar
+        # (a nivel página, porque el partial agrupado no se rinde) y una sola vez.
+        self.assertEqual(html.count('id="catalogo-condicion-datos"'), 1)
+
+    def test_sin_filtros_las_fuentes_van_una_sola_vez(self):
+        html = self.client.get(reverse("becas:preguntas")).content.decode()
+        self.assertEqual(html.count('id="catalogo-condicion-datos"'), 1)
 
     def test_sin_permiso_de_edicion_no_hay_manijas(self):
         lector = User.objects.create_user("lector-drag", password="x")

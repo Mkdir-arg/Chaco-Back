@@ -332,6 +332,11 @@
 
   {# Modal: Nuevo / editar grupo (Cambio 58, task 337; condición por defecto editable) #}
   {{ operadores|json_script:"catalogo-operadores" }}
+  {% if hay_filtros_activos %}
+    {# Con filtros no se rinde el partial agrupado (que trae este json_script): #}
+    {# va acá para que «Nuevo grupo» tenga sus fuentes igual. Nunca se duplica. #}
+    {{ condicion_datos|json_script:"catalogo-condicion-datos" }}
+  {% endif %}
   <div x-show="modalGrupo" x-cloak @click="modalGrupo=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
@@ -369,10 +374,12 @@
             <p class="text-xs text-body-subtle mt-1">El canal del grupo acota a todas sus preguntas.</p>
           </div>
           <div class="pt-4 border-t" style="border-color:var(--border-light)">
-            <label class="block text-sm font-medium text-heading mb-1">Condición por defecto</label>
+            <p class="block text-sm font-medium text-heading mb-1">Condición por defecto</p>
             <p class="text-xs text-body-subtle mb-2">Con esta condición entra el grupo a cada formulario <strong>nuevo</strong>; cada convocatoria la ajusta después en su constructor. Los formularios ya diseñados no cambian.</p>
             <template x-if="!grupoFuentes.length">
-              <p class="text-xs text-body-subtle italic">No hay campos en grupos anteriores del catálogo que puedan condicionar este grupo.</p>
+              <div class="rounded-lg bg-warning-soft border border-warning-subtle px-4 py-3 text-sm text-body" role="alert">
+                No hay campos en grupos anteriores del catálogo que puedan condicionar este grupo.
+              </div>
             </template>
             <div class="space-y-2" x-show="grupoFuentes.length">
               <div class="flex items-center gap-2 text-sm text-body flex-wrap" x-show="grupoCond.reglas.length > 1">
