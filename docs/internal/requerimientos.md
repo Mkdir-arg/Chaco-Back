@@ -6103,9 +6103,6 @@ Deploy estándar sin migración. El servidor está sobre la rama `feature/constr
 
 ## Pendientes / a definir
 
-- **Confirmar la casilla** `consultasincentivojunvetud@gmail.com`: «junvetud» parece un typo de
-  «juventud». Se cargó tal cual la pasó el cliente; verificar que la casilla exista antes de difundir el
-  link masivamente.
 - Decidir si el teléfono +54 362 430-0002 que sigue en el resto de las superficies (mensaje de rechazo
   del paso 1, «ya estás inscripto», «demasiados intentos», comprobante y correo de confirmación, «sesión
   vencida», home y pie del portal) también se reemplaza, y por qué dato (es contacto del organismo, no
@@ -6120,5 +6117,8 @@ Revertir el commit; no hay migraciones ni datos involucrados.
 No aplica: entrada nueva. Matiza una decisión del Cambio 41 («Formulario no disponible» única para
 vencido/pausado/cupo/cerrado, sin motivo): el caso «todavía no abrió» se separa por pedido del PM; el
 resto sigue sin revelar motivo.
+
+**31/08/2026 — El PM confirmó la casilla:** `consultasincentivojunvetud@gmail.com` es correcta tal
+cual, no es un typo de «juventud».
 
 ---
