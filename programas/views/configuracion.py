@@ -767,11 +767,10 @@ def preguntas_reordenar(request):
         payload = json.loads(request.body or b"{}")
         grupos = payload["grupos"]
         assert isinstance(grupos, list)
-    except (ValueError, KeyError, AssertionError):
+        grupo_ids = [int(g["id"]) for g in grupos if g.get("id") not in (None, "", "null")]
+        pregunta_ids = [int(pk) for g in grupos for pk in g.get("preguntas", [])]
+    except (ValueError, KeyError, AssertionError, TypeError, AttributeError):
         return JsonResponse({"ok": False, "error": "Payload inválido."}, status=400)
-
-    grupo_ids = [int(g["id"]) for g in grupos if g.get("id") not in (None, "", "null")]
-    pregunta_ids = [int(pk) for g in grupos for pk in g.get("preguntas", [])]
     if len(set(grupo_ids)) != len(grupo_ids) or len(set(pregunta_ids)) != len(pregunta_ids):
         return JsonResponse({"ok": False, "error": "Hay ids repetidos."}, status=400)
     existentes_g = set(GrupoRequisito.objects.filter(pk__in=grupo_ids).values_list("pk", flat=True))

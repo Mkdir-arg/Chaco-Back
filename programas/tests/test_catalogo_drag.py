@@ -126,6 +126,13 @@ class ReordenarTests(_Base):
         self.assertEqual(resp.status_code, 409)
         resp = self._reordenar([{"id": self.cuestionario.pk, "preguntas": [self.p1.pk, self.p1.pk]}])
         self.assertEqual(resp.status_code, 400)
+        # Ids que no son números o items que no son objetos: 400, no 500.
+        resp = self._reordenar([{"id": "abc", "preguntas": []}])
+        self.assertEqual(resp.status_code, 400)
+        resp = self._reordenar([{"id": self.cuestionario.pk, "preguntas": ["x"]}])
+        self.assertEqual(resp.status_code, 400)
+        resp = self._reordenar(["no-soy-un-grupo"])
+        self.assertEqual(resp.status_code, 400)
 
     def test_las_preguntas_que_no_vienen_quedan_detras(self):
         resp = self._reordenar([{"id": self.cuestionario.pk, "preguntas": [self.p2.pk]}])
