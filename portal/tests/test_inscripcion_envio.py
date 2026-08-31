@@ -150,6 +150,14 @@ class Paso2FormTests(_BasePaso2Test):
         self.assertEqual(form.fijas[self.k_nacimiento], "1991-03-14")
         self.assertEqual(form.fijas[_clave_vinculo(OrigenRequisito.LEGAJO, "dni")], "30123456")
 
+    def test_un_gps_malformado_no_bloquea_la_inscripcion(self):
+        """El GPS viaja en campos ocultos y es best effort: si llega roto se
+        descarta, porque la persona no puede ver ni corregir ese error."""
+        form = self._form(data=self._data(gps_lat="-27,451", gps_lng="-58.98612345678"))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIsNone(form.cleaned_data["gps_lat"])
+        self.assertIsNone(form.cleaned_data["gps_lng"])
+
     def test_los_grupos_llegan_en_el_orden_del_diseno(self):
         form = self._form()
         titulos = [g["titulo"] for g in form.grupos()]

@@ -287,6 +287,12 @@ class InscripcionPaso2Form(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        # El GPS es best effort y viaja en campos ocultos: uno malformado se
+        # descarta entero, porque un error ahí no se puede ver ni corregir.
+        if "gps_lat" in self.errors or "gps_lng" in self.errors:
+            self.errors.pop("gps_lat", None)
+            self.errors.pop("gps_lng", None)
+            cleaned["gps_lat"] = cleaned["gps_lng"] = None
         _visibles, ocultos, _efectivas = aplicar(self.foto, self._respuestas_de(cleaned))
         self._ocultos = ocultos
         for clave, item in self._campos:
