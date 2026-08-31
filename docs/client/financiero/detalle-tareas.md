@@ -568,14 +568,32 @@
 | 30/08 | Matías Abate | Becas | Casos de prueba del padrón con herencia | Diseño de los casos del comportamiento nuevo del padrón por relevamiento. | 2 h | — |
 | | | | **Total 29 al 30/08 (fin de semana)** | | **88 h** | **69 h** |
 
+### :material-package-variant-closed: Consumo del 31 de agosto — por entregable (parcial)
+
+!!! note "Registro parcial del lunes"
+    Cubre la madrugada y la mañana del PM, que trabaja desde Europa. El equipo en Argentina arranca su
+    jornada al momento de este registro: sus horas del 31/08 se agregan al cierre del día. El desarrollo
+    del constructor **continúa**.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 31/08 | Matías Fariña | Transversal | Registro del fin de semana en las páginas del cliente | Sección por entregable del 29 y 30/08, resumen del mes con el excedente visible y corrección de la tarjeta del índice. | 1 h | — |
+| 31/08 | Matías Fariña | Becas | Revisión por fases del constructor completo | Seis fases (catálogo, motor de condiciones con paridad navegador/servidor, portal, caso e ingesta, padrón y regresión de 1.203 pruebas con todos los controles) con dos correcciones: el reordenamiento responde con error controlado ante datos malformados y una ubicación GPS rota ya no traba la inscripción de un ciudadano. | 1,5 h | 6 h |
+| 31/08 | Matías Fariña | Becas | Editor de la condición por defecto en el catálogo | La condición con la que un grupo entra a los formularios nuevos se edita desde el catálogo con el mismo editor del constructor, validada por el servidor; con revisión de diseño y sus tres correcciones. | 1 h | 10 h |
+| 31/08 | Matías Fariña | Becas | Operación por teclado del armado de formularios | Las manijas del catálogo y del constructor se operan con las flechas (cruce de grupo incluido), con anuncios para lectores de pantalla, guardado con demora y foco que no se pierde; un movimiento inválido se restaura solo. | 1 h | 10 h |
+| 31/08 | Matías Fariña | Becas | Selector múltiple apilado con estilo del sistema | Las opciones múltiples del formulario público dejan de verse crudas; la vista previa del constructor refleja el mismo estilo. | 0,5 h | 3 h |
+| 31/08 | Matías Fariña | Becas | Despliegue a producción del padrón con herencia y las mejoras del día | Respaldo de la base, actualización con la migración del padrón, verificación del servicio y del código publicado. | 0,5 h | 2 h |
+| 31/08 | Matías Fariña | Transversal | Recalculo de horas e informe de avance al cliente | Recalculo del consumo del desarrollo y redacción del informe detallado de funcionalidades, estado, próximos pasos y horas. | 1 h | — |
+| | | | **Total 31/08 (parcial)** | | **6,5 h** | **31 h** |
+
 ### :material-briefcase-outline: Consumo de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 461 h 30 min |
+| Becas | 466 h 00 min |
 | Dispositivos | 140 h 30 min |
-| Transversal | 168 h 00 min |
-| **Total agosto 2026 (al 30/08)** | **770 h 00 min** |
+| Transversal | 170 h 00 min |
+| **Total agosto 2026 (al 31/08, parcial)** | **776 h 30 min** |
 
 ---
 
@@ -605,9 +623,9 @@
 
 
 
-    **106.152 minutos** (1.769 h 12 min)
+    **106.542 minutos** (1.775 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 770 h 00 min (al 30/08).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 776 h 30 min (al 31/08, parcial).
 
 
 
