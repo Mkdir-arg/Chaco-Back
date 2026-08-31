@@ -6021,10 +6021,9 @@ app móvil actual sigue funcionando sin cambios mientras el equipo móvil hace #
 - La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el
   formulario plano y el backend traduce lo que manda (`sincronizar_desde_legacy`).
 - Borrar `data` y las columnas fijas del caso cuando ningún lector las use (deuda, no bloquea).
-- La **condición por defecto** de un grupo del catálogo (la del Apoderado: `edad_menor 18`) se ajusta en
-  cada convocatoria desde el constructor (D10), pero no tiene editor en la pantalla del catálogo: la
-  siembra el seed y se ve como badge. Si el PM quiere cambiar el default para todas las convocatorias
-  nuevas, hoy es por seed/admin. El mockup del catálogo la mostraba editable; queda como mejora.
+- ~~La **condición por defecto** de un grupo del catálogo no tiene editor en la pantalla del catálogo.~~
+  **Hecho el 31/08/2026** (ver Historial): se edita en el modal del grupo, con el mismo editor de reglas
+  del constructor. Rige para los diseños **nuevos**; los existentes la siguen ajustando en su constructor.
 - Las manijas de arrastre no tienen alternativa de teclado (el patrón SortableJS no la trae): reordenar
   exige mouse o touch. A priorizar por el PM como mejora de accesibilidad transversal.
 - Las exportaciones y los reportes de Becas no incluyen respuestas del formulario (solo identidad, estado y
@@ -6162,6 +6161,19 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   protegido siguen visibles en «Respuestas»; la vista previa muestra el sexo del apoderado con nombre. Tests:
   `GruposVaciosTests`, `JsCatalogoTests`, `VolcadoAlLegajoTests`, `ApoderadoSegunLaFotoTests`,
   `PlaceholderArchivoTests`. Se quitó el endpoint `formulario_datos`, que nada llamaba.
+- **31/08/2026 — Editor de la condición por defecto en el catálogo** (cierra la mejora pendiente; el
+  mockup del catálogo la mostraba editable). El modal del grupo gana la sección «Condición por defecto»
+  con el mismo editor de reglas del constructor (mismo markup, vocabulario de operadores servido por
+  `_operadores()`); guarda con claves **simbólicas** (`legajo:x` / `apoderado:x`, como el seed) o `pg-<pk>`,
+  que `_resolver_condicion` traduce al entrar a cada diseño nuevo — los diseños existentes no cambian.
+  Fuentes: solo preguntas activas de grupos **anteriores** del catálogo (`fuentes_condicion_defecto`,
+  RN-6 por construcción; un grupo nuevo entra al final y ve todo); valida el servidor
+  (`validar_condicion_defecto` sobre `validar_condicion`) vía `GrupoRequisitoForm.condicion_defecto`
+  (hidden JSON). Los datos del editor viajan en un `json_script` del partial (siempre frescos tras cada
+  cambio ajax). Tests `CondicionDefectoTests` (4) y verificación en navegador real (editar, persistir,
+  dos reglas con modo, fuentes posteriores excluidas; cero errores de consola). También en esta pasada de
+  revisión por fases: el reordenamiento del catálogo responde 400 (no 500) ante ids malformados, y un GPS
+  malformado del paso 2 se descarta en vez de trabar la inscripción con un error invisible.
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

@@ -15,9 +15,66 @@
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
        editPresentacion: 'LISTA', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
        modalGrupo: false, grupoUrl: '', grupoNombre: '', grupoSubtitulo: '', grupoCanal: 'ambos', grupoEsNuevo: true,
-       openGrupo(url, nombre, subtitulo, canal) {
+       grupoCond: {modo: 'todas', reglas: []}, grupoFuentes: [],
+       openGrupo(url, nombre, subtitulo, canal, pk) {
          this.grupoUrl = url; this.grupoNombre = nombre || ''; this.grupoSubtitulo = subtitulo || '';
-         this.grupoCanal = canal || 'ambos'; this.grupoEsNuevo = !nombre; this.modalGrupo = true;
+         this.grupoCanal = canal || 'ambos'; this.grupoEsNuevo = !nombre;
+         var datos = this.datosCondicion(pk || 'nuevo');
+         this.grupoFuentes = datos.fuentes || [];
+         this.grupoCond = this.condicionEditable(datos.condicion);
+         this.modalGrupo = true;
+       },
+       datosCondicion(pk) {
+         var el = document.getElementById('catalogo-condicion-datos');
+         if (!el) { return {fuentes: [], condicion: null}; }
+         try { return (JSON.parse(el.textContent) || {})[pk] || {fuentes: [], condicion: null}; }
+         catch (e) { return {fuentes: [], condicion: null}; }
+       },
+       condicionEditable(condicion) {
+         var reglas = ((condicion && condicion.reglas) || []).map(function (r) {
+           var valor = Array.isArray(r.valor) ? r.valor.join(', ') : (r.valor === null || r.valor === undefined ? '' : String(r.valor));
+           return {fuente: r.fuente || '', op: r.op || '', valor: valor};
+         });
+         return {modo: (condicion && condicion.modo) || 'todas', reglas: reglas};
+       },
+       vocabOp() {
+         if (!this._vocab) {
+           var el = document.getElementById('catalogo-operadores');
+           this._vocab = el ? JSON.parse(el.textContent) : {por_tipo: {}, etiquetas: {}, sin_valor: [], con_lista: []};
+         }
+         return this._vocab;
+       },
+       fuenteDe(clave) {
+         for (var i = 0; i < this.grupoFuentes.length; i++) { if (this.grupoFuentes[i].clave === clave) { return this.grupoFuentes[i]; } }
+         return null;
+       },
+       operadoresDe(clave) { var fu = this.fuenteDe(clave); return fu ? (this.vocabOp().por_tipo[fu.tipo_campo] || []) : []; },
+       etiquetaOp(op) { return this.vocabOp().etiquetas[op] || op; },
+       necesitaValor(r) { return !!r.op && this.vocabOp().sin_valor.indexOf(r.op) === -1; },
+       conLista(op) { return this.vocabOp().con_lista.indexOf(op) !== -1; },
+       opcionesDe(clave) { var fu = this.fuenteDe(clave); return fu ? (fu.opciones || []) : []; },
+       tipoInputR(r) {
+         var fu = this.fuenteDe(r.fuente);
+         if (!fu || this.conLista(r.op)) { return 'text'; }
+         if (fu.tipo_campo === 'INT' || /^edad_/.test(r.op)) { return 'number'; }
+         if (fu.tipo_campo === 'DATE') { return 'date'; }
+         return 'text';
+       },
+       grupoCondicionJson() {
+         var reglas = [];
+         for (var i = 0; i < this.grupoCond.reglas.length; i++) {
+           var r = this.grupoCond.reglas[i];
+           if (!r.fuente && !r.op && !r.valor) { continue; }
+           var valor = r.valor;
+           if (this.conLista(r.op)) {
+             valor = String(valor || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+             if (/^edad_/.test(r.op)) { valor = valor.map(Number); }
+           } else if (this.necesitaValor(r) && this.tipoInputR(r) === 'number') {
+             valor = valor === '' ? '' : Number(valor);
+           }
+           reglas.push({fuente: r.fuente, op: r.op, valor: this.necesitaValor(r) ? valor : null});
+         }
+         return reglas.length ? JSON.stringify({modo: this.grupoCond.modo, reglas: reglas}) : '';
        },
        openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
@@ -273,9 +330,10 @@
     </div>
   </div>
 
-  {# Modal: Nuevo / editar grupo (Cambio 58, task 337) #}
+  {# Modal: Nuevo / editar grupo (Cambio 58, task 337; condición por defecto editable) #}
+  {{ operadores|json_script:"catalogo-operadores" }}
   <div x-show="modalGrupo" x-cloak @click="modalGrupo=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" @click.stop>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
@@ -309,6 +367,46 @@
               {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">El canal del grupo acota a todas sus preguntas.</p>
+          </div>
+          <div class="pt-4 border-t" style="border-color:var(--border-light)">
+            <label class="block text-sm font-medium text-heading mb-1">Condición por defecto</label>
+            <p class="text-xs text-body-subtle mb-2">Con esta condición entra el grupo a cada formulario <strong>nuevo</strong>; cada convocatoria la ajusta después en su constructor. Los formularios ya diseñados no cambian.</p>
+            <template x-if="!grupoFuentes.length">
+              <p class="text-xs text-body-subtle italic">No hay campos en grupos anteriores del catálogo que puedan condicionar este grupo.</p>
+            </template>
+            <div class="space-y-2" x-show="grupoFuentes.length">
+              <div class="flex items-center gap-2 text-sm text-body flex-wrap" x-show="grupoCond.reglas.length > 1">
+                <span>Se muestra cuando se cumple</span>
+                <select x-model="grupoCond.modo" class="nodo-field" style="width:auto;height:34px;padding-top:0;padding-bottom:0" aria-label="Modo de la condición por defecto">
+                  <option value="todas">todas las reglas</option>
+                  <option value="alguna">alguna de las reglas</option>
+                </select>
+              </div>
+              <template x-for="(r, i) in grupoCond.reglas" :key="i">
+                <div class="grid grid-cols-1 cons-regla-grid gap-2 items-center">
+                  <select x-model="r.fuente" @change="r.op = ''; r.valor = ''" class="nodo-field" aria-label="Campo fuente">
+                    <option value="">Campo…</option>
+                    <template x-for="fu in grupoFuentes" :key="fu.clave"><option :value="fu.clave" :selected="fu.clave === r.fuente" x-text="fu.titulo"></option></template>
+                  </select>
+                  <select x-model="r.op" class="nodo-field" aria-label="Operador" :disabled="!r.fuente">
+                    <option value="">Operador…</option>
+                    <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
+                  </select>
+                  <div>
+                    <select x-show="necesitaValor(r) && opcionesDe(r.fuente).length && !conLista(r.op)" x-model="r.valor" class="nodo-field" aria-label="Valor">
+                      <option value="">Valor…</option>
+                      <template x-for="o in opcionesDe(r.fuente)" :key="o"><option :value="o" :selected="String(o) === String(r.valor)" x-text="o"></option></template>
+                    </select>
+                    <input x-show="necesitaValor(r) && (!opcionesDe(r.fuente).length || conLista(r.op))" x-model="r.valor" :type="tipoInputR(r)" class="nodo-field" aria-label="Valor" :placeholder="conLista(r.op) ? 'valores separados por coma' : ''">
+                    <span x-show="!necesitaValor(r)" class="text-xs text-body-subtle">Sin valor</span>
+                  </div>
+                  <button type="button" @click="grupoCond.reglas.splice(i, 1)" class="text-body-subtle hover:text-fg-danger p-2" aria-label="Quitar regla"><i class="fas fa-times"></i></button>
+                </div>
+              </template>
+              <button type="button" @click="grupoCond.reglas.push({fuente: '', op: '', valor: ''})" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-plus"></i> Regla</button>
+            </div>
+            <input type="hidden" name="condicion_defecto" :value="grupoCondicionJson()">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="condicion_defecto"></p>
           </div>
         </div>
         <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">

@@ -206,6 +206,89 @@ class GruposTests(_Base):
         self.assertEqual(self.client.get(reverse("becas:grupo_eliminar", args=[self.contacto.pk])).status_code, 405)
 
 
+class CondicionDefectoTests(_Base):
+    """La condición por defecto de un grupo se edita desde el catálogo (mejora
+    registrada del Cambio 58): rige para los diseños nuevos, con las claves
+    simbólicas del seed."""
+
+    def _editar(self, grupo, condicion, **extra):
+        data = {"nombre": grupo.nombre, "subtitulo": grupo.subtitulo, "canal": grupo.canal, **extra}
+        if condicion is not None:
+            data["condicion_defecto"] = json.dumps(condicion) if isinstance(condicion, dict) else condicion
+        return self.client.post(
+            reverse("becas:grupo_editar", args=[grupo.pk]), data, HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+
+    def test_editar_la_condicion_del_apoderado_y_quitarla(self):
+        apoderado = GrupoRequisito.objects.get(clave="apoderado")
+        resp = self._editar(
+            apoderado,
+            {"modo": "todas", "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 16}]},
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        apoderado.refresh_from_db()
+        self.assertEqual(apoderado.condicion_defecto["reglas"][0]["valor"], 16)
+        # Vacía = sin condición (el editor manda "" al quitar todas las reglas).
+        resp = self._editar(apoderado, "")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        apoderado.refresh_from_db()
+        self.assertIsNone(apoderado.condicion_defecto)
+
+    def test_una_condicion_invalida_se_rechaza_con_400(self):
+        apoderado = GrupoRequisito.objects.get(clave="apoderado")
+        # Operador que no aplica al tipo de la fuente (una fecha no «incluye»).
+        resp = self._editar(
+            apoderado,
+            {"modo": "todas", "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "incluye", "valor": "x"}]},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("condicion_defecto", resp.json()["errors"])
+        # La fuente tiene que estar en un grupo ANTERIOR: datos_personales (primero)
+        # no puede depender de un campo del apoderado (después).
+        datos = GrupoRequisito.objects.get(clave="datos_personales")
+        resp = self._editar(
+            datos, {"modo": "todas", "reglas": [{"fuente": "apoderado:dni", "op": "completo", "valor": None}]}
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("condicion_defecto", resp.json()["errors"])
+        datos.refresh_from_db()
+        self.assertIsNone(datos.condicion_defecto)
+
+    def test_crear_un_grupo_con_condicion(self):
+        resp = self.client.post(
+            reverse("becas:grupo_crear"),
+            {
+                "nombre": "Escolaridad",
+                "subtitulo": "",
+                "canal": CanalFormulario.AMBOS,
+                "condicion_defecto": json.dumps(
+                    {
+                        "modo": "todas",
+                        "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 25}],
+                    }
+                ),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        grupo = GrupoRequisito.objects.get(nombre="Escolaridad")
+        self.assertEqual(grupo.condicion_defecto["reglas"][0]["op"], "edad_menor")
+
+    def test_las_fuentes_respetan_el_orden_del_catalogo(self):
+        from programas.services.diseno import fuentes_condicion_defecto
+
+        apoderado = GrupoRequisito.objects.get(clave="apoderado")
+        claves = {f["clave"] for f in fuentes_condicion_defecto(apoderado)}
+        self.assertIn("legajo:fecha_nacimiento", claves)  # Datos personales, antes
+        self.assertIn("legajo:telefono", claves)  # Contacto, antes
+        self.assertFalse({c for c in claves if c.startswith("apoderado:")})  # nunca sus propios campos
+        # Un grupo nuevo va al final: ve todo el catálogo agrupado.
+        claves_nuevo = {f["clave"] for f in fuentes_condicion_defecto(None)}
+        self.assertIn("apoderado:dni", claves_nuevo)
+        # Una pregunta común aparece con su clave de ítem.
+        self.assertIn(f"pg-{self.p1.pk}", claves_nuevo)
+
+
 class JsCatalogoTests(TestCase):
     def test_el_patron_de_la_cookie_csrf_escapa_las_barras(self):
         r"""`'\s'` en un string JS es la letra s: el patrón solo encontraba la

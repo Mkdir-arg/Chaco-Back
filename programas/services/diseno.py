@@ -123,6 +123,58 @@ def _resolver_condicion(condicion, preguntas):
     return {"modo": condicion.get("modo") or "todas", "reglas": reglas}
 
 
+# ── Condición por defecto de un grupo del catálogo ──────────────────────────
+
+
+def _clave_catalogo(pregunta):
+    """La clave con la que una condición por defecto nombra a una pregunta: la
+    simbólica si es un campo vinculado (sobrevive a los pk de cada entorno,
+    como en el seed), la del ítem (``pg-<pk>``) si es una pregunta común."""
+    if pregunta.origen == OrigenRequisito.LEGAJO:
+        return f"legajo:{pregunta.vinculo}"
+    if pregunta.origen == OrigenRequisito.PERSONA_VINCULADA:
+        return f"apoderado:{pregunta.vinculo}"
+    return clave_pregunta(pregunta)
+
+
+def fuentes_condicion_defecto(grupo=None, preguntas=None):
+    """Los campos que la condición por defecto de ``grupo`` puede mirar: las
+    preguntas activas de los grupos **anteriores** del catálogo (RN-6 por
+    construcción: en el plan por defecto quedan antes que el grupo). Un grupo
+    nuevo entra al final, así que puede mirar todo el catálogo agrupado; las
+    preguntas sueltas caen en «Requisitos generales», después de los grupos,
+    y por eso nunca son fuente. Mismo formato que el editor del constructor:
+    ``{clave, titulo, tipo_campo, opciones}``."""
+    fuentes = []
+    for pregunta in preguntas if preguntas is not None else _preguntas_activas():
+        if pregunta.grupo_id is None:
+            continue
+        if grupo is not None and grupo.pk and (pregunta.grupo.orden, pregunta.grupo_id) >= (grupo.orden, grupo.pk):
+            continue
+        fuentes.append(
+            {
+                "clave": _clave_catalogo(pregunta),
+                "titulo": pregunta.texto,
+                "tipo_campo": pregunta.tipo,
+                "opciones": pregunta.opciones or [],
+            }
+        )
+    return fuentes
+
+
+def validar_condicion_defecto(condicion, grupo=None):
+    """Errores (lista de strings) de una condición por defecto del catálogo:
+    misma semántica que el motor, con las claves del catálogo como universo."""
+    from programas.services import condiciones
+
+    anteriores = {
+        fuente["clave"]: {"tipo": "campo", "tipo_campo": fuente["tipo_campo"]}
+        for fuente in fuentes_condicion_defecto(grupo)
+    }
+    item = {"clave": clave_grupo_catalogo(grupo) if grupo is not None and grupo.pk else "g-nuevo"}
+    return condiciones.validar_condicion(condicion, item, anteriores)
+
+
 # ── Plan por defecto ─────────────────────────────────────────────────────────
 
 

@@ -730,6 +730,23 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
 # ---------------------------------------------------------------------------
 # Preguntas globales (cuestionario social)
 # ---------------------------------------------------------------------------
+def _datos_condicion():
+    """Fuentes disponibles y condición actual por grupo, para el editor de la
+    condición por defecto del modal (json_script del partial). «nuevo» es un
+    grupo que se está creando: entra al final y puede mirar todo el catálogo
+    agrupado."""
+    from programas.services.diseno import _preguntas_activas, fuentes_condicion_defecto
+
+    preguntas = _preguntas_activas()
+    datos = {"nuevo": {"fuentes": fuentes_condicion_defecto(None, preguntas), "condicion": None}}
+    for grupo in GrupoRequisito.objects.order_by("orden", "id"):
+        datos[str(grupo.pk)] = {
+            "fuentes": fuentes_condicion_defecto(grupo, preguntas),
+            "condicion": grupo.condicion_defecto,
+        }
+    return datos
+
+
 def _grupos_con_preguntas():
     """``[(grupo, [preguntas])]`` en orden de pantalla, con los grupos vacíos
     (para poder soltar preguntas adentro). Cambio 58, #337."""
@@ -750,7 +767,11 @@ def _preguntas_ajax(request, message="Pregunta guardada."):
         request,
         target="#preguntas-table",
         partial="programas/becas/config/_preguntas_grupos.html",
-        context={"grupos_con_preguntas": _grupos_con_preguntas(), "canal_choices": CanalFormulario.choices},
+        context={
+            "grupos_con_preguntas": _grupos_con_preguntas(),
+            "canal_choices": CanalFormulario.choices,
+            "condicion_datos": _datos_condicion(),
+        },
         message=message,
     )
 
@@ -884,6 +905,11 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         # drag & drop; con filtros, la tabla plana de siempre.
         ctx["grupos_con_preguntas"] = None if ctx["hay_filtros_activos"] else _grupos_con_preguntas()
         ctx["form_grupo"] = GrupoRequisitoForm()
+        if not ctx["hay_filtros_activos"]:
+            ctx["condicion_datos"] = _datos_condicion()
+        from programas.views.diseno import _operadores
+
+        ctx["operadores"] = _operadores()
         return ctx
 
 

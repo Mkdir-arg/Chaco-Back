@@ -1,5 +1,6 @@
 {% load rbac %}
 {# Catálogo agrupado con drag & drop (Cambio 58, task 337). Se renderiza sin filtros; con filtros va _preguntas_table.html. #}
+{% if condicion_datos %}{{ condicion_datos|json_script:"catalogo-condicion-datos" }}{% endif %}
 {% with puede_ordenar=request.user|puede:"becas.pregunta.editar" %}
 {% if grupos_con_preguntas %}
 <div data-sortable-grupos data-url-reordenar="{% url 'becas:preguntas_reordenar' %}" data-puede-ordenar="{% if puede_ordenar %}1{% else %}0{% endif %}">
@@ -22,7 +23,7 @@
       {% if grupo and puede_ordenar %}
       <div class="flex items-center gap-1">
         <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" title="Editar grupo" aria-label="Editar grupo {{ grupo.nombre }}"
-                @click="openGrupo('{% url 'becas:grupo_editar' grupo.pk %}', '{{ grupo.nombre|escapejs }}', '{{ grupo.subtitulo|escapejs }}', '{{ grupo.canal }}')">
+                @click="openGrupo('{% url 'becas:grupo_editar' grupo.pk %}', '{{ grupo.nombre|escapejs }}', '{{ grupo.subtitulo|escapejs }}', '{{ grupo.canal }}', '{{ grupo.pk }}')">
           <i class="fas fa-edit"></i>
         </button>
         {% if not grupo.protegido and not preguntas %}

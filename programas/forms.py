@@ -830,16 +830,35 @@ class PrestacionMensualForm(forms.Form):
 
 class GrupoRequisitoForm(forms.ModelForm):
     """Grupo de requisitos generales (Cambio 58). Los protegidos se renombran
-    y cambian de canal; su clave y su carácter de protegido no se tocan."""
+    y cambian de canal; su clave y su carácter de protegido no se tocan.
+
+    ``condicion_defecto`` viaja como JSON desde el editor del modal: es la
+    condición con la que el grupo entra a cada diseño **nuevo** (la del
+    Apoderado: «edad < 18»); las convocatorias existentes no se tocan, cada
+    una la ajusta en su constructor."""
 
     class Meta:
         model = GrupoRequisito
-        fields = ["nombre", "subtitulo", "canal"]
+        fields = ["nombre", "subtitulo", "canal", "condicion_defecto"]
         widgets = {
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "subtitulo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "canal": forms.Select(attrs={"class": INPUT_CLASS}),
+            "condicion_defecto": forms.HiddenInput(),
         }
+
+    def clean_condicion_defecto(self):
+        condicion = self.cleaned_data.get("condicion_defecto")
+        if not condicion:
+            return None
+        if not isinstance(condicion, dict):
+            raise forms.ValidationError("La condición no tiene la forma esperada; recargá la página.")
+        from programas.services.diseno import validar_condicion_defecto
+
+        errores = validar_condicion_defecto(condicion, self.instance if self.instance.pk else None)
+        if errores:
+            raise forms.ValidationError(" ".join(errores))
+        return condicion
 
     def clean_nombre(self):
         nombre = (self.cleaned_data.get("nombre") or "").strip()
