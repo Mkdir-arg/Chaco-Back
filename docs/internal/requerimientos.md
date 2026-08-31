@@ -6024,8 +6024,9 @@ app móvil actual sigue funcionando sin cambios mientras el equipo móvil hace #
 - ~~La **condición por defecto** de un grupo del catálogo no tiene editor en la pantalla del catálogo.~~
   **Hecho el 31/08/2026** (ver Historial): se edita en el modal del grupo, con el mismo editor de reglas
   del constructor. Rige para los diseños **nuevos**; los existentes la siguen ajustando en su constructor.
-- Las manijas de arrastre no tienen alternativa de teclado (el patrón SortableJS no la trae): reordenar
-  exige mouse o touch. A priorizar por el PM como mejora de accesibilidad transversal.
+- ~~Las manijas de arrastre no tienen alternativa de teclado.~~ **Hecho el 31/08/2026 para el catálogo**
+  (ver Historial): las manijas son focusables y las flechas mueven grupos y preguntas. Queda extender el
+  mismo patrón al constructor de la convocatoria (sus manijas siguen exigiendo mouse o touch).
 - Las exportaciones y los reportes de Becas no incluyen respuestas del formulario (solo identidad, estado y
   fechas), así que los campos propios y las condiciones no los afectan; si algún día exportan respuestas,
   tienen que leer `respuestas` + la foto (`respuestas_legibles`), no `data`.
@@ -6174,6 +6175,16 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   dos reglas con modo, fuentes posteriores excluidas; cero errores de consola). También en esta pasada de
   revisión por fases: el reordenamiento del catálogo responde 400 (no 500) ante ids malformados, y un GPS
   malformado del paso 2 se descarta en vez de trabar la inscripción con un error invisible.
+- **31/08/2026 — Alternativa de teclado para el drag & drop del catálogo** (cierra el pendiente de
+  accesibilidad para esta pantalla). Las manijas (`.grip`) pasan a `role="button"` + `tabindex="0"` con
+  `aria-label` que explica el uso; las flechas ↑/↓ mueven el grupo o la pregunta (una pregunta cruza al
+  grupo vecino en los bordes), cada movimiento se anuncia en una región `aria-live` y el guardado va con
+  demora de 700 ms reusando el POST del drag; el foco vuelve a la manija tras el re-render y
+  `.grip:focus-visible` marca el foco con anillo por token. Guardas: un guardado demorado sobre un root ya
+  reemplazado se descarta (`isConnected`) y el listener no se duplica si `init()` re-corre. Inventario del
+  agente de diseño actualizado en el mismo diff. Verificado en navegador real (mover, cruzar, foco,
+  anuncio; cero errores de consola) y con pines en `JsCatalogoTests`/`VistaAgrupadaTests`. Pendiente:
+  extender el patrón a las manijas del constructor.
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

@@ -83,6 +83,14 @@ class VistaAgrupadaTests(_Base):
         html = self.client.get(reverse("becas:preguntas")).content.decode()
         self.assertEqual(html.count('id="catalogo-condicion-datos"'), 1)
 
+    def test_las_manijas_se_operan_por_teclado(self):
+        """Alternativa de teclado del drag & drop (mejora del Cambio 58): las
+        manijas son focusables y anuncian el uso de las flechas."""
+        html = self.client.get(reverse("becas:preguntas")).content.decode()
+        self.assertIn('grupo-grip" role="button" tabindex="0"', html)
+        self.assertIn('pregunta-grip" role="button" tabindex="0"', html)
+        self.assertIn("flechas arriba y abajo", html)
+
     def test_sin_permiso_de_edicion_no_hay_manijas(self):
         lector = User.objects.create_user("lector-drag", password="x")
         grupo = Group.objects.create(name="solo-lectura-preguntas")
@@ -308,3 +316,16 @@ class JsCatalogoTests(TestCase):
 
         js = Path(settings.BASE_DIR, "static", "custom", "js", "nodo-catalogo-grupos.js").read_text(encoding="utf-8")
         self.assertIn("'(^|;)\\\\s*' + name + '\\\\s*=\\\\s*([^;]+)'", js)
+
+    def test_el_teclado_esta_cableado_y_protegido(self):
+        """Pines de la alternativa de teclado: flechas, aria-live, guardado
+        demorado con root desconectado descartado, y listener sin duplicar."""
+        from pathlib import Path
+
+        from django.conf import settings
+
+        js = Path(settings.BASE_DIR, "static", "custom", "js", "nodo-catalogo-grupos.js").read_text(encoding="utf-8")
+        self.assertIn("ArrowUp", js)
+        self.assertIn("aria-live", js)
+        self.assertIn("root.isConnected", js)
+        self.assertIn("tecladoEnlazado", js)

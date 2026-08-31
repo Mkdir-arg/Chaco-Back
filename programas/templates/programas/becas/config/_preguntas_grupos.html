@@ -8,7 +8,8 @@
   <section class="grupo-card bg-white" data-grupo-id="{{ grupo.pk|default_if_none:'' }}" aria-label="Grupo {{ grupo.nombre|default:'Sin grupo' }}">
     <header class="flex items-center gap-3 px-4 py-3 bg-secondary border-b border-light">
       {% if grupo and puede_ordenar %}
-      <span class="grip grupo-grip" aria-hidden="true" title="Arrastrar para ordenar el grupo"><i class="fas fa-grip-vertical"></i></span>
+      <span class="grip grupo-grip" role="button" tabindex="0" title="Arrastrar para ordenar el grupo"
+            aria-label="Reordenar el grupo {{ grupo.nombre }}: flechas arriba y abajo"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>
       {% endif %}
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 flex-wrap">

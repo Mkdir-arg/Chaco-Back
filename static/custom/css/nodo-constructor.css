@@ -14,6 +14,13 @@
 }
 .grip:hover { background: var(--bg-secondary); color: var(--text-heading); }
 .grip:active { cursor: grabbing; }
+/* La manija también se opera por teclado (flechas): foco visible con anillo
+   por token, mismo criterio que .pv-canal-btn (Cambio 58). */
+.grip:focus-visible {
+  outline: 2px solid var(--border-brand);
+  outline-offset: 2px;
+  color: var(--text-heading);
+}
 
 .sortable-ghost { opacity: .35; background: var(--bg-brand-soft); }
 .sortable-chosen { background: var(--bg-brand-softer); }
