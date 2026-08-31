@@ -467,7 +467,6 @@ class SinRecursosDeTercerosTests(TestCase):
         from pathlib import Path
 
         from django.conf import settings
-
         from django.template.utils import get_app_template_dirs
 
         patron = re.compile(r'(?:src|href)="(https?://[^"]+)"')
@@ -500,19 +499,19 @@ class SinRecursosDeTercerosTests(TestCase):
 
 class GpsSoloSiSePideTests(_BaseFlujoTest):
     def test_no_se_guarda_la_ubicacion_si_el_segmento_no_la_pide(self):
+        from programas.services.becas import definicion_formulario
         from programas.services.inscripcion_publica import crear_formulario_publico
+        from programas.services.respuestas import foto_definicion
 
         self.assertFalse(self.segmento.requiere_gps)
+        definicion = definicion_formulario(self.relevamiento)
         form = type(
             "FormFalso",
             (),
             {
-                "cleaned_data": {
-                    "celular": "3624000000",
-                    "email_contacto": "x@y.com",
-                    "gps_lat": "-27.451000",
-                    "gps_lng": "-58.986000",
-                },
+                "cleaned_data": {"gps_lat": "-27.451000", "gps_lng": "-58.986000"},
+                "definicion": definicion,
+                "foto": foto_definicion(self.relevamiento, definicion),
                 "respuestas": lambda self: {},
                 "archivos": lambda self: [],
             },

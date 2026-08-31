@@ -26,10 +26,11 @@ from programas.api.serializers import (
     RelevamientoDetailSerializer,
     RelevamientoListSerializer,
 )
-from programas.models import Convocatoria, Formulario, Relevamiento
+from programas.models import Formulario, Relevamiento
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.identidad import identificar
-from programas.services.padron import convocatoria_con_identidad, fila_padron, normalizar_dni
+from programas.services.padron import fila_padron, normalizar_dni, objetivo_con_identidad
+from programas.services.respuestas import sincronizar_desde_legacy
 
 CAP = "becas.campo"
 DNI_DUPLICADO_MENSAJE = "Este DNI ya fue relevado en este relevamiento."
@@ -126,7 +127,7 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
         # en el padrón de la convocatoria y, si valida, la identidad es la del
         # padrón —no la que tipeó el territorial—.
         fila = fila_padron(
-            formulario.relevamiento.convocatoria,
+            formulario.relevamiento,
             datos.get("dni"),
             datos.get("sexo") or datos.get("genero"),
         )
@@ -158,26 +159,23 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
         formulario.save(update_fields=[*campos, "modificado"])
 
 
-def _convocatorias_para_identificar(user, relevamiento_id):
-    """Con qué padrones se identifica a una persona desde la app (Cambio 57).
+def _relevamientos_para_identificar(user, relevamiento_id):
+    """Con qué padrones se identifica a una persona desde la app (Cambio 57;
+    con herencia por relevamiento desde el Cambio 59).
 
-    Si la app manda el relevamiento, su convocatoria; si no, las de todos los
-    relevamientos vigentes del territorial (la app vieja no manda nada).
+    Si la app manda el relevamiento, ese; si no, todos los vigentes del
+    territorial (la app vieja no manda nada).
     """
     if relevamiento_id:
-        rel = (
-            Relevamiento.objects.filter(pk=relevamiento_id, territorial=user)
-            .select_related("convocatoria")
-            .first()
-        )
-        return [rel.convocatoria] if rel else []
+        rel = Relevamiento.objects.filter(pk=relevamiento_id, territorial=user).select_related("convocatoria").first()
+        return [rel] if rel else []
     return list(
-        Convocatoria.objects.filter(
-            relevamientos__territorial=user,
-            relevamientos__estado__in=[Relevamiento.Estado.ASIGNADO, Relevamiento.Estado.EN_CURSO],
+        Relevamiento.objects.filter(
+            territorial=user,
+            estado__in=[Relevamiento.Estado.ASIGNADO, Relevamiento.Estado.EN_CURSO],
         )
-        .distinct()
-        .order_by("-fecha_inicio", "pk")
+        .select_related("convocatoria")
+        .order_by("-convocatoria__fecha_inicio", "pk")
     )
 
 
@@ -197,11 +195,11 @@ def consultar_persona_becas(request):
     # Cascada del Cambio 57 en el servidor: padrón de la convocatoria → Base de
     # Personas (si está activa) → manual. Mismo contrato de respuesta que antes;
     # se suma ``origen`` para que la app lo repita en ``datos_identificacion``.
-    convocatorias = _convocatorias_para_identificar(request.user, request.data.get("relevamiento"))
-    # El padrón se mira en todas las convocatorias del territorial de una vez;
-    # la Gran Base se consulta una sola vez (no depende de la convocatoria).
-    elegida = convocatoria_con_identidad(convocatorias, dni, sexo) or (convocatorias[0] if convocatorias else None)
-    resultado = identificar(elegida, dni, sexo)
+    relevamientos = _relevamientos_para_identificar(request.user, request.data.get("relevamiento"))
+    # El padrón efectivo se mira para todos los relevamientos vigentes de una
+    # vez; la Gran Base se consulta una sola vez (no depende del relevamiento).
+    elegido = objetivo_con_identidad(relevamientos, dni, sexo) or (relevamientos[0] if relevamientos else None)
+    resultado = identificar(elegido, dni, sexo)
 
     if resultado["fallecido"]:
         return Response(
@@ -373,6 +371,10 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 duplicado_de=formulario_existente,
             )
             _actualizar_validacion_identidad(formulario, datos_identificacion)
+            # Cambio 58: la app manda el contrato anterior (data por pk +
+            # columnas fijas); acá se traduce a respuestas por clave y se
+            # guarda la foto de la definición que respondió (D3).
+            sincronizar_desde_legacy(formulario, rel)
             resolver_ciudadano_offline(formulario)
             formulario.refresh_from_db()
         return Response(FormularioSerializer(formulario).data, status=status.HTTP_201_CREATED)
@@ -409,6 +411,7 @@ class FormularioViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, view
             formulario,
             serializer.validated_data.get("datos_identificacion"),
         )
+        sincronizar_desde_legacy(formulario)
         resolver_ciudadano_offline(formulario)
 
     @action(detail=True, methods=["get", "post"])

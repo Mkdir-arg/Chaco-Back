@@ -17,11 +17,10 @@ from django.utils import timezone
 from core.services.throttle import ip_cliente
 from portal.services import inscripcion as servicio
 from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest, _tolerar_render_local
-from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
+from portal.tests.test_inscripcion_envio import _BasePaso2Test, _clave_vinculo, _identificacion
 from portal.views.inscripcion import MENSAJE_RECHAZO
 from programas.admin import RelevamientoAdmin
-from programas.forms import RelevamientoForm
-from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
+from programas.models import Convocatoria, Formulario, OrigenRequisito, Relevamiento, Segmento
 from programas.services.inscripcion_publica import crear_formulario_publico
 from programas.views import relevamientos as vistas_rel
 from programas.views import revision as vistas_rev
@@ -166,22 +165,21 @@ class ScopeRevalidarRenaperTests(TestCase):
 
 class FechaProveedorYApoderadoTests(_BasePaso2Test):
     def test_personas_sin_fecha_normalizada_exige_fecha_y_apoderado_si_es_menor(self):
+        """Si el proveedor manda una fecha que no se entiende, se le pide a la
+        persona y la condición del apoderado se evalúa con la que responde."""
         hoy = timezone.localdate()
         ident = _identificacion()
         ident["datos"]["fecha_nacimiento"] = "texto raro"
-        data = self._data(fecha_nacimiento=(hoy - timedelta(days=16 * 365)).isoformat())
+        data = self._data(**{self.k_nacimiento: (hoy - timedelta(days=16 * 365)).isoformat()})
         form = self._form(identificacion=ident, data=data)
         self.assertFalse(form.is_valid())
-        self.assertIn("fecha_nacimiento", form.fields)
-        self.assertIn("apoderado_dni", form.errors)
+        self.assertIn(self.k_nacimiento, form.fields)  # no vino validada: se pide
+        self.assertIn(self.k_apo_dni, form.errors)
 
     def test_personas_sin_fecha_guarda_la_fecha_del_form(self):
         ident = _identificacion()
         ident["datos"]["fecha_nacimiento"] = "texto raro"
-        data = self._data(
-            fecha_nacimiento="1990-01-01",
-            apoderado_dni="30.123.456",
-        )
+        data = self._data(**{self.k_nacimiento: "1990-01-01"})
         form = self._form(identificacion=ident, data=data)
         self.assertTrue(form.is_valid(), form.errors)
         formulario, _ = crear_formulario_publico(
@@ -189,13 +187,31 @@ class FechaProveedorYApoderadoTests(_BasePaso2Test):
         )
         self.assertEqual(formulario.ciudadano.fecha_nacimiento.isoformat(), "1990-01-01")
 
-    def test_apoderado_dni_se_normaliza_tambien_en_adultos(self):
-        form = self._form(data=self._data(apoderado_dni="30.123.456"))
+    def test_el_dni_del_apoderado_se_normaliza_cuando_se_pide(self):
+        """El DNI se limpia y se valida en el campo que corresponda, sea del
+        titular o del apoderado."""
+        hoy = timezone.localdate()
+        menor = _identificacion()
+        menor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=16 * 365)).isoformat()
+        completo = {
+            self.k_apo_dni: "30.123.456",
+            _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "nombre"): "Ana",
+            _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "apellido"): "Gómez",
+        }
+        form = self._form(identificacion=menor, data=self._data(**completo))
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data["apoderado_dni"], "30123456")
-        invalido = self._form(data=self._data(apoderado_dni="abc"))
+        self.assertEqual(form.respuestas()[self.k_apo_dni], "30123456")
+
+        invalido = self._form(identificacion=menor, data=self._data(**{**completo, self.k_apo_dni: "abc"}))
         self.assertFalse(invalido.is_valid())
-        self.assertIn("apoderado_dni", invalido.errors)
+        self.assertIn(self.k_apo_dni, invalido.errors)
+
+    def test_para_un_adulto_el_apoderado_ni_se_pide_ni_se_guarda(self):
+        """D11: el grupo Apoderado está oculto por su condición, así que lo que
+        llegue para él se descarta en vez de guardarse."""
+        form = self._form(data=self._data(**{self.k_apo_dni: "30.123.456"}))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn(self.k_apo_dni, form.respuestas())
 
 
 class PadronAtomicidadTests(TestCase):

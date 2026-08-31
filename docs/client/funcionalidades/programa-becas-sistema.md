@@ -145,7 +145,11 @@ Solo ve los relevamientos que tiene asignados.
 
 ## :material-clipboard-list-outline: Qué se le pregunta a la persona
 
-El formulario que completa el ciudadano se arma con **cuatro niveles de campos**, que se combinan en una sola lista:
+El formulario tiene dos mitades: un **catálogo** de campos disponibles y, en cada convocatoria, un **constructor** que decide cuáles se muestran, en qué orden y bajo qué condiciones.
+
+### El catálogo
+
+Los campos se dan de alta en **cuatro niveles**, según a quién alcanzan:
 
 | Nivel | Alcance |
 |---|---|
@@ -154,7 +158,24 @@ El formulario que completa el ciudadano se arma con **cuatro niveles de campos**
 | **Del segmento** | Aplican a todas las convocatorias del segmento. |
 | **Del subsegmento** | Solo a las convocatorias de ese subsegmento. |
 
-Cada campo tiene un **tipo** —texto, número, selector, selección múltiple, fecha o archivo—, puede ser obligatorio u opcional, y tiene un **orden** dentro de su lista. El orden se autonumera si se deja vacío y no puede repetirse dentro de la misma lista.
+Cada campo tiene un **tipo** —texto, número, selector, selección múltiple, fecha o archivo—, puede ser obligatorio u opcional, y tiene un **orden**. El orden se autonumera si se deja vacío y no se repite. Los requisitos generales se organizan además en **grupos** (Datos personales, Contacto, Apoderado, Cuestionario social…), que se reordenan arrastrándolos y se guardan al soltar.
+
+Algunos campos vienen **con el sistema y están protegidos**: los de Datos personales, Contacto y Apoderado, que corresponden a datos del legajo ciudadano. Se pueden renombrar, mover de grupo y —el contacto— volver opcionales, pero no borrar ni cambiarles el tipo: lo que se responde en ellos alimenta el legajo.
+
+Cada campo declara también **dónde se pide**: en los dos canales, solo en la app de campo o solo en el link público.
+
+### El constructor de la convocatoria
+
+En cada convocatoria, **«Configurar formulario»** muestra el diseño de un lado y, del otro, la vista previa de cómo lo va a ver la persona. Todo lo que el catálogo ofrece aparece en el diseño; ahí se decide:
+
+- **el orden y el agrupamiento**, arrastrando campos y grupos;
+- **títulos y subtítulos** propios, y **párrafos de texto** entre los campos (una aclaración, un instructivo, un link);
+- **campos propios de esta convocatoria**, que no se suman al catálogo y viven solo acá;
+- **condiciones**: un campo o un grupo entero se muestra solo si otra respuesta anterior cumple algo —«mostrar Apoderado si la edad es menor a 18», «pedir el certificado si el nivel es Secundario»—. Se combinan varias reglas con «todas» o «alguna», y el único efecto es mostrar u ocultar: lo oculto no se exige y no se guarda.
+
+Cada cambio se guarda en el momento. Si un campo se agrega o se borra del catálogo, el formulario de cada convocatoria se acomoda solo y avisa qué cambió.
+
+**Un caso guarda la foto del formulario que respondió.** Si el formulario se cambia después, los casos anteriores se siguen leyendo tal como se completaron: la revisión muestra el orden y las preguntas de ese momento, y marca «No se pidió» lo que una condición había ocultado.
 
 En los dos tipos de selector se elige además **cómo se ve**: como la lista de opciones de siempre, o como un **buscador con píldoras**, donde la persona escribe para filtrar y lo que elige queda a la vista arriba. Es útil en listas largas —nivel educativo, localidades, prestaciones—, donde recorrer treinta opciones cuesta más que tipear tres letras. Es solo presentación: no cambia qué respuestas son válidas ni lo que queda guardado, y todo lo ya configurado sigue viéndose como lista salvo que se lo cambie a propósito.
 
@@ -208,7 +229,7 @@ Pensado para que un público objetivo se inscriba solo. Se genera un link con un
     - **La identificación caduca a los 45 minutos**, para que en una computadora compartida no quede disponible el documento de la persona anterior.
     - **Los mensajes de rechazo son idénticos** entre sí, para que nadie pueda reconstruir el padrón ni averiguar quién ya está inscripto probando documentos.
 
-### Quién puede inscribirse y quién es: el padrón de la convocatoria
+### Quién puede inscribirse y quién es: el padrón
 
 Cada convocatoria puede tener un **padrón de habilitados**: un Excel que se carga desde la propia convocatoria (solapa Información general, con plantilla descargable) y que vale para todos sus relevamientos, del link y de la app de campo. Tiene seis columnas:
 
@@ -228,6 +249,12 @@ Cómo se usa:
 
 !!! warning "El padrón es tan bueno como el Excel"
     Lo que diga el Excel se toma como nombre y apellido de la persona. Un error de tipeo del organismo queda en la ficha hasta que la Base de Personas vuelva y lo corrija.
+
+**El padrón se carga en la convocatoria y lo heredan todos sus relevamientos.** Si un relevamiento
+necesita su propia lista (un barrio, una escuela, un grupo puntual), se le carga un **padrón propio** desde su
+detalle: ese relevamiento pasa a habilitar e identificar solo con su lista y deja de mirar la de la
+convocatoria. Quitarle el padrón propio lo devuelve a la herencia. En ambos niveles vale lo mismo: reemplazo
+total al cargar, y el cruce automático valida los casos pendientes que figuren con nombre y apellido.
 
 ### Qué protege el link
 

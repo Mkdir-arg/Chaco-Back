@@ -1157,6 +1157,59 @@ class PresentacionCampo(models.TextChoices):
     BUSCADOR = "BUSCADOR", "Buscador con píldoras"
 
 
+class CanalFormulario(models.TextChoices):
+    """En qué canal se pide un requisito o un grupo (Cambio 58, D14).
+
+    Hay preguntas que solo tienen sentido con el territorial adelante (foto del
+    DNI físico) o solo en el link. Vive donde vive el obligatorio: en el
+    catálogo para los requisitos, en el diseño para los campos propios.
+    """
+
+    AMBOS = "ambos", "Ambos canales"
+    APP = "app", "Solo app de campo"
+    LINK = "link", "Solo link público"
+
+    @classmethod
+    def del_relevamiento(cls, relevamiento):
+        return cls.LINK if relevamiento.es_publico else cls.APP
+
+
+class OrigenRequisito(models.TextChoices):
+    """De dónde sale y a dónde va la respuesta de un requisito general (Cambio 58, RN-4).
+
+    - ``PREGUNTA``: lo de siempre, la respuesta va al caso.
+    - ``LEGAJO``: vinculado a un campo del ciudadano que se inscribe; el tipo y
+      las opciones los dicta el legajo, la respuesta se vuelca a la ficha.
+    - ``PERSONA_VINCULADA``: campo de otra persona (el apoderado), resuelta por
+      DNI a su propio legajo.
+    """
+
+    PREGUNTA = "pregunta", "Pregunta"
+    LEGAJO = "legajo", "Campo del legajo de la persona"
+    PERSONA_VINCULADA = "persona_vinculada", "Campo del apoderado (persona vinculada)"
+
+
+# Campos del legajo que un requisito general puede vincular. El tipo y las
+# opciones salen de acá, no del operador (RN-4). ``identidad`` marca los que
+# vienen precargados y en solo lectura cuando la identidad está validada, no
+# se desactivan y no se pueden hacer opcionales; ``solo_lectura`` los que la
+# persona nunca edita (el DNI es la identificación del paso 1).
+VINCULOS_LEGAJO = {
+    "nombre": {"etiqueta": "Nombre", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True},
+    "apellido": {"etiqueta": "Apellido", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True},
+    "dni": {"etiqueta": "DNI", "tipo": TipoCampo.STRING, "opciones": None, "identidad": True, "solo_lectura": True},
+    "fecha_nacimiento": {
+        "etiqueta": "Fecha de nacimiento",
+        "tipo": TipoCampo.DATE,
+        "opciones": None,
+        "identidad": True,
+    },
+    "genero": {"etiqueta": "Sexo", "tipo": TipoCampo.SELECTOR, "opciones": ["F", "M"], "identidad": True},
+    "telefono": {"etiqueta": "Celular", "tipo": TipoCampo.STRING, "opciones": None},
+    "email": {"etiqueta": "Correo electrónico", "tipo": TipoCampo.STRING, "opciones": None},
+}
+
+
 class CampoTipoDispositivo(TimeStamped):
     """Campo configurable del formulario propio de un tipo de dispositivo."""
 
@@ -1579,6 +1632,15 @@ class Relevamiento(PausableMixin, TimeStamped):
         editable=False,
         verbose_name="Token del link público",
     )
+    # Cambio 59: padrón PROPIO de este relevamiento (Excel original, para
+    # trazabilidad). Con filas propias en PadronHabilitado, este relevamiento
+    # no hereda el padrón de la convocatoria.
+    padron_archivo = models.FileField(
+        upload_to=ruta_padron_becas,
+        null=True,
+        blank=True,
+        verbose_name="Padrón propio (Excel)",
+    )
     # Un único interruptor para todo el correo que le llega a la persona por
     # este relevamiento: el comprobante de inscripción (solo link público) y
     # los avisos de resolución del Cambio 44, que aplican también al canal
@@ -1820,6 +1882,17 @@ class PadronHabilitado(TimeStamped):
         related_name="padron",
         verbose_name="Convocatoria",
     )
+    # Cambio 59: con valor, la fila pertenece SOLO a ese relevamiento (padron
+    # propio, pisa al de la convocatoria); en NULL, es el padron de la
+    # convocatoria y lo heredan los relevamientos sin padron propio.
+    relevamiento = models.ForeignKey(
+        "Relevamiento",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="padron_propio",
+        verbose_name="Relevamiento (padron propio)",
+    )
     dni = models.CharField(max_length=20, verbose_name="DNI")
     sexo = models.CharField(max_length=1, choices=Sexo.choices, verbose_name="Sexo")
     # Identidad (opcional por fila). Con nombre y apellido la fila valida;
@@ -1842,9 +1915,15 @@ class PadronHabilitado(TimeStamped):
         verbose_name = "Habilitado del padrón"
         verbose_name_plural = "Habilitados del padrón"
         constraints = [
-            models.UniqueConstraint(fields=["convocatoria", "dni"], name="uniq_padron_dni_convocatoria"),
+            # MySQL trata los NULL como distintos: la unicidad del nivel
+            # convocatoria (relevamiento NULL) la garantiza la carga (reemplazo
+            # total + dedupe del parser); la del nivel relevamiento, la base.
+            models.UniqueConstraint(fields=["convocatoria", "relevamiento", "dni"], name="uniq_padron_dni_alcance"),
         ]
-        indexes = [models.Index(fields=["convocatoria", "dni", "sexo"], name="programas_padron_conv_dni_idx")]
+        indexes = [
+            models.Index(fields=["convocatoria", "dni", "sexo"], name="programas_padron_conv_dni_idx"),
+            models.Index(fields=["relevamiento", "dni", "sexo"], name="programas_padron_rel_dni_idx"),
+        ]
 
     def __str__(self):
         return f"{self.dni} ({self.sexo})"
@@ -1855,12 +1934,75 @@ class PadronHabilitado(TimeStamped):
         return bool(self.nombre.strip() and self.apellido.strip())
 
 
+class GrupoRequisito(TimeStamped):
+    """Grupo de requisitos generales (Cambio 58, RN-3). Es lo que la persona ve
+    como sección con título; en el constructor es el contenedor de los campos.
+
+    Los protegidos (Datos personales, Contacto, Apoderado) vienen sembrados por
+    ``seed_becas``: se renombran, ordenan y condicionan, pero no se borran.
+    ``condicion_defecto`` es la condición con la que el grupo entra a cada
+    diseño nuevo (el Apoderado nace con «edad < 18», la regla de hoy).
+    """
+
+    clave = models.SlugField(max_length=60, unique=True, verbose_name="Clave")
+    nombre = models.CharField(max_length=120, verbose_name="Nombre")
+    subtitulo = models.CharField(max_length=240, blank=True, verbose_name="Subtítulo")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    protegido = models.BooleanField(default=False, verbose_name="Protegido")
+    condicion_defecto = models.JSONField(null=True, blank=True, verbose_name="Condición por defecto")
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
+    )
+
+    class Meta:
+        verbose_name = "Grupo de requisitos"
+        verbose_name_plural = "Grupos de requisitos"
+        ordering = ["orden", "id"]
+
+    def __str__(self):
+        return self.nombre
+
+    def save(self, *args, **kwargs):
+        if not self.clave:
+            self.clave = f"grupo-{uuid.uuid4().hex[:8]}"
+        super().save(*args, **kwargs)
+
+
 class PreguntaGlobal(TimeStamped):
-    """Pregunta del cuestionario social (requisito general); aplica a todos los
-    formularios. Los adjuntos obligatorios fijos se modelan como tipo ARCHIVO."""
+    """Requisito general: aplica a todos los formularios. Desde el Cambio 58 se
+    agrupa y puede ser una pregunta (respuesta al caso), un campo del legajo de
+    la persona o un campo del apoderado. Los adjuntos obligatorios fijos se
+    modelan como tipo ARCHIVO."""
 
     texto = models.CharField(max_length=500, verbose_name="Texto")
     tipo = models.CharField(max_length=20, choices=TipoCampo.choices, verbose_name="Tipo de campo")
+    grupo = models.ForeignKey(
+        GrupoRequisito,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preguntas",
+        verbose_name="Grupo",
+    )
+    origen = models.CharField(
+        max_length=20,
+        choices=OrigenRequisito.choices,
+        default=OrigenRequisito.PREGUNTA,
+        verbose_name="Origen",
+    )
+    # Nombre del campo del legajo (o del apoderado) al que está vinculado; vacío
+    # para las preguntas. Con ``origen`` identifica a los protegidos.
+    vinculo = models.CharField(max_length=60, blank=True, verbose_name="Campo vinculado")
+    protegido = models.BooleanField(default=False, verbose_name="Protegido")
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
+    )
     opciones = models.JSONField(
         null=True,
         blank=True,
@@ -1892,6 +2034,31 @@ class PreguntaGlobal(TimeStamped):
     def __str__(self):
         return self.texto
 
+    def save(self, *args, **kwargs):
+        # RN-3 del Cambio 58: todo campo vive en un grupo. Sin uno explícito va
+        # al Cuestionario social (si el seed ya lo creó).
+        if self.grupo_id is None:
+            self.grupo = GrupoRequisito.objects.filter(clave="cuestionario").first()
+        super().save(*args, **kwargs)
+
+    @property
+    def es_pregunta(self):
+        return self.origen == OrigenRequisito.PREGUNTA
+
+    @property
+    def vinculo_info(self):
+        return {} if self.es_pregunta else VINCULOS_LEGAJO.get(self.vinculo, {})
+
+    @property
+    def es_identidad(self):
+        """Los campos de identidad de la persona (no del apoderado): no se
+        desactivan ni se hacen opcionales (D12)."""
+        return self.origen == OrigenRequisito.LEGAJO and bool(self.vinculo_info.get("identidad"))
+
+    @property
+    def solo_lectura(self):
+        return bool(self.vinculo_info.get("solo_lectura"))
+
 
 class RequisitoNativo(TimeStamped):
     """Requisito configurable de un programa, segmento o subsegmento. Genera un
@@ -1916,6 +2083,12 @@ class RequisitoNativo(TimeStamped):
         blank=True,
         verbose_name="Presentación",
         help_text="Solo para Selector / Selector múltiple: cómo elige la persona entre las opciones.",
+    )
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
     )
     programa = models.ForeignKey(
         ProgramaSiis,
@@ -2149,9 +2322,10 @@ class Formulario(TimeStamped):
         verbose_name="Motivo de la validación manual",
     )
 
-    # Bloque C — Contacto (manual, obligatorio)
-    celular = models.CharField(max_length=20, verbose_name="Celular")
-    email_contacto = models.EmailField(verbose_name="Correo electrónico")
+    # Bloque C — Contacto. Desde el Cambio 58 (D9) la obligatoriedad la decide
+    # el catálogo (grupo Contacto), no el modelo: pueden quedar vacíos.
+    celular = models.CharField(max_length=20, blank=True, verbose_name="Celular")
+    email_contacto = models.EmailField(blank=True, verbose_name="Correo electrónico")
 
     # Bloque D — Apoderado (solo si el ciudadano es menor; RN-22)
     apoderado_nombre = models.CharField(max_length=120, blank=True, verbose_name="Nombre del apoderado")
@@ -2181,6 +2355,14 @@ class Formulario(TimeStamped):
 
     # Respuestas dinámicas: {"globales": {pk: valor}, "requisitos": {pk: valor}}
     data = models.JSONField(default=dict, blank=True, verbose_name="Respuestas")
+    # Cambio 58 (D3): lo respondido por clave de ítem del diseño (``pg-<pk>``,
+    # ``rn-<pk>``, ``cp-…``) y la **foto** de la definición que se respondió
+    # (``{version, canal, items}``). Un caso viejo no se reinterpreta con un
+    # diseño posterior: la revisión lee la foto. ``data`` y las columnas fijas
+    # se siguen escribiendo como puente para la app vieja y los lectores
+    # que todavía no migraron.
+    respuestas = models.JSONField(default=dict, blank=True, verbose_name="Respuestas por ítem")
+    definicion = models.JSONField(null=True, blank=True, verbose_name="Foto de la definición")
 
     # Identificación offline (cuando ciudadano=null en el sync)
     datos_identificacion = models.JSONField(
@@ -2337,7 +2519,9 @@ class ValidacionSIS(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-creado"]
+        # Con dos validaciones en el mismo instante (un reintento inmediato, o
+        # un test) `-creado` sola no desempata y el orden queda al azar.
+        ordering = ["-creado", "-id"]
         verbose_name = "Validación SIIS"
         verbose_name_plural = "Validaciones SIIS"
 
@@ -2386,3 +2570,183 @@ class ListaEspera(TimeStamped):
 
     def __str__(self):
         return f"{self.segmento.nombre} #{self.posicion}"
+
+
+# ---------------------------------------------------------------------------
+# Diseño del formulario por convocatoria (Cambio 58, RN-1..RN-3)
+# ---------------------------------------------------------------------------
+
+
+class DisenoFormulario(TimeStamped):
+    """El formulario que ve la persona en una convocatoria: un **orden sobre el
+    catálogo vivo** (RN-1) con grupos, textos, condiciones y campos propios.
+
+    Nunca falta un requisito del catálogo ni sobra uno borrado: se genera por
+    defecto desde la herencia al abrirlo por primera vez y se reconcilia cada
+    vez que se sirve (``programas.services.diseno``). Cada guardado sube
+    ``version``; cada caso guarda la foto de la definición que respondió (D3),
+    así un caso viejo nunca se reinterpreta con un diseño posterior.
+    """
+
+    convocatoria = models.OneToOneField(
+        Convocatoria,
+        on_delete=models.CASCADE,
+        related_name="diseno",
+        verbose_name="Convocatoria",
+    )
+    version = models.PositiveIntegerField(default=1, verbose_name="Versión")
+    actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Actualizado por",
+    )
+
+    class Meta:
+        verbose_name = "Diseño de formulario"
+        verbose_name_plural = "Diseños de formulario"
+
+    def __str__(self):
+        return f"Formulario de {self.convocatoria} · v{self.version}"
+
+    def tocar(self, usuario=None):
+        """Cada guardado del constructor es una versión nueva (D8). El
+        incremento va en la base (``F``): dos operadores a la vez no pierden
+        una versión."""
+        campos = {"version": models.F("version") + 1, "modificado": timezone.now()}
+        if usuario is not None:
+            campos["actualizado_por"] = usuario
+        type(self).objects.filter(pk=self.pk).update(**campos)
+        self.refresh_from_db(fields=["version", "actualizado_por", "modificado"])
+
+
+class ItemDiseno(TimeStamped):
+    """Un ítem del diseño: grupo (contenedor con título), campo (del catálogo o
+    propio de la convocatoria) o texto (párrafo informativo). RN-2: el
+    catálogo es dueño de texto, tipo, opciones, presentación, obligatorio y
+    canal del requisito; el diseño es dueño de orden, grupo, condición y una
+    etiqueta opcional. Los campos propios (D2) tienen todo acá, en ``propio``.
+    """
+
+    class Tipo(models.TextChoices):
+        GRUPO = "grupo", "Grupo"
+        CAMPO = "campo", "Campo"
+        TEXTO = "texto", "Texto"
+
+    diseno = models.ForeignKey(
+        DisenoFormulario,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Diseño",
+    )
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, verbose_name="Tipo de ítem")
+    # Clave estable del ítem: ``g-…`` grupos, ``pg-<pk>`` preguntas generales,
+    # ``rn-<pk>`` requisitos, ``cp-…`` campos propios, ``t-…`` textos. Es la
+    # clave de la respuesta en el caso y de la fuente en una condición.
+    clave = models.CharField(max_length=60, verbose_name="Clave")
+    padre = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="hijos",
+        verbose_name="Grupo contenedor",
+    )
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    # Sobreescribe el texto del catálogo (campos) o es el título (grupos).
+    etiqueta = models.CharField(max_length=240, blank=True, verbose_name="Etiqueta")
+    subtitulo = models.CharField(max_length=240, blank=True, verbose_name="Subtítulo")
+    # Párrafo de los ítems TEXTO (texto plano; los links se detectan al mostrar, D13).
+    texto = models.TextField(blank=True, verbose_name="Texto")
+    condicion = models.JSONField(null=True, blank=True, verbose_name="Condición")
+    # Canal de los grupos y de los campos propios; los del catálogo usan el suyo.
+    canal = models.CharField(
+        max_length=10,
+        choices=CanalFormulario.choices,
+        default=CanalFormulario.AMBOS,
+        verbose_name="Se pide en",
+    )
+    pregunta = models.ForeignKey(
+        PreguntaGlobal,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Requisito general",
+    )
+    requisito = models.ForeignKey(
+        RequisitoNativo,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Requisito nativo",
+    )
+    grupo_catalogo = models.ForeignKey(
+        GrupoRequisito,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Grupo del catálogo",
+    )
+    # Campo propio de la convocatoria: {texto, tipo, opciones, presentacion, obligatorio}.
+    propio = models.JSONField(null=True, blank=True, verbose_name="Campo propio")
+
+    class Meta:
+        verbose_name = "Ítem del diseño"
+        verbose_name_plural = "Ítems del diseño"
+        ordering = ["orden", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["diseno", "clave"], name="uniq_item_diseno_clave"),
+        ]
+        indexes = [models.Index(fields=["diseno", "padre", "orden"], name="prog_item_diseno_orden_idx")]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} {self.clave}"
+
+    @property
+    def es_grupo(self):
+        return self.tipo == self.Tipo.GRUPO
+
+    @property
+    def es_campo(self):
+        return self.tipo == self.Tipo.CAMPO
+
+    @property
+    def es_texto(self):
+        return self.tipo == self.Tipo.TEXTO
+
+    @property
+    def es_propio(self):
+        return self.es_campo and self.propio is not None
+
+    @property
+    def objeto_catalogo(self):
+        return self.pregunta if self.pregunta_id else (self.requisito if self.requisito_id else None)
+
+    @property
+    def canal_efectivo(self):
+        """El canal lo decide el catálogo para sus requisitos (RN-2)."""
+        objeto = self.objeto_catalogo
+        return objeto.canal if objeto is not None else self.canal
+
+    @property
+    def titulo(self):
+        """Lo que ve la persona: la etiqueta del diseño o el texto del catálogo."""
+        if self.etiqueta:
+            return self.etiqueta
+        if self.es_grupo:
+            return self.grupo_catalogo.nombre if self.grupo_catalogo_id else ""
+        objeto = self.objeto_catalogo
+        if objeto is not None:
+            return objeto.texto
+        return (self.propio or {}).get("texto", "")
+
+    def se_pide_en(self, canal):
+        """¿Este ítem entra en ``canal``? (``None`` = todos)."""
+        if not canal:
+            return True
+        return self.canal_efectivo in (CanalFormulario.AMBOS, canal)

@@ -24,7 +24,7 @@ from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from programas.forms import CiudadanoGeneroRevisionForm, ForzarIdentidadForm, FormularioRevisionForm
+from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm, ForzarIdentidadForm
 from programas.models import (
     Formulario,
     PreguntaGlobal,
@@ -39,8 +39,9 @@ from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.identidad import gran_base_activa
-from programas.services.padron import fila_padron
+from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
+from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 
@@ -307,6 +308,34 @@ def _respuestas_resueltas(formulario):
     return globales_list, requisitos_segmento, requisitos_subsegmento
 
 
+def _sin_vinculados(bloques):
+    """Los campos vinculados al legajo y al apoderado ya tienen su sección en
+    el detalle (identidad, contacto, apoderado): en «Respuestas» quedan solo
+    las preguntas y los textos. Un grupo que se queda sin nada no se muestra."""
+    if bloques is None:
+        return None
+    filtrados = []
+    for bloque in bloques:
+        items = [
+            i for i in bloque["items"] if i.get("tipo") != "campo" or not i.get("origen") or i["origen"] == "pregunta"
+        ]
+        if items:
+            filtrados.append({**bloque, "items": items})
+    return filtrados
+
+
+def _apoderado_pedido(bloques, por_defecto):
+    """¿El formulario le pidió el apoderado a esta persona? Con foto, lo dice
+    la condición del grupo que tiene los campos del apoderado; sin foto (o sin
+    ese grupo en el diseño), ``por_defecto``."""
+    if not bloques:
+        return por_defecto
+    con_apoderado = [b for b in bloques if any(i.get("origen") == "persona_vinculada" for i in b["items"])]
+    if not con_apoderado:
+        return por_defecto
+    return any(not b["oculto"] for b in con_apoderado)
+
+
 @login_required
 @requiere(CAP_REVISION_VER, CAP_REVISION_EDITAR)
 def formulario_detalle(request, pk):
@@ -339,6 +368,7 @@ def formulario_detalle(request, pk):
                 if anteriores[campo] != nuevo:
                     cambios.append((FormularioRevisionForm.LABELS[campo], anteriores[campo], nuevo))
             form.save()
+            sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
             resolver_ciudadano_offline(formulario)
             n = registrar_traza(formulario, request.user, cambios)
             if n:
@@ -349,7 +379,13 @@ def formulario_detalle(request, pk):
     else:
         form = FormularioRevisionForm(instance=formulario)
 
-    globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
+    # Cambio 58 (#347): un caso con foto se lee desde la foto; uno anterior, por pk.
+    bloques_completos = respuestas_legibles(formulario)
+    bloques = _sin_vinculados(bloques_completos)
+    if bloques is None:
+        globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
+    else:
+        globales_list, requisitos_segmento, requisitos_subsegmento = [], [], []
     fecha_nacimiento = None
     if formulario.ciudadano_id:
         fecha_nacimiento = formulario.ciudadano.fecha_nacimiento
@@ -364,7 +400,10 @@ def formulario_detalle(request, pk):
         or formulario.apoderado_genero
         or formulario.apoderado_fecha_nacimiento
     )
-    mostrar_apoderado = bool(es_menor(fecha_nacimiento) or tiene_datos_apoderado)
+    # Con foto manda la condición que configuró la convocatoria (D10); sin foto
+    # (caso anterior al Cambio 58), la regla fija de siempre: menor de 18.
+    apoderado_pedido = _apoderado_pedido(bloques_completos, es_menor(fecha_nacimiento))
+    mostrar_apoderado = bool(apoderado_pedido or tiene_datos_apoderado)
     mapa = None
     if formulario.gps_lat is not None and formulario.gps_lng is not None:
         lat = float(formulario.gps_lat)
@@ -400,6 +439,9 @@ def formulario_detalle(request, pk):
                 initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
             ),
             "mostrar_apoderado": mostrar_apoderado,
+            # Cambio 58 (#347): con foto, un solo listado en el orden del formulario
+            # que respondio; sin foto, las tres listas historicas por alcance.
+            "bloques": bloques,
             "globales_list": globales_list,
             "requisitos_segmento": requisitos_segmento,
             "requisitos_subsegmento": requisitos_subsegmento,
@@ -409,7 +451,7 @@ def formulario_detalle(request, pk):
             # Cambio 57: con la Gran Base apagada, «Revalidar» se deshabilita y
             # se ofrece validar contra el padrón de la convocatoria.
             "gran_base_activa": gran_base_activa(),
-            "convocatoria_tiene_padron": formulario.relevamiento.convocatoria.padron.exists(),
+            "convocatoria_tiene_padron": padron_de(formulario.relevamiento).exists(),
             "forzar_identidad_form": ForzarIdentidadForm(),
             "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
             "validacion_sis": validacion_sis,
@@ -682,10 +724,7 @@ def formulario_revalidar_renaper(request, pk):
                 cambios.append((f"Ciudadano · {campo}", anterior, nuevo))
         if campos_actualizados:
             ciudadano.save(update_fields=[*campos_actualizados, "modificado"])
-        if (
-            not formulario.validado_renaper
-            or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS
-        ):
+        if not formulario.validado_renaper or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS:
             anterior = formulario.get_origen_validacion_display() if formulario.validado_renaper else "Pendiente"
             formulario.validado_renaper = True
             # La Gran Base es la fuente oficial: manda sobre el padrón (RN-6).
@@ -705,9 +744,7 @@ def formulario_validar_padron(request, pk):
     convocatoria (Cambio 57). Es lo mismo que hace el cruce automático al
     subir el padrón, para un caso puntual: sirve cuando el padrón se corrigió
     después, o cuando la Gran Base está apagada y el caso entró como manual."""
-    formulario = get_object_or_404(
-        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk
-    )
+    formulario = get_object_or_404(Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)
@@ -718,7 +755,7 @@ def formulario_validar_padron(request, pk):
     if ciudadano is None or not ciudadano.dni:
         messages.error(request, "El caso necesita un ciudadano con DNI para buscarlo en el padrón.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    fila = fila_padron(formulario.relevamiento.convocatoria, ciudadano.dni, ciudadano.genero)
+    fila = fila_padron(formulario.relevamiento, ciudadano.dni, ciudadano.genero)
     if fila is None:
         messages.error(request, f"El DNI {ciudadano.dni} no figura en el padrón de la convocatoria con ese sexo.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)

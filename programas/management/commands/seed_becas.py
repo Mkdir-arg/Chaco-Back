@@ -20,7 +20,15 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from core import rbac
-from programas.models import PreguntaGlobal, Programa, TipoCampo
+from programas.models import (
+    VINCULOS_LEGAJO,
+    CanalFormulario,
+    GrupoRequisito,
+    OrigenRequisito,
+    PreguntaGlobal,
+    Programa,
+    TipoCampo,
+)
 from users.models import Capacidad, RolMeta
 
 PROGRAMA_BECAS_CODIGO = "BECAS"
@@ -174,6 +182,116 @@ def asegurar_adjuntos_obligatorios():
     return creados
 
 
+# Catálogo protegido (Cambio 58, D5): los bloques que antes eran fijos en el
+# código pasan a ser requisitos generales agrupados y vinculados al legajo.
+# Cada grupo: (clave, nombre, subtítulo, orden, condición por defecto, campos);
+# cada campo: (origen, vínculo, etiqueta, obligatorio). El tipo y las opciones
+# salen de VINCULOS_LEGAJO, nunca de acá.
+CONDICION_APODERADO = {
+    "modo": "todas",
+    "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+}
+CATALOGO_PROTEGIDO = [
+    (
+        "datos_personales",
+        "Datos personales",
+        "Los datos de la persona que se inscribe.",
+        0,
+        None,
+        [
+            (OrigenRequisito.LEGAJO, "nombre", "Nombre", True),
+            (OrigenRequisito.LEGAJO, "apellido", "Apellido", True),
+            (OrigenRequisito.LEGAJO, "dni", "DNI", True),
+            (OrigenRequisito.LEGAJO, "fecha_nacimiento", "Fecha de nacimiento", True),
+            (OrigenRequisito.LEGAJO, "genero", "Sexo", True),
+        ],
+    ),
+    (
+        "contacto",
+        "Contacto",
+        "",
+        1,
+        None,
+        [
+            (OrigenRequisito.LEGAJO, "telefono", "Celular", True),
+            (OrigenRequisito.LEGAJO, "email", "Correo electrónico", False),
+        ],
+    ),
+    (
+        "apoderado",
+        "Apoderado",
+        "Como sos menor de 18, necesitamos los datos de un adulto responsable.",
+        2,
+        CONDICION_APODERADO,
+        [
+            (OrigenRequisito.PERSONA_VINCULADA, "nombre", "Nombre del apoderado", True),
+            (OrigenRequisito.PERSONA_VINCULADA, "apellido", "Apellido del apoderado", True),
+            (OrigenRequisito.PERSONA_VINCULADA, "dni", "DNI del apoderado", True),
+            (OrigenRequisito.PERSONA_VINCULADA, "genero", "Sexo del apoderado", False),
+            (OrigenRequisito.PERSONA_VINCULADA, "fecha_nacimiento", "Fecha de nacimiento del apoderado", False),
+        ],
+    ),
+]
+GRUPO_CUESTIONARIO = ("cuestionario", "Cuestionario social", "", 10)
+
+
+def asegurar_catalogo_protegido():
+    """Siembra los grupos protegidos con sus campos vinculados y manda al
+    «Cuestionario social» toda pregunta que no tenga grupo. Idempotente: la
+    identidad de un campo protegido es (origen, vínculo); el texto, el grupo y
+    el orden se pueden haber cambiado desde el backoffice y no se pisan."""
+    creados = 0
+    ordenes_usados = set(PreguntaGlobal.objects.values_list("orden", flat=True))
+
+    def orden_libre(desde):
+        while desde in ordenes_usados:
+            desde += 1
+        ordenes_usados.add(desde)
+        return desde
+
+    for clave, nombre, subtitulo, orden, condicion, campos in CATALOGO_PROTEGIDO:
+        grupo, _ = GrupoRequisito.objects.get_or_create(
+            clave=clave,
+            defaults={
+                "nombre": nombre,
+                "subtitulo": subtitulo,
+                "orden": orden,
+                "protegido": True,
+                "condicion_defecto": condicion,
+            },
+        )
+        if not grupo.protegido:
+            grupo.protegido = True
+            grupo.save(update_fields=["protegido", "modificado"])
+        for indice, (origen, vinculo, etiqueta, obligatorio) in enumerate(campos):
+            info = VINCULOS_LEGAJO[vinculo]
+            _, created = PreguntaGlobal.objects.get_or_create(
+                origen=origen,
+                vinculo=vinculo,
+                defaults={
+                    "texto": etiqueta,
+                    "tipo": info["tipo"],
+                    "opciones": info["opciones"],
+                    "grupo": grupo,
+                    "protegido": True,
+                    "obligatorio": obligatorio,
+                    "activo": True,
+                    "canal": CanalFormulario.AMBOS,
+                    # Desde 1000: el rango bajo queda libre para las preguntas que
+                    # carga el operador (el orden del catálogo es único, Cambio 23).
+                    "orden": orden_libre(1000 + orden * 10 + indice + 1),
+                },
+            )
+            creados += int(created)
+
+    clave, nombre, subtitulo, orden = GRUPO_CUESTIONARIO
+    cuestionario, _ = GrupoRequisito.objects.get_or_create(
+        clave=clave, defaults={"nombre": nombre, "subtitulo": subtitulo, "orden": orden}
+    )
+    PreguntaGlobal.objects.filter(grupo__isnull=True).update(grupo=cuestionario)
+    return creados
+
+
 def asegurar_roles_becas(programa):
     """Crea/asegura los 3 roles del programa con sus capacidades (idempotente).
 
@@ -220,6 +338,14 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"  ✓ Adjuntos obligatorios asegurados ({creados} nuevos, {len(ADJUNTOS_OBLIGATORIOS)} totales)"
+            )
+        )
+
+        protegidos = asegurar_catalogo_protegido()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"  ✓ Catálogo protegido asegurado ({protegidos} campos nuevos; "
+                f"grupos {', '.join(c[1] for c in CATALOGO_PROTEGIDO)} + {GRUPO_CUESTIONARIO[1]})"
             )
         )
 

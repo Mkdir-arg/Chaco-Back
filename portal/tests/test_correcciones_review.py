@@ -118,7 +118,9 @@ class FechaNoIsoTests(_BasePaso2Test):
         ident["datos"]["fecha_nacimiento"] = nacimiento.strftime("%d/%m/%Y")
         form = InscripcionPaso2Form(self._data(), self._files(), definicion=self.definicion, identificacion=ident)
         self.assertFalse(form.is_valid())  # antes: parse_date → None → RN-22 salteada
-        self.assertIn("apoderado_dni", form.errors)
+        # Cambio 58: el apoderado es un grupo con condición «edad < 18» y sus
+        # campos se llaman por su clave de ítem.
+        self.assertIn(self.k_apo_dni, form.errors)
 
 
 class GateEnScopesTests(TestCase):

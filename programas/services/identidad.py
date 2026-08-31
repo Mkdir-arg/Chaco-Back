@@ -36,8 +36,9 @@ def gran_base_activa():
     return bool(getattr(settings, "PERSONAS_API_ACTIVA", True))
 
 
-def identificar(convocatoria, dni, sexo):
-    """Resuelve la identidad de ``dni`` + ``sexo`` para ``convocatoria``.
+def identificar(objetivo, dni, sexo):
+    """Resuelve la identidad de ``dni`` + ``sexo`` contra el padrón efectivo de
+    ``objetivo`` (un relevamiento o una convocatoria, Cambio 59) y la Gran Base.
 
     Devuelve un dict con:
 
@@ -50,7 +51,7 @@ def identificar(convocatoria, dni, sexo):
     - ``diferencias``: ``{campo: (padron, gran_base)}`` cuando ambas fuentes
       tenían datos y no coinciden (para la traza).
 
-    ``convocatoria`` puede ser ``None`` (consulta sin padrón: solo Gran Base).
+    ``objetivo`` puede ser ``None`` (consulta sin padrón: solo Gran Base).
     """
     dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
     resultado = {
@@ -67,8 +68,8 @@ def identificar(convocatoria, dni, sexo):
     if not dni or not sexo:
         return resultado
 
-    if convocatoria is not None:
-        fila = fila_padron(convocatoria, dni, sexo)
+    if objetivo is not None:
+        fila = fila_padron(objetivo, dni, sexo)
         if fila is not None and fila.tiene_identidad:
             resultado.update(origen=ORIGEN_PADRON, validado=True, datos=datos_de_fila(fila))
 

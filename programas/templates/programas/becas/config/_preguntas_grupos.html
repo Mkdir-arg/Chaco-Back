@@ -1,0 +1,72 @@
+{% load rbac %}
+{# Catálogo agrupado con drag & drop (Cambio 58, task 337). Se renderiza sin filtros; con filtros va _preguntas_table.html. #}
+{% if condicion_datos %}{{ condicion_datos|json_script:"catalogo-condicion-datos" }}{% endif %}
+{% with puede_ordenar=request.user|puede:"becas.pregunta.editar" %}
+{% if grupos_con_preguntas %}
+<div data-sortable-grupos data-url-reordenar="{% url 'becas:preguntas_reordenar' %}" data-puede-ordenar="{% if puede_ordenar %}1{% else %}0{% endif %}">
+  {% for grupo, preguntas in grupos_con_preguntas %}
+  <section class="grupo-card bg-white" data-grupo-id="{{ grupo.pk|default_if_none:'' }}" aria-label="Grupo {{ grupo.nombre|default:'Sin grupo' }}">
+    <header class="flex items-center gap-3 px-4 py-3 bg-secondary border-b border-light">
+      {% if grupo and puede_ordenar %}
+      <span class="grip grupo-grip" role="button" tabindex="0" title="Arrastrar para ordenar el grupo"
+            aria-label="Reordenar el grupo {{ grupo.nombre }}: flechas arriba y abajo"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>
+      {% endif %}
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h2 class="text-heading font-bold" style="font-size:15px;">{{ grupo.nombre|default:"Sin grupo" }}</h2>
+          <span class="badge badge-gray">{{ preguntas|length }}</span>
+          {% if grupo.protegido %}<span class="badge badge-info" title="Viene con el sistema: se renombra y se ordena, no se borra"><i class="fas fa-lock" style="font-size:10px;"></i> Protegido</span>{% endif %}
+          {% if grupo and grupo.canal != "ambos" %}<span class="badge badge-white">{{ grupo.get_canal_display }}</span>{% endif %}
+          {% if grupo.condicion_defecto %}<span class="badge badge-warning" title="Al agregarlo a un formulario nace con esta condición; se ajusta en cada convocatoria"><i class="fas fa-code-branch" style="font-size:10px;"></i> Condición por defecto</span>{% endif %}
+        </div>
+        {% if grupo.subtitulo %}<p class="text-xs text-body-subtle mt-0.5">{{ grupo.subtitulo }}</p>{% endif %}
+      </div>
+      {% if grupo and puede_ordenar %}
+      <div class="flex items-center gap-1">
+        <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-white" title="Editar grupo" aria-label="Editar grupo {{ grupo.nombre }}"
+                @click="openGrupo('{% url 'becas:grupo_editar' grupo.pk %}', '{{ grupo.nombre|escapejs }}', '{{ grupo.subtitulo|escapejs }}', '{{ grupo.canal }}', '{{ grupo.pk }}')">
+          <i class="fas fa-edit"></i>
+        </button>
+        {% if not grupo.protegido and not preguntas %}
+        <button type="button" class="text-body-subtle hover:text-fg-danger p-1.5 rounded-lg hover:bg-white" title="Eliminar grupo" aria-label="Eliminar grupo {{ grupo.nombre }}"
+                data-confirm-url="{% url 'becas:grupo_eliminar' grupo.pk %}"
+                data-confirm-title="¿Eliminar grupo?" data-confirm-text="{{ grupo.nombre }}" data-confirm-ok="Sí, eliminar">
+          <i class="fas fa-trash"></i>
+        </button>
+        {% endif %}
+      </div>
+      {% endif %}
+    </header>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead class="sr-only">
+          <tr>
+            <th>Mover</th><th>Texto</th><th>Tipo</th><th>Obligatorio</th><th>Estado</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody data-sortable-preguntas data-grupo-id="{{ grupo.pk|default_if_none:'' }}">
+          {% for p in preguntas %}{% include "programas/becas/config/_pregunta_row.html" with p=p con_grip=True %}{% endfor %}
+          {% if not preguntas %}
+          <tr class="sortable-placeholder">
+            <td colspan="6" class="px-4 py-4 text-sm text-body-subtle text-center italic border-t border-light">Sin preguntas. Arrastrá una acá o creala eligiendo este grupo.</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="py-14 px-6 text-center flex flex-col items-center gap-3">
+  <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
+  <p class="text-[17px] font-bold text-heading">No hay preguntas configuradas</p>
+  <p class="text-sm text-body max-w-xs">Agregá las preguntas que aparecerán en todos los formularios del programa.</p>
+  {% if request.user|puede:"becas.pregunta.crear" %}
+  <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
+    <i class="fas fa-plus"></i> Nueva pregunta
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+{% endwith %}

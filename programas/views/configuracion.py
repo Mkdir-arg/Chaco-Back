@@ -8,22 +8,26 @@ otorgan estas capacidades a un rol no-admin, solo puede operar sobre los
 segmentos que tiene asignados.
 """
 
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
-from django.db.models import Count
+from django.db.models import Count, Max
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, puede_alguna, requiere
 from programas.forms import (
     AsignacionCoordinadorForm,
+    GrupoRequisitoForm,
     PreguntaGlobalForm,
     ProgramaSiisCreateForm,
     RequisitoNativoForm,
@@ -33,6 +37,9 @@ from programas.forms import (
 )
 from programas.models import (
     AsignacionCoordinador,
+    CanalFormulario,
+    GrupoRequisito,
+    ItemDiseno,
     PreguntaGlobal,
     PresentacionCampo,
     ProgramaSiis,
@@ -252,6 +259,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_segmento"] = SegmentoCreateForm(initial={"programa": programa.pk})
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         return ctx
 
 
@@ -371,6 +379,7 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         return ctx
 
 
@@ -682,6 +691,7 @@ class RequisitosSegmentoView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["sub_actual"] = self.request.GET.get("subsegmento", "")
         ctx["tipo_choices"] = TipoCampo.choices
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         ctx["form_requisito"] = RequisitoNativoForm()
         return ctx
 
@@ -713,20 +723,150 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
         ctx["requisitos_propios"] = sub.requisitos.order_by("orden", "id")
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg, subsegmento=sub)
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         return ctx
 
 
 # ---------------------------------------------------------------------------
 # Preguntas globales (cuestionario social)
 # ---------------------------------------------------------------------------
+def _datos_condicion():
+    """Fuentes disponibles y condición actual por grupo, para el editor de la
+    condición por defecto del modal (json_script del partial). «nuevo» es un
+    grupo que se está creando: entra al final y puede mirar todo el catálogo
+    agrupado."""
+    from programas.services.diseno import _preguntas_activas, fuentes_condicion_defecto
+
+    preguntas = _preguntas_activas()
+    datos = {"nuevo": {"fuentes": fuentes_condicion_defecto(None, preguntas), "condicion": None}}
+    for grupo in GrupoRequisito.objects.order_by("orden", "id"):
+        datos[str(grupo.pk)] = {
+            "fuentes": fuentes_condicion_defecto(grupo, preguntas),
+            "condicion": grupo.condicion_defecto,
+        }
+    return datos
+
+
+def _grupos_con_preguntas():
+    """``[(grupo, [preguntas])]`` en orden de pantalla, con los grupos vacíos
+    (para poder soltar preguntas adentro). Cambio 58, #337."""
+    grupos = list(GrupoRequisito.objects.order_by("orden", "id"))
+    por_grupo = {g.pk: [] for g in grupos}
+    sueltas = []
+    for pregunta in PreguntaGlobal.objects.select_related("grupo").order_by("orden", "id"):
+        (por_grupo[pregunta.grupo_id] if pregunta.grupo_id in por_grupo else sueltas).append(pregunta)
+    resultado = [(g, por_grupo[g.pk]) for g in grupos]
+    if sueltas:
+        # Sin seed no hay «Cuestionario social»: se muestran igual, sin grupo.
+        resultado.append((None, sueltas))
+    return resultado
+
+
 def _preguntas_ajax(request, message="Pregunta guardada."):
     return ajax_ok(
         request,
         target="#preguntas-table",
-        partial="programas/becas/config/_preguntas_table.html",
-        context={"preguntas": PreguntaGlobal.objects.order_by("orden", "id")},
+        partial="programas/becas/config/_preguntas_grupos.html",
+        context={
+            "grupos_con_preguntas": _grupos_con_preguntas(),
+            "canal_choices": CanalFormulario.choices,
+            "condicion_datos": _datos_condicion(),
+        },
         message=message,
     )
+
+
+@login_required
+@requiere(CAP_PREGUNTA_EDITAR)
+@require_POST
+def preguntas_reordenar(request):
+    """Guarda el orden que dejó el drag & drop (#337): grupos por posición y
+    preguntas por grupo. El orden del catálogo es único entre todas las
+    preguntas (Cambio 23), así que se renumeran todas en el orden recibido y
+    las que no vinieron quedan detrás, en su orden relativo."""
+    try:
+        payload = json.loads(request.body or b"{}")
+        grupos = payload["grupos"]
+        assert isinstance(grupos, list)
+        grupo_ids = [int(g["id"]) for g in grupos if g.get("id") not in (None, "", "null")]
+        pregunta_ids = [int(pk) for g in grupos for pk in g.get("preguntas", [])]
+    except (ValueError, KeyError, AssertionError, TypeError, AttributeError):
+        return JsonResponse({"ok": False, "error": "Payload inválido."}, status=400)
+    if len(set(grupo_ids)) != len(grupo_ids) or len(set(pregunta_ids)) != len(pregunta_ids):
+        return JsonResponse({"ok": False, "error": "Hay ids repetidos."}, status=400)
+    existentes_g = set(GrupoRequisito.objects.filter(pk__in=grupo_ids).values_list("pk", flat=True))
+    existentes_p = set(PreguntaGlobal.objects.filter(pk__in=pregunta_ids).values_list("pk", flat=True))
+    if set(grupo_ids) - existentes_g or set(pregunta_ids) - existentes_p:
+        return JsonResponse(
+            {"ok": False, "error": "Algún grupo o pregunta ya no existe; recargá la página."}, status=409
+        )
+
+    with transaction.atomic():
+        for posicion, grupo in enumerate(grupos):
+            if grupo.get("id") in (None, "", "null"):
+                continue
+            GrupoRequisito.objects.filter(pk=int(grupo["id"])).update(orden=posicion)
+        orden = 1
+        for grupo in grupos:
+            grupo_id = None if grupo.get("id") in (None, "", "null") else int(grupo["id"])
+            for pk in grupo.get("preguntas", []):
+                PreguntaGlobal.objects.filter(pk=int(pk)).update(grupo_id=grupo_id, orden=orden)
+                orden += 1
+        for pk in (
+            PreguntaGlobal.objects.exclude(pk__in=pregunta_ids).order_by("orden", "id").values_list("pk", flat=True)
+        ):
+            PreguntaGlobal.objects.filter(pk=pk).update(orden=orden)
+            orden += 1
+    return _preguntas_ajax(request, "Orden guardado.")
+
+
+@login_required
+@requiere(CAP_PREGUNTA_EDITAR)
+@require_POST
+def grupo_crear(request):
+    form = GrupoRequisitoForm(request.POST)
+    if not form.is_valid():
+        return ajax_errors(form) if is_ajax(request) else redirect("becas:preguntas")
+    grupo = form.save(commit=False)
+    ultimo = GrupoRequisito.objects.aggregate(m=Max("orden"))["m"]
+    grupo.orden = 0 if ultimo is None else ultimo + 1
+    grupo.save()
+    if is_ajax(request):
+        return _preguntas_ajax(request, "Grupo creado.")
+    messages.success(request, "Grupo creado.")
+    return redirect("becas:preguntas")
+
+
+@login_required
+@requiere(CAP_PREGUNTA_EDITAR)
+@require_POST
+def grupo_editar(request, pk):
+    grupo = get_object_or_404(GrupoRequisito, pk=pk)
+    form = GrupoRequisitoForm(request.POST, instance=grupo)
+    if not form.is_valid():
+        return ajax_errors(form) if is_ajax(request) else redirect("becas:preguntas")
+    form.save()
+    if is_ajax(request):
+        return _preguntas_ajax(request, "Grupo actualizado.")
+    messages.success(request, "Grupo actualizado.")
+    return redirect("becas:preguntas")
+
+
+@login_required
+@requiere(CAP_PREGUNTA_EDITAR)
+@require_POST
+def grupo_eliminar(request, pk):
+    grupo = get_object_or_404(GrupoRequisito, pk=pk)
+    if grupo.protegido:
+        messages.error(request, "Este grupo viene con el sistema y no se puede eliminar.")
+    elif grupo.preguntas.exists():
+        messages.error(request, "El grupo tiene preguntas: movelas a otro grupo antes de eliminarlo.")
+    else:
+        # Los diseños que lo referencian (SET_NULL) conservan su último nombre.
+        ItemDiseno.objects.filter(grupo_catalogo=grupo, etiqueta="").update(etiqueta=grupo.nombre)
+        grupo.delete()
+        messages.success(request, "Grupo eliminado.")
+    return redirect("becas:preguntas")
 
 
 class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
@@ -736,7 +876,8 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
     context_object_name = "preguntas"
 
     def get_queryset(self):
-        queryset = PreguntaGlobal.objects.order_by("orden", "id")
+        # Cambio 58: agrupadas; dentro del grupo, por orden.
+        queryset = PreguntaGlobal.objects.select_related("grupo").order_by("grupo__orden", "grupo__id", "orden", "id")
         texto = self.request.GET.get("q", "").strip()
         tipo = self.request.GET.get("tipo", "").strip()
         obligatorio = self.request.GET.get("obligatorio", "").strip()
@@ -755,9 +896,22 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx = super().get_context_data(**kwargs)
         ctx["tipo_choices"] = TipoCampo.choices
         ctx["presentacion_choices"] = PresentacionCampo.choices
+        ctx["canal_choices"] = CanalFormulario.choices
         ctx["hay_filtros_activos"] = any(
             self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
         )
+        ctx["grupos"] = GrupoRequisito.objects.order_by("orden", "id")
+        # Cambio 58 (#337): sin filtros, la lista se muestra agrupada y con
+        # drag & drop; con filtros, la tabla plana de siempre.
+        ctx["grupos_con_preguntas"] = None if ctx["hay_filtros_activos"] else _grupos_con_preguntas()
+        ctx["form_grupo"] = GrupoRequisitoForm()
+        # Siempre: con filtros el partial no se rinde, pero «Nuevo grupo» sigue
+        # visible y su editor necesita las fuentes (el template lo sirve a nivel
+        # página solo en ese caso, así el id nunca se duplica).
+        ctx["condicion_datos"] = _datos_condicion()
+        from programas.views.diseno import _operadores
+
+        ctx["operadores"] = _operadores()
         return ctx
 
 
@@ -807,6 +961,10 @@ def pregunta_toggle_activo(request, pk):
     if request.method != "POST":
         return redirect("becas:preguntas")
     pregunta = get_object_or_404(PreguntaGlobal, pk=pk)
+    if pregunta.es_identidad:
+        # Cambio 58, D12: sin identidad no hay caso.
+        messages.error(request, "Los campos de identidad de la persona no se pueden desactivar.")
+        return redirect("becas:preguntas")
     pregunta.activo = not pregunta.activo
     pregunta.save(update_fields=["activo", "modificado"])
     messages.success(request, f"Pregunta {'activada' if pregunta.activo else 'desactivada'}.")
@@ -818,6 +976,12 @@ def pregunta_toggle_activo(request, pk):
 def pregunta_eliminar(request, pk):
     pregunta = get_object_or_404(PreguntaGlobal, pk=pk)
     if request.method == "POST":
+        if pregunta.protegido:
+            # Cambio 58, RN-5: los protegidos se renombran, agrupan y ordenan; no se borran.
+            messages.error(
+                request, "Este campo viene con el sistema y no se puede eliminar; podés renombrarlo o moverlo de grupo."
+            )
+            return redirect("becas:preguntas")
         pregunta.delete()
         messages.success(request, "Pregunta eliminada.")
     return redirect("becas:preguntas")

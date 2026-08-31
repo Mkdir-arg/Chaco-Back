@@ -340,14 +340,16 @@ class Command(BaseCommand):
         if not dni:
             return
         sexo_norm = self._normalizar_sexo(options["sexo"])
-        if padron and not esta_habilitado(rel.convocatoria, dni, sexo_norm):
+        if padron and not esta_habilitado(rel, dni, sexo_norm):
             self._error(f"el DNI {dni} NO está en el padrón (con ese sexo): el paso 1 lo rechaza")
         elif padron:
             from programas.services.padron import fila_padron
 
-            fila = fila_padron(rel.convocatoria, dni, sexo_norm)
+            fila = fila_padron(rel, dni, sexo_norm)
             if fila is not None and fila.tiene_identidad:
-                self._ok(f"el DNI {dni} está en el padrón con identidad: el paso 2 precarga {fila.apellido}, {fila.nombre}")
+                self._ok(
+                    f"el DNI {dni} está en el padrón con identidad: el paso 2 precarga {fila.apellido}, {fila.nombre}"
+                )
             else:
                 self._aviso(f"el DNI {dni} está en el padrón pero sin nombre y apellido: no valida por padrón")
         if dni_ya_inscripto(rel.convocatoria, dni):
