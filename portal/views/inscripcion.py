@@ -34,6 +34,7 @@ from portal.services.inscripcion import (
     paso1_excedido,
     paso2_excedido,
     pregunta_captcha,
+    relevamiento_aun_no_abierto,
     relevamiento_disponible,
 )
 from programas.models import Relevamiento
@@ -91,8 +92,14 @@ def _get_relevamiento(token):
 
 
 def _no_disponible(request, relevamiento):
-    # Una sola pantalla para vencido, pausado, cupo lleno o cerrado (RN-P4).
-    return render(request, "portal/inscripcion/no_disponible.html", {"relevamiento": relevamiento})
+    # Una sola pantalla, con dos textos: «todavía no abrió» cuando lo único que
+    # falta es la fecha de inicio; el resto (vencido, pausado, cupo lleno o
+    # cerrado) comparte el mensaje genérico sin motivo (RN-P4).
+    return render(
+        request,
+        "portal/inscripcion/no_disponible.html",
+        {"relevamiento": relevamiento, "aun_no_abierto": relevamiento_aun_no_abierto(relevamiento)},
+    )
 
 
 def _datos_basicos(data):

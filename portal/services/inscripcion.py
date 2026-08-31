@@ -58,6 +58,23 @@ def relevamiento_disponible(relevamiento):
     )
 
 
+def relevamiento_aun_no_abierto(relevamiento):
+    """Distingue «todavía no abrió» del resto de los motivos de no disponible.
+
+    Solo aplica cuando lo único que falta es que llegue ``fecha_asignada``: un
+    link pausado, sin cupo o cerrado sigue mostrando el mensaje genérico para
+    no revelar el motivo (RN-P4).
+    """
+    return bool(
+        relevamiento.es_publico
+        and relevamiento.estado == Relevamiento.Estado.EN_CURSO
+        and not relevamiento.pausa_efectiva
+        and not relevamiento.cupo_completo
+        and relevamiento.fecha_asignada
+        and timezone.now() < relevamiento.fecha_asignada
+    )
+
+
 # RN-P5 vive en una sola funcion (la ingesta la re-chequea en su transaccion).
 dni_ya_inscripto = dni_en_convocatoria
 
