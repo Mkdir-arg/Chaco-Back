@@ -4,7 +4,8 @@
   {% for grupo, hijos in arbol %}
   <section class="cons-grupo rounded-xl border border-base bg-white overflow-hidden" data-clave="{{ grupo.clave|default:'' }}" data-tipo="grupo">
     <header class="flex items-center gap-2 px-3 py-2.5 bg-secondary border-b border-light">
-      {% if grupo %}<span class="grip grupo-grip" aria-hidden="true" title="Arrastrar para ordenar el grupo"><i class="fas fa-grip-vertical"></i></span>{% endif %}
+      {% if grupo %}<span class="grip grupo-grip" role="button" tabindex="0" title="Arrastrar para ordenar el grupo"
+            aria-label="Reordenar el grupo {{ grupo.titulo|default:'sin título' }}: flechas arriba y abajo"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>{% endif %}
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-heading font-bold" style="font-size:14px;">{% if grupo %}{{ grupo.titulo|default:"(grupo sin título)" }}{% else %}Sin grupo{% endif %}</span>
@@ -32,7 +33,8 @@
     <ul class="cons-hijos" data-sortable-hijos data-clave="{{ grupo.clave|default:'' }}">
       {% for item in hijos %}
       <li class="cons-item flex items-center gap-2 px-3 py-2 hover:bg-secondary" data-clave="{{ item.clave }}" data-tipo="{{ item.tipo }}">
-        <span class="grip item-grip" aria-hidden="true" title="Arrastrar para mover"><i class="fas fa-grip-vertical"></i></span>
+        <span class="grip item-grip" role="button" tabindex="0" title="Arrastrar para mover"
+              aria-label="Reordenar {% if item.es_texto %}el texto{% else %}{{ item.titulo }}{% endif %}: flechas arriba y abajo (cruza de grupo en los bordes)"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>
         <span class="cons-icono" aria-hidden="true">
           {% if item.es_texto %}<i class="fas fa-align-left"></i>
           {% elif item.ui.tipo_campo == "DATE" %}<i class="fas fa-calendar"></i>

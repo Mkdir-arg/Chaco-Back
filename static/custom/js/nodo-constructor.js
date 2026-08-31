@@ -64,7 +64,40 @@
   }
 
   // ── Respuestas del servidor ──────────────────────────────────────────────
+
+  // La manija con foco (teclado), re-localizable después de un re-render.
+  function selectorDelFoco() {
+    var foco = document.activeElement;
+    if (!foco || !foco.classList || !foco.closest) { return null; }
+    var esGrupo = foco.classList.contains('grupo-grip');
+    if (!esGrupo && !foco.classList.contains('item-grip')) { return null; }
+    var duenio = foco.closest(esGrupo ? '.cons-grupo' : '.cons-item');
+    if (!duenio || !duenio.getAttribute('data-clave')) { return null; }
+    return (esGrupo ? '.cons-grupo' : '.cons-item') +
+      '[data-clave="' + duenio.getAttribute('data-clave') + '"] ' +
+      (esGrupo ? '.grupo-grip' : '.item-grip');
+  }
+
+  function restaurarFoco(focoSel) {
+    if (!focoSel) { return; }
+    var grip = document.querySelector(focoSel);
+    if (grip) { grip.focus(); }
+  }
+
+  function anunciar(texto) {
+    var el = document.getElementById('constructor-aria-vivo');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'constructor-aria-vivo';
+      el.className = 'sr-only';
+      el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+    }
+    el.textContent = texto;
+  }
+
   function aplicarRespuesta(data) {
+    var focoSel = selectorDelFoco();
     var tgt = document.querySelector(data.target || '#constructor-items');
     if (tgt && typeof data.html === 'string') {
       tgt.innerHTML = data.html;
@@ -73,6 +106,7 @@
     leerDatos();
     initSortables();
     renderPreview();
+    restaurarFoco(focoSel);
   }
 
   function post(url, payload, ok, fallo) {
@@ -119,12 +153,13 @@
     var contenedor = document.getElementById('constructor-items');
 
     function empezar() { snapshot = contenedor.innerHTML; }
-    function mover(evt, claveItem, clavePadre) {
-      var lista = evt.to;
-      var hermanos = Array.prototype.filter.call(lista.children, function (el) {
-        return el.matches(clavePadre ? '.cons-item' : '.cons-grupo');
-      });
-      var posicion = hermanos.indexOf(evt.item);
+
+    function hijosQue(lista, selector) {
+      return Array.prototype.filter.call(lista.children, function (el) { return el.matches(selector); });
+    }
+
+    function postMover(claveItem, clavePadre, posicion) {
+      var focoSel = selectorDelFoco();
       post(urlDe('mover'), { clave: claveItem, padre: clavePadre || null, posicion: posicion < 0 ? 0 : posicion }, null, function (msg) {
         aviso(msg, 'error');
         if (snapshot !== null) {
@@ -133,7 +168,99 @@
           leerDatos();
           initSortables();
           renderPreview();
+          restaurarFoco(focoSel);
         }
+      });
+    }
+
+    function mover(evt, claveItem, clavePadre) {
+      var hermanos = hijosQue(evt.to, clavePadre ? '.cons-item' : '.cons-grupo');
+      postMover(claveItem, clavePadre, hermanos.indexOf(evt.item));
+    }
+
+    // ── Alternativa de teclado (mejora del Cambio 58, misma que el catálogo):
+    // las flechas mueven en el DOM y el `mover` viaja una sola vez, con la
+    // posición final, cuando la ráfaga termina (700 ms sin pulsaciones).
+    var timerTeclado = null;
+    var pendiente = null; // {clave, esGrupo}
+
+    function flushTeclado() {
+      window.clearTimeout(timerTeclado);
+      timerTeclado = null;
+      if (!pendiente) { return; }
+      var p = pendiente;
+      pendiente = null;
+      var el = contenedor.querySelector((p.esGrupo ? '.cons-grupo' : '.cons-item') + '[data-clave="' + p.clave + '"]');
+      if (!el || !el.isConnected) { return; }
+      if (p.esGrupo) {
+        postMover(p.clave, null, hijosQue(el.parentElement, '.cons-grupo').indexOf(el));
+      } else {
+        var ul = el.closest('[data-sortable-hijos]');
+        postMover(p.clave, ul.getAttribute('data-clave') || null, hijosQue(ul, '.cons-item').indexOf(el));
+      }
+    }
+
+    function anunciarTeclado(el, esGrupo) {
+      var it = itemPorClave(el.getAttribute('data-clave')) || {};
+      var nombre = String(it.etiqueta || it.titulo || it.texto || (esGrupo ? 'Grupo' : 'Ítem')).slice(0, 80);
+      var lista = esGrupo ? el.parentElement : el.closest('[data-sortable-hijos]');
+      var hermanos = hijosQue(lista, esGrupo ? '.cons-grupo' : '.cons-item');
+      var texto = nombre + ': posición ' + (hermanos.indexOf(el) + 1) + ' de ' + hermanos.length;
+      if (!esGrupo) {
+        var seccion = el.closest('.cons-grupo');
+        var titulo = seccion && seccion.querySelector('header .text-heading');
+        if (titulo) { texto += ' en ' + titulo.textContent.trim().slice(0, 60); }
+      }
+      anunciar(texto + '.');
+    }
+
+    function tecladoMover(grip, delta) {
+      var esGrupo = grip.classList.contains('grupo-grip');
+      var el = grip.closest(esGrupo ? '.cons-grupo' : '.cons-item');
+      if (!el || !el.getAttribute('data-clave')) { return; }
+      var clave = el.getAttribute('data-clave');
+      // Cambio de ítem a mitad de ráfaga: el movimiento anterior viaja ya.
+      if (pendiente && pendiente.clave !== clave) { flushTeclado(); }
+      if (!pendiente) { empezar(); }
+      if (esGrupo) {
+        var grupos = hijosQue(el.parentElement, '.cons-grupo');
+        var destino = grupos[grupos.indexOf(el) + delta];
+        if (!destino) { return; }
+        el.parentElement.insertBefore(el, delta < 0 ? destino : destino.nextSibling);
+      } else {
+        var ul = el.closest('[data-sortable-hijos]');
+        var items = hijosQue(ul, '.cons-item');
+        var idx = items.indexOf(el) + delta;
+        if (idx >= 0 && idx < items.length) {
+          ul.insertBefore(el, delta < 0 ? items[idx] : items[idx].nextSibling);
+        } else {
+          // En el borde: cruza al final del grupo anterior o al principio del siguiente.
+          var listas = Array.prototype.slice.call(contenedor.querySelectorAll('[data-sortable-hijos]'));
+          var vecina = listas[listas.indexOf(ul) + delta];
+          if (!vecina) { return; }
+          var ph = vecina.querySelector('.sortable-placeholder');
+          if (ph) { ph.remove(); }
+          if (delta < 0) { vecina.appendChild(el); }
+          else { vecina.insertBefore(el, vecina.querySelector('.cons-item')); }
+        }
+      }
+      grip.focus();
+      anunciarTeclado(el, esGrupo);
+      pendiente = { clave: clave, esGrupo: esGrupo };
+      window.clearTimeout(timerTeclado);
+      timerTeclado = window.setTimeout(flushTeclado, 700);
+    }
+
+    // Una sola vez por root: `initSortables()` puede re-correr sobre el mismo
+    // nodo y un listener duplicado movería doble.
+    if (!root.dataset.tecladoEnlazado) {
+      root.dataset.tecladoEnlazado = '1';
+      root.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') { return; }
+        var grip = e.target.closest ? e.target.closest('.grupo-grip, .item-grip') : null;
+        if (!grip) { return; }
+        e.preventDefault();
+        tecladoMover(grip, e.key === 'ArrowUp' ? -1 : 1);
       });
     }
 

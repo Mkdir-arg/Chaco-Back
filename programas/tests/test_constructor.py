@@ -116,6 +116,22 @@ class PantallaTests(_Base):
         self.assertEqual(resp.status_code, 302)
         self.assertIn("next=", resp.url)
 
+    def test_las_manijas_se_operan_por_teclado(self):
+        """Alternativa de teclado del drag & drop, misma que el catálogo
+        (mejora del Cambio 58): manijas focusables y JS cableado."""
+        html = self.client.get(self._url("convocatoria_formulario")).content.decode()
+        self.assertIn('grupo-grip" role="button" tabindex="0"', html)
+        self.assertIn('item-grip" role="button" tabindex="0"', html)
+        from pathlib import Path
+
+        from django.conf import settings
+
+        js = Path(settings.BASE_DIR, "static", "custom", "js", "nodo-constructor.js").read_text(encoding="utf-8")
+        self.assertIn("ArrowUp", js)
+        self.assertIn("aria-live", js)
+        self.assertIn("tecladoEnlazado", js)
+        self.assertIn("flushTeclado", js)
+
 
 class MoverTests(_Base):
     def test_mueve_un_campo_a_otro_grupo_y_sube_la_version(self):
