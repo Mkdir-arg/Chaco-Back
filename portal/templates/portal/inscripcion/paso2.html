@@ -58,7 +58,7 @@ todo el formulario se muestra y el envío funciona igual.{% endcomment %}
                         <p class="text-sm font-semibold" style="color: var(--text-heading);">{{ item.fijo_texto }}</p>
                     </div>
                     {% else %}
-                    <div data-item="{{ item.clave }}">
+                    <div data-item="{{ item.clave }}"{% if item.es_checks %} class="nodo-checks"{% endif %}>
                         <label for="{{ item.bound.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ item.label }}{% if item.obligatorio %} <span style="color: var(--text-fg-danger);">*</span>{% endif %}</label>
                         {{ item.bound }}
                         {% if item.es_archivo %}<p class="text-xs mt-1" style="color: var(--text-body-subtle);">JPG, PNG o PDF, hasta 5 MB.</p>{% endif %}

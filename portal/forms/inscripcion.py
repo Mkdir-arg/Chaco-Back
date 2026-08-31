@@ -182,6 +182,9 @@ class InscripcionPaso2Form(forms.Form):
             "label": item.get("texto", ""),
             "obligatorio": bool(item.get("obligatorio")),
             "es_archivo": item.get("tipo") == "ARCHIVO",
+            # Múltiple apilado (checkboxes): el template marca el contenedor
+            # con .nodo-checks y el estilo vive en nodo-forms.css.
+            "es_checks": item.get("tipo") == "SELECTOR_MULTIPLE" and not _es_buscador(item),
             "fijo": None,
             "fijo_texto": "",
             "bound": None,

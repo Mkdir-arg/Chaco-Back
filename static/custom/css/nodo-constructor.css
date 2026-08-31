@@ -56,9 +56,11 @@ tbody[data-sortable-preguntas]:empty { display: block; min-height: 44px; }
 .pv-campo { min-width: 0; }
 .pv-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-heading); margin-bottom: 4px; }
 .pv-texto { font-size: 13px; color: var(--text-body); line-height: 1.5; margin: 0; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-lg); }
-/* Apilados como los rinde Django (CheckboxSelectMultiple): la vista previa no promete un layout que el portal no tiene. */
-.pv-checks { display: grid; gap: 6px; font-size: 13px; color: var(--text-body); }
-.pv-checks label, .pv-archivo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-body); cursor: pointer; }
+/* Igual que el paso 2 (.nodo-checks de nodo-forms.css): apilado con caja de
+   18px y acento de marca — la vista previa promete lo que el portal muestra. */
+.pv-checks { display: grid; gap: 8px; font-size: 13px; color: var(--text-body); }
+.pv-checks label, .pv-archivo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-body); cursor: pointer; }
+.pv-checks input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--bg-brand); }
 .pv-ayuda { margin: 4px 0 0; font-size: 11px; color: var(--text-body-subtle); }
 .pv-ocultos { margin-top: 8px; padding: 10px 12px; font-size: 12px; color: var(--text-body-subtle); background: var(--bg-secondary); border-radius: var(--radius-lg); }
 

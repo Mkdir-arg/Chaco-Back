@@ -6190,6 +6190,13 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   snapshot y el foco vuelve a la manija (`aplicarRespuesta` restaura el foco también para el drag).
   Verificado en navegador: ráfaga de 2 flechas = 1 POST, cruce de grupo, movimiento de grupo y el rechazo
   por RN-6 con restauración.
+- **31/08/2026 — Cerrada la deuda visual del `CheckboxSelectMultiple`** (venía del Cambio 56: el múltiple
+  apilado del paso 2 se rendía con los checkboxes crudos del navegador). El contenedor del campo lleva
+  `.nodo-checks` (`portal/forms` marca la fila con `es_checks`; solo el apilado, no el buscador) y el
+  estilo vive en `nodo-forms.css`: grilla de filas clickeables, caja de 18px con `accent-color` de marca
+  y `:focus-visible` con anillo. `.pv-checks` de la vista previa del constructor espeja el mismo look
+  (deja de imitar el render crudo). Inventario del agente actualizado; verificado en navegador (paso 2 y
+  vista previa con estilos computados idénticos) y con test del flag en `Paso2PresentacionSelectorTests`.
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

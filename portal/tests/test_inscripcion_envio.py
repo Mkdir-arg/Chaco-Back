@@ -486,6 +486,21 @@ class Paso2PresentacionSelectorTests(_BasePaso2Test):
         widget = self._widget(self._definicion_con("SELECTOR", None))
         self.assertNotIn("data-buscador", widget.attrs)
 
+    def test_el_multiple_apilado_marca_su_contenedor(self):
+        """La fila lleva `es_checks` solo para el múltiple apilado: el template
+        pone .nodo-checks en el contenedor y el estilo vive en nodo-forms.css
+        (cierra la deuda visual del Cambio 56). El buscador no lo lleva."""
+
+        def fila_de(presentacion):
+            form = InscripcionPaso2Form(
+                definicion=self._definicion_con("SELECTOR_MULTIPLE", presentacion),
+                identificacion=_identificacion(),
+            )
+            return next(i for g in form.grupos() for i in g["items"] if i["clave"] == self.k_pregunta)
+
+        self.assertTrue(fila_de("LISTA")["es_checks"])
+        self.assertFalse(fila_de("BUSCADOR")["es_checks"])
+
     def test_el_buscador_no_cambia_que_valores_son_validos(self):
         definicion = self._definicion_con("SELECTOR", "BUSCADOR")
         valido = InscripcionPaso2Form(
