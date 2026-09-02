@@ -568,12 +568,12 @@
 | 30/08 | Matías Abate | Becas | Casos de prueba del padrón con herencia | Diseño de los casos del comportamiento nuevo del padrón por relevamiento. | 2 h | — |
 | | | | **Total 29 al 30/08 (fin de semana)** | | **88 h** | **69 h** |
 
-### :material-package-variant-closed: Consumo del 31 de agosto — por entregable (parcial)
+### :material-package-variant-closed: Consumo del 31 de agosto — por entregable
 
-!!! note "Registro parcial del lunes"
-    Cubre la madrugada y la mañana del PM, que trabaja desde Europa. El equipo en Argentina arranca su
-    jornada al momento de este registro: sus horas del 31/08 se agregan al cierre del día. El desarrollo
-    del constructor **continúa**.
+!!! note "Última jornada del mes"
+    El 31/08 registra la jornada del PM sobre el constructor de formularios: revisión por fases, las
+    mejoras del día y el despliegue al entorno de pruebas del equipo. El desarrollo del constructor
+    **continúa** en septiembre.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -584,16 +584,19 @@
 | 31/08 | Matías Fariña | Becas | Selector múltiple apilado con estilo del sistema | Las opciones múltiples del formulario público dejan de verse crudas; la vista previa del constructor refleja el mismo estilo. | 0,5 h | 3 h |
 | 31/08 | Matías Fariña | Becas | Despliegue a producción del padrón con herencia y las mejoras del día | Respaldo de la base, actualización con la migración del padrón, verificación del servicio y del código publicado. | 0,5 h | 2 h |
 | 31/08 | Matías Fariña | Transversal | Recalculo de horas e informe de avance al cliente | Recalculo del consumo del desarrollo y redacción del informe detallado de funcionalidades, estado, próximos pasos y horas. | 1 h | — |
-| | | | **Total 31/08 (parcial)** | | **6,5 h** | **31 h** |
+| | | | **Total 31/08** | | **6,5 h** | **31 h** |
 
-### :material-briefcase-outline: Consumo de agosto por programa
+### :material-briefcase-outline: Esfuerzo real de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
 | Becas | 466 h 00 min |
 | Dispositivos | 140 h 30 min |
 | Transversal | 170 h 00 min |
-| **Total agosto 2026 (al 31/08, parcial)** | **776 h 30 min** |
+| **Esfuerzo real de agosto 2026** | **776 h 30 min** |
+
+!!! abstract "Imputación de agosto"
+    Agosto se **imputa por 700 h** (el 100% de su presupuesto) y las **76 h 30 min** restantes se **trasladan a septiembre 2026**. Las horas de arriba son el esfuerzo real ejecutado: el traslado es de imputación, no de registro.
 
 ---
 
@@ -625,7 +628,10 @@
 
     **106.542 minutos** (1.775 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 776 h 30 min (al 31/08, parcial).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 776 h 30 min.
+
+    Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 76 h 30 min de
+    excedente quedan imputadas a septiembre 2026.
 
 
 

@@ -194,6 +194,21 @@ mes para contar el desarrollo. Estructura (calcada del informe de junio 2026):
    publica en `docs/client/` si el usuario lo pide (reglas de `AGENTS.md`,
    confirmando antes del deploy).
 
+**Referencia de formato:** los informes ya enviados viven en
+`docs/internal/informes-mes/` (registro interno: no se publican, el `docs_dir`
+del sitio es `docs/client`). El más reciente manda; `2026-06.md` es el que fijó
+la estructura. El informe nuevo se guarda ahí como `AAAA-MM.md`.
+
+**Traslado de excedente (decisión del PM, 02/09/2026).** Si el esfuerzo real del
+mes **supera** el presupuesto mensual, el mes se **imputa al presupuesto** (100%,
+nunca más) y el excedente se **traslada al mes siguiente** como consumo inicial:
+así no se le factura de más al cliente y el esfuerzo real sigue visible y
+trazable. El informe y las páginas del mes declaran **las dos cifras** —esfuerzo
+real del mes y horas imputadas— con el traslado explícito. El detalle día por día
+**no se toca**: el traslado es de imputación, no de registro. El flujo completo de
+cierre (páginas del mes, índice, nav de mkdocs y contador) está en
+`.claude/commands/pm/informemes.md`.
+
 ### 7. Coordinación de producción (`/pm`, opción coordinación)
 
 Modo conversacional para manejar todo desde una sola entrada sin romper la
