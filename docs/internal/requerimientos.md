@@ -6364,10 +6364,12 @@ se sigue con Daphne para HTTP) y la fijación de sesión única en menos consult
   existe. El entrypoint avisa al arrancar si la variable falta. En `icore-srv` se declara `True` porque
   el contenedor `websocket` (Daphne) sigue atendiendo `/ws/` y nginx ya lo enruta ahí.
 - **Defaults 3 workers × 2 hilos, timeout 120 s, `max-requests` 1000 con jitter.** Tres procesos usan los
-  4 vCPU de la VM dejando aire a MySQL y Redis; el timeout supera la cadena RENAPER (10 s conexión + 20 s
-  lectura) para que gunicorn no mate un worker a mitad de una consulta legítima; el reciclado por
-  cantidad de requests mantiene la memoria acotada bajo el límite del contenedor. Todo ajustable por
-  variables `GUNICORN_*`.
+  4 vCPU de la VM dejando aire a MySQL y Redis. El timeout de 120 s es solo el techo a partir del cual
+  gunicorn mataría un worker colgado: **el límite efectivo para el cliente lo pone nginx**, que corta a
+  los 60 s (`proxy_read_timeout`), y la cadena RENAPER (10 s conexión + 20 s lectura) entra dentro de ese
+  margen; con `gthread` una request larga tampoco mata al worker, porque el latido al maestro lo da el
+  hilo principal, no el que atiende la request. El reciclado por cantidad de requests mantiene la memoria
+  acotada bajo el límite del contenedor. Todo ajustable por variables `GUNICORN_*`.
 - **`web` de `icore-srv` pasa a gunicorn en el compose del repo, con 900 MB sin swap.** El límite anterior
   (350 MB con 150 MB de swap permitido) hacía errática la latencia si el proceso paginaba; con tres
   workers de 150–200 MB hace falta subirlo. `websocket` sigue igual (Daphne, 300 MB).
@@ -6421,6 +6423,15 @@ actualiza fila a fila cuando cada usuario inicia sesión.
   PBKDF2 1.000k (Django 5.2, producción) 952 ms · Argon2id 89 ms.
 - `sh -n docker-entrypoint.sh` OK; `docker-compose.prod.yml` parseado y verificadas las variables nuevas;
   `ruff check` y `ruff format --check` OK; `mkdocs build --strict` OK.
+- `pip-audit` sobre `argon2-cffi==25.1.0` y `argon2-cffi-bindings==26.1.0` (el gate de `pr-security.yml`):
+  sin vulnerabilidades conocidas. `bandit` excluye `tests/`, así que las contraseñas literales del test
+  nuevo no lo disparan.
+- Revisión de `chaco-dev-reviewer` sobre el commit: **sin hallazgos bloqueantes ni importantes**, «listo
+  para QA». Verificó con evidencia que nada del multiproceso se rompe: `CHANNEL_LAYERS`, caché, sesiones
+  y throttle van por Redis en `prd`; la sesión única vive en la base; los hilos de `core/performance/*`
+  solo arrancan por comando; `channels_redis` limpia su capa al cerrarse cada event loop de
+  `async_to_sync`, así que bajo WSGI no acumula conexiones. Dos observaciones bajas sobre `nginx.conf`,
+  preexistentes y fuera del diff, quedaron en Pendientes.
 - No tocó plantillas ni estilos: no aplica `design_audit` ni `compile_templates`.
 - **No se midió producción**: el acceso a `icore-srv` desde la sesión fue bloqueado por el clasificador
   de permisos. La confirmación queda para después del deploy (ver abajo).
@@ -6445,7 +6456,11 @@ quieren repartir el HTTP, la receta está en `docker/k8s/README.md`.
 - Comunicar a ECOM la opción gunicorn y que decidan; revisar con ellos `resources.limits.cpu` del pod (un
   límite bajo estrangula el hash del login).
 - El resto del punteo (ver *Alcance acordado*), cada uno con su propia entrada. El primero en la cola
-  por relación ganancia/esfuerzo es nginx con `gzip_static` y HTTP/2 en `icore-srv`.
+  por relación ganancia/esfuerzo es nginx con `gzip_static` y HTTP/2 en `icore-srv`. En esa misma pasada
+  sobre `nginx.conf`, dos observaciones de la revisión (preexistentes, no las introduce este cambio): el
+  `keepalive 32` del upstream `web` no se aprovecha porque `proxy_set_header Connection
+  $connection_upgrade` manda `close` en todo el HTTP normal (cada request abre una conexión nueva hacia
+  gunicorn), y los timeouts de nginx (60 s) y gunicorn (120 s) conviene dejarlos alineados a propósito.
 
 ## Reversión
 
