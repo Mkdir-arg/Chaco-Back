@@ -6375,9 +6375,17 @@ se sigue con Daphne para HTTP) y la fijación de sesión única en menos consult
   workers de 150–200 MB hace falta subirlo. `websocket` sigue igual (Daphne, 300 MB).
 - **Daphne sigue siendo el default de la imagen.** ECOM corre un solo Deployment con Daphne para HTTP y
   `/ws/` (Cambio 31, historial del 13/08/2026); si no cambia nada, su despliegue arranca exactamente
-  igual. Activar gunicorn en Kubernetes es decisión de plataforma: dos Deployments (web con gunicorn,
-  ws con Daphne), ingress enrutando `/ws/`, `WEBSOCKETS_ENABLED=True` en el web. Quedó documentado en
-  `docker/k8s/README.md`, sección *HTTP en varios procesos*, con la alternativa sin cambios (más réplicas).
+  igual. El modo gunicorn en Kubernetes exige dos Deployments (web con gunicorn, ws con Daphne), ingress
+  enrutando `/ws/` y `WEBSOCKETS_ENABLED=True` en el web. Quedó documentado en `docker/k8s/README.md`,
+  sección *HTTP en varios procesos*, junto con la alternativa sin cambios (más réplicas).
+- **En ECOM se arranca subiendo réplicas, no con gunicorn; en `icore-srv`, gunicorn.** La forma de
+  repartir la carga es **decisión nuestra, no de la plataforma**: DevOps aplica la configuración y aporta
+  los datos del ambiente. En Kubernetes, más réplicas es un número en el manifiesto —no toca el ingress
+  ni el enrutamiento del chat— y ya da un núcleo por réplica; gunicorn queda como segundo paso si las
+  métricas lo piden. En `icore-srv` se elige gunicorn porque nginx **ya** separa `/ws/` hacia el
+  contenedor `websocket` y no hay nada nuevo que enrutar. El pedido de datos a DevOps de ECOM, con el
+  motivo de cada uno, está en
+  [pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md).
 
 ## Implementación
 
@@ -6453,8 +6461,12 @@ quieren repartir el HTTP, la receta está en `docker/k8s/README.md`.
 
 - Desplegar en `icore-srv` y confirmar con datos reales (`warning.log` de requests > 3 s antes/después,
   `docker stats`). Recién ahí la entrada pasa a 🟢.
-- Comunicar a ECOM la opción gunicorn y que decidan; revisar con ellos `resources.limits.cpu` del pod (un
-  límite bajo estrangula el hash del login).
+- **Respuesta de DevOps de ECOM al pedido de datos del 03/09/2026**
+  ([pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md)): réplicas y `resources`, nodo,
+  runtime, ingress, Redis, motor de base y métricas. Con eso se les pasa la configuración concreta
+  (réplicas y recursos) y se contrasta la línea de base contra la medición posterior al despliegue.
+- Revisar el `maxmemory` de Redis **también en `icore-srv`**: hoy son 350 MB con `allkeys-lru`, y ahí
+  viven las sesiones; si se llena, expulsa sesiones y desloguea usuarios sin causa aparente.
 - El resto del punteo (ver *Alcance acordado*), cada uno con su propia entrada. El primero en la cola
   por relación ganancia/esfuerzo es nginx con `gzip_static` y HTTP/2 en `icore-srv`. En esa misma pasada
   sobre `nginx.conf`, dos observaciones de la revisión (preexistentes, no las introduce este cambio): el
