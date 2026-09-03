@@ -9,21 +9,13 @@
 
 <div class="grid cards" markdown>
 
--   :material-account-tie:{ .lg .middle } **Matias Fariña**
+-   :material-account-tie:{ .lg .middle } **Matías Fariña**
 
     ---
 
     **Rol:** Project Manager
     **Email:** [mfarina@i-core.com.ar](mailto:mfarina@i-core.com.ar)
-    **Enfoque:** Seguimiento general del proyecto, coordinación y priorización.
-
--   :material-clipboard-text-search-outline:{ .lg .middle } **Agostina Coppola**
-
-    ---
-
-    **Rol:** Analista funcional
-    **Email:** [acoppola@i-core.com.ar](mailto:acoppola@i-core.com.ar)
-    **Enfoque:** Relevamiento, definición funcional y validación de alcance.
+    **Enfoque:** Seguimiento general del proyecto, coordinación, análisis funcional y priorización.
 
 -   :material-code-braces:{ .lg .middle } **Pablo Cao**
 
@@ -31,25 +23,26 @@
 
     **Rol:** Desarrollador Sr.
     **Email:** [pablocao@i-core.com.ar](mailto:pablocao@i-core.com.ar)
-    **Enfoque:** Implementación técnica y soporte de entregas.
+    **Enfoque:** Implementación del backoffice y de la app de campo, y soporte de entregas.
 
--   :material-code-braces:{ .lg .middle } **Juan Kitro**
+-   :material-code-braces:{ .lg .middle } **Juani Portilla**
 
     ---
 
     **Rol:** Desarrollador Sr.
-    **Email:** [jkitro@i-core.com.ar](mailto:jkitro@i-core.com.ar)
-    **Enfoque:** Implementación técnica y soporte de entregas.
+    **Enfoque:** Desarrollo de programas, automatización de pruebas, rendimiento y sistema de diseño.
 
--   :material-palette-outline:{ .lg .middle } **Florencia García**
+-   :material-checkbox-marked-circle-outline:{ .lg .middle } **Matías Abate**
 
     ---
 
-    **Rol:** UI / UX Designer
-    **Email:** [fs.ux@i-core.com.ar](mailto:fs.ux@i-core.com.ar)
-    **Enfoque:** Experiencia de usuario e interfaz visual del producto.
+    **Rol:** QA y documentación funcional
+    **Enfoque:** Pruebas funcionales por perfil, casos de prueba y documentación de las funcionalidades.
 
 </div>
+
+!!! note "Participaciones en etapas anteriores"
+    **Agostina Coppola** (analista funcional) acompañó el análisis funcional del proyecto hasta agosto de 2026: propuesta de Becas, legajo ciudadano y relevamiento de Dispositivos y Merenderos. **Florencia García** (UI/UX) definió los mockups y la identidad visual inicial del producto, que derivaron en el sistema de diseño que hoy usa todo el sistema.
 
 ---
 

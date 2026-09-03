@@ -2,47 +2,92 @@
 
 <div class="grid cards" markdown>
 
--   :material-circle:{ style="color: #f59e0b" } **Estado**
+-   :material-check-circle:{ style="color: #10b981" } **Estado**
 
-    En progreso
+    Cerrada
 
 -   :material-calendar-range: **Período**
 
-    3 jun 2026 → en curso
+    3 jun 2026 → 31 ago 2026
 
 -   :material-counter: **Avance**
 
-    —
+    100% del alcance comprometido
 
--   :material-clock-outline: **Horas consumidas**
+-   :material-clock-outline: **Horas del período**
 
-    556h 20min (al 10/07/2026)
+    1.699 h 12 min
 
 </div>
 
 !!! abstract "Objetivo"
     Definir el funcionamiento de los programas **Becas** y **Dispositivos**, y desarrollar el **motor RBAC base** para dejar el sistema de permisos operativo.
 
+!!! success "Versión cerrada el 02/09/2026"
+    Los diez ítems del alcance comprometido quedaron **completados**, con el Programa Becas operativo en el entorno del organismo. La versión absorbió además alcance nuevo pedido durante su ejecución —entre otras cosas, la inscripción por link público— que se detalla en el [informe de cierre](#informe-de-cierre-de-la-version).
+
 ---
 
 ## :material-clipboard-list-outline: Alcance de la versión
 
-| # | Funcionalidad | Prioridad | Estado | Hs est. | Hs reales |
-|:-:|---|:-:|:-:|:-:|:-:|
-| 1 | [Programa Becas — análisis funcional y estimación](../funcionalidades/programa-becas.md) | Alta | Completado | — | 46h |
-| 2 | Motor RBAC base | Alta | Completado | — | 22h |
-| 3 | [Programa Dispositivos y Merenderos — análisis y estimación](../funcionalidades/programa-dispositivos.md) | Alta | Estimación presentada | — | 154h |
-| 4 | Programa Becas — backend del backoffice | Alta | En pruebas | — | 83h |
-| 5 | Programa Becas — pruebas funcionales del backend | Alta | En progreso | — | 32h |
-| 6 | App de campo (React Native) | Alta | En desarrollo | — | 101h |
-| 7 | Mockups y diseño UX (Becas) | Alta | En progreso | — | 65h |
-| 8 | Análisis Legajo Ciudadano | Media | Completado | — | 30h |
-| 9 | Design System del proyecto | Media | Completado | — | 8h |
-| 10 | Reuniones y coordinación | — | — | — | 15h |
-| | **Total** | | | | **556h** |
+| # | Funcionalidad | Prioridad | Estado final |
+|:-:|---|:-:|:-:|
+| 1 | [Programa Becas — análisis funcional y estimación](../funcionalidades/programa-becas.md) | Alta | :material-check-circle:{ style="color: #10b981" } Completado |
+| 2 | Motor RBAC base | Alta | :material-check-circle:{ style="color: #10b981" } Completado |
+| 3 | [Programa Dispositivos y Merenderos — análisis y estimación](../funcionalidades/programa-dispositivos.md) | Alta | :material-check-circle:{ style="color: #10b981" } Completado — definición aprobada |
+| 4 | Programa Becas — backend del backoffice | Alta | :material-check-circle:{ style="color: #10b981" } Completado — en operación |
+| 5 | Programa Becas — pruebas funcionales del backend | Alta | :material-check-circle:{ style="color: #10b981" } Completado |
+| 6 | App de campo (React Native) | Alta | :material-check-circle:{ style="color: #10b981" } Completado — en uso en territorio |
+| 7 | Mockups y diseño UX (Becas) | Alta | :material-check-circle:{ style="color: #10b981" } Completado |
+| 8 | Análisis Legajo Ciudadano | Media | :material-check-circle:{ style="color: #10b981" } Completado |
+| 9 | Design System del proyecto | Media | :material-check-circle:{ style="color: #10b981" } Completado |
+| 10 | Reuniones y coordinación | — | :material-check-circle:{ style="color: #10b981" } Completado |
 
-!!! note "Criterio de las horas reales"
-    Las horas por funcionalidad suman el consumo registrado por frente de trabajo según el campo *Motivo* del [detalle de consumo](../financiero/detalle-tareas.md) (556 h 20 min al 10/07/2026). La estimación comprometida del desarrollo de Becas (654 h) se ejecuta en los meses siguientes — ver [estimación](../funcionalidades/estimacion-programa-becas.md).
+!!! note "Criterio de las horas"
+    Las **1.699 h 12 min** son el consumo imputado de los tres meses que abarcó la versión: junio 499 h 12 min, julio 500 h y agosto 700 h. El desglose día por día y por entregable está en el [detalle de consumo](../financiero/detalle-tareas.md). El corte por funcionalidad que esta página mostraba durante la ejecución (556 h 20 min al 10/07/2026) se conserva en ese detalle, en las filas de junio y julio.
+
+---
+
+## :material-flag-checkered: Informe de cierre de la versión
+
+### :material-check-decagram: Qué quedó operativo
+
+El **Programa Becas** funciona de punta a punta en el entorno del organismo: configuración del programa (segmentos, subsegmentos, cupos, coordinadores, requisitos y cuestionario social), convocatorias y relevamientos, carga en territorio con la app de campo, **inscripción de la persona por link público**, revisión de casos con trazabilidad, asignación de cupo con lista de espera y resolución con aviso al ciudadano. Sobre esa misma base quedaron el **motor de roles y permisos** que gobierna qué ve y qué opera cada perfil, el **legajo ciudadano unificado** por documento y el **sistema de diseño** que le da al producto una interfaz consistente.
+
+El **Programa Dispositivos y Merenderos** cerró su definición funcional aprobada por el Ministerio y, durante la misma versión, avanzó bastante más allá de lo comprometido: legajo institucional, admisiones, camas, registro diario y su módulo de reportes.
+
+### :material-plus-box-multiple-outline: Alcance incorporado durante la versión
+
+Estos frentes no estaban en el alcance original y se absorbieron a pedido del Ministerio o por necesidad de la puesta en operación:
+
+| Frente incorporado | Resultado |
+|---|---|
+| Inscripción por link público | Épica completa: link por relevamiento, padrón de habilitados por Excel, identificación por documento, formulario dinámico, comprobante en pantalla y por correo, y aviso de resolución |
+| Seguridad de la superficie pública | Auditoría específica del circuito sin login y su endurecimiento (verificación anti-bot, límites de intentos, mensaje único de rechazo, adjuntos protegidos, cabeceras y librerías propias) |
+| Integraciones externas | SIIS (catálogo de programas y compatibilidad), Base de Personas y RENAPER configuradas y verificadas contra el entorno del organismo |
+| Nivel «Programa» | Un nivel por encima de los segmentos, vinculado al catálogo de SIIS |
+| Módulo de reportes de Becas | Avance de convocatorias, cupos por segmento, producción territorial, embudo de revisión y padrón de beneficiarios, con exportación y permisos propios |
+| Credenciales y acceso | Envío de credenciales por correo, cambio de contraseña obligatorio en el primer acceso y recuperación autogestionada |
+| Portal ciudadano DATAÑACH | Home y navegación del portal con contenido real y datos de contacto |
+| Programa Dispositivos | Desarrollo del programa (frontend, reportes y pruebas), más allá del análisis comprometido |
+| Cambios solicitados sobre Becas | Sesión, datos de usuario, período y cupo de relevamientos, pausas operativas, domicilio del ciudadano y buscador de legajos |
+| Calidad y rendimiento | Línea de base de observabilidad en el pipeline, corrección de consultas repetidas y pruebas de estrés |
+
+### :material-arrow-right-bold-box-outline: Qué continúa después del cierre
+
+| Frente | Estado al cierre |
+|---|---|
+| **Constructor de formularios por convocatoria** | En desarrollo. Alcance aprobado de 270 h, de las cuales 94 h 30 min se ejecutaron dentro de agosto |
+| **App de campo con el formulario por convocatoria** | Pendiente del equipo móvil. La app actual sigue funcionando sin cambios: el sistema traduce entre ambos esquemas |
+| **Remediación de diseño del Programa Dispositivos** | Catorce tareas derivadas de la auditoría de interfaz, en curso |
+| **Aprobación de los textos de credenciales** | Los correos están operativos; sus textos siguen publicados para revisión del Ministerio |
+
+### :material-file-document-multiple-outline: Documentación de la versión
+
+- [Programa Becas — el sistema construido](../funcionalidades/programa-becas-sistema.md): cómo funciona hoy, en detalle.
+- [Programa Becas — propuesta original](../funcionalidades/programa-becas.md): lo que se planteó al inicio, como registro histórico.
+- [Programa Dispositivos](../funcionalidades/programa-dispositivos.md): definición aprobada.
+- [Módulo financiero](../financiero/index.md): consumo mes por mes y detalle por entregable.
 
 ---
 

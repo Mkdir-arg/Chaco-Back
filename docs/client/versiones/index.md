@@ -7,30 +7,31 @@
 
 ## :material-progress-clock: Versiones activas
 
-<div class="grid cards" markdown>
-
--   :material-circle:{ style="color: #f59e0b" } **Versión 001 — Programa Becas y RBAC**
-
-    ---
-
-    :material-calendar-range: **Período:** 3 jun 2026 → en curso
-    :material-bullseye-arrow: **Objetivo:** Definir alcance funcional de Programa Becas y desarrollo del motor RBAC
-    :material-progress-check: **Estado:** En progreso
-
-    [:octicons-arrow-right-16: Ver detalle de la versión](version-001.md)
-
-</div>
+!!! info "Versión 002 — en definición"
+    La Versión 001 cerró el **02/09/2026**. El alcance de la próxima versión se está acordando con el Ministerio; los frentes que continúan del cierre anterior están listados en [Qué continúa después del cierre](version-001.md#que-continua-despues-del-cierre).
 
 ---
 
 ## :material-archive-outline: Versiones cerradas
 
-!!! info "Aún no hay versiones cerradas"
-    Las versiones completadas aparecerán acá con su resumen de resultados, ítems completados y postergados.
+<div class="grid cards" markdown>
 
-| Versión | Período | :material-check-circle-outline: Completado | :material-clock-time-eight-outline: Postergado |
+-   :material-check-circle:{ style="color: #10b981" } **Versión 001 — Programa Becas y RBAC**
+
+    ---
+
+    :material-calendar-range: **Período:** 3 jun 2026 → 31 ago 2026
+    :material-bullseye-arrow: **Objetivo:** Definir el alcance funcional de los programas Becas y Dispositivos y desarrollar el motor RBAC
+    :material-progress-check: **Estado:** Cerrada — 100% del alcance comprometido
+    :material-clock-outline: **Horas del período:** 1.699 h 12 min
+
+    [:octicons-arrow-right-16: Ver informe de cierre](version-001.md#informe-de-cierre-de-la-version)
+
+</div>
+
+| Versión | Período | :material-check-circle-outline: Completado | :material-clock-time-eight-outline: Continúa en la próxima |
 |---|---|---|---|
-| — | — | — | — |
+| [001 — Programa Becas y RBAC](version-001.md) | 3 jun → 31 ago 2026 | Los 10 ítems del alcance comprometido, más el alcance incorporado durante la ejecución (inscripción por link público, integraciones, reportes de Becas y desarrollo de Dispositivos) | Constructor de formularios por convocatoria, app de campo con el formulario nuevo y remediación de diseño de Dispositivos |
 
 ---
 

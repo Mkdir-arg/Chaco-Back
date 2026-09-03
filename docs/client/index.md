@@ -18,41 +18,44 @@ hide:
 
     ---
 
-    :material-circle:{ .lg .middle style="color: #f59e0b" } **En ejecución**
+    :material-circle:{ .lg .middle style="color: #10b981" } **En ejecución**
 
-    Versión activa en curso, entregas iterativas confirmadas.
+    Versión 001 cerrada; alcance de la Versión 002 en definición.
 
--   :material-rocket-launch-outline: **Versión activa**
+-   :material-rocket-launch-outline: **Última versión entregada**
 
     ---
 
     [**Versión 001**](versiones/version-001.md) — Programa Becas y RBAC
 
-    Gestión de roles y análisis funcional del Programa Becas.
+    Cerrada el 02/09/2026 con el 100% del alcance comprometido.
 
 -   :material-cash-check-outline: **Estado financiero**
 
     ---
 
-    **Agosto 2026 (en curso):** 682h consumidas de 700h al 27/08 (97%)
+    **Septiembre 2026 (en curso):** 76h 30min consumidas de 700h (11%)
+
+    **Agosto 2026 (cerrado):** 700h de 700h (100%) — presupuesto completo
 
     **Julio 2026 (cerrado):** 500h de 500h (100%) — presupuesto completo
 
     **Junio 2026 (cerrado):** 499h de 500h (100%) — dentro del presupuesto
 
-    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-08.md)
+    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-09.md)
 
 -   :material-calendar-clock: **Última actualización**
 
     ---
 
-    **27 de agosto 2026**
+    **2 de septiembre 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 
 </div>
 
 ---
+
 
 ## :material-compass-outline: Accesos principales
 
@@ -77,7 +80,7 @@ hide:
     Planificación y seguimiento de entregas iterativas.
 
     [:octicons-arrow-right-16: Todas las versiones](versiones/index.md)
-    [:octicons-arrow-right-16: Versión actual](versiones/version-001.md)
+    [:octicons-arrow-right-16: Informe de cierre de la 001](versiones/version-001.md#informe-de-cierre-de-la-version)
 
 -   :material-cash-multiple:{ .lg .middle } **Financiero**
 
@@ -86,7 +89,7 @@ hide:
     Presupuesto, consumo y estimaciones mensuales.
 
     [:octicons-arrow-right-16: Dashboard financiero](financiero/index.md)
-    [:octicons-arrow-right-16: Junio 2026](financiero/mes-2026-06.md)
+    [:octicons-arrow-right-16: Septiembre 2026](financiero/mes-2026-09.md)
 
 </div>
 
@@ -147,6 +150,6 @@ flowchart LR
 ## :material-map-marker-path: Navegación recomendada
 
 !!! tip "Si recién empezás"
-    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión actual**](versiones/version-001.md)
+    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión 001**](versiones/version-001.md)
 
     Tres páginas y tenés el contexto completo para participar.
