@@ -204,6 +204,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **Analizado — análisis #326 Definido, mockups entregados; tasks #336–#356 en Backlog (150 h)** | Pendiente (catálogo, diseño, caso) |
 | 59 | El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de problemas técnicos» y «opción A que todavía no está abierto, opción B que está cerrado: que se vea un texto o el otro» | 31/08/2026 | 🟢 **Hecho** | No requiere |
 | 60 | El contacto del programa sale del paso 1 del link público | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «en la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720: eliminá esos datos; en la página 2 dejalos» | 03/09/2026 | 🟢 **Hecho** | No requiere |
+| 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -6220,5 +6221,90 @@ nuevo. No hay migraciones ni datos involucrados.
 
 No aplica: entrada nueva. Acota el alcance del Cambio 59 —que había puesto el pie en las seis
 pantallas del link—; esa entrada queda con su nota de historial fechada.
+
+---
+
+# Cambio 61 — El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo
+
+🟢 **HECHO — 03/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en la misma sesión del Cambio 60, con una captura de la alerta roja del paso 1 |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | `MENSAJE_RECHAZO` del paso 1 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «También borrá ese mensaje» — con una captura de la alerta roja del paso 1: «No podés inscribirte
+> con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002.»
+
+## Alcance acordado
+
+- La alerta de rechazo del paso 1 pierde la segunda oración completa. Queda: **«No podés inscribirte
+  con ese documento.»**
+- **Afuera:** el mismo teléfono sigue en «ya estás inscripto», «demasiados intentos», el comprobante y
+  su correo, «sesión vencida», y el home y el pie del portal ciudadano. El pedido fue sobre esta
+  alerta; el resto sigue en el pendiente que abrió el Cambio 59.
+
+## Decisiones tomadas
+
+- **Se saca la oración de contacto, no la alerta entera.** «Borrá ese mensaje» se leyó sobre el dato de
+  contacto —es el tema de toda la sesión (Cambios 59 y 60)— y no sobre el aviso: `MENSAJE_RECHAZO` es
+  lo único que le dice al ciudadano que ese documento no pasa. Sin él, los cuatro caminos de rechazo
+  del paso 1 dejarían el formulario en rojo sin texto, y la persona reintentaría sin saber por qué.
+  **Queda pendiente de confirmación del PM** (ver Pendientes).
+- **No se reemplaza por el contacto nuevo del programa** (la casilla y el WhatsApp del Cambio 59):
+  sería contradecir el Cambio 60, que acaba de sacar ese contacto justamente del paso 1.
+- **Sigue siendo un único mensaje para los cuatro rechazos** —fuera del padrón, ya inscripto,
+  fallecido y padrón cambiado entre pasos—. Es la decisión de la revisión de seguridad del 26/08/2026:
+  textos distintos convertían el formulario en un oráculo para reconstruir el padrón. Acortar el texto
+  no toca esa propiedad, y `RechazosIndistinguiblesTests` la sigue cubriendo.
+
+## Implementación
+
+Cuando el paso 1 rechaza un documento, la alerta roja dice solo «No podés inscribirte con ese
+documento.», sin teléfono ni invitación a comunicarse.
+
+## Archivos
+
+`portal/views/inscripcion.py` (constante `MENSAJE_RECHAZO`). Los tests que la verifican
+—`portal/tests/test_seguridad_publica.py`, `portal/tests/test_correcciones_review_2.py`— importan la
+constante, así que no hubo que tocarlos.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `portal.tests.test_seguridad_publica` + `test_correcciones_review_2` + `test_inscripcion`: 69 tests,
+  11 errores, **exactamente los mismos 11 con y sin el cambio** (baseline conocido del venv local:
+  Python 3.14 + Django 4.2, `Context.__copy__`). Se corrió el baseline a propósito para compararlo.
+- `manage.py check` OK. No tocó plantillas: no aplica `design_audit` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. El servidor está sobre la rama `feature/constructor-formularios`.
+
+## Pendientes / a definir
+
+- **Confirmar con el PM** si además hay que sacar la primera oración, es decir, dejar el rechazo sin
+  ningún mensaje visible. Se preguntó al entregar el cambio; hasta la respuesta queda la oración corta.
+- Sigue abierto el pendiente del Cambio 59 sobre las otras seis superficies donde aparece el
+  +54 362 430-0002.
+
+## Reversión
+
+Revertir el commit: la constante vuelve a su texto largo con el teléfono.
+
+## Historial
+
+No aplica: entrada nueva. Cierra una parte del pendiente que dejó abierto el Cambio 59 (el teléfono
+viejo en el mensaje de rechazo del paso 1) y acompaña al Cambio 60, del mismo pedido en sesión.
 
 ---
