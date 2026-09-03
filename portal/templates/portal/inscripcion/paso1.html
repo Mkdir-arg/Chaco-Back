@@ -4,6 +4,9 @@
 
 {% block stepper %}{% include "portal/inscripcion/_stepper.html" with paso_activo=1 %}{% endblock %}
 
+{% comment %}Sin pie de contacto: en el paso 1 no se muestran la casilla ni el WhatsApp del programa.{% endcomment %}
+{% block pie %}{% endblock %}
+
 {% block content %}
 <div>
     <div class="mb-6">
