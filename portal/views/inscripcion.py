@@ -57,9 +57,7 @@ logger = logging.getLogger(__name__)
 # formulario en un oráculo: barriendo documentos se reconstruía el padrón de
 # habilitados (dato socioeconómico) y se averiguaba quién ya se había inscripto,
 # incluidas las personas relevadas en campo. Revisión de seguridad del 26/08/2026.
-MENSAJE_RECHAZO = (
-    "No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002."
-)
+MENSAJE_RECHAZO = "No podés inscribirte con ese documento."
 MENSAJE_DEMASIADOS_INTENTOS = "Realizaste demasiados intentos. Esperá unos minutos y volvé a probar."
 # Cuánto vale la identificación del paso 1 antes de tener que rehacerla.
 IDENTIFICACION_VIGENCIA_SEGUNDOS = 45 * 60
