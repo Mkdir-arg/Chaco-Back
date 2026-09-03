@@ -271,7 +271,7 @@ Si aparece `Comando personalizado detectado`, el bootstrap no corrió. Salidas: 
 
 **4. Estáticos y media.** `/static/` lo sirve la app (whitenoise; `collectstatic` es default en `prd|qa`) — sin nginx ni sidecar. `/media/`: `SERVE_MEDIA=True` para que la app lo sirva, y **PVC en `/app/media`** — sin volumen, los adjuntos se pierden al reiniciar el pod.
 
-**5. Websockets.** Un solo proceso daphne atiende HTTP y `/ws/`; el ingress debe pasar los encabezados `Upgrade` y `Connection`.
+**5. Websockets.** Con `APP_RUNTIME=daphne` un solo proceso atiende HTTP y `/ws/`; el ingress debe pasar los encabezados `Upgrade` y `Connection`. Para repartir el HTTP en varios procesos, `APP_RUNTIME=gunicorn` en el Deployment web, un segundo Deployment con daphne para `/ws/` y `WEBSOCKETS_ENABLED=True` en el web (detalle en `docker/k8s/README.md`, sección *HTTP en varios procesos*).
 
 **6. Probes.** `/health/` sirve como liveness y readiness — y hace falta además un **startupProbe** holgado (`periodSeconds: 10`, `failureThreshold: 60`): el primer arranque tarda minutos y sin él el liveness mata el bootstrap a mitad de camino, dejando el pod en loop de reinicios (exit 137, sin error en el log). Los puertos tienen que ser consistentes: `APP_PORT` = `containerPort` = `targetPort` del Service = puerto de las probes.
 

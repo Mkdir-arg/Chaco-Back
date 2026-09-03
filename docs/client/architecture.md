@@ -177,10 +177,10 @@ location / {                              # upstream: nodo-web:8001
 | `APP_RUNTIME` | Proceso lanzado | Uso |
 |---|---|---|
 | `runserver` | `python manage.py runserver` | Desarrollo local |
-| `gunicorn` | `gunicorn -k gevent config.wsgi:application` | Producción HTTP |
-| `daphne` | `daphne -b 0.0.0.0 -p $APP_PORT config.asgi:application` | Producción WebSocket |
+| `gunicorn` | `gunicorn config.wsgi:application --workers $GUNICORN_WORKERS --threads $GUNICORN_THREADS` | Producción HTTP en varios procesos |
+| `daphne` | `daphne -b 0.0.0.0 -p $APP_PORT config.asgi:application` | Producción WebSocket (o HTTP + WebSocket en un solo proceso) |
 
-La variable `WEBSOCKETS_ENABLED` se infiere automáticamente: es `True` cuando `APP_RUNTIME=daphne`, salvo override explícito.
+La variable `WEBSOCKETS_ENABLED` se infiere automáticamente: es `True` cuando `APP_RUNTIME=daphne`, salvo override explícito. Con `gunicorn` no se infiere: se declara `WEBSOCKETS_ENABLED=True` cuando un proceso daphne aparte atiende `/ws/`.
 
 ### 4.2 Cadena de middlewares (orden importa)
 
@@ -590,17 +590,17 @@ flowchart TD
     ```bash
     gunicorn config.wsgi:application \
       --bind 0.0.0.0:8001 \
-      --workers 4 \
-      --worker-class gevent \
-      --worker-connections 1000 \
-      --timeout 60 \
-      --max-requests 5000 \
-      --max-requests-jitter 500
+      --workers 3 \
+      --threads 2 \
+      --timeout 120 \
+      --max-requests 1000 \
+      --max-requests-jitter 100
     ```
 
-    - **4 workers**: regla general `(2 × CPU) + 1` para I/O-bound
-    - **1000 conexiones/worker**: gevent permite atender múltiples requests por worker sin bloqueo
-    - **Capacidad efectiva**: ~4000 conexiones simultáneas
+    - **3 workers × 2 hilos**: cada worker es un proceso con su propio GIL, así el HTTP usa los 4 vCPU de la VM (con un solo proceso, todo el sistema corre en un núcleo)
+    - **Hilos, no gevent**: el código usa `mysqlclient` y `requests` bloqueantes; gevent exigiría monkey-patching y el parche de `config/gevent_patch.py` queda inactivo
+    - **Memoria**: ~150–200 MB por worker; el límite del contenedor `web` es 900 MB sin swap
+    - Es lo que arranca `docker-entrypoint.sh` con `APP_RUNTIME=gunicorn` (valores por `GUNICORN_WORKERS`, `GUNICORN_THREADS`, `GUNICORN_TIMEOUT`)
 
 === "Daphne (WebSocket)"
 

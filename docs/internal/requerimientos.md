@@ -205,6 +205,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 59 | El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de problemas técnicos» y «opción A que todavía no está abierto, opción B que está cerrado: que se vea un texto o el otro» | 31/08/2026 | 🟢 **Hecho** | No requiere |
 | 60 | El contacto del programa sale del paso 1 del link público | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «en la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720: eliminá esos datos; en la página 2 dejalos» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
+| 62 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
 
 **Notas del índice**
 
@@ -6306,5 +6307,160 @@ Revertir el commit: la constante vuelve a su texto largo con el teléfono.
 
 No aplica: entrada nueva. Cierra una parte del pendiente que dejó abierto el Cambio 59 (el teléfono
 viejo en el mensaje de rechazo del paso 1) y acompaña al Cambio 60, del mismo pedido en sesión.
+
+---
+
+# Cambio 62 — El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso
+
+🟡 **PARCIAL — código listo el 03/09/2026 en la rama `perf/login-argon2-gunicorn`; falta desplegar en `icore-srv` y que ECOM decida si activa el modo gunicorn**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — login e infraestructura de ejecución |
+| **Etiquetas** | `#sesion` `#infra` |
+| **Solicitante** | PM — en sesión: «quiero que analices la perfo del sistema, si se puede mejorar; noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login», y después «vamos con tema desarrollo y armá una rama para este cambio» |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue. Antecedente: épica de performance #222 (relevamientos #219, #262, #264) |
+| **Partes afectadas** | Backoffice (login) · Infra/ECOM (runtime HTTP de la imagen, compose de `icore-srv`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero que analices la perfo del sistema, si se puede mejorar. Noto que la carga de algunas pantallas
+> tardan más de lo común, ejemplo el login.» → punteo de mejoras de código → «Bien, vamos con tema
+> desarrollo y armá una rama para este cambio.»
+
+## Alcance acordado
+
+Entra lo que el análisis ([analisis-performance-login-2026-09.md](analisis-performance-login-2026-09.md))
+ubicó como las dos causas de mayor impacto y menor riesgo:
+
+1. **El hash de la contraseña** (H-1): Argon2 en lugar del PBKDF2 por defecto.
+2. **Un solo proceso Python para todo el HTTP** (H-2): la imagen gana el modo `APP_RUNTIME=gunicorn`
+   y el compose de `icore-srv` lo adopta para el contenedor `web`.
+
+**Queda afuera** (punteo entregado al PM, cada punto con su entrada cuando se haga): nginx con
+`gzip_static` y HTTP/2 en `icore-srv` (H-4), timeouts más cortos hacia RENAPER/Personas/SIIS (H-6),
+caché del contador de alertas del navbar (H-9), concatenación de las hojas de estilo (H-5), presupuesto
+de CI para el POST de login, rotación real del log diario (H-8), middlewares async-capable (H-3, solo si
+se sigue con Daphne para HTTP) y la fijación de sesión única en menos consultas (H-10).
+
+## Decisiones tomadas
+
+- **Argon2id primero; PBKDF2 se conserva detrás.** Medido en la máquina de desarrollo: verificar una
+  contraseña con el PBKDF2 de Django 5.2 (1.000.000 de iteraciones, el que corre producción) cuesta
+  **952 ms** de CPU; Argon2id con los parámetros por defecto de Django, **89 ms**. Ese segundo se paga
+  con el GIL tomado, así que un login frenaba a los demás usuarios. PBKDF2 queda en la lista para leer
+  los hashes ya guardados: Django los **re-hashea a Argon2 en el siguiente login exitoso**, sin
+  migración ni reseteo de claves. **No se bajan las iteraciones de PBKDF2** como atajo: sería perder
+  seguridad para ganar lo que Argon2 da sin perderla.
+- **gunicorn con hilos (`gthread`), no gevent.** El código usa `mysqlclient` y `requests` bloqueantes;
+  gevent exigiría monkey-patching y el parche de `config/gevent_patch.py` queda inactivo (solo se activa
+  con `GUNICORN_WORKER_CLASS=gevent`). La documentación pública en `docs/client/architecture.md` decía
+  `gunicorn -k gevent` para un modo que **el entrypoint nunca había implementado**: se corrige para que
+  describa lo que la imagen hace.
+- **Con gunicorn, `WEBSOCKETS_ENABLED` no se deduce: se declara.** Gunicorn no sirve websockets; deducir
+  `True` mentiría en un despliegue sin Daphne y el navegador intentaría conectar a un `/ws/` que no
+  existe. El entrypoint avisa al arrancar si la variable falta. En `icore-srv` se declara `True` porque
+  el contenedor `websocket` (Daphne) sigue atendiendo `/ws/` y nginx ya lo enruta ahí.
+- **Defaults 3 workers × 2 hilos, timeout 120 s, `max-requests` 1000 con jitter.** Tres procesos usan los
+  4 vCPU de la VM dejando aire a MySQL y Redis; el timeout supera la cadena RENAPER (10 s conexión + 20 s
+  lectura) para que gunicorn no mate un worker a mitad de una consulta legítima; el reciclado por
+  cantidad de requests mantiene la memoria acotada bajo el límite del contenedor. Todo ajustable por
+  variables `GUNICORN_*`.
+- **`web` de `icore-srv` pasa a gunicorn en el compose del repo, con 900 MB sin swap.** El límite anterior
+  (350 MB con 150 MB de swap permitido) hacía errática la latencia si el proceso paginaba; con tres
+  workers de 150–200 MB hace falta subirlo. `websocket` sigue igual (Daphne, 300 MB).
+- **Daphne sigue siendo el default de la imagen.** ECOM corre un solo Deployment con Daphne para HTTP y
+  `/ws/` (Cambio 31, historial del 13/08/2026); si no cambia nada, su despliegue arranca exactamente
+  igual. Activar gunicorn en Kubernetes es decisión de plataforma: dos Deployments (web con gunicorn,
+  ws con Daphne), ingress enrutando `/ws/`, `WEBSOCKETS_ENABLED=True` en el web. Quedó documentado en
+  `docker/k8s/README.md`, sección *HTTP en varios procesos*, con la alternativa sin cambios (más réplicas).
+
+## Implementación
+
+- Las contraseñas nuevas y las que se cambian se guardan con Argon2id; las existentes siguen
+  funcionando y se actualizan solas la primera vez que el usuario entra.
+- La imagen acepta `APP_RUNTIME=gunicorn`: levanta `gunicorn config.wsgi:application` con
+  `GUNICORN_WORKERS` × `GUNICORN_THREADS` (3 × 2), `GUNICORN_TIMEOUT` (120) y `GUNICORN_MAX_REQUESTS`
+  (1000), después del mismo bootstrap de siempre. `runserver` y `daphne` no cambian.
+- En `icore-srv`, `web` arranca con gunicorn y `WEBSOCKETS_ENABLED=True`; `websocket` y `nginx` siguen
+  igual.
+- Documentación alineada: `.env.qa.example`, `docker/k8s/README.md`, `docs/internal/processes.md`,
+  `docs/client/architecture.md` (tabla de runtime y bloque de recursos) y la guía de la versión 001.
+
+## Archivos
+
+- `requirements.txt` (`argon2-cffi==25.1.0`)
+- `config/settings.py` (`PASSWORD_HASHERS`)
+- `users/tests/test_password_hashers.py` (nuevo)
+- `docker-entrypoint.sh`
+- `docker-compose.prod.yml`
+- `.env.qa.example`
+- `docker/k8s/README.md`
+- `docs/internal/processes.md`
+- `docs/client/architecture.md`
+- `docs/client/versiones/version-001.md`
+- `docs/internal/analisis-performance-login-2026-09.md` (el análisis de origen, nuevo)
+
+## Base de datos
+
+No requiere migración. La columna `auth_user.password` ya admite el formato de Argon2; el contenido se
+actualiza fila a fila cuando cada usuario inicia sesión.
+
+## Validación
+
+- `manage.py check`: sin observaciones.
+- `users.tests.test_password_hashers` (nuevo): **3/3 OK** — las contraseñas nuevas salen en Argon2, un
+  hash PBKDF2 existente sigue autenticando y el POST de login lo migra a Argon2.
+- `test_usuarios_abm` + `test_credenciales` + `test_password_reset` + `test_logout`: 57 tests, **10
+  errores idénticos con y sin el cambio** (lista comparada con `diff`; baseline conocido del venv local:
+  Python 3.14 + Django 4.2, `'super' object has no attribute 'dicts'`). La corrida pasó de 27,9 s a 8,0 s:
+  los usuarios de prueba también se crean con Argon2.
+- Medición del hash en la máquina de desarrollo (mediana de 5): PBKDF2 600k (venv, Django 4.2) 332 ms ·
+  PBKDF2 1.000k (Django 5.2, producción) 952 ms · Argon2id 89 ms.
+- `sh -n docker-entrypoint.sh` OK; `docker-compose.prod.yml` parseado y verificadas las variables nuevas;
+  `ruff check` y `ruff format --check` OK; `mkdocs build --strict` OK.
+- No tocó plantillas ni estilos: no aplica `design_audit` ni `compile_templates`.
+- **No se midió producción**: el acceso a `icore-srv` desde la sesión fue bloqueado por el clasificador
+  de permisos. La confirmación queda para después del deploy (ver abajo).
+
+## Puesta en marcha en el servidor
+
+**`icore-srv`:** cambia `requirements.txt`, así que es rebuild: `git pull` de la rama → `docker compose -f
+docker-compose.prod.yml up -d --build web websocket` → esperar `web` healthy → `docker restart
+chaco-nginx-1`. No hace falta tocar `.env.production`: las variables nuevas van en el `environment:` del
+compose. Verificar: en el log de `web` la línea `Iniciando gunicorn (3 workers x 2 hilos)`, `/health/`
+200, que el chat en vivo siga conectando (indicador de WebSocket en el navbar), `docker stats` con `web`
+por debajo de 900 MB, y en `logs/<fecha>/info.log` el `duration=` del `POST /` de un login real (antes
+del cambio debería rondar el segundo; después, decenas de milisegundos más la ida a la base).
+
+**ECOM:** nada obligatorio; el próximo espejo trae Argon2 y la imagen sigue arrancando con Daphne. Si
+quieren repartir el HTTP, la receta está en `docker/k8s/README.md`.
+
+## Pendientes / a definir
+
+- Desplegar en `icore-srv` y confirmar con datos reales (`warning.log` de requests > 3 s antes/después,
+  `docker stats`). Recién ahí la entrada pasa a 🟢.
+- Comunicar a ECOM la opción gunicorn y que decidan; revisar con ellos `resources.limits.cpu` del pod (un
+  límite bajo estrangula el hash del login).
+- El resto del punteo (ver *Alcance acordado*), cada uno con su propia entrada. El primero en la cola
+  por relación ganancia/esfuerzo es nginx con `gzip_static` y HTTP/2 en `icore-srv`.
+
+## Reversión
+
+1. `APP_RUNTIME=daphne` en el `web` del compose (o revertir el commit): vuelve al proceso único. El
+   `mem_limit` puede volver a 350m, aunque conviene dejarlo en 900m.
+2. **Ojo con Argon2:** una vez desplegado, los usuarios que se hayan logueado tienen su hash en Argon2.
+   Si se quita `argon2-cffi` o se saca `Argon2PasswordHasher` de `PASSWORD_HASHERS`, esos usuarios **no
+   pueden entrar** hasta resetear la clave. Para volver a PBKDF2 como hasher principal, basta con poner
+   PBKDF2 primero **dejando Argon2 en la lista**; Django re-hashea de vuelta en el siguiente login. No
+   hay datos que se pierdan.
+
+## Historial
+
+No aplica: entrada nueva. Se apoya en el entrypoint del **Cambio 31** (modos `runserver`/`daphne` y
+`bootstrap`) y en los relevamientos de la épica #222, cuyo dato de concurrencia (×3,6 con 8 clientes)
+es lo que este cambio ataca.
 
 ---

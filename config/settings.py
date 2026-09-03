@@ -538,6 +538,17 @@ LOGGING = {
     },
 }
 
+# Argon2 primero: verificar una contraseña con el PBKDF2 por defecto de Django 5.2
+# (1.000.000 de iteraciones) cuesta ~1 s de CPU por login, con el GIL tomado;
+# Argon2id ronda los 90 ms con seguridad equivalente. PBKDF2 se conserva para
+# leer los hashes ya guardados: Django los re-hashea a Argon2 en el siguiente
+# login exitoso, sin migración ni reseteo de claves.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
