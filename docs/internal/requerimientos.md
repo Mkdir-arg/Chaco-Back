@@ -203,6 +203,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
 | 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **Analizado — análisis #326 Definido, mockups entregados; tasks #336–#356 en Backlog (150 h)** | Pendiente (catálogo, diseño, caso) |
 | 59 | El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de problemas técnicos» y «opción A que todavía no está abierto, opción B que está cerrado: que se vea un texto o el otro» | 31/08/2026 | 🟢 **Hecho** | No requiere |
+| 60 | El contacto del programa sale del paso 1 del link público | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «en la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720: eliminá esos datos; en la página 2 dejalos» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -6120,5 +6121,104 @@ resto sigue sin revelar motivo.
 
 **31/08/2026 — El PM confirmó la casilla:** `consultasincentivojunvetud@gmail.com` es correcta tal
 cual, no es un typo de «juventud».
+
+**03/09/2026 — El pie ya no se ve en las seis pantallas:** el Cambio 60 lo saca del **paso 1**
+(la pantalla que se abre con solo tener el link) y lo deja del paso 2 en adelante. El resto de lo
+acordado acá sigue igual.
+
+---
+
+# Cambio 60 — El contacto del programa sale del paso 1 del link público
+
+🟢 **HECHO — 03/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, sobre el link productivo `/portal/inscripcion/f02de490-…/` |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Pie del shell de inscripción · paso 1 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «En la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720. Eliminá esos
+> datos; en la página 2 dejalos.»
+
+## Alcance acordado
+
+- El **paso 1** (identificación: DNI, sexo y captcha) deja de mostrar el pie con la casilla y el
+  WhatsApp del programa. No queda un pie recortado: la franja entera desaparece de esa pantalla.
+- El **paso 2** (formulario) lo sigue mostrando tal cual quedó en el Cambio 59.
+- **Afuera:** las otras cuatro pantallas del link —confirmación, «formulario no disponible», «ya estás
+  inscripto» y «demasiados intentos»— conservan el pie; el PM habló de la página 1 y la página 2, y no
+  hay motivo para tocar el resto. La línea de contacto que el Cambio 59 puso **dentro** del cuerpo de
+  «formulario no disponible» tampoco se toca.
+
+## Decisiones tomadas
+
+- **Se saca el pie completo, no solo el mail y el teléfono.** La segunda línea («Solo en caso de
+  problemas técnicos.») es la aclaración de ese contacto: sola no dice nada. El pie del paso 1 tampoco
+  vuelve a la línea de copyright que había antes del Cambio 59, porque eso sería reponer un texto que
+  el PM ya había mandado sacar.
+- **Se resuelve con un bloque de plantilla (`{% block pie %}`), no con un `if` sobre el paso.** El
+  shell no sabe en qué paso está —cada pantalla es su propia plantilla—, y un condicional obligaría a
+  inventar una variable de contexto en todas las vistas. Con el bloque, la pantalla que quiera ocultar
+  el pie lo declara vacío en una línea y las demás no cambian.
+- **El contacto sigue hardcodeado en el shell.** Vale lo decidido en el Cambio 59: si otro programa
+  publica un link y necesita contacto propio, recién ahí se justifica un campo por relevamiento.
+- **Queda un hueco de ~136 px al pie del panel de marca en escritorio.** Ese padding está para que el
+  pie fijo no tape el stepper; sin pie es aire de más sobre el degradado, que no molesta. Se prefirió
+  eso a duplicar el CSS del panel para el único caso del paso 1.
+
+## Implementación
+
+Al abrir el link público, la primera pantalla (identificación) ya no muestra ninguna franja de
+contacto. Al pasar al formulario, el pie con la casilla y el WhatsApp aparece como hasta ahora, igual
+que en el comprobante y en las pantallas de aviso.
+
+## Archivos
+
+`portal/templates/portal/inscripcion/base_inscripcion.html` (el pie pasa a `{% block pie %}`) ·
+`portal/templates/portal/inscripcion/paso1.html` (lo declara vacío) · tests:
+`portal/tests/test_inscripcion.py` (`PieDeContactoTests`).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos (`PieDeContactoTests`): el paso 1 no contiene ni la casilla ni el número; el paso 2 sí.
+  Suite `portal.tests.test_inscripcion` 20/20 en verde (SQLite en memoria). **Ojo:** en el venv local
+  (Python 3.14 + Django 4.2) los dos casos caen en `_tolerar_render_local` —el bug conocido de
+  `Context.__copy__`— y no llegan a afirmar nada; las afirmaciones corren de verdad en CI.
+- Verificación local equivalente sin test client: se renderizaron las seis plantillas del link con
+  `render_to_string`. Solo `paso1.html` sale sin `<footer>` y sin los dos datos; paso 2, confirmación,
+  no disponible, ya inscripto y demasiados intentos los conservan.
+- `manage.py check` OK · `compile_templates.py` 331 plantillas, 0 errores ·
+  `design_audit.py --changed` 0 errores / 0 warnings.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. El servidor está sobre la rama `feature/constructor-formularios`.
+
+## Pendientes / a definir
+
+- Sigue abierto lo del Cambio 59: qué se hace con el teléfono +54 362 430-0002 que todavía aparece en
+  el mensaje de rechazo del paso 1, «ya estás inscripto», «demasiados intentos», el comprobante y su
+  correo, «sesión vencida», y el home y el pie del portal ciudadano.
+
+## Reversión
+
+Revertir el commit: el `{% block pie %}` vuelve a ser un `<footer>` fijo y el paso 1 lo muestra de
+nuevo. No hay migraciones ni datos involucrados.
+
+## Historial
+
+No aplica: entrada nueva. Acota el alcance del Cambio 59 —que había puesto el pie en las seis
+pantallas del link—; esa entrada queda con su nota de historial fechada.
 
 ---

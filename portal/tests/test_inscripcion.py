@@ -311,3 +311,33 @@ class Paso1FlujoTests(_BaseInscripcionTest):
             pausado=True,
         )
         self.assertFalse(servicio.relevamiento_aun_no_abierto(pausado))
+
+
+class PieDeContactoTests(_BaseInscripcionTest):
+    """El contacto del programa (Cambio 59) queda fuera del paso 1 y sigue en el resto."""
+
+    CONTACTO = "consultasincentivojunvetud@gmail.com"
+
+    def test_paso1_no_muestra_el_contacto(self):
+        try:
+            resp = self.client.get(self._url())
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertTemplateUsed(resp, "portal/inscripcion/paso1.html")
+        self.assertNotContains(resp, self.CONTACTO)
+        self.assertNotContains(resp, "3625153720")
+
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
+    def test_paso2_si_lo_muestra(self, mock_consulta):
+        self._post_paso1()
+        try:
+            resp = self.client.get(
+                reverse("portal:inscripcion_paso2", kwargs={"token": self.relevamiento.token_publico})
+            )
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertTemplateUsed(resp, "portal/inscripcion/paso2.html")
+        self.assertContains(resp, self.CONTACTO)
+        self.assertContains(resp, "3625153720")
