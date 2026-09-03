@@ -7,8 +7,20 @@
 
 ## :material-progress-clock: Versiones activas
 
-!!! info "Versión 002 — en definición"
-    La Versión 001 cerró el **02/09/2026**. El alcance de la próxima versión se está acordando con el Ministerio; los frentes que continúan del cierre anterior están listados en [Qué continúa después del cierre](version-001.md#que-continua-despues-del-cierre).
+<div class="grid cards" markdown>
+
+-   :material-circle:{ style="color: #f59e0b" } **Versión 002 — Constructor de formularios**
+
+    ---
+
+    :material-calendar-range: **Período:** 1 sep 2026 → en curso
+    :material-bullseye-arrow: **Objetivo:** Que el Ministerio arme sus propios formularios desde el sistema y llevar esa capacidad a la app de campo
+    :material-progress-check: **Estado:** En curso
+    :material-clock-outline: **Constructor:** 270 h aprobadas · 175 h 30 min por ejecutar
+
+    [:octicons-arrow-right-16: Ver detalle de la versión](version-002.md)
+
+</div>
 
 ---
 

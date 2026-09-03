@@ -20,15 +20,15 @@ hide:
 
     :material-circle:{ .lg .middle style="color: #10b981" } **En ejecución**
 
-    Versión 001 cerrada; alcance de la Versión 002 en definición.
+    Versión 002 en curso; la 001 cerró el 02/09/2026 al 100% del alcance.
 
--   :material-rocket-launch-outline: **Última versión entregada**
+-   :material-rocket-launch-outline: **Versión activa**
 
     ---
 
-    [**Versión 001**](versiones/version-001.md) — Programa Becas y RBAC
+    [**Versión 002**](versiones/version-002.md) — Constructor de formularios
 
-    Cerrada el 02/09/2026 con el 100% del alcance comprometido.
+    En curso desde el 1 de septiembre. La [Versión 001](versiones/version-001.md#informe-de-cierre-de-la-version) cerró al 100% del alcance.
 
 -   :material-cash-check-outline: **Estado financiero**
 
@@ -80,6 +80,7 @@ hide:
     Planificación y seguimiento de entregas iterativas.
 
     [:octicons-arrow-right-16: Todas las versiones](versiones/index.md)
+    [:octicons-arrow-right-16: Versión activa (002)](versiones/version-002.md)
     [:octicons-arrow-right-16: Informe de cierre de la 001](versiones/version-001.md#informe-de-cierre-de-la-version)
 
 -   :material-cash-multiple:{ .lg .middle } **Financiero**
@@ -150,6 +151,6 @@ flowchart LR
 ## :material-map-marker-path: Navegación recomendada
 
 !!! tip "Si recién empezás"
-    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión 001**](versiones/version-001.md)
+    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión activa**](versiones/version-002.md)
 
     Tres páginas y tenés el contexto completo para participar.
