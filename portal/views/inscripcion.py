@@ -48,6 +48,7 @@ from programas.services.inscripcion_publica import (
     enviar_confirmacion_inscripcion,
 )
 from programas.services.padron import esta_habilitado
+from programas.services.respuestas import huella_definicion
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +207,18 @@ def inscripcion_paso2(request, token):
         definicion=definicion,
         identificacion=identificacion,
     )
-    if request.method == "POST" and form.is_valid():
+    # El formulario que la persona ve queda fijado en la sesión (Cambio 58): el
+    # constructor guarda en vivo y el catálogo puede cambiar mientras alguien
+    # completa. Si al enviar la huella ya no coincide, se avisa y se vuelve a
+    # mostrar con el formulario vigente; el envío sale en el intento siguiente.
+    huella = huella_definicion(form.foto)
+    formulario_cambio = request.method == "POST" and identificacion.get("huella_formulario") not in (None, huella)
+    if identificacion.get("huella_formulario") != huella:
+        identificacion["huella_formulario"] = huella
+        request.session[clave_sesion(relevamiento)] = identificacion
+    if formulario_cambio:
+        form.is_valid()  # marca lo que falta con el formulario nuevo; no se envía todavía
+    elif request.method == "POST" and form.is_valid():
         try:
             formulario, creado = crear_formulario_publico(
                 relevamiento,
@@ -256,6 +268,7 @@ def inscripcion_paso2(request, token):
             "requiere_gps": definicion["requiere_gps"],
             # Los items con sus condiciones para el motor del navegador (Cambio 58).
             "planos": form.planos(),
+            "formulario_cambio": formulario_cambio,
         },
     )
 

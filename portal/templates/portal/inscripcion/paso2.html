@@ -38,6 +38,12 @@ todo el formulario se muestra y el envío funciona igual.{% endcomment %}
         {{ form.gps_lat }}{{ form.gps_lng }}
         {{ planos|json_script:"formulario-items" }}
 
+        {% if formulario_cambio %}
+            <div class="mb-4 p-3 text-sm" style="background: var(--bg-warning-soft); border: 1px solid var(--border-warning-subtle); border-radius: var(--radius-lg); color: var(--text-fg-warning);" role="alert">
+                <p class="m-0 font-semibold">El formulario cambió mientras lo completabas.</p>
+                <p class="m-0 mt-1">Revisá tus respuestas, volvé a adjuntar los archivos si los había y enviá de nuevo.</p>
+            </div>
+        {% endif %}
         {% if form.non_field_errors %}
             <div class="mb-4 p-3 text-sm" style="background: var(--bg-danger-soft); border: 1px solid var(--border-danger-subtle); border-radius: var(--radius-lg); color: var(--text-fg-danger);" role="alert">
                 {% for error in form.non_field_errors %}<p class="m-0">{{ error }}</p>{% endfor %}

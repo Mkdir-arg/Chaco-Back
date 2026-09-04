@@ -13,6 +13,7 @@ from programas.services.condiciones import (
     evaluar_regla,
     fuentes_disponibles,
     validar_coherencia,
+    validar_condicion,
 )
 
 HOY = date(2026, 8, 28)
@@ -193,6 +194,20 @@ class AplicarTests(SimpleTestCase):
 class CoherenciaTests(SimpleTestCase):
     def test_diseno_coherente(self):
         self.assertEqual(validar_coherencia(ITEMS), {})
+
+    def test_una_regla_malformada_es_un_error_no_una_excepcion(self):
+        anteriores = {"f": {"tipo": "campo", "tipo_campo": TipoCampo.INT}}
+        condicion = {
+            "modo": "todas",
+            "reglas": [
+                "f",
+                {"fuente": ["f"], "op": "eq", "valor": 1},
+                {"fuente": "f", "op": ["eq"], "valor": 1},
+                {"fuente": "f", "op": "eq", "valor": 1},
+            ],
+        }
+        errores = validar_condicion(condicion, {"clave": "x"}, anteriores)
+        self.assertEqual(len(errores), 3)
 
     def test_fuente_posterior_o_inexistente(self):
         items = [

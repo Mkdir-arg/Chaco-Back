@@ -150,6 +150,15 @@ class ReordenarTests(_Base):
         self.assertEqual(resp.status_code, 400)
         resp = self._reordenar(["no-soy-un-grupo"])
         self.assertEqual(resp.status_code, 400)
+        # `grupos` que no es una lista, o `preguntas` que no lo es: 400, no 500.
+        resp = self.client.post(
+            reverse("becas:preguntas_reordenar"),
+            data=json.dumps({"grupos": {"id": self.cuestionario.pk}}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        resp = self._reordenar([{"id": self.cuestionario.pk, "preguntas": "12"}])
+        self.assertEqual(resp.status_code, 400)
 
     def test_las_preguntas_que_no_vienen_quedan_detras(self):
         resp = self._reordenar([{"id": self.cuestionario.pk, "preguntas": [self.p2.pk]}])

@@ -86,17 +86,18 @@ def definicion_formulario(relevamiento):
     la convocatoria del relevamiento, filtrados por el canal del relevamiento
     (Cambio 58), más el flag ``requiere_gps`` del segmento.
     """
-    from programas.services.diseno import items_ordenados, plan_por_defecto, serializar
+    from programas.services.diseno import items_vigentes, plan_por_defecto, serializar
 
     convocatoria = relevamiento.convocatoria
     canal = CanalFormulario.del_relevamiento(relevamiento)
     globales, requisitos = get_campos_formulario(convocatoria, canal=canal)
     # Cambio 58: la estructura anidada (grupos → campos y textos, con
-    # condiciones) sale del diseño de la convocatoria; si todavía no lo abrió
-    # nadie, del plan por defecto, sin escribir nada. Las listas planas de
-    # siempre se conservan para la app vieja y para el paso 2 actual.
-    diseno = getattr(convocatoria, "diseno", None) if hasattr(convocatoria, "diseno") else None
-    items = items_ordenados(diseno) if diseno is not None else plan_por_defecto(convocatoria)
+    # condiciones) sale del diseño de la convocatoria, reconciliado en memoria
+    # con el catálogo de hoy (RN-1: lo nuevo entra, lo desactivado sale, sin
+    # escribir en un GET); si todavía no lo abrió nadie, del plan por defecto.
+    # Las listas planas de siempre se conservan para la app vieja.
+    diseno = getattr(convocatoria, "diseno", None)
+    items = items_vigentes(diseno) if diseno is not None else plan_por_defecto(convocatoria)
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
         "canal": canal,
@@ -183,7 +184,6 @@ def registrar_traza(formulario, usuario, cambios):
     return len(objs)
 
 
-@transaction.atomic
 def _completar_contacto(ciudadano, formulario):
     """RN-10, volcado al legajo: el celular y el correo que la persona respondió
     en el formulario completan el legajo **solo si estaba vacío**; nunca pisan
@@ -200,6 +200,7 @@ def _completar_contacto(ciudadano, formulario):
     return completar
 
 
+@transaction.atomic
 def resolver_ciudadano_offline(formulario):
     """Resuelve el ciudadano de un formulario que llegó por sync offline.
 

@@ -16,6 +16,9 @@ escribiendo ``data`` y las columnas fijas mientras haya lectores que las usen.
 
 from __future__ import annotations
 
+import hashlib
+import json
+
 from django.db import transaction
 from django.utils.dateparse import parse_date
 
@@ -55,6 +58,15 @@ def foto_definicion(relevamiento, definicion=None):
         "canal": definicion.get("canal"),
         "items": definicion.get("items") or [],
     }
+
+
+def huella_definicion(foto):
+    """Resumen corto y estable de una foto (versión, canal e ítems). El paso 2
+    del link lo guarda en la sesión al mostrar el formulario y lo compara al
+    recibir el envío: si el diseño o el catálogo cambiaron en el medio, lo que
+    la persona tiene delante ya no es lo que se le va a validar."""
+    plano = json.dumps(foto or {}, sort_keys=True, default=str, ensure_ascii=True)
+    return hashlib.sha256(plano.encode("utf-8")).hexdigest()[:16]
 
 
 def recorrer(items):

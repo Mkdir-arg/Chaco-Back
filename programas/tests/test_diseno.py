@@ -343,3 +343,64 @@ class DefinicionV2Tests(_Base):
         anidados = [c for g in definicion["items"] for c in g["items"] if c.get("tipo_item") == "campo"]
         self.assertTrue(any(c["origen"] == "legajo" for c in anidados))
         self.assertFalse(any(c["origen"] == "legajo" for c in definicion["globales"]))
+
+    def test_sigue_al_catalogo_sin_abrir_el_constructor_y_sin_escribir(self):
+        """RN-1 también entre visitas al constructor: lo que el catálogo agrega
+        o desactiva se refleja en lo que se sirve al portal y a la app, y
+        servirlo no escribe nada (la persistencia es del constructor)."""
+        diseno, _ = obtener_o_crear_diseno(self.convocatoria)
+        version, cantidad = diseno.version, diseno.items.count()
+        nueva = PreguntaGlobal.objects.create(texto="Cantidad de hijos", tipo=TipoCampo.INT, orden=601)
+        promedio = RequisitoNativo.objects.create(texto="Promedio", tipo=TipoCampo.INT, segmento=self.segmento, orden=3)
+        self.tenencia.activo = False
+        self.tenencia.save(update_fields=["activo", "modificado"])
+
+        definicion = definicion_formulario(self.rel_link)
+        claves = [c["clave"] for g in definicion["items"] for c in g["items"]]
+        self.assertIn(clave_pregunta(nueva), claves)
+        self.assertIn(clave_requisito(promedio), claves)
+        self.assertNotIn(clave_pregunta(self.tenencia), claves)
+        # Lo nuevo entra al final de su grupo por defecto.
+        cuestionario = next(g for g in definicion["items"] if g["clave"] == "g-cuestionario")
+        self.assertEqual(cuestionario["items"][-1]["clave"], clave_pregunta(nueva))
+        segmento = next(g for g in definicion["items"] if g["clave"] == "g-segmento")
+        self.assertEqual(segmento["items"][-1]["clave"], clave_requisito(promedio))
+        diseno.refresh_from_db()
+        self.assertEqual((diseno.version, diseno.items.count()), (version, cantidad))
+
+    def test_un_grupo_nuevo_del_catalogo_entra_con_su_titulo_y_su_condicion(self):
+        obtener_o_crear_diseno(self.convocatoria)
+        salud = GrupoRequisito.objects.create(
+            clave="salud",
+            nombre="Salud",
+            orden=50,
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_mayor", "valor": 60}],
+            },
+        )
+        obra_social = PreguntaGlobal.objects.create(texto="Obra social", tipo=TipoCampo.STRING, orden=602, grupo=salud)
+        definicion = definicion_formulario(self.rel_link)
+        grupo = next(g for g in definicion["items"] if g["titulo"] == "Salud")
+        self.assertEqual([c["clave"] for c in grupo["items"]], [clave_pregunta(obra_social)])
+        self.assertEqual(grupo["condicion"]["reglas"][0]["op"], "edad_mayor")
+        self.assertTrue(grupo["condicion"]["reglas"][0]["fuente"].startswith("pg-"))
+        self.assertFalse(ItemDiseno.objects.filter(clave="g-salud").exists())
+
+    def test_una_condicion_cuya_fuente_se_desactivo_no_se_sirve_ni_se_borra(self):
+        diseno, _ = obtener_o_crear_diseno(self.convocatoria)
+        nivel = diseno.items.get(clave=clave_requisito(self.nivel))
+        nivel.condicion = {
+            "modo": "todas",
+            "reglas": [{"fuente": clave_pregunta(self.tenencia), "op": "completo", "valor": None}],
+        }
+        nivel.save(update_fields=["condicion"])
+        self.tenencia.activo = False
+        self.tenencia.save(update_fields=["activo", "modificado"])
+        definicion = definicion_formulario(self.rel_link)
+        campo = next(
+            c for g in definicion["items"] for c in g["items"] if c.get("clave") == clave_requisito(self.nivel)
+        )
+        self.assertIsNone(campo["condicion"])
+        nivel.refresh_from_db()
+        self.assertIsNotNone(nivel.condicion)  # la borra la reconciliación del constructor, con aviso

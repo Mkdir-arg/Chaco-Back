@@ -246,7 +246,13 @@ def validar_condicion(condicion, item, anteriores):
     if not isinstance(reglas, list):
         return errores + ["La condición no tiene reglas."]
     for numero, regla in enumerate(reglas, start=1):
+        if not isinstance(regla, dict):
+            errores.append(f"Regla {numero}: tiene un formato inválido.")
+            continue
         fuente = regla.get("fuente")
+        if not isinstance(fuente, str) or not isinstance(regla.get("op"), str):
+            errores.append(f"Regla {numero}: la fuente y el operador tienen que ser textos.")
+            continue
         if fuente == item.get("clave"):
             errores.append(f"Regla {numero}: un ítem no puede depender de sí mismo.")
             continue

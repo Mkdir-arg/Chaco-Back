@@ -46,7 +46,11 @@
           if (marcados.length) { out[item.clave] = marcados; }
           return;
         }
-        var control = caja.querySelector('select, textarea, input');
+        // El <select> va primero: el buscador con píldoras (nodo-buscador.js)
+        // monta su input de búsqueda antes del select nativo y lo vacía al
+        // elegir; leer el primer control diría «vacío» con una opción elegida.
+        var control = caja.querySelector('select') ||
+          caja.querySelector('textarea, input:not([type="hidden"]):not(.nodo-buscador__input)');
         if (!control) {
           // Dato fijo del paso 1 (identidad ya validada): se muestra como texto.
           // El dato fijo viaja crudo en data-valor (lo que se ve está formateado).

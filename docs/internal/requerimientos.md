@@ -6034,6 +6034,10 @@ app móvil actual sigue funcionando sin cambios mientras el equipo móvil hace #
 - Las exportaciones y los reportes de Becas no incluyen respuestas del formulario (solo identidad, estado y
   fechas), así que los campos propios y las condiciones no los afectan; si algún día exportan respuestas,
   tienen que leer `respuestas` + la foto (`respuestas_legibles`), no `data`.
+- **Borrador y publicación del formulario.** Cada guardado del constructor rige al instante para quien
+  esté completando el link (D8, guardado en vivo). El 04/09/2026 se fijó la **huella** del formulario en la
+  sesión del paso 2 (ver Historial) para que un cambio a mitad de carga avise en vez de validar en silencio
+  contra otro formulario; un flujo borrador → publicar contradice D8 y queda como decisión del PM.
 
 ## Reversión
 
@@ -6201,6 +6205,36 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   y `:focus-visible` con anillo. `.pv-checks` de la vista previa del constructor espeja el mismo look
   (deja de imitar el render crudo). Inventario del agente actualizado; verificado en navegador (paso 2 y
   vista previa con estilos computados idénticos) y con test del flag en `Paso2PresentacionSelectorTests`.
+- **04/09/2026 — Revisión de la rama: cuatro errores y la huella del formulario en el paso 2.**
+  (1) La definición que consumen el portal y la API leía el diseño guardado **sin reconciliarlo**: una
+  pregunta nueva del catálogo no llegaba al paso 2 y una desactivada se seguía pidiendo hasta que alguien
+  abriera el constructor (contra RN-1). `definicion_formulario` ahora sirve `items_vigentes`, la
+  reconciliación **en memoria** sin escribir en un GET: lo quitado sale, lo nuevo entra al final de su
+  grupo por defecto (creado en memoria si el diseño no lo tenía, con la condición por defecto del
+  catálogo) y una condición con fuente ausente se ignora; `reconciliar` sigue persistiendo y avisando
+  desde el constructor, y ambas comparten `_catalogo_esperado` y `_datos_grupo_para_*`. (2)
+  `resolver_ciudadano_offline` había perdido su `@transaction.atomic` (quedó pegado a
+  `_completar_contacto` al extraerlo): la edición de contacto en revisión y el `perform_update` de la API
+  escribían sin transacción; se restauró. (3) En el paso 2, una condición cuya fuente era un selector con
+  **buscador** nunca se cumplía en el navegador: `nodo-formulario.js` tomaba el primer control de la caja,
+  que es el input de búsqueda (el buscador lo monta antes del `<select>` y lo vacía al elegir), así que el
+  dependiente quedaba oculto y el servidor lo exigía igual; ahora lee el `<select>` primero. (4)
+  `test_migracion_catalogo` pasaba en CI solo porque el job arma el esquema sin migraciones
+  (`DJANGO_SYNCDB_PROJECT_APPS`); con la cadena real fallaba porque la 0060 ya había sembrado; el setUp
+  parte de una base sin catálogo. Menores: una regla de condición que no es un dict (o con fuente u
+  operador que no son textos) responde 400 y no 500; el payload de `preguntas_reordenar` se valida sin
+  `assert`. **Mejora, huella del formulario (fija lo que la persona vio):** el constructor guarda en vivo
+  (D8) y el catálogo cambia sin aviso, así que el POST del paso 2 podía validarse contra un formulario
+  distinto del que la persona tenía delante. `huella_definicion(foto)` (sha256 corto de versión, canal e
+  ítems) se guarda en la sesión del paso 2 al mostrar el formulario; si al enviar no coincide, la vista no
+  crea el caso: vuelve a mostrar el formulario vigente con un aviso (`formulario_cambio`), marca lo que
+  falta y el envío sale en el intento siguiente. Una sesión sin huella (anterior al cambio, o un POST sin
+  GET) no se frena. Tests: `DefinicionV2Tests` (+3: sigue al catálogo sin escribir, grupo nuevo con su
+  condición, condición con fuente desactivada), `CoherenciaTests` (+1),
+  `test_payload_invalido_o_ids_inexistentes` (ampliado), `Paso2VistaTests` (+1, huella) y
+  `Paso2AssetsBuscadorTests` (+1, pin del JS). Verificado con Python 3.12 / Django 5.2 (el par del CI) y
+  `test_migracion_catalogo` también con migraciones reales. Queda como decisión del PM el flujo
+  borrador → publicar (ver Pendientes).
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.

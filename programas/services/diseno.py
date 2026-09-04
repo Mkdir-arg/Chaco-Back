@@ -7,7 +7,9 @@ grupo por nivel de requisitos), sin escribir nada: el diseño se persiste la
 primera vez que alguien abre el constructor. Desde ahí, cada vez que se sirve
 se **reconcilia**: los requisitos nuevos aparecen al final de su grupo por
 defecto, los borrados o desactivados salen, y las condiciones que los usaban se
-eliminan con aviso.
+eliminan con aviso. El constructor la **persiste** (``reconciliar``); el portal
+y la app la aplican **en memoria** (``items_vigentes``), así el formulario sigue
+al catálogo aunque nadie vuelva a abrir el constructor.
 """
 
 from __future__ import annotations
@@ -287,48 +289,65 @@ def _siguiente_orden(diseno, padre):
     return 0 if ultimo is None else ultimo + 1
 
 
+def _catalogo_esperado(convocatoria):
+    """Lo que el catálogo dice que tiene que estar en el diseño (RN-1):
+    ``(esperadas, esperados)`` como ``{pk: PreguntaGlobal}`` (activas) y
+    ``{pk: (nivel, nombre, RequisitoNativo)}`` (herencia de la convocatoria)."""
+    esperadas = {p.pk: p for p in _preguntas_activas()}
+    esperados = {}
+    for nivel, nombre, requisitos in _requisitos_por_nivel(convocatoria):
+        for requisito in requisitos:
+            esperados[requisito.pk] = (nivel, nombre, requisito)
+    return esperadas, esperados
+
+
+def _datos_grupo_para_pregunta(pregunta, preguntas):
+    """Con qué nace el ítem grupo donde cae un requisito general: el de su
+    grupo del catálogo (título del catálogo, condición por defecto resuelta) o
+    «Requisitos generales» para una pregunta suelta."""
+    if pregunta.grupo_id:
+        grupo = pregunta.grupo
+        return {
+            "clave": clave_grupo_catalogo(grupo),
+            "etiqueta": "",
+            "subtitulo": grupo.subtitulo,
+            "condicion": _resolver_condicion(grupo.condicion_defecto, preguntas),
+            "canal": grupo.canal,
+            "grupo_catalogo": grupo,
+        }
+    return {
+        "clave": CLAVE_GENERALES_SUELTAS,
+        "etiqueta": "Requisitos generales",
+        "subtitulo": "",
+        "condicion": None,
+        "canal": CanalFormulario.AMBOS,
+        "grupo_catalogo": None,
+    }
+
+
+def _datos_grupo_para_nivel(nivel, nombre):
+    clave, plantilla = NIVELES[nivel]
+    return {"clave": clave, "etiqueta": plantilla.format(nombre=nombre)}
+
+
 def _grupo_para_pregunta(diseno, pregunta, grupos_por_clave, preguntas):
     """El ítem grupo donde cae un requisito general nuevo: el de su grupo del
     catálogo, creado si el diseño todavía no lo tenía."""
-    if pregunta.grupo_id:
-        clave = clave_grupo_catalogo(pregunta.grupo)
-        etiqueta, subtitulo, canal, catalogo = "", pregunta.grupo.subtitulo, pregunta.grupo.canal, pregunta.grupo
-        condicion = _resolver_condicion(pregunta.grupo.condicion_defecto, preguntas)
-    else:
-        clave, etiqueta, subtitulo, condicion, canal, catalogo = (
-            CLAVE_GENERALES_SUELTAS,
-            "Requisitos generales",
-            "",
-            None,
-            CanalFormulario.AMBOS,
-            None,
+    datos = _datos_grupo_para_pregunta(pregunta, preguntas)
+    if datos["clave"] not in grupos_por_clave:
+        grupos_por_clave[datos["clave"]] = ItemDiseno.objects.create(
+            diseno=diseno, tipo=GRUPO, orden=_siguiente_orden(diseno, None), **datos
         )
-    if clave not in grupos_por_clave:
-        grupos_por_clave[clave] = ItemDiseno.objects.create(
-            diseno=diseno,
-            tipo=GRUPO,
-            clave=clave,
-            orden=_siguiente_orden(diseno, None),
-            etiqueta=etiqueta,
-            subtitulo=subtitulo,
-            condicion=condicion,
-            canal=canal,
-            grupo_catalogo=catalogo,
-        )
-    return grupos_por_clave[clave]
+    return grupos_por_clave[datos["clave"]]
 
 
 def _grupo_para_nivel(diseno, nivel, nombre, grupos_por_clave):
-    clave, plantilla = NIVELES[nivel]
-    if clave not in grupos_por_clave:
-        grupos_por_clave[clave] = ItemDiseno.objects.create(
-            diseno=diseno,
-            tipo=GRUPO,
-            clave=clave,
-            orden=_siguiente_orden(diseno, None),
-            etiqueta=plantilla.format(nombre=nombre),
+    datos = _datos_grupo_para_nivel(nivel, nombre)
+    if datos["clave"] not in grupos_por_clave:
+        grupos_por_clave[datos["clave"]] = ItemDiseno.objects.create(
+            diseno=diseno, tipo=GRUPO, orden=_siguiente_orden(diseno, None), **datos
         )
-    return grupos_por_clave[clave]
+    return grupos_por_clave[datos["clave"]]
 
 
 @transaction.atomic
@@ -343,11 +362,7 @@ def reconciliar(diseno, usuario=None):
     por_requisito = {i.requisito_id: i for i in items if i.requisito_id}
     grupos_por_clave = {i.clave: i for i in items if i.es_grupo}
 
-    esperadas = {p.pk: p for p in _preguntas_activas()}
-    esperados = {}
-    for nivel, nombre, requisitos in _requisitos_por_nivel(convocatoria):
-        for requisito in requisitos:
-            esperados[requisito.pk] = (nivel, nombre, requisito)
+    esperadas, esperados = _catalogo_esperado(convocatoria)
 
     quitados, agregados = [], []
     padres_vaciados = set()
@@ -420,6 +435,79 @@ def reconciliar(diseno, usuario=None):
     if agregados or quitados or condiciones_quitadas or grupos_vacios:
         diseno.tocar(usuario)
     return {"agregados": agregados, "quitados": [t for _, t in quitados], "condiciones_quitadas": condiciones_quitadas}
+
+
+def items_vigentes(diseno):
+    """Los ítems del diseño **como quedarían tras reconciliar**, sin escribir.
+
+    Es lo que se sirve al portal y a la app: el diseño sigue al catálogo (RN-1)
+    también entre visitas al constructor. Lo que el catálogo quitó o desactivó
+    no se emite; lo que agregó entra al final de su grupo por defecto (creado
+    en memoria si el diseño no lo tenía); una condición cuya fuente ya no está
+    se ignora. Nada de esto se persiste: eso lo hace ``reconciliar`` cuando se
+    abre el constructor, que además avisa.
+    """
+    esperadas, esperados = _catalogo_esperado(diseno.convocatoria)
+    preguntas = list(esperadas.values())
+    vigentes = [
+        item
+        for item in items_ordenados(diseno)
+        if not (
+            (item.pregunta_id and item.pregunta_id not in esperadas)
+            or (item.requisito_id and item.requisito_id not in esperados)
+        )
+    ]
+    grupos_por_clave = {i.clave: i for i in vigentes if i.es_grupo}
+    presentes_p = {i.pregunta_id for i in vigentes if i.pregunta_id}
+    presentes_r = {i.requisito_id for i in vigentes if i.requisito_id}
+    grupos_nuevos = []
+    nuevos_por_grupo = {}
+
+    def grupo_para(datos):
+        if datos["clave"] not in grupos_por_clave:
+            item_g = ItemDiseno(diseno=diseno, tipo=GRUPO, orden=len(grupos_por_clave), **datos)
+            grupos_por_clave[datos["clave"]] = item_g
+            grupos_nuevos.append(item_g)
+        return grupos_por_clave[datos["clave"]]
+
+    for pk, pregunta in esperadas.items():
+        if pk in presentes_p:
+            continue
+        grupo = grupo_para(_datos_grupo_para_pregunta(pregunta, preguntas))
+        nuevos_por_grupo.setdefault(grupo.clave, []).append(
+            _item(diseno, CAMPO, clave_pregunta(pregunta), 0, padre=grupo, pregunta=pregunta)
+        )
+    for pk, (nivel, nombre, requisito) in esperados.items():
+        if pk in presentes_r:
+            continue
+        grupo = grupo_para(_datos_grupo_para_nivel(nivel, nombre))
+        nuevos_por_grupo.setdefault(grupo.clave, []).append(
+            _item(diseno, CAMPO, clave_requisito(requisito), 0, padre=grupo, requisito=requisito)
+        )
+
+    # Orden de pantalla: cada grupo, sus hijos guardados y después los nuevos.
+    hijos_de = {}
+    for item in vigentes:
+        if not item.es_grupo and item.padre_id:
+            hijos_de.setdefault(item.padre_id, []).append(item)
+    resultado = []
+    for grupo in [i for i in vigentes if i.es_grupo] + grupos_nuevos:
+        resultado.append(grupo)
+        hijos = hijos_de.get(grupo.pk, []) if grupo.pk else []
+        nuevos = nuevos_por_grupo.get(grupo.clave, [])
+        for posicion, hijo in enumerate(nuevos, start=len(hijos)):
+            hijo.orden = posicion
+        resultado.extend(hijos)
+        resultado.extend(nuevos)
+    resultado.extend(i for i in vigentes if not i.es_grupo and not i.padre_id)
+
+    # Una condición cuya fuente ya no está no se aplica (solo en memoria).
+    claves = {i.clave for i in resultado}
+    for item in resultado:
+        reglas = (item.condicion or {}).get("reglas") or []
+        if reglas and any(regla.get("fuente") not in claves for regla in reglas):
+            item.condicion = None
+    return resultado
 
 
 # ── Serialización ────────────────────────────────────────────────────────────

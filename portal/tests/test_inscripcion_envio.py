@@ -416,6 +416,25 @@ class Paso2VistaTests(_BasePaso2Test):
         self.assertIn(reverse("portal:inscripcion_paso1", kwargs={"token": self.relevamiento.token_publico}), resp.url)
         self.assertEqual(self.relevamiento.formularios.count(), 1)
 
+    def test_si_el_formulario_cambio_mientras_se_completaba_avisa_y_no_envia(self):
+        """El constructor guarda en vivo (D8): el GET fija en la sesión la
+        huella del formulario que la persona vio y, si al enviar ya no
+        coincide, se avisa y se vuelve a mostrar con lo vigente; el envío sale
+        en el intento siguiente, ya con lo nuevo exigido."""
+        self._sembrar_sesion(_identificacion())
+        self.assertEqual(self.client.get(self._url()).status_code, 200)
+        nueva = PreguntaGlobal.objects.create(texto="Cantidad de hijos", tipo="INT", obligatorio=True, orden=2)
+        resp = self.client.post(self._url(), {**self._data(), **self._files()})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context["formulario_cambio"])
+        self.assertIn("El formulario cambió", resp.content.decode())
+        self.assertIn(clave_pregunta(nueva), resp.context["form"].errors)  # lo nuevo ya se exige
+        self.assertEqual(self.relevamiento.formularios.count(), 0)
+        # Segundo envío, con el formulario vigente delante.
+        resp = self.client.post(self._url(), {**self._data(**{clave_pregunta(nueva): "2"}), **self._files()})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.relevamiento.formularios.count(), 1)
+
 
 class Paso2PresentacionSelectorTests(_BasePaso2Test):
     """Cambio 56: el mismo campo se rinde como lista o como buscador con
@@ -557,6 +576,15 @@ class Paso2AssetsBuscadorTests(_BasePaso2Test):
         html = str(form[self.k_pregunta])
         self.assertIn('data-buscador="1"', html)
         self.assertIn("<select", html)
+
+    def test_el_motor_del_navegador_lee_el_select_antes_que_el_input_del_buscador(self):
+        """El buscador monta su input de búsqueda antes del <select> y lo vacía
+        al elegir: si el motor tomara el primer control de la caja, un selector
+        con buscador contaría siempre como vacío y lo que depende de él nunca
+        aparecería en el navegador (el servidor sí lo exigiría)."""
+        js = Path(finders.find("custom/js/nodo-formulario.js")).read_text(encoding="utf-8")
+        self.assertIn("caja.querySelector('select') ||", js)
+        self.assertIn(":not(.nodo-buscador__input)", js)
 
 
 class IngestaConOrigenPadronTests(_BasePaso2Test):

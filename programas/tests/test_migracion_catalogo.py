@@ -17,6 +17,13 @@ MIGRACION = import_module("programas.migrations.0060_sembrar_catalogo_protegido"
 
 
 class SembrarCatalogoProtegidoTests(TestCase):
+    def setUp(self):
+        # Con la cadena real de migraciones la 0060 ya sembró el catálogo en la
+        # base de tests (el CI arma el esquema sin migraciones y no lo ve): la
+        # prueba parte siempre de una base sin catálogo.
+        PreguntaGlobal.objects.all().delete()
+        GrupoRequisito.objects.all().delete()
+
     def _sembrar(self):
         MIGRACION.sembrar(apps, None)
 
