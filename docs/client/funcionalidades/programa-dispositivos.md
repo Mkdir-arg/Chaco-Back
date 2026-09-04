@@ -6,9 +6,9 @@
 | | |
 |---|---|
 | **Módulo** | Programas |
-| **Estado** | Definición aprobada por el Ministerio — lista para desarrollo |
+| **Estado** | Definición aprobada por el Ministerio · desarrollo en curso — legajo institucional, admisiones, camas, registro diario y reportes entregados en la [Versión 001](../versiones/version-001.md) |
 | **Programas** | Dispositivos y Merenderos (sobre la base de Programas, después de Becas) |
-| **Última actualización** | 2026-07-03 |
+| **Última actualización** | 2026-09-02 |
 
 !!! success "Novedad — Conformidad del Ministerio (01/07/2026)"
     El Ministerio revisó la propuesta y **confirmó su conformidad para avanzar con el desarrollo**, con estas definiciones:

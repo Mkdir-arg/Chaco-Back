@@ -9,15 +9,16 @@
 
 <div class="grid cards" markdown>
 
--   :material-circle:{ style="color: #f59e0b" } **Versión 001 — Programa Becas y RBAC**
+-   :material-circle:{ style="color: #f59e0b" } **Versión 002 — Constructor de formularios**
 
     ---
 
-    :material-calendar-range: **Período:** 3 jun 2026 → en curso
-    :material-bullseye-arrow: **Objetivo:** Definir alcance funcional de Programa Becas y desarrollo del motor RBAC
-    :material-progress-check: **Estado:** En progreso
+    :material-calendar-range: **Período:** 1 sep 2026 → en curso
+    :material-bullseye-arrow: **Objetivo:** Que el Ministerio arme sus propios formularios desde el sistema y llevar esa capacidad a la app de campo
+    :material-progress-check: **Estado:** En curso
+    :material-clock-outline: **Constructor:** 270 h aprobadas · 175 h 30 min por ejecutar
 
-    [:octicons-arrow-right-16: Ver detalle de la versión](version-001.md)
+    [:octicons-arrow-right-16: Ver detalle de la versión](version-002.md)
 
 </div>
 
@@ -25,12 +26,24 @@
 
 ## :material-archive-outline: Versiones cerradas
 
-!!! info "Aún no hay versiones cerradas"
-    Las versiones completadas aparecerán acá con su resumen de resultados, ítems completados y postergados.
+<div class="grid cards" markdown>
 
-| Versión | Período | :material-check-circle-outline: Completado | :material-clock-time-eight-outline: Postergado |
+-   :material-check-circle:{ style="color: #10b981" } **Versión 001 — Programa Becas y RBAC**
+
+    ---
+
+    :material-calendar-range: **Período:** 3 jun 2026 → 31 ago 2026
+    :material-bullseye-arrow: **Objetivo:** Definir el alcance funcional de los programas Becas y Dispositivos y desarrollar el motor RBAC
+    :material-progress-check: **Estado:** Cerrada — 100% del alcance comprometido
+    :material-clock-outline: **Horas del período:** 1.699 h 12 min
+
+    [:octicons-arrow-right-16: Ver informe de cierre](version-001.md#informe-de-cierre-de-la-version)
+
+</div>
+
+| Versión | Período | :material-check-circle-outline: Completado | :material-clock-time-eight-outline: Continúa en la próxima |
 |---|---|---|---|
-| — | — | — | — |
+| [001 — Programa Becas y RBAC](version-001.md) | 3 jun → 31 ago 2026 | Los 10 ítems del alcance comprometido, más el alcance incorporado durante la ejecución (inscripción por link público, integraciones, reportes de Becas y desarrollo de Dispositivos) | Constructor de formularios por convocatoria, app de campo con el formulario nuevo y remediación de diseño de Dispositivos |
 
 ---
 

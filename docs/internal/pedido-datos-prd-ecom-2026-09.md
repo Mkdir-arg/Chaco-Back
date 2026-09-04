@@ -1,13 +1,13 @@
 # Pedido de datos del ambiente productivo a DevOps de ECOM — 2026-09-03
 
-Acompaña al **Cambio 62** del [archivo vivo de requerimientos](requerimientos.md) y al
+Acompaña al **Cambio 63** del [archivo vivo de requerimientos](requerimientos.md) y al
 [análisis de performance del login](analisis-performance-login-2026-09.md). Acá vive lo que se le pide
 al equipo que administra el Kubernetes de producción, por qué se pide cada dato y qué se hace con la
 respuesta.
 
 ## Por qué se pide
 
-El Cambio 62 resuelve en la imagen las dos causas de latencia que encontró el análisis: el hash de la
+El Cambio 63 resuelve en la imagen las dos causas de latencia que encontró el análisis: el hash de la
 contraseña (Argon2 en lugar de PBKDF2) y la posibilidad de servir el HTTP con varios procesos. La
 primera llega sola con el build. La segunda **no se activa sola**: hay que decidir con qué forma se
 reparte la carga y con qué recursos, y esa decisión necesita datos del ambiente real que no tenemos.
@@ -109,7 +109,7 @@ datos y les avisa que después les pasamos la configuración concreta.
 2. Contrastar la línea de base (dato 7) con la medición posterior al despliegue de Argon2.
 3. Si los datos 5 o 6 muestran un límite ajustado (Redis chico, `max_connections` bajo), tratarlo como
    pendiente propio antes de sumar procesos.
-4. Registrar el resultado en el **Historial** del Cambio 62.
+4. Registrar el resultado en el **Historial** del Cambio 63.
 
 ## Estado
 

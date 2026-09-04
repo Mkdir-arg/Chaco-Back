@@ -1,6 +1,6 @@
 # Correos de credenciales — textos para aprobación
 
-**Estado:** pendiente de aprobación del cliente
+**Estado:** implementado y en uso desde agosto de 2026 · textos publicados para revisión del Ministerio
 **Origen:** análisis #236 (RN-C7) · task #244
 **Fecha:** 20/08/2026
 
