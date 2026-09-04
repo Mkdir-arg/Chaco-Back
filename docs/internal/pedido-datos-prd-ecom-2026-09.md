@@ -111,6 +111,101 @@ datos y les avisa que después les pasamos la configuración concreta.
    pendiente propio antes de sumar procesos.
 4. Registrar el resultado en el **Historial** del Cambio 63.
 
+## Respuestas recibidas — 04/09/2026 (parciales: 1, 2, 3 y 5)
+
+| # | Dato | Respuesta |
+|---|---|---|
+| 1 | Réplicas y `resources` | **web: 2 réplicas.** requests `cpu 100m` / `memory 200Mi`; limits **`cpu 500m`** / `memory 800Mi` / `ephemeral-storage 100Mi`. redis: 1 réplica, requests `cpu 20m` / `memory 64Mi`, limits `cpu 200m` / `memory 512Mi` |
+| 2 | Nodo | **32 CPU** y **~23,4 GiB** de memoria asignables por worker |
+| 3 | Runtime | `APP_RUNTIME=daphne`, contenedor **sin `command`/`args`** (el entrypoint hace el bootstrap completo en cada arranque de cada réplica) |
+| 5 | Redis | imagen `redis:7.2`, límite de 512Mi, **`maxmemory-policy=noeviction`** |
+| 4, 6, 7, 8 | Ingress, base, métricas y reinicios | **Pendientes** |
+
+## Lectura de los datos
+
+### El techo de CPU explica el síntoma — es el hallazgo principal
+
+`limits.cpu: 500m` es **medio núcleo por pod**. Con el planificador de Linux eso son 50 ms de CPU cada
+100 ms: un trabajo de 950 ms de CPU —lo que cuesta hoy verificar una contraseña con PBKDF2— tarda
+**~1,9 s de reloj** aunque el pod esté ocioso, porque se lo frena y se lo despierta 19 veces. Es
+exactamente el síntoma reportado, y el resto de las pantallas paga el mismo peaje en menor medida.
+
+Sumado a que Daphne es un proceso único, la capacidad total del sistema hoy es
+**2 réplicas × 0,5 núcleo = 1 núcleo**, en nodos que tienen 32. Los `requests` son de `100m`, así que
+subir el `limit` **no reserva nada más** ni compite con otras cargas: solo deja de frenar a la nuestra.
+
+Con Argon2 (~90 ms de CPU) el login baja a ~180 ms aun con el techo actual; subir el techo mejora
+además cada render de página. Las dos cosas son complementarias y ninguna depende de la otra.
+
+### El límite de almacenamiento efímero es un riesgo de desalojo
+
+`limits.ephemeral-storage: 100Mi` cuenta la capa de escritura del contenedor, y ahí van dos cosas que
+crecen: los estáticos que `collectstatic` recolecta en cada arranque (~25 MB con las copias
+comprimidas) y **los archivos de log**, porque en Kubernetes no hay volumen montado en `/app/logs`.
+El sistema escribe una línea INFO por request a archivo *y* a consola, incluidos los sondeos del
+navbar cada 5–10 s por pestaña abierta. Con ~75 MB de margen, unas decenas de miles de requests
+diarias lo llenan en semanas; al superar el límite, kubelet **desaloja el pod**. Las dos réplicas se
+llenan al mismo ritmo, así que se desalojarían casi juntas.
+
+Por eso el dato 8 (reinicios y desalojos) es el que más falta: confirmaría si esto ya está pasando.
+El arreglo de fondo es nuestro —rotación real del log, el H-8 del análisis—; la mitigación inmediata
+es de configuración.
+
+### Redis: `noeviction` evita el logout silencioso, pero hay que confirmar `maxmemory`
+
+`noeviction` es **mejor** que lo que temíamos: Redis no expulsa sesiones. Pero cambia el modo de falla y
+deja una pregunta abierta:
+
+- **Si `maxmemory` no está fijado** (es el default de la imagen `redis:7.2`), la política nunca actúa:
+  Redis crece hasta chocar contra el límite de 512Mi del contenedor y **lo mata el sistema**. Ahí se
+  pierden sesiones y caché de golpe: todos los usuarios deslogueados a la vez.
+- **Si está fijado por debajo de 512Mi**, al llenarse fallan las escrituras: no se pueden crear sesiones
+  nuevas (nadie puede iniciar sesión) aunque las existentes sigan funcionando.
+
+Falta preguntar: si `maxmemory` está configurado y con qué valor, y cuánta memoria usa Redis hoy
+(`INFO memory`). Caché y sesiones comparten la misma base de Redis; separarlas para poder darles
+políticas distintas es un cambio nuestro, anotado como pendiente.
+
+### Bootstrap en cada réplica
+
+Sin `command`/`args`, **cada** pod corre migraciones, `collectstatic` y sembrado antes de atender. El
+despliegue escalonado normalmente los serializa, pero si las dos réplicas arrancan juntas (escalado
+desde cero, caída de un nodo) las migraciones corren en paralelo, que no es seguro. La receta limpia
+—initContainer con `args: ["bootstrap"]` y `RUN_MIGRATIONS=false` en el contenedor principal— ya está
+en `docker/k8s/README.md`. No es urgente; conviene resolverlo antes de subir réplicas.
+
+## Configuración propuesta para el Deployment web
+
+Cambios de configuración, sin tocar la imagen:
+
+```yaml
+replicas: 2          # se mantiene; se revisa con las métricas del punto 7
+resources:
+  requests:
+    cpu: "500m"              # antes 100m — reserva real, deja de ser la primera en ceder
+    memory: "400Mi"          # antes 200Mi
+    ephemeral-storage: "200Mi"
+  limits:
+    cpu: "2"                 # antes 500m — ES EL CAMBIO IMPORTANTE
+    memory: "1Gi"            # antes 800Mi — margen, y necesario si algún día se activa gunicorn
+    ephemeral-storage: "2Gi" # antes 100Mi — corta el riesgo de desalojo por logs
+```
+
+Sobre `limits.cpu: 2`: con Daphne el GIL topa el trabajo Python en un núcleo, así que el segundo núcleo
+no se desperdicia, absorbe TLS, hilos auxiliares y recolección de basura, que hoy compiten contra el
+render dentro del mismo medio núcleo.
+
+**No se propone gunicorn ni más réplicas todavía.** Con el techo corregido, cada réplica pasa de 0,5 a
+~1 núcleo útil: se duplica la capacidad sin tocar la arquitectura. Si las métricas del punto 7 muestran
+que sigue faltando, el paso siguiente son réplicas, y recién después gunicorn.
+
+## Qué falta pedirles
+
+- Los puntos **4, 6, 7 y 8** del mensaje original (ingress, base de datos, métricas y reinicios).
+- **`maxmemory` de Redis**: si está configurado, con qué valor, y el `INFO memory` actual.
+- Si Redis o los pods web tuvieron **OOMKilled o desalojos por almacenamiento efímero**.
+
 ## Estado
 
-**Enviado el 03/09/2026. Sin respuesta al momento de escribir esta nota.**
+**Enviado el 03/09/2026. Respuestas parciales el 04/09/2026** (puntos 1, 2, 3 y 5). Configuración
+propuesta pendiente de pasarles junto con las preguntas que faltan.

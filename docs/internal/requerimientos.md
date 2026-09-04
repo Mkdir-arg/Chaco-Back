@@ -6584,4 +6584,21 @@ es lo que este cambio ataca.
 traer `development` apareció otro Cambio 62 ya registrado en el tronco —el pie del paso 1 del link
 público—, así que esta entrada tomó el número siguiente, que es el que vale. El texto no cambió.
 
+**04/09/2026 — DevOps de ECOM respondió, y aparece una causa que no estaba en el análisis: el pod
+tiene `limits.cpu: 500m`.** Medio núcleo por réplica, con `requests` de apenas `100m`, sobre nodos de
+32 CPU. A ese techo, los ~950 ms de CPU que cuesta hoy verificar una contraseña se convierten en
+**~1,9 s de reloj** por el frenado del planificador (50 ms de cada 100 ms), y con Daphne en proceso
+único la capacidad total del sistema es **1 núcleo** (2 réplicas × 0,5). Es decir que en producción el
+H-1 y el H-2 del análisis se potencian con un límite que nosotros no veíamos.
+
+**Consecuencia para el plan: en ECOM el primer movimiento es subir `limits.cpu`, no las réplicas.**
+Corrige el síntoma en cada request y no cuesta capacidad —los `limits` no reservan nada—, mientras que
+sumar réplicas multiplica medios núcleos. La decisión anterior (réplicas antes que gunicorn) no cambia
+para lo que venga después. Se detectaron además dos riesgos de configuración que no son de este cambio
+pero sí de este ambiente: `limits.ephemeral-storage: 100Mi` con los logs escribiendo a la capa del
+contenedor (riesgo de desalojo del pod, emparentado con el H-8) y Redis con `noeviction` sin `maxmemory`
+confirmado (si no está fijado, el contenedor muere por memoria y caen todas las sesiones). El detalle,
+los datos crudos y la configuración propuesta están en
+[pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md).
+
 ---
