@@ -314,18 +314,18 @@ class Paso1FlujoTests(_BaseInscripcionTest):
 
 
 class PieDeContactoTests(_BaseInscripcionTest):
-    """El contacto del programa (Cambio 59) queda fuera del paso 1 y sigue en el resto."""
+    """En el paso 1 el pie muestra solo la casilla; el WhatsApp va del paso 2 en adelante."""
 
     CONTACTO = "consultasincentivojunvetud@gmail.com"
 
-    def test_paso1_no_muestra_el_contacto(self):
+    def test_paso1_muestra_la_casilla_pero_no_el_whatsapp(self):
         try:
             resp = self.client.get(self._url())
         except AttributeError as exc:
             _tolerar_render_local(exc)
             return
         self.assertTemplateUsed(resp, "portal/inscripcion/paso1.html")
-        self.assertNotContains(resp, self.CONTACTO)
+        self.assertContains(resp, self.CONTACTO)
         self.assertNotContains(resp, "3625153720")
 
     @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
