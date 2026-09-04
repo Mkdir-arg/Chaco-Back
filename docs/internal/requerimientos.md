@@ -205,6 +205,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 59 | El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de problemas técnicos» y «opción A que todavía no está abierto, opción B que está cerrado: que se vea un texto o el otro» | 31/08/2026 | 🟢 **Hecho** | No requiere |
 | 60 | El contacto del programa sale del paso 1 del link público | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «en la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720: eliminá esos datos; en la página 2 dejalos» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
+| 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -6222,6 +6223,10 @@ nuevo. No hay migraciones ni datos involucrados.
 No aplica: entrada nueva. Acota el alcance del Cambio 59 —que había puesto el pie en las seis
 pantallas del link—; esa entrada queda con su nota de historial fechada.
 
+**03/09/2026 — Media vuelta atrás, el mismo día:** el PM pidió que el pie **vuelva** al paso 1, pero
+solo con la casilla. Lo que sigue en pie de esta entrada es que el **WhatsApp** no se muestra ahí; la
+decisión de sacar la franja entera quedó sin efecto. Ver Cambio 62.
+
 ---
 
 # Cambio 61 — El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo
@@ -6306,5 +6311,89 @@ Revertir el commit: la constante vuelve a su texto largo con el teléfono.
 
 No aplica: entrada nueva. Cierra una parte del pendiente que dejó abierto el Cambio 59 (el teléfono
 viejo en el mensaje de rechazo del paso 1) y acompaña al Cambio 60, del mismo pedido en sesión.
+
+---
+
+# Cambio 62 — El paso 1 vuelve a mostrar el pie, pero solo con la casilla
+
+🟢 **HECHO — 03/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en la misma sesión, después de ver desplegado el Cambio 60 |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Pie del shell de inscripción · paso 1 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo
+> agregá el correo consultasincentivojunvetud@gmail.com.»
+
+## Alcance acordado
+
+- El **paso 1** vuelve a mostrar el pie completo —la casilla y la línea «Solo en caso de problemas
+  técnicos.»— **sin el WhatsApp**.
+- El **paso 2** y las otras cuatro pantallas del link siguen con la casilla **y** el WhatsApp, como
+  quedó en el Cambio 59.
+- **Afuera:** todo lo demás. En particular no se toca el mensaje de rechazo del Cambio 61, que sigue
+  sin contacto.
+
+## Decisiones tomadas
+
+- **Se revierte el mecanismo del Cambio 60, no se le agrega otra capa.** Aquel bloque `pie` —que el
+  paso 1 vaciaba entero— desaparece; en su lugar el pie es fijo otra vez y lo único opcional es el
+  WhatsApp, en un bloque `pie_whatsapp` que el paso 1 declara vacío. Así el mail no queda escrito en
+  dos plantillas: una sola línea del shell lo define para las seis pantallas.
+- **La línea «Solo en caso de problemas técnicos.» vuelve también al paso 1.** Es la aclaración de la
+  casilla; separarlas dejaría un contacto sin contexto, que es lo contrario de lo que pidió el Cambio 59.
+- **Queda una diferencia real entre el paso 1 y el resto:** solo esa pantalla oculta el WhatsApp. No es
+  un efecto colateral del mecanismo, es lo pedido; el test lo fija en las dos direcciones.
+
+## Implementación
+
+El pie del link vuelve a verse en las seis pantallas. En el paso 1 dice solo la casilla; del paso 2 en
+adelante, casilla y WhatsApp.
+
+## Archivos
+
+`portal/templates/portal/inscripcion/base_inscripcion.html` (el pie vuelve a ser fijo; el WhatsApp
+pasa a `{% block pie_whatsapp %}`) · `portal/templates/portal/inscripcion/paso1.html` (lo vacía) ·
+tests: `portal/tests/test_inscripcion.py` (`PieDeContactoTests`).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `PieDeContactoTests` actualizado: el paso 1 **contiene** la casilla y **no** el número; el paso 2
+  tiene los dos. Suite `portal.tests.test_inscripcion` 20/20 en verde. Vale la misma advertencia del
+  Cambio 60: en el venv local esos dos casos caen en `_tolerar_render_local` y afirman de verdad en CI.
+- Verificación local equivalente con `render_to_string` sobre las seis plantillas: `paso1` sale con
+  `<footer>` y con la casilla, sin el número; las otras cinco, con los dos datos.
+- `manage.py check` OK · `compile_templates.py` 331 plantillas, 0 errores ·
+  `design_audit.py --changed` 0 errores / 0 warnings.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración.
+
+## Pendientes / a definir
+
+- Sigue abierto el pendiente del Cambio 59 sobre el +54 362 430-0002 en las otras superficies, y el del
+  Cambio 61 sobre si el mensaje de rechazo del paso 1 tiene que desaparecer del todo.
+
+## Reversión
+
+Revertir el commit: el paso 1 vuelve a quedarse sin pie, como lo dejó el Cambio 60.
+
+## Historial
+
+No aplica: entrada nueva. Deja sin efecto la mitad del Cambio 60 —sacar el pie entero del paso 1— y
+conserva la otra mitad: el WhatsApp sigue sin mostrarse ahí. El Cambio 60 queda con su nota fechada.
 
 ---

@@ -187,15 +187,13 @@
             </div>
         </main>
 
-        {% comment %}El contacto del programa (Cambio 59) se muestra del paso 2 en adelante.
-        El paso 1 es la pantalla que ve cualquiera con solo abrir el link, y el PM pidió no
-        exponer ahí la casilla ni el WhatsApp: `paso1.html` deja este bloque vacío.{% endcomment %}
-        {% block pie %}
+        {% comment %}El pie va en las seis pantallas del link (Cambio 59), pero el WhatsApp
+        no se muestra en el paso 1: esa pantalla se abre con solo tener el link y ahí queda
+        la casilla sola. `paso1.html` vacía `pie_whatsapp` (Cambio 62).{% endcomment %}
         <footer class="di-panel-foot">
-            <p class="di-help"><a href="mailto:consultasincentivojunvetud@gmail.com">consultasincentivojunvetud@gmail.com</a> · WhatsApp 3625153720</p>
+            <p class="di-help"><a href="mailto:consultasincentivojunvetud@gmail.com">consultasincentivojunvetud@gmail.com</a>{% block pie_whatsapp %} · WhatsApp 3625153720{% endblock %}</p>
             <p class="di-copy">Solo en caso de problemas técnicos.</p>
         </footer>
-        {% endblock %}
     </div>
 
     {% comment %}El backoffice y el portal comparten dominio, y Django rota la cookie
