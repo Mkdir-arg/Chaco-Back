@@ -84,5 +84,30 @@ if [ "${APP_RUNTIME}" = "runserver" ]; then
   exec python manage.py runserver "${APP_BIND}:${APP_PORT}"
 fi
 
+if [ "${APP_RUNTIME}" = "gunicorn" ]; then
+  # HTTP en varios procesos WSGI para usar todos los nucleos: daphne es un solo
+  # proceso y el GIL lo limita a uno. Los websockets NO pasan por aca: los
+  # atiende otro contenedor/pod con daphne, y nginx o el ingress enrutan /ws/
+  # hacia el. Por eso WEBSOCKETS_ENABLED no se deduce y hay que declararla.
+  GUNICORN_WORKERS="${GUNICORN_WORKERS:-3}"
+  GUNICORN_THREADS="${GUNICORN_THREADS:-2}"
+  GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}"
+  GUNICORN_MAX_REQUESTS="${GUNICORN_MAX_REQUESTS:-1000}"
+  if [ -z "${WEBSOCKETS_ENABLED:-}" ]; then
+    echo "AVISO: con APP_RUNTIME=gunicorn el chat en vivo queda apagado salvo que exista"
+    echo "un servicio daphne para /ws/ y se defina WEBSOCKETS_ENABLED=True."
+  fi
+  echo "Bootstrap listo. Iniciando gunicorn (${GUNICORN_WORKERS} workers x ${GUNICORN_THREADS} hilos) en ${APP_BIND}:${APP_PORT}..."
+  exec gunicorn config.wsgi:application \
+    --bind "${APP_BIND}:${APP_PORT}" \
+    --workers "${GUNICORN_WORKERS}" \
+    --threads "${GUNICORN_THREADS}" \
+    --timeout "${GUNICORN_TIMEOUT}" \
+    --graceful-timeout 30 \
+    --max-requests "${GUNICORN_MAX_REQUESTS}" \
+    --max-requests-jitter 100 \
+    --log-file -
+fi
+
 echo "Bootstrap listo. Iniciando Daphne en ${APP_BIND}:${APP_PORT}..."
 exec daphne -b "${APP_BIND}" -p "${APP_PORT}" config.asgi:application
