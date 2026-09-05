@@ -207,7 +207,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
-| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟡 **Analizado — mock up entregado; propuesta de 86 h enviada al Ministerio (Versión 002); sin issue todavía** | No requiere (previsto) |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟡 **Analizado — análisis #366 `Definido`, tasks #367–#375 en Backlog (70 h); propuesta de 86 h enviada al Ministerio (Versión 002)** | No requiere (previsto) |
 
 **Notas del índice**
 
@@ -6606,7 +6606,7 @@ los datos crudos y la configuración propuesta están en
 
 # Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
 
-🟡 **ANALIZADO — 05/09/2026** · Mock up entregado · Propuesta de 86 h enviada al Ministerio por mail y sumada al alcance de la Versión 002 · Sin issue todavía (a la espera de la validación de Guido)
+🟡 **ANALIZADO — 05/09/2026** · Análisis #366 `Definido` · Mock up entregado · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Propuesta de 86 h enviada al Ministerio por mail y sumada al alcance de la Versión 002, a la espera de la validación de Guido
 
 | | |
 |---|---|
@@ -6614,7 +6614,7 @@ los datos crudos y la configuración propuesta están en
 | **Etiquetas** | `#ui` `#convocatorias` `#relevamientos` `#datos` |
 | **Solicitante** | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar; vamos a analizar cuántas horas consume y armemos un mock up; la idea es que tenga métricas generales, puedan filtrar sus convocatorias, relevamientos y data de formularios enviados, también se debe exportar» |
 | **Fecha del pedido** | 05/09/2026 |
-| **Issue / épica** | Sin issue. Mock up navegable: https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb |
+| **Issue / épica** | Análisis #366 (épica #69) · tasks #367–#375 · mock up: https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb |
 | **Partes afectadas** | Backoffice |
 | **Migración** | No requiere (previsto: sin modelos nuevos) |
 
@@ -6720,8 +6720,10 @@ Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `t
 
 ## Pendientes / a definir
 
-- Validación de Guido (Ministerio) del alcance y de las 86 h propuestas. Si aprueba, se abren épica → análisis → tasks
-  en GitHub (Backlog, Iteration 7).
+- Validación de Guido (Ministerio) del alcance y de las 86 h propuestas. El análisis y las tasks ya están creados en
+  Backlog: si el Ministerio pide recortar, se ajustan antes de que el PM las mueva a Ready.
+- Las tres asunciones del análisis #366 esperan confirmación: el nombre «Dashboard», si el bloque de respuestas entra
+  en esta etapa o después del Cambio 58, y si se muestran todas las preguntas de opciones cerradas o una selección.
 - Nombre de la solapa: «Dashboard» (como se pidió) o «Tablero».
 - Si el bloque «Respuestas de los formularios» entra ahora o después del Cambio 58.
 - Qué preguntas se muestran en «Respuestas»: todas las de tipo selector / sí-no / múltiple del programa, o una
