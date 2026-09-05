@@ -207,6 +207,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟡 **Analizado — mock up entregado; propuesta de 86 h enviada al Ministerio (Versión 002); sin issue todavía** | No requiere (previsto) |
 
 **Notas del índice**
 
@@ -6600,5 +6601,139 @@ contenedor (riesgo de desalojo del pod, emparentado con el H-8) y Redis con `noe
 confirmado (si no está fijado, el contenedor muere por memoria y caen todas las sesiones). El detalle,
 los datos crudos y la configuración propuesta están en
 [pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md).
+
+---
+
+# Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
+
+🟡 **ANALIZADO — 05/09/2026** · Mock up entregado · Propuesta de 86 h enviada al Ministerio por mail y sumada al alcance de la Versión 002 · Sin issue todavía (a la espera de la validación de Guido)
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración → detalle del programa (`/becas/config/programas/<pk>/`) |
+| **Etiquetas** | `#ui` `#convocatorias` `#relevamientos` `#datos` |
+| **Solicitante** | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar; vamos a analizar cuántas horas consume y armemos un mock up; la idea es que tenga métricas generales, puedan filtrar sus convocatorias, relevamientos y data de formularios enviados, también se debe exportar» |
+| **Fecha del pedido** | 05/09/2026 |
+| **Issue / épica** | Sin issue. Mock up navegable: https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere (previsto: sin modelos nuevos) |
+
+## Pedido original
+
+> «Vamos a armar un dashboard en el programa Becas, en `/becas/config/programas/1/`, al lado de Requisitos del programa
+> quiero agregar una solapa de dashboard. Tiene que ser a nivel visual y poder exportar. Vamos a analizar cuántas horas
+> consume y armemos un mock up. La idea es que tenga métricas generales, puedan filtrar sus convocatorias, relevamientos
+> y data de formularios enviados. También se debe exportar.»
+
+## Alcance acordado
+
+Propuesto en el mock up; queda a aprobación del PM:
+
+- **Tercera solapa «Dashboard»** en `programa_detail.html`, a la derecha de «Requisitos del programa». Las otras dos
+  solapas no cambian.
+- **Una fila de filtros** que alcanza a todos los bloques y a la exportación: período (últimos 30 / 90 días, este año,
+  todo, personalizado), segmento, convocatoria, relevamiento (dependiente de la convocatoria) y canal (territorial /
+  link público).
+- **Bloques:** seis indicadores (convocatorias activas, relevamientos en curso, formularios recibidos con variación
+  contra el período anterior, aprobados y tasa, cupo ocupado, lista de espera); formularios recibidos por semana;
+  estado de los formularios y canal de carga; avance por convocatoria (tabla con medidores de revisado y cupo);
+  relevamientos por estado; embudo de revisión; producción por territorial; **respuestas de los formularios** por
+  pregunta (selector, sí/no y selector múltiple); formularios por localidad.
+- **Exportación:** cada gráfico tiene vista de tabla y CSV propio; botón general «Exportar» con planilla XLSX de una
+  hoja por bloque, CSV de la tabla de convocatorias, CSV de respuestas, e imprimir / guardar PDF desde el navegador.
+  Todo respeta los filtros aplicados.
+- **Permisos:** `becas.reportes.ver` para ver la solapa y `becas.reportes.exportar` para exportar, con el alcance
+  visible del usuario (admin del programa, coordinador, coordinador regional), igual que el módulo de reportes.
+
+**Queda afuera:** PDF generado en el servidor (WeasyPrint u otro, sumaría una dependencia a la imagen de ECOM),
+comparativas entre programas, un tablero para el portal ciudadano.
+
+## Decisiones tomadas
+
+- **Se reutiliza el módulo de reportes, no se crea uno paralelo.** `programas/services/reportes_becas.py` ya calcula
+  avance por convocatoria, cupos, embudo y producción territorial, y `exportacion_reportes.py` ya escribe CSV/XLSX.
+  El dashboard es una vista agregada por programa de esos mismos datos; solo se agregan la serie semanal, las
+  localidades y las respuestas.
+- **Chart.js 4.4.6 ya vendorizado** (`static/vendor/chartjs/`) con carga diferida como hace `templates/inicio.html`.
+  Sin librerías nuevas.
+- **Totales cacheados 5 minutos** por (programa, filtros, alcance del usuario), con leyenda «Datos al …» y botón
+  «Actualizar ahora». Es la forma de que la solapa no cueste una consulta pesada por cada apertura.
+- **El cupo se mide sobre el total aprobado histórico**, no sobre el período filtrado: el cupo es del segmento y no
+  depende de la ventana de fechas. El mock up lo aclara en la tabla.
+- **Un solo color por serie de magnitud; colores de estado solo donde significan estado** (aprobado / rechazado /
+  baja). La paleta se validó para daltonismo con los tokens de Chaco (`#5059bc`, `#ff5a1f`, `#009966`, `#bf57c4`).
+- **Respuestas de los formularios detrás de una lectura única.** Hoy salen de `Formulario.data`
+  (`{"globales": {...}, "requisitos": {...}}`); con el Cambio 58 pasan a `respuestas` + `definicion`. Se implementa
+  contra una función de lectura para no rehacer el bloque cuando entre el constructor.
+- **«Avance por convocatoria» es una tabla, no un gráfico:** el usuario compara filas, y el canon del backoffice
+  prefiere tabla densa a cards repetidas.
+
+## Implementación
+
+Pendiente. Estimación entregada al PM el 05/09/2026, con el mismo criterio de horas que las 150 h del Cambio 58:
+
+| N.º | Bloque | Qué incluye | Horas |
+|---|---|---|---|
+| 1 | Servicio de métricas | Agregados por programa con filtros: indicadores, serie semanal, estados, embudo, avance por convocatoria, territoriales, localidades. Reusa `reportes_becas` y las funciones de alcance. | 10 |
+| 2 | Respuestas de los formularios | Catálogo de preguntas del programa (globales + requisitos) de tipo selector / sí-no / múltiple; distribución por opción sobre el JSON de respuestas; lectura única compatible con el Cambio 58. | 10 |
+| 3 | Vista y endpoint | Solapa en `programa_detail`, form de filtros validado, endpoint JSON para recalcular con filtros, permisos y alcance. | 5 |
+| 4 | Interfaz | Filtros, seis stat cards, siete gráficos Chart.js con tooltips, leyendas y vista de tabla, tabla de avance, estados vacíos, responsive, stat-card a CSS compartido, build de Tailwind, `design_audit` en 0. | 14 |
+| 5 | Exportación | XLSX de varias hojas (extiende `exportacion_reportes`), CSV por bloque, impresión / PDF con CSS de impresión. | 6 |
+| 6 | Performance | Caché de 5 minutos por filtros y alcance, índices si hacen falta, presupuesto de consultas en tests. | 4 |
+| 7 | Tests automáticos | Servicio (conteos con fixtures), permisos y alcance por rol, exportaciones, presupuesto de consultas. | 8 |
+| 8 | Análisis, QA y pruebas | Épica, análisis y tasks en GitHub; casos QA por task; plan de pruebas; pruebas manuales de los cinco roles. | 10 |
+| 9 | Puesta en marcha | Deploy a `test` y a producción de ECOM, registro y ajustes después de QA. | 3 |
+| | **Total técnico** | | **70** |
+
+Variantes técnicas: sin el bloque de respuestas de formularios (si se prefiere esperar al Cambio 58) baja a **56 h**; con
+PDF generado en el servidor sube unas **6 h** y agrega una dependencia a la imagen.
+
+**Propuesta enviada al Ministerio (05/09/2026, mail del PM a Guido):** **86 h** para el desarrollo completo, o **70 h**
+si el bloque de respuestas se posterga hasta terminar el constructor. La diferencia con el total técnico (16 h y 14 h)
+es gestión, reuniones de definición y coordinación, que el PM sumó al presentar. Es la cifra que figura en
+[docs/client/versiones/version-002.md](../client/versiones/version-002.md) como frente 7 de la Versión 002.
+
+## Archivos
+
+Previstos: `programas/services/dashboard_becas.py` (nuevo), `programas/forms_reportes.py` (form de filtros del
+dashboard), `programas/views/dashboard_becas.py` (nuevo) y `programas/urls.py`,
+`programas/templates/programas/becas/config/programa_detail.html` y `_dashboard_panel.html` (nuevo),
+`static/custom/css/` (stat-card compartida, hoy vive solo en `templates/inicio.html`),
+`static/custom/js/becas-dashboard.js` (nuevo), `programas/services/exportacion_reportes.py` (XLSX de varias hojas),
+tests en `programas/tests/`.
+
+## Base de datos
+
+No requiere modelos nuevos. Posible índice sobre `Formulario.creado` si el presupuesto de consultas de la serie
+semanal lo pide.
+
+## Validación
+
+Pendiente. Criterios: los totales de todos los bloques coinciden entre sí y con los reportes existentes para el mismo
+filtro; el CSV/XLSX respeta los filtros y devuelve lo mismo que la pantalla; coordinador y regional ven solo su
+alcance; sin capacidad `becas.reportes.ver` la solapa no aparece; `design_audit --changed` en 0 errores;
+presupuesto de consultas en el test de la vista.
+
+## Puesta en marcha en el servidor
+
+Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+
+## Pendientes / a definir
+
+- Validación de Guido (Ministerio) del alcance y de las 86 h propuestas. Si aprueba, se abren épica → análisis → tasks
+  en GitHub (Backlog, Iteration 7).
+- Nombre de la solapa: «Dashboard» (como se pidió) o «Tablero».
+- Si el bloque «Respuestas de los formularios» entra ahora o después del Cambio 58.
+- Qué preguntas se muestran en «Respuestas»: todas las de tipo selector / sí-no / múltiple del programa, o una
+  selección que haga el admin.
+
+## Reversión
+
+No aplica hasta implementar. La solapa se podrá ocultar quitando la capacidad, sin tocar datos.
+
+## Historial
+
+Entrada nueva. Antecedentes: el módulo de reportes de Becas (agosto de 2026: hub con cinco reportes y CSV/XLSX, que
+este dashboard reutiliza) y el Cambio 58 (constructor de formularios, que cambia el origen de las respuestas).
 
 ---

@@ -38,9 +38,10 @@
 | 4 | Remediación de interfaz del Programa Dispositivos | Media | En curso | A estimar |
 | 5 | Primera convocatoria con inscripción por link público — acompañamiento | Media | En curso | — |
 | 6 | Textos de los correos de credenciales — aprobación | Baja | Pendiente del Ministerio | — |
+| 7 | Dashboard del Programa Becas | Media | Propuesto — a validar por el Ministerio | 86 h *(propuestas)* |
 
 !!! note "Criterio de las horas"
-    El constructor de formularios se aprobó con un alcance de **270 h**, de las cuales **94 h 30 min** se ejecutaron dentro de la Versión 001: quedan **175 h 30 min** por ejecutar en esta versión. Los frentes marcados *A estimar* se cuantifican cuando se cierre su definición. El consumo real se registra, como siempre, en el [detalle por entregable](../financiero/detalle-tareas.md).
+    El constructor de formularios se aprobó con un alcance de **270 h**, de las cuales **94 h 30 min** se ejecutaron dentro de la Versión 001: quedan **175 h 30 min** por ejecutar en esta versión. El dashboard se presentó al Ministerio el 05/09/2026 con **86 h**; si el bloque de respuestas de los formularios se posterga hasta terminar el constructor, la propuesta baja a **70 h**. Los frentes marcados *A estimar* se cuantifican cuando se cierre su definición. El consumo real se registra, como siempre, en el [detalle por entregable](../financiero/detalle-tareas.md).
 
 ---
 
@@ -74,6 +75,18 @@ Acompañamiento de la apertura: configuración de la convocatoria y su padrón, 
 ### :material-email-check-outline: 6. Textos de los correos de credenciales
 
 Los correos de alta de usuario y de recuperación de contraseña están operativos; sus [textos siguen publicados](../funcionalidades/correos-credenciales.md) para revisión del Ministerio. Si piden ajustes, se editan sin cambiar el circuito.
+
+### :material-chart-box-outline: 7. Dashboard del Programa Becas
+
+Una nueva solapa **Dashboard** dentro de la configuración del programa, junto a *Requisitos del programa*, que concentra en una sola pantalla los indicadores de seguimiento y permite descargar la información. Propuesta enviada al Ministerio el 05/09/2026 con un [mock up navegable](https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb); queda a su validación.
+
+- **Filtros** por período, segmento, convocatoria, relevamiento y canal de carga (territorial o link público). Todos los indicadores, gráficos y descargas responden a los filtros aplicados.
+- **Indicadores principales:** convocatorias activas, relevamientos en curso, formularios recibidos y su variación respecto del período anterior, aprobados y tasa de aprobación, cupo ocupado y lista de espera.
+- **Gráficos:** formularios recibidos por semana, estado de los formularios, avance por convocatoria, relevamientos por estado, embudo de revisión, producción por territorial, respuestas de los formularios por pregunta y formularios por localidad.
+- **Exportación:** cada gráfico se puede ver como tabla y descargar en CSV; descarga general en Excel con una hoja por bloque; impresión o PDF del tablero completo.
+- **Permisos:** lo ven los mismos perfiles que hoy acceden a los reportes, cada uno dentro de su alcance.
+
+**Estimación:** 86 h para el desarrollo completo (análisis, desarrollo, pruebas automáticas, control de calidad y puesta en producción). Como alternativa, el bloque *Respuestas de los formularios* puede postergarse hasta finalizar el constructor de formularios, que cambia la forma en que se guardan las respuestas: en ese caso la propuesta queda en 70 h.
 
 ---
 
