@@ -498,7 +498,7 @@ class EndpointTests(DashboardBecasBase):
 
         self.assertEqual(respuesta.status_code, 200)
         cuerpo = respuesta.json()
-        self.assertEqual(set(cuerpo), {"datos", "desde_cache", "respuestas", "opciones", "filtros_aplicados"})
+        self.assertEqual(set(cuerpo), {"datos", "desde_cache", "respuestas", "opciones", "filtros_aplicados", "avisos"})
         self.assertEqual(cuerpo["datos"]["indicadores"]["formularios_recibidos"], 1)
         self.assertEqual(cuerpo["respuestas"]["clave"], f"global:{self.q_laboral.pk}")
         self.assertEqual(len(cuerpo["opciones"]["relevamientos"]), 2)
@@ -621,3 +621,79 @@ class ExportacionTests(DashboardBecasBase):
         pantalla = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
         self.assertContains(pantalla, 'id="tab-dashboard"')
         self.assertNotContains(pantalla, reverse("becas:programa_dashboard_exportar", args=[self.programa.pk, "xlsx"]))
+
+
+class DatosConFormasRarasTests(DashboardBecasBase):
+    """Filas viejas o de otros canales pueden traer el JSON con otra forma: no tiran el tablero."""
+
+    def test_respuesta_de_tolera_string_dicts_y_bolsas_invalidas(self):
+        self.assertEqual(svc.respuesta_de('{"globales": {"7": "Trabaja"}}', "global:7"), ["Trabaja"])
+        self.assertEqual(
+            svc.respuesta_de({"globales": {"7": {"valor": "Estudia", "etiqueta": "Estudia"}}}, "global:7"), ["Estudia"]
+        )
+        self.assertEqual(svc.respuesta_de({"globales": ["no", "es", "dict"]}, "global:7"), [])
+        self.assertEqual(svc.respuesta_de({"globales": {"7": [{"valor": "A"}, "B", {}]}}, "global:7"), ["A", "B"])
+        self.assertEqual(svc.respuesta_de("basura no json", "global:7"), [])
+        self.assertEqual(svc.respuesta_de(12, "global:7"), [])
+
+    def test_opciones_con_formas_viejas_se_normalizan(self):
+        self.assertEqual(svc._opciones_texto(["A", "B", "A", ""]), ["A", "B"])
+        self.assertEqual(svc._opciones_texto('["Sí", "No"]'), ["Sí", "No"])
+        self.assertEqual(svc._opciones_texto("Uno\nDos\n"), ["Uno", "Dos"])
+        self.assertEqual(svc._opciones_texto([{"valor": "x", "etiqueta": "Equis"}, {"value": "y"}]), ["Equis", "y"])
+        self.assertEqual(svc._opciones_texto({"a": "Alfa", "b": "Beta"}), ["Alfa", "Beta"])
+        self.assertEqual(svc._opciones_texto(None), [])
+        self.assertEqual(svc._opciones_texto(42), [])
+
+    def test_formularios_con_data_rara_no_rompen_las_respuestas(self):
+        dentro = HOY - timedelta(days=2)
+        q1 = str(self.q_laboral.pk)
+        self._formulario(self.rel_propio, creado=dentro, data={"globales": {q1: "Trabaja"}, "requisitos": {}})
+        self._formulario(self.rel_propio, creado=dentro, data='{"globales": {"%s": "Estudia"}}' % q1)
+        self._formulario(self.rel_propio, creado=dentro, data={"globales": [1, 2, 3], "requisitos": None})
+        self._formulario(self.rel_propio, creado=dentro, data=[])  # lista en vez de dict: forma inválida pero no nula
+        PreguntaGlobal.objects.filter(pk=self.q_transporte.pk).update(
+            opciones=[{"valor": "bus", "etiqueta": "Colectivo"}, "A pie"]
+        )
+
+        laboral = svc.distribucion_respuestas(self.admin, self.programa, VENTANA, f"global:{q1}")
+        self.assertEqual(laboral.base, 2)
+        transporte = next(
+            p
+            for p in svc.preguntas_graficables(self.admin, self.programa)
+            if p.clave == f"global:{self.q_transporte.pk}"
+        )
+        self.assertEqual(transporte.opciones, ["Colectivo", "A pie"])
+        datos = svc.metricas(self.admin, self.programa, VENTANA)
+        self.assertEqual(datos.indicadores.formularios_recibidos, 4)
+
+    def test_endpoint_degrada_si_falla_solo_la_pregunta(self):
+        from unittest import mock
+
+        self._formulario(self.rel_propio, creado=HOY - timedelta(days=1))
+        self.client.force_login(self.admin)
+        with mock.patch(
+            "programas.services.dashboard_becas.distribuciones_respuestas", side_effect=TypeError("unhashable")
+        ):
+            respuesta = self.client.get(
+                reverse("becas:programa_dashboard_datos", args=[self.programa.pk]) + "?periodo=90"
+            )
+        self.assertEqual(respuesta.status_code, 200)
+        cuerpo = respuesta.json()
+        self.assertEqual(cuerpo["datos"]["indicadores"]["formularios_recibidos"], 1)
+        self.assertIsNone(cuerpo["respuestas"])
+        self.assertEqual(len(cuerpo["avisos"]), 1)
+        self.assertIn("TypeError", cuerpo["avisos"][0])
+
+    def test_endpoint_informa_la_etapa_si_fallan_las_metricas(self):
+        from unittest import mock
+
+        self.client.force_login(self.admin)
+        with mock.patch("programas.services.dashboard_becas.metricas", side_effect=ValueError("boom")):
+            respuesta = self.client.get(
+                reverse("becas:programa_dashboard_datos", args=[self.programa.pk]) + "?periodo=90"
+            )
+        self.assertEqual(respuesta.status_code, 500)
+        self.assertIn("las métricas", respuesta.json()["errores"][0])
+        self.assertIn("ValueError", respuesta.json()["errores"][0])
+        self.assertNotIn("boom", respuesta.json()["errores"][0])

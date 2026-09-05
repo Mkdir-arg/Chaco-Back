@@ -146,6 +146,13 @@
     raiz.setAttribute('aria-busy', String(estado));
     $$('[data-dash-card], [data-dash="kpis"]').forEach((el) => el.classList.toggle('opacity-60', estado));
   }
+  function mostrarAviso(lista) {
+    const caja = $('[data-dash="aviso"]');
+    if (!caja) return;
+    const texto = (lista || []).join(' ');
+    caja.classList.toggle('hidden', !texto);
+    $('[data-dash="aviso-texto"]').textContent = texto;
+  }
   function mostrarError(texto) {
     const caja = $('[data-dash="error"]');
     caja.classList.toggle('hidden', !texto);
@@ -191,6 +198,7 @@
         return;
       }
       mostrarError('');
+      mostrarAviso(cuerpo.avisos);
       ultimo = cuerpo;
       sincronizarFiltros(cuerpo);
       pintar(cuerpo);
@@ -639,7 +647,8 @@
 
   function pintarRespuestas(respuestas) {
     if (!respuestas) {
-      subtitulo('respuestas', 'El programa no tiene preguntas de opciones cerradas.');
+      const conAviso = ultimo && ultimo.avisos && ultimo.avisos.length;
+      subtitulo('respuestas', conAviso ? 'No se pudo calcular esta pregunta; el resto del tablero es válido.' : 'El programa no tiene preguntas de opciones cerradas.');
       estadoVacio('respuestas', true);
       return;
     }

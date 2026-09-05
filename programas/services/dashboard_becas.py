@@ -568,7 +568,7 @@ def preguntas_graficables(user, programa):
             texto=p.texto,
             tipo=p.get_tipo_display(),
             origen="Pregunta general",
-            opciones=list(p.opciones or []),
+            opciones=_opciones_texto(p.opciones),
             multiple=p.tipo == TipoCampo.SELECTOR_MULTIPLE,
         )
         for p in PreguntaGlobal.objects.filter(activo=True, tipo__in=selectores).order_by("orden", "id")
@@ -587,12 +587,46 @@ def preguntas_graficables(user, programa):
             texto=r.texto,
             tipo=r.get_tipo_display(),
             origen=_origen_requisito(r),
-            opciones=list(r.opciones or []),
+            opciones=_opciones_texto(r.opciones),
             multiple=r.tipo == TipoCampo.SELECTOR_MULTIPLE,
         )
         for r in requisitos
     )
     return preguntas
+
+
+def _como_dict(valor):
+    """Un JSON que debería ser dict pero puede venir como string (doble codificado) o
+    con otra forma en filas viejas: nunca hay que romper por eso."""
+    if isinstance(valor, (str, bytes)):
+        try:
+            valor = json.loads(valor)
+        except (TypeError, ValueError):
+            return {}
+    return valor if isinstance(valor, dict) else {}
+
+
+def _opciones_texto(opciones):
+    """Las opciones de una pregunta como lista de strings, sea cual sea la forma
+    guardada: lista de strings (la actual), string JSON o con saltos de línea,
+    dict, o lista de objetos ``{valor, etiqueta}`` de versiones anteriores."""
+    if isinstance(opciones, (str, bytes)):
+        try:
+            opciones = json.loads(opciones)
+        except (TypeError, ValueError):
+            opciones = [linea.strip() for linea in str(opciones).splitlines() if linea.strip()]
+    if isinstance(opciones, dict):
+        opciones = list(opciones.values())
+    if not isinstance(opciones, (list, tuple)):
+        return []
+    salida = []
+    for opcion in opciones:
+        if isinstance(opcion, dict):
+            opcion = next((opcion[k] for k in ("etiqueta", "label", "texto", "valor", "value") if opcion.get(k)), "")
+        texto = str(opcion).strip()
+        if texto and texto not in salida:
+            salida.append(texto)
+    return salida
 
 
 def respuesta_de(data, clave):
@@ -603,16 +637,21 @@ def respuesta_de(data, clave):
     entre el constructor (#326) y las respuestas pasen a ``respuestas`` +
     ``definicion``, este es el único punto a tocar. Devuelve siempre una lista de
     strings: vacía si no respondió, de un elemento en selector simple, de N en
-    múltiple.
+    múltiple. Tolera filas con ``data`` como string, bolsas que no son dict y
+    valores con forma ``{valor, etiqueta}``: un dato raro no tira todo el tablero.
     """
     ambito, _, pk = clave.partition(":")
-    bolsa = (data or {}).get("globales" if ambito == "global" else "requisitos") or {}
+    bolsa = _como_dict(_como_dict(data).get("globales" if ambito == "global" else "requisitos"))
     valor = bolsa.get(str(pk))
-    if valor in (None, "", []):
-        return []
-    if isinstance(valor, (list, tuple)):
-        return [str(v) for v in valor if v not in (None, "")]
-    return [str(valor)]
+    valores = valor if isinstance(valor, (list, tuple)) else [valor]
+    salida = []
+    for v in valores:
+        if isinstance(v, dict):
+            v = next((v[k] for k in ("valor", "value", "etiqueta", "label") if v.get(k)), "")
+        if v in (None, "", [], {}):
+            continue
+        salida.append(str(v))
+    return salida
 
 
 def _armar_distribucion(pregunta, conteo, base):

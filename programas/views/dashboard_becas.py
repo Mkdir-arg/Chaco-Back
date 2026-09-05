@@ -8,9 +8,11 @@ descargar, evaluados sobre el programa Becas igual que en el módulo de reportes
 programa SIIS visible para el usuario (mismo criterio que la pantalla del programa).
 """
 
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponseBadRequest, HttpResponseServerError, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -22,6 +24,8 @@ from programas.models import ProgramaSiis
 from programas.services import dashboard_becas
 from programas.services.autorizacion import programa_becas
 from programas.services.exportacion_reportes import respuesta_libro, respuesta_reporte
+
+logger = logging.getLogger(__name__)
 
 CAP_VER = "becas.reportes.ver"
 CAP_EXPORTAR = "becas.reportes.exportar"
@@ -57,6 +61,12 @@ def _errores(form):
     return errores or ["Revisá los filtros ingresados."]
 
 
+def _mensaje_error(etapa, exc):
+    """Texto para la pantalla: qué etapa falló y el tipo de error, sin detalles internos.
+    El traceback completo va al log del servidor con ``logger.exception``."""
+    return f"No se pudieron calcular {etapa} ({type(exc).__name__}). El error quedó registrado en el servidor."
+
+
 @login_required
 @require_GET
 def programa_dashboard_datos(request, pk):
@@ -67,19 +77,31 @@ def programa_dashboard_datos(request, pk):
     if not form.is_valid():
         return JsonResponse({"errores": _errores(form)}, status=400)
     filtros = form.filtros()
-    datos, desde_cache = dashboard_becas.metricas_cacheadas(
-        request.user, programa, filtros, recalcular=request.GET.get("recalcular") == "1"
-    )
+    # Por etapas: si fallan las métricas no hay tablero (500 con la etapa); si falla
+    # solo la pregunta elegida, el tablero se muestra igual y la tarjeta avisa. En los
+    # dos casos el traceback queda en el log del servidor.
+    try:
+        datos, desde_cache = dashboard_becas.metricas_cacheadas(
+            request.user, programa, filtros, recalcular=request.GET.get("recalcular") == "1"
+        )
+    except Exception as exc:  # noqa: BLE001 — se registra y se informa la etapa
+        logger.exception("dashboard becas: fallo al calcular las métricas (programa=%s, filtros=%s)", pk, filtros)
+        return JsonResponse({"errores": [_mensaje_error("las métricas", exc)]}, status=500)
     clave = form.clave_pregunta()
-    respuestas = (
-        dashboard_becas.distribucion_respuestas(request.user, programa, filtros, clave).to_dict() if clave else None
-    )
+    respuestas, avisos = None, []
+    if clave:
+        try:
+            respuestas = dashboard_becas.distribucion_respuestas(request.user, programa, filtros, clave).to_dict()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("dashboard becas: fallo al calcular las respuestas (programa=%s, pregunta=%s)", pk, clave)
+            avisos.append(_mensaje_error("las respuestas de la pregunta elegida", exc))
     convocatoria = form.cleaned_data.get("convocatoria")
     return JsonResponse(
         {
             "datos": datos.to_dict(),
             "desde_cache": desde_cache,
             "respuestas": respuestas,
+            "avisos": avisos,
             "opciones": {"relevamientos": form.relevamientos_de(convocatoria)},
             # Lo que quedó aplicado después de limpiar selecciones inválidas (RN-5, RN-6).
             "filtros_aplicados": {
@@ -106,8 +128,12 @@ def programa_dashboard_exportar(request, pk, formato):
     if not form.is_valid():
         return HttpResponseBadRequest(" ".join(_errores(form)))
     filtros = form.filtros()
-    datos, _ = dashboard_becas.metricas_cacheadas(request.user, programa, filtros)
-    distribuciones = dashboard_becas.distribuciones_respuestas(request.user, programa, filtros)
+    try:
+        datos, _ = dashboard_becas.metricas_cacheadas(request.user, programa, filtros)
+        distribuciones = dashboard_becas.distribuciones_respuestas(request.user, programa, filtros)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("dashboard becas: fallo al exportar (programa=%s, formato=%s)", pk, formato)
+        return HttpResponseServerError(_mensaje_error("los datos para exportar", exc))
     bloques = dashboard_becas.bloques_exportacion(datos, distribuciones)
     nombre = f"becas_dashboard_{slugify(programa.nombre) or programa.pk}_{timezone.localdate():%Y-%m-%d}"
     if formato == "xlsx":
