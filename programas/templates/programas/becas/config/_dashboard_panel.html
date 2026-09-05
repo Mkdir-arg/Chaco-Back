@@ -1,0 +1,226 @@
+{% load static %}
+{% comment %}
+Solapa «Dashboard» del programa Becas (análisis 366, Cambio 64).
+
+Acá van solo los filtros y los contenedores: los números los pide
+static/custom/js/becas-dashboard.js al abrir la solapa (evento `becas-dashboard-abrir`),
+contra `becas:programa_dashboard_datos`, y los redibuja con cada cambio de filtro.
+Piezas canónicas del inventario de diseño: stat cards de convocatoria_detail, tabla
+densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
+{% endcomment %}
+<div id="becas-dashboard"
+     class="space-y-5"
+     data-url-datos="{% url 'becas:programa_dashboard_datos' programa.pk %}"
+     {% if puede_exportar_dashboard %}data-url-exportar="{% url 'becas:programa_dashboard_exportar' programa.pk 'FORMATO' %}"{% endif %}
+     data-chartjs="{% static 'vendor/chartjs/chart.umd.min.js' %}"
+     data-url-convocatoria="{% url 'becas:convocatoria_detalle' 0 %}"
+     x-data="{ menuExportar: false }">
+  <style>@media print { .dash-no-print { display: none !important; } }</style>
+
+  {# Introducción + acción principal (mismo patrón que las otras dos solapas) #}
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <p class="text-sm text-body-subtle max-w-lg">
+      Métricas del programa: convocatorias, relevamientos y formularios recibidos. Los filtros alcanzan a todos los bloques y a la exportación.
+    </p>
+    <div class="flex items-center gap-2 flex-wrap dash-no-print">
+      <span class="text-xs text-body-subtle inline-flex items-center gap-1.5" data-dash="calculado" title="Los totales se recalculan cada 5 minutos">
+        <i class="fas fa-clock" aria-hidden="true"></i> <span data-dash="calculado-texto">Sin calcular todavía</span>
+      </span>
+      <button type="button" class="btn-nodo btn-tertiary btn-sm" data-dash="recalcular" aria-label="Recalcular ahora">
+        <i class="fas fa-sync-alt" aria-hidden="true"></i> Actualizar
+      </button>
+      {% if puede_exportar_dashboard %}
+      <div class="relative" @keydown.escape.window="menuExportar=false" @click.outside="menuExportar=false">
+        <button type="button" class="btn-nodo btn-brand btn-sm flex items-center gap-1.5"
+                @click="menuExportar=!menuExportar" :aria-expanded="menuExportar" aria-haspopup="menu">
+          <i class="fas fa-download" aria-hidden="true"></i> Exportar <i class="fas fa-chevron-down text-xs" aria-hidden="true"></i>
+        </button>
+        <div x-show="menuExportar" x-cloak role="menu"
+             class="absolute right-0 mt-2 w-80 bg-white rounded-xl border border-base shadow-lg p-1.5 z-30">
+          <p class="px-3 py-2 text-xs text-body-subtle border-b border-light">La exportación respeta los filtros aplicados.</p>
+          <a role="menuitem" class="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold" href="#" data-dash-exportar="xlsx">
+            <i class="fas fa-file-excel text-fg-brand mt-0.5" aria-hidden="true"></i>
+            <span>Planilla completa (XLSX)<span class="block text-xs font-normal text-body-subtle">Una hoja por bloque: resumen, convocatorias, relevamientos, embudo, territoriales, respuestas, localidades</span></span>
+          </a>
+          <a role="menuitem" class="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold" href="#" data-dash-exportar="csv" data-bloque="convocatorias">
+            <i class="fas fa-table text-fg-brand mt-0.5" aria-hidden="true"></i>
+            <span>Avance por convocatoria (CSV)<span class="block text-xs font-normal text-body-subtle">La tabla tal como se ve</span></span>
+          </a>
+          <a role="menuitem" class="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold" href="#" data-dash-exportar="csv" data-bloque="respuestas">
+            <i class="fas fa-table text-fg-brand mt-0.5" aria-hidden="true"></i>
+            <span>Respuestas de los formularios (CSV)<span class="block text-xs font-normal text-body-subtle">Todas las preguntas: cantidad y porcentaje por opción</span></span>
+          </a>
+          <div class="border-t border-light my-1"></div>
+          <button role="menuitem" type="button" class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold text-left" data-dash="imprimir">
+            <i class="fas fa-print text-fg-brand mt-0.5" aria-hidden="true"></i>
+            <span>Imprimir o guardar como PDF<span class="block text-xs font-normal text-body-subtle">El tablero tal como está en pantalla</span></span>
+          </button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Fila única de filtros: alcanzan a todos los bloques (RN-4) #}
+  <form id="becas-dashboard-filtros" class="flex items-end gap-3 flex-wrap dash-no-print" role="search" x-data="{ periodo: '90' }" @submit.prevent>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="dash-periodo">Período</label>
+      <select id="dash-periodo" name="periodo" class="nodo-field" x-model="periodo">
+        {% for valor, etiqueta in dashboard_form.PERIODOS %}<option value="{{ valor }}"{% if valor == '90' %} selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+      </select>
+    </div>
+    <div x-show="periodo==='custom'" x-cloak class="flex items-end gap-2">
+      <div>
+        <label class="block text-sm font-medium text-heading mb-1" for="dash-desde">Desde</label>
+        <input id="dash-desde" type="date" name="desde" class="nodo-field">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-heading mb-1" for="dash-hasta">Hasta</label>
+        <input id="dash-hasta" type="date" name="hasta" class="nodo-field">
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="dash-segmento">Segmento</label>
+      <select id="dash-segmento" name="segmento" class="nodo-field">
+        <option value="">Todos</option>
+        {% for seg in dashboard_form.fields.segmento.queryset %}<option value="{{ seg.pk }}">{{ seg.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="dash-convocatoria">Convocatoria</label>
+      <select id="dash-convocatoria" name="convocatoria" class="nodo-field">
+        <option value="">Todas</option>
+        {% for conv in dashboard_form.fields.convocatoria.queryset %}<option value="{{ conv.pk }}" data-segmento="{{ conv.segmento_id }}">{{ conv.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="dash-relevamiento">Relevamiento</label>
+      <select id="dash-relevamiento" name="relevamiento" class="nodo-field" disabled title="Elegí una convocatoria para filtrar por relevamiento">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-heading mb-1" for="dash-canal">Canal</label>
+      <select id="dash-canal" name="canal" class="nodo-field">
+        {% for valor, etiqueta in dashboard_form.fields.canal.choices %}<option value="{{ valor }}">{% if valor == 'PUBLICO' %}Link público{% else %}{{ etiqueta }}{% endif %}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+
+  <p class="text-xs text-body-subtle" data-dash="alcance" aria-live="polite"></p>
+
+  <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm hidden" role="alert" data-dash="error">
+    <strong class="text-heading">No se pudo calcular el tablero</strong>
+    <p class="text-body mt-1" data-dash="error-texto"></p>
+  </div>
+
+  {# Indicadores: stat cards canónicas (convocatoria_detail.html) #}
+  <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3" data-dash="kpis" aria-busy="true">
+    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs text-body-subtle font-medium">Convocatorias activas</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-bullhorn text-xs" aria-hidden="true"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-heading"><span data-kpi="convocatorias_activas">—</span><span class="text-sm text-body-subtle font-semibold"> / <span data-kpi="convocatorias_total">—</span></span></p>
+      <p class="text-xs text-body-subtle mt-1" data-kpi="convocatorias_nota"></p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs text-body-subtle font-medium">Relevamientos en curso</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-map-marker-alt text-xs" aria-hidden="true"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-heading" data-kpi="relevamientos_en_curso">—</p>
+      <p class="text-xs text-body-subtle mt-1" data-kpi="relevamientos_nota"></p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs text-body-subtle font-medium">Formularios recibidos</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background: var(--gradient-brand)"><i class="fas fa-inbox text-xs" aria-hidden="true"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-heading flex items-baseline gap-2"><span data-kpi="formularios_recibidos">—</span><span class="text-xs font-bold" data-kpi="variacion"></span></p>
+      <p class="text-xs text-body-subtle mt-1" data-kpi="formularios_nota"></p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs text-body-subtle font-medium">Aprobados</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-success-soft text-fg-success"><i class="fas fa-check-circle text-xs" aria-hidden="true"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-heading" data-kpi="aprobados">—</p>
+      <p class="text-xs text-body-subtle mt-1" data-kpi="aprobados_nota"></p>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs text-body-subtle font-medium">Cupo ocupado</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-soft text-fg-brand"><i class="fas fa-th-large text-xs" aria-hidden="true"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-heading"><span data-kpi="cupo_pct">—</span><span class="text-sm text-body-subtle font-semibold"> %</span></p>
+      <p class="text-xs text-body-subtle mt-1" data-kpi="cupo_nota"></p>
+      <div class="mt-2 h-2 rounded-full bg-brand-soft overflow-hidden" role="img" aria-label="Ocupación del cupo"><div class="h-full rounded-full" data-kpi="cupo_barra" style="width:0%; background: var(--text-fg-brand)"></div></div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs text-body-subtle font-medium">Lista de espera</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-warning-soft text-fg-warning"><i class="fas fa-hourglass-half text-xs" aria-hidden="true"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-heading" data-kpi="lista_espera">—</p>
+      <p class="text-xs text-body-subtle mt-1" data-kpi="espera_nota"></p>
+    </div>
+  </div>
+
+  {# Bloques #}
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+    {% include "programas/becas/config/_dashboard_card.html" with bloque="semanas" titulo="Formularios recibidos por semana" ancho="xl:col-span-8" alto="h-64" %}
+    {% include "programas/becas/config/_dashboard_card.html" with bloque="estados" titulo="Estado de los formularios" ancho="xl:col-span-4" alto="h-64" %}
+
+    <section class="xl:col-span-12 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-convocatorias" data-dash-card="convocatorias">
+      <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light">
+        <div>
+          <h3 id="dash-titulo-convocatorias" class="text-heading font-bold" style="font-size:16px">Avance por convocatoria</h3>
+          <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="convocatorias">El cupo se mide sobre el total aprobado del segmento, sin filtro de período.</p>
+        </div>
+        {% if puede_exportar_dashboard %}
+        <a href="#" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary dash-no-print" data-dash-exportar="csv" data-bloque="convocatorias" aria-label="Descargar avance por convocatoria en CSV"><i class="fas fa-download" aria-hidden="true"></i></a>
+        {% endif %}
+      </div>
+      <div class="overflow-x-auto" data-dash-tabla="convocatorias"></div>
+      <div class="py-12 px-6 text-center flex flex-col items-center gap-3 hidden" data-dash-vacio="convocatorias">
+        <div class="text-fg-brand"><i class="fas fa-bullhorn text-4xl" aria-hidden="true"></i></div>
+        <p class="text-[17px] font-bold text-heading">Sin convocatorias</p>
+        <p class="text-sm text-body max-w-xs">No hay convocatorias en el alcance elegido.</p>
+      </div>
+    </section>
+
+    {% include "programas/becas/config/_dashboard_card.html" with bloque="relevamientos" titulo="Relevamientos por estado" ancho="xl:col-span-4" alto="h-56" %}
+    {% include "programas/becas/config/_dashboard_card.html" with bloque="embudo" titulo="Embudo de revisión" ancho="xl:col-span-4" alto="h-56" %}
+    {% include "programas/becas/config/_dashboard_card.html" with bloque="territoriales" titulo="Producción por territorial" ancho="xl:col-span-4" alto="h-56" %}
+
+    <section class="xl:col-span-8 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-respuestas" data-dash-card="respuestas">
+      <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light flex-wrap">
+        <div class="min-w-0">
+          <h3 id="dash-titulo-respuestas" class="text-heading font-bold" style="font-size:16px">Respuestas de los formularios</h3>
+          <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="respuestas"></p>
+        </div>
+        <div class="flex items-center gap-1 dash-no-print">
+          <label class="sr-only" for="dash-pregunta">Pregunta</label>
+          <select id="dash-pregunta" name="pregunta" form="becas-dashboard-filtros" class="nodo-field text-sm" style="max-width:280px">
+            {% for p in dashboard_form.preguntas %}<option value="{{ p.clave }}">{{ p.texto }}</option>{% empty %}<option value="">Sin preguntas de opciones cerradas</option>{% endfor %}
+          </select>
+          <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-toggle="respuestas" aria-pressed="false" aria-label="Ver como tabla"><i class="fas fa-table" aria-hidden="true"></i></button>
+          {% if puede_exportar_dashboard %}<a href="#" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-exportar="csv" data-bloque="respuestas" aria-label="Descargar respuestas en CSV"><i class="fas fa-download" aria-hidden="true"></i></a>{% endif %}
+        </div>
+      </div>
+      <div class="p-5">
+        <div class="relative h-56" data-dash-grafico="respuestas"><canvas aria-label="Respuestas de los formularios" role="img"></canvas></div>
+        <div class="overflow-x-auto hidden" data-dash-tabla="respuestas"></div>
+        <div class="py-10 px-6 text-center flex flex-col items-center gap-3 hidden" data-dash-vacio="respuestas">
+          <div class="text-fg-brand"><i class="fas fa-poll-h text-4xl" aria-hidden="true"></i></div>
+          <p class="text-[17px] font-bold text-heading">Sin respuestas</p>
+          <p class="text-sm text-body max-w-xs">No hay formularios con esta pregunta respondida en el alcance elegido.</p>
+        </div>
+      </div>
+    </section>
+
+    {% include "programas/becas/config/_dashboard_card.html" with bloque="localidades" titulo="Formularios por localidad" ancho="xl:col-span-4" alto="h-56" %}
+  </div>
+</div>

@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load static %}
 {% load becas_extras %}
 {% load rbac %}
 {% block title %}Becas · {{ programa.nombre }}{% endblock %}
@@ -7,7 +8,7 @@
 <style>[x-cloak]{display:none!important}</style>
 <div class="space-y-5"
      x-data="{
-       tab: 'segs',
+       tab: new URLSearchParams(window.location.search).get('tab') || 'segs',
        modalInfo: false,
        info: {},
        modalSeg: false,
@@ -95,7 +96,7 @@
 
   {# Pestañas #}
   <div class="bg-white rounded-xl border border-base shadow-sm">
-    <div class="border-b border-base flex gap-1 px-2">
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap">
       <button @click="tab='segs'" type="button"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='segs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
@@ -108,6 +109,13 @@
         <i class="fas fa-clipboard-list"></i> Requisitos del programa
         <span class="badge badge-gray ml-0.5">{{ requisitos|length }}</span>
       </button>
+      {% if puede_dashboard %}
+      <button id="tab-dashboard" @click="tab='dash'; $dispatch('becas-dashboard-abrir')" type="button"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='dash' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-chart-bar"></i> Dashboard
+      </button>
+      {% endif %}
     </div>
 
     {# ============ TAB: Segmentos ============ #}
@@ -190,6 +198,13 @@
         {% include "programas/becas/config/_requisitos_programa_panel.html" %}
       </div>
     </div>
+
+    {# ============ TAB: Dashboard (análisis 366) ============ #}
+    {% if puede_dashboard %}
+    <div x-show="tab==='dash'" x-cloak class="p-6">
+      {% include "programas/becas/config/_dashboard_panel.html" %}
+    </div>
+    {% endif %}
   </div>
 
   {# ============ Modal: Nuevo segmento ============ #}
@@ -405,4 +420,5 @@
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}
-{% include "programas/becas/config/_tipo_selector_js.html" %}{% endblock %}
+{% include "programas/becas/config/_tipo_selector_js.html" %}
+{% if puede_dashboard %}<script src="{% static 'custom/js/becas-dashboard.js' %}" defer></script>{% endif %}{% endblock %}
