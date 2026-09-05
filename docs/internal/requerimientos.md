@@ -207,7 +207,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
-| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (releases 43ffddf y 55d842e); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (releases 43ffddf, 55d842e y fc740b8); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
 
 **Notas del índice**
 
@@ -6749,7 +6749,15 @@ Pendiente: QA funcional por rol (#374) y contraste de un mismo recorte contra el
 y después `main` (release 43ffddf, producción, avance directo 17dc060..43ffddf). Sin migraciones ni variables nuevas; el mismo
 push llevó el Cambio 63 (Argon2 + gunicorn opcional), que no se había espejado. La pasada de legibilidad (PR #377, squash ef284bc) se
 desplegó el mismo día: release 55d842e a `test` (merge e7732b8) y a `main` (avance directo 43ffddf..55d842e), también sin
-migraciones ni dependencias nuevas. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+migraciones ni dependencias nuevas.
+
+**Incidente en producción (05/09/2026, misma noche):** con 4.000 inscriptos la solapa quedaba vacía («Sin calcular
+todavía», indicadores en guion, sin alerta). Causa más probable: la serie semanal usaba `TruncWeek` sobre un
+`DateTimeField` con `USE_TZ`, que en MySQL se traduce a `CONVERT_TZ`; sin tablas de zona horaria en el servidor devuelve
+NULL y Django corta con «Database returned an invalid datetime value» (SQLite y los tests no lo reproducen). Corrección
+PR #378 (squash f866d05, release fc740b8): las semanas se agrupan en Python, y el JS muestra «Calculando…», cancela a
+los 60 s y expone toda falla en la alerta inline con `console.error`. Espejado a `test` (merge dffce4d) y a `main`
+(55d842e..fc740b8). La causa queda por confirmar contra el comportamiento real en producción después del despliegue. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
 El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
 `relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
 Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
