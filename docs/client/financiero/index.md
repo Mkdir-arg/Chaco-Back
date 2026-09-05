@@ -14,8 +14,8 @@
     ---
 
     :material-wallet-outline: Presupuesto: **700 horas**<br>
-    :material-clock-check-outline: Consumido: **76 h 30 min** (11%) — al 02/09<br>
-    :material-check-circle-outline: Saldo: **623 h 30 min** disponibles<br>
+    :material-clock-check-outline: Consumido: **267 h 30 min** (38%) — al 05/09<br>
+    :material-check-circle-outline: Saldo: **432 h 30 min** disponibles<br>
     :material-swap-horizontal: Incluye el traslado del excedente de agosto
 
     **Estado:** :material-circle:{ style="color: #3b82f6" } En curso
@@ -36,8 +36,8 @@
 
     :material-wallet-outline: Presupuesto: **700 horas**  
     :material-clock-check-outline: Imputado: **700 horas** (100%)  
-    :material-progress-clock: Esfuerzo real: **776 h 30 min**  
-    :material-swap-horizontal: Trasladado a septiembre: **76 h 30 min**
+    :material-progress-clock: Esfuerzo real: **803 h 30 min**  
+    :material-swap-horizontal: Trasladado a septiembre: **103 h 30 min**
 
     **Estado:** :material-circle:{ style="color: #10b981" } Cerrado al 100% del presupuesto
 

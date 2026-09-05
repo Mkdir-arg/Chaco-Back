@@ -571,9 +571,9 @@
 ### :material-package-variant-closed: Consumo del 31 de agosto — por entregable
 
 !!! note "Última jornada del mes"
-    El 31/08 registra la jornada del PM sobre el constructor de formularios: revisión por fases, las
-    mejoras del día y el despliegue al entorno de pruebas del equipo. El desarrollo del constructor
-    **continúa** en septiembre.
+    El 31/08 combina la jornada del PM sobre el constructor de formularios (revisión por fases, mejoras
+    del día y despliegue al entorno de pruebas) con la preparación de la salida a producción del link
+    público, que abrió al día siguiente. El desarrollo del constructor **continúa** en septiembre.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -584,19 +584,110 @@
 | 31/08 | Matías Fariña | Becas | Selector múltiple apilado con estilo del sistema | Las opciones múltiples del formulario público dejan de verse crudas; la vista previa del constructor refleja el mismo estilo. | 0,5 h | 3 h |
 | 31/08 | Matías Fariña | Becas | Despliegue a producción del padrón con herencia y las mejoras del día | Respaldo de la base, actualización con la migración del padrón, verificación del servicio y del código publicado. | 0,5 h | 2 h |
 | 31/08 | Matías Fariña | Transversal | Recalculo de horas e informe de avance al cliente | Recalculo del consumo del desarrollo y redacción del informe detallado de funcionalidades, estado, próximos pasos y horas. | 1 h | — |
-| | | | **Total 31/08** | | **6,5 h** | **31 h** |
+| 31/08 | Matías Fariña | Becas | Cambio 59 — el link muestra el contacto del programa | El pie del link publica la casilla de consultas y la pantalla de no disponible distingue si el relevamiento todavía no abrió. | 1,5 h | 3 h |
+| 31/08 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 31/08 | Pablo Cao | Becas | Frontend del link y preparación de la salida a producción | Contacto del programa y estados de disponibilidad en las pantallas del link, y preparación del paquete que sale al entorno del organismo. | 7 h | 12 h |
+| 31/08 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 31/08 | Juani Portilla | Becas | Cobertura automatizada de los textos y estados del link | Pruebas automáticas del pie del link y de la pantalla de no disponible. | 3 h | 6 h |
+| 31/08 | Juani Portilla | Transversal | Verificación del release y del pipeline | Comprobación de la publicación y de los controles automáticos antes de la salida. | 4 h | — |
+| 31/08 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 31/08 | Matías Abate | Becas | Pruebas funcionales previas a la salida a producción | Recorrido del link completo antes de publicarlo en el entorno del organismo. | 5 h | — |
+| 31/08 | Matías Abate | Becas | Casos de prueba de la inscripción pública | Diseño de los casos de la apertura de la inscripción. | 2 h | — |
+| 31/08 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 31/08** | | **33,5 h** | **52 h** |
 
 ### :material-briefcase-outline: Esfuerzo real de agosto por programa
 
 | Programa | Horas agosto |
 |---|---:|
-| Becas | 466 h 00 min |
+| Becas | 484 h 30 min |
 | Dispositivos | 140 h 30 min |
-| Transversal | 170 h 00 min |
-| **Esfuerzo real de agosto 2026** | **776 h 30 min** |
+| Transversal | 178 h 30 min |
+| **Esfuerzo real de agosto 2026** | **803 h 30 min** |
 
 !!! abstract "Imputación de agosto"
-    Agosto se **imputa por 700 h** (el 100% de su presupuesto) y las **76 h 30 min** restantes se **trasladan a septiembre 2026**. Las horas de arriba son el esfuerzo real ejecutado: el traslado es de imputación, no de registro.
+    Agosto se **imputa por 700 h** (el 100% de su presupuesto) y las **103 h 30 min** restantes se **trasladan a septiembre 2026**. Las horas de arriba son el esfuerzo real ejecutado: el traslado es de imputación, no de registro.
+
+### :material-package-variant-closed: Consumo del 1 al 5 de septiembre — por entregable
+
+!!! note "Semana de la apertura de la inscripción"
+    El martes 1 abrió la inscripción por link público en el entorno del organismo. La semana combina el
+    acompañamiento de esa apertura, los ajustes de texto que fue pidiendo el programa, el avance del
+    **constructor de formularios** y el análisis de la versión 2 del Programa Dispositivos.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 01/09 | Matías Fariña | Becas | Acompañamiento de la apertura de la inscripción | Seguimiento de la apertura del link en producción y de los primeros casos que ingresan. | 4 h | — |
+| 01/09 | Matías Fariña | Becas | Configuración de medición del link | Medición de uso en las pantallas de la inscripción. | 1,5 h | — |
+| 01/09 | Matías Fariña | Transversal | Coordinación y atención de consultas del organismo | Coordinación del equipo durante la apertura y respuesta a las consultas del organismo. | 2 h | — |
+| 01/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 01/09 | Pablo Cao | Becas | Soporte de la apertura y ajustes sobre el link publicado | Verificación del flujo en producción y ajustes emergentes durante la apertura. | 7 h | — |
+| 01/09 | Pablo Cao | Becas | Constructor de formularios — desarrollo | Avance del armado del formulario por convocatoria. En desarrollo. | 2,5 h | 5 h |
+| 01/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 01/09 | Juani Portilla | Becas | Monitoreo del sistema con la inscripción abierta | Seguimiento del comportamiento del sistema durante la apertura y cobertura de los ajustes del día. | 7 h | — |
+| 01/09 | Juani Portilla | Becas | Constructor de formularios — cobertura automatizada | Pruebas automáticas del avance del constructor. En desarrollo. | 2,5 h | 5 h |
+| 01/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 01/09 | Matías Abate | Becas | Pruebas de la inscripción en producción y reporte de hallazgos | Recorrido con casos reales sobre el link abierto y reporte de lo encontrado. | 7 h | — |
+| 01/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/09 | Matías Fariña | Transversal | Cierre contable de agosto y método de cierre de mes | Cierre del mes en las páginas de seguimiento y definición del procedimiento de cierre para los meses siguientes. | 1,5 h | — |
+| 02/09 | Matías Fariña | Transversal | Informe ejecutivo de cierre de agosto | Redacción del informe de cierre del mes y su ajuste posterior. | 1,5 h | — |
+| 02/09 | Matías Fariña | Becas | Constructor de formularios — definiciones y revisión | Definiciones funcionales del constructor y revisión del avance. En desarrollo. | 3 h | — |
+| 02/09 | Matías Fariña | Transversal | Coordinación del equipo, reunión diaria e informe | Priorización del día, reunión diaria de seguimiento e informe. | 3 h | — |
+| 02/09 | Pablo Cao | Becas | Constructor: coherencia entre el catálogo y el formulario servido | El formulario que se sirve sigue al catálogo vivo, sin desincronizarse. En desarrollo. | 9,5 h | 18 h |
+| 02/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/09 | Juani Portilla | Transversal | Análisis de rendimiento: demora del acceso al sistema | Relevamiento de por qué el ingreso al sistema tarda más de lo esperado. | 7 h | — |
+| 02/09 | Juani Portilla | Becas | Constructor de formularios — cobertura automatizada | Pruebas automáticas del avance del constructor. En desarrollo. | 2,5 h | 5 h |
+| 02/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/09 | Matías Abate | Becas | Pruebas funcionales del flujo público con la inscripción abierta | Recorrido del circuito completo con la inscripción en operación. | 6 h | — |
+| 02/09 | Matías Abate | Dispositivos | Análisis del Programa Dispositivos — versión 2 | Relevamiento funcional de la segunda versión del programa. | 3 h | — |
+| 02/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/09 | Matías Fariña | Becas | Cambios 60 y 61 — definición de los textos del link | Sacar el contacto del primer paso y el teléfono del mensaje de rechazo. | 1 h | — |
+| 03/09 | Matías Fariña | Transversal | Cierre de la Versión 001 | Auditoría de los diez hitos, informe de cierre y puesta al día de las páginas de seguimiento. | 2 h | — |
+| 03/09 | Matías Fariña | Transversal | Apertura de la Versión 002 | Alcance, frentes y publicación de la versión nueva. | 0,5 h | — |
+| 03/09 | Matías Fariña | Becas | Constructor de formularios — revisión de avance | Revisión funcional del avance del constructor. En desarrollo. | 2 h | — |
+| 03/09 | Matías Fariña | Transversal | Revisión funcional, gestión del tablero y reunión diaria | Revisión de los cambios publicados, gestión del tablero, reunión diaria e informe. | 3,5 h | — |
+| 03/09 | Pablo Cao | Becas | Cambios 60 y 61 — implementación con pruebas | Ajuste de los textos del link en producción, con su cobertura. | 2 h | 4 h |
+| 03/09 | Pablo Cao | Becas | Constructor de formularios — desarrollo | Avance del armado del formulario por convocatoria. En desarrollo. | 7 h | 14 h |
+| 03/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/09 | Juani Portilla | Transversal | Acceso al sistema más rápido y arranque con varios procesos | Cambio del método de resguardo de contraseñas y modo de ejecución con varios procesos, con su revisión. | 5 h | 12 h |
+| 03/09 | Juani Portilla | Transversal | Pedido de datos a la infraestructura del organismo | Consulta sobre los recursos del entorno y decisión de arquitectura por ambiente. | 1,5 h | — |
+| 03/09 | Juani Portilla | Becas | Constructor de formularios — cobertura automatizada | Pruebas automáticas del avance del constructor. En desarrollo. | 2 h | 4 h |
+| 03/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/09 | Matías Abate | Becas | Pruebas de los cambios publicados y casos de prueba | Verificación de los ajustes del link en producción y diseño de los casos del período. | 6 h | — |
+| 03/09 | Matías Abate | Dispositivos | Análisis del Programa Dispositivos — versión 2 | Relevamiento funcional de la segunda versión del programa. | 3 h | — |
+| 03/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/09 | Matías Fariña | Becas | Publicación a producción del organismo | Espejo del paquete de cambios del link al repositorio del organismo. | 1 h | — |
+| 04/09 | Matías Fariña | Transversal | Análisis de las respuestas de la infraestructura del organismo | Lectura de los datos sobre los recursos del entorno y su impacto en la ejecución. | 1 h | — |
+| 04/09 | Matías Fariña | Becas | Constructor de formularios — definiciones y revisión | Definiciones funcionales del constructor y revisión del avance. En desarrollo. | 3 h | — |
+| 04/09 | Matías Fariña | Transversal | Coordinación, gestión del tablero y reunión diaria | Coordinación del equipo, gestión del tablero, reunión diaria e informe. | 4 h | — |
+| 04/09 | Pablo Cao | Becas | Cambio 62 — el primer paso vuelve a mostrar el pie | El paso 1 muestra la casilla de consultas, con su cobertura. | 1 h | 2 h |
+| 04/09 | Pablo Cao | Becas | Constructor: la definición sigue al catálogo y el caso fija su formulario | El formulario servido acompaña al catálogo y cada inscripción fija la versión que respondió. En desarrollo. | 7 h | 14 h |
+| 04/09 | Pablo Cao | Transversal | Integración de la rama de rendimiento | Incorporación del trabajo de rendimiento a la línea principal. | 1,5 h | — |
+| 04/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/09 | Juani Portilla | Becas | Constructor y portal — cobertura automatizada | Pruebas automáticas del constructor y del formulario público. En desarrollo. | 6,5 h | 13 h |
+| 04/09 | Juani Portilla | Transversal | Verificación del comportamiento con los recursos del entorno | Comprobación del sistema con los límites de procesamiento informados por el organismo. | 3 h | — |
+| 04/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/09 | Matías Abate | Becas | Pruebas de la versión publicada y regresión del flujo público | Verificación de lo publicado y recorrido completo del circuito de inscripción. | 6 h | — |
+| 04/09 | Matías Abate | Dispositivos | Análisis del Programa Dispositivos — versión 2 | Relevamiento funcional de la segunda versión del programa. | 3 h | — |
+| 04/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/09 | Matías Fariña | Becas | Dashboard del Programa Becas — propuesta y mock up | Propuesta funcional del tablero del programa, boceto navegable y alta en la Versión 002. | 2,5 h | — |
+| 05/09 | Matías Fariña | Becas | Dashboard del Programa Becas — análisis y tareas derivadas | Análisis funcional con sus nueve tareas ejecutables y su estimación. | 3 h | — |
+| 05/09 | Matías Fariña | Becas | Constructor de formularios — revisión de avance | Revisión funcional del avance del constructor. En desarrollo. | 1,5 h | — |
+| 05/09 | Matías Fariña | Transversal | Registro del consumo de la semana | Reconstrucción y carga del consumo del 31/08 al 05/09. | 0,5 h | — |
+| | | | **Total 1 al 5/09** | | **164 h** | **96 h** |
+
+### :material-briefcase-outline: Consumo de septiembre por programa
+
+| Programa | Horas septiembre |
+|---|---:|
+| Becas | 207 h 30 min |
+| Transversal | 51 h 00 min |
+| Dispositivos | 9 h 00 min |
+| **Total septiembre 2026 (al 05/09)** | **267 h 30 min** |
+
+!!! note "Qué incluye"
+    Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
+    en las secciones de ese mes. El trabajo propio de septiembre al 05/09 es de **164 h**.
 
 ---
 
@@ -626,11 +717,11 @@
 
 
 
-    **106.542 minutos** (1.775 h 42 min)
+    **116.382 minutos** (1.939 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 776 h 30 min.
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 164 h 00 min (al 05/09).
 
-    Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 76 h 30 min de
+    Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
     excedente quedan imputadas a septiembre 2026.
 
 

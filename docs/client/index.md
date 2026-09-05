@@ -34,7 +34,7 @@ hide:
 
     ---
 
-    **Septiembre 2026 (en curso):** 76h 30min consumidas de 700h (11%)
+    **Septiembre 2026 (en curso):** 267h 30min consumidas de 700h (38%)
 
     **Agosto 2026 (cerrado):** 700h de 700h (100%) — presupuesto completo
 
@@ -48,7 +48,7 @@ hide:
 
     ---
 
-    **2 de septiembre 2026**
+    **5 de septiembre 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 
