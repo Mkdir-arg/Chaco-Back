@@ -25,7 +25,6 @@ from datetime import date, datetime, time, timedelta
 
 from django.core.cache import cache
 from django.db.models import Count, OuterRef, Q, Subquery, Sum
-from django.db.models.functions import TruncWeek
 from django.utils import timezone
 
 from programas.models import (
@@ -214,9 +213,18 @@ def _lunes(fecha):
 # ---------------------------------------------------------------------------
 def _serie_semanal(formularios, filtros):
     """Formularios por semana (lunes a domingo). Rellena las semanas vacías para que
-    el gráfico no salte fechas (RN-7)."""
-    filas = formularios.annotate(semana=TruncWeek("creado")).values("semana").annotate(total=Count("pk"))
-    por_semana = {_lunes(_fecha_local(f["semana"])): f["total"] for f in filas if f["semana"] is not None}
+    el gráfico no salte fechas (RN-7).
+
+    Se agrupa en Python y no con ``TruncWeek``: sobre un ``DateTimeField`` con
+    ``USE_TZ`` Django traduce el truncado a ``CONVERT_TZ`` en MySQL, y si el servidor
+    no tiene cargadas las tablas de zona horaria devuelve NULL y Django corta con
+    «Database returned an invalid datetime value» solo en producción. Traer las
+    fechas del recorte (ya acotado por filtros) y contar acá no depende de nada.
+    """
+    por_semana = Counter()
+    for creado in formularios.values_list("creado", flat=True).iterator(chunk_size=2000):
+        if creado is not None:
+            por_semana[_lunes(_fecha_local(creado))] += 1
     if filtros.con_ventana:
         inicio, fin = _lunes(filtros.desde), _lunes(filtros.hasta)
     elif por_semana:
