@@ -187,11 +187,13 @@
   function pintar(cuerpo) {
     const datos = cuerpo.datos;
     const i = datos.indicadores;
-    $('[data-dash="alcance"]').textContent = `Mostrando: ${datos.alcance}`;
+    pintarAlcance(datos.alcance);
     const cuando = new Date(datos.calculado_en);
-    $('[data-dash="calculado-texto"]').textContent =
-      `Datos al ${cuando.toLocaleDateString('es-AR')} ${cuando.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}` +
-      (cuerpo.desde_cache ? ' · en caché' : '');
+    const calculado = $('[data-dash="calculado-texto"]');
+    calculado.textContent = `Datos al ${cuando.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} ${cuando.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    calculado.parentElement.title = cuerpo.desde_cache
+      ? 'Servido desde la caché: los totales se recalculan cada 5 minutos o con «Actualizar».'
+      : 'Recién calculado. Los totales se guardan 5 minutos.';
 
     kpi('convocatorias_activas', fmt(i.convocatorias_activas));
     kpi('convocatorias_total', fmt(i.convocatorias_total));
@@ -210,6 +212,7 @@
     } else {
       kpi('formularios_nota', 'en el período elegido');
     }
+    pintarSparkline(datos.serie_semanal);
     kpi('aprobados', fmt(i.aprobados));
     kpi('aprobados_nota', `${pct(i.tasa_aprobacion)} de lo recibido · ${fmt(i.pendientes)} pendientes de revisión`);
     const ratio = i.cupo_total ? i.cupo_ocupado / i.cupo_total : 0;
@@ -254,6 +257,58 @@
   function kpi(nombre, texto) {
     const el = $(`[data-kpi="${nombre}"]`);
     if (el) el.textContent = texto;
+  }
+
+  // El alcance vigente como chips: se lee de un vistazo y es lo que encabeza las exportaciones.
+  function pintarAlcance(alcance) {
+    const caja = $('[data-dash="alcance"]');
+    caja.textContent = '';
+    const rotulo = document.createElement('span');
+    rotulo.className = 'font-semibold text-body';
+    rotulo.textContent = 'Mostrando';
+    caja.appendChild(rotulo);
+    String(alcance).split(' · ').forEach((parte) => {
+      const chip = document.createElement('span');
+      chip.className = 'badge badge-white';
+      chip.textContent = parte;
+      caja.appendChild(chip);
+    });
+  }
+
+  // Minigráfico de las últimas doce semanas dentro del indicador de formularios: trazo en
+  // gris de apoyo y último punto en color de marca, con currentColor (sin hex en el JS).
+  function pintarSparkline(serie) {
+    const caja = $('[data-kpi="sparkline"]');
+    if (!caja) return;
+    caja.textContent = '';
+    const puntos = serie.slice(-12).map((f) => f.total);
+    if (puntos.length < 2) return;
+    const W = 120;
+    const H = 28;
+    const maximo = Math.max(1, ...puntos);
+    const coords = puntos.map((v, k) => [((k / (puntos.length - 1)) * (W - 6) + 3).toFixed(1), (H - 3 - ((H - 8) * v) / maximo).toFixed(1)]);
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('class', 'w-full h-full block');
+    const linea = document.createElementNS(ns, 'polyline');
+    linea.setAttribute('points', coords.map((c) => c.join(',')).join(' '));
+    linea.setAttribute('fill', 'none');
+    linea.setAttribute('stroke', 'currentColor');
+    linea.setAttribute('stroke-width', '1.5');
+    linea.setAttribute('vector-effect', 'non-scaling-stroke');
+    linea.setAttribute('class', 'text-body-subtle');
+    const punto = document.createElementNS(ns, 'circle');
+    const [cx, cy] = coords[coords.length - 1];
+    punto.setAttribute('cx', cx);
+    punto.setAttribute('cy', cy);
+    punto.setAttribute('r', '3');
+    punto.setAttribute('fill', 'currentColor');
+    punto.setAttribute('class', 'text-fg-brand');
+    svg.appendChild(linea);
+    svg.appendChild(punto);
+    caja.appendChild(svg);
   }
 
   function dibujar(bloque, config) {
@@ -301,7 +356,7 @@
       tr.className = 'hover:bg-secondary';
       fila.forEach((valor, idx) => {
         const td = document.createElement('td');
-        td.className = `${px} py-[13px] text-sm border-t border-light ${idx > 0 && alineadas !== false ? 'text-right text-heading font-semibold whitespace-nowrap' : 'text-body'}`;
+        td.className = `${px} py-[13px] text-sm border-t border-light ${idx > 0 && alineadas !== false ? 'text-right text-heading font-semibold whitespace-nowrap tabular-nums' : 'text-body'}`;
         if (valor instanceof Node) td.appendChild(valor);
         else td.textContent = valor;
         tr.appendChild(td);
@@ -319,6 +374,9 @@
     estadoVacio(bloque, Boolean(opciones.vacio));
     tabla(bloque, opciones.columnas, opciones.filas || etiquetas.map((e, k) => [e, fmt(valores[k])]));
     if (opciones.vacio) return;
+    // Alto proporcional a las filas: una tarjeta con dos barras no lleva el mismo aire que una con ocho.
+    const contenedor = $(`[data-dash-grafico="${bloque}"]`);
+    contenedor.style.height = `${Math.max(120, etiquetas.length * 34 + 44)}px`;
     const formato = opciones.etiqueta || ((k) => fmt(valores[k]));
     dibujar(bloque, {
       type: 'bar',
@@ -388,44 +446,92 @@
     });
   }
 
+  // Estado de los formularios sin canvas: barra apilada, una fila por estado y el corte por
+  // canal, todo con DOM y tokens. Es la tarjeta que más se lee de un vistazo.
+  const COLOR_ESTADO = {
+    ENVIADO: 'var(--color-brand-400)',
+    APROBADO: 'var(--color-emerald-600)',
+    RECHAZADO: 'var(--color-rose-600)',
+    BAJA: 'var(--color-gray-400)',
+  };
+  const nombreEstado = (f) => (f.clave === 'ENVIADO' ? 'Pendientes de revisión' : f.etiqueta);
+  const nombreCanal = (f) => (f.clave === 'PUBLICO' ? 'Link público' : f.etiqueta);
+
   function pintarEstados(datos) {
-    const c = paleta();
     const total = datos.indicadores.formularios_recibidos;
-    const colores = { ENVIADO: c.brandSuave, APROBADO: c.ok, RECHAZADO: c.no, BAJA: c.gris };
     const revisados = datos.estados.filter((f) => f.clave !== 'ENVIADO').reduce((a, f) => a + f.total, 0);
-    const canales = datos.canales.map((f) => `${f.clave === 'PUBLICO' ? 'Link público' : f.etiqueta} ${fmt(f.total)}`).join(' · ');
-    subtitulo('estados', total ? `${fmt(total)} formularios · ${pct(revisados * 100 / total)} ya revisados · por canal: ${canales}` : '');
+    subtitulo('estados', total ? `${fmt(total)} formularios · ${pct((revisados * 100) / total)} ya revisados` : '');
     estadoVacio('estados', total === 0);
-    tabla('estados', ['Estado', 'Formularios', '%'], datos.estados.map((f) => [f.clave === 'ENVIADO' ? 'Enviados (pendientes de revisión)' : f.etiqueta, fmt(f.total), pct(total ? (f.total * 100) / total : 0)]).concat(datos.canales.map((f) => [`Canal: ${f.clave === 'PUBLICO' ? 'Link público' : f.etiqueta}`, fmt(f.total), pct(total ? (f.total * 100) / total : 0)])));
+    tabla(
+      'estados',
+      ['Estado', 'Formularios', '%'],
+      datos.estados
+        .map((f) => [nombreEstado(f), fmt(f.total), pct(total ? (f.total * 100) / total : 0)])
+        .concat(datos.canales.map((f) => [`Canal: ${nombreCanal(f)}`, fmt(f.total), pct(total ? (f.total * 100) / total : 0)])),
+    );
+    const caja = $('[data-dash-grafico="estados"]');
+    caja.textContent = '';
     if (!total) return;
-    dibujar('estados', {
-      type: 'bar',
-      data: {
-        labels: ['Formularios'],
-        datasets: datos.estados.map((f, k) => ({
-          label: `${f.clave === 'ENVIADO' ? 'Pendientes de revisión' : f.etiqueta}: ${fmt(f.total)} (${pct((f.total * 100) / total)})`,
-          data: [f.total],
-          backgroundColor: colores[f.clave] || c.brand,
-          borderColor: c.superficie,
-          borderWidth: { left: k === 0 ? 0 : 2 },
-          borderSkipped: false,
-          barThickness: 26,
-        })),
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: true, position: 'bottom', align: 'start', labels: { boxWidth: 10, boxHeight: 10, padding: 12 } },
-          tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}` } },
-        },
-        scales: {
-          x: { stacked: true, display: false, max: total },
-          y: { stacked: true, display: false },
-        },
-      },
+
+    // Barra apilada con separaciones de 2 px en el color de la superficie.
+    const barra = document.createElement('div');
+    barra.className = 'flex h-3 rounded-full overflow-hidden bg-secondary';
+    datos.estados.filter((f) => f.total > 0).forEach((f, k) => {
+      const seg = document.createElement('div');
+      seg.className = 'h-full';
+      seg.style.width = `${(f.total * 100) / total}%`;
+      seg.style.background = COLOR_ESTADO[f.clave] || 'var(--color-brand-500)';
+      if (k > 0) seg.style.borderLeft = '2px solid var(--bg-primary)';
+      seg.title = `${nombreEstado(f)}: ${fmt(f.total)} (${pct((f.total * 100) / total)})`;
+      barra.appendChild(seg);
     });
+    caja.appendChild(barra);
+
+    // Una fila por estado: punto de color, nombre, cantidad y porcentaje alineados.
+    const lista = document.createElement('ul');
+    lista.className = 'space-y-2';
+    datos.estados.forEach((f) => {
+      const li = document.createElement('li');
+      li.className = 'flex items-center gap-2 text-sm';
+      const punto = document.createElement('span');
+      punto.className = 'w-2.5 h-2.5 rounded-sm flex-shrink-0';
+      punto.style.background = COLOR_ESTADO[f.clave] || 'var(--color-brand-500)';
+      const nombre = document.createElement('span');
+      nombre.className = 'text-body flex-1 min-w-0 truncate';
+      nombre.textContent = nombreEstado(f);
+      const cantidad = document.createElement('span');
+      cantidad.className = 'text-heading font-semibold tabular-nums';
+      cantidad.textContent = fmt(f.total);
+      const porcentaje = document.createElement('span');
+      porcentaje.className = 'text-body-subtle text-xs tabular-nums w-14 text-right';
+      porcentaje.textContent = pct((f.total * 100) / total);
+      li.append(punto, nombre, cantidad, porcentaje);
+      lista.appendChild(li);
+    });
+    caja.appendChild(lista);
+
+    // Corte por canal de carga.
+    const titulo = document.createElement('p');
+    titulo.className = 'text-xs font-bold uppercase tracking-[.05em] text-body-subtle pt-3 border-t border-light';
+    titulo.textContent = 'Por canal de carga';
+    caja.appendChild(titulo);
+    const canales = document.createElement('div');
+    canales.className = 'space-y-2';
+    datos.canales.forEach((f) => {
+      const fila = document.createElement('div');
+      fila.className = 'flex items-center gap-3 text-sm';
+      const nombre = document.createElement('span');
+      nombre.className = 'text-body w-24 flex-shrink-0';
+      nombre.textContent = nombreCanal(f);
+      fila.appendChild(nombre);
+      fila.appendChild(medidor(total ? f.total / total : 0, 'flex-1'));
+      const cantidad = document.createElement('span');
+      cantidad.className = 'text-heading font-semibold tabular-nums w-14 text-right';
+      cantidad.textContent = fmt(f.total);
+      fila.appendChild(cantidad);
+      canales.appendChild(fila);
+    });
+    caja.appendChild(canales);
   }
 
   function medidor(ratio, ancho, nivel) {
@@ -441,9 +547,9 @@
   function celdaMedidor(ratio, texto, nivel) {
     const caja = document.createElement('div');
     caja.className = 'flex items-center justify-end gap-2';
-    caja.appendChild(medidor(ratio, 'w-14', nivel));
+    caja.appendChild(medidor(ratio, 'w-20', nivel));
     const span = document.createElement('span');
-    span.className = 'text-xs font-semibold text-heading whitespace-nowrap';
+    span.className = 'text-xs font-semibold text-heading whitespace-nowrap tabular-nums';
     span.style.minWidth = '3.5rem';
     span.textContent = texto;
     caja.appendChild(span);

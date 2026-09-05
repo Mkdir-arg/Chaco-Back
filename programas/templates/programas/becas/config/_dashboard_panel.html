@@ -18,20 +18,20 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
   <style>@media print { .dash-no-print { display: none !important; } }</style>
 
   {# Introducción + acción principal (mismo patrón que las otras dos solapas) #}
-  <div class="flex items-start justify-between gap-4 flex-wrap">
-    <p class="text-sm text-body-subtle max-w-lg">
-      Métricas del programa: convocatorias, relevamientos y formularios recibidos. Los filtros alcanzan a todos los bloques y a la exportación.
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <p class="text-sm text-body-subtle max-w-md">
+      Métricas del programa según los filtros. Todo lo que ves se puede exportar.
     </p>
     <div class="flex items-center gap-2 flex-wrap dash-no-print">
       <span class="text-xs text-body-subtle inline-flex items-center gap-1.5" data-dash="calculado" title="Los totales se recalculan cada 5 minutos">
         <i class="fas fa-clock" aria-hidden="true"></i> <span data-dash="calculado-texto">Sin calcular todavía</span>
       </span>
-      <button type="button" class="btn-nodo btn-tertiary btn-sm" data-dash="recalcular" aria-label="Recalcular ahora">
+      <button type="button" class="btn-nodo btn-tertiary btn-base" data-dash="recalcular" aria-label="Recalcular ahora">
         <i class="fas fa-sync-alt" aria-hidden="true"></i> Actualizar
       </button>
       {% if puede_exportar_dashboard %}
       <div class="relative" @keydown.escape.window="menuExportar=false" @click.outside="menuExportar=false">
-        <button type="button" class="btn-nodo btn-brand btn-sm flex items-center gap-1.5"
+        <button type="button" class="btn-nodo btn-brand btn-base flex items-center gap-1.5"
                 @click="menuExportar=!menuExportar" :aria-expanded="menuExportar" aria-haspopup="menu">
           <i class="fas fa-download" aria-hidden="true"></i> Exportar <i class="fas fa-chevron-down text-xs" aria-hidden="true"></i>
         </button>
@@ -107,7 +107,8 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
     </div>
   </form>
 
-  <p class="text-xs text-body-subtle" data-dash="alcance" aria-live="polite"></p>
+  {# Alcance vigente como chips: es lo mismo que encabeza las exportaciones (RN-16) #}
+  <div class="flex items-center gap-1.5 flex-wrap text-xs text-body-subtle" data-dash="alcance" aria-live="polite"></div>
 
   <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm hidden" role="alert" data-dash="error">
     <strong class="text-heading">No se pudo calcular el tablero</strong>
@@ -139,6 +140,7 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
       </div>
       <p class="text-2xl font-bold text-heading flex items-baseline gap-2"><span data-kpi="formularios_recibidos">—</span><span class="text-xs font-bold" data-kpi="variacion"></span></p>
       <p class="text-xs text-body-subtle mt-1" data-kpi="formularios_nota"></p>
+      <div class="mt-2 h-7" data-kpi="sparkline" aria-hidden="true"></div>
     </div>
     <div class="bg-white rounded-xl p-4 border border-base shadow-sm">
       <div class="flex items-center justify-between mb-2">
@@ -168,10 +170,32 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
   </div>
 
   {# Bloques #}
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
 
     {% include "programas/becas/config/_dashboard_card.html" with bloque="semanas" titulo="Formularios recibidos por semana" ancho="xl:col-span-8" alto="h-64" %}
-    {% include "programas/becas/config/_dashboard_card.html" with bloque="estados" titulo="Estado de los formularios" ancho="xl:col-span-4" alto="h-64" %}
+
+    {# Estado de los formularios: barra apilada + filas con cantidad y % + canal. Sin canvas: lo arma el JS con DOM. #}
+    <section class="xl:col-span-4 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-estados" data-dash-card="estados">
+      <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light">
+        <div class="min-w-0">
+          <h3 id="dash-titulo-estados" class="text-heading font-bold" style="font-size:16px">Estado de los formularios</h3>
+          <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="estados"></p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0 dash-no-print">
+          <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-toggle="estados" aria-pressed="false" aria-label="Ver como tabla"><i class="fas fa-table" aria-hidden="true"></i></button>
+          {% if puede_exportar_dashboard %}<a href="#" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-exportar="csv" data-bloque="estados" aria-label="Descargar estado de los formularios en CSV"><i class="fas fa-download" aria-hidden="true"></i></a>{% endif %}
+        </div>
+      </div>
+      <div class="p-5">
+        <div class="space-y-4" data-dash-grafico="estados" role="img" aria-label="Estado de los formularios"></div>
+        <div class="overflow-x-auto hidden" data-dash-tabla="estados"></div>
+        <div class="py-10 px-6 text-center flex flex-col items-center gap-3 hidden" data-dash-vacio="estados">
+          <div class="text-fg-brand"><i class="fas fa-inbox text-4xl" aria-hidden="true"></i></div>
+          <p class="text-[17px] font-bold text-heading">Sin formularios</p>
+          <p class="text-sm text-body max-w-xs">No hay formularios en el período y el alcance elegidos.</p>
+        </div>
+      </div>
+    </section>
 
     <section class="xl:col-span-12 bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-convocatorias" data-dash-card="convocatorias">
       <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light">
