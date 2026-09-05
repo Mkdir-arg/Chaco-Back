@@ -151,19 +151,43 @@
     caja.classList.toggle('hidden', !texto);
     $('[data-dash="error-texto"]').textContent = texto || '';
   }
+  const TIEMPO_MAXIMO_MS = 60000;
+  function estadoCarga(texto) {
+    const el = $('[data-dash="calculado-texto"]');
+    if (el && texto) el.textContent = texto;
+  }
   async function cargar(extra) {
     if (controlador) controlador.abort();
     controlador = new AbortController();
+    // Que se vea que está trabajando: si tarda, el usuario no ve un tablero vacío sin explicación.
+    const vencimiento = setTimeout(() => controlador.abort('tiempo'), TIEMPO_MAXIMO_MS);
     ocupado(true);
+    estadoCarga('Calculando…');
+    const url = `${urlDatos}?${querystring(extra)}`;
     try {
-      const respuesta = await fetch(`${urlDatos}?${querystring(extra)}`, {
+      const respuesta = await fetch(url, {
         signal: controlador.signal,
         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin',
       });
-      const cuerpo = await respuesta.json().catch(() => ({}));
+      const texto = await respuesta.text();
+      let cuerpo = {};
+      try {
+        cuerpo = JSON.parse(texto);
+      } catch (e) {
+        cuerpo = {};
+      }
       if (!respuesta.ok) {
-        mostrarError((cuerpo.errores || ['No se pudo calcular el tablero.']).join(' '));
+        const detalle = (cuerpo.errores || []).join(' ') || `El servidor respondió ${respuesta.status}.`;
+        console.error('becas-dashboard: error del servidor', respuesta.status, texto.slice(0, 500));
+        mostrarError(`No se pudo calcular el tablero. ${detalle}`);
+        estadoCarga('Sin calcular');
+        return;
+      }
+      if (!cuerpo.datos) {
+        console.error('becas-dashboard: respuesta sin datos', texto.slice(0, 500));
+        mostrarError('El servidor respondió algo que no es el tablero (¿sesión vencida?). Recargá la página.');
+        estadoCarga('Sin calcular');
         return;
       }
       mostrarError('');
@@ -171,8 +195,16 @@
       sincronizarFiltros(cuerpo);
       pintar(cuerpo);
     } catch (error) {
-      if (error.name !== 'AbortError') mostrarError('No se pudo conectar con el servidor. Probá de nuevo.');
+      if (error.name === 'AbortError' && controlador.signal.reason !== 'tiempo') return; // filtro nuevo pisó al anterior
+      console.error('becas-dashboard: fallo la carga', error);
+      estadoCarga('Sin calcular');
+      mostrarError(
+        error.name === 'AbortError'
+          ? 'El cálculo tardó más de un minuto y se canceló. Probá con un período más corto o volvé a intentar con «Actualizar».'
+          : `No se pudo mostrar el tablero (${error.message || error}). Probá de nuevo con «Actualizar».`,
+      );
     } finally {
+      clearTimeout(vencimiento);
       ocupado(false);
     }
   }
