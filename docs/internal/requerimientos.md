@@ -6685,6 +6685,11 @@ comparativas entre programas, un tablero para el portal ciudadano.
 - 27 tests en `programas/tests/test_dashboard_becas.py`, en verde con Django 5.2 (venv 3.12 igual al CI). Revisión
   visual con servidor SQLite local + Playwright en 1440 y 390 px, sin errores de consola ni de red.
 
+Pasada de legibilidad (05/09/2026, después del merge): la tarjeta «Estado de los formularios» se rearmó sin canvas
+(barra apilada, una fila por estado con cantidad y porcentaje, corte por canal con medidores); el indicador de
+formularios lleva un minigráfico de doce semanas; el alcance se muestra como chips; la cabecera de la solapa queda
+en una fila; las tarjetas de barras fijan su alto según las filas y los números de las tablas usan dígitos tabulares.
+
 Gotcha aprendido: las funciones de `autorizacion` reciben el `Programa` del RBAC, no el `ProgramaSiis`; pasarles el
 ProgramaSiis vacía el alcance en silencio. El servicio las llama sin ese argumento y filtra por ProgramaSiis después.
 
