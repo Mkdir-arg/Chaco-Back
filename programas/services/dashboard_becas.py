@@ -517,7 +517,8 @@ def _huella_alcance(user, programa):
 
 
 def clave_cache(user, programa, filtros):
-    huella = hashlib.sha1(f"{filtros.clave()}|{_huella_alcance(user, programa)}".encode("utf-8")).hexdigest()
+    # sha256 y no sha1: no es criptografía (es una clave de caché), pero Bandit B324 marca sha1 igual.
+    huella = hashlib.sha256(f"{filtros.clave()}|{_huella_alcance(user, programa)}".encode("utf-8")).hexdigest()[:40]
     return f"{CACHE_PREFIX}:{programa.pk}:{huella}"
 
 
