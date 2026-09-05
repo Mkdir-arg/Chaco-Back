@@ -6757,7 +6757,13 @@ todavía», indicadores en guion, sin alerta). Causa más probable: la serie sem
 NULL y Django corta con «Database returned an invalid datetime value» (SQLite y los tests no lo reproducen). Corrección
 PR #378 (squash f866d05, release fc740b8): las semanas se agrupan en Python, y el JS muestra «Calculando…», cancela a
 los 60 s y expone toda falla en la alerta inline con `console.error`. Espejado a `test` (merge dffce4d) y a `main`
-(55d842e..fc740b8). La causa queda por confirmar contra el comportamiento real en producción después del despliegue. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+(55d842e..fc740b8). Con el JS nuevo en producción el navegador mostró la causa real: el endpoint responde **500**. Contra un MySQL 8.0
+local con 2.455 formularios sintéticos todo responde 200, así que depende de la forma de los datos reales. Segunda
+corrección (PR #379): la lectura del JSON de respuestas y de las opciones de las preguntas tolera filas con `data` como
+string, bolsas que no son dict, valores y opciones con forma `{valor, etiqueta}`; y el endpoint degrada por etapas: si
+fallan las métricas responde 500 con la etapa y el tipo de error, si falla solo la pregunta devuelve el resto con `avisos`,
+y en los dos casos el traceback completo va al log del servidor con `logger.exception`. Si vuelve a fallar, el mensaje
+dirá la etapa y el tipo, y el log de ECOM tendrá el detalle. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
 El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
 `relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
 Bandit por sha1 en la clave de caché, se corrigió antes de mergear.

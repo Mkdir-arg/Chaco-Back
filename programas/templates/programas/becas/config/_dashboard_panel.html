@@ -110,6 +110,11 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
   {# Alcance vigente como chips: es lo mismo que encabeza las exportaciones (RN-16) #}
   <div class="flex items-center gap-1.5 flex-wrap text-xs text-body-subtle" data-dash="alcance" aria-live="polite"></div>
 
+  <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm hidden" role="status" data-dash="aviso">
+    <strong class="text-heading">Un bloque no se pudo calcular</strong>
+    <p class="text-body mt-1" data-dash="aviso-texto"></p>
+  </div>
+
   <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm hidden" role="alert" data-dash="error">
     <strong class="text-heading">No se pudo calcular el tablero</strong>
     <p class="text-body mt-1" data-dash="error-texto"></p>
