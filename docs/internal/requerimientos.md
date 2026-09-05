@@ -207,7 +207,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
-| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟡 **Analizado — análisis #366 `Definido`, tasks #367–#375 en Backlog (70 h); propuesta de 86 h enviada al Ministerio (Versión 002)** | No requiere (previsto) |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟡 **En desarrollo — fases 1 a 6 implementadas en `feature/dashboard-becas` (05/09/2026); análisis #366, tasks #367–#375; propuesta de 86 h a validación del Ministerio** | No requiere |
 
 **Notas del índice**
 
@@ -6606,7 +6606,7 @@ los datos crudos y la configuración propuesta están en
 
 # Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
 
-🟡 **ANALIZADO — 05/09/2026** · Análisis #366 `Definido` · Mock up entregado · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Propuesta de 86 h enviada al Ministerio por mail y sumada al alcance de la Versión 002, a la espera de la validación de Guido
+🟡 **EN DESARROLLO — 05/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 implementadas en la rama `feature/dashboard-becas` con 27 tests en verde; faltan QA funcional (#374) y release (#375) · Propuesta de 86 h a validación del Ministerio (Versión 002)
 
 | | |
 |---|---|
@@ -6670,7 +6670,25 @@ comparativas entre programas, un tablero para el portal ciudadano.
 
 ## Implementación
 
-Pendiente. Estimación entregada al PM el 05/09/2026, con el mismo criterio de horas que las 150 h del Cambio 58:
+**En la rama `feature/dashboard-becas` (05/09/2026), fases 1 a 6 del diseño técnico
+[2026-09-05-dashboard-becas-design.md](../plans/2026-09-05-dashboard-becas-design.md):**
+
+- Servicio `programas/services/dashboard_becas.py`: `metricas()` con los ocho bloques y los seis indicadores, caché de
+  5 minutos con huella de alcance, `preguntas_graficables()` / `distribuciones_respuestas()` en una sola pasada detrás
+  de la lectura única `respuesta_de()`, y `bloques_exportacion()`.
+- `DashboardBecasFiltroForm` en `forms_reportes.py` (período → fechas, limpieza dependiente RN-5/RN-6).
+- Vistas `programa_dashboard_datos` (JSON) y `programa_dashboard_exportar` (XLSX de varias hojas / CSV por bloque) con
+  permisos `becas.reportes.ver` / `becas.reportes.exportar` y programa visible; `respuesta_libro()` en
+  `exportacion_reportes.py`.
+- Solapa en `programa_detail.html` (solo con la capacidad, deep link `?tab=dash`), panel `_dashboard_panel.html` +
+  `_dashboard_card.html`, JS `static/custom/js/becas-dashboard.js` con Chart.js diferido y colores desde tokens.
+- 27 tests en `programas/tests/test_dashboard_becas.py`, en verde con Django 5.2 (venv 3.12 igual al CI). Revisión
+  visual con servidor SQLite local + Playwright en 1440 y 390 px, sin errores de consola ni de red.
+
+Gotcha aprendido: las funciones de `autorizacion` reciben el `Programa` del RBAC, no el `ProgramaSiis`; pasarles el
+ProgramaSiis vacía el alcance en silencio. El servicio las llama sin ese argumento y filtra por ProgramaSiis después.
+
+Estimación entregada al PM el 05/09/2026, con el mismo criterio de horas que las 150 h del Cambio 58:
 
 | N.º | Bloque | Qué incluye | Horas |
 |---|---|---|---|
@@ -6695,24 +6713,30 @@ es gestión, reuniones de definición y coordinación, que el PM sumó al presen
 
 ## Archivos
 
-Previstos: `programas/services/dashboard_becas.py` (nuevo), `programas/forms_reportes.py` (form de filtros del
-dashboard), `programas/views/dashboard_becas.py` (nuevo) y `programas/urls.py`,
-`programas/templates/programas/becas/config/programa_detail.html` y `_dashboard_panel.html` (nuevo),
-`static/custom/css/` (stat-card compartida, hoy vive solo en `templates/inicio.html`),
-`static/custom/js/becas-dashboard.js` (nuevo), `programas/services/exportacion_reportes.py` (XLSX de varias hojas),
-tests en `programas/tests/`.
+Nuevos: `programas/services/dashboard_becas.py`, `programas/views/dashboard_becas.py`,
+`programas/templates/programas/becas/config/_dashboard_panel.html`, `_dashboard_card.html`,
+`static/custom/js/becas-dashboard.js`, `programas/tests/test_dashboard_becas.py`,
+`docs/plans/2026-09-05-dashboard-becas-design.md`. Modificados: `programas/forms_reportes.py`,
+`programas/services/exportacion_reportes.py`, `programas/views/configuracion.py`, `programas/urls.py`,
+`programas/templates/programas/becas/config/programa_detail.html`, `static/custom/css/tailwind.css` (build),
+`.claude/agents/chaco-design-system.md` (inventario: fila del dashboard y deep link de tabs). No se movió el CSS
+`.stat-card` de `inicio.html`: la stat card canónica es el patrón Tailwind de `convocatoria_detail.html`.
 
 ## Base de datos
 
-No requiere modelos nuevos. Posible índice sobre `Formulario.creado` si el presupuesto de consultas de la serie
-semanal lo pide.
+No requiere: sin modelos ni migraciones. El presupuesto de consultas del servicio no crece con la cantidad de
+formularios (test `test_presupuesto_de_consultas_no_crece_con_los_formularios`).
 
 ## Validación
 
-Pendiente. Criterios: los totales de todos los bloques coinciden entre sí y con los reportes existentes para el mismo
-filtro; el CSV/XLSX respeta los filtros y devuelve lo mismo que la pantalla; coordinador y regional ven solo su
-alcance; sin capacidad `becas.reportes.ver` la solapa no aparece; `design_audit --changed` en 0 errores;
-presupuesto de consultas en el test de la vista.
+Automática (05/09/2026): 27 tests en verde con Django 5.2 — conteos a mano, coherencia entre bloques (CA-3), alcance
+del coordinador regional (CA-4), cupo insensible al período (RN-9), variación `None` sin período anterior (RN-8),
+respuestas simple/múltiple con base y opción fuera de catálogo (RN-14/15), caché por alcance (RN-18), 403 sin
+capacidad de ver y de exportar (CA-1, CA-6), XLSX con una hoja por bloque y fórmula neutralizada, CSV por bloque,
+presupuesto de consultas. `manage.py check`, `design_audit --changed` 0/0, `compile_templates` 0,
+`check_design_agent --changed` OK, ruff OK. Revisión visual en 1440 y 390 px sin errores.
+
+Pendiente: QA funcional por rol (#374) y contraste de un mismo recorte contra el hub de reportes.
 
 ## Puesta en marcha en el servidor
 
