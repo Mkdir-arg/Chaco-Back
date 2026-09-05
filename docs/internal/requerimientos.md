@@ -6763,7 +6763,8 @@ corrección (PR #379): la lectura del JSON de respuestas y de las opciones de la
 string, bolsas que no son dict, valores y opciones con forma `{valor, etiqueta}`; y el endpoint degrada por etapas: si
 fallan las métricas responde 500 con la etapa y el tipo de error, si falla solo la pregunta devuelve el resto con `avisos`,
 y en los dos casos el traceback completo va al log del servidor con `logger.exception`. Si vuelve a fallar, el mensaje
-dirá la etapa y el tipo, y el log de ECOM tendrá el detalle. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+dirá la etapa y el tipo, y el log de ECOM tendrá el detalle. Desplegado el 05/09/2026: release ea33681 a `test`
+(merge 4e66424) y a `main` (avance directo fc740b8..ea33681). Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
 El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
 `relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
 Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
