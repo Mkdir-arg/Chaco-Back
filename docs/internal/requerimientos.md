@@ -207,7 +207,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
-| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟡 **Mergeado en `development` (PR #376, c59d995, 05/09/2026); faltan QA #374 y despliegue #375; propuesta de 86 h a validación del Ministerio** | No requiere |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (release 43ffddf); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
 
 **Notas del índice**
 
@@ -6740,7 +6740,10 @@ Pendiente: QA funcional por rol (#374) y contraste de un mismo recorte contra el
 
 ## Puesta en marcha en el servidor
 
-Pendiente (#375). Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+05/09/2026: espejado al GitLab de ECOM con `/pushGitLabecom`, primero `test` (merge 1e37076, testing en datanach.ecomdev.ar)
+y después `main` (release 43ffddf, producción, avance directo 17dc060..43ffddf). Sin migraciones ni variables nuevas; el mismo
+push llevó el Cambio 63 (Argon2 + gunicorn opcional), que no se había espejado. La pasada de legibilidad (PR #377) quedó
+fuera de este despliegue. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
 El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
 `relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
 Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
