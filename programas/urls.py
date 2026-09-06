@@ -30,6 +30,11 @@ urlpatterns = [
         name="programa_dashboard_exportar",
     ),
     path(
+        "config/programas/<int:pk>/dashboard/respuestas/<int:convocatoria_pk>/xlsx/",
+        dsh.programa_dashboard_respuestas_xlsx,
+        name="programa_dashboard_respuestas_xlsx",
+    ),
+    path(
         "config/programas/<int:programa_pk>/requisitos/nuevo/",
         cfg.requisito_programa_crear,
         name="requisito_programa_crear",

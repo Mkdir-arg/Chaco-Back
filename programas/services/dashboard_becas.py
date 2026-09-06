@@ -40,6 +40,7 @@ from django.db.models import Count, Exists, F, Func, JSONField, OuterRef, Q, Sum
 from django.utils import timezone
 
 from programas.models import (
+    AdjuntoFormulario,
     Convocatoria,
     Formulario,
     ListaEspera,
@@ -57,6 +58,7 @@ from programas.services.autorizacion import (
     subsegmentos_a_cargo,
     subsegmentos_visibles,
 )
+from programas.services.becas import get_campos_formulario
 from programas.services.reportes import Reporte
 
 logger = logging.getLogger(__name__)
@@ -1011,3 +1013,159 @@ def bloques_exportacion(datos, distribuciones=()):
             ),
         )
     return bloques
+
+
+# ---------------------------------------------------------------------------
+# Respuestas por persona (Cambio 65): un registro por caso, una columna por pregunta
+# ---------------------------------------------------------------------------
+COLUMNAS_FIJAS = (
+    "ID relevamiento",
+    "Relevamiento",
+    "Canal",
+    "Territorial",
+    "ID caso",
+    "N.º en el relevamiento",
+    "Estado del caso",
+    "Fecha de envío",
+    "ID ciudadano",
+    "DNI",
+    "Apellido y nombre",
+    "Identidad validada",
+    "Celular",
+    "Correo electrónico",
+    "Apoderado",
+    "GPS",
+)
+
+
+def _nombre_archivo(ruta):
+    return str(ruta).rsplit("/", 1)[-1] if ruta else ""
+
+
+def _texto_columna(campo, prefijo):
+    return f"{campo.texto}".strip() or f"{prefijo} #{campo.pk}"
+
+
+def _identificacion(f):
+    """(dni, «Apellido, Nombre») desde el legajo si existe; si no, de los datos de identificación offline."""
+    if f.ciudadano_id:
+        return f.ciudadano.dni, f"{f.ciudadano.apellido}, {f.ciudadano.nombre}".strip(", ")
+    ident = f.datos_identificacion if isinstance(f.datos_identificacion, dict) else {}
+    return str(ident.get("dni") or ""), f"{ident.get('apellido') or ''}, {ident.get('nombre') or ''}".strip(", ")
+
+
+def _apoderado(f):
+    if f.apoderado_ciudadano_id:
+        a = f.apoderado_ciudadano
+        return f"{a.apellido}, {a.nombre} ({a.dni})"
+    if f.apoderado_dni or f.apoderado_apellido or f.apoderado_nombre:
+        return f"{f.apoderado_apellido}, {f.apoderado_nombre} ({f.apoderado_dni})".strip(", ")
+    return ""
+
+
+def respuestas_por_persona(convocatoria):
+    """Base cruda de una convocatoria: **un registro por caso** (formulario enviado,
+    en cualquier estado) con los datos del relevamiento, de la persona y **una columna
+    por cada pregunta** del formulario, más las preguntas que ya no están en el
+    formulario pero fueron respondidas en su momento.
+
+    Devuelve ``(Reporte, texto_de_alcance)``. La definición del formulario es la misma
+    que ven la app de campo y el link público (:func:`get_campos_formulario`), así
+    que las columnas coinciden con lo que la persona completó. Las respuestas de
+    selección múltiple se unen con « | »; los adjuntos muestran el nombre del archivo.
+    El alcance por rol lo controla la vista: acá la convocatoria ya está autorizada.
+    """
+    globales, requisitos = get_campos_formulario(convocatoria)
+    definicion = [(f"global:{p.pk}", p, "Pregunta general") for p in globales] + [
+        (f"requisito:{r.pk}", r, "Requisito") for r in requisitos
+    ]
+    en_definicion = {clave for clave, _, _ in definicion}
+    tipos_archivo = {clave for clave, campo, _ in definicion if campo.tipo == TipoCampo.ARCHIVO}
+
+    adjuntos = {}
+    for form_id, pg_id, rn_id, archivo in (
+        AdjuntoFormulario.objects.filter(formulario__relevamiento__convocatoria=convocatoria)
+        .order_by()
+        .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "archivo")
+    ):
+        clave = f"global:{pg_id}" if pg_id else f"requisito:{rn_id}"
+        adjuntos.setdefault((form_id, clave), []).append(_nombre_archivo(archivo))
+
+    formularios = (
+        Formulario.objects.filter(relevamiento__convocatoria=convocatoria)
+        .select_related("relevamiento__territorial", "ciudadano", "apoderado_ciudadano")
+        .order_by("relevamiento_id", "numero")
+    )
+    casos, extra_claves = [], set()
+    for f in formularios.iterator(chunk_size=1000):
+        rel = f.relevamiento
+        dni, nombre = _identificacion(f)
+        territorial = ""
+        if rel.territorial_id:
+            territorial = rel.territorial.get_full_name().strip() or rel.territorial.username
+        base = [
+            rel.pk,
+            rel.nombre,
+            "Link público" if rel.tipo == Relevamiento.Tipo.PUBLICO else "Territorial",
+            territorial,
+            f.pk,
+            f.numero,
+            f.get_estado_display(),
+            timezone.localtime(f.creado).strftime("%d/%m/%Y %H:%M") if f.creado else "",
+            f.ciudadano_id or "",
+            dni,
+            nombre,
+            "Sí" if (f.validado_renaper or f.identidad_forzada) else "No",
+            f.celular or "",
+            f.email_contacto or "",
+            _apoderado(f),
+            f"{f.gps_lat}, {f.gps_lng}" if f.gps_lat is not None and f.gps_lng is not None else "",
+        ]
+        data = _como_dict(f.data)
+        contestadas = {}
+        for bolsa, ambito in (("globales", "global"), ("requisitos", "requisito")):
+            for pk, valor in _como_dict(data.get(bolsa)).items():
+                clave = f"{ambito}:{pk}"
+                valores = _valores_de(valor)
+                if valores:
+                    contestadas[clave] = " | ".join(valores)
+                    if clave not in en_definicion:
+                        extra_claves.add(clave)
+        casos.append((f.pk, base, contestadas))
+
+    # Preguntas respondidas que ya no están en el formulario: se conservan como columnas propias.
+    extras = []
+    if extra_claves:
+        pg_ids = [int(c.split(":")[1]) for c in extra_claves if c.startswith("global:") and c.split(":")[1].isdigit()]
+        rn_ids = [
+            int(c.split(":")[1]) for c in extra_claves if c.startswith("requisito:") and c.split(":")[1].isdigit()
+        ]
+        textos = {f"global:{p.pk}": p.texto for p in PreguntaGlobal.objects.filter(pk__in=pg_ids)}
+        textos.update({f"requisito:{r.pk}": r.texto for r in RequisitoNativo.objects.filter(pk__in=rn_ids)})
+        for clave in sorted(extra_claves):
+            extras.append(
+                (clave, f"{textos.get(clave, 'Pregunta #' + clave.split(':')[1])} (ya no está en el formulario)")
+            )
+
+    columnas = [(clave, _texto_columna(campo, prefijo)) for clave, campo, prefijo in definicion] + extras
+    # Dos preguntas con el mismo texto (una general y un requisito) no pueden confundirse en la planilla.
+    repetidos = Counter(texto for _, texto in columnas)
+    encabezados_preguntas = [f"{texto} [{clave}]" if repetidos[texto] > 1 else texto for clave, texto in columnas]
+
+    filas = []
+    for form_id, base, contestadas in casos:
+        celdas = []
+        for clave, _ in columnas:
+            nombres = adjuntos.get((form_id, clave))
+            if nombres or clave in tipos_archivo:
+                celdas.append(" | ".join(nombres) if nombres else contestadas.get(clave, ""))
+            else:
+                celdas.append(contestadas.get(clave, ""))
+        filas.append(tuple(base + celdas))
+
+    encabezados = COLUMNAS_FIJAS + tuple(encabezados_preguntas)
+    alcance = (
+        f"Convocatoria {convocatoria.nombre} · {convocatoria.segmento.nombre} · {len(filas)} casos, "
+        f"todos los estados, sin filtro de período · generado el {timezone.localtime():%d/%m/%Y %H:%M}"
+    )
+    return Reporte(encabezados, tuple(filas)), alcance

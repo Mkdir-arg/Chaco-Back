@@ -208,6 +208,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
 | 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (releases 43ffddf, 55d842e y fc740b8); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
+| 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟡 **En desarrollo — implementado en la rama del Cambio 64, falta desplegar** | No requiere |
 
 **Notas del índice**
 
@@ -6805,5 +6806,98 @@ No aplica hasta implementar. La solapa se podrá ocultar quitando la capacidad, 
 
 Entrada nueva. Antecedentes: el módulo de reportes de Becas (agosto de 2026: hub con cinco reportes y CSV/XLSX, que
 este dashboard reutiliza) y el Cambio 58 (constructor de formularios, que cambia el origen de las respuestas).
+
+---
+
+# Cambio 65 — Exportar las respuestas de los formularios por persona, eligiendo la convocatoria
+
+🟡 **EN DESARROLLO — 06/09/2026** · Implementado en la rama del Cambio 64 (PR pendiente); falta desplegar
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración → detalle del programa → solapa Dashboard → tarjeta «Respuestas de los formularios» |
+| **Etiquetas** | `#ui` `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «la funcionalidad respuestas de los formularios quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con las columnas id relevamiento, nombre relevamiento, si es público, id ciudadano o no y una columna por cada pregunta, y un registro por caso enviado; hoy no sé qué me exporta, no se entiende; el resultado final tiene que ser un excel con todas las respuestas por persona» |
+| **Fecha del pedido** | 06/09/2026 |
+| **Issue / épica** | Sin issue propio: extiende el Cambio 64 (análisis #366, task #371 de exportación) |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un Excel con
+> las columnas id relevamiento, nombre relevamiento, si es público, id ciudadano o no, y una columna por cada pregunta, y un
+> registro por caso enviado. Hoy no sé qué me exporta, no se entiende. El resultado final tiene que ser un Excel con todas
+> las respuestas por persona.»
+
+## Alcance acordado
+
+- En la tarjeta «Respuestas de los formularios», el botón **Exportar por persona** abre un pop up que pide la
+  **convocatoria** (obligatoria, heredada del filtro del tablero si hay una elegida) y descarga un Excel.
+- El Excel tiene **un registro por caso** (formulario enviado, en cualquier estado) de esa convocatoria, sin el filtro de
+  período del tablero, con estas columnas fijas: ID relevamiento · Relevamiento · Canal (Territorial / Link público) ·
+  Territorial · ID caso · N.º en el relevamiento · Estado del caso · Fecha de envío · ID ciudadano (vacío si el caso no
+  tiene legajo) · DNI · Apellido y nombre · Identidad validada · Celular · Correo electrónico · Apoderado · GPS; y después
+  **una columna por cada pregunta** del formulario de la convocatoria (generales y requisitos, de todos los tipos), más las
+  preguntas que ya no están en el formulario pero fueron respondidas («… (ya no está en el formulario)»).
+- Las respuestas de selección múltiple se unen con « | »; los adjuntos muestran el nombre del archivo.
+- El mismo pop up se abre desde el menú **Exportar** («Respuestas por persona (XLSX)»). El CSV agregado existente pasa a
+  llamarse «Resumen de respuestas por opción (CSV)» para que no se confunda con este.
+- Permisos: `becas.reportes.exportar` y convocatoria dentro del alcance del usuario; fuera del alcance, 404.
+
+## Decisiones tomadas
+
+- **Se exporta la convocatoria completa, no el recorte del tablero.** El pedido es la base cruda «todas las respuestas por
+  persona»; el período del tablero es una vista, no un recorte de la base. El pop up lo dice.
+- **Las columnas de preguntas salen de la misma definición que usan la app de campo y el link público**
+  (`get_campos_formulario`): lo que la persona vio es lo que aparece como columna. Las preguntas eliminadas o inactivas
+  que tengan respuestas se agregan al final para no perder datos.
+- **Identificación:** si el caso tiene legajo, DNI y nombre salen del ciudadano; si no (caso offline sin resolver), de
+  `datos_identificacion`. Se incluyen DNI y nombre además del ID porque sin ellos el Excel no sirve para trabajar; el
+  acceso queda gateado por la misma capacidad que el resto de las exportaciones con beneficiarios.
+- **Se reusa `respuesta_libro`** (una hoja, con la fila de alcance) y `celda_segura`, que ya neutraliza fórmulas y
+  caracteres de control.
+
+## Implementación
+
+`respuestas_por_persona(convocatoria)` en `programas/services/dashboard_becas.py` devuelve un `Reporte` con las
+columnas fijas + una por pregunta y el texto de alcance. Vista `programa_dashboard_respuestas_xlsx` en
+`programas/views/dashboard_becas.py`, ruta `config/programas/<pk>/dashboard/respuestas/<convocatoria_pk>/xlsx/`.
+Pop up en `_dashboard_panel.html` con el patrón de modal Alpine de `programa_detail.html`; el JS hereda la convocatoria
+del filtro y navega a la URL de descarga. Tres tests nuevos (servicio, permisos y alcance del endpoint, pantalla).
+
+## Archivos
+
+`programas/services/dashboard_becas.py`, `programas/views/dashboard_becas.py`, `programas/urls.py`,
+`programas/templates/programas/becas/config/_dashboard_panel.html`, `static/custom/js/becas-dashboard.js`,
+`programas/tests/test_dashboard_becas.py`, `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+35 tests en verde con Django 5.2 (3 nuevos: un registro por caso y una columna por pregunta con múltiple, adjunto y
+pregunta eliminada; 200/404/403 del endpoint por alcance y capacidad; la pantalla muestra el botón y la URL). Revisión con
+Playwright: el pop up hereda la convocatoria del filtro, valida la selección vacía y descarga un Excel que abre con
+`openpyxl`.
+
+## Puesta en marcha en el servidor
+
+Sin pasos especiales. Se despliega junto con la corrección de performance del Cambio 64.
+
+## Pendientes / a definir
+
+- Si el Ministerio quiere además el resumen agregado por opción en el mismo Excel (segunda hoja), es un agregado menor.
+
+## Reversión
+
+Quitar la ruta y el botón; no hay datos ni migraciones involucrados.
+
+## Historial
+
+Entrada nueva. Nace de la primera prueba del Cambio 64 en producción: el CSV «Respuestas de los formularios» era el
+resumen por opción y no la base por persona que el PM esperaba.
 
 ---
