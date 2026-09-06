@@ -13,6 +13,10 @@
         <!-- Google Fonts -->
         <link href="{% static 'vendor/manrope/manrope.css' %}" rel="stylesheet">
         
+        <!-- La fuente de iconos se descubre recién al parsear all.min.css y viene con
+             font-display:block, así que sin precarga los iconos tardan un round-trip extra. -->
+        <link rel="preload" as="font" type="font/woff2" crossorigin
+              href="{% static 'vendor/fontawesome/webfonts/fa-solid-900.woff2' %}" />
         <!-- Font Awesome -->
         <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}" />
         
