@@ -705,3 +705,124 @@ class DatosConFormasRarasTests(DashboardBecasBase):
         self.assertIn("las métricas", respuesta.json()["errores"][0])
         self.assertIn("ValueError", respuesta.json()["errores"][0])
         self.assertNotIn("boom", respuesta.json()["errores"][0])
+
+
+class RespuestasPorPersonaTests(DashboardBecasBase):
+    """Cambio 65: Excel con un registro por caso y una columna por pregunta."""
+
+    def _armar_casos(self):
+        from programas.models import AdjuntoFormulario
+
+        Localidad = apps.get_model("core", "Localidad")
+        q1, q2, r = str(self.q_laboral.pk), str(self.q_transporte.pk), str(self.r_cursa.pk)
+        q_archivo = PreguntaGlobal.objects.create(texto="Constancia", tipo=TipoCampo.ARCHIVO, orden=9)
+        borrada = PreguntaGlobal.objects.create(texto="Pregunta vieja", tipo=TipoCampo.STRING, activo=False, orden=10)
+        ciudadana = self._ciudadano("30111222", Localidad.objects.create(nombre="Resistencia"))
+        f1 = self._formulario(
+            self.rel_propio,
+            Formulario.Estado.APROBADO,
+            creado=HOY - timedelta(days=3),
+            ciudadano=ciudadana,
+            validado_renaper=True,
+            data={
+                "globales": {q1: "Trabaja", q2: ["Colectivo", "Moto"], str(borrada.pk): "texto viejo"},
+                "requisitos": {r: "Sí"},
+            },
+        )
+        AdjuntoFormulario.objects.create(
+            formulario=f1, pregunta_global=q_archivo, archivo="becas/adjuntos/2026/09/abc123.pdf"
+        )
+        f2 = self._formulario(
+            self.rel_publico,
+            creado=HOY - timedelta(days=1),
+            datos_identificacion={"dni": "40999888", "nombre": "Juan", "apellido": "Pérez"},
+            data={"globales": {q1: "Estudia"}, "requisitos": {}},
+        )
+        self._formulario(self.rel_ajeno, creado=HOY - timedelta(days=1))  # otra convocatoria: no entra
+        return f1, f2, q_archivo, borrada
+
+    def test_un_registro_por_caso_y_una_columna_por_pregunta(self):
+        f1, f2, q_archivo, borrada = self._armar_casos()
+
+        reporte, alcance = svc.respuestas_por_persona(self.conv_propia)
+
+        self.assertEqual(len(reporte.filas), 2)
+        cab = list(reporte.encabezados)
+        self.assertEqual(cab[: len(svc.COLUMNAS_FIJAS)], list(svc.COLUMNAS_FIJAS))
+        self.assertIn("Situación laboral", cab)
+        self.assertIn("¿Cómo llegás?", cab)
+        self.assertIn("¿Cursás actualmente?", cab)
+        self.assertIn("Constancia", cab)
+        self.assertIn("Pregunta vieja (ya no está en el formulario)", cab)
+        self.assertNotIn("Observaciones", cab[: len(svc.COLUMNAS_FIJAS)])
+        fila1 = dict(zip(cab, reporte.filas[0]))
+        fila2 = dict(zip(cab, reporte.filas[1]))
+        self.assertEqual(fila1["ID relevamiento"], self.rel_propio.pk)
+        self.assertEqual(fila1["Relevamiento"], self.rel_propio.nombre)
+        self.assertEqual(fila1["Canal"], "Territorial")
+        self.assertEqual(fila1["Territorial"], "Marta Gómez")
+        self.assertEqual(fila1["ID caso"], f1.pk)
+        self.assertEqual(fila1["Estado del caso"], "Aprobado")
+        self.assertEqual(fila1["ID ciudadano"], f1.ciudadano_id)
+        self.assertEqual(fila1["DNI"], "30111222")
+        self.assertEqual(fila1["Apellido y nombre"], "Pérez, Ana")
+        self.assertEqual(fila1["Identidad validada"], "Sí")
+        self.assertEqual(fila1["Situación laboral"], "Trabaja")
+        self.assertEqual(fila1["¿Cómo llegás?"], "Colectivo | Moto")
+        self.assertEqual(fila1["¿Cursás actualmente?"], "Sí")
+        self.assertEqual(fila1["Constancia"], "abc123.pdf")
+        self.assertEqual(fila1["Pregunta vieja (ya no está en el formulario)"], "texto viejo")
+        self.assertEqual(fila2["Canal"], "Link público")
+        self.assertEqual(fila2["Territorial"], "")
+        self.assertEqual(fila2["ID ciudadano"], "")
+        self.assertEqual(fila2["DNI"], "40999888")
+        self.assertEqual(fila2["Apellido y nombre"], "Pérez, Juan")
+        self.assertEqual(fila2["Identidad validada"], "No")
+        self.assertEqual(fila2["Situación laboral"], "Estudia")
+        self.assertEqual(fila2["¿Cómo llegás?"], "")
+        self.assertIn("2 casos", alcance)
+        self.assertIn(self.conv_propia.nombre, alcance)
+
+    def test_endpoint_excel_permisos_y_alcance(self):
+        self._armar_casos()
+        url = reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_propia.pk])
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(url)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("becas_respuestas_secundario-resistencia-2026_", respuesta["Content-Disposition"])
+        libro = load_workbook(BytesIO(respuesta.content), read_only=True)
+        filas = list(libro["Respuestas"].iter_rows(values_only=True))
+        self.assertTrue(str(filas[0][0]).startswith("Alcance: Convocatoria "))
+        self.assertEqual(filas[2][:3], ("ID relevamiento", "Relevamiento", "Canal"))
+        self.assertEqual(len(filas) - 3, 2)
+
+        # Convocatoria de otro programa o fuera del alcance: 404, nunca datos ajenos.
+        self.assertEqual(
+            self.client.get(
+                reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_otro.pk])
+            ).status_code,
+            404,
+        )
+        self.client.force_login(self.regional)
+        self.assertEqual(
+            self.client.get(
+                reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_ajena.pk])
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, self.conv_propia.pk])
+            ).status_code,
+            200,
+        )
+        self.client.force_login(self._usuario_sin_reportes())
+        self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_pantalla_muestra_el_boton_y_la_url_del_pop_up(self):
+        self.client.force_login(self.admin)
+        pantalla = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
+        self.assertContains(pantalla, "Exportar por persona")
+        self.assertContains(pantalla, 'id="dash-form-respuestas"')
+        self.assertContains(pantalla, reverse("becas:programa_dashboard_respuestas_xlsx", args=[self.programa.pk, 0]))

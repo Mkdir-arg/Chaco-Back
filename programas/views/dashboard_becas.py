@@ -22,7 +22,7 @@ from core.rbac import puede
 from programas.forms_reportes import DashboardBecasFiltroForm
 from programas.models import ProgramaSiis
 from programas.services import dashboard_becas
-from programas.services.autorizacion import programa_becas
+from programas.services.autorizacion import convocatorias_visibles, programa_becas
 from programas.services.exportacion_reportes import respuesta_libro, respuesta_reporte
 
 logger = logging.getLogger(__name__)
@@ -153,3 +153,23 @@ def programa_dashboard_exportar(request, pk, formato):
     except Exception as exc:  # noqa: BLE001 — incluye armar el archivo: un texto raro no puede dar un 500 mudo
         logger.exception("dashboard becas: fallo al exportar (programa=%s, formato=%s, bloque=%s)", pk, formato, codigo)
         return HttpResponseServerError(_mensaje_error("los datos para exportar", exc))
+
+
+@login_required
+@require_GET
+def programa_dashboard_respuestas_xlsx(request, pk, convocatoria_pk):
+    """Excel con **un registro por caso** de la convocatoria y una columna por pregunta
+    (Cambio 65). Exige la capacidad de exportar y que la convocatoria sea del programa
+    y esté dentro del alcance del usuario; si no, 404 como el resto del backoffice."""
+    programa = _programa_o_403(request, pk, CAP_EXPORTAR)
+    convocatoria = get_object_or_404(
+        convocatorias_visibles(request.user).filter(segmento__programa=programa).select_related("segmento"),
+        pk=convocatoria_pk,
+    )
+    try:
+        reporte, alcance = dashboard_becas.respuestas_por_persona(convocatoria)
+        nombre = f"becas_respuestas_{slugify(convocatoria.nombre) or convocatoria.pk}_{timezone.localdate():%Y-%m-%d}"
+        return respuesta_libro([("Respuestas", reporte)], nombre, alcance=alcance)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("dashboard becas: fallo al exportar respuestas por persona (convocatoria=%s)", convocatoria_pk)
+        return HttpResponseServerError(_mensaje_error("las respuestas por persona", exc))
