@@ -129,7 +129,7 @@ def _assert_scope(request, relevamiento):
     es público y no tiene la capacidad (RN-P13: ocultar no es bloquear)."""
     if relevamiento.es_publico and not _puede_publico(request.user):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
-    programa = programa_becas()
+    programa = programa_becas(request.user)
     if (
         not puede_gestionar_segmento(request.user, relevamiento.segmento, programa=programa)
         or not convocatorias_visibles(request.user, programa=programa).filter(pk=relevamiento.convocatoria_id).exists()
