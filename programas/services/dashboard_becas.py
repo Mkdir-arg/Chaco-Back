@@ -13,21 +13,34 @@ Ojo con la palabra ``programa``: acá es siempre el **ProgramaSiis** de la panta
 ``programa`` —el ``Programa`` del RBAC que ancla los roles de Becas— y resuelven el
 suyo solas; pasarles el ProgramaSiis vacía el alcance. Por eso se las llama sin ese
 argumento y el recorte por ProgramaSiis se hace después, con ``filter``.
+
+Estrategia de consultas (Cambio 64, corrección de performance): el alcance se
+resuelve **una sola vez** a listas de ids (segmentos, convocatorias, relevamientos)
+y todo lo demás filtra por ``relevamiento_id IN (...)`` plano, sin subconsultas
+anidadas. Una única consulta agrupada por (relevamiento, estado) alimenta los
+estados, los canales, la tabla de convocatorias y la producción territorial. Las
+respuestas se extraen en SQL por clave del JSON (``JSON_EXTRACT``) en vez de
+decodificar cada documento en Python, y también se cachean. En producción el driver
+corta cualquier consulta que pase los 10 s (``read_timeout``): cada consulta de acá
+tiene que ser trivial para el motor.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from collections import Counter
+import logging
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
 
+from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.models import Count, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, Exists, F, Func, JSONField, OuterRef, Q, Sum, Value
 from django.utils import timezone
 
 from programas.models import (
+    Convocatoria,
     Formulario,
     ListaEspera,
     PreguntaGlobal,
@@ -45,6 +58,8 @@ from programas.services.autorizacion import (
     subsegmentos_visibles,
 )
 from programas.services.reportes import Reporte
+
+logger = logging.getLogger(__name__)
 
 CACHE_TIMEOUT = 300  # RN-17: hasta 5 minutos de antigüedad
 CACHE_PREFIX = "becas:dashboard"
@@ -145,8 +160,30 @@ class Distribucion:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class Alcance:
+    """El recorte ya resuelto a ids: se calcula una vez por petición y lo comparten
+    la clave de caché, las métricas y las respuestas.
+
+    ``relevamientos`` es una tupla de dicts ``{id, convocatoria_id, tipo,
+    territorial_id, estado}``: la estructura es chica (decenas o cientos de filas) y
+    con ella se derivan en Python los cortes por convocatoria, canal y territorial
+    sin volver a consultar.
+    """
+
+    segmento_ids: tuple
+    convocatoria_ids: tuple
+    relevamientos: tuple
+    regional: bool
+    huella: str
+
+    @property
+    def relevamiento_ids(self):
+        return tuple(r["id"] for r in self.relevamientos)
+
+
 # ---------------------------------------------------------------------------
-# Helpers de recorte
+# Helpers
 # ---------------------------------------------------------------------------
 def _aware_start(fecha):
     return timezone.make_aware(datetime.combine(fecha, time.min), timezone.get_current_timezone())
@@ -158,46 +195,6 @@ def _pct(parte, total, decimales=1):
     return round(parte * 100 / total, decimales)
 
 
-def _segmentos_alcance(user, programa, filtros):
-    """Segmentos visibles del programa; con filtro de segmento o de convocatoria se acota (RN-3)."""
-    qs = segmentos_visibles(user).filter(programa=programa)
-    if filtros.segmento_id:
-        qs = qs.filter(pk=filtros.segmento_id)
-    if filtros.convocatoria_id:
-        qs = qs.filter(convocatorias__pk=filtros.convocatoria_id)
-    return qs.distinct()
-
-
-def _convocatorias_alcance(user, programa, filtros):
-    qs = convocatorias_visibles(user).filter(segmento__programa=programa)
-    if filtros.segmento_id:
-        qs = qs.filter(segmento_id=filtros.segmento_id)
-    if filtros.convocatoria_id:
-        qs = qs.filter(pk=filtros.convocatoria_id)
-    if filtros.relevamiento_id:
-        qs = qs.filter(relevamientos__pk=filtros.relevamiento_id)
-    return qs.distinct()
-
-
-def _relevamientos_alcance(convocatorias, filtros):
-    """Los relevamientos cuentan por estructura: la ventana de fechas no los recorta."""
-    qs = Relevamiento.objects.filter(convocatoria__in=convocatorias)
-    if filtros.relevamiento_id:
-        qs = qs.filter(pk=filtros.relevamiento_id)
-    if filtros.canal:
-        qs = qs.filter(tipo=filtros.canal)
-    return qs
-
-
-def _formularios_de(relevamientos, desde=None, hasta=None):
-    qs = Formulario.objects.filter(relevamiento__in=relevamientos)
-    if desde:
-        qs = qs.filter(creado__gte=_aware_start(desde))
-    if hasta:
-        qs = qs.filter(creado__lt=_aware_start(hasta + timedelta(days=1)))
-    return qs
-
-
 def _fecha_local(valor):
     if isinstance(valor, datetime):
         return timezone.localtime(valor).date()
@@ -206,6 +203,73 @@ def _fecha_local(valor):
 
 def _lunes(fecha):
     return fecha - timedelta(days=fecha.weekday())
+
+
+def _iso(fecha):
+    """Una fecha cero de MySQL (``0000-00-00``, admitida por el sql_mode de prod)
+    llega como None: no puede tirar el tablero."""
+    return fecha.isoformat() if fecha else ""
+
+
+# ---------------------------------------------------------------------------
+# Alcance (RN-3): una vez por petición
+# ---------------------------------------------------------------------------
+def resolver_alcance(user, programa, filtros):
+    """Segmentos, convocatorias y relevamientos del recorte, como ids.
+
+    Reusa las funciones de ``autorizacion`` (nunca se redefine quién ve qué) pero
+    materializa el resultado: de acá en adelante todas las consultas filtran por
+    listas planas de ids en vez de subconsultas anidadas.
+    """
+    visibles = tuple(segmentos_visibles(user).filter(programa=programa).order_by("pk").values_list("pk", flat=True))
+    regional = es_coordinador_regional_becas(user)
+    subsegmentos = tuple(subsegmentos_a_cargo(user).order_by("pk").values_list("pk", flat=True)) if regional else ()
+    huella = f"s{list(visibles)}|ss{list(subsegmentos)}"
+
+    convs = convocatorias_visibles(user).filter(segmento__programa=programa)
+    if filtros.segmento_id:
+        convs = convs.filter(segmento_id=filtros.segmento_id)
+    if filtros.convocatoria_id:
+        convs = convs.filter(pk=filtros.convocatoria_id)
+    conv_rows = list(convs.order_by().values_list("pk", "segmento_id"))
+    conv_ids = [pk for pk, _ in conv_rows]
+
+    rels = Relevamiento.objects.filter(convocatoria_id__in=conv_ids)
+    if filtros.relevamiento_id:
+        rels = rels.filter(pk=filtros.relevamiento_id)
+    if filtros.canal:
+        rels = rels.filter(tipo=filtros.canal)
+    rel_rows = tuple(rels.order_by().values("id", "convocatoria_id", "tipo", "territorial_id", "estado"))
+
+    # Con filtro de relevamiento, la convocatoria en alcance es solo la de ese relevamiento.
+    if filtros.relevamiento_id:
+        conv_ids = sorted({r["convocatoria_id"] for r in rel_rows})
+    segmento_ids = tuple(sorted({seg for pk, seg in conv_rows if pk in set(conv_ids)} & set(visibles)))
+    if filtros.segmento_id and not filtros.convocatoria_id and not filtros.relevamiento_id:
+        # Un segmento sin convocatorias todavía sigue estando en el alcance (cupo, tabla vacía).
+        segmento_ids = tuple(s for s in visibles if s == filtros.segmento_id)
+    elif not filtros.segmento_id and not filtros.convocatoria_id and not filtros.relevamiento_id:
+        segmento_ids = visibles
+    return Alcance(
+        segmento_ids=segmento_ids,
+        convocatoria_ids=tuple(conv_ids),
+        relevamientos=rel_rows,
+        regional=regional,
+        huella=huella,
+    )
+
+
+def _formularios(alcance, desde=None, hasta=None):
+    """Queryset base de formularios del recorte: un IN plano de relevamientos."""
+    ids = alcance.relevamiento_ids
+    if not ids:
+        return Formulario.objects.none()
+    qs = Formulario.objects.filter(relevamiento_id__in=ids)
+    if desde:
+        qs = qs.filter(creado__gte=_aware_start(desde))
+    if hasta:
+        qs = qs.filter(creado__lt=_aware_start(hasta + timedelta(days=1)))
+    return qs.order_by()  # sin el ORDER BY -creado del Meta.ordering: acá solo se agrega
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +286,7 @@ def _serie_semanal(formularios, filtros):
     fechas del recorte (ya acotado por filtros) y contar acá no depende de nada.
     """
     por_semana = Counter()
-    for creado in formularios.values_list("creado", flat=True).iterator(chunk_size=2000):
+    for creado in formularios.values_list("creado", flat=True).iterator(chunk_size=5000):
         if creado is not None:
             por_semana[_lunes(_fecha_local(creado))] += 1
     if filtros.con_ventana:
@@ -245,49 +309,53 @@ def _serie_semanal(formularios, filtros):
     return serie
 
 
-def _conteo_por(qs, campo, choices):
-    """Conteo por un campo con choices, con todos los valores presentes (aunque valgan 0)."""
-    conteo = dict(qs.values_list(campo).annotate(total=Count("pk")).values_list(campo, "total"))
+def _con_choices(conteo, choices):
+    """Lista ordenada según los choices del modelo, con todos los valores presentes (aunque valgan 0)."""
     return [{"clave": valor, "etiqueta": str(etiqueta), "total": conteo.get(valor, 0)} for valor, etiqueta in choices]
 
 
-def _variacion(relevamientos, filtros, total_actual):
+def _variacion(alcance, filtros, total_actual):
     """RN-8: contra el período inmediatamente anterior de la misma longitud."""
     if not filtros.con_ventana:
         return None
     longitud = (filtros.hasta - filtros.desde).days + 1
     anterior_hasta = filtros.desde - timedelta(days=1)
     anterior_desde = anterior_hasta - timedelta(days=longitud - 1)
-    total_anterior = _formularios_de(relevamientos, anterior_desde, anterior_hasta).count()
+    total_anterior = _formularios(alcance, anterior_desde, anterior_hasta).count()
     if not total_anterior:
         return None
     return round((total_actual - total_anterior) * 100 / total_anterior)
 
 
-def _cupo(user, programa, segmentos):
+def _cupo(user, alcance):
     """RN-9: cupo del segmento contra aprobados históricos, sin ventana. El
     coordinador regional mide contra lo distribuido en sus subsegmentos, como
     ``reporte_cupos``. Devuelve ``{segmento_id: (cupo, ocupado)}``."""
-    ids = list(segmentos.values_list("pk", flat=True))
+    ids = list(alcance.segmento_ids)
     if not ids:
         return {}
-    if es_coordinador_regional_becas(user):
+    if alcance.regional:
         cupos = dict(
             subsegmentos_a_cargo(user)
             .filter(segmento_id__in=ids)
             .values("segmento_id")
             .annotate(total=Sum("cupo_maximo"))
+            .order_by()
             .values_list("segmento_id", "total")
         )
     else:
-        cupos = dict(Segmento.objects.filter(pk__in=ids).values_list("pk", "cupo_maximo"))
-    convs = convocatorias_visibles(user).filter(segmento_id__in=ids)
-    ocupados = dict(
-        Formulario.objects.filter(relevamiento__convocatoria__in=convs, estado=Formulario.Estado.APROBADO)
-        .values("relevamiento__convocatoria__segmento_id")
-        .annotate(total=Count("pk"))
-        .values_list("relevamiento__convocatoria__segmento_id", "total")
-    )
+        cupos = dict(Segmento.objects.filter(pk__in=ids).order_by().values_list("pk", "cupo_maximo"))
+    # Todas las convocatorias visibles de esos segmentos, sin filtro de convocatoria ni de período: el cupo es del segmento.
+    conv_ids = list(convocatorias_visibles(user).filter(segmento_id__in=ids).order_by().values_list("pk", flat=True))
+    ocupados = {}
+    if conv_ids:
+        ocupados = dict(
+            Formulario.objects.filter(relevamiento__convocatoria_id__in=conv_ids, estado=Formulario.Estado.APROBADO)
+            .order_by()
+            .values("relevamiento__convocatoria__segmento_id")
+            .annotate(total=Count("pk"))
+            .values_list("relevamiento__convocatoria__segmento_id", "total")
+        )
     return {pk: (cupos.get(pk) or 0, ocupados.get(pk, 0)) for pk in ids}
 
 
@@ -297,16 +365,17 @@ def _estado_convocatoria(conv):
     return "Cerrada por vencimiento" if conv.cerrada_automaticamente else "Cerrada"
 
 
-def _convocatorias(convocatorias, relevamientos, formularios, cupos):
-    rel_stats = relevamientos.values("convocatoria_id", "estado").annotate(total=Count("pk"))
-    form_stats = formularios.values("relevamiento__convocatoria_id", "estado").annotate(total=Count("pk"))
-    rels_por_conv, forms_por_conv = {}, {}
-    for fila in rel_stats:
-        rels_por_conv.setdefault(fila["convocatoria_id"], Counter())[fila["estado"]] = fila["total"]
-    for fila in form_stats:
-        forms_por_conv.setdefault(fila["relevamiento__convocatoria_id"], Counter())[fila["estado"]] = fila["total"]
+def _tabla_convocatorias(alcance, forms_por_conv, cupos):
+    rels_por_conv = defaultdict(Counter)
+    for r in alcance.relevamientos:
+        rels_por_conv[r["convocatoria_id"]][r["estado"]] += 1
     filas = []
-    for conv in convocatorias.select_related("segmento", "subsegmento").order_by("-fecha_inicio", "nombre"):
+    convocatorias = (
+        Convocatoria.objects.filter(pk__in=alcance.convocatoria_ids)
+        .select_related("segmento", "subsegmento")
+        .order_by("-fecha_inicio", "nombre")
+    )
+    for conv in convocatorias:
         rels = rels_por_conv.get(conv.pk, Counter())
         forms = forms_por_conv.get(conv.pk, Counter())
         recibidos = sum(forms.values())
@@ -319,12 +388,12 @@ def _convocatorias(convocatorias, relevamientos, formularios, cupos):
             {
                 "id": conv.pk,
                 "nombre": conv.nombre,
-                "segmento": conv.segmento.nombre,
-                "subsegmento": conv.subsegmento.nombre if conv.subsegmento_id else "",
+                "segmento": getattr(conv.segmento, "nombre", ""),
+                "subsegmento": getattr(conv.subsegmento, "nombre", "") if conv.subsegmento_id else "",
                 "estado": _estado_convocatoria(conv),
                 "activa": conv.activo,
-                "fecha_inicio": conv.fecha_inicio.isoformat(),
-                "fecha_fin": conv.fecha_fin.isoformat(),
+                "fecha_inicio": _iso(conv.fecha_inicio),
+                "fecha_fin": _iso(conv.fecha_fin),
                 "relevamientos": sum(rels.values()),
                 "en_curso": sum(rels.get(e, 0) for e in RELEVAMIENTOS_EN_CURSO),
                 "recibidos": recibidos,
@@ -340,16 +409,25 @@ def _convocatorias(convocatorias, relevamientos, formularios, cupos):
     return filas
 
 
-def _embudo(formularios, total, aprobados, rechazados, lista_espera):
-    """Etapas ordenadas del circuito; «Beneficiarios» no se repite porque es el mismo
-    número que «Aprobados» (inconsistencia 2 del análisis)."""
-    ultima = ValidacionSIS.objects.filter(formulario_id=OuterRef("pk")).order_by("-creado", "-pk")
-    siis_ok = (
-        formularios.annotate(ultimo_siis=Subquery(ultima.values("estado")[:1]))
-        .filter(ultimo_siis=ValidacionSIS.Estado.OK)
+def _siis_ok(formularios):
+    """Formularios cuya **última** validación SIIS es OK. Un anti-join sobre
+    ValidacionSIS (no hay otra validación posterior del mismo formulario) en vez de
+    una subconsulta correlacionada por cada formulario del recorte."""
+    posterior = ValidacionSIS.objects.filter(formulario_id=OuterRef("formulario_id")).filter(
+        Q(creado__gt=OuterRef("creado")) | Q(creado=OuterRef("creado"), pk__gt=OuterRef("pk"))
+    )
+    return (
+        ValidacionSIS.objects.filter(formulario__in=formularios.values("pk"), estado=ValidacionSIS.Estado.OK)
+        .annotate(hay_posterior=Exists(posterior))
+        .filter(hay_posterior=False)
         .count()
     )
-    identidad = formularios.filter(Q(validado_renaper=True) | Q(identidad_forzada=True)).count()
+
+
+def _embudo(formularios, total, aprobados, rechazados, lista_espera, identidad):
+    """Etapas ordenadas del circuito; «Beneficiarios» no se repite porque es el mismo
+    número que «Aprobados» (inconsistencia 2 del análisis)."""
+    siis_ok = _siis_ok(formularios) if total else 0
     etapas = (
         ("Formularios recibidos", total),
         ("Identidad validada", identidad),
@@ -361,54 +439,31 @@ def _embudo(formularios, total, aprobados, rechazados, lista_espera):
     return [{"etapa": etapa, "total": cantidad, "pct": _pct(cantidad, total)} for etapa, cantidad in etapas]
 
 
-def _territoriales(relevamientos, formularios):
-    """RN-12: solo canal territorial; un público no tiene territorial."""
-    rels = dict(
-        relevamientos.filter(tipo=Relevamiento.Tipo.TERRITORIAL, territorial__isnull=False)
-        .values_list("territorial_id")
-        .annotate(total=Count("pk"))
-        .values_list("territorial_id", "total")
-    )
-    filas = (
-        formularios.filter(relevamiento__tipo=Relevamiento.Tipo.TERRITORIAL, relevamiento__territorial__isnull=False)
-        .values(
-            "relevamiento__territorial_id",
-            "relevamiento__territorial__first_name",
-            "relevamiento__territorial__last_name",
-            "relevamiento__territorial__username",
-        )
-        .annotate(total=Count("pk"), aprobados=Count("pk", filter=Q(estado=Formulario.Estado.APROBADO)))
-    )
-    resultado = []
-    vistos = set()
-    for fila in filas:
-        pk = fila["relevamiento__territorial_id"]
-        vistos.add(pk)
-        nombre = (
-            f"{fila['relevamiento__territorial__first_name']} {fila['relevamiento__territorial__last_name']}".strip()
-        )
-        resultado.append(
-            {
-                "nombre": nombre or fila["relevamiento__territorial__username"],
-                "formularios": fila["total"],
-                "aprobados": fila["aprobados"],
-                "relevamientos": rels.get(pk, 0),
-            }
-        )
-    # Territoriales con relevamiento asignado y sin carga todavía: cuentan con 0.
-    faltantes = [pk for pk in rels if pk not in vistos]
-    if faltantes:
-        from django.contrib.auth.models import User
-
-        for usuario in User.objects.filter(pk__in=faltantes).order_by("last_name", "first_name"):
-            nombre = usuario.get_full_name().strip() or usuario.username
-            resultado.append({"nombre": nombre, "formularios": 0, "aprobados": 0, "relevamientos": rels[usuario.pk]})
+def _territoriales(alcance, forms_por_rel):
+    """RN-12: solo canal territorial; un público no tiene territorial. Se deriva del
+    agrupado por relevamiento: una sola consulta extra, la de los nombres."""
+    por_terr = defaultdict(lambda: {"formularios": 0, "aprobados": 0, "relevamientos": 0})
+    for r in alcance.relevamientos:
+        if r["tipo"] != Relevamiento.Tipo.TERRITORIAL or not r["territorial_id"]:
+            continue
+        acumulado = por_terr[r["territorial_id"]]
+        acumulado["relevamientos"] += 1
+        conteo = forms_por_rel.get(r["id"], Counter())
+        acumulado["formularios"] += sum(conteo.values())
+        acumulado["aprobados"] += conteo.get(Formulario.Estado.APROBADO, 0)
+    if not por_terr:
+        return []
+    nombres = {
+        u.pk: (u.get_full_name().strip() or u.username)
+        for u in User.objects.filter(pk__in=list(por_terr)).only("first_name", "last_name", "username")
+    }
+    resultado = [{"nombre": nombres.get(pk, f"Usuario {pk}"), **v} for pk, v in por_terr.items()]
     resultado.sort(key=lambda fila: (-fila["formularios"], fila["nombre"]))
     return resultado[:TOP_TERRITORIALES]
 
 
 def _localidades(formularios, total):
-    filas = formularios.values("ciudadano__localidad__nombre").annotate(total=Count("pk")).order_by("-total")
+    filas = formularios.values("ciudadano__localidad__nombre").annotate(total=Count("pk"))
     detalle = [
         {
             "localidad": fila["ciudadano__localidad__nombre"] or SIN_LOCALIDAD,
@@ -425,7 +480,7 @@ def _localidades(formularios, total):
     return {"top": top, "detalle": detalle}
 
 
-def _texto_alcance(filtros, segmentos, convocatorias, relevamientos):
+def _texto_alcance(filtros, alcance):
     """Enunciado legible del recorte: encabeza la pantalla y las exportaciones (RN-16)."""
     if filtros.con_ventana:
         periodo = f"Del {filtros.desde:%d/%m/%Y} al {filtros.hasta:%d/%m/%Y}"
@@ -433,16 +488,22 @@ def _texto_alcance(filtros, segmentos, convocatorias, relevamientos):
         periodo = "Todo el período"
     segmento = "Todos los segmentos"
     if filtros.segmento_id:
-        seg = segmentos.filter(pk=filtros.segmento_id).first()
-        segmento = f"Segmento {seg.nombre}" if seg else "Segmento sin acceso"
+        nombre = Segmento.objects.filter(pk=filtros.segmento_id).values_list("nombre", flat=True).first()
+        segmento = (
+            f"Segmento {nombre}" if nombre and filtros.segmento_id in alcance.segmento_ids else "Segmento sin acceso"
+        )
     convocatoria = "Todas las convocatorias"
     if filtros.convocatoria_id:
-        conv = convocatorias.filter(pk=filtros.convocatoria_id).first()
-        convocatoria = conv.nombre if conv else "Convocatoria sin acceso"
+        nombre = Convocatoria.objects.filter(pk=filtros.convocatoria_id).values_list("nombre", flat=True).first()
+        convocatoria = (
+            nombre if nombre and filtros.convocatoria_id in alcance.convocatoria_ids else "Convocatoria sin acceso"
+        )
     relevamiento = "Todos los relevamientos"
     if filtros.relevamiento_id:
-        rel = relevamientos.filter(pk=filtros.relevamiento_id).first()
-        relevamiento = rel.nombre if rel else "Relevamiento sin acceso"
+        nombre = Relevamiento.objects.filter(pk=filtros.relevamiento_id).values_list("nombre", flat=True).first()
+        relevamiento = (
+            nombre if nombre and filtros.relevamiento_id in alcance.relevamiento_ids else "Relevamiento sin acceso"
+        )
     canal = "Ambos canales"
     if filtros.canal:
         canal = "Link público" if filtros.canal == Relevamiento.Tipo.PUBLICO else "Territorial"
@@ -452,38 +513,55 @@ def _texto_alcance(filtros, segmentos, convocatorias, relevamientos):
 # ---------------------------------------------------------------------------
 # Entrada principal
 # ---------------------------------------------------------------------------
-def metricas(user, programa, filtros):
+def metricas(user, programa, filtros, alcance=None):
     """Todos los bloques del tablero para un programa, un usuario y un recorte.
 
-    Los totales cierran entre sí por construcción: la serie semanal, los estados y
-    la tabla de convocatorias salen del mismo queryset de formularios (CA-3).
+    Los totales cierran entre sí por construcción: la serie semanal, los estados,
+    los canales, la tabla de convocatorias y los territoriales salen del mismo
+    agrupado (relevamiento, estado) del mismo queryset de formularios (CA-3).
     """
-    segmentos = _segmentos_alcance(user, programa, filtros)
-    convocatorias = _convocatorias_alcance(user, programa, filtros)
-    relevamientos = _relevamientos_alcance(convocatorias, filtros)
-    formularios = _formularios_de(relevamientos, filtros.desde, filtros.hasta)
+    alcance = alcance or resolver_alcance(user, programa, filtros)
+    formularios = _formularios(alcance, filtros.desde, filtros.hasta)
+    rel_info = {r["id"]: r for r in alcance.relevamientos}
 
-    estados = _conteo_por(formularios, "estado", Formulario.Estado.choices)
-    por_estado = {fila["clave"]: fila["total"] for fila in estados}
+    # Una sola consulta agrupada alimenta estados, canales, convocatorias y territoriales.
+    forms_por_rel = defaultdict(Counter)
+    for fila in formularios.values("relevamiento_id", "estado").annotate(total=Count("pk")):
+        forms_por_rel[fila["relevamiento_id"]][fila["estado"]] += fila["total"]
+    por_estado, por_canal, forms_por_conv = Counter(), Counter(), defaultdict(Counter)
+    for rel_id, conteo in forms_por_rel.items():
+        info = rel_info.get(rel_id) or {}
+        for estado, n in conteo.items():
+            por_estado[estado] += n
+            por_canal[info.get("tipo")] += n
+            forms_por_conv[info.get("convocatoria_id")][estado] += n
     total = sum(por_estado.values())
     aprobados = por_estado.get(Formulario.Estado.APROBADO, 0)
     rechazados = por_estado.get(Formulario.Estado.RECHAZADO, 0)
-    lista_espera = ListaEspera.objects.filter(formulario__in=formularios, promovido=False).count()
 
-    cupos = _cupo(user, programa, segmentos)
-    conv_lista = list(convocatorias)
-    rel_estados = _conteo_por(relevamientos, "estado", Relevamiento.Estado.choices)
-    rel_por_estado = {fila["clave"]: fila["total"] for fila in rel_estados}
+    identidad = 0
+    lista_espera = 0
+    if total:
+        identidad = formularios.filter(Q(validado_renaper=True) | Q(identidad_forzada=True)).count()
+        lista_espera = ListaEspera.objects.filter(formulario__in=formularios.values("pk"), promovido=False).count()
+
+    rel_por_estado = Counter(r["estado"] for r in alcance.relevamientos)
+    cupos = _cupo(user, alcance)
+    convocatorias = list(
+        Convocatoria.objects.filter(pk__in=alcance.convocatoria_ids)
+        .order_by()
+        .values_list("activo", "cerrada_automaticamente")
+    )
 
     indicadores = Indicadores(
-        convocatorias_total=len(conv_lista),
-        convocatorias_activas=sum(1 for c in conv_lista if c.activo),
-        convocatorias_cerradas_vencimiento=sum(1 for c in conv_lista if not c.activo and c.cerrada_automaticamente),
-        relevamientos_total=sum(rel_por_estado.values()),
+        convocatorias_total=len(convocatorias),
+        convocatorias_activas=sum(1 for activo, _ in convocatorias if activo),
+        convocatorias_cerradas_vencimiento=sum(1 for activo, cerrada in convocatorias if not activo and cerrada),
+        relevamientos_total=len(alcance.relevamientos),
         relevamientos_en_curso=sum(rel_por_estado.get(e, 0) for e in RELEVAMIENTOS_EN_CURSO),
-        relevamientos_publicos=relevamientos.filter(tipo=Relevamiento.Tipo.PUBLICO).count(),
+        relevamientos_publicos=sum(1 for r in alcance.relevamientos if r["tipo"] == Relevamiento.Tipo.PUBLICO),
         formularios_recibidos=total,
-        variacion_periodo_anterior=_variacion(relevamientos, filtros, total),
+        variacion_periodo_anterior=_variacion(alcance, filtros, total),
         aprobados=aprobados,
         tasa_aprobacion=_pct(aprobados, total),
         pendientes=por_estado.get(Formulario.Estado.ENVIADO, 0),
@@ -491,29 +569,52 @@ def metricas(user, programa, filtros):
         cupo_ocupado=sum(ocupado for _, ocupado in cupos.values()),
         lista_espera=lista_espera,
     )
-    canales = _conteo_por(formularios, "relevamiento__tipo", Relevamiento.Tipo.choices)
 
     return Datos(
         programa_id=programa.pk,
         programa_nombre=programa.nombre,
         filtros=json.loads(filtros.clave()),
-        alcance=_texto_alcance(filtros, segmentos, convocatorias, relevamientos),
+        alcance=_texto_alcance(filtros, alcance),
         calculado_en=timezone.localtime().isoformat(timespec="seconds"),
         indicadores=indicadores,
-        serie_semanal=_serie_semanal(formularios, filtros),
-        estados=estados,
-        canales=canales,
-        convocatorias=_convocatorias(convocatorias, relevamientos, formularios, cupos),
-        relevamientos_por_estado=rel_estados,
-        embudo=_embudo(formularios, total, aprobados, rechazados, lista_espera),
-        territoriales=_territoriales(relevamientos, formularios),
-        localidades=_localidades(formularios, total),
+        serie_semanal=_serie_semanal(formularios, filtros) if total else [],
+        estados=_con_choices(por_estado, Formulario.Estado.choices),
+        canales=_con_choices(por_canal, Relevamiento.Tipo.choices),
+        convocatorias=_tabla_convocatorias(alcance, forms_por_conv, cupos),
+        relevamientos_por_estado=_con_choices(rel_por_estado, Relevamiento.Estado.choices),
+        embudo=_embudo(formularios, total, aprobados, rechazados, lista_espera, identidad),
+        territoriales=_territoriales(alcance, forms_por_rel),
+        localidades=_localidades(formularios, total) if total else {"top": [], "detalle": []},
     )
 
 
 # ---------------------------------------------------------------------------
 # Caché (RN-17, RN-18)
 # ---------------------------------------------------------------------------
+def _cache_get(clave):
+    """Redis puede fallar solo en producción (timeout, OOM, réplica de solo lectura):
+    el tablero se calcula igual, sin caché, y queda un aviso en el log."""
+    try:
+        return cache.get(clave)
+    except Exception:  # noqa: BLE001 — degradar a sin caché, nunca romper el tablero
+        logger.warning("dashboard becas: la caché no respondió al leer %s; se calcula sin caché", clave, exc_info=True)
+        return None
+
+
+def _cache_set(clave, valor):
+    try:
+        cache.set(clave, valor, CACHE_TIMEOUT)
+    except Exception:  # noqa: BLE001
+        logger.warning("dashboard becas: la caché no aceptó la escritura de %s", clave, exc_info=True)
+
+
+def _cache_delete(clave):
+    try:
+        cache.delete(clave)
+    except Exception:  # noqa: BLE001
+        logger.warning("dashboard becas: la caché no aceptó borrar %s", clave, exc_info=True)
+
+
 def _huella_alcance(user, programa):
     """Lo que hace distinto el alcance de dos usuarios: sus segmentos visibles y, para
     el regional, sus subsegmentos a cargo. Va en la clave para no compartir caché."""
@@ -524,23 +625,29 @@ def _huella_alcance(user, programa):
     return f"s{segmentos}|ss{subsegmentos}"
 
 
-def clave_cache(user, programa, filtros):
+def _clave(programa, filtros, huella, sufijo=""):
     # sha256 y no sha1: no es criptografía (es una clave de caché), pero Bandit B324 marca sha1 igual.
-    huella = hashlib.sha256(f"{filtros.clave()}|{_huella_alcance(user, programa)}".encode("utf-8")).hexdigest()[:40]
-    return f"{CACHE_PREFIX}:{programa.pk}:{huella}"
+    resumen = hashlib.sha256(f"{filtros.clave()}|{huella}|{sufijo}".encode("utf-8")).hexdigest()[:40]
+    return f"{CACHE_PREFIX}:{programa.pk}:{resumen}"
 
 
-def metricas_cacheadas(user, programa, filtros, recalcular=False):
+def clave_cache(user, programa, filtros, alcance=None):
+    huella = alcance.huella if alcance is not None else _huella_alcance(user, programa)
+    return _clave(programa, filtros, huella)
+
+
+def metricas_cacheadas(user, programa, filtros, recalcular=False, alcance=None):
     """``(datos, desde_cache)``. Con ``recalcular`` borra la entrada y recomputa."""
-    clave = clave_cache(user, programa, filtros)
+    alcance = alcance or resolver_alcance(user, programa, filtros)
+    clave = clave_cache(user, programa, filtros, alcance)
     if recalcular:
-        cache.delete(clave)
+        _cache_delete(clave)
     else:
-        datos = cache.get(clave)
+        datos = _cache_get(clave)
         if datos is not None:
             return datos, True
-    datos = metricas(user, programa, filtros)
-    cache.set(clave, datos, CACHE_TIMEOUT)
+    datos = metricas(user, programa, filtros, alcance)
+    _cache_set(clave, datos)
     return datos, False
 
 
@@ -549,9 +656,9 @@ def metricas_cacheadas(user, programa, filtros, recalcular=False):
 # ---------------------------------------------------------------------------
 def _origen_requisito(requisito):
     if requisito.subsegmento_id:
-        return f"Requisito del subsegmento {requisito.subsegmento.nombre}"
+        return f"Requisito del subsegmento {getattr(requisito.subsegmento, 'nombre', '')}".strip()
     if requisito.segmento_id:
-        return f"Requisito del segmento {requisito.segmento.nombre}"
+        return f"Requisito del segmento {getattr(requisito.segmento, 'nombre', '')}".strip()
     return "Requisito del programa"
 
 
@@ -629,20 +736,10 @@ def _opciones_texto(opciones):
     return salida
 
 
-def respuesta_de(data, clave):
-    """**Única** lectura de la respuesta de un formulario a una pregunta.
-
-    Hoy el contrato es ``Formulario.data = {"globales": {pk: valor}, "requisitos":
-    {pk: valor}}`` con las claves en string (app de campo y link público). Cuando
-    entre el constructor (#326) y las respuestas pasen a ``respuestas`` +
-    ``definicion``, este es el único punto a tocar. Devuelve siempre una lista de
-    strings: vacía si no respondió, de un elemento en selector simple, de N en
-    múltiple. Tolera filas con ``data`` como string, bolsas que no son dict y
-    valores con forma ``{valor, etiqueta}``: un dato raro no tira todo el tablero.
-    """
-    ambito, _, pk = clave.partition(":")
-    bolsa = _como_dict(_como_dict(data).get("globales" if ambito == "global" else "requisitos"))
-    valor = bolsa.get(str(pk))
+def _valores_de(valor):
+    """Normaliza el valor de una respuesta ya extraído del JSON: lista de strings,
+    vacía si no respondió. Tolera ``{valor, etiqueta}``, listas con objetos y
+    escalares de cualquier tipo."""
     valores = valor if isinstance(valor, (list, tuple)) else [valor]
     salida = []
     for v in valores:
@@ -652,6 +749,40 @@ def respuesta_de(data, clave):
             continue
         salida.append(str(v))
     return salida
+
+
+def _ambito_y_pk(clave):
+    ambito, _, pk = clave.partition(":")
+    return ("globales" if ambito == "global" else "requisitos"), str(pk)
+
+
+def respuesta_de(data, clave):
+    """**Única** lectura de la respuesta de un formulario a una pregunta a partir del
+    documento completo (``Formulario.data``). La pasada masiva usa
+    :func:`_expresion_respuesta`, que extrae la misma clave en SQL; las dos deben
+    coincidir. Cuando entre el constructor (#326) y las respuestas pasen a
+    ``respuestas`` + ``definicion``, estos dos puntos son los únicos a tocar."""
+    bolsa, pk = _ambito_y_pk(clave)
+    return _valores_de(_como_dict(_como_dict(data).get(bolsa)).get(pk))
+
+
+class _ValorJson(Func):
+    """``JSON_EXTRACT(data, '$."globales"."13"')``: existe con ese nombre en MySQL y en
+    SQLite. No se usa ``KeyTransform`` porque Django interpreta una clave numérica
+    como índice de arreglo (``$."globales"[13]``) y devolvería NULL; entre comillas
+    es un miembro del objeto. ``output_field=JSONField`` hace que Django decodifique
+    el valor (MySQL devuelve JSON textual; SQLite, el escalar o el JSON del arreglo)."""
+
+    function = "JSON_EXTRACT"
+    arity = 2
+    output_field = JSONField()
+
+
+def _expresion_respuesta(clave):
+    """``data -> 'globales'|'requisitos' -> '<pk>'`` como expresión SQL: el motor
+    devuelve solo el valor de la pregunta en vez del documento entero."""
+    bolsa, pk = _ambito_y_pk(clave)
+    return _ValorJson(F("data"), Value(f'$."{bolsa}"."{int(pk)}"'))
 
 
 def _armar_distribucion(pregunta, conteo, base):
@@ -675,7 +806,7 @@ def _armar_distribucion(pregunta, conteo, base):
     )
 
 
-def distribuciones_respuestas(user, programa, filtros, claves=None):
+def distribuciones_respuestas(user, programa, filtros, claves=None, alcance=None, catalogo=None):
     """Distribución de una o varias preguntas en **una sola pasada** por los formularios.
 
     - La base de cada pregunta son los formularios que **tienen** esa pregunta
@@ -685,38 +816,61 @@ def distribuciones_respuestas(user, programa, filtros, claves=None):
     - Una opción respondida que ya no está en el catálogo se lista igual, con el
       texto guardado (caso límite del análisis).
 
+    La extracción se hace en SQL por clave del JSON: una fila devuelve solo los
+    valores pedidos, no el documento. Una fila con ``data`` guardado como texto (doble
+    codificado) no tiene claves para el motor y cuenta como sin respuesta: no rompe.
+
     ``claves=None`` calcula todas las del catálogo (exportación). Devuelve la lista en
     el orden del catálogo; las claves fuera del alcance se ignoran.
     """
-    catalogo = preguntas_graficables(user, programa)
+    catalogo = list(catalogo) if catalogo is not None else preguntas_graficables(user, programa)
     if claves is not None:
         pedidas = set(claves)
         catalogo = [p for p in catalogo if p.clave in pedidas]
     if not catalogo:
         return []
-    convocatorias = _convocatorias_alcance(user, programa, filtros)
-    relevamientos = _relevamientos_alcance(convocatorias, filtros)
-    formularios = _formularios_de(relevamientos, filtros.desde, filtros.hasta)
+    alcance = alcance or resolver_alcance(user, programa, filtros)
+    formularios = _formularios(alcance, filtros.desde, filtros.hasta)
 
     conteos = {p.clave: Counter() for p in catalogo}
     bases = {p.clave: 0 for p in catalogo}
-    for data in formularios.values_list("data", flat=True).iterator(chunk_size=500):
-        for pregunta in catalogo:
-            valores = respuesta_de(data, pregunta.clave)
+    alias = [f"r{i}" for i in range(len(catalogo))]
+    filas = formularios.annotate(**{a: _expresion_respuesta(p.clave) for a, p in zip(alias, catalogo)}).values_list(
+        *alias
+    )
+    for fila in filas.iterator(chunk_size=5000):
+        for pregunta, valor in zip(catalogo, fila):
+            valores = _valores_de(valor)
             if not valores:
                 continue
             bases[pregunta.clave] += 1
-            for valor in valores if pregunta.multiple else valores[:1]:
-                conteos[pregunta.clave][valor] += 1
+            for v in valores if pregunta.multiple else valores[:1]:
+                conteos[pregunta.clave][v] += 1
     return [_armar_distribucion(p, conteos[p.clave], bases[p.clave]) for p in catalogo]
 
 
-def distribucion_respuestas(user, programa, filtros, clave):
+def distribucion_respuestas(user, programa, filtros, clave, alcance=None, catalogo=None):
     """Una sola pregunta. Levanta ``ValueError`` si no existe o está fuera del alcance."""
-    resultado = distribuciones_respuestas(user, programa, filtros, claves=[clave])
+    resultado = distribuciones_respuestas(user, programa, filtros, claves=[clave], alcance=alcance, catalogo=catalogo)
     if not resultado:
         raise ValueError("La pregunta no existe o no está en el alcance del usuario.")
     return resultado[0]
+
+
+def distribucion_cacheada(user, programa, filtros, clave, recalcular=False, alcance=None, catalogo=None):
+    """``(distribucion, desde_cache)`` con la misma política que las métricas: 5
+    minutos por (programa, filtros, alcance, pregunta)."""
+    alcance = alcance or resolver_alcance(user, programa, filtros)
+    clave_c = _clave(programa, filtros, alcance.huella, sufijo=f"resp:{clave}")
+    if recalcular:
+        _cache_delete(clave_c)
+    else:
+        valor = _cache_get(clave_c)
+        if valor is not None:
+            return valor, True
+    valor = distribucion_respuestas(user, programa, filtros, clave, alcance=alcance, catalogo=catalogo)
+    _cache_set(clave_c, valor)
+    return valor, False
 
 
 # ---------------------------------------------------------------------------

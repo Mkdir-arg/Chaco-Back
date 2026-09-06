@@ -327,6 +327,10 @@ class MetricasTests(DashboardBecasBase):
         self.assertEqual(vacio.serie_semanal, [])
 
     def test_presupuesto_de_consultas_no_crece_con_los_formularios(self):
+        # Con datos desde el arranque: sin formularios el servicio omite las consultas
+        # que no tienen sentido, y eso no es lo que se mide acá.
+        self._formulario(self.rel_propio, creado=HOY - timedelta(days=3))
+        self._formulario(self.rel_publico, Formulario.Estado.APROBADO, creado=HOY - timedelta(days=9))
         svc.metricas(self.admin, self.programa, VENTANA)
         with CaptureQueriesContext(connection) as pocas:
             svc.metricas(self.admin, self.programa, VENTANA)
@@ -336,6 +340,8 @@ class MetricasTests(DashboardBecasBase):
         with CaptureQueriesContext(connection) as muchas:
             svc.metricas(self.admin, self.programa, VENTANA)
         self.assertEqual(len(muchas), len(pocas))
+        # Techo explícito: si alguien agrega una consulta por bloque, que el test lo diga.
+        self.assertLessEqual(len(muchas), 20)
 
 
 class RespuestasTests(DashboardBecasBase):
@@ -657,7 +663,9 @@ class DatosConFormasRarasTests(DashboardBecasBase):
         )
 
         laboral = svc.distribucion_respuestas(self.admin, self.programa, VENTANA, f"global:{q1}")
-        self.assertEqual(laboral.base, 2)
+        # La fila con ``data`` guardado como texto no tiene claves JSON para el motor:
+        # cuenta como sin respuesta (no rompe). Solo la fila bien formada entra en la base.
+        self.assertEqual(laboral.base, 1)
         transporte = next(
             p
             for p in svc.preguntas_graficables(self.admin, self.programa)

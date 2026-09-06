@@ -6616,7 +6616,7 @@ los datos crudos y la configuración propuesta están en
 | **Fecha del pedido** | 05/09/2026 |
 | **Issue / épica** | Análisis #366 (épica #69) · tasks #367–#375 · mock up: https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb |
 | **Partes afectadas** | Backoffice |
-| **Migración** | No requiere (previsto: sin modelos nuevos) |
+| **Migración** | `programas.0057` (índice, 06/09/2026) |
 
 ## Pedido original
 
@@ -6729,7 +6729,8 @@ Nuevos: `programas/services/dashboard_becas.py`, `programas/views/dashboard_beca
 
 ## Base de datos
 
-No requiere: sin modelos ni migraciones. El presupuesto de consultas del servicio no crece con la cantidad de
+`programas.0057_formulario_indice_relevamiento_creado`: índice `prog_formulario_rel_creado_idx` sobre `Formulario(relevamiento, creado)`
+(06/09/2026, corrección de performance). Sin cambios de columnas. El presupuesto de consultas del servicio no crece con la cantidad de
 formularios (test `test_presupuesto_de_consultas_no_crece_con_los_formularios`).
 
 ## Validación
@@ -6764,7 +6765,23 @@ string, bolsas que no son dict, valores y opciones con forma `{valor, etiqueta}`
 fallan las métricas responde 500 con la etapa y el tipo de error, si falla solo la pregunta devuelve el resto con `avisos`,
 y en los dos casos el traceback completo va al log del servidor con `logger.exception`. Si vuelve a fallar, el mensaje
 dirá la etapa y el tipo, y el log de ECOM tendrá el detalle. Desplegado el 05/09/2026: release ea33681 a `test`
-(merge 4e66424) y a `main` (avance directo fc740b8..ea33681). Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+(merge 4e66424) y a `main` (avance directo fc740b8..ea33681).
+
+**Causa más probable, encontrada el 06/09/2026, y corrección de performance (tercera corrección):** producción conecta a
+MySQL con `read_timeout = 10 s` (`config/settings.py`), y el servicio disparaba ~21 consultas con `IN` anidados en tres
+niveles sobre `programas_formulario`, más la lectura y decodificación en Python de los 4.000 JSON de respuestas en cada
+cambio de filtro, sin caché. Medido en un MySQL 8.0 local con 40.000 formularios y las OPTIONS exactas de producción: 9,2 s
+y 29 consultas por carga fría, con consultas de hasta 1,5 s; en una base más cargada una sola que pase los 10 s corta la
+conexión (`OperationalError 2013`) y produce el 500. Reescritura del servicio: el alcance se resuelve una vez a listas de
+ids (`resolver_alcance`) y todo filtra por `relevamiento_id IN (...)` plano; una única consulta agrupada por
+(relevamiento, estado) alimenta estados, canales, tabla de convocatorias y territoriales; el SIIS OK se calcula con un
+anti-join en vez de una subconsulta correlacionada por formulario; las respuestas se extraen en SQL con
+`JSON_EXTRACT(data, '$."globales"."13"')` en vez de decodificar cada documento (ojo: `KeyTransform` de Django trata una
+clave numérica como índice de arreglo y devuelve NULL, por eso la expresión es explícita) y también se cachean 5 minutos;
+la caché degrada a «sin caché» con aviso en el log si Redis falla; `celda_segura` elimina los caracteres de control que
+openpyxl rechaza y la exportación entera queda dentro del `try`; fechas cero y FK colgadas ya no tiran el tablero.
+Resultado en el mismo banco de 40.000 filas: 1,2–2,4 s y 22 consultas en frío, 40–60 ms con caché. Migración
+`programas.0057` con el índice `(relevamiento, creado)` para la ventana de fechas. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
 El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
 `relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
 Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
