@@ -2206,6 +2206,10 @@ class Formulario(TimeStamped):
         indexes = [
             models.Index(fields=["relevamiento", "estado"]),
             models.Index(fields=["estado"]),
+            # Dashboard del programa (Cambio 64): el recorte es siempre
+            # relevamiento IN (...) AND creado BETWEEN ..., y la serie semanal lee
+            # solo ``creado`` de esas filas.
+            models.Index(fields=["relevamiento", "creado"], name="prog_formulario_rel_creado_idx"),
         ]
         constraints = [
             models.UniqueConstraint(fields=["relevamiento", "numero"], name="uniq_formulario_numero_relevamiento"),
