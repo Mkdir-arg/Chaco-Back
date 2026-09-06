@@ -96,9 +96,10 @@ Reglas:
    Cuatro frentes:
    - **Duplicidad.** ¿Ya existe, total o parcial?
      - **(a) Código** — siempre.
-     - **(b) Épicas/análisis** (`gh issue list --label epica`, `--label analisis`) y
-       **(c) trabajo encolado** (`gh issue list --label task --state open` + backlog del
-       Project #1): **omitir si el usuario confirmó explícitamente que el requerimiento
+     - **(b) Épicas/análisis** y **(c) trabajo encolado** — con `--repo` explícito:
+       `gh issue list --repo Mkdir-arg/Chaco-Back --label epica` (ídem `--label
+       analisis`, y `--label task --state open`), más el backlog del
+       Project #1: **omitir si el usuario confirmó explícitamente que el requerimiento
        es nuevo**; en ese caso registrar "Duplicidad: no verificada en issues/backlog —
        requerimiento declarado nuevo por el cliente."
      Si encontrás solapamiento, dejalo escrito: "ya existe la tarea #KK en Backlog →
@@ -217,8 +218,17 @@ Prerrequisito: `gh` autenticado con scope `project`. Si falla, avisá y no inven
 issues. Los labels ya existen en el repo: los de **nivel** (`epica`, `analisis`,
 `task`) y los de **programa** (`becas`, `dispositivos`, `transversal`).
 
-### Constantes del Project "Proyect Chaco" (Mkdir-arg/Chaco)
+### Constantes del Project "Proyect Chaco" (repo `Mkdir-arg/Chaco-Back`)
+
+> **El repo se renombró de `Mkdir-arg/Chaco` a `Mkdir-arg/Chaco-Back`.** Va `--repo
+> Mkdir-arg/Chaco-Back` **explícito en todo comando `gh`**: con el nombre viejo —o sin
+> `--repo`, porque `gh` lo resuelve por el remoto, que sigue apuntando al viejo— la
+> consulta **devuelve vacío en silencio**, sin error ni código de salida distinto de
+> cero. Si un listado de issues sale vacío y no tiene sentido, es esto. El Project #1
+> es del **usuario** `Mkdir-arg`, no del repo: sus IDs de campo no cambiaron.
+
 ```
+REPO=Mkdir-arg/Chaco-Back
 OWNER=Mkdir-arg
 PROJECT_NUMBER=1
 PROJECT_ID=PVT_kwHODLaoqM4BXQVZ
@@ -235,7 +245,7 @@ TIPO_FIELD=PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE      # Epica=abc63c47 · Analisis=3dab
 ### Por cada issue (épica, análisis y cada sub-issue)
 ```bash
 # 1. crear y capturar URL — SIEMPRE dos labels: nivel + programa
-URL=$(gh issue create --title "[ANALISIS] ..." \
+URL=$(gh issue create --repo Mkdir-arg/Chaco-Back --title "[ANALISIS] ..." \
   --label analisis --label <becas|dispositivos|transversal> --body-file <archivo>)
 # 2. agregar al Project (--jq integrado de gh, no requiere binario jq)
 ITEM=$(gh project item-add 1 --owner Mkdir-arg --url "$URL" --format json --jq '.id')

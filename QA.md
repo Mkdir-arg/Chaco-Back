@@ -165,12 +165,12 @@ no se duplican acá.
 
 ### Agregar/actualizar casos en una task
 ```bash
-# 1. leer el cuerpo actual
-gh issue view <n> --json body --jq '.body' > task-body.md
+# 1. leer el cuerpo actual — SIEMPRE con --repo (ver nota abajo)
+gh issue view <n> --repo Mkdir-arg/Chaco-Back --json body --jq '.body' > task-body.md
 # 2. agregar la sección "## Casos de prueba (QA)" al final
 #    (o reemplazar SOLO esa sección si ya existe)
 # 3. actualizar el issue
-gh issue edit <n> --body-file task-body.md
+gh issue edit <n> --repo Mkdir-arg/Chaco-Back --body-file task-body.md
 ```
 
 ### Crear el Plan de pruebas (caso especial, como el [REQUERIMIENTO])
@@ -180,7 +180,7 @@ Se crea → se agrega al Project → Status **Backlog** → **Tipo = Testing** (
 etiqueta de programa de la épica**:
 
 ```bash
-URL=$(gh issue create --title "[PLAN DE PRUEBAS] ..." \
+URL=$(gh issue create --repo Mkdir-arg/Chaco-Back --title "[PLAN DE PRUEBAS] ..." \
   --label <becas|dispositivos|transversal> --body-file <archivo>)
 ```
 
@@ -189,9 +189,15 @@ Misma receta `gh project item-add` / `item-edit` de `AGENTS.md`.
 ### Detectar tasks sin casos (revisión de cobertura)
 ```bash
 # tasks abiertas cuyo cuerpo no tiene la sección de QA
-gh issue list --label task --state open --limit 100 --json number,title,body \
+gh issue list --repo Mkdir-arg/Chaco-Back --label task --state open --limit 100 \
+  --json number,title,body \
   --jq '.[] | select(.body | contains("## Casos de prueba (QA)") | not) | "#\(.number) \(.title)"'
 ```
+
+> **`--repo Mkdir-arg/Chaco-Back` va explícito en todo comando `gh`.** El repo se
+> renombró (antes `Mkdir-arg/Chaco`) y el remoto `origin` sigue apuntando al nombre
+> viejo, así que **sin `--repo` la consulta devuelve vacío en silencio**, sin error.
+> Si un listado sale vacío y no tiene sentido, es esto y no que el dato no exista.
 
 ## Handoffs: de dónde viene y a dónde va el trabajo de QA
 

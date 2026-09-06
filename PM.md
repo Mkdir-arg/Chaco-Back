@@ -28,7 +28,7 @@ aditiva: no reemplaza ni modifica los informes existentes, en especial
 | Fuente | Qué da | Cómo se accede |
 |--------|--------|----------------|
 | **Project #1** (`Mkdir-arg`, "Proyect Chaco") | Items, Status, Prioridad, Modulo, EstimacionHoras | GitHub MCP (lectura) o `gh project item-list 1 --owner Mkdir-arg --format json` |
-| **Issues del repo** (`Mkdir-arg/Chaco`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view` |
+| **Issues del repo** (`Mkdir-arg/Chaco-Back`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view --repo Mkdir-arg/Chaco-Back` |
 | **Etiqueta de programa** (labels del repo) | A qué programa pertenece cada issue: `becas` · `dispositivos` · `transversal` | `gh api "repos/Mkdir-arg/Chaco-Back/issues?labels=becas&state=all&per_page=100" --paginate` (ver nota abajo) |
 | **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
 | **Estimaciones por programa** | Horas estimadas por programa (resumen ejecutivo, desglose por concepto, estado de aprobación) | `docs/client/funcionalidades/estimacion-programa-*.md` |
@@ -40,9 +40,15 @@ aditiva: no reemplaza ni modifica los informes existentes, en especial
 > están en `AGENTS.md` → "Etiqueta de programa"; el PM Assistant los **lee**, no
 > los asigna: quien crea el issue lo etiqueta.
 >
-> **Gotcha:** `gh issue list --label <programa>` puede devolver vacío durante un
-> rato después de una edición masiva (índice de búsqueda de GitHub). Para contar
-> en firme, usá `gh api repos/.../issues?labels=<programa>&state=all --paginate`,
+> **Gotcha 1 — el nombre del repo.** Va `--repo Mkdir-arg/Chaco-Back` **explícito en
+> todo comando `gh`**. El repo se renombró (antes `Mkdir-arg/Chaco`) y el remoto
+> `origin` sigue apuntando al viejo, así que sin `--repo` la consulta **devuelve
+> vacío en silencio**, sin error. Un listado vacío que no tiene sentido es esto.
+>
+> **Gotcha 2 — el índice de búsqueda.** `gh issue list --label <programa>` puede
+> devolver vacío durante un rato después de una edición masiva (índice de búsqueda
+> de GitHub). Para contar en firme, usá
+> `gh api repos/Mkdir-arg/Chaco-Back/issues?labels=<programa>&state=all --paginate`,
 > que lee del dato y no del índice.
 
 ### GitHub MCP y fallback `gh`
@@ -91,7 +97,8 @@ chequeo, cada una con la lista concreta de issues que fallan (o "✔ OK"):
    el de su análisis de origen (síntoma de épica equivocada):
    ```bash
    # issues abiertos sin ninguna de las tres etiquetas de programa
-   gh issue list --state open --limit 300 --json number,title,labels \
+   gh issue list --repo Mkdir-arg/Chaco-Back --state open --limit 300 \
+     --json number,title,labels \
      --jq '.[] | select([.labels[].name] | any(. == "becas" or . == "dispositivos"
             or . == "transversal") | not) | "#\(.number) \(.title)"'
    ```
@@ -111,7 +118,8 @@ exacto para solucionarlo (listo para copiar y pegar):
 - Épica consolidable sin `[REQUERIMIENTO]` → `/analisis:issue #NN` (Analista).
 - Task sin casos de prueba → `/qa:casos #NN`; 3+ tasks sin cubrir → `/qa:revision`.
 - Épica cubierta sin `[PLAN DE PRUEBAS]` → `/qa:plan #NN`.
-- Issue sin etiqueta de programa → `gh issue edit #NN --add-label <programa>`,
+- Issue sin etiqueta de programa → `gh issue edit #NN --repo Mkdir-arg/Chaco-Back
+  --add-label <programa>`,
   a cargo de quien lo creó (Analista o QA).
 - Campos/estados/assignees/iteraciones/Blocked → acción manual del PM humano en
   el Project (sin comando; el informe indica qué campo o estado tocar en qué issue).
