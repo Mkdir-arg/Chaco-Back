@@ -14,7 +14,9 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
      {% if puede_exportar_dashboard %}data-url-exportar="{% url 'becas:programa_dashboard_exportar' programa.pk 'FORMATO' %}"{% endif %}
      data-chartjs="{% static 'vendor/chartjs/chart.umd.min.js' %}"
      data-url-convocatoria="{% url 'becas:convocatoria_detalle' 0 %}"
-     x-data="{ menuExportar: false }">
+     {% if puede_exportar_dashboard %}data-url-respuestas="{% url 'becas:programa_dashboard_respuestas_xlsx' programa.pk 0 %}"{% endif %}
+     x-data="{ menuExportar: false, modalRespuestas: false }"
+     @keydown.escape.window="modalRespuestas=false">
   <style>@media print { .dash-no-print { display: none !important; } }</style>
 
   {# Introducción + acción principal (mismo patrón que las otras dos solapas) #}
@@ -46,9 +48,14 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
             <i class="fas fa-table text-fg-brand mt-0.5" aria-hidden="true"></i>
             <span>Avance por convocatoria (CSV)<span class="block text-xs font-normal text-body-subtle">La tabla tal como se ve</span></span>
           </a>
+          <button role="menuitem" type="button" class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold text-left"
+                  @click="menuExportar=false; modalRespuestas=true; $dispatch('dash-respuestas-abierto')">
+            <i class="fas fa-user-check text-fg-brand mt-0.5" aria-hidden="true"></i>
+            <span>Respuestas por persona (XLSX)<span class="block text-xs font-normal text-body-subtle">Un registro por caso con todas sus respuestas; elegís la convocatoria</span></span>
+          </button>
           <a role="menuitem" class="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold" href="#" data-dash-exportar="csv" data-bloque="respuestas">
             <i class="fas fa-table text-fg-brand mt-0.5" aria-hidden="true"></i>
-            <span>Respuestas de los formularios (CSV)<span class="block text-xs font-normal text-body-subtle">Todas las preguntas: cantidad y porcentaje por opción</span></span>
+            <span>Resumen de respuestas por opción (CSV)<span class="block text-xs font-normal text-body-subtle">Cantidad y porcentaje de cada opción, por pregunta</span></span>
           </a>
           <div class="border-t border-light my-1"></div>
           <button role="menuitem" type="button" class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary text-sm text-heading font-semibold text-left" data-dash="imprimir">
@@ -236,7 +243,13 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
             {% for p in dashboard_form.preguntas %}<option value="{{ p.clave }}">{{ p.texto }}</option>{% empty %}<option value="">Sin preguntas de opciones cerradas</option>{% endfor %}
           </select>
           <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-toggle="respuestas" aria-pressed="false" aria-label="Ver como tabla"><i class="fas fa-table" aria-hidden="true"></i></button>
-          {% if puede_exportar_dashboard %}<a href="#" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-exportar="csv" data-bloque="respuestas" aria-label="Descargar respuestas en CSV"><i class="fas fa-download" aria-hidden="true"></i></a>{% endif %}
+          {% if puede_exportar_dashboard %}
+          <button type="button" class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5"
+                  @click="modalRespuestas=true; $dispatch('dash-respuestas-abierto')"
+                  title="Excel con un registro por persona y una columna por pregunta">
+            <i class="fas fa-file-excel" aria-hidden="true"></i> Exportar por persona
+          </button>
+          {% endif %}
         </div>
       </div>
       <div class="p-5">
@@ -252,4 +265,50 @@ densa, estado vacío, badges, botones y campos NODO. Sin CSS nuevo.
 
     {% include "programas/becas/config/_dashboard_card.html" with bloque="localidades" titulo="Formularios por localidad" ancho="xl:col-span-4" alto="h-56" %}
   </div>
+
+  {% if puede_exportar_dashboard %}
+  {# ============ Modal: Respuestas por persona (Cambio 65) — mismo patrón que los modales de programa_detail.html ============ #}
+  <div x-show="modalRespuestas" x-cloak @click="modalRespuestas=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" @click.stop role="dialog" aria-modal="true" aria-labelledby="dash-modal-respuestas-titulo">
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-file-excel" aria-hidden="true"></i>
+          </div>
+          <h3 id="dash-modal-respuestas-titulo" class="text-lg font-bold text-heading">Exportar respuestas por persona</h3>
+        </div>
+        <button type="button" @click="modalRespuestas=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form id="dash-form-respuestas" @submit.prevent>
+        <div class="p-6 space-y-5">
+          <p class="text-sm text-body">
+            Un archivo Excel con <strong class="text-heading">un registro por caso enviado</strong> de la convocatoria, en cualquier estado:
+            relevamiento y canal, identificación de la persona, estado y fecha del caso, y <strong class="text-heading">una columna por cada pregunta</strong> del formulario.
+          </p>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="dash-respuestas-convocatoria">Convocatoria <span class="text-fg-danger">*</span></label>
+            <select id="dash-respuestas-convocatoria" name="convocatoria" class="nodo-field" aria-required="true">
+              <option value="">Elegí una convocatoria</option>
+              {% for conv in dashboard_form.fields.convocatoria.queryset %}<option value="{{ conv.pk }}">{{ conv.nombre }} · {{ conv.segmento.nombre }}</option>{% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-dash="respuestas-error">Elegí la convocatoria que querés exportar.</p>
+          </div>
+          <div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)">
+            <i class="fas fa-info-circle flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
+            <span style="font-size:12.5px; color:var(--text-body)">Incluye todos los casos de la convocatoria, sin el filtro de período del tablero. Las respuestas múltiples van separadas por « | » y los adjuntos muestran el nombre del archivo.</span>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalRespuestas=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-download" aria-hidden="true"></i> Descargar Excel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
