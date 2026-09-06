@@ -1108,7 +1108,10 @@
     </div>
 </div>
 
-<script src="{% static 'vendor/vis-network/vis-network.min.js' %}"></script>
+<!-- defer: son 673 KB en medio del body que frenaban el parseo del resto de la
+     página. Los diferidos corren antes de DOMContentLoaded, así que ``vis`` ya
+     está definido cuando el grafo se dibuja. -->
+<script defer src="{% static 'vendor/vis-network/vis-network.min.js' %}"></script>
 <script>
 // ============================================================
 // Sistema de solapas: deep-linking por hash + accesibilidad

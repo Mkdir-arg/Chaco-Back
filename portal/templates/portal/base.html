@@ -7,6 +7,10 @@
     <title>{% block title %}DATAÑACH — Portal Ciudadano{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'custom/css/tailwind.css' %}">
     {% comment %}Autoalojadas: el formulario público no le pide recursos a terceros.{% endcomment %}
+    <!-- La fuente de iconos se descubre recién al parsear all.min.css y viene con
+         font-display:block, así que sin precarga los iconos tardan un round-trip extra. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="{% static 'vendor/fontawesome/webfonts/fa-solid-900.woff2' %}" />
     <link href="{% static 'vendor/fontawesome/css/all.min.css' %}" rel="stylesheet">
     <link href="{% static 'vendor/manrope/manrope.css' %}" rel="stylesheet">
     <!-- CHACO Design Tokens — CSS variables para componentes del portal -->

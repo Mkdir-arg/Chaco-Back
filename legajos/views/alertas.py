@@ -39,7 +39,11 @@ def alertas_dashboard(request):
 
         alertas_conversaciones = (
             HistorialAlertaConversacion.objects.filter(operador=request.user)
-            .select_related("conversacion__usuario", "operador")
+            # ``Conversacion`` no tiene ningún campo ``usuario`` (sus FK son
+            # ``operador_asignado`` y ``ciudadano_usuario``): ese select_related tiraba
+            # FieldError y la pantalla respondía 500 para todo operador. La plantilla solo
+            # lee ``alerta.conversacion.id``, así que alcanza con traer la conversación.
+            .select_related("conversacion")
             .order_by("-creado")[:20]
         )
 
