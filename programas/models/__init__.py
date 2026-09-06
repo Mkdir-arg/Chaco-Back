@@ -2210,6 +2210,14 @@ class Formulario(TimeStamped):
             # relevamiento IN (...) AND creado BETWEEN ..., y la serie semanal lee
             # solo ``creado`` de esas filas.
             models.Index(fields=["relevamiento", "creado"], name="prog_formulario_rel_creado_idx"),
+            # Bandeja de revisión: ordena por ``creado`` descendente sobre toda la
+            # tabla y corta en la página. Sin este índice MySQL ordena las 40.000
+            # filas antes de recortar (3,7 s medidos); con él hace un recorrido del
+            # índice hacia atrás y frena en la página.
+            models.Index(fields=["creado"], name="prog_formulario_creado_idx"),
+            # Bandeja de RENAPER pendientes: ``validado_renaper = 0`` ordenado por
+            # ``creado`` descendente.
+            models.Index(fields=["validado_renaper", "creado"], name="prog_formulario_renaper_idx"),
         ]
         constraints = [
             models.UniqueConstraint(fields=["relevamiento", "numero"], name="uniq_formulario_numero_relevamiento"),

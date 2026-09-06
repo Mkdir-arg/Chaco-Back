@@ -106,6 +106,21 @@
         </tbody>
       </table>
     </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between px-4 py-3 border-t border-light bg-secondary">
+      <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} caso{{ page_obj.paginator.count|pluralize }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
+           class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left"></i> Anterior</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
+           class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right"></i></a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
     {% else %}
     <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
       <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>

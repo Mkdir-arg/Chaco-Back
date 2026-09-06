@@ -16,15 +16,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from programas.forms import CiudadanoGeneroRevisionForm, ForzarIdentidadForm, FormularioRevisionForm
+from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm, ForzarIdentidadForm
 from programas.models import (
     Formulario,
     PreguntaGlobal,
@@ -47,6 +47,8 @@ from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
+#: Casos por página en la revisión de un relevamiento.
+CASOS_POR_PAGINA = 50
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
 
 
@@ -115,9 +117,46 @@ def _detalle_validacion_siis(validacion):
     }
 
 
-def _con_conflicto_duplicado_pendiente(queryset):
-    conflictos = Formulario.objects.filter(duplicado_de_id=OuterRef("pk"), conflicto_resuelto=False)
-    return queryset.annotate(tiene_carga_duplicada_pendiente=Exists(conflictos))
+def _marcar_carga_duplicada_pendiente(formularios):
+    """Deja ``tiene_carga_duplicada_pendiente`` en cada caso de la página.
+
+    Antes se anotaba con ``Exists(duplicado_de_id=OuterRef("pk"))``. ``duplicado_de_id``
+    es casi siempre NULL, así que MySQL le asigna cardinalidad 1, descarta el índice y
+    resuelve la subconsulta dependiente con un scan completo de la tabla **por cada
+    fila**. Medido contra 40.000 casos: 3,3 s para una página de 50 y 182 s para un
+    relevamiento entero, muy por encima del ``read_timeout`` de 10 s de producción.
+    Resuelto por lote sobre los ids de la página, es una consulta indexada de pocos ms.
+    """
+    formularios = list(formularios)
+    ids = [f.pk for f in formularios]
+    con_conflicto = (
+        set(
+            Formulario.objects.filter(duplicado_de_id__in=ids, conflicto_resuelto=False).values_list(
+                "duplicado_de_id", flat=True
+            )
+        )
+        if ids
+        else set()
+    )
+    for formulario in formularios:
+        formulario.tiene_carga_duplicada_pendiente = formulario.pk in con_conflicto
+    return formularios
+
+
+def _pagina_hidratada(pks, orden, duplicados=True):
+    """Trae los datos de presentación **solo** de los casos de la página.
+
+    La página se elige con una consulta liviana (ver ``RevisionPersonasListView``) y
+    recién acá se pagan los ``select_related``. La columna ``data`` no la usa ninguna
+    de las tres plantillas de revisión, así que se difiere.
+    """
+    filas = (
+        Formulario.objects.filter(pk__in=pks)
+        .select_related("ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__territorial")
+        .defer("data")
+        .order_by(*orden)
+    )
+    return _marcar_carga_duplicada_pendiente(filas) if duplicados else list(filas)
 
 
 def _assert_scope_relevamiento(request, relevamiento):
@@ -163,19 +202,26 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
     context_object_name = "formularios"
     paginate_by = 25
 
+    #: Orden de la bandeja. El desempate por pk la vuelve estable entre páginas y
+    #: permite rehidratar la página en el mismo orden.
+    orden = ("-creado", "-pk")
+
     def get_queryset(self):
-        qs = _con_conflicto_duplicado_pendiente(
-            Formulario.objects.select_related(
-                "ciudadano", "relevamiento__convocatoria__segmento", "relevamiento__territorial"
-            )
-            .filter(relevamiento__convocatoria__in=convocatorias_visibles(self.request.user))
-            .order_by("-creado")
-        )
+        # Consulta liviana: sin joins de presentación. Con los ``select_related`` acá,
+        # MySQL arranca el plan por ``programas_relevamiento``, materializa las 40.000
+        # filas y recién después recorta (3,7 s medidos). Sin ellos recorre el índice
+        # de ``creado`` hacia atrás y corta en la página.
+        convocatorias = list(convocatorias_visibles(self.request.user).values_list("pk", flat=True))
+        qs = Formulario.objects.filter(relevamiento__convocatoria_id__in=convocatorias).order_by(*self.orden)
         qs = _sin_formularios_publicos_si_no_puede(qs, self.request.user)
         estado = self.request.GET.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
         return qs
+
+    def paginate_queryset(self, queryset, page_size):
+        paginator, page, object_list, is_paginated = super().paginate_queryset(queryset, page_size)
+        return paginator, page, _pagina_hidratada([f.pk for f in object_list], self.orden), is_paginated
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -194,11 +240,12 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
     template_name = "programas/becas/revision/renaper_pendientes.html"
     context_object_name = "formularios"
     paginate_by = 50
+    orden = ("-creado", "-pk")
 
     def get_queryset(self):
-        queryset = Formulario.objects.filter(validado_renaper=False).select_related(
-            "ciudadano", "relevamiento__territorial", "relevamiento__convocatoria__segmento"
-        )
+        # Igual que la bandeja de personas: la página se elige sin joins de
+        # presentación y se hidrata después (ver ``_pagina_hidratada``).
+        queryset = Formulario.objects.filter(validado_renaper=False)
         queryset = _sin_formularios_publicos_si_no_puede(queryset, self.request.user)
         if self.request.GET.get("fecha"):
             fecha = parse_date(self.request.GET["fecha"])
@@ -214,7 +261,16 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
         segmento = self.request.GET.get("segmento", "")
         if segmento.isdigit():
             queryset = queryset.filter(relevamiento__convocatoria__segmento_id=int(segmento))
-        return queryset.order_by("-creado")
+        return queryset.order_by(*self.orden)
+
+    def paginate_queryset(self, queryset, page_size):
+        paginator, page, object_list, is_paginated = super().paginate_queryset(queryset, page_size)
+        return (
+            paginator,
+            page,
+            _pagina_hidratada([f.pk for f in object_list], self.orden, duplicados=False),
+            is_paginated,
+        )
 
     @staticmethod
     def territoriales_pendientes(base):
@@ -245,19 +301,25 @@ def revision_formularios(request, relevamiento_pk):
     relevamiento = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=relevamiento_pk)
     _assert_scope_relevamiento(request, relevamiento)
 
-    formularios = _con_conflicto_duplicado_pendiente(
-        relevamiento.formularios.select_related("ciudadano").order_by("numero")
-    )
+    formularios = relevamiento.formularios.order_by("numero")
     estado = request.GET.get("estado")
     if estado:
         formularios = formularios.filter(estado=estado)
+
+    # Sin paginar, un relevamiento de 3.300 casos rendía una sola página con todas las
+    # filas y su JSON de respuestas. Se pagina como el resto de las bandejas.
+    paginador = Paginator(formularios, CASOS_POR_PAGINA)
+    pagina = paginador.get_page(request.GET.get("page"))
 
     return render(
         request,
         "programas/becas/revision/formulario_list.html",
         {
             "relevamiento": relevamiento,
-            "formularios": formularios,
+            "formularios": _pagina_hidratada([f.pk for f in pagina], ("numero",)),
+            "page_obj": pagina,
+            "paginator": paginador,
+            "is_paginated": pagina.has_other_pages(),
             "estados": Formulario.Estado.choices,
             "estado_actual": estado or "",
             "pendientes": relevamiento.formularios.filter(estado=Formulario.Estado.ENVIADO).count(),
@@ -682,10 +744,7 @@ def formulario_revalidar_renaper(request, pk):
                 cambios.append((f"Ciudadano · {campo}", anterior, nuevo))
         if campos_actualizados:
             ciudadano.save(update_fields=[*campos_actualizados, "modificado"])
-        if (
-            not formulario.validado_renaper
-            or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS
-        ):
+        if not formulario.validado_renaper or formulario.origen_validacion != Formulario.OrigenValidacion.PERSONAS:
             anterior = formulario.get_origen_validacion_display() if formulario.validado_renaper else "Pendiente"
             formulario.validado_renaper = True
             # La Gran Base es la fuente oficial: manda sobre el padrón (RN-6).
@@ -705,9 +764,7 @@ def formulario_validar_padron(request, pk):
     convocatoria (Cambio 57). Es lo mismo que hace el cruce automático al
     subir el padrón, para un caso puntual: sirve cuando el padrón se corrigió
     después, o cuando la Gran Base está apagada y el caso entró como manual."""
-    formulario = get_object_or_404(
-        Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk
-    )
+    formulario = get_object_or_404(Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria"), pk=pk)
     _assert_scope_formulario(request, formulario)
     if request.method != "POST":
         return redirect("becas:formulario_detalle", pk=formulario.pk)

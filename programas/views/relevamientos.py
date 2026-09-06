@@ -192,14 +192,15 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             conv.relevamientos.select_related("territorial"), self.request.user
         ).order_by("-fecha_asignada")
         relevamientos = list(relevamientos_qs)
-        formularios_base = _sin_formularios_publicos_si_no_puede(
-            Formulario.objects.filter(relevamiento__convocatoria=conv),
-            self.request.user,
-        )
+        # Los relevamientos visibles de la convocatoria ya están en memoria: filtrar los
+        # casos por sus ids da el mismo conjunto que el join más la exclusión por tipo,
+        # y le deja a MySQL un rango indexado en vez de ordenar todo el join.
+        formularios_base = Formulario.objects.filter(relevamiento_id__in=[r.pk for r in relevamientos])
         ctx["relevamientos"] = relevamientos
         ctx["beneficiarios"] = _paginate(
             self.request,
-            formularios_base.select_related("ciudadano", "relevamiento").order_by("-creado"),
+            # ``data`` (el JSON de respuestas) no lo usa la tabla de beneficiarios.
+            formularios_base.select_related("ciudadano", "relevamiento").defer("data").order_by("-creado", "-pk"),
             page_param="beneficiarios_page",
         )
         ctx["n_relevamientos"] = len(relevamientos)
