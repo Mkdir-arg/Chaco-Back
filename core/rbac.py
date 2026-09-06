@@ -486,6 +486,28 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
 # ---------------------------------------------------------------------------
 # Núcleo de autorización
 # ---------------------------------------------------------------------------
+def _filas_de_capacidad(user):
+    """``(codename, programa del rol)`` de los roles **activos** del usuario.
+
+    Una sola consulta por request para todos los alcances. Cada fila empareja la
+    capacidad con el programa de **su propio** rol, que es justo lo que exige la regla
+    del ``filter`` único documentada en :func:`_capacidades_activas_en_programa`: nada
+    se cuela de otro programa. El ``order_by()`` vacío saca el orden por defecto de
+    ``Permission``, que agregaba un join a ``django_content_type`` y dos columnas al
+    ``DISTINCT`` sin aportar nada.
+    """
+    filas = getattr(user, "_caps_filas_cache", None)
+    if filas is None:
+        filas = tuple(
+            Permission.objects.filter(group__user=user, group__meta__activo=True)
+            .values_list("codename", "group__meta__programa_id")
+            .order_by()
+            .distinct()
+        )
+        user._caps_filas_cache = filas
+    return filas
+
+
 def _capacidades_activas(user):
     """Set de códigos de capacidad **efectivos** del usuario.
 
@@ -502,11 +524,7 @@ def _capacidades_activas(user):
     elif user.is_superuser:
         cache = frozenset(codigos_de_capacidad())
     else:
-        codenames = set(
-            Permission.objects.filter(group__user=user, group__meta__activo=True)
-            .values_list("codename", flat=True)
-            .distinct()
-        )
+        codenames = {codename for codename, _programa in _filas_de_capacidad(user)}
         cache = frozenset(c for c in codigos_de_capacidad() if codename_de(c) in codenames)
     user._caps_activas_cache = cache
     return cache
@@ -534,23 +552,17 @@ def _capacidades_activas_en_programa(user, programa):
     elif user.is_superuser:
         resultado = frozenset(de_programa)
     else:
-        codenames_programa = {codename_de(c) for c in de_programa}
-        # IMPORTANTE: todas las condiciones sobre ``group`` van en un ÚNICO
-        # ``filter`` para que apunten a la MISMA fila de Group (el rol que tiene
-        # la capacidad debe ser, él mismo, del programa X o global y del usuario y
-        # activo). Partirlo en dos ``filter`` crea joins separados y daría falsos
-        # positivos (p. ej. una cap de otro programa "se cuela" porque un rol
-        # global cualquiera la tiene).
-        codenames = set(
-            Permission.objects.filter(
-                Q(group__meta__programa=programa_pk) | Q(group__meta__programa__isnull=True),
-                group__user=user,
-                group__meta__activo=True,
-                codename__in=codenames_programa,
-            )
-            .values_list("codename", flat=True)
-            .distinct()
-        )
+        # IMPORTANTE: cada fila trae la capacidad junto con el programa de la MISMA fila
+        # de Group (el rol que tiene la capacidad debe ser, él mismo, del programa X o
+        # global, y del usuario, y activo). Filtrar en dos pasos sobre ``group`` crearía
+        # joins separados y daría falsos positivos (p. ej. una cap de otro programa "se
+        # cuela" porque un rol global cualquiera la tiene). Por eso el filtro por programa
+        # se aplica sobre la fila ya emparejada, no en otra consulta.
+        codenames = {
+            codename
+            for codename, programa_del_rol in _filas_de_capacidad(user)
+            if programa_del_rol is None or programa_del_rol == programa_pk
+        }
         resultado = frozenset(c for c in de_programa if codename_de(c) in codenames)
     cache[programa_pk] = resultado
     return resultado

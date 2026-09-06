@@ -33,11 +33,11 @@ FORMATOS = ("xlsx", "csv")
 
 
 def puede_ver_dashboard(user):
-    return puede(user, CAP_VER, programa=programa_becas())
+    return puede(user, CAP_VER, programa=programa_becas(user))
 
 
 def puede_exportar_dashboard(user):
-    return puede(user, CAP_EXPORTAR, programa=programa_becas())
+    return puede(user, CAP_EXPORTAR, programa=programa_becas(user))
 
 
 def _programa_o_403(request, pk, capacidad):
@@ -45,7 +45,7 @@ def _programa_o_403(request, pk, capacidad):
     # Import diferido: ``configuracion`` importa este módulo para el contexto de la pantalla.
     from programas.views.configuracion import _programas_qs
 
-    if not puede(request.user, capacidad, programa=programa_becas()):
+    if not puede(request.user, capacidad, programa=programa_becas(request.user)):
         raise PermissionDenied("No tiene acceso al dashboard de Becas.")
     programa = get_object_or_404(ProgramaSiis, pk=pk)
     if not _programas_qs(request.user).filter(pk=programa.pk).exists():

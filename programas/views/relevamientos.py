@@ -129,7 +129,7 @@ def _assert_scope(request, relevamiento):
     es público y no tiene la capacidad (RN-P13: ocultar no es bloquear)."""
     if relevamiento.es_publico and not _puede_publico(request.user):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
-    programa = programa_becas()
+    programa = programa_becas(request.user)
     if (
         not puede_gestionar_segmento(request.user, relevamiento.segmento, programa=programa)
         or not convocatorias_visibles(request.user, programa=programa).filter(pk=relevamiento.convocatoria_id).exists()
@@ -192,14 +192,15 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             conv.relevamientos.select_related("territorial"), self.request.user
         ).order_by("-fecha_asignada")
         relevamientos = list(relevamientos_qs)
-        formularios_base = _sin_formularios_publicos_si_no_puede(
-            Formulario.objects.filter(relevamiento__convocatoria=conv),
-            self.request.user,
-        )
+        # Los relevamientos visibles de la convocatoria ya están en memoria: filtrar los
+        # casos por sus ids da el mismo conjunto que el join más la exclusión por tipo,
+        # y le deja a MySQL un rango indexado en vez de ordenar todo el join.
+        formularios_base = Formulario.objects.filter(relevamiento_id__in=[r.pk for r in relevamientos])
         ctx["relevamientos"] = relevamientos
         ctx["beneficiarios"] = _paginate(
             self.request,
-            formularios_base.select_related("ciudadano", "relevamiento").order_by("-creado"),
+            # ``data`` (el JSON de respuestas) no lo usa la tabla de beneficiarios.
+            formularios_base.select_related("ciudadano", "relevamiento").defer("data").order_by("-creado", "-pk"),
             page_param="beneficiarios_page",
         )
         ctx["n_relevamientos"] = len(relevamientos)
@@ -364,23 +365,33 @@ def convocatoria_export_beneficiarios(request, pk):
     response.write("﻿")  # BOM para Excel
     writer = csv.writer(response)
     writer.writerow(["Nombre", "DNI", "Segmento", "Convocatoria", "Fecha de aprobación"])
-    formularios = (
+    # Por ``values_list`` y no por instancias: el CSV usa cinco columnas y traer el
+    # modelo entero arrastra el JSON de respuestas de cada caso y lo deserializa
+    # (medido: 907 ms de bucle contra 106 ms, sobre 4.827 aprobados).
+    filas = (
         _sin_formularios_publicos_si_no_puede(
             Formulario.objects.filter(relevamiento__convocatoria=conv, estado=Formulario.Estado.APROBADO),
             request.user,
         )
-        .select_related("ciudadano", "relevamiento")
         .order_by("-creado")
+        .values_list(
+            "ciudadano_id",
+            "ciudadano__dni",
+            "ciudadano__nombre",
+            "ciudadano__apellido",
+            "datos_identificacion",
+            "modificado",
+        )
     )
-    for f in formularios:
-        if f.ciudadano_id:
-            dni = f.ciudadano.dni
-            nombre = f.ciudadano.nombre_completo
+    for ciudadano_id, dni_ciudadano, nombre, apellido, identificacion, modificado in filas.iterator(chunk_size=2000):
+        if ciudadano_id:
+            dni = dni_ciudadano
+            nombre_completo = f"{nombre} {apellido}"
         else:
-            ident = f.datos_identificacion or {}
+            ident = identificacion or {}
             dni = ident.get("dni", "")
-            nombre = f"{ident.get('nombre', '')} {ident.get('apellido', '')}".strip()
-        writer.writerow([nombre, dni, conv.segmento.nombre, conv.nombre, f.modificado.strftime("%d/%m/%Y")])
+            nombre_completo = f"{ident.get('nombre', '')} {ident.get('apellido', '')}".strip()
+        writer.writerow([nombre_completo, dni, conv.segmento.nombre, conv.nombre, modificado.strftime("%d/%m/%Y")])
     return response
 
 
@@ -444,6 +455,9 @@ def convocatoria_export_lista_espera(request, pk):
     entradas = (
         ListaEspera.objects.filter(formulario__relevamiento__convocatoria=conv, promovido=False)
         .select_related("formulario__ciudadano", "segmento")
+        # El CSV no abre las respuestas del formulario; traerlas es ancho de fila
+        # y un json.loads por entrada.
+        .defer("formulario__data")
         .order_by("posicion")
     )
     for entrada in entradas:
@@ -651,7 +665,9 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         )
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
         ctx["form_volver_a_campo"] = VolverACampoForm(convocatoria=rel.convocatoria)
-        formularios_qs = rel.formularios.select_related("ciudadano").order_by("numero")
+        # La tabla de personas relevadas no muestra las respuestas: ``datos_identificacion``
+        # sí se usa (casos sin legajo), ``data`` no.
+        formularios_qs = rel.formularios.select_related("ciudadano").defer("data").order_by("numero")
         formularios_page = _paginate(self.request, formularios_qs, page_param="formularios_page")
         ctx["formularios"] = formularios_page
         ctx["n_formularios"] = formularios_page.paginator.count

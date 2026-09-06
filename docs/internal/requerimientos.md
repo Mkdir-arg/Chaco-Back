@@ -54,6 +54,7 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 | `#mobile` | Impacta la APK de territoriales |
 | `#api` | Impacta el servidor/API consumido por Mobile |
 | `#infra` | Requiere algo del ambiente: cron, SMTP, despliegue, ECOM |
+| `#performance` | Tiempo de respuesta y de carga: consultas, índices, caché y peso de las pantallas |
 | `#gestion` | Tablero del Project, trazabilidad de issues y planes de prueba: qué se entregó y dónde figura |
 | `#metodo` | Método de trabajo de los agentes: `AGENTS.md`, `QA.md`, `PM.md` y las convenciones que deben cumplir al crear issues |
 
@@ -209,6 +210,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
 | 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 y con la corrección de performance desde el 06/09/2026 (releases 43ffddf, 55d842e, fc740b8, ea33681 y ac9192b); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
+| 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟡 **En desarrollo — rama `perf/revision-casos-y-listados`, PR pendiente** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
 
 **Notas del índice**
 
@@ -6906,5 +6908,144 @@ Quitar la ruta y el botón; no hay datos ni migraciones involucrados.
 
 Entrada nueva. Nace de la primera prueba del Cambio 64 en producción: el CSV «Respuestas de los formularios» era el
 resumen por opción y no la base por persona que el PM esperaba.
+
+---
+
+# Cambio 66 — Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla
+
+🟡 **EN DESARROLLO — 06/09/2026** · Rama `perf/revision-casos-y-listados` · 1.146 tests en verde · El guard de presupuestos de consultas del CI vuelve a verde
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: Becas (revisión, convocatorias, cupo, exports), Legajos, home, RBAC y shells de UI |
+| **Etiquetas** | `#performance` `#datos` `#ui` |
+| **Solicitante** | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema, el dashboard que hicimos tarda, quiero mejorar el código para que funcione y después vemos el tema de la infra» |
+| **Fecha del pedido** | 05/09/2026 |
+| **Issue / épica** | Sin issue propio: continuación del Cambio 64 (dashboard) hacia el resto del sistema |
+| **Partes afectadas** | Backoffice y portal (shell) |
+| **Migración** | `programas.0058`, `programas.0059`, `legajos.0008` — solo índices |
+
+## Pedido original
+
+> «Quiero mejorar la performance de respuesta y de carga del sistema. El dashboard que hicimos tarda, quiero mejorar el
+> código para que funcione y después vemos el tema de la infra.»
+
+La primera parte del pedido —el dashboard— se resolvió en el Cambio 64. Esta entrada cubre el resto del sistema.
+
+## Cómo se relevó
+
+Se armó un banco de medición con **MySQL 8.0 local y las OPTIONS exactas de producción** (`read_timeout`,
+`write_timeout` y `connect_timeout` en 10 s, `STRICT_TRANS_TABLES`, aislamiento *read committed*), cargado con
+**40.455 formularios, 42.394 ciudadanos y 19.730 validaciones SIIS** repartidos en 13 relevamientos. Se midió cada
+ruta del backoffice de punta a punta —request autenticado completo, con render de plantilla— registrando tiempo de
+pared, tiempo de SQL, cantidad de consultas y consultas repetidas, y se leyó el plan de las consultas caras con
+`EXPLAIN` contra ese mismo motor.
+
+## Lo que se encontró
+
+**Dos pantallas ya devolvían 500 en ese volumen y una tercera tardaba más de tres minutos.**
+
+| Ruta | Antes | Después |
+|---|---|---|
+| Revisión de un relevamiento | **206.585 ms** | 292 ms |
+| Bandeja de personas (revisión) | **500 por timeout a los 11 s** | 129 ms |
+| Detalle de convocatoria | 2.727 ms | 290 ms |
+| RENAPER pendientes | 1.253 ms | 150 ms |
+| Home | 925 ms | 155 ms |
+| Detalle de relevamiento | 757 ms | 159 ms |
+| Detalle de ciudadano | 702 ms · 20 consultas | 147 ms · 16 consultas |
+| Detalle de programa | 508 ms | 101 ms |
+| Listado de ciudadanos | 188 ms | 60 ms |
+| Búsqueda de ciudadanos | 422 ms | 104 ms |
+| Página 2100 del listado | 2.088 ms | 58 ms |
+
+## Decisiones tomadas
+
+- **La causa raíz de la revisión no era el volumen sino un `Exists` correlacionado.** La marca «Duplicado por
+  resolver» se anotaba con `Exists(duplicado_de_id=OuterRef("pk"))`. Como `duplicado_de_id` es casi siempre NULL,
+  MySQL le asigna cardinalidad 1, descarta el índice y resuelve la subconsulta **con un scan completo de la tabla por
+  cada fila**: 3.291 × 39.895 = 131 millones de filas leídas. Se resuelve por lote sobre los ids de la página.
+  **No se agregó un índice compuesto `(duplicado_de, conflicto_resuelto)`**: se midió y aun con él la consulta tarda
+  381 ms, además de tapar el índice de la clave foránea.
+- **Las bandejas eligen la página con una consulta liviana y recién después pagan los `select_related`.** Con los
+  joins de presentación puestos en la consulta paginada, MySQL arranca el plan por `programas_relevamiento`,
+  materializa las 40.000 filas y recién ahí recorta.
+- **Nunca por `relevamiento.formularios` cuando la consulta difiere columnas.** El manager relacionado empareja cada
+  fila con el relevamiento leyendo `relevamiento_id`; si está diferido, dispara una consulta por fila. Al revés, en el
+  legajo el manager relacionado **conviene**: deja el ciudadano apuntado y los `__str__` de los modelos no lo releen.
+- **Una sola consulta de permisos por request.** `core/rbac.py` lanzaba una por alcance evaluado (el sidebar fuerza el
+  de Dispositivos en toda pantalla). Ahora trae `(codename, programa del rol)` de una vez; cada fila sigue emparejando
+  la capacidad con el programa de **su propio** rol, que es la regla que evita que se cuele una capacidad ajena.
+- **El memo de `programa_becas()` es por request, no de módulo.** Un memo de módulo sobrevive a `cache.clear()` y
+  filtraría un Programa de un test anterior; se copió el patrón de `programa_dispositivos`.
+- **La búsqueda de ciudadanos sigue con `icontains`.** Pasarla a `startswith` la deja en ~2 ms pero cambia lo que
+  encuentra: buscar «perez» dejaría de traer «Gómez Perez». Con el índice de cobertura queda en 104 ms sin tocar la
+  semántica. **Queda a decisión del Ministerio.**
+
+## Bugs encontrados de paso
+
+- **`/legajos/alertas/` respondía 500** para todo usuario con `conversacion.operar`: `select_related` sobre
+  `conversacion__usuario`, un campo que `Conversacion` no tiene. La pantalla está enlazada dos veces desde el navbar.
+- **`/api/tendencias/` devolvía todo en cero en producción.** Anotaba `TruncDate` sobre un `DateField`, que Django
+  traduce a `DATE(CONVERT_TZ(...))`; sin tablas de zona horaria —el MySQL de ECOM no las tiene— CONVERT_TZ devuelve
+  NULL y todo cae en un bucket. Es el mismo gotcha del Cambio 64, en otro lugar.
+- **`/api/legajos/contactos/vinculos-familiares/` no existe**: el router de `legajos/urls/api_contactos.py` no está
+  incluido en ninguna parte, así que la solapa «Red familiar» del legajo hace un fetch que siempre da 404.
+  **No se tocó**: montar un router que nunca estuvo montado expone una superficie de API y es una decisión aparte.
+
+## Implementación
+
+Cinco commits, uno por frente: revisión de casos, presupuestos de CI, pantallas y exports de Becas, RBAC y costo fijo
+por request, legajos y home, y carga en el navegador. Migraciones: `programas.0058` (índices `creado` y
+`(validado_renaper, creado)`), `programas.0059` (ese índice extendido con `relevamiento`) y `legajos.0008` (índice de
+cobertura del listado de ciudadanos). Ninguna toca datos.
+
+## Archivos
+
+`programas/views/revision.py`, `programas/views/relevamientos.py`, `programas/views/cupo.py`,
+`programas/views/configuracion.py`, `programas/services/solapas.py`, `programas/services/cupo.py`,
+`programas/services/autorizacion.py`, `programas/models/__init__.py`, `core/rbac.py`, `core/views/public.py`,
+`conversaciones/selectors/conversaciones.py`, `legajos/selectors/ciudadanos.py`, `legajos/services/filtros_usuario.py`,
+`legajos/views/alertas.py`, `legajos/models/base.py`, `dashboard/api_views/__init__.py`, `scripts/perf_audit.py`,
+`scripts/perf_budgets.json`, `requirements.txt`, los dos `base.html`, `formulario_list.html`, `espera.html`,
+`ciudadano_detail.html` y `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+Tres migraciones de índices. No modifican ni borran datos. El entrypoint las corre al levantar.
+
+## Validación
+
+1.146 tests en verde con Django 5.2. **El guard de presupuestos de consultas del CI vuelve a verde**: venía rojo en
+`development` desde el 30/08/2026 por `legajo_detalle` y `becas_relevamiento_detalle`. Las dos pantallas de revisión
+se agregaron al manifiesto auditado, que no las cubría. `design_audit` y `check_design_agent` en 0 errores,
+`compile_templates` en 0. Recorrido con Playwright de las nueve pantallas tocadas contra el banco de 40.000 casos:
+todas responden 200, la revisión pagina de a 50 con «Página 1 de 66 · 3291 casos» y el salto a la página 2 funciona.
+
+## Puesta en marcha en el servidor
+
+Sin pasos especiales más allá de las migraciones, que corre el entrypoint. Flujo habitual a `test` y después `main`
+de ECOM.
+
+## Pendientes / a definir
+
+- **Búsqueda por prefijo en el listado de ciudadanos** (~2 ms contra 104 ms), a cambio de que deje de encontrar
+  coincidencias en el medio del apellido. Decisión del Ministerio.
+- **Concatenar las 22 hojas de estilo del `<head>`**: el bundle da 93 errores en `design_audit` porque
+  `chaco-tokens.css` solo está exento por nombre de archivo, y hace falta un gate que impida que el bundle quede viejo.
+- **Diferir los 13 scripts del shell**: cambia el orden de ejecución respecto de los bloques `customJS` de 37
+  plantillas; hay que verificarlas una por una.
+- **Paginación por keyset** en las bandejas si el padrón llega a cientos de miles: el OFFSET sigue siendo O(offset).
+- **El fetch muerto de vínculos familiares** del legajo (arriba).
+- Infra, que el PM dejó para después: `read_timeout` de 10 s, Redis, las CVE de djangorestframework 3.16.1.
+
+## Reversión
+
+Cada frente es un commit independiente. Las tres migraciones se revierten con `migrate` hacia atrás; son índices.
+
+## Historial
+
+Entrada nueva. Nace del pedido del PM tras el incidente de producción del Cambio 64, y del relevamiento que ese
+incidente motivó: el mismo banco de medición que se armó para el dashboard se usó para el resto del sistema.
 
 ---

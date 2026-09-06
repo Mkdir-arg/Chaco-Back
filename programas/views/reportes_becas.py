@@ -45,7 +45,7 @@ REPORTES = {
 
 class ReportesPermissionMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated and not puede(request.user, "becas.reportes.ver", programa=programa_becas()):
+        if request.user.is_authenticated and not puede(request.user, "becas.reportes.ver", programa=programa_becas(request.user)):
             raise PermissionDenied("No tiene acceso a los reportes de Becas.")
         return super().dispatch(request, *args, **kwargs)
 
@@ -101,7 +101,7 @@ class ReporteBecasView(ReportesPermissionMixin, TemplateView):
                 "segmentos": form.fields["segmento"].queryset,
                 "convocatorias": form.fields["convocatoria"].queryset,
                 "territoriales": form.fields["territorial"].queryset,
-                "puede_exportar": puede(self.request.user, "becas.reportes.exportar", programa=programa_becas()),
+                "puede_exportar": puede(self.request.user, "becas.reportes.exportar", programa=programa_becas(self.request.user)),
                 "querystring": self.request.GET.urlencode(),
                 "filtro_segmento": self.request.GET.get("segmento", ""),
                 "filtro_desde": self.request.GET.get("desde", ""),
@@ -121,7 +121,7 @@ class ReporteBecasView(ReportesPermissionMixin, TemplateView):
 class ReporteBecasExportView(ReportesPermissionMixin, View):
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated and not puede(
-            request.user, "becas.reportes.exportar", programa=programa_becas()
+            request.user, "becas.reportes.exportar", programa=programa_becas(request.user)
         ):
             raise PermissionDenied("No tiene permiso para exportar reportes de Becas.")
         return super().dispatch(request, *args, **kwargs)

@@ -41,41 +41,58 @@ PROGRAMA_BECAS_CODIGO = "BECAS"
 _PROGRAMA_BECAS_CACHE_KEY = "programas:becas"
 
 
-def programa_becas():
+#: Centinela del memo por request (distingue "no memoizado" de "memoizado como None").
+_CACHE_MISS = object()
+
+
+def programa_becas(user=None):
     """Instancia genérica del Programa Becas, o None si no está sembrada.
 
     Se consulta en casi todos los checks de autorización de Becas, así que se
     cachea 5 minutos. Solo se cachea cuando existe (cachear el None rompería
     los tests que siembran el programa después de la primera consulta).
+
+    Con ``user``, además memoiza en el propio objeto durante la request: una sola
+    pantalla llegaba a pedir la misma clave siete veces, y en producción cada una es
+    una ida y vuelta a Redis más el despickle del Programa. El memo muere con la
+    request, así que ``cache.clear()`` de los tests y el ``cache.delete`` del seed
+    siguen surtiendo efecto (mismo patrón que ``programa_dispositivos``).
     """
     from django.core.cache import cache
 
     from programas.models import Programa
+
+    if user is not None:
+        memo = getattr(user, "_programa_becas_cache", _CACHE_MISS)
+        if memo is not _CACHE_MISS:
+            return memo
 
     programa = cache.get(_PROGRAMA_BECAS_CACHE_KEY)
     if programa is None:
         programa = Programa.objects.filter(codigo=PROGRAMA_BECAS_CODIGO).first()
         if programa is not None:
             cache.set(_PROGRAMA_BECAS_CACHE_KEY, programa, 300)
+    if user is not None:
+        user._programa_becas_cache = programa
     return programa
 
 
 def es_admin_becas(user, programa=None):
     """¿El usuario administra el programa Becas (capacidad ``becas.programa.administrar``)?"""
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     return rbac.puede(user, CAP_ADMINISTRAR, programa=programa)
 
 
 def es_coordinador_becas(user, programa=None):
     """¿El usuario puede gestionar/revisar Becas sin ser admin del programa?"""
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     if es_admin_becas(user, programa=programa):
         return False
     return rbac.puede_alguna(user, CAPS_GESTION, programa=programa)
 
 
 def es_referente_becas(user, programa=None):
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_REFERENTE, programa=programa)
 
 
@@ -86,7 +103,7 @@ def es_coordinador_regional_becas(user, programa=None):
     del Coordinador Regional es el subsegmento: ve el segmento que lo contiene
     solo como contexto y no puede configurarlo.
     """
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     return not es_admin_becas(user, programa=programa) and rbac.puede(user, CAP_COORD_REGIONAL, programa=programa)
 
 
@@ -124,7 +141,7 @@ def puede_gestionar_segmento(user, segmento, programa=None):
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     if es_admin_becas(user, programa=programa):
         return True
     if es_referente_becas(user, programa=programa):
@@ -147,7 +164,7 @@ def puede_operar_subsegmento(user, subsegmento, programa=None):
     El Coordinador Regional es la excepción: su alcance es el subsegmento, así
     que sin este chequeo podría abrir el de un par del mismo segmento.
     """
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     if not puede_gestionar_segmento(user, subsegmento.segmento, programa=programa):
         return False
     if es_coordinador_regional_becas(user, programa=programa):
@@ -165,7 +182,7 @@ def segmentos_visibles(user, programa=None):
 
     if user is None or not getattr(user, "is_authenticated", False):
         return Segmento.objects.none()
-    programa = programa or programa_becas()
+    programa = programa or programa_becas(user)
     if es_admin_becas(user, programa=programa):
         return Segmento.objects.all()
     if es_referente_becas(user, programa=programa):
@@ -237,7 +254,7 @@ def _usuarios_con_capacidad_en_programa(codigos, programa=None):
     """
     from django.contrib.auth import get_user_model
 
-    programa = programa or programa_becas()
+    programa = programa or programa_becas()  # sin ``user`` a mano: no hay memo por request
     programa_pk = getattr(programa, "pk", programa)
     codenames = [rbac.codename_de(c) for c in codigos]
     User = get_user_model()
@@ -300,7 +317,7 @@ def grupos_territoriales_becas(programa=None):
     """
     from django.contrib.auth.models import Group
 
-    programa = programa or programa_becas()
+    programa = programa or programa_becas()  # sin ``user`` a mano: no hay memo por request
     programa_pk = getattr(programa, "pk", programa)
     return Group.objects.filter(
         meta__activo=True,
@@ -312,7 +329,7 @@ def grupos_territoriales_becas(programa=None):
 def _grupos_con_capacidad(codigo, programa=None):
     from django.contrib.auth.models import Group
 
-    programa = programa or programa_becas()
+    programa = programa or programa_becas()  # sin ``user`` a mano: no hay memo por request
     return (
         Group.objects.filter(
             meta__activo=True,
