@@ -210,7 +210,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
 | 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 y con la corrección de performance desde el 06/09/2026 (releases 43ffddf, 55d842e, fc740b8, ea33681 y ac9192b); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
-| 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — mergeado (PR #382, squash c0fe6c9) y en test de ECOM desde el 06/09/2026 (release afdb661); falta producción** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
+| 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
 
 **Notas del índice**
 
@@ -6913,7 +6913,7 @@ resumen por opción y no la base por persona que el PM esperaba.
 
 # Cambio 66 — Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla
 
-🟢 **HECHO — 06/09/2026** · PR #382 (squash c0fe6c9), release afdb661 · En `test` de ECOM (merge a7bc090); producción pendiente de confirmación del PM · 1.146 tests en verde · El guard de presupuestos de consultas del CI volvió a verde en el propio PR
+🟢 **HECHO — en producción de ECOM desde el 06/09/2026** · PR #382 (squash c0fe6c9), release afdb661 · 1.146 tests en verde · El guard de presupuestos de consultas del CI volvió a verde en el propio PR
 
 | | |
 |---|---|
@@ -7028,7 +7028,7 @@ Sin pasos especiales más allá de las migraciones, que corre el entrypoint. 06/
 (merge a7bc090, árbol del release afdb661) tras verificar que el único commit ajeno era nuestro merge anterior y que
 `.gitlab-ci.yml` es idéntico. El CI del PR quedó con Tests & Coverage, el contrato MySQL/Redis y el guard de
 performance en verde; los tres rojos restantes (Ruff Lint en 6 archivos ajenos, Ruff Format en 8, pip-audit por las
-CVE de djangorestframework) son los preexistentes y no bloquean. `main` (producción) espera el «sí» del PM.
+CVE de djangorestframework) son los preexistentes y no bloquean. Después se espejó a `main` (producción, avance directo 2b3f271..afdb661) por pedido del PM, con testing ya verificado: el portal de datanach.ecomdev.ar servía el shell nuevo antes del push.
 
 ## Pendientes / a definir
 
