@@ -109,20 +109,32 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # Las alertas se generan por señal (al guardar legajos/contactos) y por el
     # comando periódico `generar_alertas`; la vista de detalle solo las lee.
 
-    acompanamientos = list(
-        InscripcionPrograma.objects.filter(
-            ciudadano=ciudadano,
-            programa__tipo__in=[
-                Programa.TipoPrograma.ACOMPANAMIENTO_SOCIAL,
-            ],
-            estado__in=[InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO],
-        )
-        .select_related("programa", "responsable")
-        .order_by("-fecha_inscripcion")
+    # Las inscripciones del ciudadano se leen UNA vez: acompañamientos, historial y línea
+    # de tiempo son tres recortes del mismo conjunto y antes eran tres consultas iguales
+    # con distinto WHERE. Son unas pocas filas por persona.
+    # Por el manager relacionado, no por ``filter(ciudadano=...)``: así Django deja cada
+    # fila apuntando al ciudadano que ya está en memoria, y ``InscripcionPrograma.__str__``
+    # (que lee ``self.ciudadano.nombre_completo``) deja de releerlo de la base.
+    inscripciones = list(
+        ciudadano.inscripciones_programas.select_related("programa", "responsable").order_by("-fecha_inscripcion")
     )
+    ESTADOS_VIGENTES = (InscripcionPrograma.Estado.ACTIVO, InscripcionPrograma.Estado.EN_SEGUIMIENTO)
+    acompanamientos = [
+        inscripcion
+        for inscripcion in inscripciones
+        if inscripcion.programa.tipo == Programa.TipoPrograma.ACOMPANAMIENTO_SOCIAL
+        and inscripcion.estado in ESTADOS_VIGENTES
+    ]
+
+    # El mismo queryset alimenta el badge y la lista de la pantalla: el badge lo evalúa con
+    # len(), así que la plantilla lo encuentra ya cacheado y el COUNT aparte desaparece.
+    # Tiene que ser el MISMO objeto, no un clon: cualquier .filter() posterior pierde el caché.
+    alertas_activas = ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
 
     resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano)
-    todas_las_solapas = SolapasService.obtener_solapas_ciudadano(ciudadano, resumen_becas=resumen_becas)
+    todas_las_solapas = SolapasService.obtener_solapas_ciudadano(
+        ciudadano, resumen_becas=resumen_becas, alertas_activas=alertas_activas
+    )
     solapas = [
         solapa for solapa in todas_las_solapas if solapa["id"] != "legajos" and "ACOMPANAMIENTO" not in solapa["id"]
     ]
@@ -148,13 +160,14 @@ def build_ciudadano_detail_context(ciudadano, user=None):
         context["becas_Formulario"] = resumen_becas["Formulario"]
 
     # Historial de programas: inscripciones que ya no están vigentes
-    context["historial_programas"] = SolapasService.obtener_historial_programas(ciudadano).filter(
-        estado__in=[
-            InscripcionPrograma.Estado.CERRADO,
-            InscripcionPrograma.Estado.SUSPENDIDO,
-            InscripcionPrograma.Estado.DADO_DE_BAJA,
-        ]
+    ESTADOS_CERRADOS = (
+        InscripcionPrograma.Estado.CERRADO,
+        InscripcionPrograma.Estado.SUSPENDIDO,
+        InscripcionPrograma.Estado.DADO_DE_BAJA,
     )
+    context["historial_programas"] = [
+        inscripcion for inscripcion in inscripciones if inscripcion.estado in ESTADOS_CERRADOS
+    ]
 
     # --- Instituciones vinculadas (vía legajos) ---
     context["instituciones_ciudadano"] = []
@@ -163,7 +176,9 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     try:
         from conversaciones.models import Conversacion
 
-        context["conversaciones_ciudadano"] = (
+        # Materializado: como lista, la plantilla puede recorrerlo las veces que quiera
+        # sin volver a consultar.
+        context["conversaciones_ciudadano"] = list(
             Conversacion.objects.filter(dni_ciudadano=ciudadano.dni)
             .select_related("operador_asignado")
             .order_by("-fecha_inicio")[:20]
@@ -180,16 +195,12 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     context["derivaciones_ciudadano"] = derivaciones_ciudadano
 
     # --- Alertas ---
-    context["alertas_ciudadano"] = ciudadano.alertas.filter(activa=True).order_by("prioridad", "-creado")
+    context["alertas_ciudadano"] = alertas_activas
 
     # --- Línea de tiempo ---
     linea = []
 
-    for ins in (
-        InscripcionPrograma.objects.filter(ciudadano=ciudadano)
-        .select_related("programa")
-        .order_by("-fecha_inscripcion")[:20]
-    ):
+    for ins in inscripciones[:20]:
         linea.append(
             {
                 "fecha": ins.fecha_inscripcion,
