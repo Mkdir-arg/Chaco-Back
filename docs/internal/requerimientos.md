@@ -207,8 +207,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
-| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (releases 43ffddf, 55d842e y fc740b8); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
-| 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟡 **En desarrollo — implementado en la rama del Cambio 64, falta desplegar** | No requiere |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 y con la corrección de performance desde el 06/09/2026 (releases 43ffddf, 55d842e, fc740b8, ea33681 y ac9192b); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
+| 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
 
 **Notas del índice**
 
@@ -6607,7 +6607,7 @@ los datos crudos y la configuración propuesta están en
 
 # Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
 
-🟡 **MERGEADO EN DEVELOPMENT — 05/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 mergeadas por el PR #376 (squash c59d995) con 27 tests en verde; faltan QA funcional (#374) y despliegue a test/producción de ECOM (#375) · Propuesta de 86 h a validación del Ministerio (Versión 002)
+🟢 **HECHO — en producción de ECOM desde el 05/09/2026; corrección de performance desplegada el 06/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 por el PR #376 (squash c59d995), legibilidad por el #377, tres correcciones (#378, #379, #380) · 35 tests en verde · Falta QA funcional (#374) · Propuesta de 86 h a validación del Ministerio (Versión 002)
 
 | | |
 |---|---|
@@ -6782,7 +6782,10 @@ clave numérica como índice de arreglo y devuelve NULL, por eso la expresión e
 la caché degrada a «sin caché» con aviso en el log si Redis falla; `celda_segura` elimina los caracteres de control que
 openpyxl rechaza y la exportación entera queda dentro del `try`; fechas cero y FK colgadas ya no tiran el tablero.
 Resultado en el mismo banco de 40.000 filas: 1,2–2,4 s y 22 consultas en frío, 40–60 ms con caché. Migración
-`programas.0057` con el índice `(relevamiento, creado)` para la ventana de fechas. Sin pasos especiales: no hay migración ni variables nuevas. Flujo habitual a `test` y después `main` de ECOM.
+`programas.0057` con el índice `(relevamiento, creado)` para la ventana de fechas: solo agrega un índice, no toca ni borra datos.
+PR #380 (squash d5ef079, release ac9192b). Espejado a `test` el 06/09/2026 (merge f2e86f0) y a `main` el mismo día,
+dentro del push del release 2b3f271 (avance directo ea33681..2b3f271), que llevó también el Cambio 65. El entrypoint
+corre las migraciones al levantar, así que no hubo pasos manuales.
 El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
 `relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
 Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
@@ -6811,7 +6814,7 @@ este dashboard reutiliza) y el Cambio 58 (constructor de formularios, que cambia
 
 # Cambio 65 — Exportar las respuestas de los formularios por persona, eligiendo la convocatoria
 
-🟡 **EN DESARROLLO — 06/09/2026** · Implementado en la rama del Cambio 64 (PR pendiente); falta desplegar
+🟢 **HECHO — en producción de ECOM desde el 06/09/2026** · PR #381 (squash dea6f34), release 2b3f271 · 35 tests en verde · Sin migración
 
 | | |
 |---|---|
@@ -6819,7 +6822,7 @@ este dashboard reutiliza) y el Cambio 58 (constructor de formularios, que cambia
 | **Etiquetas** | `#ui` `#datos` `#convocatorias` |
 | **Solicitante** | PM — en sesión: «la funcionalidad respuestas de los formularios quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con las columnas id relevamiento, nombre relevamiento, si es público, id ciudadano o no y una columna por cada pregunta, y un registro por caso enviado; hoy no sé qué me exporta, no se entiende; el resultado final tiene que ser un excel con todas las respuestas por persona» |
 | **Fecha del pedido** | 06/09/2026 |
-| **Issue / épica** | Sin issue propio: extiende el Cambio 64 (análisis #366, task #371 de exportación) |
+| **Issue / épica** | Sin issue propio: extiende el Cambio 64 (análisis #366, task #371 de exportación) · PR #381 |
 | **Partes afectadas** | Backoffice |
 | **Migración** | No requiere |
 
@@ -6885,7 +6888,11 @@ Playwright: el pop up hereda la convocatoria del filtro, valida la selección va
 
 ## Puesta en marcha en el servidor
 
-Sin pasos especiales. Se despliega junto con la corrección de performance del Cambio 64.
+06/09/2026: sin pasos especiales, no hay migración ni variables nuevas. Viajó junto con la corrección de performance
+del Cambio 64 en el release 2b3f271: espejado a `test` de ECOM (merge e952bb2) y después a `main` (producción,
+avance directo ea33681..2b3f271). El CI del PR #381 quedó con los cinco checks que ya estaban rojos en
+`development` desde el 30/08/2026; la única falla de tests es el presupuesto de `relevamiento_detalle`, ajena al
+cambio.
 
 ## Pendientes / a definir
 
