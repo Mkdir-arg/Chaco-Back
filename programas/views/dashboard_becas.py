@@ -80,9 +80,13 @@ def programa_dashboard_datos(request, pk):
     # Por etapas: si fallan las métricas no hay tablero (500 con la etapa); si falla
     # solo la pregunta elegida, el tablero se muestra igual y la tarjeta avisa. En los
     # dos casos el traceback queda en el log del servidor.
+    recalcular = request.GET.get("recalcular") == "1"
     try:
+        # El alcance (ids de segmentos, convocatorias y relevamientos) se resuelve una
+        # sola vez y lo comparten la clave de caché, las métricas y las respuestas.
+        alcance = dashboard_becas.resolver_alcance(request.user, programa, filtros)
         datos, desde_cache = dashboard_becas.metricas_cacheadas(
-            request.user, programa, filtros, recalcular=request.GET.get("recalcular") == "1"
+            request.user, programa, filtros, recalcular=recalcular, alcance=alcance
         )
     except Exception as exc:  # noqa: BLE001 — se registra y se informa la etapa
         logger.exception("dashboard becas: fallo al calcular las métricas (programa=%s, filtros=%s)", pk, filtros)
@@ -91,7 +95,10 @@ def programa_dashboard_datos(request, pk):
     respuestas, avisos = None, []
     if clave:
         try:
-            respuestas = dashboard_becas.distribucion_respuestas(request.user, programa, filtros, clave).to_dict()
+            distribucion, _ = dashboard_becas.distribucion_cacheada(
+                request.user, programa, filtros, clave, recalcular=recalcular, alcance=alcance, catalogo=form.preguntas
+            )
+            respuestas = distribucion.to_dict()
         except Exception as exc:  # noqa: BLE001
             logger.exception("dashboard becas: fallo al calcular las respuestas (programa=%s, pregunta=%s)", pk, clave)
             avisos.append(_mensaje_error("las respuestas de la pregunta elegida", exc))
@@ -128,18 +135,21 @@ def programa_dashboard_exportar(request, pk, formato):
     if not form.is_valid():
         return HttpResponseBadRequest(" ".join(_errores(form)))
     filtros = form.filtros()
-    try:
-        datos, _ = dashboard_becas.metricas_cacheadas(request.user, programa, filtros)
-        distribuciones = dashboard_becas.distribuciones_respuestas(request.user, programa, filtros)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("dashboard becas: fallo al exportar (programa=%s, formato=%s)", pk, formato)
-        return HttpResponseServerError(_mensaje_error("los datos para exportar", exc))
-    bloques = dashboard_becas.bloques_exportacion(datos, distribuciones)
-    nombre = f"becas_dashboard_{slugify(programa.nombre) or programa.pk}_{timezone.localdate():%Y-%m-%d}"
-    if formato == "xlsx":
-        return respuesta_libro(list(bloques.values()), nombre, alcance=datos.alcance)
     codigo = request.GET.get("bloque", "resumen")
-    if codigo not in bloques:
-        return HttpResponseBadRequest("Bloque de exportación no válido.")
-    _, reporte = bloques[codigo]
-    return respuesta_reporte(reporte, "csv", f"{nombre}_{codigo}", alcance=datos.alcance)
+    try:
+        alcance = dashboard_becas.resolver_alcance(request.user, programa, filtros)
+        datos, _ = dashboard_becas.metricas_cacheadas(request.user, programa, filtros, alcance=alcance)
+        distribuciones = dashboard_becas.distribuciones_respuestas(
+            request.user, programa, filtros, alcance=alcance, catalogo=form.preguntas
+        )
+        bloques = dashboard_becas.bloques_exportacion(datos, distribuciones)
+        nombre = f"becas_dashboard_{slugify(programa.nombre) or programa.pk}_{timezone.localdate():%Y-%m-%d}"
+        if formato == "xlsx":
+            return respuesta_libro(list(bloques.values()), nombre, alcance=datos.alcance)
+        if codigo not in bloques:
+            return HttpResponseBadRequest("Bloque de exportación no válido.")
+        _, reporte = bloques[codigo]
+        return respuesta_reporte(reporte, "csv", f"{nombre}_{codigo}", alcance=datos.alcance)
+    except Exception as exc:  # noqa: BLE001 — incluye armar el archivo: un texto raro no puede dar un 500 mudo
+        logger.exception("dashboard becas: fallo al exportar (programa=%s, formato=%s, bloque=%s)", pk, formato, codigo)
+        return HttpResponseServerError(_mensaje_error("los datos para exportar", exc))
