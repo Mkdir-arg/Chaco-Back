@@ -377,8 +377,15 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
             seg.programa.requisitos.order_by("orden", "id") if seg.programa_id else RequisitoNativo.objects.none()
         )
         ctx["form_segmento"] = SegmentoForm(instance=seg)
-        ctx["form_subsegmento"] = SubsegmentoForm(segmento=seg)
-        ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
+        # Las opciones se congelan a lista, como en ``RelevamientoListView``: al renderizar
+        # el select, ModelChoiceIterator pide len() como length hint y eso agrega un COUNT
+        # envolvente sobre un SELECT DISTINCT de todas las columnas de auth_user.
+        form_subsegmento = SubsegmentoForm(segmento=seg)
+        form_subsegmento.fields["referente"].choices = list(form_subsegmento.fields["referente"].choices)
+        ctx["form_subsegmento"] = form_subsegmento
+        form_coordinador = AsignacionCoordinadorForm(segmento=seg)
+        form_coordinador.fields["coordinador"].choices = list(form_coordinador.fields["coordinador"].choices)
+        ctx["form_coordinador"] = form_coordinador
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         return ctx
