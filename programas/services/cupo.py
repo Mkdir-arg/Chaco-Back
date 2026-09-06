@@ -27,7 +27,11 @@ def get_cupo_stats(segmento):
     }
 
 
-def motivo_bloqueo_aprobacion(formulario, validacion=None):
+#: Centinela: distingue "no me pasaron la validacion" de "ya la busque y no hay".
+_VALIDACION_SIN_BUSCAR = object()
+
+
+def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     """Explica por qué un formulario todavía no puede aprobarse.
 
     La aprobación exige identidad validada y la última consulta SIIS compatible
@@ -43,7 +47,7 @@ def motivo_bloqueo_aprobacion(formulario, validacion=None):
     if programa is None:
         return "El segmento no tiene un programa SIIS configurado."
 
-    if validacion is None:
+    if validacion is _VALIDACION_SIN_BUSCAR:
         validacion = formulario.validaciones_sis.order_by("-creado").first()
     if validacion is None:
         return "Debe realizarse la validación SIIS antes de aprobar."
