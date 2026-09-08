@@ -1,0 +1,24 @@
+{% extends "user/base_public_auth.html" %}
+
+{% block title %}Establecer contraseña — DATAÑACH{% endblock %}
+
+{% block auth_content %}
+<h1 class="public-auth__title">Establecer contraseña</h1>
+{% if validlink %}
+  <p class="public-auth__help">Elegí una contraseña segura para ingresar a DATAÑACH.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="public-auth__field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<p class="public-auth__error">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <button type="submit" class="public-auth__button">Guardar contraseña</button>
+  </form>
+{% else %}
+  <p class="public-auth__help">El enlace ya fue utilizado o dejó de ser válido. Solicitá uno nuevo.</p>
+  <a class="public-auth__link" href="{% url 'users:recuperar_contrasena' %}">Solicitar otro enlace</a>
+{% endif %}
+{% endblock %}

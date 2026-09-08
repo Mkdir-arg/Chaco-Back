@@ -7,6 +7,14 @@
 **Programa:** Becas (primer programa sobre el módulo genérico de Programas)
 **Módulos Django candidatos:** `apps/programas`, `apps/legajos`, `apps/ciudadanos`, `users` (roles/permisos)
 
+!!! warning "Documento histórico — superado por la implementación"
+    Esta es la **propuesta funcional original** del Programa Becas, escrita en junio de 2026
+    **antes de construir**. Se conserva como registro de lo que se planteó al inicio de la
+    Versión 001, y por eso mantiene sus preguntas abiertas y sus asunciones de entonces.
+
+    Varias de sus definiciones cambiaron durante el desarrollo. **Para saber cómo funciona el
+    sistema hoy**, ver [Programa Becas — el sistema construido](programa-becas-sistema.md).
+
 > **Borrador en construcción.** Última ronda: **requisitos nativos** (ya no vienen de SIS),
 > **subsegmento**, **Coordinador** (= validador territorial), **control de incompatibilidades**,
 > regla **RENAPER/escaneo** y **catálogo oficial** de segmentos. **Permanencia/seguimiento y

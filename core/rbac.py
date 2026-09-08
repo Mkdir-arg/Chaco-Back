@@ -19,7 +19,7 @@ Reglas:
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
-from django.db.models import Q
+from django.db.models import Prefetch, Q, prefetch_related_objects
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
 APP_LABEL = "users"
@@ -48,9 +48,9 @@ CATALOGO = [
         "tab": "backoffice",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
-            ("programa.ver", "Ver programas"),
-            ("programa.operar", "Operar programas"),
             ("programa.configurar", "Configurar programas"),
+            ("programa.usuario.administrar", "Administrar los usuarios de su programa"),
+            ("programa.rol.administrar", "Administrar los roles de su programa"),
         ],
     },
     {
@@ -99,6 +99,9 @@ CATALOGO = [
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
+            ("becas.usuario.territorial", "Crear y administrar territoriales de los segmentos coordinados"),
+            ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
+            ("becas.coordinador_regional", "Operar como Coordinador Regional dentro de su subsegmento asignado"),
         ],
     },
     {
@@ -176,6 +179,7 @@ CATALOGO = [
             ("becas.relevamiento.ver", "Ver relevamientos de Becas"),
             ("becas.relevamiento.crear", "Crear relevamientos de Becas"),
             ("becas.relevamiento.editar", "Editar relevamientos (reasignar territorial, reprogramar)"),
+            ("becas.relevamiento.publico", "Crear y ver relevamientos de formulario público (link de inscripción)"),
         ],
     },
     {
@@ -205,6 +209,16 @@ CATALOGO = [
         "capacidades": [
             ("becas.beneficiario.ver", "Ver beneficiarios, lista de espera y pendientes"),
             ("becas.beneficiario.editar", "Dar de baja, promover y agregar a lista de espera beneficiarios"),
+        ],
+    },
+    {
+        "modulo": "becas_reportes",
+        "label": "Becas — Reportes",
+        "tab": "becas",
+        "alcance": "programa",
+        "capacidades": [
+            ("becas.reportes.ver", "Ver reportes de Becas"),
+            ("becas.reportes.exportar", "Exportar reportes de Becas"),
         ],
     },
     {
@@ -300,6 +314,34 @@ TABS_CAPACIDADES = [
 
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
 CAPS_ADMINISTRACION = ("usuario.administrar", "rol.administrar")
+
+# Capacidades que, en un rol con ``RolMeta.programa`` seteado, acotan a su portador
+# a administrar ESE programa. Van separadas por ABM: se puede dar la gestión de
+# usuarios del programa sin la de sus roles, y viceversa.
+#
+# Acá solo van capacidades **transversales**: ningún programa confiere este alcance
+# con su propia capacidad paraguas. Así un programa nuevo delega la gestión de sus
+# usuarios y roles tildando estas dos, sin inventar una capacidad propia, y se le
+# puede quitar sin desarmarle el rol.
+#
+# Quedaron afuera a propósito:
+# - ``programa.configurar``: habilita el wizard global de programas (crear/editar
+#   cualquiera), que es potestad de sistema y no un alcance acotado.
+# - ``becas.programa.administrar``: es la paraguas del dominio Becas (reportes,
+#   RENAPER, pausas, alta de coordinadores). Confería además este alcance, lo que
+#   hacía imposible quitarle los ABM al Administrador de Becas sin vaciarle el rol.
+#   La migración ``users.0020`` le pasó estas dos a los roles que la tenían.
+CAPS_ADMIN_PROGRAMA_USUARIOS = ("programa.usuario.administrar",)
+CAPS_ADMIN_PROGRAMA_ROLES = ("programa.rol.administrar",)
+
+# Unión de ambas: "administra algo de este programa". La usa el check de "no dejar
+# un programa sin administrador", que no distingue de qué ABM se trata.
+CAPS_ADMIN_PROGRAMA = tuple(dict.fromkeys(CAPS_ADMIN_PROGRAMA_USUARIOS + CAPS_ADMIN_PROGRAMA_ROLES))
+
+# Capacidades que abren cada ABM. Se derivan del alcance para que la puerta y el
+# alcance no puedan quedar desalineados (entrar y no ver nada, o al revés).
+CAPS_ENTRADA_ABM_USUARIOS = ("usuario.administrar", *CAPS_ADMIN_PROGRAMA_USUARIOS, "becas.usuario.territorial")
+CAPS_ENTRADA_ABM_ROLES = ("rol.administrar", *CAPS_ADMIN_PROGRAMA_ROLES)
 
 # Nombre del rol protegido y del marcador de identidad del portal.
 ROL_ADMINISTRADOR = "Administrador"
@@ -444,6 +486,28 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
 # ---------------------------------------------------------------------------
 # Núcleo de autorización
 # ---------------------------------------------------------------------------
+def _filas_de_capacidad(user):
+    """``(codename, programa del rol)`` de los roles **activos** del usuario.
+
+    Una sola consulta por request para todos los alcances. Cada fila empareja la
+    capacidad con el programa de **su propio** rol, que es justo lo que exige la regla
+    del ``filter`` único documentada en :func:`_capacidades_activas_en_programa`: nada
+    se cuela de otro programa. El ``order_by()`` vacío saca el orden por defecto de
+    ``Permission``, que agregaba un join a ``django_content_type`` y dos columnas al
+    ``DISTINCT`` sin aportar nada.
+    """
+    filas = getattr(user, "_caps_filas_cache", None)
+    if filas is None:
+        filas = tuple(
+            Permission.objects.filter(group__user=user, group__meta__activo=True)
+            .values_list("codename", "group__meta__programa_id")
+            .order_by()
+            .distinct()
+        )
+        user._caps_filas_cache = filas
+    return filas
+
+
 def _capacidades_activas(user):
     """Set de códigos de capacidad **efectivos** del usuario.
 
@@ -460,11 +524,7 @@ def _capacidades_activas(user):
     elif user.is_superuser:
         cache = frozenset(codigos_de_capacidad())
     else:
-        codenames = set(
-            Permission.objects.filter(group__user=user, group__meta__activo=True)
-            .values_list("codename", flat=True)
-            .distinct()
-        )
+        codenames = {codename for codename, _programa in _filas_de_capacidad(user)}
         cache = frozenset(c for c in codigos_de_capacidad() if codename_de(c) in codenames)
     user._caps_activas_cache = cache
     return cache
@@ -492,23 +552,17 @@ def _capacidades_activas_en_programa(user, programa):
     elif user.is_superuser:
         resultado = frozenset(de_programa)
     else:
-        codenames_programa = {codename_de(c) for c in de_programa}
-        # IMPORTANTE: todas las condiciones sobre ``group`` van en un ÚNICO
-        # ``filter`` para que apunten a la MISMA fila de Group (el rol que tiene
-        # la capacidad debe ser, él mismo, del programa X o global y del usuario y
-        # activo). Partirlo en dos ``filter`` crea joins separados y daría falsos
-        # positivos (p. ej. una cap de otro programa "se cuela" porque un rol
-        # global cualquiera la tiene).
-        codenames = set(
-            Permission.objects.filter(
-                Q(group__meta__programa=programa_pk) | Q(group__meta__programa__isnull=True),
-                group__user=user,
-                group__meta__activo=True,
-                codename__in=codenames_programa,
-            )
-            .values_list("codename", flat=True)
-            .distinct()
-        )
+        # IMPORTANTE: cada fila trae la capacidad junto con el programa de la MISMA fila
+        # de Group (el rol que tiene la capacidad debe ser, él mismo, del programa X o
+        # global, y del usuario, y activo). Filtrar en dos pasos sobre ``group`` crearía
+        # joins separados y daría falsos positivos (p. ej. una cap de otro programa "se
+        # cuela" porque un rol global cualquiera la tiene). Por eso el filtro por programa
+        # se aplica sobre la fila ya emparejada, no en otra consulta.
+        codenames = {
+            codename
+            for codename, programa_del_rol in _filas_de_capacidad(user)
+            if programa_del_rol is None or programa_del_rol == programa_pk
+        }
         resultado = frozenset(c for c in de_programa if codename_de(c) in codenames)
     cache[programa_pk] = resultado
     return resultado
@@ -538,6 +592,23 @@ def puede_alguna(user, codigos, programa=None):
     return any(puede(user, c, programa=programa) for c in codigos)
 
 
+def nombres_de_grupos(user):
+    """Nombres de grupos del usuario, cacheados durante la solicitud actual."""
+    cache = getattr(user, "_group_names_cache", None)
+    if cache is None:
+        prefetched = getattr(user, "_prefetched_objects_cache", {})
+        groups = prefetched.get("groups")
+        if groups is None:
+            prefetch_related_objects(
+                [user],
+                Prefetch("groups", queryset=user.groups.model.objects.order_by("pk")),
+            )
+            groups = user._prefetched_objects_cache["groups"]
+        cache = tuple(group.name for group in groups)
+        user._group_names_cache = cache
+    return cache
+
+
 def es_ciudadano_portal(user):
     """¿El usuario es un ciudadano del portal? (marcador de identidad, no capacidad).
 
@@ -548,7 +619,7 @@ def es_ciudadano_portal(user):
         return False
     cache = getattr(user, "_es_ciudadano_portal", None)
     if cache is None:
-        cache = user.groups.filter(name=GRUPO_CIUDADANO_PORTAL).exists()
+        cache = GRUPO_CIUDADANO_PORTAL in nombres_de_grupos(user)
         user._es_ciudadano_portal = cache
     return cache
 
@@ -651,11 +722,11 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
     """Usuarios **activos** que administran un programa concreto.
 
     Cuenta a quien tiene un rol **activo** con ``RolMeta.programa = programa`` y
-    la capacidad ``programa.configurar``, más los **superusuarios** activos
-    (acceso de emergencia, igual que el check global).
+    alguna capacidad de :data:`CAPS_ADMIN_PROGRAMA`, más los **superusuarios**
+    activos (acceso de emergencia, igual que el check global).
     """
     programa_pk = getattr(programa, "pk", programa)
-    codename = codename_de("programa.configurar")
+    codenames = [codename_de(c) for c in CAPS_ADMIN_PROGRAMA]
     return (
         User.objects.filter(is_active=True)
         .exclude(id__in=list(excluir_ids))
@@ -664,7 +735,7 @@ def usuarios_que_administran_programa(programa, excluir_ids=()):
             | Q(
                 groups__meta__activo=True,
                 groups__meta__programa=programa_pk,
-                groups__permissions__codename=codename,
+                groups__permissions__codename__in=codenames,
             )
         )
         .distinct()

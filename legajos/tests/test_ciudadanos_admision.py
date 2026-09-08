@@ -39,6 +39,8 @@ class LegajosCiudadanosAdmisionTests(TestCase):
             confirm_form.fields["dni"].widget.attrs.get("readonly"),
             True,
         )
+        self.assertEqual(manual_form.fields["domicilio"].label, "Domicilio actual")
+        self.assertEqual(confirm_form.fields["domicilio"].label, "Domicilio actual")
 
     def test_store_and_clear_renaper_data(self):
         session = {}

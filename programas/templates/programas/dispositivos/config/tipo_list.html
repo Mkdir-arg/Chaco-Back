@@ -42,7 +42,7 @@
                 <td class="px-5 py-4 text-body">{% if tipo.maneja_camas %}Sí{% else %}No{% endif %}</td>
                 <td class="px-5 py-4 text-body">{{ tipo.cantidad_campos }}</td>
                 <td class="px-5 py-4">
-                  <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {% if tipo.activo %}bg-success-soft text-fg-success{% else %}bg-secondary text-body-subtle{% endif %}">
+                  <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
                     {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
                   </span>
                 </td>

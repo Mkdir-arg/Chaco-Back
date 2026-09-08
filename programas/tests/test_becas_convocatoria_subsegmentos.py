@@ -60,3 +60,15 @@ class ConvocatoriaSubsegmentosTests(TestCase):
         self.assertContains(response, 'aria-live="polite"')
         self.assertContains(response, 'role="alert"')
         self.assertContains(response, ':aria-busy="loadingSubsegmentos.toString()"')
+
+    def test_modal_del_listado_carga_subsegmentos_dinamicamente(self):
+        response = self.client.get(reverse("becas:convocatorias"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "data-convocatoria-modal")
+        self.assertContains(response, "convocatoriasPage(")
+        self.assertContains(response, reverse("becas:segmento_subsegmentos_json", args=[0]))
+        self.assertContains(response, "cargarSubsegmentos(segmento.value, subsegmento)")
+        self.assertContains(response, "subsegmento.add(new Option(item.nombre, item.id))")
+        self.assertContains(response, 'aria-live="polite"')
+        self.assertContains(response, 'role="alert"')

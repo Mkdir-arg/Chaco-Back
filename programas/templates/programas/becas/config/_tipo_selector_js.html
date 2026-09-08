@@ -1,0 +1,31 @@
+{% comment %}
+Muestra u oculta los ajustes que solo valen para los tipos con opciones
+(Selector y Selector múltiple) en los modales de alta, donde el <select> lo
+pinta Django y no tiene `x-model`. Los modales de edición hacen lo mismo con
+`x-show` de Alpine.
+
+Compartido por los detalles de programa, segmento y subsegmento: antes el
+script estaba duplicado en dos de los tres —y en el de programa faltaba, así
+que el bloque de opciones quedaba siempre visible—.
+{% endcomment %}
+<script>
+(function () {
+  var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
+  var DEPENDIENTES = '[data-opciones-wrapper], [data-presentacion-wrapper]';
+
+  function sincronizar(tipoSelect, bloques) {
+    var visible = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1;
+    Array.prototype.forEach.call(bloques, function (bloque) {
+      bloque.style.display = visible ? '' : 'none';
+    });
+  }
+
+  document.querySelectorAll('form[action*="requisitos"]').forEach(function (form) {
+    var tipoSelect = form.querySelector('select[name="tipo"]');
+    var bloques = form.querySelectorAll(DEPENDIENTES);
+    if (!tipoSelect || !bloques.length) return;
+    sincronizar(tipoSelect, bloques);
+    tipoSelect.addEventListener('change', function () { sincronizar(tipoSelect, bloques); });
+  });
+})();
+</script>

@@ -4,7 +4,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5" x-data="{ tab: 'info', modalRel: false }" @becas-saved.window="modalRel=false">
+<div class="space-y-5" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'info', modalRel: false, tipoRel: 'TERRITORIAL' }" @becas-saved.window="modalRel=false">
 
   <div>
     <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -19,8 +19,16 @@
           <p class="text-sm text-body-subtle mt-1">{{ convocatoria.segmento.nombre }}{% if convocatoria.subsegmento %} · {{ convocatoria.subsegmento.nombre }}{% endif %}</p>
         </div>
       </div>
-      {% if convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
-      {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
+      <div class="flex items-center gap-2">
+        {% if convocatoria.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausada</span>
+        {% elif convocatoria.activo %}<span class="badge badge-success badge-dot">Activa</span>
+        {% else %}<span class="badge badge-danger badge-dot">Inactiva</span>{% endif %}
+        {% if request.user|puede:"becas.programa.administrar" %}
+        <a href="{% url 'becas:gestionar_pausa' 'convocatoria' convocatoria.pk %}" class="btn-nodo {% if convocatoria.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
+          {% if convocatoria.pausado %}Reanudar{% else %}Pausar{% endif %}
+        </a>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -75,7 +83,8 @@
                 {{ form_convocatoria.segmento }}
               </div>
               <div>
-                <label class="block text-sm font-medium text-heading mb-1">Subsegmento</label>
+                {# Obligatorio para el Coordinador Regional: su alcance es el subsegmento. #}
+                <label class="block text-sm font-medium text-heading mb-1">Subsegmento{% if form_convocatoria.subsegmento.field.required %} <span class="text-fg-danger">*</span>{% endif %}</label>
                 {{ form_convocatoria.subsegmento }}
               </div>
             </div>
@@ -143,6 +152,44 @@
               <div class="flex justify-between"><dt class="text-body-subtle">Fecha de creación</dt><dd class="text-heading font-medium">{{ convocatoria.creado|date:"d/m/Y" }}</dd></div>
             </dl>
           </div>
+
+          {# Padrón de habilitados (Cambio 57): uno por convocatoria, para el link y la app. #}
+          <div class="bg-white rounded-xl border border-base shadow-sm p-5 space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-sm font-bold text-heading">Padrón de habilitados</h3>
+              {% if n_padron %}
+                <span class="badge badge-success badge-dot">{{ n_padron }} habilitado{{ n_padron|pluralize }}</span>
+              {% else %}
+                <span class="badge badge-gray badge-dot">Sin padrón</span>
+              {% endif %}
+            </div>
+            {% if n_padron %}
+              <p class="text-sm text-body">
+                <span class="text-heading font-medium">{{ n_padron_identidad }}</span> con identidad completa (nombre y apellido): esas personas quedan validadas sin consultar Base de Personas.
+                {% if n_padron_identidad < n_padron %}Las demás pueden inscribirse pero completan sus datos a mano.{% endif %}
+              </p>
+            {% else %}
+              <p class="text-sm text-body">Quién puede inscribirse y quién es. Con documento y sexo habilita; con nombre y apellido además valida la identidad.</p>
+            {% endif %}
+            {% if tiene_publicos and not n_padron %}
+              <div class="rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm" role="alert">
+                <i class="fas fa-triangle-exclamation text-fg-warning mr-1"></i>
+                <strong>Sin padrón el link queda abierto:</strong> cualquier persona que lo reciba puede inscribirse y ocupar cupo.
+              </div>
+            {% endif %}
+            {% if puede_padron %}
+            <form method="post" action="{% url 'becas:convocatoria_padron' convocatoria.pk %}" enctype="multipart/form-data" class="space-y-2">
+              {% csrf_token %}
+              <label class="block text-xs font-semibold text-heading" for="padron-convocatoria">Excel (.xlsx): documento, sexo, nombre, apellido, fecha de nacimiento, localidad</label>
+              <input id="padron-convocatoria" type="file" name="padron" accept=".xlsx" required class="nodo-field w-full">
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <a href="{% url 'becas:convocatoria_padron_plantilla' convocatoria.pk %}" class="text-xs font-semibold text-fg-brand"><i class="fas fa-download"></i> Descargar plantilla</a>
+                <button type="submit" class="btn-nodo btn-tertiary btn-sm">{% if n_padron %}Reemplazar padrón{% else %}Cargar padrón{% endif %}</button>
+              </div>
+              <p class="text-xs text-body-subtle">Reemplazo total. Al cargarlo, los casos pendientes que figuren con nombre y apellido quedan validados.</p>
+            </form>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -163,7 +210,7 @@
     {# ===== TAB: Beneficiarios ===== #}
     <div x-show="tab==='ben'" x-cloak class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
-        <p class="text-sm text-body-subtle">Personas relevadas en esta convocatoria (formularios cargados).</p>
+        <p class="text-sm text-body-subtle">Personas relevadas en esta convocatoria (casos cargados).</p>
         <a href="{% url 'becas:convocatoria_export_beneficiarios' convocatoria.pk %}" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"><i class="fas fa-download"></i> Exportar CSV</a>
       </div>
       {% if beneficiarios %}
@@ -195,6 +242,19 @@
           </tbody>
         </table>
       </div>
+      {% if beneficiarios.paginator.num_pages > 1 %}
+      <div class="flex items-center justify-between gap-3 flex-wrap text-xs text-body-subtle">
+        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
+        <div class="flex gap-2">
+          {% if beneficiarios.has_previous %}
+          <a href="?tab=ben{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if beneficiarios.has_next %}
+          <a href="?tab=ben{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
       {% else %}
       <div class="py-14 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">
         <div class="text-fg-brand"><i class="fas fa-users text-5xl"></i></div>
@@ -251,39 +311,91 @@
         </button>
       </div>
 
-      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax>
+      <form method="post" action="{% url 'becas:relevamiento_crear' %}" data-ajax enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'becas:convocatoria_detalle' convocatoria.pk %}">
         <div class="p-6 space-y-4">
           <div class="rounded-xl bg-brand-soft p-3 text-sm text-fg-brand flex items-start gap-2" style="border:1px solid var(--color-brand-200)">
             <i class="fas fa-circle-info mt-0.5"></i>
-            <span>El relevamiento se nombra automáticamente: <strong>{{ siguiente_nombre }}</strong> y queda en estado Asignado.</span>
+            <span x-show="tipoRel==='TERRITORIAL'">El relevamiento recibe automáticamente el próximo número disponible dentro de esta convocatoria y queda en estado Asignado.</span>
+            {% if puede_publico %}
+            <span x-show="tipoRel==='PUBLICO'" x-cloak>Se generará un link público al guardar. El relevamiento queda <strong>En curso</strong> hasta su fecha de fin y no requiere territorial ni municipio/localidad.</span>
+            {% endif %}
           </div>
           {% if form_crear.non_field_errors %}
             <div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form_crear.non_field_errors }}</div>
           {% endif %}
+          {% if puede_publico %}
           <div>
-            <label class="block text-sm font-medium text-heading mb-1">Convocatoria <span class="text-fg-danger">*</span></label>
+            <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.tipo.id_for_label }}">Tipo de relevamiento <span class="text-fg-danger">*</span></label>
+            {{ form_crear.tipo }}
+            <p class="text-xs text-body-subtle mt-1">Territorial va a la app de campo; Formulario público genera un link para que las personas se inscriban solas.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
+          </div>
+          {% endif %}
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Convocatoria</label>
             {{ form_crear.convocatoria }}
+            <input type="hidden" name="convocatoria" value="{{ convocatoria.pk }}">
+            <p class="text-xs text-body-subtle mt-1">El relevamiento se crea dentro de esta convocatoria.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="convocatoria"></p>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
-            {{ form_crear.territorial }}
-            <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="territorial"></p>
-          </div>
+          <fieldset x-show="tipoRel==='TERRITORIAL'" :disabled="tipoRel!=='TERRITORIAL'" class="space-y-4 border-0 p-0 m-0">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Territorial asignado <span class="text-fg-danger">*</span></label>
+              {{ form_crear.territorial }}
+              {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" data-segment-id="{{ convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
+              <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="territorial"></p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Municipio <span class="text-fg-danger">*</span></label>
+                {{ form_crear.municipio }}
+                <p class="text-xs text-body-subtle mt-1">Filtra las localidades disponibles.</p>
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="municipio"></p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-heading mb-1">Localidad <span class="text-fg-danger">*</span></label>
+                {{ form_crear.zona }}
+                <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
+              </div>
+            </div>
+          </fieldset>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-heading mb-1">Zona / Localidad <span class="text-fg-danger">*</span></label>
-              {{ form_crear.zona }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="zona"></p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-heading mb-1">Fecha asignada <span class="text-fg-danger">*</span></label>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha desde <span class="text-fg-danger">*</span></label>
               {{ form_crear.fecha_asignada }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_asignada"></p>
             </div>
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1">Fecha hasta <span class="text-fg-danger">*</span></label>
+              {{ form_crear.fecha_hasta }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_hasta"></p>
+            </div>
+          </div>
+          {% if puede_publico %}
+          <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="space-y-4 border-0 p-0 m-0">
+            <div>
+              <label class="block text-sm font-medium text-heading mb-1" for="{{ form_crear.cupo_maximo.id_for_label }}">Cupo de personas</label>
+              {{ form_crear.cupo_maximo }}
+              <p class="text-xs text-body-subtle mt-1">El link deja de aceptar inscripciones al llenarse el cupo.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
+            </div>
+            <p class="text-xs text-body-subtle">
+              {% if n_padron %}El link usa el padrón de la convocatoria ({{ n_padron }} habilitado{{ n_padron|pluralize }}).{% else %}La convocatoria no tiene padrón: el link queda abierto. Se carga en la solapa Información general.{% endif %}
+            </p>
+          </fieldset>
+          {% endif %}
+          {% comment %}Fuera del fieldset de tipo público (Cambio 44): los avisos
+          por correo aplican a los dos tipos de relevamiento.{% endcomment %}
+          <div>
+            <label class="flex items-center gap-2 text-sm text-heading" for="{{ form_crear.confirmar_por_email.id_for_label }}">
+              {{ form_crear.confirmar_por_email }}
+              Avisar por correo a la persona
+            </label>
+            <p class="text-xs text-body-subtle mt-1">{{ form_crear.confirmar_por_email.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="confirmar_por_email"></p>
           </div>
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
@@ -296,6 +408,8 @@
   </div>
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
+{% include "programas/becas/relevamientos/_cascada_localidad.html" %}
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}

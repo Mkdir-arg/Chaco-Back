@@ -69,6 +69,7 @@ class CiudadanoForm(forms.ModelForm):
 
     class Meta:
         model = Ciudadano
+        labels = {"domicilio": "Domicilio actual"}
         fields = [
             "dni",
             "nombre",

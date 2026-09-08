@@ -1,0 +1,93 @@
+# Tareas programadas de DATAÑACH como CronJob de Kubernetes.
+# Reemplazar <IMAGEN> por la imagen del registry y <SECRET-ENV> por el Secret con
+# las variables del ambiente (las mismas del Deployment).
+#
+# HORARIOS: Kubernetes interpreta `schedule` en el timezone del controlador (UTC,
+# salvo que el cluster diga otra cosa). Los horarios de abajo replican el cron de
+# la VM en hora argentina: para que signifiquen lo mismo, agregar a cada spec
+# `timeZone: America/Argentina/Buenos_Aires` (Kubernetes >= 1.27) o correr los
+# horarios tres horas.
+#
+# Qué pasa si no corren, comando por comando, está en la guía publicada
+# (sección "Tareas programadas").
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: datanach-generar-alertas
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: generar-alertas
+              image: <IMAGEN>
+              args: ["python", "manage.py", "generar_alertas"]
+              envFrom:
+                - secretRef:
+                    name: <SECRET-ENV>
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: datanach-procesar-vencimientos
+spec:
+  schedule: "10 3 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: procesar-vencimientos
+              image: <IMAGEN>
+              args: ["python", "manage.py", "procesar_vencimientos"]
+              envFrom:
+                - secretRef:
+                    name: <SECRET-ENV>
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: datanach-limpiar-alertas-conversaciones
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: limpiar-alertas-conversaciones
+              image: <IMAGEN>
+              args: ["python", "manage.py", "limpiar_alertas_conversaciones"]
+              envFrom:
+                - secretRef:
+                    name: <SECRET-ENV>
+---
+# Detecta programas dados de baja en SIIS y bloquea sus segmentos. Depende de un
+# servicio externo: por eso es un CronJob y NUNCA parte del arranque del pod.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: datanach-sincronizar-programas-siis
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: sincronizar-programas-siis
+              image: <IMAGEN>
+              args: ["python", "manage.py", "sincronizar_programas_siis"]
+              envFrom:
+                - secretRef:
+                    name: <SECRET-ENV>

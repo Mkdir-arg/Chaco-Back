@@ -20,12 +20,21 @@ from programas.models import (
     Convocatoria,
     Formulario,
     PreguntaGlobal,
+    ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
     Subsegmento,
     TipoCampo,
 )
+
+# Programa SIIS de demo: cabeza de la estructura Programa → Segmento → Subsegmento.
+PROGRAMA_DEMO = {
+    "nombre": "Chaco Joven",
+    "siis_programa_id": 34,
+    "siis_programa_datos": {"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"},
+    "siis_programa_estado": "ACTIVO",
+}
 
 COMMON_QUESTIONS = [
     ("Apellido y nombre", TipoCampo.STRING, None),
@@ -124,7 +133,7 @@ RELEVAMIENTOS = [
         "Carbon",
         "Pcia. Roque Saenz Pena",
         1,
-        Relevamiento.Estado.EN_CURSO,
+        Relevamiento.Estado.ASIGNADO,
         "Operativo con referentes barriales.",
     ),
     (
@@ -151,7 +160,7 @@ RELEVAMIENTOS = [
         "Ladrillo",
         "Quitilipi",
         4,
-        Relevamiento.Estado.EN_CURSO,
+        Relevamiento.Estado.ASIGNADO,
         "Relevar predios productivos familiares.",
     ),
     (
@@ -169,7 +178,7 @@ RELEVAMIENTOS = [
         "Universitario",
         "Barranqueras",
         1,
-        Relevamiento.Estado.EN_CURSO,
+        Relevamiento.Estado.ASIGNADO,
         "Turno tarde con estudiantes universitarios.",
     ),
     (
@@ -244,12 +253,17 @@ def asegurar_requisito(segmento, subsegmento, orden, item):
 
 
 def asegurar_segmentos():
+    programa, _ = ProgramaSiis.objects.update_or_create(
+        siis_programa_id=PROGRAMA_DEMO["siis_programa_id"],
+        defaults={k: v for k, v in PROGRAMA_DEMO.items() if k != "siis_programa_id"},
+    )
     segmentos = {}
     subsegmentos = {}
     for cfg in SEGMENTOS:
         segmento, _ = Segmento.objects.update_or_create(
             nombre=cfg["nombre"],
             defaults={
+                "programa": programa,
                 "descripcion": cfg["descripcion"],
                 "cupo_maximo": cfg["cupo"],
                 "requiere_gps": cfg["requiere_gps"],
@@ -331,6 +345,7 @@ def asegurar_relevamientos(convocatorias, territorial):
             zona=zona,
             defaults={
                 "fecha_asignada": base_date + timedelta(days=offset),
+                "fecha_hasta": base_date + timedelta(days=offset + 2),
                 "estado": estado,
                 "observaciones": observaciones,
                 "fecha_finalizado": None,
@@ -343,6 +358,11 @@ def asegurar_relevamientos(convocatorias, territorial):
 def asegurar_formularios(relevamientos, territorial):
     persona_index = 0
     for rel_index, rel in enumerate(relevamientos[:6]):
+        if rel.estado != Relevamiento.Estado.EN_CURSO:
+            # Reconciliación idempotente de seeds anteriores que cargaban
+            # formularios aun cuando el operativo seguía ASIGNADO.
+            rel.formularios.filter(datos_identificacion__origen="seed_demo_mobile").delete()
+            continue
         cantidad = rel_index % 3
         for _ in range(cantidad):
             dni, nombre, apellido = PERSONAS[persona_index % len(PERSONAS)]

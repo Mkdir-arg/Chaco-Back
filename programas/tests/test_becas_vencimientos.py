@@ -130,12 +130,12 @@ class CascadaRelevamientoTests(_Base):
         self.assertEqual(terminado.estado, Relevamiento.Estado.TERMINADO)
         self.assertEqual(revision.estado, Relevamiento.Estado.EN_REVISION)
 
-    def test_no_toca_relevamientos_de_convocatoria_vigente(self):
+    def test_vence_por_fecha_hasta_aunque_la_convocatoria_siga_vigente(self):
         conv = self._conv(self.manana)
         asignado = self._rel(conv, Relevamiento.Estado.ASIGNADO)
         _correr()
         asignado.refresh_from_db()
-        self.assertEqual(asignado.estado, Relevamiento.Estado.ASIGNADO)
+        self.assertEqual(asignado.estado, Relevamiento.Estado.EN_REVISION)
 
 
 class FlagsComandoTests(_Base):

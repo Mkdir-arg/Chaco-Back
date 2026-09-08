@@ -17,7 +17,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ["id", "dark_mode"]
+        fields = ["id", "dark_mode", "dni", "telefono", "institucion", "observacion"]
 
 
 class UserSerializer(serializers.ModelSerializer):

@@ -1,0 +1,11 @@
+{% comment %}
+Badge de estado de cama. Espera `cama` en el contexto.
+{% endcomment %}
+{% with e=cama.estado %}
+<span class="badge badge-dot
+  {% if e == 'DISPONIBLE' %}badge-success
+  {% elif e == 'RESERVADA' %}badge-warning
+  {% elif e == 'OCUPADA' %}badge-info
+  {% elif e == 'FUERA_SERVICIO' %}badge-danger
+  {% else %}badge-gray{% endif %}">{{ cama.get_estado_display }}</span>
+{% endwith %}

@@ -1,0 +1,27 @@
+services:
+  mysql:
+    environment:
+      MYSQL_DATABASE: chaco_perf_ci
+      MYSQL_USER: chaco_perf_ci
+      MYSQL_PASSWORD: perf262-local-only
+      MYSQL_ROOT_PASSWORD: perf262-root-local-only
+    ports: !override
+      - "3312:3306"
+  redis:
+    ports: !override
+      - "6384:6379"
+  app:
+    environment:
+      ENVIRONMENT: ci
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,app,testserver
+      PERFORMANCE_CI: "1"
+      PERFORMANCE_QUERY_MONITORING_ENABLED: "True"
+      PERFORMANCE_METRICS_NAMESPACE: perf262_http_campaign
+      DATABASE_NAME: chaco_perf_ci
+      DATABASE_USER: chaco_perf_ci
+      DATABASE_PASSWORD: perf262-local-only
+      LOCAL_BOOTSTRAP_COMMANDS: ""
+      LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS: ""
+    ports: !override
+      - "8012:8000"

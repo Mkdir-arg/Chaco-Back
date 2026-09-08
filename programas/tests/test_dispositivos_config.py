@@ -28,7 +28,14 @@ def rol_configuracion(nombre, programa, *, activo=True):
         programa=programa,
         activo=activo,
     )
-    rol.permissions.add(permiso("programa.configurar"))
+    # `programa.configurar` habilita las vistas de configuración; las dos transversales
+    # son las que le dan el alcance sobre los ABM de Usuarios y Roles de su programa
+    # (y con eso la sección Administración del sidebar).
+    rol.permissions.add(
+        permiso("programa.configurar"),
+        permiso("programa.usuario.administrar"),
+        permiso("programa.rol.administrar"),
+    )
     return rol
 
 
@@ -57,6 +64,7 @@ class CampoTipoDispositivoFormTests(TestCase):
         campo = form.save()
         self.assertEqual(campo.opciones, ["Una", "Dos"])
         self.assertEqual(campo.tipo_dispositivo, self.tipo)
+        self.assertEqual(campo.rol_calculo, CampoTipoDispositivo.RolCalculo.NINGUNO)
 
     def test_rechaza_selectores_sin_opciones(self):
         for tipo_campo in (TipoCampo.SELECTOR, TipoCampo.SELECTOR_MULTIPLE):

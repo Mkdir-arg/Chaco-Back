@@ -1,0 +1,27 @@
+{% extends 'portal/inscripcion/base_inscripcion.html' %}
+
+{% block title %}La página venció - Portal Ciudadano{% endblock %}
+
+{% block panel_titulo %}
+<p class="di-panel-label">Portal Ciudadano</p>
+<h1 class="di-panel-title">La página venció</h1>
+<p class="di-panel-lead">Volvé a cargarla y completá los datos otra vez. No se perdió ninguna inscripción.</p>
+{% endblock %}
+
+{% block stepper %}{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center w-16 h-16 mb-4" style="border-radius: var(--radius-full); background: var(--bg-secondary); color: var(--text-body-subtle);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path>
+        </svg>
+    </div>
+    <h2 class="text-2xl font-bold" style="color: var(--text-heading);">La página venció</h2>
+    <p class="mt-3 text-sm" style="color: var(--text-body);">
+        Pasó demasiado tiempo desde que se abrió, o iniciaste sesión en otra pestaña. Volvé a cargar el formulario y enviá los datos de nuevo.
+    </p>
+    <a href="{{ volver }}" class="btn-nodo btn-brand btn-lg w-full mt-6">Volver a cargar el formulario</a>
+    <p class="mt-4 text-xs" style="color: var(--text-body-subtle);">Si vuelve a pasar, comunicate al +54 362 430-0002.</p>
+</div>
+{% endblock %}

@@ -1,13 +1,18 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Portal Nande{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    {% load static %}
+    <title>{% block title %}DATAÑACH — Portal Ciudadano{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'custom/css/tailwind.css' %}">
+    {% comment %}Autoalojadas: el formulario público no le pide recursos a terceros.{% endcomment %}
+    <!-- La fuente de iconos se descubre recién al parsear all.min.css y viene con
+         font-display:block, así que sin precarga los iconos tardan un round-trip extra. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="{% static 'vendor/fontawesome/webfonts/fa-solid-900.woff2' %}" />
+    <link href="{% static 'vendor/fontawesome/css/all.min.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/manrope/manrope.css' %}" rel="stylesheet">
     <!-- CHACO Design Tokens — CSS variables para componentes del portal -->
     <link href="{% static 'custom/css/chaco-tokens.css' %}" rel="stylesheet">
     <link href="{% static 'custom/css/nodo-buttons.css' %}" rel="stylesheet">
@@ -28,11 +33,11 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <div class="rounded-xl flex items-center justify-center" style="width: 64px; height: 64px; background: transparent;">
-                        <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Portal Nande" class="max-w-full max-h-full object-contain">
+                        <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="DATAÑACH" class="max-w-full max-h-full object-contain">
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold" style="color: var(--text-heading);">Portal Nande</h1>
-                        <p class="text-sm" style="color: var(--text-body-subtle);">Portal Ciudadano</p>
+                        <h1 class="text-2xl font-bold" style="color: var(--text-heading);">DATAÑACH</h1>
+                        <p class="text-sm" style="color: var(--text-body-subtle);">Portal Ciudadano · Gobierno del Chaco</p>
                     </div>
                 </div>
                 <div class="hidden md:flex items-center space-x-6">
@@ -40,13 +45,13 @@
                         <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: var(--bg-brand-tint); border-color: var(--border-brand-subtle);">
                             <i class="fas fa-phone text-sm" style="color: var(--text-fg-brand);"></i>
                         </div>
-                        <span class="text-sm font-medium">0800-222-1133</span>
+                        <span class="text-sm font-medium">+54 362 430-0002</span>
                     </div>
                     <div class="flex items-center space-x-2" style="color: var(--text-heading);">
                         <div class="w-8 h-8 rounded-lg flex items-center justify-center border" style="background: var(--bg-brand-tint); border-color: var(--border-brand-subtle);">
                             <i class="fas fa-envelope text-sm" style="color: var(--text-fg-brand);"></i>
                         </div>
-                        <span class="text-sm font-medium">info@chaco.gob.ar</span>
+                        <span class="text-sm font-medium">datanach@chaco.gob.ar</span>
                     </div>
                 </div>
             </div>
@@ -72,12 +77,12 @@
                 <div>
                     <div class="flex items-center space-x-3 mb-4">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: transparent;">
-                            <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="Nande" class="max-w-full max-h-full object-contain">
+                            <img src="{% static 'custom/chaco/mini-logo.png' %}" alt="DATAÑACH" class="max-w-full max-h-full object-contain">
                         </div>
-                        <h3 class="font-bold text-lg">Nande</h3>
+                        <h3 class="font-bold text-lg">DATAÑACH</h3>
                     </div>
                     <p class="text-gray-300 text-sm leading-relaxed">
-                        Sistema de Registro de Instituciones
+                        Portal Ciudadano de los programas sociales del Gobierno del Chaco
                     </p>
                 </div>
                 <div>
@@ -85,11 +90,11 @@
                     <div class="space-y-3 text-sm text-gray-300">
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-phone w-4"></i>
-                            <span>0800-222-1133</span>
+                            <span>+54 362 430-0002</span>
                         </div>
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-envelope w-4"></i>
-                            <span>info@chaco.gob.ar</span>
+                            <span>datanach@chaco.gob.ar</span>
                         </div>
                     </div>
                 </div>
@@ -103,7 +108,7 @@
             </div>
             <div class="border-t border-gray-700 mt-8 pt-6 text-center">
                 <p class="text-gray-400 text-sm">
-                    &copy; 2024 DATAÑACH - Todos los derechos reservados
+                    &copy; {% now "Y" %} DATAÑACH — Gobierno del Chaco
                 </p>
             </div>
         </div>
@@ -168,7 +173,10 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    {% comment %}Alpine 3.14.9 autoalojado. Antes venía de unpkg con versión
+    flotante (3.x.x): un compromiso de ese CDN ejecutaba código arbitrario en la
+    página donde el ciudadano tipea su documento.{% endcomment %}
+    <script src="{% static 'vendor/alpinejs/alpine.min.js' %}" defer></script>
     <script src="{% static 'custom/js/portal-effects.js' %}" defer></script>
     <script src="{% static 'custom/js/modern-messages.js' %}" defer></script>
     <!-- NODO Toast: lee los mensajes de Django y expone window.toast() -->
@@ -354,5 +362,6 @@
             });
         });
     </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

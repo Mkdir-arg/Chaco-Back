@@ -1,0 +1,175 @@
+{
+	"info": {
+		"_postman_id": "f58a41ed-1daa-47d0-8ef2-ece9b4720df6",
+		"name": "SIIS API — Convenio DATAÑACH v1",
+		"description": "Colección oficial de Postman para probar la API REST del SIIS (Sistema Integrado de Información Social) según el convenio contractual v1 con DATAÑACH.\n\n**Copia versionada en el repo: el `client_secret` fue vaciado a propósito — completarlo desde el gestor de claves.**\n\n### Flujo de uso:\n1. Configurar las variables `baseUrl`, `client_id` y `client_secret` en la colección.\n2. Ejecutar la petición `1. Obtener Token de Acceso`. El `access_token` devuelto se guarda automáticamente como variable de colección.\n3. Probar los endpoints de catálogos y validación de compatibilidad.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Obtener Token de Acceso (M2M)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData.access_token) {",
+							"    pm.collectionVariables.set(\"access_token\", jsonData.access_token);",
+							"    console.log(\"Token guardado automáticamente en la variable access_token\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/token",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"token"
+					]
+				},
+				"description": "Emite un token JWT de cliente máquina-a-máquina válido por 1 hora."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Listar Programas Sociales",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/programas?estado=ACTIVO",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"programas"
+					],
+					"query": [
+						{
+							"key": "estado",
+							"value": "ACTIVO",
+							"description": "Filtro por estado: ACTIVO | INACTIVO | TODOS"
+						}
+					]
+				},
+				"description": "Retorna el catálogo maestro de programas sociales del SIIS."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Listar Segmentos por Programa",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/programas/38/segmentos",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"programas",
+						"38",
+						"segmentos"
+					]
+				},
+				"description": "Retorna los segmentos (funciones) de un programa social específico. NOTA DATAÑACH: nuestro código no consume este endpoint desde el Cambio 32 (el segmento es local; solo el Programa espeja a SIIS)."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Validar Compatibilidad SIS",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"documento\": \"10578560\",\n  \"sexo\": \"F\",\n  \"id_segmento\": 1\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/validaciones/compatibilidad",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"validaciones",
+						"compatibilidad"
+					]
+				},
+				"description": "Evalúa si una persona cumple las reglas de elegibilidad e incompatibilidades. NOTA DATAÑACH: este body es el del convenio v1; el servicio vigente recibe {dni, id_programa, fecha_nacimiento?} — ver docs/internal/temas/siis-api.md."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://siisapi.ecomdev.ar",
+			"type": "string"
+		},
+		{
+			"key": "client_id",
+			"value": "datanach_test",
+			"type": "string"
+		},
+		{
+			"key": "client_secret",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

@@ -1,0 +1,18 @@
+Hola {{ user.first_name|default:user.username }},
+
+Se creó tu cuenta en el backoffice de DATAÑACH. Estos son tus datos de acceso.
+
+Usuario: {{ user.username }}
+{% if rol %}Rol: {{ rol }}
+{% endif %}Contraseña provisoria: {{ password_provisoria }}
+
+Ingresá en {{ enlace_login }}
+El sistema te va a pedir que cambies la contraseña en tu primer ingreso.
+
+No compartas esta contraseña con nadie. El equipo de DATAÑACH nunca te va a pedir
+tu clave por correo ni por teléfono.
+
+---
+Gobierno de la Provincia del Chaco — Ministerio de Desarrollo Social
+{% if soporte %}Soporte: {{ soporte }}
+{% endif %}Este es un mensaje automático de DATAÑACH. No respondas a esta dirección.

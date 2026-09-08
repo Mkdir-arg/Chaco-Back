@@ -1,0 +1,7 @@
+{% extends "user/base_public_auth.html" %}
+{% block title %}Solicitud recibida — DATAÑACH{% endblock %}
+{% block auth_content %}
+<h1 class="public-auth__title">Revisá tu correo</h1>
+<p class="public-auth__help">Si existe una cuenta activa asociada, recibirás un enlace para establecer una contraseña nueva.</p>
+<a class="public-auth__link" href="{% url 'users:login' %}">Volver al inicio de sesión</a>
+{% endblock %}

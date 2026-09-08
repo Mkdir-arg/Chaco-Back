@@ -19,7 +19,7 @@ El corte usa ``timezone.localdate()`` (hora Argentina, ``USE_TZ=True``): con
 
 from __future__ import annotations
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from core.services.vencimientos import ReglaVencimiento, registrar
@@ -61,8 +61,14 @@ def cerrar_convocatorias(qs: QuerySet) -> int:
 
 def relevamientos_de_convocatoria_vencida() -> QuerySet:
     return Relevamiento.objects.filter(
-        convocatoria__fecha_fin__lt=_hoy(),
-        estado__in=ESTADOS_RELEVAMIENTO_ABIERTOS,
+        Q(
+            convocatoria__fecha_fin__lt=_hoy(),
+            estado__in=ESTADOS_RELEVAMIENTO_ABIERTOS,
+        )
+        | Q(
+            fecha_hasta__lt=timezone.now(),
+            estado__in=(Relevamiento.Estado.ASIGNADO, Relevamiento.Estado.EN_CURSO),
+        )
     )
 
 

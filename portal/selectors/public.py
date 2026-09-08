@@ -9,10 +9,8 @@ def _build_portal_home_context():
     programas = list(Programa.objects.filter(estado="ACTIVO").order_by("orden"))
     return {
         "programas": programas,
-        "instituciones": [],
         "stats": {
             "ciudadanos": Ciudadano.objects.count(),
-            "instituciones": 0,
             "programas": len(programas),
             "inscripciones_activas": InscripcionPrograma.objects.filter(
                 estado__in=["ACTIVO", "EN_SEGUIMIENTO"]
@@ -20,14 +18,13 @@ def _build_portal_home_context():
         },
         "ciudadano_items": [
             "Mis programas sociales e inscripciones",
-            "Consultas y reclamos municipales",
+            "Consultas al equipo del programa",
             "Mis datos personales y contraseña",
         ],
-        "institucion_items": [
-            "Registro guiado paso a paso",
-            "Seguimiento del estado del trámite",
-            "Articulación con programas municipales",
-            "Mesa de ayuda especializada",
+        "consulta_items": [
+            "Nueva consulta desde tu perfil",
+            "Historial de tus conversaciones",
+            "Respuesta del equipo del programa en tu cuenta",
         ],
     }
 

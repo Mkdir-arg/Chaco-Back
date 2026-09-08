@@ -15,13 +15,15 @@
        editReqObligatorio: 'True',
        editReqOrden: 0,
        editReqOpciones: '',
-       openReqEdit(url, texto, tipo, obligatorio, orden, opciones) {
+       editReqPresentacion: 'LISTA',
+       openReqEdit(url, texto, tipo, obligatorio, orden, opciones, presentacion) {
          this.editReqUrl = url;
          this.editReqTexto = texto;
          this.editReqTipo = tipo;
          this.editReqObligatorio = obligatorio;
          this.editReqOrden = orden;
          this.editReqOpciones = (opciones || []).join('\n');
+         this.editReqPresentacion = presentacion || 'LISTA';
          this.modalReqEdit = true;
        }
      }"
@@ -65,6 +67,12 @@
         <button type="button" @click="modalSubEdit=true" class="btn-nodo btn-secondary btn-sm" aria-label="Editar subsegmento">
           <i class="fas fa-edit"></i> Editar
         </button>
+        {% endif %}
+        {% if subsegmento.pausa_efectiva %}<span class="badge badge-warning badge-dot ml-2">Pausado</span>{% endif %}
+        {% if request.user|puede:"becas.programa.administrar" %}
+        <a href="{% url 'becas:gestionar_pausa' 'subsegmento' subsegmento.pk %}" class="btn-nodo {% if subsegmento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm ml-2">
+          {% if subsegmento.pausado %}Reanudar{% else %}Pausar{% endif %}
+        </a>
         {% endif %}
       </div>
 
@@ -171,6 +179,7 @@
             <div>
               <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
               {{ form_requisito.orden }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
 
@@ -179,6 +188,12 @@
             {{ form_requisito.opciones_texto }}
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.opciones_texto.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
+          </div>
+          <div data-presentacion-wrapper>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">{{ form_requisito.presentacion.label }}</label>
+            {{ form_requisito.presentacion }}
+            <p class="text-xs text-body-subtle mt-1">{{ form_requisito.presentacion.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="presentacion"></p>
           </div>
 
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
@@ -256,7 +271,8 @@
             </div>
             <div>
               <label class="block text-[13px] font-semibold text-heading mb-1.5">Orden</label>
-              <input type="number" name="orden" x-model="editReqOrden" min="0" class="nodo-field w-full">
+              <input type="number" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field w-full">
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
 
@@ -264,6 +280,13 @@
             <label class="block text-[13px] font-semibold text-heading mb-1.5">Opciones (una por línea)</label>
             <textarea name="opciones_texto" x-model="editReqOpciones" rows="4" class="nodo-field w-full"></textarea>
             <p class="text-xs text-body-subtle mt-1">Solo para Selector / Selector múltiple.</p>
+          </div>
+          <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">Presentación</label>
+            <select name="presentacion" x-model="editReqPresentacion" class="nodo-field w-full">
+              {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
           </div>
 
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
@@ -358,19 +381,5 @@
 
 {% block customJS %}
 {% include "programas/becas/_ajax_js.html" %}
-<script>
-(function () {
-  var TIPOS_CON_OPCIONES = ['SELECTOR', 'SELECTOR_MULTIPLE'];
-  function toggleOpciones(tipoSelect, opcionesWrapper) {
-    opcionesWrapper.style.display = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1 ? '' : 'none';
-  }
-  document.querySelectorAll('form[action*="requisitos"]').forEach(function (form) {
-    var tipoSelect = form.querySelector('select[name="tipo"]');
-    var opcionesWrapper = form.querySelector('[data-opciones-wrapper]');
-    if (!tipoSelect || !opcionesWrapper) return;
-    toggleOpciones(tipoSelect, opcionesWrapper);
-    tipoSelect.addEventListener('change', function () { toggleOpciones(tipoSelect, opcionesWrapper); });
-  });
-})();
-</script>
+{% include "programas/becas/config/_tipo_selector_js.html" %}
 {% endblock %}

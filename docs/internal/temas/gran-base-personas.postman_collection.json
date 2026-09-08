@@ -1,0 +1,182 @@
+{
+  "info": {
+    "_postman_id": "3f1c8885-a4a8-4513-aa04-1b0f8d1b9a86",
+    "name": "Personas API",
+    "description": "# Personas — API de integración\n\nColección oficial para consumir las APIs del proyecto **personas-dev**.\n\n## Variables de colección\n\n| Variable | Descripción |\n|----------|-------------|\n| `base_url` | URL del servidor sin barra final. Ej: `http://127.0.0.1:8002` o `https://personas-test.ecom.com.ar` |\n| `client_id` | Desde **Aplicaciones → Detalle → Client ID** |\n| `client_secret` | Desde **Aplicaciones → Detalle → Client Secret** (texto plano, **no** `pbkdf2_…`) |\n| `entidad_uuid` | Desde **Aplicaciones → Detalle → UUID Entidad** |\n| `token` | Se completa automáticamente al ejecutar **01 - Obtener token** |\n\n## Requisitos previos (web)\n\n1. Crear una **Aplicación** (OAuth2, grant `client_credentials`).\n2. En **Permisos apps**: asociar entidad + aplicación + permiso `personas` + **habilitado**.\n3. Copiar credenciales desde el detalle de la aplicación.\n\n## Flujo en Postman\n\n1. Completar variables `client_id`, `client_secret`, `entidad_uuid`.\n2. Ejecutar **01 - Obtener token** → guarda `token`.\n3. Ejecutar **02 - Consultar persona**.\n\n## Formato de respuesta (estilo SID)\n\n```json\n{\n  \"codigo_http\": 200,\n  \"mensaje_http\": \"OK\",\n  \"data\": {\n    \"codigo\": 0,\n    \"mensaje\": \"...\",\n    \"token\": \"...\"\n  }\n}\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "8513169"
+  },
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "01 - Obtener token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    var token = json.data && json.data.token;",
+                  "    pm.expect(token, 'token en data.token').to.be.a('string').and.not.empty;",
+                  "    pm.collectionVariables.set('token', token);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "description": "Obligatorio"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"entidad\": \"{{entidad_uuid}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/aplicaciones/token/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "aplicaciones",
+                "token",
+                ""
+              ]
+            },
+            "description": "# Obtener token\n\n**POST** `{{base_url}}/api/v1/aplicaciones/token/`\n\n## Body (JSON)\n\n| Campo | Tipo | Requerido | Descripción |\n|-------|------|-----------|-------------|\n| `grant_type` | string | Sí | Debe ser `client_credentials` |\n| `client_id` | string | Sí | Client ID de la aplicación |\n| `client_secret` | string | Sí | Secret en **texto plano** (no copiar el hash `pbkdf2_sha256$…`) |\n| `entidad` | UUID | Sí | UUID de la entidad habilitada en Permisos apps |\n\n## Respuesta exitosa (200)\n\n```json\n{\n  \"codigo_http\": 200,\n  \"mensaje_http\": \"OK\",\n  \"data\": {\n    \"codigo\": 0,\n    \"mensaje\": \"Token generado correctamente\",\n    \"token\": \"<usar en Authorization Bearer>\",\n    \"token_type\": \"Bearer\",\n    \"scope\": \"read write\",\n    \"expiration\": \"2026-07-30T11:00:00-03:00\"\n  }\n}\n```\n\n## Errores frecuentes\n\n| HTTP | Causa |\n|------|-------|\n| **401** | `client_id` incorrecto, secret hasheado o con espacios al copiar |\n| **403** | Entidad no habilitada en Permisos apps |\n| **400** | Body inválido; secret que parece hash (`pbkdf2_`) |\n\n> Si el detalle de la app muestra secret hasheado, usar **Regenerar client secret** en la web."
+          },
+          "response": []
+        },
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/health/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health",
+                ""
+              ]
+            },
+            "description": "Verifica que la API responde. No requiere autenticación."
+          },
+          "response": []
+        }
+      ],
+      "description": "Obtención de token OAuth2 (`client_credentials`). No requiere header de autorización."
+    },
+    {
+      "name": "Personas",
+      "item": [
+        {
+          "name": "02 - Consultar persona",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 o 404', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/personas/consulta/?dni=36206924&fuente_id=12",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "personas",
+                "consulta",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "dni",
+                  "value": "36206924",
+                  "description": "**Requerido.** DNI numérico (solo dígitos)."
+                },
+                {
+                  "key": "sexo",
+                  "value": "M",
+                  "description": "Opcional. Filtra por abreviación: `M`, `F` o `ND`.",
+                  "disabled": true
+                },
+                {
+                  "key": "fuente_id",
+                  "value": "12"
+                }
+              ]
+            },
+            "description": "# Consultar persona\n\n**GET** `{{base_url}}/api/v1/personas/consulta/`\n\n## Headers\n\n| Header | Valor |\n|--------|-------|\n| `Authorization` | `Bearer {{token}}` |\n\n## Query params\n\n| Param | Requerido | Descripción |\n|-------|-----------|-------------|\n| `dni` | **Sí** | DNI numérico |\n| `sexo` | No | `M`, `F` o `ND` |\n\n> La consulta web admite más filtros (`cuit`, `nombre`, `q`); la **API** por ahora solo expone `dni` y `sexo`.\n\n## Respuesta exitosa (200)\n\n```json\n{\n  \"codigo_http\": 200,\n  \"mensaje_http\": \"OK\",\n  \"data\": {\n    \"codigo\": 0,\n    \"mensaje\": \"Consulta realizada correctamente\",\n    \"personas\": [\n      {\n        \"id\": \"1688994\",\n        \"apellido\": \"ALMEIDA HORACIO NESTOR\",\n        \"nombre\": \"...\",\n        \"dni\": 11111111,\n        \"tipo_documento\": \"DNI\",\n        \"cuit\": \"...\",\n        \"sexo\": \"M\",\n        \"fecha_nacimiento\": \"...\",\n        \"fecha_fallecimiento\": null,\n        \"domicilio\": \"...\",\n        \"fuente\": \"ATP\",\n        \"tipo_persona\": \"F\"\n      }\n    ]\n  }\n}\n```\n\n## Errores\n\n| HTTP | Causa |\n|------|-------|\n| **401** | Token inválido o expirado |\n| **403** | App sin permiso `personas.view_persona` o no habilitada |\n| **404** | No hay personas para ese DNI |\n| **400** | DNI inválido o faltante |"
+          },
+          "response": []
+        }
+      ],
+      "description": "Consulta del padrón unificado (SQL Server). Requiere token Bearer obtenido en Autenticación."
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8002"
+    },
+    {
+      "key": "client_id",
+      "value": ""
+    },
+    {
+      "key": "client_secret",
+      "value": ""
+    },
+    {
+      "key": "entidad_uuid",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

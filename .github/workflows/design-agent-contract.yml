@@ -1,0 +1,42 @@
+name: Design Agent Contract
+
+on:
+  pull_request:
+    branches:
+      - development
+    paths:
+      - ".claude/agents/**"
+      - ".claude/settings.json"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "docs/design-kb/**"
+      - "scripts/check_design_agent.py"
+      - "scripts/test_check_design_agent.py"
+      - ".github/workflows/design-agent-contract.yml"
+      - "**/templates/**/*.html"
+      - "static/custom/css/**/*.css"
+      - "static/custom/js/**/*.js"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Validate inventory and authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate design-agent contract
+        run: python scripts/check_design_agent.py --base "${{ github.event.pull_request.base.sha }}"
+
+      - name: Test design-agent checker
+        run: python scripts/test_check_design_agent.py

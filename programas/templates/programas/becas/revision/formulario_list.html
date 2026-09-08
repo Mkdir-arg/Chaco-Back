@@ -7,7 +7,13 @@
 
 
   <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
-    <div>
+    <div class="flex items-start gap-3">
+      <a href="{% url 'becas:relevamiento_detalle' relevamiento.pk %}"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver al detalle del relevamiento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <div>
       <div class="flex items-center gap-3 flex-wrap">
         <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ relevamiento.nombre }}</h1>
         {% with rel=relevamiento %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}
@@ -15,30 +21,30 @@
       <p class="text-sm text-body-subtle mt-1">
         {{ relevamiento.convocatoria.segmento.nombre }} &middot; {{ pendientes }} pendiente(s) de revisión
       </p>
+      </div>
     </div>
     <div class="flex gap-2">
-      {% if request.user|puede:"becas.revision.editar" %}
-      {% if relevamiento.estado == 'FINALIZADO' %}
-      <form method="post" action="{% url 'becas:revision_iniciar' relevamiento.pk %}">{% csrf_token %}
-        <button class="btn-nodo btn-tertiary btn-base">
-          <i class="fas fa-play"></i> Iniciar revisión
-        </button>
-      </form>
-      {% elif relevamiento.estado == 'EN_REVISION' %}
-      <form method="post" action="{% url 'becas:revision_terminar' relevamiento.pk %}">{% csrf_token %}
-        <button class="btn-nodo btn-brand btn-base">
-          <i class="fas fa-check"></i> Marcar terminado
-        </button>
-      </form>
-      {% endif %}
+      {% if relevamiento.estado == 'FINALIZADO' or relevamiento.estado == 'EN_REVISION' %}
+        {% if request.user|puede:"becas.relevamiento.editar" %}
+        <a href="{% url 'becas:relevamiento_detalle' relevamiento.pk %}#volver-a-campo" class="btn-nodo btn-tertiary btn-base">
+          <i class="fas fa-rotate-left"></i> Volver a campo
+        </a>
+        {% endif %}
+        {% if request.user|puede:"becas.revision.editar" %}
+        <form method="post" action="{% url 'becas:revision_terminar' relevamiento.pk %}">{% csrf_token %}
+          <button class="btn-nodo btn-brand btn-base">
+            <i class="fas fa-check"></i> Marcar terminado
+          </button>
+        </form>
+        {% endif %}
       {% endif %}
     </div>
   </div>
 
   {# Filter bar #}
-  <form method="get" class="flex items-center gap-3 mb-4 flex-wrap">
+  <form method="get" data-dynamic-list-filters class="flex items-center gap-3 mb-4 flex-wrap">
     <label class="text-sm text-body-subtle font-medium">Estado:</label>
-    <select name="estado" onchange="this.form.submit()"
+    <select name="estado"
             class="rounded-full border border-base bg-white px-4 py-1.5 text-sm text-body focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand">
       <option value="">Todos</option>
       {% for value, label in estados %}
@@ -53,9 +59,10 @@
       <table class="w-full border-collapse">
         <thead>
           <tr class="bg-secondary border-b border-base">
+            <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Caso</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Contacto</th>
-            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">RENAPER</th>
+            <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Identidad</th>
             <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
             <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
           </tr>
@@ -63,6 +70,7 @@
         <tbody>
           {% for f in formularios %}
           <tr class="hover:bg-secondary">
+            <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-semibold">{{ f.numero }}</td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
               {% if f.ciudadano %}
                 {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
@@ -84,6 +92,9 @@
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-light">
               {% include "programas/becas/_formulario_estado_badge.html" with estado=f.estado dot=True color_enviado="warning" %}
+              {% if f.conflicto_duplicado and not f.conflicto_resuelto or f.tiene_carga_duplicada_pendiente %}
+                <span class="badge badge-warning mt-1"><i class="fas fa-code-compare"></i> Duplicado por resolver</span>
+              {% endif %}
             </td>
             <td class="px-4 py-[13px] text-sm border-t border-light text-right">
               <a href="{% url 'becas:formulario_detalle' f.pk %}" class="btn-nodo btn-tertiary btn-sm">
@@ -95,11 +106,26 @@
         </tbody>
       </table>
     </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between px-4 py-3 border-t border-light bg-secondary">
+      <span class="text-xs text-body-subtle">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} caso{{ page_obj.paginator.count|pluralize }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
+           class="btn-nodo btn-tertiary btn-sm" aria-label="Página anterior"><i class="fas fa-chevron-left"></i> Anterior</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}"
+           class="btn-nodo btn-tertiary btn-sm" aria-label="Página siguiente">Siguiente <i class="fas fa-chevron-right"></i></a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
     {% else %}
     <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
       <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>
       <p class="text-[17px] font-bold text-heading">Sin formularios</p>
-      <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene formularios cargados.</p>
+      <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene casos cargados.</p>
     </div>
     {% endif %}
   </div>

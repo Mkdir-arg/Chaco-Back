@@ -58,8 +58,28 @@ class RbacBecasTests(TestCase):
         self.assertTrue(rbac.puede(self.admin, "becas.revision.editar", programa=self.becas))
         self.assertFalse(rbac.puede(self.coord, "becas.programa.administrar", programa=self.becas))
         self.assertTrue(rbac.puede(self.coord, "becas.revision.editar", programa=self.becas))
+        self.assertTrue(rbac.puede(self.coord, "becas.reportes.ver", programa=self.becas))
+        self.assertTrue(rbac.puede(self.coord, "becas.reportes.exportar", programa=self.becas))
         self.assertTrue(rbac.puede(self.territorial, "becas.campo", programa=self.becas))
         self.assertFalse(rbac.puede(self.territorial, "becas.revision.editar", programa=self.becas))
+        self.assertFalse(rbac.puede(self.territorial, "becas.reportes.ver", programa=self.becas))
+
+    def test_admin_recibe_el_alcance_de_los_abm_del_programa(self):
+        """El seed le da las dos capacidades transversales explícitamente.
+
+        La paraguas ``becas.programa.administrar`` ya no las confiere, y como
+        ``asegurar_roles_becas`` usa ``permissions.set()``, si el seed no las incluyera
+        una corrida revertiría el traspaso de ``users.0020`` y el Administrador se
+        quedaría sin los ABM de Usuarios y Roles.
+        """
+        from users.selectors.roles import programas_administrables_roles, programas_administrables_usuarios
+
+        for capacidad in rbac.CAPS_ADMIN_PROGRAMA:
+            self.assertTrue(rbac.puede(self.admin, capacidad, programa=self.becas), capacidad)
+        self.assertEqual(list(programas_administrables_usuarios(self.admin)), [self.becas])
+        self.assertEqual(list(programas_administrables_roles(self.admin)), [self.becas])
+        # El Coordinador no administra el programa: su alcance son sus territoriales.
+        self.assertEqual(list(programas_administrables_usuarios(self.coord)), [])
 
     # --- admin: acceso total ---
     def test_admin_gestiona_cualquier_segmento(self):

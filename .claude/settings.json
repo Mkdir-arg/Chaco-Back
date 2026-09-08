@@ -22,6 +22,16 @@
             ],
             "timeout": 30,
             "statusMessage": "Auditando adherencia al sistema de diseño…"
+          },
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "scripts/check_design_agent.py",
+              "--hook"
+            ],
+            "timeout": 30,
+            "statusMessage": "Validando el contrato del agente de diseño…"
           }
         ]
       }

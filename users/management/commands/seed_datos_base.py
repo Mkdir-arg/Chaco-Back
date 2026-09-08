@@ -8,8 +8,12 @@ Hace, sin duplicar nada al repetirse:
    identidad del portal). Siempre por **nombre** (``get_or_create``), nunca
    por pk.
 2. Corre ``seed_rbac`` (capacidades, RolMeta, roles Administrador y Operador
-   de backoffice) y ``seed_becas`` (Programa Becas + sus 3 roles de programa:
-   Administrador / Coordinador / Territorial + adjuntos obligatorios).
+   de backoffice) y ``seed_becas`` (Programa Becas + sus 5 roles de programa:
+   Administrador / Coordinador / Coordinador Regional / Referente / Territorial
+   + adjuntos obligatorios). Como ``seed_becas`` **reemplaza** el conjunto de
+   capacidades de cada rol, correr esto en cada arranque es lo que mantiene los
+   roles alineados con el código; un bootstrap que lo omita los deja congelados
+   en el estado en que se sembró la base.
 3. Crea los **roles de menú** (uno por sección del sidebar) con sus
    capacidades y RolMeta. Solo al crearlos: si el rol ya existe no se le
    tocan las capacidades, para respetar lo editado desde el ABM de Roles.

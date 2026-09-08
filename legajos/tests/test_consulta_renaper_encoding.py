@@ -2,7 +2,12 @@ from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 
-from legajos.services.consulta_renaper import APIClient, reparar_mojibake, reparar_texto_mojibake
+from legajos.services.consulta_renaper import (
+    APIClient,
+    consultar_datos_renaper,
+    reparar_mojibake,
+    reparar_texto_mojibake,
+)
 
 
 class RenaperEncodingTests(SimpleTestCase):
@@ -33,6 +38,24 @@ class RenaperEncodingTests(SimpleTestCase):
                 },
             },
         )
+
+
+class RenaperTestModeTests(SimpleTestCase):
+    @override_settings(RENAPER_TEST_MODE=True)
+    @patch("legajos.services.consulta_renaper.time.sleep")
+    def test_el_modo_test_no_agrega_latencia_por_defecto(self, sleep):
+        result = consultar_datos_renaper("30111222", "M")
+
+        self.assertTrue(result["success"])
+        sleep.assert_not_called()
+
+    @override_settings(RENAPER_TEST_MODE=True, RENAPER_TEST_LATENCY_SECONDS=0.25)
+    @patch("legajos.services.consulta_renaper.time.sleep")
+    def test_el_modo_test_aplica_la_latencia_configurada(self, sleep):
+        result = consultar_datos_renaper("30111222", "M")
+
+        self.assertTrue(result["success"])
+        sleep.assert_called_once_with(0.25)
 
 
 class RenaperApiClientTests(SimpleTestCase):

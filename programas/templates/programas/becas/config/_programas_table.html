@@ -1,0 +1,118 @@
+{% load becas_extras %}
+{% load rbac %}
+{% if programas_bloqueados_siis %}
+{# SIIS dio de baja estos programas: ellos y todos sus segmentos quedan bloqueados. #}
+<div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" style="margin:16px" role="alert">
+  <strong class="text-heading">Cambio informado por SIIS</strong>
+  <p class="text-body mt-1">
+    {{ programas_bloqueados_siis|length }} programa{{ programas_bloqueados_siis|length|pluralize }} dejó de estar
+    vigente en SIIS. El programa y todos sus segmentos quedan bloqueados para operar: no se pueden cargar ni editar
+    relevamientos hasta que SIIS lo reactive.
+  </p>
+  <ul class="mt-2 space-y-1">
+    {% for p in programas_bloqueados_siis %}
+    <li class="text-body">
+      <a href="{% url 'becas:programa_detalle' p.pk %}" class="font-semibold text-fg-brand hover:underline">{{ p.nombre }}</a>
+      — {{ p.siis_motivo_bloqueo }}
+      {% if p.siis_verificado_en %}<span class="text-body-subtle">Detectado el {{ p.siis_verificado_en|date:"d/m/Y H:i" }}.</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% if programas %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">ID SIIS</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Segmentos</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Vinculado el</th>
+        <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
+        <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in programas %}
+      <tr class="hover:bg-tertiary">
+        <td class="px-4 py-[13px] border-t border-light font-semibold text-heading" style="font-size:13.5px">{{ p.nombre }}</td>
+        <td class="px-4 py-[13px] border-t border-light text-body text-right" style="font-size:13.5px">#{{ p.siis_programa_id }}</td>
+        <td class="px-4 py-[13px] border-t border-light text-body text-right" style="font-size:13.5px">
+          {% if p.n_segmentos %}{{ p.n_segmentos }} segmento{{ p.n_segmentos|pluralize }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-[13px] border-t border-light text-body-subtle" style="font-size:13.5px">
+          {{ p.siis_vinculado_en|date:"d/m/Y"|default:"—" }}
+        </td>
+        <td class="px-4 py-[13px] border-t border-light text-center" style="font-size:13.5px">
+          <div class="flex items-center justify-center gap-1.5 flex-wrap">
+            {% if p.pausado %}
+              <span class="badge badge-danger badge-dot" title="{{ p.pausa_motivo }}">Pausado</span>
+            {% else %}
+              <span class="badge badge-success badge-dot">Activo</span>
+            {% endif %}
+            {# El estado en SIIS es otra dimensión: puede estar activo acá y bloqueado allá. #}
+            {% if p.siis_bloqueado %}
+              <span class="badge badge-warning badge-dot" title="{{ p.siis_motivo_bloqueo }}">SIIS inactivo</span>
+            {% endif %}
+          </div>
+        </td>
+        <td class="px-4 py-[13px] border-t border-light text-right" style="font-size:13.5px">
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" aria-label="Ver detalle del programa SIIS"
+              class="{% if p.siis_bloqueado %}text-fg-warning{% else %}text-fg-brand{% endif %} p-1.5 rounded-lg hover:bg-secondary"
+              @click="openInfo({{ p|siis_info }})">
+              {# InformationCircleIcon — Heroicons v2 outline #}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+              </svg>
+            </button>
+            <a href="{% url 'becas:programa_detalle' p.pk %}" class="text-fg-brand p-1.5 rounded-lg hover:bg-secondary" aria-label="Ver detalle del programa">
+              {# EyeIcon — Heroicons v2 outline #}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{# Paginación (footer del TableCard, como el kit) #}
+<div class="flex items-center justify-between" style="padding:12px 16px; border-top:1px solid var(--border-light); background:var(--bg-secondary)">
+  <span style="font-size:12.5px; color:var(--text-body-subtle)">Mostrando {{ programas|length }} de {{ programas|length }} programa{{ programas|length|pluralize }}</span>
+  <div class="flex items-center gap-2">
+    <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0" disabled>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+      Anterior
+    </button>
+    <span style="font-size:13px; font-weight:600; color:var(--text-body)">1 de 1</span>
+    <button type="button" class="btn-nodo btn-tertiary btn-sm" style="min-width:0" disabled>
+      Siguiente
+    </button>
+  </div>
+</div>
+{% else %}
+<div class="py-14 px-6 text-center flex flex-col items-center" style="gap:10px">
+  <div class="text-fg-brand">
+    {# FolderIcon — Heroicons v2 outline #}
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+    </svg>
+  </div>
+  <p class="text-[17px] font-bold text-heading">No hay programas vinculados</p>
+  <p class="text-sm text-body" style="max-width:360px">Vinculá el primer programa desde el catálogo de SIIS.</p>
+  {% if request.user|puede:"becas.segmento.crear" %}
+  <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
+    {# PlusIcon — Heroicons v2 outline #}
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+    Nuevo programa
+  </button>
+  {% endif %}
+</div>
+{% endif %}

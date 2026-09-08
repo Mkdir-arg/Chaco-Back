@@ -1,6 +1,9 @@
+from django import forms
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
+
+from core import rbac
 
 
 class UsuariosAuthenticationForm(AuthenticationForm):
@@ -19,7 +22,10 @@ class UsuariosAuthenticationForm(AuthenticationForm):
         **AuthenticationForm.error_messages,
         "invalid_login": "Credenciales inválidas. Verificá tu correo y contraseña.",
         "inactive": "Tu usuario está inactivo. Contactá a un administrador para que lo reactive.",
+        "territorial_mobile_only": "Usuario no válido para ingresar al sistema.",
     }
+
+    remember = forms.BooleanField(required=False, label="Recordarme")
 
     def clean(self):
         username = self.cleaned_data.get("username")
@@ -35,6 +41,15 @@ class UsuariosAuthenticationForm(AuthenticationForm):
                 self.confirm_login_allowed(self.user_cache)
 
         return self.cleaned_data
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        otras_capacidades = [codigo for codigo in rbac.codigos_de_capacidad() if codigo != "becas.campo"]
+        if rbac.puede(user, "becas.campo") and not rbac.puede_alguna(user, otras_capacidades):
+            raise ValidationError(
+                self.error_messages["territorial_mobile_only"],
+                code="territorial_mobile_only",
+            )
 
     @staticmethod
     def _credenciales_de_usuario_inactivo(username, password):

@@ -1,21 +1,68 @@
 {% extends "includes/base.html" %}
+{% load rbac %}
 {% block title %}Becas · Nuevo relevamiento{% endblock %}
 
 {% block main-content %}
-<div class="">
+<style>[x-cloak]{display:none!important}</style>
+<div x-data="{ tipoRel: '{{ form.tipo.value|default:"TERRITORIAL" }}' }">
   <h1 class="text-3xl font-extrabold text-heading tracking-tight mb-1">Nuevo relevamiento</h1>
-  <p class="text-sm text-body-subtle mb-6">El nombre se genera automáticamente (Relevamiento NNN).</p>
-  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+  <p class="text-sm text-body-subtle mb-6">El nombre se genera automáticamente con su número y convocatoria.</p>
+  <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
+    {% if advertencia_solapamiento %}
+      <input type="hidden" name="confirmar_solapamiento" value="1">
+      <div class="mb-4 rounded-lg bg-warning-soft p-3 text-sm text-fg-warning" role="alert">
+        {{ advertencia_solapamiento }}
+      </div>
+    {% endif %}
     {% if form.non_field_errors %}
       <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
-    {% for field in form %}{% include "programas/becas/_field.html" %}{% endfor %}
+    {% if form.tipo %}
+      {% with field=form.tipo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% endif %}
+    {% with field=form.convocatoria %}{% include "programas/becas/_field.html" %}{% endwith %}
+    <fieldset x-show="tipoRel==='TERRITORIAL'" :disabled="tipoRel!=='TERRITORIAL'" class="border-0 p-0 m-0">
+      {% with field=form.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form.territorial.id_for_label }}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
+      {% with field=form.municipio %}{% include "programas/becas/_field.html" %}{% endwith %}
+      {% with field=form.zona %}{% include "programas/becas/_field.html" %}{% endwith %}
+    </fieldset>
+    {% with field=form.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% with field=form.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
+    {% if form.tipo %}
+    <fieldset x-show="tipoRel==='PUBLICO'" x-cloak :disabled="tipoRel!=='PUBLICO'" class="border-0 p-0 m-0">
+      {% comment %}El padrón vive en la convocatoria desde el Cambio 57 (sirve al
+      link y a la app). Sin padrón el link acepta a cualquiera (RN-P14): el aviso
+      hace explícita la consecuencia en el momento de decidir.{% endcomment %}
+      <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm mb-3" role="alert">
+        <i class="fas fa-triangle-exclamation text-fg-warning mr-1"></i>
+        <strong>El padrón de habilitados se carga en la convocatoria.</strong> Si la convocatoria no tiene padrón,
+        el link queda abierto: cualquier persona que lo reciba puede inscribirse y ocupar cupo.
+      </div>
+    </fieldset>
+    {% endif %}
+    {% comment %}Fuera del fieldset de tipo público (Cambio 44): los avisos por
+    correo aplican a los dos tipos de relevamiento.{% endcomment %}
+    <div class="mb-4">
+      <label class="flex items-center gap-2 text-sm text-heading" for="{{ form.confirmar_por_email.id_for_label }}">
+        {{ form.confirmar_por_email }}
+        Avisar por correo a la persona
+      </label>
+      <p class="text-xs text-body-subtle mt-1">{{ form.confirmar_por_email.help_text }}</p>
+      {% if form.confirmar_por_email.errors %}<p class="mt-1 text-xs text-fg-danger">{{ form.confirmar_por_email.errors|join:", " }}</p>{% endif %}
+    </div>
+    {% with field=form.observaciones %}{% include "programas/becas/_field.html" %}{% endwith %}
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'becas:relevamientos' %}" class="btn-nodo btn-tertiary btn-base">← Cancelar</a>
-      <button type="submit" class="btn-nodo btn-brand btn-base">Crear y asignar</button>
+      <button type="submit" class="btn-nodo btn-brand btn-base">
+        {% if advertencia_solapamiento %}Confirmar asignación{% else %}Crear relevamiento{% endif %}
+      </button>
     </div>
   </form>
 </div>
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
+{% include "programas/becas/relevamientos/_cascada_localidad.html" %}
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}

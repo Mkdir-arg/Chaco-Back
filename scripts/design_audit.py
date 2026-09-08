@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Auditoría mecánica del sistema de diseño Chaco/NODO.
 
-Fuente única de los chequeos que antes vivían como greps en prosa dentro de
-`.claude/agents/chaco-design-reviewer.md` y `.claude/agents/chaco-frontend.md`.
-Ambos agentes (y cualquier dev) deben correr ESTE script — así todos auditan
-exactamente lo mismo.
+Chequeos mecánicos compartidos para cambios de UI. El inventario y las decisiones
+operativas viven en `.claude/agents/chaco-design-system.md`, que se contrasta con
+el frontend productivo antes de usar este script.
 
 Uso:
     python scripts/design_audit.py [paths...]      # audita archivos o carpetas
@@ -14,9 +13,10 @@ Uso:
 Sin argumentos audita las superficies de UI del repo (templates/ + static/custom/css
 + templates de apps). Exit code 1 si hay violaciones ERROR; las WARN no cortan.
 
-Reglas (espejo del canon chaco-design-reviewer.md):
-  HEX        Cero hex hardcodeado (salvo #fff/#ffffff). Excluye chaco-tokens.css
-             y líneas con template tags dinámicos ({{ ... }}).
+Reglas mecánicas complementarias del agente canónico de diseño:
+  HEX        Cero hex hardcodeado (salvo #fff/#ffffff). Excluye chaco-tokens.css,
+             los templates de correo (**/email/) y líneas con template tags
+             dinámicos ({{ ... }}).
   FONT       Manrope única: Fredoka/Gellat/Geliat/Satoshi/Inter/Roboto/Montserrat.
   CONFIRM    window.confirm()/window.alert() prohibidos (SweetAlert2/DS Modal).
   SWALHEX    confirmButtonColor/cancelButtonColor prohibidos (usar buttonsStyling:false
@@ -54,8 +54,18 @@ DEFAULT_TARGETS = [
     "tramites/templates",
 ]
 
-EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb"}
-EXCLUDE_FILES = {"chaco-tokens.css"}  # fuente de tokens: los hex son legítimos
+# "email": los templates de correo (`**/templates/**/email/`) necesitan estilos
+# inline y hex literal — ningún cliente de correo soporta CSS variables, y Outlook
+# ni siquiera <style> confiable. Los colores igual salen del kit (--gradient-brand
+# = #5059bc → #f98dff), pero escritos a mano: no hay forma de tokenizarlos.
+# "vendor": librerías de terceros autoalojadas (Alpine, Font Awesome, vis-network,
+# la tipografía). No son superficie de diseño propia y traen sus propios colores;
+# se sirven desde el dominio para no depender de un CDN, no para editarlas.
+EXCLUDE_PARTS = {".venv", "node_modules", ".git", "design-kb", "email", "vendor"}
+# `tailwind.css` se genera desde templates/JS con `npm run build:tailwind`; sus
+# valores internos pertenecen al framework y se revisan mediante el build, no
+# mediante reglas pensadas para CSS escrito a mano.
+EXCLUDE_FILES = {"chaco-tokens.css", "tailwind.css"}
 UI_SUFFIXES = {".html", ".css", ".js"}
 
 HEX_RE = re.compile(r"#[0-9a-fA-F]{3,8}\b")
@@ -125,7 +135,9 @@ DJCOMMENT_RE = re.compile(r"\{#[^#]*?\n")  # apertura {# sin cierre en la misma 
 def iter_files(paths: list[Path]):
     for p in paths:
         if p.is_file():
-            if p.suffix in UI_SUFFIXES and p.name not in EXCLUDE_FILES:
+            # Mismo filtro que la rama de directorios y que el modo --hook: una
+            # ruta explícita (--changed) no puede saltearse las exclusiones.
+            if p.suffix in UI_SUFFIXES and p.name not in EXCLUDE_FILES and not (EXCLUDE_PARTS & set(p.parts)):
                 yield p
         elif p.is_dir():
             for f in sorted(p.rglob("*")):
@@ -228,7 +240,7 @@ def hook_mode() -> int:
     if len(errors) > 15:
         sys.stderr.write(f'  ... y {len(errors) - 15} más (corré scripts/design_audit.py "{fp}")\n')
     sys.stderr.write(
-        "Si las introdujo TU edición, corregilas con tokens/clases del sistema (canon: chaco-design-reviewer). "
+        "Si las introdujo TU edición, corregilas según el inventario canónico y el código productivo. "
         "Si son preexistentes de una pantalla legacy que no estás migrando, no bloquean: mencionáselo al usuario y seguí.\n"
     )
     return 2

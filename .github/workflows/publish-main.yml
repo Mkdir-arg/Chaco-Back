@@ -29,13 +29,13 @@ jobs:
         shell: bash
         run: |
           fail=0
-          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py; do
+          for path in .claude .amazonq .github .mcp.json AGENTS.md CLAUDE.md ESTADOS.md PM.md QA.md docs mkdocs.yml scripts/design_audit.py scripts/compile_templates.py scripts/requerimientos.py; do
             if [ -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::El archivo prohibido $path aparece en el release"
               fail=1
             fi
           done
-          for path in manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh; do
+          for path in manage.py requirements.txt docker-compose.prod.yml docker/django/Dockerfile scripts/startup.sh scripts/deploy_prod.sh nginx.conf docker-entrypoint.sh Dockerfile .gitlab-ci.yml; do
             if [ ! -e "$RUNNER_TEMP/release/$path" ]; then
               echo "::error::Falta el archivo de runtime requerido $path en el release"
               fail=1

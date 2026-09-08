@@ -1,0 +1,79 @@
+# Fragmento de Deployment: cómo correr el bootstrap cuando el contenedor principal
+# define su propio comando (si no define command/args, esto NO hace falta — el
+# entrypoint lo hace solo).
+#
+# El initContainer usa la MISMA imagen con args ["bootstrap"]: el entrypoint corre
+# migraciones + estáticos + sembrado y termina. Así el server puede arrancar con el
+# comando que la plataforma prefiera sin dejar el esquema atrasado ni roles
+# faltantes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datanach-web
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: bootstrap
+          image: <IMAGEN>
+          args: ["bootstrap"]
+          envFrom:
+            - secretRef:
+                name: <SECRET-ENV>
+          volumeMounts:
+            - name: media
+              mountPath: /app/media
+            # Compartido con el contenedor web: el collectstatic del bootstrap
+            # escribe acá. Sin este volumen, los estáticos quedan en el filesystem
+            # efímero del initContainer y el web (con comando propio) arranca sin
+            # manifest: toda pantalla con estáticos responde 500.
+            - name: staticfiles
+              mountPath: /app/staticfiles
+      containers:
+        - name: web
+          image: <IMAGEN>
+          # Sin command/args el entrypoint repite el bootstrap (es idempotente) y
+          # levanta daphne. Con comando propio, el initContainer de arriba es el
+          # que garantiza migraciones, sembrado y estáticos (vía el volumen
+          # staticfiles compartido).
+          envFrom:
+            - secretRef:
+                name: <SECRET-ENV>
+          ports:
+            - containerPort: 8000
+          # Regla de consistencia de puertos: APP_PORT (env) = containerPort =
+          # targetPort del Service = puerto de las tres probes. Si se cambia uno
+          # (p. ej. a 8001), se cambian los cuatro.
+          #
+          # El startupProbe es imprescindible: el primer arranque corre migraciones,
+          # estáticos y sembrado y puede tardar minutos. Sin él, el liveness mata el
+          # bootstrap a mitad de camino y el pod entra en loop de reinicios
+          # (exit code 137, sin ningún error en el log).
+          startupProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            periodSeconds: 30
+          volumeMounts:
+            # Persistente: acá viven los adjuntos que cargan los territoriales.
+            - name: media
+              mountPath: /app/media
+            - name: staticfiles
+              mountPath: /app/staticfiles
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: datanach-media
+        # Efímero a propósito: se regenera en cada arranque con collectstatic.
+        - name: staticfiles
+          emptyDir: {}

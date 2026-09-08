@@ -1,0 +1,23 @@
+{% extends 'portal/inscripcion/base_inscripcion.html' %}
+
+{% block title %}Formulario no disponible - Portal Ciudadano{% endblock %}
+
+{% block stepper %}{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center w-16 h-16 mb-4" style="border-radius: var(--radius-full); background: var(--bg-secondary); color: var(--text-body-subtle);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path>
+        </svg>
+    </div>
+    {% if aun_no_abierto %}
+    <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Formulario todavía no disponible</h2>
+    <p class="mt-3 text-sm" style="color: var(--text-body);">Este formulario todavía no está abierto. Las inscripciones comienzan el {{ relevamiento.fecha_asignada|date:"d/m/Y" }}.</p>
+    {% else %}
+    <h2 class="text-2xl font-bold" style="color: var(--text-heading);">Formulario no disponible</h2>
+    <p class="mt-3 text-sm" style="color: var(--text-body);">Este formulario ya no admite inscripciones.</p>
+    {% endif %}
+    <p class="mt-2 text-xs" style="color: var(--text-body-subtle);">Solo en caso de problemas técnicos, comunicate por WhatsApp al 3625153720 o escribí a consultasincentivojunvetud@gmail.com.</p>
+</div>
+{% endblock %}

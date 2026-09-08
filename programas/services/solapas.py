@@ -1,9 +1,10 @@
 import re
 import unicodedata
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
+from django.urls import reverse
 
-from ..models import DerivacionPrograma, InscripcionPrograma, Programa
+from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
 
 
 class SolapasService:
@@ -26,29 +27,42 @@ class SolapasService:
     ]
 
     @classmethod
-    def obtener_solapas_ciudadano(cls, ciudadano):
+    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None, alertas_activas=None):
         solapas = [dict(s) for s in cls.SOLAPAS_ESTATICAS]
 
+        # Por el manager relacionado: deja cada fila apuntando al ciudadano que ya está en
+        # memoria, así ``InscripcionPrograma.__str__`` no vuelve a leerlo de la base al
+        # renderizar la solapa.
         inscripciones_activas = (
-            InscripcionPrograma.objects.filter(
-                ciudadano=ciudadano,
-                estado__in=["ACTIVO", "EN_SEGUIMIENTO"],
-            )
+            ciudadano.inscripciones_programas.filter(estado__in=["ACTIVO", "EN_SEGUIMIENTO"])
             .select_related("programa", "responsable")
+            .annotate(
+                tiene_admision_alojada=Exists(
+                    Admision.objects.filter(
+                        inscripcion_programa_id=OuterRef("pk"),
+                        estado=Admision.Estado.ALOJADO,
+                    )
+                )
+            )
             .order_by("programa__orden")
         )
 
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
+            if tipo_normalizado == "DISPOSITIVOS" and not inscripcion.tiene_admision_alojada:
+                continue
+            url_name = cls._obtener_url_programa(tipo_normalizado)
+            url_params = {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id}
             solapas.append(
                 {
                     "id": f"programa_{tipo_normalizado}",
                     "nombre": programa.nombre,
                     "icono": programa.icono or "star",
                     "color": programa.color,
-                    "url_name": cls._obtener_url_programa(tipo_normalizado),
-                    "url_params": {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id},
+                    "url_name": url_name,
+                    "url_params": url_params,
+                    "url": reverse(url_name, kwargs=url_params) if tipo_normalizado == "DISPOSITIVOS" else None,
                     "orden": 100 + programa.orden,
                     "estatica": False,
                     "programa": programa,
@@ -58,14 +72,14 @@ class SolapasService:
                 }
             )
 
-        badges = cls.obtener_badges_ciudadano(ciudadano)
+        badges = cls.obtener_badges_ciudadano(ciudadano, alertas_activas=alertas_activas)
         solapas_final = []
         for s in solapas:
             if s["id"] in badges and "badge" not in s:
                 s = {**s, "badge": badges[s["id"]]}
             solapas_final.append(s)
 
-        solapa_becas = cls._obtener_solapa_becas(ciudadano)
+        solapa_becas = cls._obtener_solapa_becas(ciudadano, resumen_becas=resumen_becas)
         if solapa_becas:
             solapas_final.append(solapa_becas)
 
@@ -111,10 +125,14 @@ class SolapasService:
         )
 
     @classmethod
-    def obtener_badges_ciudadano(cls, ciudadano):
+    def obtener_badges_ciudadano(cls, ciudadano, alertas_activas=None):
         badges = {}
 
-        alertas_count = ciudadano.alertas.filter(activa=True).count()
+        # Con ``alertas_activas`` (el queryset que la pantalla va a listar igual), ``len()``
+        # lo materializa y evita el COUNT sobre las mismas filas. Sin él, todo sigue igual.
+        alertas_count = (
+            len(alertas_activas) if alertas_activas is not None else ciudadano.alertas.filter(activa=True).count()
+        )
         if alertas_count:
             badges["alertas"] = {"tipo": "numero", "valor": alertas_count, "color_hex": "#EF4444"}
 
@@ -184,6 +202,7 @@ class SolapasService:
     @classmethod
     def _obtener_url_programa(cls, tipo_programa):
         url_map = {
+            "DISPOSITIVOS": "legajos:dispositivos_ciudadano",
             "ACOMPANAMIENTO_SOCIAL": "legajos:programa_detalle",
             "ECONOMICO": "programas:economico_detalle",
             "FAMILIAR": "programas:familiar_detalle",
@@ -198,23 +217,28 @@ class SolapasService:
         return ascii_valor or "PROGRAMA"
 
     @classmethod
-    def _obtener_solapa_becas(cls, ciudadano):
+    def _obtener_solapa_becas(cls, ciudadano, resumen_becas=None):
         """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
 
         Sin 'url': se renderiza embebida en el legajo (tab-becas), igual que Resumen
         o Conversaciones, en vez de redirigir a la página standalone.
         """
-        from programas.models import Formulario, ListaEspera
-        from programas.services.cupo import estado_relevante_becas
+        if resumen_becas is None:
+            from programas.models import Formulario, ListaEspera
+            from programas.services.cupo import estado_relevante_becas
 
-        formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
-        estados = set(formularios_qs.values_list("estado", flat=True))
-        if not estados:
-            return None
+            formularios_qs = Formulario.objects.filter(ciudadano=ciudadano)
+            estados = set(formularios_qs.values_list("estado", flat=True))
+            if not estados:
+                return None
 
-        en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
-
-        texto, color = estado_relevante_becas(estados, en_espera)
+            en_espera = ListaEspera.objects.filter(formulario__ciudadano=ciudadano, promovido=False).exists()
+            texto, color = estado_relevante_becas(estados, en_espera)
+        else:
+            if not resumen_becas["formularios"]:
+                return None
+            texto = resumen_becas["estado_texto"]
+            color = resumen_becas["estado_color"]
         color_hex = {
             "success": "var(--text-fg-success)",
             "warning": "var(--text-fg-warning)",
@@ -245,12 +269,15 @@ class SolapasService:
         from programas.models import Formulario
         from programas.services.cupo import estado_relevante_becas
 
+        # Por el manager relacionado: deja el ciudadano ya apuntado en cada fila, así
+        # ``Formulario.__str__`` (que lo interpola) no lo relee. Y sin los dos JSON, que
+        # ninguna de las dos pantallas que consumen este resumen abre.
         formularios = list(
-            Formulario.objects.filter(ciudadano=ciudadano)
-            .select_related(
+            ciudadano.formularios_becas.select_related(
                 "relevamiento__convocatoria__segmento",
                 "relevamiento__convocatoria__subsegmento",
             )
+            .defer("data", "datos_identificacion")
             .prefetch_related("lista_espera")
             .order_by("-creado")
         )

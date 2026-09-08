@@ -17,6 +17,10 @@ _CAPACIDAD_LABELS = {codigo: etiqueta for modulo in rbac.CATALOGO for codigo, et
 _CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_BECAS}
 
 
+def _codenames(capacidades):
+    return [rbac.codename_de(c) for c in capacidades]
+
+
 def _capacidades_para_tabla(codigos):
     """Capacidades renderizables sin perder el código estable del catálogo."""
     return [{"codigo": codigo, "label": _CAPACIDAD_LABELS.get(codigo, codigo)} for codigo in codigos]
@@ -46,23 +50,36 @@ def es_admin_global(user):
     return rbac.puede(user, "rol.administrar") or rbac.puede(user, "usuario.administrar")
 
 
-def programas_administrables(user):
+def programas_administrables(user, capacidades=None):
     """Programas donde el operador es **administrador de programa**.
 
-    Es decir, tiene un rol **activo** con ``RolMeta.programa = X`` y la capacidad
-    ``programa.configurar`` tildada. Para un admin global/superusuario devuelve
-    **todos** los programas.
+    Es decir, tiene un rol **activo** con ``RolMeta.programa = X`` y alguna de
+    ``capacidades`` (por defecto la unión ``rbac.CAPS_ADMIN_PROGRAMA``). Para un
+    admin global/superusuario devuelve **todos** los programas.
+
+    El alcance está separado por ABM: usá :func:`programas_administrables_usuarios`
+    o :func:`programas_administrables_roles` según qué se esté resolviendo, para
+    que dar la gestión de usuarios no arrastre la de roles.
     """
     if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
         return Programa.objects.none()
     if es_admin_global(user):
         return Programa.objects.all()
-    codename = rbac.codename_de("programa.configurar")
     return Programa.objects.filter(
         roles_meta__activo=True,
         roles_meta__grupo__user=user,
-        roles_meta__grupo__permissions__codename=codename,
+        roles_meta__grupo__permissions__codename__in=_codenames(capacidades or rbac.CAPS_ADMIN_PROGRAMA),
     ).distinct()
+
+
+def programas_administrables_usuarios(user):
+    """Programas cuyos **usuarios** administra el operador (ABM de Usuarios)."""
+    return programas_administrables(user, rbac.CAPS_ADMIN_PROGRAMA_USUARIOS)
+
+
+def programas_administrables_roles(user):
+    """Programas cuyos **roles** administra el operador (ABM de Roles)."""
+    return programas_administrables(user, rbac.CAPS_ADMIN_PROGRAMA_ROLES)
 
 
 def puede_gestionar_rol(user, group):
@@ -76,7 +93,7 @@ def puede_gestionar_rol(user, group):
     meta = getattr(group, "meta", None)
     if not meta or meta.categoria not in _CATEGORIAS_CON_PROGRAMA or not meta.programa_id:
         return False
-    return programas_administrables(user).filter(pk=meta.programa_id).exists()
+    return programas_administrables_roles(user).filter(pk=meta.programa_id).exists()
 
 
 def roles_visibles_para(user):
@@ -89,7 +106,7 @@ def roles_visibles_para(user):
     Cada ``item``: ``{"group", "meta", "num_usuarios", "capacidades", "capacidades_tabla"}``.
     """
     global_ = es_admin_global(user)
-    programas_ok = None if global_ else set(programas_administrables(user).values_list("pk", flat=True))
+    programas_ok = None if global_ else set(programas_administrables_roles(user).values_list("pk", flat=True))
 
     groups = (
         Group.objects.select_related("meta", "meta__programa")
@@ -170,7 +187,7 @@ def roles_filtrados_para(user, get_params, lista=None):
         except (TypeError, ValueError):
             programa_pk = None
         if programa_pk is not None:
-            programas_ok = set(programas_administrables(user).values_list("pk", flat=True))
+            programas_ok = set(programas_administrables_roles(user).values_list("pk", flat=True))
             if programa_pk in programas_ok:
                 items = [it for it in items if it["meta"] and it["meta"].programa_id == programa_pk]
 

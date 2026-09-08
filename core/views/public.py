@@ -52,16 +52,16 @@ def inicio_view(request):
     """Vista para la página de inicio del sistema"""
     from datetime import timedelta
 
-    from django.db.models import Count, Q
     from django.utils import timezone
 
-    from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
+    from programas.models import DerivacionPrograma, InscripcionPrograma
 
     User = get_user_model()
     ahora = timezone.now()
     hace_24h = ahora - timedelta(hours=24)
     inicio_mes = ahora.date().replace(day=1)
     legajo_stats = contar_legajos()
+    seguimientos_hoy = contar_seguimientos_hoy()
 
     context = {
         "total_ciudadanos": contar_ciudadanos(),
@@ -75,11 +75,11 @@ def inicio_view(request):
             lambda: InscripcionPrograma.objects.filter(fecha_inscripcion__gte=inicio_mes).count(),
             300,
         ),
-        "actividad_hoy": contar_seguimientos_hoy(),
+        "actividad_hoy": seguimientos_hoy,
         "total_usuarios": contar_usuarios(),
         "total_legajos": legajo_stats["total"],
         "legajos_activos": legajo_stats["activos"],
-        "seguimientos_hoy": contar_seguimientos_hoy(),
+        "seguimientos_hoy": seguimientos_hoy,
         "alertas_activas": contar_alertas_activas(),
     }
 
@@ -106,13 +106,28 @@ def inicio_view(request):
         context["conversaciones_sin_asignar"] = []
 
     # --- Inscripciones activas por programa (gráfico) ---
-    context["programas_chart"] = [
+    # Era la única lectura pesada de la home sin cachear: agrega toda la tabla de
+    # inscripciones en cada carga. Es un gráfico de volúmenes, no una bandeja de trabajo
+    # ni un contador de pendientes, así que 5 minutos de retraso no cambian nada. Mismo
+    # TTL que los contadores vecinos de esta vista.
+    context["programas_chart"] = cache.get_or_set("home:programas_chart", _inscripciones_por_programa, 300)
+
+    return render(request, "inicio.html", context)
+
+
+def _inscripciones_por_programa():
+    """Top 10 de programas por inscripciones vigentes, para el gráfico de la home."""
+    from django.db.models import Count, Q
+
+    from programas.models import Programa
+
+    return [
         {
-            "nombre": p.nombre,
-            "color": p.color or "#3B82F6",
-            "count": p.inscripciones_activas,
+            "nombre": programa.nombre,
+            "color": programa.color or "#3B82F6",
+            "count": programa.inscripciones_activas,
         }
-        for p in Programa.objects.annotate(
+        for programa in Programa.objects.annotate(
             inscripciones_activas=Count(
                 "inscripciones",
                 filter=Q(inscripciones__estado__in=["ACTIVO", "EN_SEGUIMIENTO"]),
@@ -121,8 +136,6 @@ def inicio_view(request):
         .filter(inscripciones_activas__gt=0)
         .order_by("-inscripciones_activas")[:10]
     ]
-
-    return render(request, "inicio.html", context)
 
 
 @login_required

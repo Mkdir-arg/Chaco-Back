@@ -24,7 +24,9 @@ tareas): su salida son casos de prueba, planes de prueba y reportes de cobertura
 
 No se crean labels nuevos ni items extra en el Project por cada caso: los casos
 viven dentro de la task para no inflar el board. El único issue nuevo que genera
-QA es el `[PLAN DE PRUEBAS]` (uno por épica).
+QA es el `[PLAN DE PRUEBAS]` (uno por épica) — y ese, como todo issue del repo,
+**nace con la etiqueta de programa de su épica** (`becas`, `dispositivos` o
+`transversal`). El eje completo está en `AGENTS.md` → "Etiqueta de programa".
 
 ## Cuándo actúa
 
@@ -163,26 +165,39 @@ no se duplican acá.
 
 ### Agregar/actualizar casos en una task
 ```bash
-# 1. leer el cuerpo actual
-gh issue view <n> --json body --jq '.body' > task-body.md
+# 1. leer el cuerpo actual — SIEMPRE con --repo (ver nota abajo)
+gh issue view <n> --repo Mkdir-arg/Chaco-Back --json body --jq '.body' > task-body.md
 # 2. agregar la sección "## Casos de prueba (QA)" al final
 #    (o reemplazar SOLO esa sección si ya existe)
 # 3. actualizar el issue
-gh issue edit <n> --body-file task-body.md
+gh issue edit <n> --repo Mkdir-arg/Chaco-Back --body-file task-body.md
 ```
 
 ### Crear el Plan de pruebas (caso especial, como el [REQUERIMIENTO])
 Se crea → se agrega al Project → Status **Backlog** → **Tipo = Testing** (opción
-`06e99ba0` del campo Tipo) → campo Modulo con el módulo de la épica. Sin label
-nuevo: alcanza con el prefijo `[PLAN DE PRUEBAS]` en el título. Misma receta
-`gh project item-add` / `item-edit` de `AGENTS.md`.
+`06e99ba0` del campo Tipo) → campo Modulo con el módulo de la épica. Sin label de
+**nivel**: alcanza con el prefijo `[PLAN DE PRUEBAS]` en el título — pero **con la
+etiqueta de programa de la épica**:
+
+```bash
+URL=$(gh issue create --repo Mkdir-arg/Chaco-Back --title "[PLAN DE PRUEBAS] ..." \
+  --label <becas|dispositivos|transversal> --body-file <archivo>)
+```
+
+Misma receta `gh project item-add` / `item-edit` de `AGENTS.md`.
 
 ### Detectar tasks sin casos (revisión de cobertura)
 ```bash
 # tasks abiertas cuyo cuerpo no tiene la sección de QA
-gh issue list --label task --state open --limit 100 --json number,title,body \
+gh issue list --repo Mkdir-arg/Chaco-Back --label task --state open --limit 100 \
+  --json number,title,body \
   --jq '.[] | select(.body | contains("## Casos de prueba (QA)") | not) | "#\(.number) \(.title)"'
 ```
+
+> **`--repo Mkdir-arg/Chaco-Back` va explícito en todo comando `gh`.** El repo se
+> renombró (antes `Mkdir-arg/Chaco`) y el remoto `origin` sigue apuntando al nombre
+> viejo, así que **sin `--repo` la consulta devuelve vacío en silencio**, sin error.
+> Si un listado sale vacío y no tiene sentido, es esto y no que el dato no exista.
 
 ## Handoffs: de dónde viene y a dónde va el trabajo de QA
 
@@ -204,6 +219,8 @@ QA es el **eslabón del medio** de la línea de producción (handoffs completos 
 
 - **No mover tareas.** Solo el PM mueve tareas entre estados/columnas. QA edita
   cuerpos de tasks y crea el issue `[PLAN DE PRUEBAS]` en Backlog; nada más.
+- **Todo issue que QA cree lleva su etiqueta de programa** (la de la épica que
+  cubre). Si la épica no la tiene, se reporta en vez de adivinarla.
 - **No inventar.** Sin criterios claros no hay casos: se frena y se reporta.
 - **No tocar lo existente.** Al editar una task solo se agrega/regenera la sección
   de QA; el resto del cuerpo queda intacto.

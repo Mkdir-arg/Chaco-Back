@@ -104,7 +104,7 @@
         Beneficiarios
         <span x-cloak
               :class="tab==='beneficiarios' ? 'badge badge-info' : 'badge badge-gray'"
-              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ beneficiarios|length }}</span>
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ n_beneficiarios }}</span>
       </button>
       <button @click="tab='lista_espera'" type="button"
               class="becas-tab-btn"
@@ -113,7 +113,7 @@
         Lista de espera
         <span x-cloak
               :class="tab==='lista_espera' ? 'badge badge-info' : 'badge badge-gray'"
-              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ lista_espera|length }}</span>
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ n_lista_espera }}</span>
       </button>
       <button @click="tab='pendientes'" type="button"
               class="becas-tab-btn"
@@ -122,7 +122,7 @@
         Pendientes de cupo
         <span x-cloak
               :class="tab==='pendientes' ? 'badge badge-info' : 'badge badge-gray'"
-              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ pendientes|length }}</span>
+              style="font-size:11px;font-weight:700;padding:1px 7px;">{{ n_pendientes }}</span>
       </button>
     </div>
 
@@ -134,7 +134,7 @@
             <tr>
               <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Ciudadano</th>
               <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">DNI</th>
-              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Formulario</th>
+              <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;">Caso</th>
               <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:left;white-space:nowrap;" title="Fecha de aprobación">Fecha ingreso</th>
               <th style="font-size:11px;font-weight:700;color:var(--text-body-subtle);text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;width:100px;">Acciones</th>
             </tr>
@@ -154,7 +154,7 @@
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">{{ formulario.ciudadano.dni }}</td>
               <td style="font-size:13.5px;color:var(--text-body);padding:13px 16px;">
                 <a href="{% url 'becas:formulario_detalle' formulario.pk %}" style="color:var(--text-fg-brand);font-weight:600;">
-                  #{{ formulario.pk }}
+                  Formulario {{ formulario.numero }}
                 </a>
                 <span style="font-size:12px;color:var(--text-body-subtle);display:block;margin-top:1px;">{{ formulario.relevamiento.convocatoria.nombre }}</span>
               </td>
@@ -191,7 +191,7 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--text-fg-brand);"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
                   <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay beneficiarios activos</p>
-                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">Los formularios aprobados dentro del cupo aparecen aquí.</p>
+                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">Los casos aprobados dentro del cupo aparecen aquí.</p>
                 </div>
               </td>
             </tr>
@@ -199,6 +199,19 @@
           </tbody>
         </table>
       </div>
+      {% if beneficiarios.paginator.num_pages > 1 %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border-base,#E5E7EB);font-size:12px;color:var(--text-body-subtle);">
+        <span>Página {{ beneficiarios.number }} de {{ beneficiarios.paginator.num_pages }} · {{ beneficiarios.paginator.count }} beneficiario{{ beneficiarios.paginator.count|pluralize }}</span>
+        <div style="display:flex;gap:8px;">
+          {% if beneficiarios.has_previous %}
+          <a href="?tab=beneficiarios{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if beneficiarios.has_next %}
+          <a href="?tab=beneficiarios{% if beneficiarios_querystring %}&amp;{{ beneficiarios_querystring }}{% endif %}&amp;beneficiarios_page={{ beneficiarios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     {# ===== TAB: Lista de espera ===== #}
@@ -262,7 +275,7 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--text-fg-brand);"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
                   <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay personas en lista de espera</p>
-                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">Los formularios aprobados cuando no hay cupo quedan aquí automáticamente, o podés agregarlos desde "Pendientes de cupo".</p>
+                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">Los casos aprobados cuando no hay cupo quedan aquí automáticamente, o podés agregarlos desde "Pendientes de cupo".</p>
                 </div>
               </td>
             </tr>
@@ -270,6 +283,19 @@
           </tbody>
         </table>
       </div>
+      {% if lista_espera.paginator.num_pages > 1 %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border-base,#E5E7EB);font-size:12px;color:var(--text-body-subtle);">
+        <span>Página {{ lista_espera.number }} de {{ lista_espera.paginator.num_pages }} · {{ lista_espera.paginator.count }} persona{{ lista_espera.paginator.count|pluralize }} en espera</span>
+        <div style="display:flex;gap:8px;">
+          {% if lista_espera.has_previous %}
+          <a href="?tab=lista_espera{% if lista_espera_querystring %}&amp;{{ lista_espera_querystring }}{% endif %}&amp;lista_espera_page={{ lista_espera.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if lista_espera.has_next %}
+          <a href="?tab=lista_espera{% if lista_espera_querystring %}&amp;{{ lista_espera_querystring }}{% endif %}&amp;lista_espera_page={{ lista_espera.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     {# ===== TAB: Pendientes de cupo ===== #}
@@ -330,8 +356,8 @@
               <td colspan="5" style="padding:56px 24px;text-align:center;">
                 <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--text-fg-brand);"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay formularios pendientes</p>
-                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">No hay formularios en estado ENVIADO pendientes de asignación de cupo para este segmento.</p>
+                  <p style="font-size:17px;font-weight:700;color:var(--text-heading);">No hay casos pendientes</p>
+                  <p style="font-size:14px;color:var(--text-body);max-width:360px;">No hay casos en estado ENVIADO pendientes de asignación de cupo para este segmento.</p>
                 </div>
               </td>
             </tr>
@@ -339,6 +365,19 @@
           </tbody>
         </table>
       </div>
+      {% if pendientes.paginator.num_pages > 1 %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border-base,#E5E7EB);font-size:12px;color:var(--text-body-subtle);">
+        <span>Página {{ pendientes.number }} de {{ pendientes.paginator.num_pages }} · {{ pendientes.paginator.count }} pendiente{{ pendientes.paginator.count|pluralize }}</span>
+        <div style="display:flex;gap:8px;">
+          {% if pendientes.has_previous %}
+          <a href="?tab=pendientes{% if pendientes_querystring %}&amp;{{ pendientes_querystring }}{% endif %}&amp;pendientes_page={{ pendientes.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+          {% endif %}
+          {% if pendientes.has_next %}
+          <a href="?tab=pendientes{% if pendientes_querystring %}&amp;{{ pendientes_querystring }}{% endif %}&amp;pendientes_page={{ pendientes.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
   </div>

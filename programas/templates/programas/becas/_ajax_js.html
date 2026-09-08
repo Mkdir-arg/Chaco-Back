@@ -73,6 +73,18 @@
         });
         if (data.errors.__all__) toast(data.errors.__all__.join(' '), true);
         else toast('Revisá los datos del formulario.', true);
+      } else if (r.status === 409 && data.confirm_required) {
+        if (window.confirm(data.message || 'Ya existe otra asignación para esa fecha. ¿Confirmás la asignación?')) {
+          var confirmacion = form.querySelector('input[name="confirmar_solapamiento"]');
+          if (!confirmacion) {
+            confirmacion = document.createElement('input');
+            confirmacion.type = 'hidden';
+            confirmacion.name = 'confirmar_solapamiento';
+            form.appendChild(confirmacion);
+          }
+          confirmacion.value = '1';
+          form.requestSubmit();
+        }
       } else if (r.status === 403) {
         toast((data && data.message) || 'No tiene permisos para realizar esta acción.', true);
       } else {

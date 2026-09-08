@@ -1,11 +1,37 @@
 {% if item.es_archivo %}
   {% if item.adjunto %}
+    {% if item.es_imagen %}
+    <button type="button"
+            data-image-preview
+            data-image-url="{{ item.adjunto.archivo.url }}"
+            data-image-title="{{ item.label }}"
+            class="group block text-left">
+      <img src="{{ item.adjunto.archivo.url }}"
+           alt="{{ item.label }}"
+           loading="lazy"
+           class="h-24 w-32 rounded-lg border border-base object-cover shadow-sm transition group-hover:opacity-90">
+      <span class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-fg-brand font-semibold">
+        <i class="fas fa-expand" aria-hidden="true"></i> Ampliar imagen
+      </span>
+    </button>
+    {% else %}
   <a href="{{ item.adjunto.archivo.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-fg-brand font-semibold hover:underline">
     <i class="fas fa-paperclip"></i> Ver archivo
   </a>
+    {% endif %}
   {% else %}
   <span class="badge badge-danger">Sin adjunto</span>
   {% endif %}
 {% else %}
-  {{ item.valor }}
+  {% if item.es_multiple %}
+    <span class="flex flex-wrap gap-1.5">
+      {% for opcion in item.valor %}
+        <span class="badge badge-gray">{{ opcion }}</span>
+      {% empty %}
+        <span class="text-body-subtle">Sin selección</span>
+      {% endfor %}
+    </span>
+  {% else %}
+    {{ item.valor }}
+  {% endif %}
 {% endif %}

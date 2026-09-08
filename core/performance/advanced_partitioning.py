@@ -12,12 +12,6 @@ class AdvancedPartitionManager:
     """Sistema avanzado de particionamiento automático"""
 
     PARTITION_TABLES = {
-        "legajos_registroasistencia": {
-            "partition_field": "fecha",
-            "partition_type": "monthly",
-            "retention_months": 24,
-            "archive_after_months": 12,
-        },
         "legajos_historialactividad": {
             "partition_field": "fecha_cambio",
             "partition_type": "quarterly",

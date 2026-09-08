@@ -18,39 +18,44 @@ hide:
 
     ---
 
-    :material-circle:{ .lg .middle style="color: #f59e0b" } **En ejecución**
+    :material-circle:{ .lg .middle style="color: #10b981" } **En ejecución**
 
-    Versión activa en curso, entregas iterativas confirmadas.
+    Versión 002 en curso; la 001 cerró el 02/09/2026 al 100% del alcance.
 
 -   :material-rocket-launch-outline: **Versión activa**
 
     ---
 
-    [**Versión 001**](versiones/version-001.md) — Programa Becas y RBAC
+    [**Versión 002**](versiones/version-002.md) — Constructor de formularios
 
-    Gestión de roles y análisis funcional del Programa Becas.
+    En curso desde el 1 de septiembre. La [Versión 001](versiones/version-001.md#informe-de-cierre-de-la-version) cerró al 100% del alcance.
 
 -   :material-cash-check-outline: **Estado financiero**
 
     ---
 
-    **Julio 2026 (en curso):** 7h consumidas de 500h al 03/07
+    **Septiembre 2026 (en curso):** 267h 30min consumidas de 700h (38%)
+
+    **Agosto 2026 (cerrado):** 700h de 700h (100%) — presupuesto completo
+
+    **Julio 2026 (cerrado):** 500h de 500h (100%) — presupuesto completo
 
     **Junio 2026 (cerrado):** 499h de 500h (100%) — dentro del presupuesto
 
-    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-07.md)
+    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-09.md)
 
 -   :material-calendar-clock: **Última actualización**
 
     ---
 
-    **8 de julio 2026**
+    **5 de septiembre 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 
 </div>
 
 ---
+
 
 ## :material-compass-outline: Accesos principales
 
@@ -75,7 +80,8 @@ hide:
     Planificación y seguimiento de entregas iterativas.
 
     [:octicons-arrow-right-16: Todas las versiones](versiones/index.md)
-    [:octicons-arrow-right-16: Versión actual](versiones/version-001.md)
+    [:octicons-arrow-right-16: Versión activa (002)](versiones/version-002.md)
+    [:octicons-arrow-right-16: Informe de cierre de la 001](versiones/version-001.md#informe-de-cierre-de-la-version)
 
 -   :material-cash-multiple:{ .lg .middle } **Financiero**
 
@@ -84,7 +90,7 @@ hide:
     Presupuesto, consumo y estimaciones mensuales.
 
     [:octicons-arrow-right-16: Dashboard financiero](financiero/index.md)
-    [:octicons-arrow-right-16: Junio 2026](financiero/mes-2026-06.md)
+    [:octicons-arrow-right-16: Septiembre 2026](financiero/mes-2026-09.md)
 
 </div>
 
@@ -145,6 +151,6 @@ flowchart LR
 ## :material-map-marker-path: Navegación recomendada
 
 !!! tip "Si recién empezás"
-    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión actual**](versiones/version-001.md)
+    [**Kick Off**](kickoff.md) :material-arrow-right: [**Metodología**](methodology.md) :material-arrow-right: [**Versión activa**](versiones/version-002.md)
 
     Tres páginas y tenés el contexto completo para participar.

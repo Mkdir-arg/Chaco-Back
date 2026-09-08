@@ -7,7 +7,7 @@ from programas.api.views import (
     FormularioViewSet,
     ObtainCampoToken,
     RelevamientoViewSet,
-    consultar_renaper_becas,
+    consultar_persona_becas,
 )
 
 app_name = "becas_api"
@@ -18,6 +18,7 @@ router.register("formularios", FormularioViewSet, basename="formulario")
 
 urlpatterns = [
     path("auth/token/", ObtainCampoToken.as_view(), name="token"),
-    path("renaper/consultar/", consultar_renaper_becas, name="renaper-consultar"),
+    path("personas/consultar/", consultar_persona_becas, name="personas-consultar"),
+    path("renaper/consultar/", consultar_persona_becas, name="renaper-consultar"),
     path("", include(router.urls)),
 ]

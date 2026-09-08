@@ -6,6 +6,7 @@
     <thead>
       <tr>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Nombre</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Programa</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Descripción</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Cupo total</th>
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Subsegmentos</th>
@@ -18,6 +19,13 @@
       {% for s in segmentos %}
       <tr class="hover:bg-tertiary">
         <td class="px-4 py-[13px] border-t border-light font-semibold text-heading" style="font-size:13.5px">{{ s.nombre }}</td>
+        <td class="px-4 py-[13px] border-t border-light" style="font-size:13.5px">
+          {% if s.programa_id %}
+          <a href="{% url 'becas:programa_detalle' s.programa_id %}" class="text-fg-brand hover:underline font-medium">{{ s.programa.nombre }}</a>
+          {% else %}
+          <span class="text-body-subtle">—</span>
+          {% endif %}
+        </td>
         <td class="px-4 py-[13px] border-t border-light text-body-subtle" style="font-size:13.5px; max-width:260px">{{ s.descripcion|default:"—"|truncatechars:70 }}</td>
         <td class="px-4 py-[13px] border-t border-light text-heading font-semibold text-right" style="font-size:13.5px">{{ s.cupo_maximo }}</td>
         <td class="px-4 py-[13px] border-t border-light text-body text-right" style="font-size:13.5px">
@@ -38,11 +46,17 @@
           {% endwith %}
         </td>
         <td class="px-4 py-[13px] border-t border-light text-center" style="font-size:13.5px">
-          {% if s.activo %}
-            <span class="badge badge-success badge-dot">Activo</span>
-          {% else %}
-            <span class="badge badge-danger badge-dot">Inactivo</span>
-          {% endif %}
+          <div class="flex items-center justify-center gap-1.5 flex-wrap">
+            {% if s.activo %}
+              <span class="badge badge-success badge-dot">Activo</span>
+            {% else %}
+              <span class="badge badge-danger badge-dot">Inactivo</span>
+            {% endif %}
+            {# El bloqueo por SIIS baja del programa: otra dimensión que el activo local. #}
+            {% if s.programa.siis_bloqueado %}
+              <span class="badge badge-warning badge-dot" title="{{ s.programa.siis_motivo_bloqueo }}">SIIS inactivo</span>
+            {% endif %}
+          </div>
         </td>
         <td class="px-4 py-[13px] border-t border-light text-right" style="font-size:13.5px">
           <div class="flex items-center justify-end gap-2">

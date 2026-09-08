@@ -9,11 +9,12 @@
       <div class="min-w-0">
       <div class="flex items-center gap-2">
         <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">{{ tipo.nombre }}</h1>
-        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {% if tipo.activo %}bg-success-soft text-fg-success{% else %}bg-secondary text-body-subtle{% endif %}">
+        <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
           {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
         </span>
       </div>
       <p class="text-sm text-body-subtle mt-1.5">{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}</p>
+      {% if tipo.maneja_camas %}<p class="text-sm text-body-subtle mt-1">Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.</p>{% endif %}
       </div>
     </div>
     <div class="flex gap-2 flex-wrap">
@@ -47,7 +48,7 @@
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <p class="font-semibold text-heading">{{ campo.nombre }}</p>
-                    {% if campo.obligatorio %}<span class="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-info-soft text-fg-info">Obligatorio</span>{% endif %}
+                    {% if campo.obligatorio %}<span class="badge badge-brand">Obligatorio</span>{% endif %}
                   </div>
                   <p class="text-xs text-body-subtle mt-1">
                     {{ campo.get_tipo_campo_display }} · orden {{ campo.orden }}

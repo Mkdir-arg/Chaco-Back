@@ -1,11 +1,95 @@
 import json
+import uuid
+from datetime import date, datetime, time
+from pathlib import Path
 
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models, transaction
+from django.utils import timezone
 
 from core.models import TimeStamped
 from legajos.models import Ciudadano
+
+
+def ruta_adjunto_becas(instance, filename):
+    """Nombre no adivinable para los adjuntos del formulario (seguridad, 26/08/2026).
+
+    Django conservaba el nombre original, así que el primero que subía ``dni.jpg``
+    quedaba en una ruta que se adivina con un diccionario de cien entradas. Con un
+    UUID el nombre deja de ser enumerable; el archivo original no aporta nada, la
+    trazabilidad la da el ``AdjuntoFormulario``.
+    """
+    return f"becas/adjuntos/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+def ruta_padron_becas(instance, filename):
+    """Ídem para el Excel del padrón, que es la lista de habilitados completa."""
+    return f"becas/padrones/{uuid.uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+class PausableMixin(models.Model):
+    pausado = models.BooleanField(default=False, db_index=True, verbose_name="Pausado")
+    pausa_motivo = models.TextField(blank=True, default="", verbose_name="Motivo de la pausa")
+    pausado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Pausado por",
+    )
+    pausado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de pausa")
+
+    class Meta:
+        abstract = True
+
+    @property
+    def pausa_efectiva(self):
+        return self if self.pausado else None
+
+
+class BloqueoSiis:
+    """Bloqueo derivado del estado del programa en SIIS.
+
+    Duck-type de :class:`PausableMixin`: los consumidores de ``pausa_efectiva``
+    solo leen ``pausa_motivo``, así que el bloqueo por SIIS viaja por la misma
+    cadena (segmento → subsegmento → convocatoria → relevamiento, backoffice y
+    app de campo) sin tocar el campo ``pausado``, que es una acción manual con
+    autor y trazabilidad propia.
+    """
+
+    pausado = True
+
+    def __init__(self, motivo):
+        self.pausa_motivo = motivo
+
+    def __str__(self):
+        return self.pausa_motivo
+
+
+class RegistroPausa(TimeStamped):
+    class Accion(models.TextChoices):
+        PAUSAR = "PAUSAR", "Pausar"
+        REANUDAR = "REANUDAR", "Reanudar"
+
+    tipo_entidad = models.CharField(max_length=30, db_index=True, verbose_name="Tipo de elemento")
+    objeto_id = models.PositiveBigIntegerField(db_index=True, verbose_name="ID del elemento")
+    objeto_nombre = models.CharField(max_length=255, verbose_name="Elemento")
+    accion = models.CharField(max_length=10, choices=Accion.choices, verbose_name="Acción")
+    motivo = models.TextField(verbose_name="Motivo")
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="registros_pausa",
+        verbose_name="Usuario",
+    )
+
+    class Meta:
+        ordering = ["-creado", "-pk"]
+        verbose_name = "Registro de pausa"
+        verbose_name_plural = "Registros de pausa"
 
 
 class Programa(TimeStamped):
@@ -54,6 +138,31 @@ class Programa(TimeStamped):
     tiene_turnos = models.BooleanField(default=False, verbose_name="Tiene turnos")
     cupo_maximo = models.PositiveIntegerField(null=True, blank=True, verbose_name="Cupo máximo")
     tiene_lista_espera = models.BooleanField(default=False, verbose_name="Tiene lista de espera")
+    umbral_disponibilidad_verde = models.PositiveSmallIntegerField(
+        default=20,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Disponibilidad mínima para semáforo verde (%)",
+    )
+    dias_actualizacion_verde = models.PositiveSmallIntegerField(
+        default=15,
+        validators=[MinValueValidator(0), MaxValueValidator(365)],
+        verbose_name="Días máximos de actualización para verde",
+    )
+    dias_actualizacion_amarillo = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(0), MaxValueValidator(365)],
+        verbose_name="Días máximos de actualización para amarillo",
+    )
+    umbral_completitud_amarillo = models.PositiveSmallIntegerField(
+        default=70,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Completitud desde la que el semáforo es amarillo (%)",
+    )
+    umbral_completitud_verde = models.PositiveSmallIntegerField(
+        default=90,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Completitud desde la que el semáforo es verde (%)",
+    )
 
     icono = models.CharField(
         max_length=50,
@@ -91,6 +200,13 @@ class Programa(TimeStamped):
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        if self.dias_actualizacion_verde >= self.dias_actualizacion_amarillo:
+            raise ValidationError({"dias_actualizacion_amarillo": "El umbral amarillo debe ser mayor que el verde."})
+        if self.umbral_completitud_amarillo >= self.umbral_completitud_verde:
+            raise ValidationError({"umbral_completitud_verde": "El umbral verde debe ser mayor que el amarillo."})
 
 
 class InscripcionPrograma(TimeStamped):
@@ -332,6 +448,16 @@ class TipoDispositivo(TimeStamped):
     nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     maneja_camas = models.BooleanField(default=False, verbose_name="Maneja camas")
+    umbral_ocupacion_amarillo = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Ocupación desde la que el semáforo es amarillo (%)",
+    )
+    umbral_ocupacion_rojo = models.PositiveSmallIntegerField(
+        default=80,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Ocupación desde la que el semáforo es rojo (%)",
+    )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
 
     class Meta:
@@ -341,6 +467,11 @@ class TipoDispositivo(TimeStamped):
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        if self.umbral_ocupacion_amarillo >= self.umbral_ocupacion_rojo:
+            raise ValidationError({"umbral_ocupacion_rojo": "El umbral rojo debe ser mayor que el amarillo."})
 
 
 class Dispositivo(TimeStamped):
@@ -372,6 +503,9 @@ class Dispositivo(TimeStamped):
     contacto_telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     contacto_email = models.EmailField(blank=True, verbose_name="Email")
     horarios = models.TextField(blank=True, verbose_name="Días y horarios")
+    fuente_padron = models.CharField(max_length=240, blank=True, verbose_name="Fuente del padrón")
+    fecha_padron = models.DateField(null=True, blank=True, verbose_name="Fecha de referencia del padrón")
+    responsable_padron = models.CharField(max_length=200, blank=True, verbose_name="Responsable de la carga del padrón")
     camas_totales = models.PositiveIntegerField(default=0, verbose_name="Camas/plazas totales")
     estado = models.CharField(
         max_length=30,
@@ -609,8 +743,25 @@ class Admision(TimeStamped):
         verbose_name="Estado",
     )
     es_reingreso = models.BooleanField(default=False, verbose_name="Es reingreso")
+    respuestas_f00 = models.JSONField(default=dict, blank=True, verbose_name="Respuestas F-00")
     motivo_egreso = models.TextField(blank=True, verbose_name="Motivo de egreso")
     destino_egreso = models.CharField(max_length=240, blank=True, verbose_name="Destino de egreso/traslado")
+    responsable_egreso = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="egresos_dispositivos",
+        verbose_name="Responsable del egreso",
+    )
+    origen_traslado = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="traslados_destino",
+        verbose_name="Admisión de origen del traslado",
+    )
 
     class Meta:
         verbose_name = "Admisión/estadía"
@@ -621,6 +772,18 @@ class Admision(TimeStamped):
             models.Index(fields=["dispositivo", "estado"]),
             models.Index(fields=["cama", "estado"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cama"],
+                condition=models.Q(cama__isnull=False, estado="ALOJADO"),
+                name="admision_una_cama_alojada",
+            ),
+            models.UniqueConstraint(
+                fields=["ciudadano", "dispositivo"],
+                condition=models.Q(estado="ALOJADO"),
+                name="admision_una_estadia_activa_por_dispositivo",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.ciudadano.nombre_completo} · {self.dispositivo.nombre}"
@@ -629,6 +792,8 @@ class Admision(TimeStamped):
         super().clean()
         if self.cama_id and self.dispositivo_id and self.cama.dispositivo_id != self.dispositivo_id:
             raise ValidationError({"cama": "La cama debe pertenecer al dispositivo de la admisión."})
+        if self.cama_id and self.estado == self.Estado.ALOJADO and self.cama.estado == Cama.Estado.FUERA_SERVICIO:
+            raise ValidationError({"cama": "No se puede asignar una cama fuera de servicio."})
 
         if not self.inscripcion_programa_id:
             return
@@ -637,6 +802,85 @@ class Admision(TimeStamped):
             raise ValidationError({"inscripcion_programa": "La membresía debe pertenecer al ciudadano de la admisión."})
         if self.inscripcion_programa.programa.codigo != Programa.TipoPrograma.DISPOSITIVOS:
             raise ValidationError({"inscripcion_programa": "La membresía debe ser del programa Dispositivos."})
+
+
+class RegistroDiario(TimeStamped):
+    """Snapshot operativo F-01 de un dispositivo por fecha y turno."""
+
+    class Turno(models.TextChoices):
+        MANIANA = "MANIANA", "Mañana"
+        TARDE = "TARDE", "Tarde"
+        NOCHE = "NOCHE", "Noche"
+
+    dispositivo = models.ForeignKey(
+        Dispositivo, on_delete=models.PROTECT, related_name="registros_diarios", verbose_name="Dispositivo"
+    )
+    fecha = models.DateField(db_index=True, verbose_name="Fecha")
+    turno = models.CharField(max_length=10, choices=Turno.choices, verbose_name="Turno")
+    camas_totales = models.PositiveIntegerField(default=0, editable=False)
+    ingresos = models.PositiveIntegerField(default=0, editable=False)
+    egresos = models.PositiveIntegerField(default=0, editable=False)
+    ocupacion_nocturna = models.PositiveIntegerField(default=0, editable=False)
+    camas_disponibles = models.PositiveIntegerField(default=0, editable=False)
+    observaciones = models.JSONField(default=dict, blank=True, verbose_name="Observaciones por concepto")
+    observaciones_generales = models.TextField(blank=True, verbose_name="Observaciones generales")
+    firmado_por = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="partes_diarios_dispositivos", verbose_name="Firmado por"
+    )
+
+    class Meta:
+        verbose_name = "Registro diario F-01"
+        verbose_name_plural = "Registros diarios F-01"
+        ordering = ["-fecha", "turno"]
+        constraints = [
+            models.UniqueConstraint(fields=["dispositivo", "fecha", "turno"], name="registro_diario_unico_por_turno")
+        ]
+
+    def __str__(self):
+        return f"{self.dispositivo.codigo} · {self.fecha:%Y-%m-%d} · {self.get_turno_display()}"
+
+    @property
+    def cantidades_legibles(self):
+        return (
+            ("Camas totales", self.camas_totales),
+            ("Ingresos", self.ingresos),
+            ("Egresos", self.egresos),
+            ("Ocupación nocturna", self.ocupacion_nocturna),
+            ("Camas disponibles", self.camas_disponibles),
+        )
+
+
+class EsperaAdmision(TimeStamped):
+    """Cola propia de Dispositivos; no reutiliza la cola funcional de Becas."""
+
+    admision = models.OneToOneField(Admision, on_delete=models.PROTECT, related_name="espera")
+    posicion = models.PositiveIntegerField()
+    promovida = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        verbose_name = "Espera de admisión"
+        verbose_name_plural = "Esperas de admisión"
+        ordering = ["posicion", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["admision"],
+                condition=models.Q(promovida=False),
+                name="espera_admision_activa_unica",
+            )
+        ]
+
+
+class ArchivoAdmision(TimeStamped):
+    """Adjunto de un campo ARCHIVO del F-00, separado del JSON de respuestas."""
+
+    admision = models.ForeignKey(Admision, on_delete=models.PROTECT, related_name="archivos_f00")
+    campo = models.ForeignKey("CampoTipoDispositivo", on_delete=models.PROTECT, related_name="archivos_admisiones")
+    archivo = models.FileField(upload_to="admisiones/f00/")
+
+    class Meta:
+        verbose_name = "Archivo de admisión"
+        verbose_name_plural = "Archivos de admisión"
+        constraints = [models.UniqueConstraint(fields=["admision", "campo"], name="archivo_f00_unico_por_campo")]
 
 
 # ===========================================================================
@@ -657,10 +901,14 @@ class Merendero(TimeStamped):
     domicilio = models.CharField(max_length=240, verbose_name="Domicilio")
     zona = models.CharField(max_length=120, blank=True, verbose_name="Zona")
     barrio = models.CharField(max_length=120, blank=True, verbose_name="Barrio")
+    dias_horarios = models.CharField(max_length=240, blank=True, verbose_name="Días y horarios")
     telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     responsable_nombre = models.CharField(max_length=200, verbose_name="Responsable")
     responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
     responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
+    fuente_padron = models.CharField(max_length=240, blank=True, verbose_name="Fuente del padrón")
+    fecha_padron = models.DateField(null=True, blank=True, verbose_name="Fecha de referencia del padrón")
+    responsable_padron = models.CharField(max_length=200, blank=True, verbose_name="Responsable de la carga del padrón")
     estado = models.CharField(
         max_length=20,
         choices=Estado.choices,
@@ -668,6 +916,15 @@ class Merendero(TimeStamped):
         db_index=True,
         verbose_name="Estado",
     )
+    estado_actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merenderos_estado_actualizado",
+        verbose_name="Estado actualizado por",
+    )
+    estado_actualizado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de actualización de estado")
 
     class Meta:
         verbose_name = "Merendero"
@@ -689,6 +946,16 @@ class SolicitudMerendero(TimeStamped):
         APROBADA = "APROBADA", "Aprobada"
         RECHAZADA = "RECHAZADA", "Rechazada"
 
+    CAMPOS_INSTITUCIONALES_REQUERIDOS = (
+        "codigo",
+        "nombre",
+        "domicilio",
+        "zona",
+        "barrio",
+        "dias_horarios",
+        "responsable_nombre",
+    )
+
     merendero = models.ForeignKey(
         Merendero,
         on_delete=models.PROTECT,
@@ -697,6 +964,16 @@ class SolicitudMerendero(TimeStamped):
         related_name="solicitudes",
         verbose_name="Merendero",
     )
+    codigo = models.CharField(max_length=100, blank=True, verbose_name="Código institucional")
+    nombre = models.CharField(max_length=200, blank=True, verbose_name="Nombre")
+    domicilio = models.CharField(max_length=240, blank=True, verbose_name="Domicilio")
+    zona = models.CharField(max_length=120, blank=True, verbose_name="Zona")
+    barrio = models.CharField(max_length=120, blank=True, verbose_name="Barrio")
+    dias_horarios = models.CharField(max_length=240, blank=True, verbose_name="Días y horarios")
+    responsable_nombre = models.CharField(max_length=200, blank=True, verbose_name="Responsable")
+    responsable_documento = models.CharField(max_length=20, blank=True, verbose_name="DNI/CUIT del responsable")
+    responsable_email = models.EmailField(blank=True, verbose_name="Email del responsable")
+    telefono = models.CharField(max_length=40, blank=True, verbose_name="Teléfono")
     documentacion = models.FileField(
         upload_to="merenderos/solicitudes/%Y/%m/",
         verbose_name="Documentación respaldatoria",
@@ -709,6 +986,15 @@ class SolicitudMerendero(TimeStamped):
         verbose_name="Estado",
     )
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    validada_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_merendero_validadas",
+        verbose_name="Validada por",
+    )
+    validada_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de validación")
 
     class Meta:
         verbose_name = "Solicitud de merendero"
@@ -760,6 +1046,7 @@ class PrestacionMensual(TimeStamped):
     mes = models.PositiveSmallIntegerField(verbose_name="Mes")
     servicios = models.JSONField(default=list, blank=True, verbose_name="Servicios habilitados")
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    observaciones_por_dia = models.JSONField(default=dict, blank=True, verbose_name="Observaciones por día")
     anulada = models.BooleanField(default=False, db_index=True, verbose_name="Anulada")
 
     class Meta:
@@ -776,6 +1063,12 @@ class PrestacionMensual(TimeStamped):
 
     def __str__(self):
         return f"{self.merendero.nombre} · {self.mes:02d}/{self.anio}"
+
+    def total_del_dia(self, dia):
+        return sum(self.lineas_diarias.filter(dia=dia, anulada=False).values_list("raciones", flat=True))
+
+    def observacion_del_dia(self, dia):
+        return self.observaciones_por_dia.get(str(dia), "")
 
 
 class PrestacionDiaria(TimeStamped):
@@ -844,9 +1137,33 @@ class TipoCampo(models.TextChoices):
     DATE = "DATE", "Fecha"
     ARCHIVO = "ARCHIVO", "Archivo adjunto"
 
+    @classmethod
+    def selectores(cls):
+        """Los tipos que ofrecen opciones para elegir."""
+        return (cls.SELECTOR, cls.SELECTOR_MULTIPLE)
+
+
+class PresentacionCampo(models.TextChoices):
+    """Cómo se le muestra al ciudadano un campo de tipo selector (Cambio 56).
+
+    Es solo presentación: no cambia el dato guardado ni las opciones válidas, y
+    los tipos que no son selector la ignoran (se normaliza a ``LISTA``). Con
+    listas largas —nivel educativo, localidades— la lista completa obliga a
+    barrer decenas de opciones; el buscador filtra al tipear y deja lo elegido
+    a la vista en píldoras.
+    """
+
+    LISTA = "LISTA", "Lista de opciones"
+    BUSCADOR = "BUSCADOR", "Buscador con píldoras"
+
 
 class CampoTipoDispositivo(TimeStamped):
     """Campo configurable del formulario propio de un tipo de dispositivo."""
+
+    class RolCalculo(models.TextChoices):
+        NINGUNO = "NINGUNO", "No interviene en totales"
+        INGRESO = "INGRESO", "Ingreso para saldo estimado"
+        EGRESO = "EGRESO", "Egreso para saldo estimado"
 
     tipo_dispositivo = models.ForeignKey(
         TipoDispositivo,
@@ -864,6 +1181,12 @@ class CampoTipoDispositivo(TimeStamped):
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
     )
     obligatorio = models.BooleanField(default=False, verbose_name="Obligatorio")
+    rol_calculo = models.CharField(
+        max_length=10,
+        choices=RolCalculo.choices,
+        default=RolCalculo.NINGUNO,
+        verbose_name="Rol en totales F-00",
+    )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
 
     class Meta:
@@ -881,9 +1204,92 @@ class CampoTipoDispositivo(TimeStamped):
         return f"{self.tipo_dispositivo}: {self.seccion} · {self.nombre}"
 
 
-class Segmento(TimeStamped):
-    """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2)."""
+class ProgramaSiis(PausableMixin, TimeStamped):
+    """Programa del catálogo SIIS: nivel superior de Becas.
 
+    Programa (SIIS) → Segmento → Subsegmento. El nombre se toma tal cual del
+    catálogo y el detalle se congela al vincular: es la referencia contra la
+    que se compara el estado que después informa SIIS. Un programa que deja de
+    estar vigente —o se pausa a mano— bloquea en cascada todos sus segmentos.
+    """
+
+    class EstadoSiis(models.TextChoices):
+        ACTIVO = "ACTIVO", "Activo"
+        INACTIVO = "INACTIVO", "Inactivo"
+        DESCONOCIDO = "DESCONOCIDO", "Desconocido"
+
+    # Estados de SIIS que dejan el programa (y sus segmentos) fuera de operación.
+    ESTADOS_SIIS_BLOQUEANTES = (EstadoSiis.INACTIVO, EstadoSiis.DESCONOCIDO)
+
+    nombre = models.CharField(max_length=200, verbose_name="Nombre")
+    siis_programa_id = models.PositiveIntegerField(unique=True, verbose_name="ID de programa SIIS")
+    # Foto del programa al momento de vincularlo: es la referencia contra la que
+    # se compara después, y lo que muestra el detalle informativo.
+    siis_programa_datos = models.JSONField(default=dict, blank=True, verbose_name="Detalle del programa SIIS")
+    siis_programa_estado = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        db_index=True,
+        choices=EstadoSiis.choices,
+        verbose_name="Estado actual del programa en SIIS",
+    )
+    siis_vinculado_en = models.DateTimeField(null=True, blank=True, verbose_name="Programa SIIS vinculado el")
+    siis_verificado_en = models.DateTimeField(null=True, blank=True, verbose_name="Última verificación con SIIS")
+
+    class Meta:
+        verbose_name = "Programa SIIS"
+        verbose_name_plural = "Programas SIIS"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def siis_programa_nombre(self):
+        return (self.siis_programa_datos or {}).get("nombre") or self.nombre
+
+    @property
+    def siis_bloqueado(self):
+        """¿SIIS dejó de tener vigente el programa?"""
+        return self.siis_programa_estado in self.ESTADOS_SIIS_BLOQUEANTES
+
+    @property
+    def siis_motivo_bloqueo(self):
+        if not self.siis_bloqueado:
+            return ""
+        referencia = self.siis_programa_nombre or f"#{self.siis_programa_id}"
+        if self.siis_programa_estado == self.EstadoSiis.INACTIVO:
+            return f"El programa «{referencia}» pasó a INACTIVO en SIIS."
+        return f"SIIS ya no informa el programa «{referencia}»."
+
+    @property
+    def pausa_efectiva(self):
+        """Pausa manual o, si no, bloqueo automático por el estado en SIIS."""
+        if self.pausado:
+            return self
+        if self.siis_bloqueado:
+            return BloqueoSiis(self.siis_motivo_bloqueo)
+        return None
+
+
+class Segmento(PausableMixin, TimeStamped):
+    """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2).
+
+    Pertenece a un programa SIIS (Programa → Segmento → Subsegmento). El nombre
+    es local: lo pone el operador, ya no se toma del catálogo.
+    """
+
+    # Nulo solo por datos históricos anteriores al nivel Programa; el alta lo
+    # exige siempre (blank=False) y el vínculo con SIIS vive en el programa.
+    programa = models.ForeignKey(
+        ProgramaSiis,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=False,
+        related_name="segmentos",
+        verbose_name="Programa",
+    )
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
@@ -898,9 +1304,33 @@ class Segmento(TimeStamped):
         verbose_name = "Segmento"
         verbose_name_plural = "Segmentos"
         ordering = ["nombre"]
+        constraints = [models.UniqueConstraint(fields=["programa", "nombre"], name="uniq_segmento_programa_nombre")]
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        super().clean()
+        if not self.pk:
+            return
+        # El subsegmento es local: ya no espeja un segmento SIIS, así que cambiar
+        # el programa SIIS del segmento no invalida los subsegmentos existentes.
+        distribuido = self.subsegmentos.aggregate(t=models.Sum("cupo_maximo"))["t"] or 0
+        if self.cupo_maximo is not None and self.cupo_maximo < distribuido:
+            raise ValidationError(
+                {"cupo_maximo": f"El cupo no puede ser menor que los {distribuido} ya distribuidos en subsegmentos."}
+            )
+        cupo = getattr(self, "cupo", None)
+        ocupado = cupo.cupo_ocupado if cupo else 0
+        if self.cupo_maximo is not None and self.cupo_maximo < ocupado:
+            raise ValidationError({"cupo_maximo": f"El cupo no puede ser menor que los {ocupado} lugares ocupados."})
+
+    @property
+    def pausa_efectiva(self):
+        """Pausa manual propia o, si no, la que baja del programa (manual o SIIS)."""
+        if self.pausado:
+            return self
+        return self.programa.pausa_efectiva if self.programa_id else None
 
     @property
     def tiene_subsegmentos(self):
@@ -922,7 +1352,7 @@ class Segmento(TimeStamped):
         return self.cupo_maximo
 
 
-class Subsegmento(TimeStamped):
+class Subsegmento(PausableMixin, TimeStamped):
     """Nivel opcional dentro de un segmento, con cupo propio (RN-35/40)."""
 
     segmento = models.ForeignKey(
@@ -934,6 +1364,16 @@ class Subsegmento(TimeStamped):
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     cupo_maximo = models.PositiveIntegerField(verbose_name="Cupo máximo")
+    # Un solo referente por subsegmento: asignarlo reemplaza al anterior. Un
+    # mismo Coordinador Regional puede tener varios subsegmentos a cargo.
+    referente = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subsegmentos_a_cargo",
+        verbose_name="Referente asignado",
+    )
 
     class Meta:
         verbose_name = "Subsegmento"
@@ -943,6 +1383,10 @@ class Subsegmento(TimeStamped):
 
     def __str__(self):
         return f"{self.segmento.nombre} / {self.nombre}"
+
+    @property
+    def pausa_efectiva(self):
+        return self if self.pausado else self.segmento.pausa_efectiva
 
     def clean(self):
         """RN-40: sum(hermanos.cupo_maximo) + nuevo_cupo <= segmento.cupo_maximo."""
@@ -963,7 +1407,7 @@ class Subsegmento(TimeStamped):
 
 
 class CupoSegmento(TimeStamped):
-    """Contador de cupo ocupado por segmento. La ocupación efectiva (post-SIS)
+    """Contador de cupo ocupado por segmento. La ocupación efectiva (post-SIIS)
     queda fuera del alcance de esta versión; el modelo es la estructura base."""
 
     segmento = models.OneToOneField(
@@ -1000,7 +1444,7 @@ class CupoSegmento(TimeStamped):
             )
 
 
-class Convocatoria(TimeStamped):
+class Convocatoria(PausableMixin, TimeStamped):
     """Agrupador dentro del programa; apunta a un segmento (requerido) y a un
     subsegmento opcional de ese segmento (RN-30)."""
 
@@ -1035,6 +1479,15 @@ class Convocatoria(TimeStamped):
         blank=True,
         verbose_name="Fecha de cierre automático",
     )
+    # Excel original del padrón de habilitados (Cambio 57): uno por
+    # convocatoria, lo usan todos sus relevamientos de los dos canales. Las
+    # filas parseadas viven en PadronHabilitado; el archivo es trazabilidad.
+    padron_archivo = models.FileField(
+        upload_to=ruta_padron_becas,
+        null=True,
+        blank=True,
+        verbose_name="Padrón de habilitados (archivo)",
+    )
 
     class Meta:
         verbose_name = "Convocatoria"
@@ -1043,6 +1496,14 @@ class Convocatoria(TimeStamped):
 
     def __str__(self):
         return self.nombre
+
+    @property
+    def pausa_efectiva(self):
+        if self.pausado:
+            return self
+        if self.segmento.pausa_efectiva:
+            return self.segmento.pausa_efectiva
+        return self.subsegmento.pausa_efectiva if self.subsegmento_id else None
 
     def clean(self):
         """El subsegmento (si se indica) debe pertenecer al segmento elegido."""
@@ -1060,8 +1521,20 @@ class Convocatoria(TimeStamped):
         return self.fecha_fin is not None and self.fecha_fin < timezone.localdate()
 
 
-class Relevamiento(TimeStamped):
-    """Campaña de campo asignada a un territorial. Nombre auto-generado."""
+class Relevamiento(PausableMixin, TimeStamped):
+    """Campaña de campo asignada a un territorial, o formulario público con
+    link de inscripción (análisis #289). Nombre auto-generado.
+
+    Los públicos no tienen territorial ni zona, nacen EN_CURSO y reciben un
+    ``token_publico`` no adivinable que arma el link del portal. La API de
+    campo no los expone (su queryset filtra por territorial)."""
+
+    def _normalizar_franja(self):
+        zona = timezone.get_current_timezone()
+        if isinstance(self.fecha_asignada, date) and not isinstance(self.fecha_asignada, datetime):
+            self.fecha_asignada = timezone.make_aware(datetime.combine(self.fecha_asignada, time.min), zona)
+        if isinstance(self.fecha_hasta, date) and not isinstance(self.fecha_hasta, datetime):
+            self.fecha_hasta = timezone.make_aware(datetime.combine(self.fecha_hasta, time(23, 59, 59)), zona)
 
     class Estado(models.TextChoices):
         ASIGNADO = "ASIGNADO", "Asignado"
@@ -1071,21 +1544,69 @@ class Relevamiento(TimeStamped):
         EN_REVISION = "EN_REVISION", "En revisión"
         TERMINADO = "TERMINADO", "Terminado"
 
+    class Tipo(models.TextChoices):
+        TERRITORIAL = "TERRITORIAL", "Territorial"
+        PUBLICO = "PUBLICO", "Formulario público"
+
     nombre = models.CharField(max_length=100, editable=False, verbose_name="Nombre")
+    numero = models.PositiveIntegerField(editable=False, verbose_name="Número dentro de la convocatoria")
     convocatoria = models.ForeignKey(
         Convocatoria,
         on_delete=models.PROTECT,
         related_name="relevamientos",
         verbose_name="Convocatoria",
     )
+    tipo = models.CharField(
+        max_length=20,
+        choices=Tipo.choices,
+        default=Tipo.TERRITORIAL,
+        db_index=True,
+        verbose_name="Tipo",
+    )
     territorial = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="relevamientos_asignados",
         verbose_name="Territorial",
     )
-    fecha_asignada = models.DateField(verbose_name="Fecha asignada")
-    zona = models.CharField(max_length=200, verbose_name="Zona")
+    # Link público (solo tipo PUBLICO): nunca se expone el pk en la URL.
+    token_publico = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Token del link público",
+    )
+    # Un único interruptor para todo el correo que le llega a la persona por
+    # este relevamiento: el comprobante de inscripción (solo link público) y
+    # los avisos de resolución del Cambio 44, que aplican también al canal
+    # territorial. Dos toggles serían el mismo hecho duplicado.
+    confirmar_por_email = models.BooleanField(
+        default=False,
+        verbose_name="Avisar por correo a la persona",
+        help_text=(
+            "Avisa por correo cuando se resuelve el formulario: aprobado, en lista de espera o "
+            "rechazado. En los relevamientos con link público, además manda el comprobante al "
+            "inscribirse."
+        ),
+    )
+    # El padrón de habilitados vive en la convocatoria desde el Cambio 57
+    # (antes era por relevamiento público): ``relevamiento.convocatoria.padron``.
+    # Se conserva el nombre técnico histórico para evitar romper integraciones;
+    # funcionalmente representa el inicio del período.
+    fecha_asignada = models.DateTimeField(verbose_name="Fecha y hora desde")
+    fecha_hasta = models.DateTimeField(verbose_name="Fecha y hora hasta")
+    # blank=True desde #290: los públicos no llevan zona; para los territoriales
+    # la exige clean() (y el form del backoffice).
+    zona = models.CharField(max_length=200, blank=True, verbose_name="Zona")
+    cupo_maximo = models.PositiveIntegerField(
+        default=100,
+        validators=[MinValueValidator(1)],
+        verbose_name="Cupo de personas",
+        help_text="Cantidad máxima de personas que pueden cargarse en este relevamiento.",
+    )
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     estado = models.CharField(
         max_length=20,
@@ -1101,41 +1622,237 @@ class Relevamiento(TimeStamped):
         verbose_name_plural = "Relevamientos"
         ordering = ["-fecha_asignada", "nombre"]
         indexes = [
-            models.Index(fields=["estado", "fecha_asignada"]),
+            models.Index(fields=["estado", "fecha_asignada", "fecha_hasta"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["convocatoria", "numero"], name="uniq_relevamiento_numero_convocatoria"),
+            # Coherencia tipo/territorial: un territorial siempre tiene operador
+            # asignado; un público nunca (RN-P1/P2 del análisis #289).
+            models.CheckConstraint(
+                check=(
+                    models.Q(tipo="TERRITORIAL", territorial__isnull=False)
+                    | models.Q(tipo="PUBLICO", territorial__isnull=True)
+                ),
+                name="relevamiento_tipo_territorial_coherente",
+            ),
         ]
 
     def __str__(self):
         return self.nombre
 
+    @property
+    def es_publico(self):
+        return self.tipo == self.Tipo.PUBLICO
+
+    @property
+    def url_publica(self):
+        """Ruta del link de inscripción (paso 1 del portal, #293)."""
+        if not self.token_publico:
+            return ""
+        from django.urls import reverse
+
+        return reverse("portal:inscripcion_paso1", kwargs={"token": self.token_publico})
+
+    @property
+    def pausa_efectiva(self):
+        return self if self.pausado else self.convocatoria.pausa_efectiva
+
+    def clean(self):
+        super().clean()
+        self._normalizar_franja()
+        if self.tipo == self.Tipo.TERRITORIAL:
+            if not self.territorial_id:
+                raise ValidationError({"territorial": "Un relevamiento territorial requiere un territorial asignado."})
+            if not self.zona:
+                raise ValidationError({"zona": "Un relevamiento territorial requiere una zona."})
+        elif self.territorial_id:
+            raise ValidationError({"territorial": "Un relevamiento de formulario público no lleva territorial."})
+        if self.pk and self.cupo_maximo is not None:
+            utilizados = self.formularios.count()
+            if self.cupo_maximo < utilizados:
+                raise ValidationError(
+                    {"cupo_maximo": f"El cupo no puede ser menor que las {utilizados} personas ya relevadas."}
+                )
+        if not self.convocatoria_id or self.fecha_asignada is None or self.fecha_hasta is None:
+            return
+        convocatoria = self.convocatoria
+        errores = {}
+        if self.fecha_hasta < self.fecha_asignada:
+            errores["fecha_hasta"] = "La fecha hasta no puede ser anterior a la fecha desde."
+        fecha_desde = timezone.localtime(self.fecha_asignada).date()
+        fecha_hasta = timezone.localtime(self.fecha_hasta).date()
+        if not convocatoria.fecha_inicio <= fecha_desde <= convocatoria.fecha_fin:
+            inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            errores["fecha_asignada"] = (
+                f"La fecha desde debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin})."
+            )
+        if not convocatoria.fecha_inicio <= fecha_hasta <= convocatoria.fecha_fin:
+            inicio = convocatoria.fecha_inicio.strftime("%d/%m/%Y")
+            fin = convocatoria.fecha_fin.strftime("%d/%m/%Y")
+            errores["fecha_hasta"] = (
+                f"La fecha hasta debe estar comprendida dentro del período de la convocatoria ({inicio} - {fin})."
+            )
+        if errores:
+            raise ValidationError(errores)
+
     @classmethod
-    def proximo_nombre(cls):
+    def proximo_nombre(cls, convocatoria=None):
         """Nombre autogenerado del próximo relevamiento.
 
-        Usa ``Max(id)`` en vez de ``count()`` (evita el full scan y la carrera
+        Usa ``Max(numero)`` en vez de ``count()`` (evita el full scan y la carrera
         de dos altas simultáneas con el mismo número).
         """
-        siguiente = (cls.objects.aggregate(m=models.Max("id"))["m"] or 0) + 1
-        return f"Relevamiento {siguiente:03d}"
+        siguiente = cls.proximo_numero(convocatoria)
+        return cls.nombre_para(convocatoria, siguiente)
+
+    @classmethod
+    def nombre_para(cls, convocatoria, numero):
+        nombre = f"Relevamiento {numero:03d}"
+        if convocatoria is not None:
+            nombre = f"{nombre} · {convocatoria.nombre}"
+        return nombre[: cls._meta.get_field("nombre").max_length]
+
+    @classmethod
+    def proximo_numero(cls, convocatoria=None):
+        qs = cls.objects.filter(convocatoria=convocatoria) if convocatoria else cls.objects.none()
+        return (qs.aggregate(m=models.Max("numero"))["m"] or 0) + 1
 
     def save(self, *args, **kwargs):
+        self._normalizar_franja()
+        if self.fecha_asignada and self.fecha_hasta is None:
+            dia = timezone.localtime(self.fecha_asignada).date()
+            self.fecha_hasta = timezone.make_aware(
+                datetime.combine(dia, time(23, 59, 59)), timezone.get_current_timezone()
+            )
+        if self.tipo == self.Tipo.PUBLICO and not self.token_publico:
+            # Un público siempre tiene link, también si cambió de tipo por admin.
+            self.token_publico = uuid.uuid4()
+        if self._state.adding and self.tipo == self.Tipo.PUBLICO and self.estado == self.Estado.ASIGNADO:
+            # No hay territorial que lo inicie: nace operativo.
+            self.estado = self.Estado.EN_CURSO
+        if self._state.adding and not self.numero:
+            with transaction.atomic():
+                Convocatoria.objects.select_for_update().get(pk=self.convocatoria_id)
+                self.numero = self.proximo_numero(self.convocatoria_id)
+                self.nombre = self.nombre_para(self.convocatoria, self.numero)
+                return super().save(*args, **kwargs)
         if not self.nombre:
-            self.nombre = self.proximo_nombre()
-        super().save(*args, **kwargs)
+            self.nombre = self.nombre_para(self.convocatoria, self.numero)
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def asignaciones_solapadas(cls, *, territorial, fecha=None, fecha_desde=None, fecha_hasta=None, excluir_pk=None):
+        """Relevamientos del territorial cuyo período se superpone.
+
+        Es una consulta informativa: el negocio permite confirmar y conservar
+        el solapamiento, por lo que no corresponde una restricción de base.
+        """
+        fecha_desde = fecha_desde or fecha
+        fecha_hasta = fecha_hasta or fecha_desde
+        qs = cls.objects.filter(
+            territorial=territorial,
+            fecha_asignada__lte=fecha_hasta,
+            fecha_hasta__gte=fecha_desde,
+        )
+        if excluir_pk is not None:
+            qs = qs.exclude(pk=excluir_pk)
+        return qs.order_by("zona", "pk")
 
     @property
     def segmento(self):
         return self.convocatoria.segmento
 
     @property
+    def cupo_utilizado(self):
+        anotado = getattr(self, "formularios_count", None)
+        return anotado if anotado is not None else self.formularios.count()
+
+    @property
+    def cupo_disponible(self):
+        return max(self.cupo_maximo - self.cupo_utilizado, 0)
+
+    @property
+    def cupo_completo(self):
+        return self.cupo_utilizado >= self.cupo_maximo
+
+    def habilitado_en(self, momento):
+        if isinstance(momento, date) and not isinstance(momento, datetime):
+            momento = timezone.make_aware(datetime.combine(momento, time.min), timezone.get_current_timezone())
+        return bool(
+            not self.pausa_efectiva
+            and self.fecha_asignada
+            and self.fecha_hasta
+            and self.fecha_asignada <= momento <= self.fecha_hasta
+        )
+
+    @property
     def esta_vencido(self):
-        """Vencido = sigue abierto en campo y la fecha asignada ya pasó."""
+        """Vencido = sigue abierto en campo y la fecha hasta ya pasó."""
         from django.utils import timezone
 
         return (
             self.estado in (self.Estado.ASIGNADO, self.Estado.EN_CURSO)
-            and self.fecha_asignada is not None
-            and self.fecha_asignada < timezone.localdate()
+            and self.fecha_hasta is not None
+            and self.fecha_hasta < timezone.now()
         )
+
+
+class PadronHabilitado(TimeStamped):
+    """Entrada del padrón de habilitados de una convocatoria (RN-P14, Cambio 57).
+
+    Dos funciones: **lista blanca** del paso 1 del link (si la convocatoria
+    tiene padrón, solo avanza quien figura con DNI **y** sexo coincidentes) y,
+    desde el Cambio 57, **fuente de identidad**: si la fila trae nombre y
+    apellido, la persona queda validada por padrón y sus datos se precargan,
+    sin depender de Base de Personas. Se puebla parseando el Excel al
+    cargar/reemplazar el padrón (``programas.services.padron``); el chequeo por
+    request es una consulta indexada, nunca una lectura del archivo.
+    """
+
+    class Sexo(models.TextChoices):
+        FEMENINO = "F", "Femenino"
+        MASCULINO = "M", "Masculino"
+
+    convocatoria = models.ForeignKey(
+        Convocatoria,
+        on_delete=models.CASCADE,
+        related_name="padron",
+        verbose_name="Convocatoria",
+    )
+    dni = models.CharField(max_length=20, verbose_name="DNI")
+    sexo = models.CharField(max_length=1, choices=Sexo.choices, verbose_name="Sexo")
+    # Identidad (opcional por fila). Con nombre y apellido la fila valida;
+    # fecha y localidad completan el legajo pero no condicionan.
+    nombre = models.CharField(max_length=120, blank=True, verbose_name="Nombre")
+    apellido = models.CharField(max_length=120, blank=True, verbose_name="Apellido")
+    fecha_nacimiento = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+    localidad = models.ForeignKey(
+        "core.Localidad",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Localidad",
+    )
+    # Lo que decía el Excel, reconocida o no contra el catálogo.
+    localidad_texto = models.CharField(max_length=120, blank=True, verbose_name="Localidad (texto del Excel)")
+
+    class Meta:
+        verbose_name = "Habilitado del padrón"
+        verbose_name_plural = "Habilitados del padrón"
+        constraints = [
+            models.UniqueConstraint(fields=["convocatoria", "dni"], name="uniq_padron_dni_convocatoria"),
+        ]
+        indexes = [models.Index(fields=["convocatoria", "dni", "sexo"], name="programas_padron_conv_dni_idx")]
+
+    def __str__(self):
+        return f"{self.dni} ({self.sexo})"
+
+    @property
+    def tiene_identidad(self):
+        """RN-2 del Cambio 57: valida solo con nombre **y** apellido."""
+        return bool(self.nombre.strip() and self.apellido.strip())
 
 
 class PreguntaGlobal(TimeStamped):
@@ -1149,6 +1866,14 @@ class PreguntaGlobal(TimeStamped):
         blank=True,
         verbose_name="Opciones",
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
+    )
+    presentacion = models.CharField(
+        max_length=20,
+        choices=PresentacionCampo.choices,
+        default=PresentacionCampo.LISTA,
+        blank=True,
+        verbose_name="Presentación",
+        help_text="Solo para Selector / Selector múltiple: cómo elige la persona entre las opciones.",
     )
     activo = models.BooleanField(
         default=True,
@@ -1169,8 +1894,12 @@ class PreguntaGlobal(TimeStamped):
 
 
 class RequisitoNativo(TimeStamped):
-    """Requisito configurable de un segmento (o subsegmento). Genera un campo
-    obligatorio en el formulario del territorial (RN-32)."""
+    """Requisito configurable de un programa, segmento o subsegmento. Genera un
+    campo obligatorio en el formulario del territorial (RN-32).
+
+    Ancla en exactamente un nivel: ``programa`` (lo heredan todos sus
+    segmentos), ``segmento`` (con ``subsegmento`` nulo) o ``subsegmento``.
+    """
 
     texto = models.CharField(max_length=500, verbose_name="Texto")
     tipo = models.CharField(max_length=20, choices=TipoCampo.choices, verbose_name="Tipo de campo")
@@ -1180,9 +1909,28 @@ class RequisitoNativo(TimeStamped):
         verbose_name="Opciones",
         help_text="Lista de strings; solo para SELECTOR / SELECTOR_MULTIPLE.",
     )
+    presentacion = models.CharField(
+        max_length=20,
+        choices=PresentacionCampo.choices,
+        default=PresentacionCampo.LISTA,
+        blank=True,
+        verbose_name="Presentación",
+        help_text="Solo para Selector / Selector múltiple: cómo elige la persona entre las opciones.",
+    )
+    programa = models.ForeignKey(
+        ProgramaSiis,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="requisitos",
+        verbose_name="Programa",
+        help_text="Si se indica, el requisito es del programa y lo heredan todos sus segmentos.",
+    )
     segmento = models.ForeignKey(
         Segmento,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="requisitos",
         verbose_name="Segmento",
     )
@@ -1204,12 +1952,21 @@ class RequisitoNativo(TimeStamped):
         ordering = ["orden", "id"]
 
     def __str__(self):
-        destino = self.subsegmento.nombre if self.subsegmento_id else self.segmento.nombre
+        if self.subsegmento_id:
+            destino = self.subsegmento.nombre
+        elif self.segmento_id:
+            destino = self.segmento.nombre
+        else:
+            destino = self.programa.nombre if self.programa_id else "—"
         return f"{destino}: {self.texto}"
 
     def clean(self):
-        """El subsegmento (si se indica) debe pertenecer al segmento."""
+        """Un solo ancla: programa, segmento o subsegmento (dentro de su segmento)."""
         super().clean()
+        if self.programa_id and (self.segmento_id or self.subsegmento_id):
+            raise ValidationError("Un requisito de programa no puede apuntar además a un segmento o subsegmento.")
+        if not self.programa_id and not self.segmento_id:
+            raise ValidationError("El requisito debe pertenecer a un programa o a un segmento.")
         if self.subsegmento_id and self.segmento_id:
             if self.subsegmento.segmento_id != self.segmento_id:
                 raise ValidationError({"subsegmento": "El subsegmento debe pertenecer al segmento seleccionado."})
@@ -1241,6 +1998,26 @@ class AsignacionCoordinador(TimeStamped):
 
     def __str__(self):
         return f"{self.coordinador} → {self.segmento.nombre}"
+
+
+class AsignacionReferente(TimeStamped):
+    """Un Referente depende de un Coordinador del segmento."""
+
+    referente = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="asignacion_referente", verbose_name="Referente"
+    )
+    coordinador = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="referentes_asignados", verbose_name="Coordinador"
+    )
+    fecha_asignacion = models.DateField(auto_now_add=True, verbose_name="Fecha de asignación")
+
+    class Meta:
+        verbose_name = "Asignación de referente"
+        verbose_name_plural = "Asignaciones de referentes"
+        ordering = ["coordinador", "referente"]
+
+    def __str__(self):
+        return f"{self.referente} → {self.coordinador}"
 
 
 class AsignacionTerritorial(TimeStamped):
@@ -1277,8 +2054,8 @@ class AsignacionTerritorial(TimeStamped):
 
 class Formulario(TimeStamped):
     """Una persona relevada (1 por relevamiento). Llega del territorial y el
-    backoffice lo revisa (aprobado/rechazado). La validación SIS y la ocupación
-    de cupo quedan fuera del alcance de esta versión."""
+    backoffice lo revisa (aprobado/rechazado). Cada formulario ocupa un lugar
+    del cupo del relevamiento, independientemente de su estado de revisión."""
 
     class Estado(models.TextChoices):
         ENVIADO = "ENVIADO", "Enviado"
@@ -1292,6 +2069,7 @@ class Formulario(TimeStamped):
         related_name="formularios",
         verbose_name="Relevamiento",
     )
+    numero = models.PositiveIntegerField(editable=False, verbose_name="Número dentro del relevamiento")
     ciudadano = models.ForeignKey(
         Ciudadano,
         on_delete=models.PROTECT,
@@ -1307,8 +2085,69 @@ class Formulario(TimeStamped):
         db_index=True,
         verbose_name="Estado",
     )
+    client_uuid = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador de captura mobile",
+    )
+    capturado_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Fecha de captura en el dispositivo",
+    )
     motivo_rechazo = models.TextField(blank=True, verbose_name="Motivo de rechazo")
+    conflicto_duplicado = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Posible DNI duplicado pendiente de revisión",
+    )
+    conflicto_resuelto = models.BooleanField(default=False, verbose_name="Conflicto de DNI resuelto")
+    duplicado_de = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargas_en_conflicto",
+        verbose_name="Formulario previo con el mismo DNI",
+    )
     validado_renaper = models.BooleanField(default=False, verbose_name="Validado RENAPER")
+
+    class OrigenValidacion(models.TextChoices):
+        """De dónde salió la validación de identidad (Cambio 57). Vacío = sin validar."""
+
+        PERSONAS = "personas", "Base de Personas"
+        PADRON = "padron", "Padrón de la convocatoria"
+        SCAN = "scan", "Escaneo del DNI"
+        FORZADA = "forzada", "Validación manual"
+
+    # Acompaña a ``validado_renaper``: el flag dice *si* está validada y este
+    # campo *por quién*. Un caso validado por padrón nunca se lee como si lo
+    # hubiera devuelto Base de Personas.
+    origen_validacion = models.CharField(
+        max_length=10,
+        choices=OrigenValidacion.choices,
+        blank=True,
+        default="",
+        verbose_name="Origen de la validación de identidad",
+    )
+    # Salida de emergencia cuando Base de Personas no puede validar a alguien
+    # que sí existe (no está en la fuente, la fuente no responde, el DNI no
+    # figura). Sin esto la aprobación queda bloqueada para siempre, porque
+    # ``motivo_bloqueo_aprobacion`` exige identidad validada. Se guarda aparte
+    # de ``validado_renaper`` para que un validado a mano nunca se confunda con
+    # uno que devolvió la fuente: el motivo y el autor quedan además en la traza.
+    identidad_forzada = models.BooleanField(
+        default=False,
+        verbose_name="Identidad validada manualmente",
+    )
+    identidad_forzada_motivo = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Motivo de la validación manual",
+    )
 
     # Bloque C — Contacto (manual, obligatorio)
     celular = models.CharField(max_length=20, verbose_name="Celular")
@@ -1317,8 +2156,23 @@ class Formulario(TimeStamped):
     # Bloque D — Apoderado (solo si el ciudadano es menor; RN-22)
     apoderado_nombre = models.CharField(max_length=120, blank=True, verbose_name="Nombre del apoderado")
     apoderado_apellido = models.CharField(max_length=120, blank=True, verbose_name="Apellido del apoderado")
+    apoderado_dni = models.CharField(max_length=20, blank=True, db_index=True, verbose_name="DNI del apoderado")
+    apoderado_genero = models.CharField(
+        max_length=1,
+        choices=Ciudadano.Genero.choices,
+        blank=True,
+        verbose_name="Sexo del apoderado",
+    )
     apoderado_fecha_nacimiento = models.DateField(
         null=True, blank=True, verbose_name="Fecha de nacimiento del apoderado"
+    )
+    apoderado_ciudadano = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="formularios_becas_como_apoderado",
+        verbose_name="Ciudadano apoderado",
     )
 
     # Geolocalización (solo si el segmento lo requiere; §6.2)
@@ -1352,12 +2206,41 @@ class Formulario(TimeStamped):
         indexes = [
             models.Index(fields=["relevamiento", "estado"]),
             models.Index(fields=["estado"]),
+            # Dashboard del programa (Cambio 64): el recorte es siempre
+            # relevamiento IN (...) AND creado BETWEEN ..., y la serie semanal lee
+            # solo ``creado`` de esas filas.
+            models.Index(fields=["relevamiento", "creado"], name="prog_formulario_rel_creado_idx"),
+            # Bandeja de revisión: ordena por ``creado`` descendente sobre toda la
+            # tabla y corta en la página. Sin este índice MySQL ordena las 40.000
+            # filas antes de recortar (3,7 s medidos); con él hace un recorrido del
+            # índice hacia atrás y frena en la página.
+            models.Index(fields=["creado"], name="prog_formulario_creado_idx"),
+            # Bandeja de RENAPER pendientes: ``validado_renaper = 0`` ordenado por
+            # ``creado`` descendente. ``relevamiento`` va tercero para que el selector de
+            # territoriales de esa pantalla se resuelva sin bajar a la fila (74 ms -> 9 ms).
+            models.Index(fields=["validado_renaper", "creado", "relevamiento"], name="prog_formulario_renaper_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=["relevamiento", "numero"], name="uniq_formulario_numero_relevamiento"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.numero:
+            with transaction.atomic():
+                Relevamiento.objects.select_for_update().get(pk=self.relevamiento_id)
+                self.numero = (
+                    Formulario.objects.filter(relevamiento_id=self.relevamiento_id).aggregate(m=models.Max("numero"))[
+                        "m"
+                    ]
+                    or 0
+                ) + 1
+                return super().save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         if self.ciudadano_id:
-            return f"Formulario #{self.pk} - {self.ciudadano}"
-        return f"Formulario #{self.pk} (sin ciudadano)"
+            return f"Formulario {self.numero} - {self.ciudadano}"
+        return f"Formulario {self.numero} (sin ciudadano)"
 
 
 class AdjuntoFormulario(TimeStamped):
@@ -1386,7 +2269,7 @@ class AdjuntoFormulario(TimeStamped):
         related_name="adjuntos_formulario",
         verbose_name="Requisito nativo",
     )
-    archivo = models.FileField(upload_to="becas/adjuntos/%Y/%m/", verbose_name="Archivo")
+    archivo = models.FileField(upload_to=ruta_adjunto_becas, verbose_name="Archivo")
 
     class Meta:
         verbose_name = "Adjunto de formulario"
@@ -1438,9 +2321,57 @@ class TracaFormulario(models.Model):
         return f"{self.formulario_id} · {self.campo} ({self.created_at:%Y-%m-%d %H:%M})"
 
 
+class ValidacionSIS(models.Model):
+    """Intento inmutable de validación de compatibilidad contra SIIS."""
+
+    class Estado(models.TextChoices):
+        OK = "OK", "Compatible"
+        RECHAZADO = "RECHAZADO", "Incompatible"
+        ERROR = "ERROR", "Error técnico"
+
+    formulario = models.ForeignKey(
+        Formulario, on_delete=models.CASCADE, related_name="validaciones_sis", verbose_name="Formulario"
+    )
+    estado = models.CharField(max_length=15, choices=Estado.choices, db_index=True)
+    id_programa = models.PositiveIntegerField(null=True, blank=True)
+    # SIIS dejó de exponer el nivel "segmento" y de pedir el sexo: ambos quedan
+    # solo para no perder el histórico de las validaciones ya registradas.
+    id_segmento = models.PositiveIntegerField(null=True, blank=True)
+    documento = models.CharField(max_length=20)
+    sexo = models.CharField(max_length=1, blank=True, default="")
+    id_consulta = models.UUIDField(null=True, blank=True, db_index=True)
+    fecha_validacion = models.DateTimeField(null=True, blank=True)
+    codigo_motivo = models.CharField(max_length=100, blank=True)
+    motivo = models.TextField(blank=True)
+    respuesta = models.JSONField(default=dict, blank=True)
+    solicitado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="validaciones_sis_solicitadas"
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-creado"]
+        verbose_name = "Validación SIIS"
+        verbose_name_plural = "Validaciones SIIS"
+
+    def __str__(self):
+        return f"Formulario #{self.formulario_id} · {self.estado}"
+
+    @property
+    def motivo_amigable(self):
+        etiquetas = {
+            "RECHAZADO_PERSONA_INEXISTENTE": "Rechazado. Persona inexistente en el sistema",
+            "BENEFICIO_EXISTENTE": "Rechazado. La persona ya posee un beneficio",
+            "RECHAZADO_EMPLEO_PUBLICO_DOCENTE": "Rechazado. Incompatibilidad por empleo público docente",
+        }
+        if not self.codigo_motivo:
+            return ""
+        return etiquetas.get(self.codigo_motivo, self.codigo_motivo)
+
+
 class ListaEspera(TimeStamped):
     """Persona validada-OK sin cupo disponible. La lógica de promoción depende
-    de SIS y queda fuera del alcance de esta versión; el modelo es la base."""
+    de SIIS y queda fuera del alcance de esta versión; el modelo es la base."""
 
     formulario = models.ForeignKey(
         Formulario,

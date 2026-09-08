@@ -1,0 +1,13 @@
+{% extends "includes/base.html" %}
+{% block title %}Agregar camas · {{ dispositivo.nombre }}{% endblock %}
+{% block main-content %}
+<div class="max-w-xl mx-auto">
+  <a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver al dispositivo</a>
+  <div class="mt-4 mb-6"><p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">{{ dispositivo.nombre }}</p><h1 class="text-3xl font-extrabold text-heading tracking-tight">Agregar camas</h1><p class="mt-1 text-sm text-body-subtle">Se crean disponibles y con códigos consecutivos.</p></div>
+  <form method="post" class="rounded-xl border border-base shadow-sm p-6 space-y-5" style="background:var(--bg-primary)">{% csrf_token %}
+    {% if form.non_field_errors %}<p class="text-sm text-fg-danger">{{ form.non_field_errors|join:', ' }}</p>{% endif %}
+    <div><label for="{{ form.cantidad.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">{{ form.cantidad.label }}</label>{{ form.cantidad }}{% if form.cantidad.errors %}<p class="mt-1 text-sm text-fg-danger">{{ form.cantidad.errors|join:', ' }}</p>{% endif %}</div>
+    <div class="flex justify-end gap-3 pt-4 border-t border-light"><a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a><button class="btn-nodo btn-brand btn-base">Agregar</button></div>
+  </form>
+</div>
+{% endblock %}

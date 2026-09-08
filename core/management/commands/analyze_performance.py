@@ -2,7 +2,7 @@ import json
 
 from django.core.management.base import BaseCommand
 
-from core.performance.performance_analyzer import PerformanceAnalyzer
+from core.performance.query_observability import query_observability_report
 
 
 class Command(BaseCommand):
@@ -12,18 +12,24 @@ class Command(BaseCommand):
         parser.add_argument("--output", choices=["console", "json"], default="console")
 
     def handle(self, *args, **options):
-        analyzer = PerformanceAnalyzer()
-        report = analyzer.generate_report()
+        report = query_observability_report()
+        metrics_available = report["metrics"]["queries"]["source"] == "measured"
 
         if options["output"] == "json":
             self.stdout.write(json.dumps(report, indent=2))
         else:
             self.stdout.write("=== PERFORMANCE ANALYSIS REPORT ===")
+            if not metrics_available:
+                self.stdout.write("Query metrics: unavailable (run against instrumented HTTP requests)")
+                return
+
             self.stdout.write(f"Total Queries: {report['total_queries']}")
             self.stdout.write(f"Performance Score: {report['performance_score']}/100")
 
             if report["n1_detected"]:
-                self.stdout.write(self.style.ERROR(f"N+1 Detected: {report['similar_queries']} similar queries"))
+                self.stdout.write(
+                    self.style.ERROR(f"N+1 detected in {report['n1_affected_requests']} instrumented requests")
+                )
             else:
                 self.stdout.write(self.style.SUCCESS("No N+1 patterns detected"))
 

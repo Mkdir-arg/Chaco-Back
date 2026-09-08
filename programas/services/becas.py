@@ -7,6 +7,8 @@ RBAC (admin vs coordinador con alcance) vive en ``programas.services.autorizacio
 from datetime import date
 
 from django.db import models, transaction
+from django.db.models import CharField, Value
+from django.db.models.functions import Cast, Replace
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -21,30 +23,34 @@ def get_campos_formulario(convocatoria):
     """Devuelve ``(globales, requisitos)`` para renderizar el formulario.
 
     - ``globales``: ``PreguntaGlobal`` activas, ordenadas (RN-31).
-    - ``requisitos``: ``RequisitoNativo`` del segmento (subsegmento=None) y, si la
-      convocatoria tiene subsegmento, también los del subsegmento (herencia; RN-32).
+    - ``requisitos``: ``RequisitoNativo`` del programa del segmento (los heredan
+      todos sus segmentos), del segmento (subsegmento=None) y, si la convocatoria
+      tiene subsegmento, también los del subsegmento (herencia; RN-32).
     """
     globales = PreguntaGlobal.objects.filter(activo=True).order_by("orden", "id")
+    filtros = models.Q(segmento_id=convocatoria.segmento_id, subsegmento__isnull=True)
     if convocatoria.subsegmento_id:
-        requisitos = RequisitoNativo.objects.filter(
-            models.Q(segmento_id=convocatoria.segmento_id, subsegmento__isnull=True)
-            | models.Q(subsegmento_id=convocatoria.subsegmento_id)
-        ).order_by("orden", "id")
-    else:
-        requisitos = RequisitoNativo.objects.filter(
-            segmento_id=convocatoria.segmento_id, subsegmento__isnull=True
-        ).order_by("orden", "id")
+        filtros |= models.Q(subsegmento_id=convocatoria.subsegmento_id)
+    programa_id = convocatoria.segmento.programa_id
+    if programa_id:
+        filtros |= models.Q(programa_id=programa_id)
+    requisitos = RequisitoNativo.objects.filter(filtros).order_by("orden", "id")
     return globales, requisitos
 
 
-def _campo_dict(obj):
+def _campo_dict(obj, alcance):
     return {
         "id": obj.pk,
         "texto": obj.texto,
         "tipo": obj.tipo,
         "opciones": obj.opciones or [],
+        # Cómo mostrar las opciones (Cambio 56). Solo aplica a los tipos
+        # selector; la app de campo decide su propio control con este dato.
+        "presentacion": obj.presentacion,
         "obligatorio": obj.obligatorio,
         "orden": obj.orden,
+        "alcance": alcance,
+        "subsegmento_id": getattr(obj, "subsegmento_id", None),
     }
 
 
@@ -58,9 +64,28 @@ def definicion_formulario(relevamiento):
     globales, requisitos = get_campos_formulario(convocatoria)
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
-        "globales": [_campo_dict(p) for p in globales],
-        "requisitos": [_campo_dict(r) for r in requisitos],
+        "globales": [_campo_dict(p, "global") for p in globales],
+        "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }
+
+
+def formulario_por_client_uuid(relevamiento, client_uuid):
+    """Busca la clave idempotente sin depender del lookup UUID del motor."""
+    if not client_uuid:
+        return None
+    return (
+        relevamiento.formularios.annotate(
+            client_uuid_text=Replace(Cast("client_uuid", CharField()), Value("-"), Value(""))
+        )
+        .filter(client_uuid_text=client_uuid.hex)
+        .first()
+    )
+
+
+def _alcance_requisito(requisito):
+    if requisito.subsegmento_id:
+        return "subsegmento"
+    return "segmento" if requisito.segmento_id else "programa"
 
 
 def get_segmentos_coordinador(user):
@@ -128,23 +153,72 @@ def resolver_ciudadano_offline(formulario):
     ``get_or_create`` por DNI (linkea si existe, crea con datos mínimos si no) y
     limpia ``datos_identificacion``. Idempotente: si ya hay ciudadano, no hace nada.
     """
-    if formulario.ciudadano_id or not formulario.datos_identificacion:
-        return formulario.ciudadano
+    campos_actualizados = []
+    if not formulario.ciudadano_id and formulario.datos_identificacion:
+        datos = formulario.datos_identificacion
+        dni = datos.get("dni")
+        if dni:
+            genero = str(datos.get("sexo") or datos.get("genero") or "").strip().upper()
+            if genero not in Ciudadano.Genero.values:
+                genero = ""
+            # La localidad viene del padrón (Cambio 57) y solo completa el legajo:
+            # nunca pisa una ya cargada.
+            localidad_id = datos.get("localidad_id") or None
+            ciudadano, creado = Ciudadano.objects.get_or_create(
+                dni=dni,
+                defaults={
+                    "nombre": datos.get("nombre", ""),
+                    "apellido": datos.get("apellido", ""),
+                    "fecha_nacimiento": datos.get("fecha_nacimiento") or None,
+                    "genero": genero,
+                    "localidad_id": localidad_id,
+                },
+            )
+            if not creado:
+                completar = []
+                if not ciudadano.genero and genero:
+                    ciudadano.genero = genero
+                    completar.append("genero")
+                if not ciudadano.localidad_id and localidad_id:
+                    ciudadano.localidad_id = localidad_id
+                    completar.append("localidad")
+                if completar:
+                    ciudadano.save(update_fields=[*completar, "modificado"])
+            formulario.ciudadano = ciudadano
+            formulario.datos_identificacion = None
+            campos_actualizados.extend(["ciudadano", "datos_identificacion"])
 
-    datos = formulario.datos_identificacion
-    dni = datos.get("dni")
-    if not dni:
-        return None
-
-    ciudadano, _creado = Ciudadano.objects.get_or_create(
-        dni=dni,
-        defaults={
-            "nombre": datos.get("nombre", ""),
-            "apellido": datos.get("apellido", ""),
-            "fecha_nacimiento": datos.get("fecha_nacimiento") or None,
-        },
+    apoderado_desactualizado = bool(
+        formulario.apoderado_ciudadano_id and formulario.apoderado_ciudadano.dni != formulario.apoderado_dni
     )
-    formulario.ciudadano = ciudadano
-    formulario.datos_identificacion = None
-    formulario.save(update_fields=["ciudadano", "datos_identificacion", "modificado"])
-    return ciudadano
+    if formulario.apoderado_dni and (not formulario.apoderado_ciudadano_id or apoderado_desactualizado):
+        apoderado, creado = Ciudadano.objects.get_or_create(
+            dni=formulario.apoderado_dni,
+            defaults={
+                "nombre": formulario.apoderado_nombre,
+                "apellido": formulario.apoderado_apellido,
+                "fecha_nacimiento": formulario.apoderado_fecha_nacimiento,
+                "genero": formulario.apoderado_genero,
+            },
+        )
+        if not creado:
+            completar = {}
+            for campo_formulario, campo_ciudadano in (
+                ("apoderado_nombre", "nombre"),
+                ("apoderado_apellido", "apellido"),
+                ("apoderado_fecha_nacimiento", "fecha_nacimiento"),
+                ("apoderado_genero", "genero"),
+            ):
+                valor = getattr(formulario, campo_formulario)
+                if valor and not getattr(apoderado, campo_ciudadano):
+                    completar[campo_ciudadano] = valor
+            if completar:
+                for campo, valor in completar.items():
+                    setattr(apoderado, campo, valor)
+                apoderado.save(update_fields=[*completar.keys(), "modificado"])
+        formulario.apoderado_ciudadano = apoderado
+        campos_actualizados.append("apoderado_ciudadano")
+
+    if campos_actualizados:
+        formulario.save(update_fields=[*campos_actualizados, "modificado"])
+    return formulario.ciudadano

@@ -2,7 +2,8 @@ import json
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
-from django.test import Client, TestCase
+from django.core.management import call_command
+from django.test import Client, TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 
 from core import rbac
@@ -77,6 +78,80 @@ class LoginUsuarioInactivoTests(TestCase):
         User.objects.create_user("activo", password="clave-correcta", is_active=True)
         form = UsuariosAuthenticationForm(data={"username": "activo", "password": "clave-correcta"})
         self.assertTrue(form.is_valid())
+
+    def test_usuario_exclusivamente_territorial_no_ingresa_al_backoffice(self):
+        from programas.management.commands.seed_becas import ROL_TERRITORIAL
+
+        call_command("seed_becas", verbosity=0)
+        territorial = User.objects.create_user("territorial-mobile", password="clave-correcta")
+        territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+
+        form = UsuariosAuthenticationForm(data={"username": territorial.username, "password": "clave-correcta"})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(self._codigo_error(form), "territorial_mobile_only")
+        self.assertEqual(form.non_field_errors()[0], "Usuario no válido para ingresar al sistema.")
+
+
+class LoginRouteTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("usuario-login", password="clave-correcta")
+
+    def test_login_route_renders_custom_login(self):
+        response = self.client.get("/login/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "user/login.html")
+
+    def test_sin_recordarme_la_sesion_vence_al_cerrar_el_navegador(self):
+        response = self.client.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+
+    @override_settings(SESSION_COOKIE_AGE=86400)
+    def test_con_recordarme_la_sesion_persiste_por_el_periodo_configurado(self):
+        response = self.client.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta", "remember": "on"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertAlmostEqual(self.client.session.get_expiry_age(), 86400, delta=2)
+
+    def test_usuario_ya_autenticado_no_vuelve_a_ver_el_login(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/")
+
+        self.assertRedirects(response, reverse("core:inicio"), fetch_redirect_response=False)
+
+    def test_nuevo_login_reemplaza_la_sesion_web_anterior(self):
+        primera_sesion = Client()
+        segunda_sesion = Client()
+
+        primera_sesion.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta"},
+        )
+        segunda_sesion.post(
+            "/login/",
+            {"username": self.user.username, "password": "clave-correcta"},
+        )
+
+        respuesta_anterior = primera_sesion.get(reverse("core:inicio"))
+        respuesta_nueva = segunda_sesion.get(reverse("core:inicio"))
+
+        self.assertRedirects(respuesta_anterior, reverse("users:login"), fetch_redirect_response=False)
+        aviso = primera_sesion.get(reverse("users:login"))
+        self.assertContains(aviso, "Tu sesión fue reemplazada por un nuevo ingreso.")
+        self.assertEqual(respuesta_nueva.status_code, 200)
+        self.assertNotIn("_auth_user_id", primera_sesion.session)
+        self.assertEqual(int(segunda_sesion.session["_auth_user_id"]), self.user.pk)
 
 
 class RolPortalNoAsignableTests(TestCase):
@@ -166,13 +241,14 @@ class UsuarioFiltrosTests(TestCase):
 
 
 class UsuarioAlcanceProgramaTests(TestCase):
-    """#67 â€” ABM de Usuarios con alcance de Programa."""
+    """#67 — ABM de Usuarios con alcance de Programa."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.vivienda = Programa.objects.create(codigo="VIVIENDA", nombre="Vivienda")
 
-        # Admin de programa Becas (programa.configurar).
+        # Admin de los usuarios de Becas. El alcance sobre el ABM de Usuarios lo da
+        # `programa.usuario.administrar` (ver rbac.CAPS_ADMIN_PROGRAMA_USUARIOS).
         self.rol_admin_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_admin_becas,
@@ -180,7 +256,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
             programa=self.becas,
             activo=True,
         )
-        self.rol_admin_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_admin_becas.permissions.add(_perm("programa.usuario.administrar"))
         self.admin_becas = User.objects.create_user("adm-becas", password="x")
         self.admin_becas.groups.add(self.rol_admin_becas)
 
@@ -196,7 +272,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.rol_global = Group.objects.create(name="Backoffice X")
         RolMeta.objects.create(grupo=self.rol_global, categoria="Backoffice", activo=True)
 
-        # Superusuario: admin global presente para que la auto-protecciÃ³n global no salte.
+        # Superusuario: admin global presente para que la auto-protección global no salte.
         self.su = User.objects.create_superuser("root", "root@example.com", "x")
 
     def test_listado_filtrado_por_programa(self):  # TC-67-01 / TC-67-09
@@ -224,7 +300,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertIn(self.rol_becas, roles)
         self.assertNotIn(self.rol_vivienda, roles)  # el rol de Vivienda no aparece
 
-    def test_guardar_no_pierde_roles_fuera_de_alcance(self):  # TC-67-05 (crÃ­tico)
+    def test_guardar_no_pierde_roles_fuera_de_alcance(self):  # TC-67-05 (crítico)
         user = User.objects.create_user("multi2", password="x")
         user.groups.add(self.rol_becas, self.rol_vivienda)
         form = CustomUserChangeForm(
@@ -280,7 +356,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
         self.assertEqual(self.client.get(reverse("users:usuarios")).status_code, 302)
 
     def test_usuario_con_rol_de_programa_inactivo_no_visible(self):
-        # Consistencia de alcance: un usuario cuyo Ãºnico vÃ­nculo con Becas es un rol
+        # Consistencia de alcance: un usuario cuyo único vínculo con Becas es un rol
         # INACTIVO no debe ser visible ni gestionable por el admin de Becas.
         inactivo = Group.objects.create(name="Becas inactivo")
         RolMeta.objects.create(grupo=inactivo, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=False)
@@ -314,7 +390,7 @@ class UsuarioAlcanceProgramaTests(TestCase):
 
 
 class ProgramaSinAdminTests(TestCase):
-    """#68 â€” no dejar un programa sin administrador (flujos de Usuarios)."""
+    """#68 — no dejar un programa sin administrador (flujos de Usuarios)."""
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -324,12 +400,13 @@ class ProgramaSinAdminTests(TestCase):
         self.rol_global.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
         self.jefe = User.objects.create_user("jefe", password="x")
         self.jefe.groups.add(self.rol_global)
-        # MarÃ­a, Ãºnica administradora de Becas.
+        # María, única administradora de Becas. El check de "programa sin administrador"
+        # cuenta las capacidades de rbac.CAPS_ADMIN_PROGRAMA (los dos ABM).
         self.rol_becas = Group.objects.create(name="Admin Becas")
         RolMeta.objects.create(
             grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
         )
-        self.rol_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_becas.permissions.add(_perm("programa.usuario.administrar"), _perm("programa.rol.administrar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol_becas)
 
@@ -367,11 +444,16 @@ class ProgramaSinAdminTests(TestCase):
         self.client.force_login(self.jefe)
         self.client.post(reverse("users:usuario_toggle", args=[self.maria.pk]))
         self.maria.refresh_from_db()
-        self.assertTrue(self.maria.is_active)  # la operaciÃ³n se revierte
+        self.assertTrue(self.maria.is_active)  # la operación se revierte
 
 
 class SidebarAdministracionTests(TestCase):
-    """#68 â€” la secciÃ³n AdministraciÃ³n del sidebar respeta programa.configurar."""
+    """#68 — la sección Administración del sidebar respeta el alcance de programa.
+
+    Las entradas derivan de ``rbac.CAPS_ENTRADA_ABM_*``, así que el admin de programa
+    las ve por tener las dos capacidades transversales, no por la paraguas del programa
+    ni por ``programa.configurar``.
+    """
 
     def setUp(self):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
@@ -379,13 +461,13 @@ class SidebarAdministracionTests(TestCase):
         RolMeta.objects.create(
             grupo=self.rol_becas, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
         )
-        self.rol_becas.permissions.add(_perm("programa.configurar"))
+        self.rol_becas.permissions.add(_perm("programa.usuario.administrar"), _perm("programa.rol.administrar"))
         self.maria = User.objects.create_user("maria", password="x")
         self.maria.groups.add(self.rol_becas)
 
     def test_admin_programa_ve_administracion(self):  # TC-68-04
         html = render_sidebar(User.objects.get(pk=self.maria.pk))
-        self.assertIn(reverse("users:usuarios"), html)  # secciÃ³n AdministraciÃ³n visible
+        self.assertIn(reverse("users:usuarios"), html)  # sección Administración visible
         self.assertIn(reverse("users:roles"), html)
 
     def test_sin_capacidades_no_ve_administracion(self):  # TC-68-05
@@ -397,7 +479,7 @@ class SidebarAdministracionTests(TestCase):
 
 class UsuarioAutoProteccionTests(TestCase):
     def test_quitarse_el_ultimo_rol_admin_revierte(self):
-        admin = _admin("solo")  # Ãºnico administrador (no superusuario)
+        admin = _admin("solo")  # único administrador (no superusuario)
         form = CustomUserChangeForm(
             data={
                 "username": "solo",

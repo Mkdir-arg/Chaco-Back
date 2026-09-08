@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth.decorators import login_required
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.http import HttpResponse
 from django.urls import include, path, re_path
@@ -30,9 +31,10 @@ urlpatterns = [
     path("portal/", include("portal.urls")),
     path("becas/", include("programas.urls")),
     path("dispositivos/", include("programas.dispositivos_urls")),
+    path("merenderos/", include("programas.merenderos_urls")),
     # Root paths last
-    path("", include("django.contrib.auth.urls")),
     path("", include(("users.urls", "users"), namespace="users")),
+    path("", include("django.contrib.auth.urls")),
     path("", include(("core.urls", "core"), namespace="core")),
     path("", include("dashboard.urls")),
     path("", include(("healthcheck.urls", "healthcheck"), namespace="healthcheck")),
@@ -47,9 +49,12 @@ urlpatterns = [
         include(("conversaciones.api_urls", "conversaciones_api"), namespace="conversaciones_api"),
     ),
     # API Documentation
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
-    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    # Documentación de la API detrás de login: el inventario completo de
+    # endpoints, parámetros y modelos era reconocimiento gratuito para cualquiera
+    # que llegara por el link público (seguridad, 26/08/2026).
+    path("api/schema/", login_required(SpectacularAPIView.as_view()), name="schema"),
+    path("api/docs/", login_required(SpectacularSwaggerView.as_view(url_name="schema")), name="swagger-ui"),
+    path("api/redoc/", login_required(SpectacularRedocView.as_view(url_name="schema")), name="redoc"),
     # Health Check
     path("health/", include("health_check.urls")),
 ]
@@ -60,5 +65,19 @@ if settings.DEBUG:
 
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Las dos líneas de arriba solo actúan con DEBUG. En un ambiente servido sin nginx
+# adelante (Kubernetes), SERVE_MEDIA=True hace que la app sirva los archivos
+# subidos; los estáticos ya los sirve whitenoise sin ruta extra.
+if settings.SERVE_MEDIA:
+    from django.views.static import serve as _media_serve
+
+    # Detrás de login: acá viven los documentos que sube el ciudadano (fotos de
+    # DNI, certificados) y el Excel del padrón. Servirlos abiertos los dejaba
+    # descargables por cualquiera que acertara la ruta, y los nombres eran los
+    # originales del archivo. Revisión de seguridad del 26/08/2026.
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", login_required(_media_serve), {"document_root": settings.MEDIA_ROOT}),
+    ]
 
 handler500 = "config.views.server_error"

@@ -13,7 +13,7 @@ from core import rbac
 from core.rbac import CapacidadRequeridaMixin
 from users.forms.roles import RolForm
 from users.selectors.roles import (
-    programas_administrables,
+    programas_administrables_roles,
     puede_gestionar_rol,
     roles_filtrados_para,
     roles_lista_para,
@@ -23,9 +23,9 @@ from users.services.roles import RolesAdminService, RolProtegidoError
 
 
 class _RolesPermMixin(CapacidadRequeridaMixin):
-    # Entra el admin global (rol.administrar) y también el admin de programa
-    # (programa.configurar en algún programa). El alcance fino lo aplica cada vista.
-    capacidades_requeridas = ["rol.administrar", "programa.configurar"]
+    # Entra el admin global (rol.administrar) y también quien administra los roles
+    # de algún programa (programa.rol.administrar). El alcance lo aplica cada vista.
+    capacidades_requeridas = list(rbac.CAPS_ENTRADA_ABM_ROLES)
 
 
 def _fuera_de_alcance(request):
@@ -49,7 +49,7 @@ class RolListView(_RolesPermMixin, TemplateView):
         context["items"] = roles_filtrados_para(user, get, lista=lista)
         context["total_roles"] = len(lista)
         context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
-        context["programas_admin"] = programas_administrables(user)
+        context["programas_admin"] = programas_administrables_roles(user)
 
         context["filtro_q"] = get.get("q", "")
         context["filtro_categoria"] = get.get("categoria", "")

@@ -405,6 +405,11 @@ code,
     background: rgba(0, 0, 0, 0.5);
 }
 
+/* La regla legacy de display:flex se carga después de Tailwind: preservar hidden. */
+.modal-responsive.hidden {
+    display: none;
+}
+
 .modal-responsive-content {
     background: white;
     border-radius: 0.75rem;

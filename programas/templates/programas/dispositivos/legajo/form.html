@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load static %}
 {% block title %}Dispositivos · {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %}{% endblock %}
 
 {% block main-content %}
@@ -12,7 +13,7 @@
 
 {% block customJS %}
 {% if not form.instance.pk %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
 <script>
 (function () {
   const codigo = document.getElementById('id_codigo');

@@ -11,6 +11,7 @@ from django.urls import reverse_lazy
 from django.views import View
 
 from core.rbac import es_ciudadano_portal
+from core.services.throttle import ip_cliente
 
 from ..forms import (
     CiudadanoLoginForm,
@@ -32,13 +33,6 @@ from ..services.ciudadano_auth import (
 )
 
 
-def _get_client_ip(request):
-    x_forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded:
-        return x_forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
-
-
 class CiudadanoLoginView(View):
     template_name = "portal/ciudadano/login.html"
 
@@ -48,7 +42,7 @@ class CiudadanoLoginView(View):
         return render(request, self.template_name, {"form": CiudadanoLoginForm()})
 
     def post(self, request):
-        ip = _get_client_ip(request)
+        ip = ip_cliente(request)
         if login_bloqueado(ip):
             messages.error(request, "Demasiados intentos fallidos. Intentá de nuevo en 5 minutos.")
             return render(request, self.template_name, {"form": CiudadanoLoginForm(), "bloqueado": True})

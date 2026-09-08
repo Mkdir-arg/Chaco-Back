@@ -1,5 +1,7 @@
+from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase, override_settings
@@ -7,7 +9,10 @@ from django.urls import reverse
 
 from conversaciones.forms.chat import IniciarConversacionForm, MensajeConversacionForm
 from conversaciones.models import Conversacion, HistorialAlertaConversacion, Mensaje
-from conversaciones.selectors.conversaciones import get_alertas_conversaciones_count
+from conversaciones.selectors.conversaciones import (
+    get_alertas_conversaciones_count,
+    get_conversaciones_queryset_para_lista,
+)
 from conversaciones.services.chat import (
     crear_mensaje_operador,
     iniciar_conversacion_publica,
@@ -136,6 +141,13 @@ class ChatServicesTests(TestCase):
 
         self.assertEqual(get_alertas_conversaciones_count(self.operador), 1)
 
+    def test_selector_lista_usa_un_orden_estable_para_paginar(self):
+        Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="activa")
+
+        queryset = get_conversaciones_queryset_para_lista(self.operador, {})
+
+        self.assertTrue(queryset.ordered)
+
 
 class ConversacionesViewsContractTests(TestCase):
     def setUp(self):
@@ -155,6 +167,9 @@ class ConversacionesViewsContractTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("csrftoken", self.client.cookies)
+        html = response.content.decode()
+        self.assertIn("/static/custom/css/tailwind.css", html)
+        self.assertNotIn("cdn.tailwindcss.com", html)
 
     @patch("conversaciones.views.public.iniciar_conversacion_publica")
     def test_iniciar_conversacion_publica_requiere_csrf_y_devuelve_contrato(self, mock_iniciar):
@@ -243,6 +258,9 @@ class ConversacionesViewsContractTests(TestCase):
         self.assertIn('data-detail-url-template="/conversaciones/0/"', html)
         self.assertIn('data-close-url-template="/conversaciones/0/cerrar/"', html)
         self.assertIn('data-list-ws-path="/ws/conversaciones/"', html)
+        self.assertIn("conversaciones_lista_ws.js", html)
+        self.assertIn("/static/custom/css/tailwind.css", html)
+        self.assertNotIn("cdn.tailwindcss.com", html)
 
     @override_settings(WEBSOCKETS_ENABLED=True)
     def test_detalle_renderiza_path_websocket_desde_template(self):
@@ -261,7 +279,9 @@ class ConversacionesViewsContractTests(TestCase):
         response = self.client.get(reverse("conversaciones:detalle", args=[conversacion.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('data-ws-path-template="/ws/conversaciones/0/"', response.content.decode())
+        html = response.content.decode()
+        self.assertIn('data-ws-path-template="/ws/conversaciones/0/"', html)
+        self.assertNotIn("conversaciones_lista_ws.js", html)
 
     def test_lista_no_expone_path_websocket_si_runtime_no_lo_soporta(self):
         group = Group.objects.create(name="Conversaciones")
@@ -282,3 +302,15 @@ class ConversacionesViewsContractTests(TestCase):
 
         self.assertEqual(response.status_code, 426)
         self.assertIn("requires an ASGI server", response.content.decode())
+
+
+class NotificadorGlobalConversacionesPerformanceTests(TestCase):
+    def test_pausa_el_polling_en_pestanas_ocultas_y_cancela_la_solicitud_activa(self):
+        script = Path(settings.BASE_DIR, "static", "custom", "js", "conversaciones_tiempo_real_global.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("document.visibilityState !== 'hidden'", script)
+        self.assertIn("document.addEventListener('visibilitychange'", script)
+        self.assertIn("this.controladorSolicitud?.abort()", script)
+        self.assertIn("signal: controlador.signal", script)

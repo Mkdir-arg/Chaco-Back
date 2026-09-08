@@ -1,0 +1,248 @@
+"""Formularios de la inscripción pública de Becas (#293 paso 1, #294 paso 2)."""
+
+from django import forms
+
+from programas.services.padron import normalizar_dni
+from programas.services.personas import fecha_iso
+
+INPUT_CLASS = "nodo-field w-full"
+
+# Archivos del formulario público: upload anónimo, límites duros (análisis #289).
+ARCHIVO_EXTENSIONES = (".jpg", ".jpeg", ".png", ".pdf")
+ARCHIVO_MAX_BYTES = 5 * 1024 * 1024
+
+
+class InscripcionPaso1Form(forms.Form):
+    dni = forms.CharField(
+        label="Número de documento",
+        max_length=12,
+        widget=forms.TextInput(
+            attrs={"class": INPUT_CLASS, "inputmode": "numeric", "placeholder": "Sin puntos, ej. 30123456"}
+        ),
+    )
+    sexo = forms.ChoiceField(
+        label="Sexo (como figura en tu DNI)",
+        choices=(("", "Elegí una opción"), ("F", "Femenino"), ("M", "Masculino")),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    captcha = forms.CharField(
+        label="Verificación",
+        # Opcional a nivel form: con reCAPTCHA activo este campo no se renderiza
+        # —el token viaja en `g-recaptcha-response`— y exigirlo dejaba el paso 1
+        # imposible de completar. Quien valida de verdad es `captcha_valido()`
+        # en la vista, antes que el form, en los dos modos.
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric", "autocomplete": "off"}),
+    )
+
+    def clean_dni(self):
+        dni = normalizar_dni(self.cleaned_data["dni"])
+        if len(dni) not in (7, 8):
+            raise forms.ValidationError("Ingresá un DNI válido de 7 u 8 dígitos, sin puntos.")
+        return dni
+
+    def clean_sexo(self):
+        sexo = self.cleaned_data["sexo"]
+        if sexo not in ("F", "M"):
+            raise forms.ValidationError("Seleccioná una opción.")
+        return sexo
+
+
+def _validar_archivo(archivo):
+    nombre = (archivo.name or "").lower()
+    if not nombre.endswith(ARCHIVO_EXTENSIONES):
+        raise forms.ValidationError("Solo se aceptan archivos JPG, PNG o PDF.")
+    if archivo.size > ARCHIVO_MAX_BYTES:
+        raise forms.ValidationError("El archivo no puede superar los 5 MB.")
+
+
+def _es_buscador(campo):
+    """¿El campo se configuró para elegir con buscador y píldoras? (Cambio 56).
+
+    La presentación llega en la misma definición que consume la app. Un campo
+    guardado antes del cambio no la trae: se lee como lista, que es como se veía.
+    """
+    return campo.get("presentacion") == "BUSCADOR"
+
+
+# Atributos que enganchan el control de búsqueda con píldoras sobre el <select>
+# nativo. El JS (static/custom/js/nodo-buscador.js) lo monta al cargar; si no
+# corre, queda el desplegable del navegador y el formulario funciona igual.
+def _attrs_buscador(placeholder):
+    return {"class": INPUT_CLASS, "data-buscador": "1", "data-buscador-placeholder": placeholder}
+
+
+def _field_para_campo(campo):
+    """Traduce un campo de ``definicion_formulario`` (la misma definición que
+    consume la app, RN-P12) a un field de Django. Tipos: ``TipoCampo``."""
+    etiqueta = campo["texto"]
+    requerido = bool(campo["obligatorio"])
+    tipo = campo["tipo"]
+    if tipo == "INT":
+        return forms.IntegerField(
+            label=etiqueta,
+            required=requerido,
+            widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
+        )
+    if tipo == "SELECTOR":
+        opciones = [("", "Elegí una opción")] + [(o, o) for o in campo["opciones"]]
+        if _es_buscador(campo):
+            widget = forms.Select(attrs=_attrs_buscador("Buscá una opción"))
+        else:
+            widget = forms.Select(attrs={"class": INPUT_CLASS})
+        return forms.ChoiceField(label=etiqueta, required=requerido, choices=opciones, widget=widget)
+    if tipo == "SELECTOR_MULTIPLE":
+        opciones = [(o, o) for o in campo["opciones"]]
+        if _es_buscador(campo):
+            widget = forms.SelectMultiple(attrs=_attrs_buscador("Buscá y elegí una o varias"))
+        else:
+            widget = forms.CheckboxSelectMultiple()
+        return forms.MultipleChoiceField(label=etiqueta, required=requerido, choices=opciones, widget=widget)
+    if tipo == "DATE":
+        return forms.DateField(
+            label=etiqueta,
+            required=requerido,
+            widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+        )
+    if tipo == "ARCHIVO":
+        return forms.FileField(
+            label=etiqueta,
+            required=requerido,
+            validators=[_validar_archivo],
+            widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ".jpg,.jpeg,.png,.pdf"}),
+        )
+    return forms.CharField(
+        label=etiqueta, required=requerido, max_length=500, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+
+
+class InscripcionPaso2Form(forms.Form):
+    """Paso 2 del link (#294): contacto + formulario dinámico + apoderado.
+
+    Se construye desde ``definicion_formulario(relevamiento)`` — misma fuente
+    que la app de campo, sin definiciones paralelas (RN-P12). Las preguntas
+    globales entran como ``g_<pk>`` y los requisitos como ``r_<pk>``; un POST
+    con ids ajenos a la definición se ignora (nunca llega a ``data``).
+    """
+
+    # Identidad manual (solo cuando el paso 1 no validó contra Gran Base).
+    nombre = forms.CharField(label="Nombre", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    apellido = forms.CharField(label="Apellido", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    fecha_nacimiento = forms.DateField(
+        label="Fecha de nacimiento",
+        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+    )
+
+    # Bloque C — contacto (obligatorio en el modelo).
+    celular = forms.CharField(
+        label="Celular",
+        max_length=20,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "tel", "placeholder": "Ej. 3624123456"}),
+    )
+    email_contacto = forms.EmailField(
+        label="Correo electrónico",
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASS, "placeholder": "nombre@correo.com"}),
+    )
+
+    # Bloque D — apoderado. Cambio 67: los cinco datos son obligatorios para
+    # toda persona que se inscribe, sin importar su edad (reemplaza la RN-22
+    # del Cambio 41, que solo lo exigía a menores).
+    apoderado_nombre = forms.CharField(
+        label="Nombre del apoderado",
+        max_length=120,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+    apoderado_apellido = forms.CharField(
+        label="Apellido del apoderado",
+        max_length=120,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+    apoderado_dni = forms.CharField(
+        label="DNI del apoderado",
+        max_length=12,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
+    )
+    apoderado_genero = forms.ChoiceField(
+        label="Sexo del apoderado",
+        choices=(("", "Elegí una opción"), ("F", "Femenino"), ("M", "Masculino")),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    apoderado_fecha_nacimiento = forms.DateField(
+        label="Fecha de nacimiento del apoderado",
+        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
+    )
+
+    # Geolocalización del navegador (best effort — asunción del análisis #289).
+    gps_lat = forms.DecimalField(required=False, max_digits=9, decimal_places=6, widget=forms.HiddenInput)
+    gps_lng = forms.DecimalField(required=False, max_digits=9, decimal_places=6, widget=forms.HiddenInput)
+
+    def __init__(self, *args, definicion, identificacion, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.definicion = definicion
+        self.identificacion = identificacion
+        # "personas" (Base de Personas) y "padron" (Cambio 57) traen la
+        # identidad validada: no se le vuelve a pedir a la persona.
+        self.es_manual = identificacion.get("origen") not in ("personas", "padron")
+        if not self.es_manual:
+            # La identidad ya vino validada del paso 1: no se pide ni se pisa.
+            del self.fields["nombre"], self.fields["apellido"]
+            datos = self.identificacion.get("datos") or {}
+            if fecha_iso(datos.get("fecha_nacimiento")):
+                del self.fields["fecha_nacimiento"]
+            else:
+                self.fields["fecha_nacimiento"].label = "No pudimos obtener tu fecha de nacimiento: completala"
+        self._campos_dinamicos = []
+        for prefijo, lista in (("g", definicion["globales"]), ("r", definicion["requisitos"])):
+            for campo in lista:
+                clave = f"{prefijo}_{campo['id']}"
+                self.fields[clave] = _field_para_campo(campo)
+                self._campos_dinamicos.append((clave, campo))
+
+    # --- Helpers que consume el template ---------------------------------
+    def campos_globales(self):
+        return [self[clave] for clave, campo in self._campos_dinamicos if clave.startswith("g_")]
+
+    def campos_requisitos(self):
+        return [self[clave] for clave, campo in self._campos_dinamicos if clave.startswith("r_")]
+
+    # --- Apoderado (Cambio 67) --------------------------------------------
+    def clean(self):
+        cleaned = super().clean()
+        # La obligatoriedad de los cinco datos del apoderado la lleva cada
+        # field (toda persona, sin mirar la edad). Acá solo se normaliza el DNI.
+        dni_apoderado_original = cleaned.get("apoderado_dni")
+        dni_apoderado = normalizar_dni(dni_apoderado_original)
+        if dni_apoderado_original and len(dni_apoderado) not in (7, 8):
+            self.add_error("apoderado_dni", "Ingresa un DNI valido de 7 u 8 digitos.")
+        cleaned["apoderado_dni"] = dni_apoderado
+        return cleaned
+
+    # --- Salidas hacia la ingesta (#295) ----------------------------------
+    def respuestas(self):
+        """``Formulario.data`` con el mismo contrato que la app: claves por pk
+        en string, bajo "globales" y "requisitos". Los ARCHIVO guardan el
+        nombre; el archivo real viaja aparte como ``AdjuntoFormulario``."""
+        data = {"globales": {}, "requisitos": {}}
+        for clave, campo in self._campos_dinamicos:
+            valor = self.cleaned_data.get(clave)
+            if valor in (None, "", []):
+                continue
+            if campo["tipo"] == "ARCHIVO":
+                valor = valor.name
+            elif hasattr(valor, "isoformat"):
+                valor = valor.isoformat()
+            destino = "globales" if clave.startswith("g_") else "requisitos"
+            data[destino][str(campo["id"])] = valor
+        return data
+
+    def archivos(self):
+        """Lista de ``(alcance, id_campo, archivo)`` para crear los adjuntos."""
+        subidos = []
+        for clave, campo in self._campos_dinamicos:
+            if campo["tipo"] != "ARCHIVO":
+                continue
+            archivo = self.cleaned_data.get(clave)
+            if archivo:
+                alcance = "global" if clave.startswith("g_") else "requisito"
+                subidos.append((alcance, campo["id"], archivo))
+        return subidos

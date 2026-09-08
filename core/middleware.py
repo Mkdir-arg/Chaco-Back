@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 from urllib.parse import urlparse
 
@@ -8,6 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 
 from core import rbac
+from core.services.throttle import ip_cliente
 
 logger = logging.getLogger("core.requests")
 
@@ -90,6 +92,18 @@ class PortalCiudadanoMiddleware:
         return self.get_response(request)
 
 
+# El link de inscripción pública lleva su token en la ruta: quien lea los logs
+# podría inscribir gente en esa convocatoria. Se registra la forma, no el valor.
+_RUTA_CON_TOKEN = re.compile(r"^(/portal/inscripcion/)[0-9a-fA-F-]{8,}(/.*)?$")
+
+
+def _path_sin_secretos(path):
+    coincide = _RUTA_CON_TOKEN.match(path or "")
+    if not coincide:
+        return path
+    return f"{coincide.group(1)}<token>{coincide.group(2) or ''}"
+
+
 class RequestLoggingMiddleware:
     """Loguea cada request HTTP con método, URL, usuario, IP, status y duración."""
 
@@ -103,13 +117,13 @@ class RequestLoggingMiddleware:
 
         user = getattr(request, "user", None)
         username = user.username if user and user.is_authenticated else "anon"
-        ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR", "-")
+        ip = ip_cliente(request)
 
         log_request = logger.warning if duration_ms > settings.SLOW_REQUEST_MS else logger.info
         log_request(
             "%s %s user=%s ip=%s status=%s duration=%dms",
             request.method,
-            request.path,
+            _path_sin_secretos(request.path),
             username,
             ip,
             response.status_code,

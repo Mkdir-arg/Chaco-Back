@@ -16,7 +16,8 @@
         <td class="px-4 py-[13px] text-sm border-t border-light">
           <p class="text-heading font-medium">{{ req.texto }}</p>
           <p class="text-xs text-body-subtle mt-0.5">
-            {{ req.segmento.nombre }}{% if req.subsegmento %} / {{ req.subsegmento.nombre }}{% endif %}
+            {% if req.segmento %}{{ req.segmento.nombre }}{% if req.subsegmento %} / {{ req.subsegmento.nombre }}{% endif %}
+            {% else %}Programa: {{ req.programa.nombre }}{% endif %}
           </p>
         </td>
         <td class="px-4 py-[13px] text-sm border-t border-light">

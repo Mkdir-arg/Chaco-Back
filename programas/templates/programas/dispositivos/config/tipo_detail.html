@@ -1,4 +1,5 @@
 {% extends "includes/base.html" %}
+{% load static %}
 {% block title %}Dispositivos · {{ tipo.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -11,7 +12,7 @@
 {% endblock %}
 
 {% block customJS %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
 <script>
 (function () {
   const modalRoot = document.getElementById('dispositivos-modal-root');

@@ -1,0 +1,16 @@
+Hola {{ user.first_name|default:user.username }},
+
+Recibimos una solicitud para restablecer la contraseña de tu usuario en el
+backoffice de DATAÑACH.
+
+Abrí este enlace para definir una contraseña nueva:
+{{ protocol }}://{{ domain }}{% url 'users:establecer_contrasena' uidb64=uid token=token %}
+
+El enlace es válido por 24 horas y puede usarse una sola vez.
+
+Si no pediste este cambio, ignorá el mensaje: tu contraseña actual sigue vigente.
+
+---
+Gobierno de la Provincia del Chaco — Ministerio de Desarrollo Social
+{% if soporte %}Soporte: {{ soporte }}
+{% endif %}Este es un mensaje automático de DATAÑACH. No respondas a esta dirección.

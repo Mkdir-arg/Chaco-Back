@@ -52,12 +52,21 @@ def get_conversaciones_queryset_para_lista(user, filtros):
     if filtros.get("tipo"):
         queryset = queryset.filter(tipo=filtros["tipo"])
 
-    return queryset
+    # annotate() no conserva el Meta.ordering del modelo; sin un criterio explícito
+    # Paginator puede cambiar el contenido de una página entre requests.
+    return queryset.order_by("-fecha_inicio", "-pk")
 
 
 def get_conversaciones_pendientes_count(user):
+    """Conversaciones pendientes sin operador asignado.
+
+    El número es **global**: no depende de ``user``, que queda en la firma por los call
+    sites. La clave tampoco lleva el usuario; con una por usuario, cada operador
+    recalculaba el mismo COUNT cada 30 segundos. Quién ve el badge lo decide la
+    capacidad ``conversacion.operar`` en el context processor, no esta clave.
+    """
     return cache.get_or_set(
-        f"sidebar:conversaciones_pendientes:user:{user.pk}",
+        "sidebar:conversaciones_pendientes",
         lambda: Conversacion.objects.filter(estado="pendiente", operador_asignado__isnull=True).count(),
         30,
     )

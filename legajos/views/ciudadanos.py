@@ -1,10 +1,14 @@
+import csv
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from core.rbac import CapacidadRequeridaMixin
+from core.rbac import CapacidadRequeridaMixin, requiere
 
 from ..forms import (
     CiudadanoConfirmarForm,
@@ -38,6 +42,29 @@ class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
             total_ciudadanos = context["paginator"].count
         context["metricas"] = get_ciudadanos_dashboard_metrics(total_ciudadanos)
         return context
+
+
+@login_required
+@requiere("ciudadano.ver")
+def ciudadanos_exportar_csv(request):
+    """Exporta los ciudadanos visibles, respetando la búsqueda del listado."""
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="ciudadanos.csv"'
+    response.write("\ufeff")
+
+    writer = csv.writer(response)
+    writer.writerow(["DNI", "Apellido", "Nombre", "Fecha de alta"])
+    ciudadanos = get_ciudadanos_queryset(request.GET.get("search", ""))
+    for ciudadano in ciudadanos.iterator():
+        writer.writerow(
+            [
+                ciudadano.dni,
+                ciudadano.apellido,
+                ciudadano.nombre,
+                ciudadano.creado.strftime("%d/%m/%Y") if ciudadano.creado else "",
+            ]
+        )
+    return response
 
 
 class CiudadanoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):

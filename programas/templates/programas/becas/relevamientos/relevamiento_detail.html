@@ -4,7 +4,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
-<div class="space-y-6" x-data="{ tab: 'info' }">
+<div class="space-y-6" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'info' }">
 
   <div>
     <div class="flex items-center gap-3 flex-wrap">
@@ -15,6 +15,12 @@
       </a>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight min-w-0">{{ relevamiento.nombre }}</h1>
       {% with rel=relevamiento %}{% include "programas/becas/relevamientos/_estado_badge.html" %}{% endwith %}
+      {% if relevamiento.pausa_efectiva %}<span class="badge badge-warning badge-dot">Pausado</span>{% endif %}
+      {% if request.user|puede:"becas.programa.administrar" %}
+      <a href="{% url 'becas:gestionar_pausa' 'relevamiento' relevamiento.pk %}" class="btn-nodo {% if relevamiento.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm">
+        {% if relevamiento.pausado %}Reanudar{% else %}Pausar{% endif %}
+      </a>
+      {% endif %}
     </div>
   </div>
 
@@ -36,6 +42,30 @@
 
     {# ============ TAB: Información ============ #}
     <div x-show="tab==='info'" class="p-6">
+      {% if relevamiento.es_publico %}
+      <div class="rounded-xl bg-brand-soft p-4 mb-4 flex flex-col gap-3" style="border:1px solid var(--color-brand-200)">
+        <div class="flex items-center gap-2 text-sm font-bold text-fg-brand">
+          <i class="fas fa-link"></i> Link del formulario público
+        </div>
+        <div class="flex items-stretch gap-2 flex-wrap">
+          <input type="text" readonly value="{{ link_publico }}" class="nodo-field flex-1 min-w-[240px]" aria-label="Link de inscripción" onfocus="this.select()">
+          <button type="button" class="btn-nodo btn-brand btn-base" data-copy-link="{{ link_publico }}">
+            <i class="fas fa-copy"></i> Copiar link
+          </button>
+        </div>
+        <p class="text-xs text-fg-brand">
+          El link acepta inscripciones hasta el {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}, mientras haya cupo y el relevamiento no esté pausado.
+        </p>
+        <div class="flex items-center justify-between gap-2 flex-wrap pt-2 text-xs" style="border-top:1px solid var(--color-brand-200)">
+          <span class="font-semibold text-fg-brand">
+            Padrón de habilitados de la convocatoria: {% if n_padron %}{{ n_padron }} persona{{ n_padron|pluralize }}{% else %}sin padrón (link abierto){% endif %}
+          </span>
+          <a href="{% url 'becas:convocatoria_detalle' relevamiento.convocatoria.pk %}" class="font-semibold text-fg-brand">
+            {% if n_padron %}Ver o reemplazar en la convocatoria{% else %}Cargar en la convocatoria{% endif %} →
+          </a>
+        </div>
+      </div>
+      {% endif %}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {# Info card #}
         <div class="bg-white rounded-xl border border-base shadow-sm p-5 space-y-2 text-sm">
@@ -55,19 +85,32 @@
           {% endif %}
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Territorial</span>
-            <span class="text-heading">{{ relevamiento.territorial.get_full_name|default:relevamiento.territorial.username }}</span>
+            {% if relevamiento.territorial %}
+              <span class="text-heading">{{ relevamiento.territorial.get_full_name|default:relevamiento.territorial.username }}</span>
+            {% else %}
+              <span class="badge badge-info">Formulario público</span>
+            {% endif %}
           </div>
+          {% if not relevamiento.es_publico %}
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Zona</span>
             <span class="text-heading">{{ relevamiento.zona }}</span>
           </div>
+          {% endif %}
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Fecha asignada</span>
-            <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y" }}</span>
+            <span class="text-heading">{{ relevamiento.fecha_asignada|date:"d/m/Y H:i" }} al {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}</span>
           </div>
           <div class="flex justify-between py-1 border-b border-light">
             <span class="text-body-subtle">Personas relevadas</span>
-            <span class="text-heading font-semibold">{{ n_formularios }}</span>
+            <span class="text-heading font-semibold">{{ n_formularios }} / {{ relevamiento.cupo_maximo }}</span>
+          </div>
+          {% comment %}Sale de la tarjeta del link público (Cambio 44): el toggle
+          ahora vale también para los territoriales, y el aviso de resolución no
+          es una "confirmación de inscripción".{% endcomment %}
+          <div class="flex justify-between gap-3 py-1 border-b border-light">
+            <span class="text-body-subtle whitespace-nowrap">Avisos por correo</span>
+            <span class="text-heading text-right">{% if relevamiento.confirmar_por_email %}Activados: resolución del formulario{% if relevamiento.es_publico %} y comprobante{% endif %}{% else %}Desactivados{% endif %}</span>
           </div>
           {% if relevamiento.observaciones %}
           <div class="pt-2">
@@ -92,20 +135,27 @@
                     data-confirm-text="Podrás reabrirlo mientras no haya pasado a revisión."
                     data-confirm-icon="question" data-confirm-ok="Sí, finalizar">Finalizar relevamiento</button>
           </div>
-          {% elif relevamiento.estado == 'FINALIZADO' %}
-          <div class="bg-white rounded-xl border border-base shadow-sm p-5">
+          {% elif relevamiento.estado == 'FINALIZADO' or relevamiento.estado == 'EN_REVISION' %}
+          <form method="post" action="{% url 'becas:relevamiento_reabrir' relevamiento.pk %}"
+                id="volver-a-campo" class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
             <h3 class="text-sm font-bold text-heading mb-2">
-              <i class="fas fa-rotate-left mr-1 text-fg-brand"></i> Reabrir relevamiento
+              <i class="fas fa-rotate-left mr-1 text-fg-brand"></i> Volver a campo
             </h3>
-            <p class="text-xs text-body-subtle mb-3">Vuelve el relevamiento a En curso para permitir nuevas cargas.</p>
-            <button type="button" class="btn-nodo btn-tertiary btn-sm w-full"
-                    data-confirm-url="{% url 'becas:relevamiento_reabrir' relevamiento.pk %}"
-                    data-confirm-title="¿Reabrir el relevamiento?"
-                    data-confirm-text="Los formularios enviados no se modificarán."
-                    data-confirm-icon="question" data-confirm-ok="Sí, reabrir">Reabrir relevamiento</button>
-          </div>
+            <p class="text-xs text-body-subtle mb-3">
+              Vuelve el relevamiento a En curso para permitir nuevas cargas{% if relevamiento.es_publico %} y reabrir el link público{% endif %}. Los casos ya resueltos no se modifican.
+            </p>
+            {% if relevamiento.esta_vencido or relevamiento.estado == 'EN_REVISION' %}
+            <p class="text-xs text-body-subtle mb-3">
+              El período ya venció: indicá hasta cuándo queda abierto, o el cierre automático por fecha lo devolvería a En revisión.
+            </p>
+            {% endif %}
+            {% with field=form_volver_a_campo.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Volver a campo</button>
+          </form>
           {% endif %}
 
+          {% if not relevamiento.es_publico %}
           <form method="post" action="{% url 'becas:relevamiento_reasignar' relevamiento.pk %}"
                 class="bg-white rounded-xl border border-base shadow-sm p-5">
             {% csrf_token %}
@@ -113,8 +163,10 @@
               <i class="fas fa-user-pen mr-1 text-fg-brand"></i> Reasignar territorial
             </h3>
             {% with field=form_reasignar.territorial %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_reasignar.territorial.id_for_label }}" data-segment-id="{{ relevamiento.convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reasignar</button>
           </form>
+          {% endif %}
 
           <form method="post" action="{% url 'becas:relevamiento_reprogramar' relevamiento.pk %}"
                 class="bg-white rounded-xl border border-base shadow-sm p-5">
@@ -123,8 +175,22 @@
               <i class="fas fa-calendar-day mr-1 text-fg-brand"></i> Reprogramar fecha
             </h3>
             {% with field=form_reprogramar.fecha_asignada %}{% include "programas/becas/_field.html" %}{% endwith %}
+            {% with field=form_reprogramar.fecha_hasta %}{% include "programas/becas/_field.html" %}{% endwith %}
             <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Reprogramar</button>
           </form>
+
+          {% if request.user|puede:"becas.relevamiento.crear" %}
+          <form method="post" action="{% url 'becas:relevamiento_modificar_cupo' relevamiento.pk %}"
+                class="bg-white rounded-xl border border-base shadow-sm p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-bold text-heading mb-3">
+              <i class="fas fa-users-gear mr-1 text-fg-brand"></i> Modificar cupo
+            </h3>
+            <p class="text-xs text-body-subtle mb-3">Puede aumentarse, pero nunca reducirse por debajo de las personas ya relevadas.</p>
+            {% with field=form_cupo.cupo_maximo %}{% include "programas/becas/_field.html" %}{% endwith %}
+            <button type="submit" class="btn-nodo btn-tertiary btn-sm mt-3 w-full">Actualizar cupo</button>
+          </form>
+          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -146,9 +212,10 @@
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-secondary border-b border-base">
+                <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Caso</th>
                 <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Ciudadano</th>
                 <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Contacto</th>
-                <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">RENAPER</th>
+                <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Identidad</th>
                 <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
                 <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;"></th>
               </tr>
@@ -156,6 +223,7 @@
             <tbody>
               {% for f in formularios %}
               <tr class="hover:bg-secondary">
+                <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-semibold">Caso {{ f.numero }}</td>
                 <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">
                   {% if f.ciudadano %}
                     {{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}
@@ -192,17 +260,32 @@
             </tbody>
           </table>
         </div>
+        {% if formularios.paginator.num_pages > 1 %}
+        <div class="flex items-center justify-between gap-3 flex-wrap p-4 border-t border-base text-xs text-body-subtle">
+          <span>Página {{ formularios.number }} de {{ formularios.paginator.num_pages }} · {{ formularios.paginator.count }} formulario{{ formularios.paginator.count|pluralize }}</span>
+          <div class="flex gap-2">
+            {% if formularios.has_previous %}
+            <a href="?tab=formularios{% if formularios_querystring %}&amp;{{ formularios_querystring }}{% endif %}&amp;formularios_page={{ formularios.previous_page_number }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior</a>
+            {% endif %}
+            {% if formularios.has_next %}
+            <a href="?tab=formularios{% if formularios_querystring %}&amp;{{ formularios_querystring }}{% endif %}&amp;formularios_page={{ formularios.next_page_number }}" class="btn-nodo btn-tertiary btn-sm">Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="py-14 px-6 text-center flex flex-col items-center gap-3">
           <div class="text-fg-brand"><i class="fas fa-inbox text-5xl"></i></div>
           <p class="text-[17px] font-bold text-heading">Sin personas relevadas</p>
-          <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene formularios cargados.</p>
+          <p class="text-sm text-body max-w-xs">Este relevamiento todavía no tiene casos cargados.</p>
         </div>
         {% endif %}
       </div>
     </div>
   </div>
 </div>
+{% include "programas/becas/relevamientos/_copiar_link_js.html" %}
+{% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

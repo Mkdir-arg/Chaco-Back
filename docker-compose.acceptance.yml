@@ -6,6 +6,8 @@ x-automation-labels: &automation-labels
 services:
   mysql:
     ports: !reset []
+    environment:
+      MYSQL_DATABASE: chaco_acceptance
     labels:
       <<: *automation-labels
 
@@ -22,9 +24,11 @@ services:
     image: chaco-acceptance:${CHACO_HEAD_SHA:?CHACO_HEAD_SHA is required}
     environment:
       RENAPER_TEST_MODE: "True"
-      LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS: ""
+      LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS: ${CHACO_ACCEPTANCE_BOOTSTRAP_COMMANDS:-}
+      CHACO_ACCEPTANCE_SEED: "1"
+      DATABASE_NAME: chaco_acceptance
     ports: !override
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${CHACO_ACCEPTANCE_PORT:-8000}:8000"
     volumes: !reset []
     labels:
       <<: *automation-labels

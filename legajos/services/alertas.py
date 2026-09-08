@@ -10,7 +10,7 @@ from ..models import (
     Ciudadano,
     LegajoAtencion,
 )
-from ..models.contactos import HistorialContacto, VinculoFamiliar
+from ..models.contactos import HistorialContacto
 from .linking import get_legajos_queryset_for_ciudadano
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,6 @@ class AlertasService:
 
             for legajo in legajos:
                 alertas_generadas.extend(AlertasService._generar_alertas_legajo(legajo))
-
-            alertas_generadas.extend(AlertasService._generar_alertas_generales(ciudadano))
 
             return alertas_generadas
 
@@ -135,29 +133,6 @@ class AlertasService:
                     "CONTACTOS_FALLIDOS",
                     "MEDIA",
                     f"{contactos_fallidos} contactos fallidos en el último mes",
-                )
-            )
-
-        return alertas
-
-    @staticmethod
-    def _generar_alertas_generales(ciudadano):
-        """Genera alertas generales del ciudadano."""
-        alertas = []
-
-        vinculos = VinculoFamiliar.objects.filter(
-            ciudadano_principal=ciudadano,
-            activo=True,
-        ).count()
-
-        if vinculos == 0:
-            alertas.append(
-                AlertasService._crear_alerta(
-                    ciudadano,
-                    None,
-                    "SIN_RED_FAMILIAR",
-                    "BAJA",
-                    "Sin vínculos familiares registrados",
                 )
             )
 

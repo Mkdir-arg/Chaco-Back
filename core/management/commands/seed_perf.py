@@ -35,10 +35,13 @@ from programas.models import (
 PERF_PREFIX = "PERF"
 PERF_ADMIN_USERNAME = "perf_admin"
 PERF_CITIZEN_USERNAME = "perf_ciudadano"
+PERF_LOGIN_USERNAME = "perf_login"
+# Contraseña de un usuario sintético, creado sólo por seed_perf en test/CI efímera.
+PERF_LOGIN_PASSWORD = "perf-login-only"  # nosec B105
 PERF_FIRST_DNI = "80000000"
 
 
-def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuser=False):
+def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuser=False, password=None):
     user, created = User.objects.get_or_create(username=username)
     user.first_name = first_name
     user.last_name = last_name
@@ -47,9 +50,16 @@ def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuse
     user.is_staff = is_staff
     user.is_superuser = is_superuser
     user.last_login = timezone.now()
-    if created:
+    if password:
+        user.set_password(password)
+    elif created:
         user.set_unusable_password()
     user.save()
+    # El entorno productivo completa perfiles existentes mediante la migración
+    # de sesión única; el seed de performance debe reproducir ese estado.
+    from users.models import Profile
+
+    Profile.objects.get_or_create(user=user)
     return user
 
 
@@ -74,13 +84,29 @@ class Command(BaseCommand):
         scale = options["scale"]
         if scale < 1:
             raise CommandError("--scale debe ser mayor que cero")
-        if (
-            os.environ.get("PYTEST_RUNNING") != "1"
-            or connection.vendor != "sqlite"
-            or connection.settings_dict.get("NAME")
-            not in (":memory:", "file:memorydb_default?mode=memory&cache=shared")
-        ):
-            raise CommandError("seed_perf solo puede ejecutarse con PYTEST_RUNNING=1 y SQLite in-memory")
+        database_name = str(connection.settings_dict.get("NAME") or "")
+        sqlite_test_database = (
+            os.environ.get("PYTEST_RUNNING") == "1"
+            and connection.vendor == "sqlite"
+            and database_name in (":memory:", "file:memorydb_default?mode=memory&cache=shared")
+        )
+        ephemeral_ci_config = (
+            os.environ.get("PERFORMANCE_CI") == "1"
+            and os.environ.get("ENVIRONMENT") == "ci"
+            and connection.vendor == "mysql"
+            and database_name == "chaco_perf_ci"
+        )
+        actual_database_name = None
+        if ephemeral_ci_config:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT DATABASE()")
+                actual_database_name = cursor.fetchone()[0]
+        ephemeral_ci_database = ephemeral_ci_config and actual_database_name == "chaco_perf_ci"
+        if not (sqlite_test_database or ephemeral_ci_database):
+            raise CommandError(
+                "seed_perf sólo puede ejecutarse en SQLite in-memory de tests o MySQL efímero de CI "
+                "(PERFORMANCE_CI=1, ENVIRONMENT=ci y DATABASE_NAME=chaco_perf_ci)."
+            )
 
         if "auth_user" not in connection.introspection.table_names():
             call_command("migrate", interactive=False, run_syncdb=True, verbosity=0)
@@ -98,11 +124,18 @@ class Command(BaseCommand):
             last_name="Performance",
             is_staff=True,
             is_superuser=False,
+            password=PERF_LOGIN_PASSWORD,
         )
         citizen_user = _ensure_user(
             PERF_CITIZEN_USERNAME,
             first_name="Ciudadano",
             last_name="Performance",
+        )
+        _ensure_user(
+            PERF_LOGIN_USERNAME,
+            first_name="Login",
+            last_name="Performance",
+            password=PERF_LOGIN_PASSWORD,
         )
         coordinator = _ensure_user(
             "perf_coordinador",
@@ -213,12 +246,11 @@ class Command(BaseCommand):
         for index in range(scale):
             bucket = 0 if index < min(50, scale) else index % segment_count
             relevamiento, _ = Relevamiento.objects.update_or_create(
-                nombre=f"PERF Relevamiento {index:04d}",
+                convocatoria=convocatorias[bucket],
+                zona=f"Zona PERF item {index:04d}",
                 defaults={
-                    "convocatoria": convocatorias[bucket],
                     "territorial": territoriales[bucket],
                     "fecha_asignada": date(2025, 2, 1) + timedelta(days=index % 28),
-                    "zona": f"Zona PERF {bucket:03d}",
                     "observaciones": "Relevamiento sintético para auditoría de performance.",
                     "estado": Relevamiento.Estado.EN_REVISION,
                 },

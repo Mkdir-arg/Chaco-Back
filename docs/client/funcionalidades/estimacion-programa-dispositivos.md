@@ -276,6 +276,8 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 
 **Duración estimada:** ~6 semanas (30 días hábiles)
 
+<iframe class="clickup-embed" src="https://sharing.clickup.com/90171120919/g/h/6-901715393894-7/f9adc251126f1e3" onwheel="" width="100%" height="700px" style="background: transparent; border: 1px solid #ccc;"></iframe>
+
 ### Notas del cronograma
 
 - El diseño arranca en paralelo con el modelo de datos y entrega primero las pantallas del legajo del dispositivo.

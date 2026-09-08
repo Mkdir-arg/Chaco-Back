@@ -10,7 +10,6 @@ from datetime import timedelta
 
 import psutil
 from django.core.cache import cache
-from django.db import connection
 from django.utils import timezone
 
 
@@ -70,9 +69,6 @@ class SystemMonitor:
     def collect_django_metrics(self):
         """Recolecta métricas específicas de Django"""
         try:
-            # Conexiones de base de datos
-            db_connections = len(connection.queries)
-
             # Cache stats
             cache_stats = self._get_cache_stats()
 
@@ -82,9 +78,9 @@ class SystemMonitor:
             metrics = {
                 "timestamp": timezone.now().isoformat(),
                 "database": {
-                    "queries_count": db_connections,
-                    "slow_queries": self._count_slow_queries(),
-                    "connection_pool": self._get_db_pool_stats(),
+                    "queries_count": None,
+                    "slow_queries": None,
+                    "connection_pool": None,
                 },
                 "cache": cache_stats,
                 "sessions": {"active": active_sessions, "total": self._get_total_sessions()},
@@ -244,21 +240,6 @@ class SystemMonitor:
             return Session.objects.count()
         except:
             return 0
-
-    def _count_slow_queries(self):
-        """Cuenta queries lentas"""
-        slow_count = 0
-        for query in connection.queries[-50:]:  # Últimas 50 queries
-            if float(query.get("time", 0)) > 0.1:  # > 100ms
-                slow_count += 1
-        return slow_count
-
-    def _get_db_pool_stats(self):
-        """Estadísticas del pool de conexiones"""
-        return {
-            "active": len(connection.queries),
-            "max_connections": 100,  # Configurado en settings
-        }
 
     def _get_online_users(self):
         """Usuarios online (últimos 5 minutos)"""

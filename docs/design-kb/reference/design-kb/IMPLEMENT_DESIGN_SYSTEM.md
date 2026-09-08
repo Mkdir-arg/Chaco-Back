@@ -16,7 +16,10 @@ Sos un Senior Frontend Engineer implementando el Design System de NODO para el G
 - JS → Alpine.js 3.14.1, jQuery 3.6.0, SweetAlert2, Toastr, ApexCharts
 - Branding dinámico → `config/branding.py` genera CSS variables inyectadas en templates
 
-**Regla de fuentes:** CHACO siempre gana sobre NODO. La fuente de verdad es `docs/design-kb/`.
+**Referencia histórica:** este documento describe una implementación anterior. Para
+producción prevalece el frontend cargado y el inventario de
+`.claude/agents/chaco-design-system.md`; no aplicar estas instrucciones sin
+verificarlas contra el código actual.
 
 ---
 
@@ -286,7 +289,7 @@ docs/design-kb/components/toast.yaml
 docs/design-kb/components/modal.yaml
 docs/design-kb/components/avatar.yaml
 docs/design-kb/components/select.yaml
-static/custom/css/chaco-tokens.css          ← CSS variables (fuente de verdad)
+static/custom/css/chaco-tokens.css          ← CSS variables a contrastar con carga y consumidores actuales
 static/custom/css/nodo-buttons.css          ← implementación actual de botones
 static/custom/css/paleta-unificada.css      ← sombras, transiciones
 config/branding.py                          ← generador dinámico de CSS vars

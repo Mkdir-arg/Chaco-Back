@@ -1,0 +1,11 @@
+{% comment %}
+Pie de los correos. La dirección postal y el correo de soporte están a definir con
+el cliente: si la variable de entorno viene vacía, la línea no se renderiza.
+{% endcomment %}<tr>
+  <td class="pad" style="padding:24px 40px 8px 40px; font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:20px; mso-line-height-rule:exactly; color:#6b7280;">
+    <p style="margin:0 0 6px 0; color:#4b5563; font-weight:bold;">Gobierno de la Provincia del Chaco</p>
+    <p style="margin:0 0 6px 0;">Ministerio de Desarrollo Social{% if direccion_postal %} · {{ direccion_postal }}{% endif %} · Resistencia, Chaco</p>
+    {% if soporte %}<p style="margin:0 0 6px 0;">Soporte: <a href="mailto:{{ soporte }}" style="color:#5059bc; text-decoration:underline;">{{ soporte }}</a></p>{% endif %}
+    <p style="margin:0;">Este es un mensaje automático de DATAÑACH. No respondas a esta dirección.</p>
+  </td>
+</tr>

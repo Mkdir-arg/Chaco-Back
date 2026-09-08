@@ -1,0 +1,25 @@
+Hola{% if nombre %} {{ nombre }}{% endif %},
+
+{% if resultado == "aprobado" %}Tu inscripción a {{ convocatoria }} fue aprobada. Ya tenés tu lugar en el programa.
+{% elif resultado == "promovido" %}Se liberó un lugar en {{ convocatoria }} y tu inscripción, que estaba en lista de espera, fue aprobada.
+{% elif resultado == "lista_espera" %}Revisamos tu inscripción a {{ convocatoria }}: cumple con los requisitos, pero por ahora no hay cupo disponible, así que quedó en lista de espera.
+{% else %}Revisamos tu inscripción a {{ convocatoria }} y no fue aprobada.
+{% endif %}
+TU INSCRIPCIÓN
+Formulario Nº {{ numero }}
+Programa: {{ segmento }}
+{% if documento %}Documento: {{ documento }}
+{% endif %}{% if resultado == "rechazado" and motivo %}
+Motivo: {{ motivo }}
+{% endif %}
+{% if resultado == "aprobado" or resultado == "promovido" %}Qué sigue: el equipo del programa se va a comunicar con vos por los datos de contacto que dejaste para avanzar con los próximos pasos. No hace falta que hagas nada más.
+{% elif resultado == "lista_espera" %}Qué sigue: tu inscripción queda en lista de espera. Si se libera un lugar te avisamos por este mismo medio. No hace falta que vuelvas a inscribirte.
+{% else %}Si creés que se trata de un error o querés más información, comunicate con el programa.
+{% endif %}
+Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier consulta, comunicate al +54 362 430-0002.
+
+--
+Gobierno de la Provincia del Chaco
+Ministerio de Desarrollo Social{% if direccion_postal %} · {{ direccion_postal }}{% endif %} · Resistencia, Chaco
+{% if soporte %}Soporte: {{ soporte }}
+{% endif %}DATAÑACH — Portal Ciudadano

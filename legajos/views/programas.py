@@ -14,7 +14,9 @@ from programas.models import InscripcionPrograma, Programa
 
 
 class ProgramaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
-    capacidades_requeridas = "programa.ver"
+    # Gate de legajos: estas pantallas quedaron como destino de redirect de las
+    # derivaciones y bajas de inscripción, que las opera quien trabaja legajos.
+    capacidades_requeridas = "ciudadano.ver"
     """
     Lista de programas que el usuario puede gestionar.
     - SuperAdmin: ve todos
@@ -35,7 +37,7 @@ class ProgramaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
 
 
 class ProgramaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
-    capacidades_requeridas = "programa.ver"
+    capacidades_requeridas = "ciudadano.ver"
     """
     Vista detallada de un programa con 5 solapas operativas:
     1. Dashboard Ejecutivo

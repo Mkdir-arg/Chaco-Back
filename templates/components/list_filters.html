@@ -1,0 +1,26 @@
+{% if template_mode %}<template id="nodo-list-filters-template">{% endif %}
+<div class="dynamic-list-filters__toolbar">
+  <div class="dynamic-list-filters__title">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>
+    <span>Filtros</span>
+  </div>
+  <div class="dynamic-list-filters__actions">
+    <button type="button" class="btn-nodo btn-tertiary btn-base" data-list-filter-add{% if advanced %} id="add-filter"{% endif %}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Agregar filtro
+    </button>
+  </div>
+</div>
+<div class="dynamic-list-filters__rows" data-list-filter-rows{% if advanced %} id="filters-rows"{% endif %}></div>
+<div class="dynamic-list-filters__footer" data-list-filter-footer{% if advanced %} id="filters-footer"{% endif %} hidden>
+  <select class="nodo-field" style="width:120px" data-list-filter-logic{% if advanced %} id="filters-logic"{% endif %}>
+    <option value="AND">Todos</option>
+    {% if allow_or %}<option value="OR">Alguno</option>{% endif %}
+  </select>
+  <a href="{{ reset_url|default:'#' }}" class="btn-nodo btn-tertiary btn-base" data-list-filter-clear>Limpiar filtros</a>
+  <button type="submit" class="btn-nodo btn-brand btn-base">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+    Aplicar
+  </button>
+</div>
+{% if template_mode %}</template>{% endif %}
