@@ -30,7 +30,7 @@ aditiva: no reemplaza ni modifica los informes existentes, en especial
 | **Project #1** (`Mkdir-arg`, "Proyect Chaco") | Items, Status, Prioridad, Modulo, EstimacionHoras | GitHub MCP (lectura) o `gh project item-list 1 --owner Mkdir-arg --format json` |
 | **Issues del repo** (`Mkdir-arg/Chaco-Back`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view --repo Mkdir-arg/Chaco-Back` |
 | **Etiqueta de programa** (labels del repo) | A qué programa pertenece cada issue: `becas` · `dispositivos` · `transversal` | `gh api "repos/Mkdir-arg/Chaco-Back/issues?labels=becas&state=all&per_page=100" --paginate` (ver nota abajo) |
-| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
+| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo` en vivo, y `/pm:cargarhoras` por reconstrucción) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
 | **Estimaciones por programa** | Horas estimadas por programa (resumen ejecutivo, desglose por concepto, estado de aprobación) | `docs/client/funcionalidades/estimacion-programa-*.md` |
 
 > **Eje de programa.** Todo issue lleva, además de su label de nivel (`epica`,
@@ -62,7 +62,7 @@ EstimacionHoras) la receta canónica sigue siendo `gh project item-edit` de
 `AGENTS.md` — pero el PM Assistant no escribe al Project, así que esto le aplica
 al Analista y a QA.
 
-## Los seis informes y un modo de coordinación
+## Los seis informes, la carga de horas y un modo de coordinación
 
 ### 1. Estado (`/pm:estado`) — la foto del sprint
 
@@ -171,6 +171,79 @@ El consumo se imputa desde la columna `Programa` del registro de horas, no desde
 los labels. La **etiqueta de programa** del issue sirve de control cruzado: si un
 programa acumula horas y casi no tiene issues etiquetados (o al revés), hay algo
 mal imputado o mal etiquetado, y va como nota.
+
+### 5.b Carga de horas por reconstrucción (`/pm:cargarhoras`) — cuantificar y registrar
+
+Es el único informe que **escribe** el registro de consumo. Reconstruye lo
+trabajado en un período a partir de la evidencia del repositorio y lo carga en
+`docs/client/financiero/`. Se usa cuando hay días sin registrar, que es lo
+habitual: el equipo trabaja y nadie carga horas hasta que el PM lo pide.
+
+**Unidad de registro.** Una fila por **(día, persona, entregable)** — *fila =
+entregable, no día*. El entregable es lo que se le puede contar al cliente
+(«padrón de habilitados por Excel»), no la tarea técnica («refactor de
+`services/padron.py`»).
+
+**Techo por persona y por día.** 9 h en una jornada hábil; hasta **11 h** solo
+con evidencia de trabajo fuera de horario (madrugada, fin de semana). Si un día
+se pasa, se rebalancea: no se supera el techo para hacer entrar trabajo.
+
+**Base del PM.** Por pedido del PM (05/09/2026), su jornada hábil trabajada no
+baja de **9 h**. Si la evidencia da menos, se completa con lo que es trabajo real
+y no deja commits: coordinación del equipo, gestión del tablero, revisión
+funcional de lo publicado y atención de consultas del organismo.
+
+**Equivalente convencional** (columna `Equiv.`). Lo que costaría el mismo
+entregable a paso de desarrollo tradicional: las horas imputadas son el **45-50%**
+de él, así que en una fila de desarrollo con código `Equiv. ≈ 2 × horas`. **No
+llevan equivalente** (`—`) las reuniones, el análisis funcional, la gestión y las
+pruebas manuales: su duración no depende de las herramientas. Es referencia de
+alcance y **no se factura**.
+
+**Reunión diaria e informe.** Desde el 24/08/2026, cada día hábil: **1 h de
+«Reunión de seguimiento diaria» por cada integrante activo** y **0,5 h de armado
+del informe diario** para el PM. Las dos van como `Transversal`.
+
+**Equipo activo y reparto por frente.** Los commits salen todos de una sola
+cuenta, así que la evidencia **no distingue personas**: el reparto se hace por rol
+y se confirma con el PM antes de escribir.
+
+| Persona | Frentes que se le imputan |
+|---|---|
+| Matías Fariña | Análisis funcional, definiciones, versiones, informes, despliegues, espejo a producción y gestión |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo |
+| Juani Portilla | Rendimiento, cobertura automatizada, entornos y pipeline |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación funcional |
+
+**Agostina Coppola** salió del proyecto el 20/08/2026: **no se le imputan horas
+nuevas** (sus filas históricas no se tocan).
+
+**El commit es el aterrizaje, no el día.** Un commit grande puede representar
+varios días de trabajo, y un día entero puede no dejar ningún commit (soporte,
+monitoreo, apertura de una convocatoria, reuniones, análisis en el tablero). La
+evidencia acota el volumen; no determina el calendario.
+
+**Zona horaria.** Los commits llevan la hora local de quien los hizo, y el PM
+trabaja desde Europa (+5 h respecto de Argentina): un commit de la madrugada
+europea es trabajo de la tarde anterior para el equipo en Argentina, y a las 08:00
+de Argentina el equipo recién arranca. Verificar a qué jornada corresponde cada
+commit antes de asignarle un día.
+
+**Frontera de mes.** Un día pertenece al mes de su fecha, aunque ese mes ya esté
+cerrado. Si el mes cerrado tiene **traslado de excedente** (§6), la imputación no
+cambia —sigue en el 100% del presupuesto— pero el excedente trasladado crece, y
+se actualiza en la página del mes cerrado y en la del mes que lo recibe.
+
+**Nada se da por terminado.** Las filas de un frente en curso lo dicen («En
+desarrollo»). El registro no declara cerrado lo que sigue abierto.
+
+**Días sin evidencia.** Se preguntan, no se rellenan. Un día sin un solo commit
+pudo ser de soporte, apertura, reuniones o análisis: lo confirma el PM.
+
+**Verificación antes de commitear.** La suma de las filas de cada día y de cada
+sección tiene que dar **exactamente** el total declarado, y los totales por
+programa, por persona y el contador acumulado tienen que cerrar contra las filas.
+Se verifica con un script, nunca a ojo.
 
 ### 6. Informe de mes (`/pm:informemes`) — cierre mensual para enviar al cliente
 
