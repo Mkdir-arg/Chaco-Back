@@ -16,6 +16,7 @@ hide:
 |---|---|---|---|
 | Programa Becas — Relevamiento territorial y asignación de cupos | Programas | En análisis | [:material-arrow-right: Ver](programa-becas.md) |
 | Programa Dispositivos — Legajo institucional, admisiones, camas y merenderos | Programas | Definición aprobada | [:material-arrow-right: Ver](programa-dispositivos.md) |
+| Programa Dispositivos y Merenderos — Estimación de esfuerzo | Programas | Estimación base aprobada; relevamiento en validación | [:material-arrow-right: Ver](estimacion-programa-dispositivos.md) |
 
 ---
 
