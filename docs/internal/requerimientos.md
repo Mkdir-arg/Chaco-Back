@@ -211,7 +211,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 y con la corrección de performance desde el 06/09/2026 (releases 43ffddf, 55d842e, fc740b8, ea33681 y ac9192b); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
 | 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
-| 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟡 **En revisión — PR contra `development`; sin desplegar en ECOM. La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
+| 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟡 **En revisión — PR #383 contra `development`; sin desplegar en ECOM. La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
 
 **Notas del índice**
 
@@ -7056,7 +7056,7 @@ incidente motivó: el mismo banco de medición que se armó para el dashboard se
 
 # Cambio 67 — El apoderado es obligatorio para todas las personas que se inscriben por el link
 
-🟡 **EN REVISIÓN — 08/09/2026** · PR contra `development` abierto · Sin desplegar en ECOM · La app de campo conserva
+🟡 **EN REVISIÓN — 08/09/2026** · PR #383 contra `development` · Sin desplegar en ECOM · La app de campo conserva
 la regla de menores hasta que Mobile la cambie
 
 | | |
