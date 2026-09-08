@@ -212,6 +212,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
 | 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
 | 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟡 **En revisión — PR #383 contra `development`; sin desplegar en ECOM. La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
+| 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟡 **En revisión — PR #384 contra `development`; requiere `GTM_CONTAINER_ID` en el entorno de ECOM para activarse** | No requiere |
 
 **Notas del índice**
 
@@ -7150,5 +7151,98 @@ Revertir el commit del PR. No hay datos que deshacer.
 
 Entrada nueva. Modifica la RN-22 registrada en el Cambio 41 («los menores pueden inscribirse; el paso 2 exige apoderado,
 misma regla que la app») por decisión del PM del 08/09/2026, solo para el link público hasta que Mobile acompañe.
+# Cambio 68 — Google Tag Manager en las pantallas públicas de inscripción
+
+🟡 **EN REVISIÓN — 08/09/2026** · PR #384 contra `development` · Se activa con `GTM_CONTAINER_ID` en el entorno; sin la
+variable no cambia nada
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal · link público de inscripción (paso 1, paso 2, comprobante y pantallas de corte) |
+| **Etiquetas** | `#ui` `#infra` |
+| **Solicitante** | PM — en sesión del 08/09/2026, con los snippets del contenedor `GTM-MQNGV4R5` («Inscripción Programa Futuro Chaco») |
+| **Fecha del pedido** | 08/09/2026 |
+| **Issue / épica** | Sin issue propio |
+| **Partes afectadas** | `base_inscripcion.html`, `confirmacion.html`, `portal/views/inscripcion.py`, `config/settings.py`, `config/middlewares/security_headers.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo.»
+> Dos archivos con los snippets estándar del contenedor: el script del `<head>` y el `<noscript>` del `<body>`.
+
+## Cómo se relevó
+
+Pegar los snippets no alcanzaba: la CSP de `SecurityHeadersMiddleware` (revisión de seguridad del 26/08/2026) solo
+permite scripts propios y de reCAPTCHA, `connect-src 'self'` y frames propios, así que `gtm.js`, el iframe del
+`<noscript>` y los envíos de GA4 quedaban bloqueados en silencio. El middleware ya leía `CSP_EXTRA_SOURCES` pero
+settings no lo definía. No había analítica previa en el sistema.
+
+## Decisiones tomadas
+
+- **Un solo contenedor para todo el flujo público**, con programa y convocatoria en el `dataLayer`. Un snippet por
+  programa multiplicaría templates y la CSP; con las variables, GTM segmenta solo.
+- **Activación por entorno**: `GTM_CONTAINER_ID`. Sin la variable no se renderiza el snippet ni se abre la CSP, así
+  test de ECOM, icore-srv y el desarrollo local no ensucian las métricas de producción.
+- **La CSP se abre a Google solo con el contenedor activo**, con los hosts de la guía oficial de GTM y GA4
+  (`*.googletagmanager.com`, `*.google-analytics.com`, `*.analytics.google.com`, y `www.googletagmanager.com` en
+  `frame-src` por el `<noscript>`). Es una decisión explícita: `connect-src 'self'` existía para que la página del
+  DNI no pudiera mandar datos a terceros; ahora puede mandárselos a Google. Otras etiquetas (Meta, Google Ads, Google
+  Signals) declaran sus hosts en `CSP_EXTRA_SOURCES` (`"connect-src=https://a https://b;img-src=https://c"`), sin
+  código.
+- **Evento de conversión `inscripcion_enviada` en el comprobante**, con programa, convocatoria e id, emitido **una
+  sola vez por envío** (marca en la sesión: un refresh no lo duplica). El `dataLayer` inicial lleva `pantalla`
+  (nombre de la URL), `programa`, `convocatoria` y `convocatoria_id`. **Nunca datos de la persona.**
+- **Solo el shell de inscripción pública**: ni el portal ciudadano con login ni el backoffice.
+
+## Implementación
+
+`portal/context_processors.py` (`gtm`) expone el contenedor; `_gtm_head.html` y `_gtm_body.html` llevan los snippets
+con el ID por variable y el `dataLayer` inicial; `base_inscripcion.html` los incluye si hay contenedor;
+`confirmacion.html` emite la conversión bajo `emitir_conversion`, que la vista marca en la sesión;
+`security_headers.py` suma `GTM_SOURCES` con contenedor activo y `parsear_fuentes_extra` para la variable;
+`settings.py` define `GTM_CONTAINER_ID` y `CSP_EXTRA_SOURCES`. Los `.txt` con los snippets no se versionan: el ID va
+al entorno.
+
+## Archivos
+
+`config/settings.py` · `config/middlewares/security_headers.py` · `portal/context_processors.py` ·
+`portal/templates/portal/inscripcion/{base_inscripcion,confirmacion,_gtm_head,_gtm_body}.html` ·
+`portal/views/inscripcion.py` · `portal/tests/test_gtm.py`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`portal/tests/test_gtm.py`: con contenedor, el paso 1 lleva el script, el `<noscript>` y el `dataLayer` con pantalla y
+convocatoria; la CSP abre solo los hosts de Google y conserva `frame-ancestors 'none'` y `form-action 'self'`; el
+comprobante emite la conversión una vez y no en el refresh; las pantallas de corte lo llevan; el portal ciudadano no.
+Sin contenedor, nada se renderiza ni se abre la CSP. Parser de `CSP_EXTRA_SOURCES` y su entrada a la política.
+
+## Puesta en marcha en el servidor
+
+1. Merge a `development` → release a `main` → espejo a ECOM (`/pushGitLabecom`).
+2. ECOM carga en el entorno de producción `GTM_CONTAINER_ID=GTM-MQNGV4R5`. Opcional para probar sin bloquear:
+   `CSP_REPORT_ONLY=True` un rato y mirar la consola del navegador.
+3. En GTM: **no** activar la medición mejorada de interacciones de formulario ni la recolección de datos provistos
+   por el usuario (los campos llevan DNI, celular y correo). Alcanza con páginas vistas y el evento
+   `inscripcion_enviada`; las rutas llevan el token del relevamiento, así que un embudo por URL se arma con
+   expresión regular o, mejor, con las variables `pantalla`, `programa` y `convocatoria` del `dataLayer`.
+4. Si suman Meta, Ads o Signals, agregar sus hosts a `CSP_EXTRA_SOURCES`.
+
+## Pendientes / a definir
+
+- Aviso de medición en el pie del portal (hoy cita la Ley 25.326): prudente, no obligatorio; a definir con el PM.
+- Si quieren medir también en test o icore-srv, un contenedor aparte para no mezclar.
+
+## Reversión
+
+Quitar `GTM_CONTAINER_ID` del entorno apaga todo sin deploy. Revertir el commit elimina el código.
+
+## Historial
+
+Entrada nueva.
 
 ---

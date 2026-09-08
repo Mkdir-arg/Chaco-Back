@@ -39,6 +39,7 @@ from portal.services.inscripcion import (
 )
 from programas.models import Relevamiento
 from programas.services.becas import definicion_formulario
+from programas.services.identidad import identificar
 from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
     InscripcionNoDisponible,
@@ -47,7 +48,6 @@ from programas.services.inscripcion_publica import (
     enmascarar_email,
     enviar_confirmacion_inscripcion,
 )
-from programas.services.identidad import identificar
 from programas.services.padron import esta_habilitado
 
 logger = logging.getLogger(__name__)
@@ -270,6 +270,12 @@ def inscripcion_confirmacion(request, token):
     comprobante = request.session.get(f"inscripcion_ok_{relevamiento.pk}")
     if not comprobante:
         return redirect("portal:inscripcion_paso1", token=relevamiento.token_publico)
+    # El evento de conversión de Google Tag Manager se emite una sola vez por
+    # envío (Cambio 68): un refresh del comprobante no lo duplica.
+    emitir_conversion = not comprobante.get("conversion_emitida")
+    if emitir_conversion:
+        comprobante["conversion_emitida"] = True
+        request.session[f"inscripcion_ok_{relevamiento.pk}"] = comprobante
     return render(
         request,
         "portal/inscripcion/confirmacion.html",
@@ -277,6 +283,7 @@ def inscripcion_confirmacion(request, token):
             "relevamiento": relevamiento,
             "convocatoria": relevamiento.convocatoria,
             "comprobante": comprobante,
+            "emitir_conversion": emitir_conversion,
         },
     )
 
