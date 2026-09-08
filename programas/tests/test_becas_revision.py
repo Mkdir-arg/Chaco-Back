@@ -288,7 +288,9 @@ class EdicionTrazaTests(_BaseRevisionTest):
             },
         )
 
-    def test_detalle_adulto_sin_apoderado_oculta_sus_campos(self):
+    def test_detalle_adulto_sin_apoderado_muestra_la_seccion_para_completarla(self):
+        """Cambio 67: el apoderado se pide a toda persona, así que la sección
+        editable está siempre, también en un caso anterior sin datos."""
         self.form_a.ciudadano = Ciudadano.objects.create(
             dni="60600601",
             nombre="Persona",
@@ -300,8 +302,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
         resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
 
         self.assertContains(resp, "Datos de contacto")
-        self.assertNotContains(resp, "Datos del apoderado")
-        self.assertNotContains(resp, 'name="apoderado_fecha_nacimiento"')
+        self.assertContains(resp, "Datos del apoderado")
+        self.assertContains(resp, 'name="apoderado_fecha_nacimiento"')
 
     def test_detalle_menor_muestra_fecha_apoderado_en_formato_html(self):
         self.form_a.ciudadano = Ciudadano.objects.create(

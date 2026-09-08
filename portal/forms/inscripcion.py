@@ -1,9 +1,7 @@
 """Formularios de la inscripción pública de Becas (#293 paso 1, #294 paso 2)."""
 
 from django import forms
-from django.utils.dateparse import parse_date
 
-from programas.services.becas import es_menor
 from programas.services.padron import normalizar_dni
 from programas.services.personas import fecha_iso
 
@@ -146,34 +144,31 @@ class InscripcionPaso2Form(forms.Form):
         widget=forms.EmailInput(attrs={"class": INPUT_CLASS, "placeholder": "nombre@correo.com"}),
     )
 
-    # Bloque D — apoderado (obligatorio solo para menores, RN-22/RN-P9).
+    # Bloque D — apoderado. Cambio 67: los cinco datos son obligatorios para
+    # toda persona que se inscribe, sin importar su edad (reemplaza la RN-22
+    # del Cambio 41, que solo lo exigía a menores).
     apoderado_nombre = forms.CharField(
         label="Nombre del apoderado",
         max_length=120,
-        required=False,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
     apoderado_apellido = forms.CharField(
         label="Apellido del apoderado",
         max_length=120,
-        required=False,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
     apoderado_dni = forms.CharField(
         label="DNI del apoderado",
         max_length=12,
-        required=False,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
     )
     apoderado_genero = forms.ChoiceField(
         label="Sexo del apoderado",
-        required=False,
         choices=(("", "Elegí una opción"), ("F", "Femenino"), ("M", "Masculino")),
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
     apoderado_fecha_nacimiento = forms.DateField(
         label="Fecha de nacimiento del apoderado",
-        required=False,
         widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
     )
 
@@ -210,35 +205,16 @@ class InscripcionPaso2Form(forms.Form):
     def campos_requisitos(self):
         return [self[clave] for clave, campo in self._campos_dinamicos if clave.startswith("r_")]
 
-    # --- RN-22: apoderado obligatorio para menores ------------------------
-    def fecha_nacimiento_efectiva(self):
-        if self.es_manual:
-            return self.cleaned_data.get("fecha_nacimiento")
-        if "fecha_nacimiento" in self.fields:
-            return self.cleaned_data.get("fecha_nacimiento")
-        datos = self.identificacion.get("datos") or {}
-        return parse_date(fecha_iso(datos.get("fecha_nacimiento")) or "") or None
-
+    # --- Apoderado (Cambio 67) --------------------------------------------
     def clean(self):
         cleaned = super().clean()
+        # La obligatoriedad de los cinco datos del apoderado la lleva cada
+        # field (toda persona, sin mirar la edad). Acá solo se normaliza el DNI.
         dni_apoderado_original = cleaned.get("apoderado_dni")
         dni_apoderado = normalizar_dni(dni_apoderado_original)
         if dni_apoderado_original and len(dni_apoderado) not in (7, 8):
             self.add_error("apoderado_dni", "Ingresa un DNI valido de 7 u 8 digitos.")
         cleaned["apoderado_dni"] = dni_apoderado
-        if es_menor(self.fecha_nacimiento_efectiva()):
-            campos = (
-                "apoderado_nombre",
-                "apoderado_apellido",
-                "apoderado_dni",
-                "apoderado_genero",
-                "apoderado_fecha_nacimiento",
-            )
-            for campo in campos:
-                if not cleaned.get(campo):
-                    self.add_error(
-                        campo, "Este dato es obligatorio cuando la persona que se inscribe es menor de edad."
-                    )
         return cleaned
 
     # --- Salidas hacia la ingesta (#295) ----------------------------------

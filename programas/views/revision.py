@@ -36,7 +36,7 @@ from programas.models import (
 )
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
-from programas.services.becas import es_menor, registrar_traza, resolver_ciudadano_offline
+from programas.services.becas import registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron
@@ -432,21 +432,10 @@ def formulario_detalle(request, pk):
         form = FormularioRevisionForm(instance=formulario)
 
     globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
-    fecha_nacimiento = None
-    if formulario.ciudadano_id:
-        fecha_nacimiento = formulario.ciudadano.fecha_nacimiento
-    elif isinstance(formulario.datos_identificacion, dict):
-        fecha_nacimiento = formulario.datos_identificacion.get("fecha_nacimiento")
-        if isinstance(fecha_nacimiento, str):
-            fecha_nacimiento = parse_date(fecha_nacimiento)
-    tiene_datos_apoderado = bool(
-        formulario.apoderado_nombre
-        or formulario.apoderado_apellido
-        or formulario.apoderado_dni
-        or formulario.apoderado_genero
-        or formulario.apoderado_fecha_nacimiento
-    )
-    mostrar_apoderado = bool(es_menor(fecha_nacimiento) or tiene_datos_apoderado)
+    # Cambio 67: el apoderado se pide a toda persona que se inscribe, así que
+    # la sección editable se muestra siempre (también en los casos anteriores,
+    # que pueden completarse desde acá).
+    mostrar_apoderado = True
     mapa = None
     if formulario.gps_lat is not None and formulario.gps_lng is not None:
         lat = float(formulario.gps_lat)
