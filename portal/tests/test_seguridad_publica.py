@@ -460,14 +460,18 @@ class SinRecursosDeTercerosTests(TestCase):
     paso, romper el CSP en esa pantalla.
     """
 
-    PERMITIDOS = ("https://www.google.com/recaptcha/",)
+    PERMITIDOS = (
+        "https://www.google.com/recaptcha/",
+        # Cambio 68: el <noscript> de Google Tag Manager; solo se renderiza con
+        # GTM_CONTAINER_ID configurado y la CSP lo abre en ese mismo caso.
+        "https://www.googletagmanager.com/ns.html",
+    )
 
     def test_ninguna_plantilla_carga_recursos_externos(self):
         import re
         from pathlib import Path
 
         from django.conf import settings
-
         from django.template.utils import get_app_template_dirs
 
         patron = re.compile(r'(?:src|href)="(https?://[^"]+)"')

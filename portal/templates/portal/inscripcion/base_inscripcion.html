@@ -3,6 +3,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    {% if gtm_container_id %}{% include "portal/inscripcion/_gtm_head.html" %}{% endif %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}DATAÑACH — Portal Ciudadano{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'custom/css/tailwind.css' %}">
@@ -150,6 +151,7 @@
     </style>
 </head>
 <body>
+    {% if gtm_container_id %}{% include "portal/inscripcion/_gtm_body.html" %}{% endif %}
     <div class="di-shell">
         <aside class="di-panel-head">
             <div class="di-brand">
