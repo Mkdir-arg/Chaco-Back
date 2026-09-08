@@ -93,11 +93,11 @@ desplegable del navegador y el formulario se envía igual.{% endcomment %}
         {% endif %}
 
         <h2 class="text-sm font-bold uppercase tracking-wide mb-1" style="color: var(--text-body-subtle);">Apoderado</h2>
-        <p class="text-xs mb-3" style="color: var(--text-body-subtle);">Completalo solo si la persona que se inscribe es menor de 18 años.</p>
+        <p class="text-xs mb-3" style="color: var(--text-body-subtle);">Completá los datos del apoderado: se piden a todas las personas que se inscriben.</p>
         <div class="space-y-4 mb-6">
             {% for campo in form %}{% if campo.name == "apoderado_nombre" or campo.name == "apoderado_apellido" or campo.name == "apoderado_dni" or campo.name == "apoderado_genero" or campo.name == "apoderado_fecha_nacimiento" %}
             <div>
-                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }}</label>
+                <label for="{{ campo.id_for_label }}" class="block text-sm font-semibold mb-1" style="color: var(--text-heading);">{{ campo.label }} <span style="color: var(--text-fg-danger);">*</span></label>
                 {{ campo }}
                 {% for error in campo.errors %}<p class="text-xs mt-1" style="color: var(--text-fg-danger);">{{ error }}</p>{% endfor %}
             </div>
