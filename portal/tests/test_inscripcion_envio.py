@@ -1,15 +1,14 @@
 """Tests del paso 2 y la ingesta del formulario público (#294/#295, análisis #289)."""
 
 from datetime import date, timedelta
-from uuid import uuid4
-
 from pathlib import Path
+from uuid import uuid4
 
 from django import forms
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
-from django.template.loader import get_template
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template.loader import get_template
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -80,13 +79,29 @@ class _BasePaso2Test(TestCase):
         )
         self.definicion = definicion_formulario(self.relevamiento)
 
+    APODERADO = {
+        "apoderado_nombre": "Ana",
+        "apoderado_apellido": "Gómez",
+        "apoderado_dni": "20111222",
+        "apoderado_genero": "F",
+        "apoderado_fecha_nacimiento": "1980-05-05",
+    }
+
     def _data(self, **extra):
         data = {
             "celular": "3624123456",
             "email_contacto": "maria@correo.com",
             f"g_{self.pregunta.pk}": "Sí",
+            # Cambio 67: el apoderado es obligatorio para toda persona.
+            **self.APODERADO,
         }
         data.update(extra)
+        return data
+
+    def _data_sin_apoderado(self, **extra):
+        data = self._data(**extra)
+        for clave in self.APODERADO:
+            data.pop(clave, None)
         return data
 
     def _files(self, **extra):
@@ -148,18 +163,28 @@ class Paso2FormTests(_BasePaso2Test):
         form = self._form(files={f"r_{self.requisito.pk}": gigante})
         self.assertFalse(form.is_valid())
 
-    def test_menor_exige_apoderado_y_mayor_no(self):
+    def test_apoderado_obligatorio_para_menores_y_mayores(self):
+        """Cambio 67: los cinco datos del apoderado se exigen a toda persona
+        que se inscribe, sin mirar la edad (antes solo a menores, RN-22)."""
         hoy = timezone.localdate()
+        # Mayor (1991) sin apoderado: los cinco campos faltan.
+        form = self._form(data=self._data_sin_apoderado())
+        self.assertFalse(form.is_valid())
+        for campo in self.APODERADO:
+            self.assertIn(campo, form.errors)
+        # Menor sin apoderado: igual.
         menor = _identificacion()
         menor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=17 * 365)).isoformat()
-        form = self._form(identificacion=menor)
+        form = self._form(identificacion=menor, data=self._data_sin_apoderado())
         self.assertFalse(form.is_valid())
         self.assertIn("apoderado_dni", form.errors)
-        # Cumple 18 exactamente hoy: se trata como mayor (RN-22).
-        cumple_hoy = _identificacion()
-        cumple_hoy["datos"]["fecha_nacimiento"] = hoy.replace(year=hoy.year - 18).isoformat()
-        form = self._form(identificacion=cumple_hoy)
-        self.assertTrue(form.is_valid(), form.errors)
+        # Mayor con el apoderado completo: pasa.
+        self.assertTrue(self._form().is_valid())
+
+    def test_el_paso_2_marca_el_apoderado_como_obligatorio(self):
+        html = Path(get_template("portal/inscripcion/paso2.html").origin.name).read_text(encoding="utf-8")
+        self.assertNotIn("solo si la persona que se inscribe es menor", html)
+        self.assertIn("se piden a todas las personas", html)
 
     def test_menor_con_apoderado_completo_pasa(self):
         hoy = timezone.localdate()
@@ -370,7 +395,7 @@ class Paso2PresentacionSelectorTests(_BasePaso2Test):
 
     def test_el_buscador_no_cambia_que_valores_son_validos(self):
         definicion = self._definicion_con("SELECTOR", "BUSCADOR")
-        base = {"celular": "3624123456", "email_contacto": "maria@correo.com"}
+        base = {"celular": "3624123456", "email_contacto": "maria@correo.com", **self.APODERADO}
 
         valido = InscripcionPaso2Form(
             {**base, "g_1": "Secundario"}, definicion=definicion, identificacion=_identificacion()

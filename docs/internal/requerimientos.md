@@ -211,6 +211,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 y con la corrección de performance desde el 06/09/2026 (releases 43ffddf, 55d842e, fc740b8, ea33681 y ac9192b); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
 | 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
+| 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟡 **En revisión — PR #383 contra `development`; sin desplegar en ECOM. La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
 | 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟡 **En revisión — PR #384 contra `development`; requiere `GTM_CONTAINER_ID` en el entorno de ECOM para activarse** | No requiere |
 
 **Notas del índice**
@@ -7054,6 +7055,102 @@ incidente motivó: el mismo banco de medición que se armó para el dashboard se
 
 ---
 
+# Cambio 67 — El apoderado es obligatorio para todas las personas que se inscriben por el link
+
+🟡 **EN REVISIÓN — 08/09/2026** · PR #383 contra `development` · Sin desplegar en ECOM · La app de campo conserva
+la regla de menores hasta que Mobile la cambie
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · link público de inscripción (paso 2) y detalle del caso en revisión |
+| **Etiquetas** | `#relevamientos` `#ui` `#mobile` |
+| **Solicitante** | PM — en sesión del 08/09/2026, sobre la convocatoria abierta en `datanach.chaco.gob.ar` |
+| **Fecha del pedido** | 08/09/2026 |
+| **Issue / épica** | Sin issue propio: corrección de regla sobre el Cambio 41 |
+| **Partes afectadas** | `InscripcionPaso2Form`, `paso2.html`, `formulario_detalle` (revisión) y sus tests |
+| **Migración** | No requiere: las columnas `apoderado_*` del caso ya admiten vacío |
+
+## Pedido original
+
+> «Tengo la sección Apoderado y no es obligatorio, quiero que lo sea.» Consultado el alcance: **para todas las
+> personas, incluidas las mayores de edad; todas las convocatorias; los cinco campos** (nombre, apellido, DNI, sexo y
+> fecha de nacimiento).
+
+## Cómo se relevó
+
+Se verificó primero qué versión corre en `datanach.chaco.gob.ar`: es `main`, sin el Cambio 58 (el constructor no está
+en `main` ni en `development`). Ahí el Apoderado es el bloque fijo del Cambio 41: se mostraba siempre con el texto
+«Completalo solo si la persona que se inscribe es menor de 18 años», sus campos eran opcionales y el servidor los
+exigía únicamente si la persona era menor (RN-22). La misma regla vive en el serializer de la API que valida lo que
+manda la app de campo, en la vista de revisión (que mostraba la sección solo a menores o si había datos) y en la app
+móvil (repo aparte).
+
+## Decisiones tomadas
+
+- **Se reemplaza la RN-22 en el link público**: los cinco datos del apoderado son obligatorios para toda persona que
+  se inscribe, sin mirar la edad. La RN-22 del Cambio 41 queda registrada como histórica; esta decisión la manda el PM.
+- **La app de campo mantiene, por ahora, la regla de menores.** Exigir el apoderado a los adultos en la API sin que la
+  app lo pida los dejaría con casos que el servidor rechaza al sincronizar. El cambio en Mobile y en el serializer
+  (`programas/api/serializers.py`, validación bajo `es_menor`) va junto, cuando el equipo móvil lo tenga; queda en
+  Pendientes.
+- **La revisión muestra siempre la sección del apoderado**, también en casos anteriores, para poder completarla.
+- **Global, no por convocatoria.** No se agregó un interruptor por convocatoria en `main`: eso ya existe en el Cambio 58
+  (condición del grupo Apoderado en el constructor y obligatoriedad en el catálogo) y duplicarlo con una migración
+  quedaría obsoleto al llegar esa rama.
+
+## Implementación
+
+- `portal/forms/inscripcion.py`: los cinco campos `apoderado_*` pasan a requeridos; `clean()` conserva solo la
+  normalización y validación del DNI; se quitan `fecha_nacimiento_efectiva` y la dependencia de `es_menor`.
+- `portal/templates/portal/inscripcion/paso2.html`: el subtítulo pasa a «Completá los datos del apoderado: se piden a
+  todas las personas que se inscriben» y las etiquetas llevan el asterisco de obligatorio.
+- `programas/views/revision.py`: `mostrar_apoderado` es siempre verdadero.
+
+## Archivos
+
+`portal/forms/inscripcion.py` · `portal/templates/portal/inscripcion/paso2.html` · `programas/views/revision.py` ·
+`portal/tests/test_inscripcion_envio.py` · `portal/tests/test_correcciones_review.py` ·
+`portal/tests/test_correcciones_review_2.py`.
+
+## Base de datos
+
+Sin cambios. `Formulario.apoderado_*` ya admiten vacío; los casos anteriores sin apoderado quedan como están y se
+pueden completar desde la revisión.
+
+## Validación
+
+`test_apoderado_obligatorio_para_menores_y_mayores` (mayor sin apoderado: los cinco campos en error; menor igual;
+mayor con apoderado completo pasa), `test_el_paso_2_marca_el_apoderado_como_obligatorio`, y los tests de fecha no ISO
+y de fecha de proveedor rota se ajustaron para seguir probando lo suyo con el apoderado ausente. Suite de `portal`,
+`test_becas_revision` y `test_becas_api` con Python 3.12 / Django 5.2. `manage.py check`, ruff, `design_audit`,
+`compile_templates` y `check_design_agent` en 0.
+
+## Puesta en marcha en el servidor
+
+Merge del PR a `development` → release automático a `main` (`publish-main.yml`) → espejo al GitLab de ECOM con
+`/pushGitLabecom` (`test` primero, después `main`, que despliega producción en 5 a 7 minutos). Sin migraciones ni
+coordinación con ECOM. La convocatoria abierta empieza a exigir el apoderado desde el deploy; quien tenga el paso 2
+abierto en ese momento ve el error de campos obligatorios al enviar y completa.
+
+## Pendientes / a definir
+
+- **App de campo**: cuando Mobile pida el apoderado a todos, cambiar en el mismo PR la validación del serializer
+  (`programas/api/serializers.py`, bloque bajo `es_menor`) y su test `test_menor_sin_apoderado_falla`. Hasta entonces
+  los dos canales exigen distinto.
+- **Cambio 58**: cuando el constructor llegue a `main`, esta regla pasa a ser configuración. El equivalente es: sin
+  condición en el grupo Apoderado (en el catálogo, como condición por defecto, y en el constructor de cada
+  convocatoria) y `obligatorio` tildado en «Sexo del apoderado» y «Fecha de nacimiento del apoderado» (nombre,
+  apellido y DNI ya lo son). El seed y la migración `programas.0060` de esa rama siembran hoy la condición `edad < 18`
+  y sexo/fecha opcionales: hay que alinearlos antes del merge para no volver atrás.
+
+## Reversión
+
+Revertir el commit del PR. No hay datos que deshacer.
+
+## Historial
+
+Entrada nueva. Modifica la RN-22 registrada en el Cambio 41 («los menores pueden inscribirse; el paso 2 exige apoderado,
+misma regla que la app») por decisión del PM del 08/09/2026, solo para el link público hasta que Mobile acompañe.
 # Cambio 68 — Google Tag Manager en las pantallas públicas de inscripción
 
 🟡 **EN REVISIÓN — 08/09/2026** · PR #384 contra `development` · Se activa con `GTM_CONTAINER_ID` en el entorno; sin la

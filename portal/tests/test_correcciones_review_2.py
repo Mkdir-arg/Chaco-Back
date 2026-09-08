@@ -20,7 +20,6 @@ from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest,
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
 from portal.views.inscripcion import MENSAJE_RECHAZO
 from programas.admin import RelevamientoAdmin
-from programas.forms import RelevamientoForm
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
 from programas.services.inscripcion_publica import crear_formulario_publico
 from programas.views import relevamientos as vistas_rel
@@ -169,11 +168,11 @@ class FechaProveedorYApoderadoTests(_BasePaso2Test):
         hoy = timezone.localdate()
         ident = _identificacion()
         ident["datos"]["fecha_nacimiento"] = "texto raro"
-        data = self._data(fecha_nacimiento=(hoy - timedelta(days=16 * 365)).isoformat())
+        data = self._data_sin_apoderado(fecha_nacimiento=(hoy - timedelta(days=16 * 365)).isoformat())
         form = self._form(identificacion=ident, data=data)
         self.assertFalse(form.is_valid())
         self.assertIn("fecha_nacimiento", form.fields)
-        self.assertIn("apoderado_dni", form.errors)
+        self.assertIn("apoderado_dni", form.errors)  # Cambio 67: obligatorio para toda persona
 
     def test_personas_sin_fecha_guarda_la_fecha_del_form(self):
         ident = _identificacion()

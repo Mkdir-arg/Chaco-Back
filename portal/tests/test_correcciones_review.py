@@ -116,8 +116,10 @@ class FechaNoIsoTests(_BasePaso2Test):
         nacimiento = hoy - timedelta(days=16 * 365)
         ident = _identificacion()
         ident["datos"]["fecha_nacimiento"] = nacimiento.strftime("%d/%m/%Y")
-        form = InscripcionPaso2Form(self._data(), self._files(), definicion=self.definicion, identificacion=ident)
-        self.assertFalse(form.is_valid())  # antes: parse_date → None → RN-22 salteada
+        form = InscripcionPaso2Form(
+            self._data_sin_apoderado(), self._files(), definicion=self.definicion, identificacion=ident
+        )
+        self.assertFalse(form.is_valid())  # Cambio 67: el apoderado se exige a toda persona
         self.assertIn("apoderado_dni", form.errors)
 
 
