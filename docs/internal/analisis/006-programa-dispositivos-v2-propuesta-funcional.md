@@ -141,6 +141,51 @@ Ingreso  →  Alojada | En seguimiento (ambulatoria)  →  Egresada
 
 Detalle de la estadía (identidad, plaza, línea de tiempo de movimientos, ficha por secciones, adjuntos, egreso), listado de estadías del dispositivo con filtros y paginación, historial de estadías de la persona en su Legajo Ciudadano (incluidas las cerradas, con solapa embebida) y padrón de alojados del día.
 
+### 6.3 La solapa Dispositivos del Legajo Ciudadano
+
+**Definición del PM (09/09/2026): la solapa muestra toda la información de la persona en el programa.**
+Las dos familias de institución son un solo programa de la tabla `programas`, así que hay **una sola
+solapa** y ahí adentro está todo: estadías abiertas y cerradas en cualquier institución de la red,
+movimientos, egresos con motivo, derivaciones, paso por lista de espera y estado de la ficha.
+
+Esto **no es adaptar lo que hay, es invertirlo**. Hoy la solapa hace lo contrario, y por tres puertas
+distintas:
+
+| Dónde | Qué hace hoy | Efecto |
+|---|---|---|
+| `programas/services/solapas.py:53` | Si no hay una `Admision` en estado `ALOJADO`, no agrega la solapa | La solapa **desaparece** del legajo cuando la persona egresa |
+| `legajos/views/dispositivos.py:35` | Sin admisión `ALOJADO`, la vista tira `PermissionDenied` | El historial es inalcanzable incluso entrando por la URL |
+| `legajos/views/dispositivos.py:24` | La inscripción tiene que estar `ACTIVO` o `EN_SEGUIMIENTO` | Una inscripción cerrada también borra la solapa |
+
+El listado de admisiones en sí ya trae abiertas y cerradas (`views/dispositivos.py:26-34`): el
+historial existe, está escrito y está tapado por los tres candados. La v2 los saca.
+
+**Qué la limita: la sensibilidad, no el alcance.** La solapa se abre con la capacidad del programa
+(`dispositivo.ver` sobre Dispositivos, que la vista ya exige en `views/dispositivos.py:16`) y **no**
+se filtra por las instituciones asignadas al rol. Cualquiera del programa que abra el legajo ve la
+trayectoria completa de la persona en la red y puede entrar al detalle de cada registro; lo que ve
+adentro lo determina el nivel de sensibilidad de cada sección (M4, RN2 y RN3), igual que en el resto
+del sistema. En consecuencia se **quita** el filtro por `dispositivos_visibles` de la vista del
+legajo: el alcance por institución y por subsecretaría (§11.1) gobierna la **operación dentro del
+programa**, no la lectura del legajo de la persona.
+
+**El detalle no es entrar al programa.** Desde la solapa se abre una vista **de lectura** de la
+estadía dentro del legajo ciudadano: identidad, institución, plaza, fechas, movimientos, motivo de
+egreso y las secciones de ficha que el nivel del usuario habilita. Sin acciones operativas —no se
+mueve de plaza, no se egresa, no se carga bitácora desde ahí—; para eso hay que entrar al programa,
+donde sí manda el alcance.
+
+Consecuencia a asumir explícitamente: alguien asignado solo a la institución X puede leer que la
+persona estuvo en la institución Y, con fechas y motivo de egreso. Es deliberado —el legajo es el
+dato único de la persona— y queda auditado como cualquier lectura y exportación (M10). Qué secciones
+son de nivel general y cuáles exigen nivel sigue abierto en la pregunta 5 de §12, que es del
+Ministerio.
+
+Consecuencias para el backlog: hay que reescribir la solapa contra el modelo de Estadía —si no, se
+rompe sola, porque la v2 reemplaza `Admision`— y ninguna de las 45 tasks la tiene a cargo. Se agrega
+una task en M3. Los tests existentes (`programas/tests/test_solapa_dispositivos.py`) afirman hoy el
+comportamiento viejo y hay que reescribirlos con la regla nueva.
+
 ---
 
 ## 7. M4 — Ficha de la persona en la institución
@@ -196,7 +241,15 @@ Lo que **no** entra en esta etapa y se deja preparado como entrada de bitácora 
 ### 11.1 M7 — Roles, alcance y separación de funciones
 
 - Capacidades por acción (ver, crear, editar, validar, ingresar, mover, egresar, cargar bitácora, cerrar turno, autorizar ingreso excepcional, ver sección sensible por nivel, configurar, exportar), sobre el motor RBAC del sistema.
-- **Alcance en tres niveles**: institución (dispositivo o merendero), área o programa del Ministerio (todas las instituciones de Abordaje Psicosocial, por ejemplo) y central. Un rol se acota a uno o varios de estos alcances; el alcance se administra desde el ABM de Roles.
+- **Alcance en tres niveles** (definido por el PM el 09/09/2026, cierra la pregunta 12 de §12):
+    - **Por institución** — *ya existe.* El rol se asigna a una o varias instituciones concretas (`AsignacionDispositivo`). Cubre dos perfiles con el mismo mecanismo: el responsable institucional, que tiene una, y el **programa central**, que tiene las n instituciones que se le asignen, aunque pertenezcan a subsecretarías distintas.
+    - **Por subsecretaría** — *nuevo.* El nivel intermedio es la **subsecretaría del Ministerio**, no la localidad ni el territorio. Cada institución declara de qué subsecretaría depende y cada rol declara la subsecretaría que supervisa; un rol con este alcance ve todas las instituciones de la suya y ninguna de otra, sin que nadie se las asigne de a una.
+    - **Total** — *ya existe.* Lo confiere `programa.configurar` sobre Dispositivos y es el administrador central. No se modifica.
+- **Encuadre institucional del alcance.** El Programa Dispositivos depende de la **Secretaría de Desarrollo**, que tiene dos subsecretarías; hoy cada una gestiona un tipo de institución. Tres consecuencias de diseño:
+    - El vínculo con la subsecretaría va **en la institución**, no en el tipo, para admitir instituciones del mismo tipo repartidas entre subsecretarías. Campo nuevo en el legajo institucional (M1), requerido para validar, y columna nueva del importador de padrón (M10).
+    - La subsecretaría se asigna **al rol**, no a la persona, por consistencia con el resto del alcance, que vive en el rol y no en el usuario. Implica un rol por subsecretaría y un campo nuevo en `RolMeta`, con la misma validación que hoy tiene `programa`.
+    - `Programa.subsecretaria` **no se toca**: es una FK única y no puede expresar un programa repartido entre dos subsecretarías. Queda como dato informativo del programa; la fuente del alcance es la institución.
+    - El catálogo de secretarías existe en el sistema pero **no tiene carga inicial**: se administra a mano desde Configuración. Crear la Secretaría de Desarrollo con sus dos subsecretarías y asignarle la suya a cada institución del padrón es tarea de datos iniciales, no de desarrollo.
 - **Separación de funciones** como regla del motor: la acción de validar, autorizar o confirmar cierre rechaza al mismo usuario que registró el movimiento.
 - Perfiles de referencia: operador de turno, responsable institucional, equipo técnico (social, salud, psicología, con niveles de sensibilidad distintos), supervisor de área, programa central (autoriza ingresos), administrador central, área de merenderos, consulta y auditoría.
 
@@ -233,7 +286,224 @@ Numeradas para responder en prosa.
 9. **Merenderos.** ¿Los servicios se configuran por merendero? ¿La prestación se carga en raciones o como marca por servicio? ¿Entra el padrón nominal en esta versión?
 10. **Kits.** ¿Existe un catálogo de kits del Ministerio con contenido y equivalencia en raciones, o lo definimos con el área?
 11. **Derivaciones.** ¿Las derivaciones a organismos externos (hospital, juzgado) se registran como destino de egreso o como derivación con seguimiento?
-12. **Alcance.** ¿El nivel intermedio de alcance es el área del Ministerio, la localidad o el territorio (minuta 19/06 habla de territorio, localidad y SIS)?
+12. ~~**Alcance.** ¿El nivel intermedio de alcance es el área del Ministerio, la localidad o el territorio?~~ **Cerrada el 09/09/2026 por el PM: la subsecretaría.** El detalle y sus consecuencias de diseño están en §11.1. Nota sobre la minuta del 19/06: los «tres niveles de control (territorio, localidad y SIS)» del acuerdo 3 son de **Becas** —la cadena de validación del padrón que elimina las planillas de carga masiva—, no de Dispositivos; esta definición no revierte ningún acuerdo.
+
+---
+
+## 11.5 El configurador de tipos de dispositivo (replanteo de `/dispositivos/config/`)
+
+**Definición del PM (09/09/2026).** El módulo de configuración se mantiene como el lugar donde se
+configura el tipo de institución, y crece: además de la lógica operativa que ya administra
+(`maneja_camas`, umbrales del semáforo de ocupación, identidad del tipo), pasa a **construir los
+formularios del tipo**. No un formulario, **varios**: cada uno se usa en un momento distinto del
+procedimiento de la institución.
+
+Esto **reemplaza** el planteo anterior de migrar la ficha al constructor de formularios de Becas
+(Cambio 58) y desactiva esa dependencia de cronograma, que era dura: el constructor de Becas no está
+construido (análisis #326, tasks #336–#356, 150 h, todas en Backlog) y su alcance acordado excluye
+explícitamente el F-00 de Dispositivos.
+
+**Por qué encaja con la realidad del cliente.** Las instituciones no tienen una ficha, tienen una
+serie de formularios: F-00 de admisión por tipo, F-01 Registro Diario de Novedades por Turno, F-02
+Prestación mensual, más las fichas de referencia (Línea 102, Calcuta, Relevamiento de PC). La v1
+modeló solo el F-00, como una lista plana de campos colgada del tipo. La Versión 2, en su primera
+redacción, disolvía los formularios del cliente en módulos de código fijo (M4 reemplazaba el F-00, M5
+reemplazaba y ampliaba el F-01). Con esta definición vuelven a ser lo que son: formularios
+configurables, atados a un momento del procedimiento.
+
+**Qué resuelve:**
+
+- **La ficha que se completa a lo largo de la estadía** deja de necesitar un mecanismo de completitud
+  por sección con plazos y recordatorios sobre un único formulario gigante: cada formulario se
+  completa cuando llega su momento.
+- **El saldo estimado del F-00** (`CampoTipoDispositivo.rol_calculo`, campos numéricos marcados como
+  ingreso o egreso que producen el bloque `_totales`) se conserva, porque el motor sigue siendo propio.
+- **Los tipos nuevos siguen creándose por configuración, sin código**, que es lo que esta pantalla ya
+  hace hoy y por lo que se cerró la Q-1 del relevamiento v1 el 02/07/2026.
+
+**Qué exige, y no es menor.** El modelo actual cuelga `CampoTipoDispositivo` directo del tipo, con la
+sección como texto libre y las respuestas en `Admision.respuestas_f00` indexadas por la pk del campo.
+El modelo nuevo necesita tipo → formulario → sección → campo, y una tabla de respuestas por instancia
+de formulario que no dependa de a qué entidad pertenece. La sensibilidad por sección hay que
+construirla igual, con este motor o con el de Becas.
+
+### 11.5.1 Formularios base: precreados y llamados por código
+
+**Definición del PM (09/09/2026).** Los formularios que ya sabemos que existen y que usan las
+funcionalidades concretas —ingreso, asignación, bitácora, egreso, prestación— **se precrean como
+parametría base** del sistema y vienen por defecto. Cada acción sabe a qué formulario llamar: el botón
+de ingreso invoca el F-00, el de bitácora invoca el F-01, y así. El vínculo es **por código en el
+sistema, no configurable**; desde el configurador se editan los campos del formulario, no a qué acción
+responde.
+
+**No hace falta un motor de momentos.** Se pueden crear formularios adicionales desde el
+configurador, pero **cuándo se usan queda deliberadamente abierto**: el formulario existe, se
+administra, y no lo invoca ninguna acción hasta que se defina. Es una decisión de alcance: evita
+construir un motor de disparadores que hoy nadie pidió, sin cerrar la puerta.
+
+**Campos protegidos.** Cada formulario base tiene campos que son columnas reales del modelo y de los
+que depende el código (la fecha y la plaza en el ingreso; la fecha, el turno y las cantidades
+calculadas en la bitácora; la fecha, el motivo y el destino en el egreso). Esos campos se muestran en
+el configurador pero **no se pueden borrar ni cambiar de tipo**; lo que el Ministerio agrega son
+campos propios alrededor. Es el mismo criterio de los bloques fijos protegidos del constructor de
+Becas (Cambio 58, decisión D5).
+
+**Estado actual de cada formulario base.** Solo el F-00 es configurable hoy; el resto está escrito a
+mano y es lo que este replanteo convierte en parametría:
+
+| Formulario base | Lo invoca | Campos protegidos (columnas de hoy) | Configurable hoy |
+|---|---|---|---|
+| **F-00 Admisión** | Botón Admitir (`AdmisionCreateView`) | ciudadano, dispositivo, plaza, fecha de ingreso, reingreso | **Sí** (`CampoTipoDispositivo` → `Admision.respuestas_f00`) |
+| **Asignación de plaza** | Asignar o cambiar plaza | plaza | No |
+| **F-01 Registro diario por turno** | Parte diario (`ParteDiarioView`) | fecha, turno, cantidades calculadas, firmado por | **No** — los conceptos son una tupla fija en `RegistroDiarioForm.OBSERVACIONES_POR_CONCEPTO` |
+| **Egreso** | Botón Egresar (`EgresoAdmisionView`) | fecha de egreso, motivo, destino, responsable | No |
+| **Traslado** | Botón Trasladar | los del egreso más la institución destino | No |
+| **F-02 Prestación mensual** | Merenderos | mes, raciones y observaciones por día | Parcial (observaciones por día) |
+| **Entrega de mercadería** | Merenderos | fecha, kits, servicio, receptor | No |
+
+### 11.5.2 Secciones sensibles: bloqueo con avance visible y consentimiento auditado
+
+**Definición del PM (09/09/2026).** Reemplaza el compromiso de «inhabilitar capturas o copias» de la
+minuta del 19/06, que **no es técnicamente posible** en una aplicación web: nada impide una foto de
+la pantalla o la captura del sistema operativo. Se implementa todo lo que sí protege:
+
+1. **Dónde se declara.** Al armar el formulario en el configurador, cada sección declara si es
+   sensible, con qué nivel, y **qué equipo la completa**.
+2. **Sin el nivel, la sección se ve que existe y se ve su avance.** No se oculta: en lugar del
+   contenido aparece el bloqueo, con el equipo responsable y el porcentaje completado. El texto
+   modelo es *«Tu rol no accede a esta sección. La completa el equipo de psicología»*, con el avance
+   al lado (por ejemplo, 80 %). Quien atiende a la persona sabe que esa información existe, que está
+   cargada y a quién pedírsela, sin verla.
+3. **Con el nivel, no alcanza con tenerlo.** Al abrir la sección el sistema advierte que la
+   información es sensible y **exige un OK explícito**. Ese OK queda registrado con usuario, sección,
+   entidad leída y fecha y hora. Tener el permiso habilita; leer requiere un acto deliberado y deja
+   rastro. **Se pide cada vez que se abre la sección** (decisión del PM: trazabilidad por sobre
+   comodidad). Consecuencia asumida: la auditoría acumula una fila por apertura, así que el reporte de
+   lecturas agrupa por usuario, persona y día para seguir siendo legible, sin perder el detalle.
+4. **Medidas complementarias:** bloqueo de copiado y de exportación en las secciones sensibles, marca
+   de agua con usuario y hora para que una filtración sea rastreable, y auditoría de cada lectura
+   dentro de la auditoría única del programa (M10).
+
+**Restricción de arquitectura, para que esto sea implementable.** El sistema autoriza **por capacidad,
+nunca por nombre de rol** (`core/rbac.py`), y el catálogo de capacidades es la fuente única que
+alimenta el seed, el árbol del ABM de Roles y el modelo ancla: no puede crecer por configuración. Por
+lo tanto la sección **elige su nivel de una lista fija** —general, social, salud, psicosocial,
+judicial—, cada nivel tiene su capacidad en el catálogo, y los roles la tildan en el ABM de Roles. El
+configurador puede mostrar, a título informativo, qué roles tienen hoy cada nivel. Lo que no puede
+hacer es que cada sección lleve su propia lista de roles: sería un permiso por sección creado por
+configuración, fuera del catálogo.
+
+---
+
+**A quién pertenece el formulario (PM, 09/09/2026): al tipo de institución.** Así queda dentro del
+configurador del tipo, donde se decidió que viva. Para que eso no signifique configurar a mano siete
+formularios por cada uno de los ocho tipos, la **carga inicial los crea para todos los tipos a partir
+de un contenido común**, y después cada tipo puede divergir donde de verdad se diferencia: el F-00
+arranca distinto por tipo, porque ya lo es; la bitácora, el egreso y el traslado arrancan iguales en
+todos y se tocan solo si una institución lo pide.
+
+---
+
+## 12.3 Reconciliación de horas y recotización (09/09/2026)
+
+**Los números del documento del cliente cerraban; el que había quedado viejo era el backlog.** La
+conciliación, con las cuentas explícitas:
+
+| Concepto | Horas |
+|---|---:|
+| Suma de las 45 tasks del Project | 410 |
+| menos los 3 ajustes sobre lo entregado, declarados sin cargo (T03 6 h, T05 8 h, T36 4 h) | −18 |
+| = desarrollo cobrable según el backlog | 392 |
+| más el descuento por reutilización mal aplicado a diez tasks sin base en el sistema | +24 |
+| **= desarrollo cobrable, igual al §11.4 del documento publicado** | **416** |
+
+El desfase por módulo entre el documento y el backlog era exactamente ese descuento: M3 +12, M4 +4,
+M5 +2, M7 +2, M11 +2, M12 +2. La corrección se hizo en el documento el 08/09 y **no se bajó a las
+tasks**; hay que sincronizarlas.
+
+Clasificación de las 45 tasks: **27 nuevas** (252 h en el backlog, 276 h corregidas), **15
+ampliaciones** de lo existente (140 h) y **3 ajustes** sobre lo entregado (18 h, sin cargo).
+
+### Recotización aprobada por el PM: 628 h
+
+Las definiciones de esta revisión mueven el alcance:
+
+| Cambio | Antes | Después |
+|---|---:|---:|
+| M4 — se rehace: motor propio de formularios, configurador, seis formularios base a parametría, sensibilidad con lectura registrada, baja lógica de campos respondidos | 50 | 88 |
+| M3 — solapa del Legajo Ciudadano, que no tenía task | 98 | 110 |
+| M1 — fusión de duplicados, que no tenía task | 36 | 44 |
+| M7 — alcance por subsecretaría | 40 | 40 |
+| **Desarrollo cobrable** | **416** | **474** |
+
+Y los rubros que se calculan como proporción del desarrollo se ajustan: **QA 64 → 73 h** y **diseño
+24 → 27 h**. Análisis (24 h), despliegue (16 h) y capacitación (14 h) no cambian.
+
+| Concepto | Horas |
+|---|---:|
+| Backend | 285 |
+| Frontend | 189 |
+| Análisis funcional y definiciones | 24 |
+| Pruebas y QA | 73 |
+| Diseño UX/UI | 27 |
+| Despliegue a QA y datos iniciales | 16 |
+| Capacitación | 14 |
+| **Total Versión 2** | **628** |
+
+**Total del programa: 1.064 h** (436 de base más 628 de adición). Cuatro etapas de 302, 148, 98 y
+80 h, doce semanas, dos desarrolladores a tiempo completo. Publicado en
+`docs/client/funcionalidades/estimacion-programa-dispositivos.md`.
+
+---
+
+## 12.2 Decisiones del PM del 09/09/2026 y ajustes al backlog
+
+Resultado de la revisión punto por punto. Cada fila es una instrucción para la sincronización del
+backlog; ninguna cambia el modelo funcional.
+
+| # | Qué | Decisión / ajuste |
+|:-:|---|---|
+| 1 | **Alcance en tres niveles** | El nivel intermedio es la **subsecretaría** (§11.1). Renombrar la task de M7, hoy «Alcance en tres niveles (institución, área, central)», y hacer el campo de M1 una FK a `core.Subsecretaria` |
+| 2 | **Solapa del Legajo Ciudadano** | Task nueva en M3 (~12 h): reescribir la solapa contra Estadía, sacar los tres candados, rehacer `test_solapa_dispositivos.py` (§6.3) |
+| 3 | **Configurador de tipos** | Se replantea: N formularios por tipo, base precreados y llamados por código, campos protegidos (§11.5). M4 se reescribe |
+| 4 | **Secciones sensibles** | Bloqueo con avance visible, OK auditado en cada apertura, marca de agua, bloqueo de copiado (§11.5.2). Reemplaza el compromiso de «inhabilitar capturas» |
+| 5 | **Fusión de duplicados** | RF8 del análisis de M1 no tiene task. Crear: la ejecuta el administrador central, con traza, conservando el historial de las dos instituciones |
+| 6 | **RN-DI-11 recuperada** | Una institución en estado **Observado no habilita ingresos nuevos**. El estado sobrevivió en las transiciones de la v2; la regla se había perdido. Agregar a la task de estados de M1 |
+| 7 | **RN-DI-19 resuelta** | La colisión entre el «dispositivo institucional» y el alias `dispositivo` de `LegajoAtencion` (`legajos/models/base.py:296`) **queda resuelta** por el nombre del modelo común de la v2: `Institucion` |
+| 8 | **RN-DI-20 recuperada** | Un dato **migrado sin verificar no se publica como oficial**. El nivel de confianza está en el modelo pero la task de reportes de M9 no lo menciona: agregar el requisito, que los reportes distingan verificado, declarado y migrado sin verificar |
+| 9 | **Pertenencias al ingreso (Parador)** | Sin task: lo resuelve el configurador. El Parador agrega el campo a su formulario de ingreso, sin desarrollo |
+| 10 | **Referencia de GENACH** | Igual: es un campo del formulario, lo agrega el Ministerio. La integración con GENACH sigue fuera de alcance |
+| 11 | **Préstamo de plaza** | **No exige autorización de un segundo usuario.** Alcanza con que queden registrados quién lo hizo y por qué, más las 12 o 24 h y la traza. Lo relevado en Calcuta decía «con autorización»; el PM define que el registro es suficiente |
+| 12 | **Cobertura alimentaria de merenderos** | **Se mantiene** (6 h, M12). Declarado: no lo pidió el Ministerio en ninguna minuta, era un criterio excluido del issue #183 en la v1 y se repuso por propuesta nuestra |
+| 13 | **Terminología de disponibilidad y ocupación** | El vocabulario operativo (normal, exigida, crítica, sin datos) queda **pendiente de confirmación con el área de Salud**, que era lo relevado. No figura como cerrado |
+| 14 | **Horas que no son desarrollo** | Las 142 h de análisis, QA, diseño, despliegue y capacitación **se cargan como tasks** al terminar la revisión, para que el Project cierre contra el documento del cliente |
+| 16 | **Borrado de campos del formulario (#313)** | De las catorce tasks de remediación cerradas el 08/09 como «terminadas de la v1», trece están cubiertas por el backlog v2 y **una no**: #313, «Sanear el borrado de campos de tipo: baja lógica y ProtectedError». Su bug está vivo: `CampoTipoDispositivoDeleteView` (`programas/views/dispositivos_config.py:215-221`) hace `campo.delete()` sin guarda, así que las respuestas ya cargadas quedan huérfanas con una clave que no apunta a nada, y si el campo tiene un adjunto el `PROTECT` de `ArchivoAdmision` levanta un `ProtectedError` sin manejar (error 500). **El requisito se agrega al modelo de formularios de M4**: un campo con respuestas no se borra, se da de baja lógica y deja de pedirse; el borrado real solo procede si nunca se respondió |
+| 15 | **Casos de prueba** | Se generan **después** de cerrar la revisión, no antes: M4 se reescribió y escribir casos sobre tasks que van a cambiar es trabajo perdido. Hoy ninguna de las 45 tasks los tiene, así que ninguna es Ready |
+
+---
+
+## 12.1 Dependencias abiertas del Ministerio
+
+Cinco entregables acordados en las minutas del 19/06 y del 26/06/2026 siguen sin recibirse, con
+responsable **Equipo Chaco** y sin fecha. Se dejan asentados como **dependencia explícita de la Versión 2**, para
+reclamarlos en la próxima reunión (decisión del PM, 09/09/2026):
+
+| Entregable pendiente desde el 26/06 | Qué bloquea de la v2 |
+|---|---|
+| Formato de registro del programa **CDI** | El tipo CDI no existe como tipo de dispositivo ni tiene ficha; no está estimado |
+| Visita a un dispositivo **ECA** para relevar los datos de intervención | La ficha de ECA y las reglas de permanencia de 48 h por medida judicial |
+| Formularios de **Residencia Universitaria** y **Fortalecimiento Familiar** | Sus fichas, y la pregunta 6 de §12 (si Fortalecimiento trabaja con cupos, turnos o sin plazas) |
+| Reenvío de **accesos y datos de infraestructura** | El despliegue a QA (§11.5 etapa 4) |
+| Planillas y documentación de los formularios de la **Línea 102** (minuta 19/06, Guido Cortiglia) | La sección judicial de NNA y qué referencia de GENACH se guarda |
+
+**Fichas por tipo: qué está cubierto y qué no.** La carga inicial de la v2 cubre los **dos** tipos
+aprobados campo a campo: Adultos Mayores (33 campos de operador) y Abordaje Psicosocial (45). Sin
+documento fuente quedan UPI, ECA, Residencias Universitarias, Fortalecimiento Familiar, CDI y —dato
+llamativo— **las tres instituciones que motivaron la propia Versión 2**: Albergue Madre Teresa de
+Calcuta, CIS N.º 3 y Parador Nocturno. El relevamiento de campo de septiembre las relevó a nivel de
+**proceso**, no de campos (§2.4 de la estimación describe cómo operan y qué necesitan, no qué
+preguntas tiene su ficha). Los tipos nuevos se crean por configuración, sin código, así que no hay
+desarrollo bloqueado; lo que falta es el documento y quién carga cada ficha.
 
 ---
 

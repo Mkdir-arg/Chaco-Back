@@ -214,6 +214,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release 6d3925f, PR #383). La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
 | 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release dc1a900, PR #384); se activa cuando ECOM cargue `GTM_CONTAINER_ID`** | No requiere |
 | 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
+| 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -7443,5 +7444,124 @@ despliegue 16, capacitación 14) y por etapa (277, 103, 98, 80), con la columna 
 
 **Queda pendiente** actualizar las 45 tasks del Project, que suman 410 h y deberían sumar 434 h con la
 clasificación por tipo de trabajo. No se tocaron porque el total todavía está en revisión del PM.
+
+---
+
+# Cambio 70 — Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma
+
+🟢 **HECHO — 09/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal (ciudadano e inscripción pública) · Becas (correo de resolución) |
+| **Etiquetas** | `#textos` `#ui` `#correo` `#relevamientos` |
+| **Solicitante** | PM — en sesión, con la captura del pie del correo de comprobante |
+| **Fecha del pedido** | 09/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Backoffice (plantilla del correo de resolución) · Portal ciudadano · link público de inscripción · correos salientes |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma.
+> Ejemplo esto: "Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier
+> consulta, comunicate al +54 362 430-0002."»
+
+## Alcance acordado
+
+- El teléfono **desaparece de todo el código**: las siete superficies que quedaban abiertas desde el
+  Cambio 59 más el correo de resolución de Becas, que no estaba en aquel inventario.
+- **Se borra el teléfono y la invitación a llamarlo, no el mensaje entero.** El texto útil que lo
+  acompañaba se conserva; lo que se va es la oración de contacto.
+- **Afuera:** la casilla `datanach@chaco.gob.ar`, que sigue en el header y el footer del portal, y la
+  casilla `consultasincentivojuventud@gmail.com` del pie del link público (Cambios 59 y 62). El pedido
+  fue sobre el teléfono; los correos son datos reales.
+- **Afuera también:** este archivo. Las menciones históricas del número en los Cambios 42, 43, 51, 59,
+  60, 61 y 62 se conservan, porque el registro no se reescribe.
+
+## Decisiones tomadas
+
+- **Cierra el pendiente que abrió el Cambio 59** y arrastraron los Cambios 60, 61 y 62: «qué se hace
+  con el +54 362 430-0002 en las otras superficies». La respuesta del PM es que el número nunca
+  existió, así que no se reemplaza por otro: se elimina.
+- **No se deja el marcado vacío.** Cuando el teléfono era el único contenido de un elemento —la tarjeta
+  «Teléfono» de la home, los bloques de contacto del header y el footer, los párrafos de «ya estás
+  inscripto», «demasiados intentos» y «sesión vencida»— se borra el elemento completo. En el working
+  tree había tres ediciones previas a medias que dejaban `<span></span>` y `<p></p>`: quedaban un icono
+  de teléfono suelto en el footer y dos párrafos vacíos ocupando margen. Se limpiaron acá.
+- **Cuando el teléfono era la segunda oración, se corta la oración.** El aviso de los dos correos queda
+  «Este mensaje se envió automáticamente y no hace falta responderlo.» —la parte que le dice al
+  ciudadano que no responda ese mail sigue siendo necesaria— y el comprobante en pantalla queda «Podés
+  cerrar esta página.».
+- **El bloque «Ayuda» de la home se queda con el horario y el chat.** Sacada la tarjeta del teléfono,
+  la ayuda de la home son «Lunes a Viernes, 9–17 hs» y el botón «Chatear con un operador», que es un
+  canal que sí funciona. No se inventó un contacto de reemplazo.
+- **`ya_inscripto` pierde la línea de contacto y no gana otra.** Es la misma lógica del Cambio 61 en la
+  alerta del paso 1: el aviso principal ya explica qué pasó, y el único contacto que quedaba era el
+  número inexistente.
+- **El correo de resolución de Becas entra aunque no estaba en el inventario del Cambio 59.** Es el
+  aviso de aprobado/rechazado/lista de espera, y tenía el mismo pie. El pedido fue «todos los
+  mensajes».
+- **El contrato de marca del agente de diseño cambia con el mismo diff.** El shell del portal es pieza
+  canónica: `.claude/agents/chaco-design-system.md` decía «datos de contacto únicos +54 362 430-0002 /
+  datanach@chaco.gob.ar». Ahora declara un solo dato de contacto —la casilla— y deja escrito que el
+  teléfono era ficticio, para que nadie lo reponga desde el material histórico.
+
+## Implementación
+
+Ni el portal ciudadano, ni las seis pantallas del link público, ni el correo de comprobante, ni el
+correo de resolución de Becas muestran un teléfono. El único dato de contacto del portal es la casilla
+`datanach@chaco.gob.ar`; el del link público, `consultasincentivojuventud@gmail.com`.
+
+## Archivos
+
+`portal/templates/portal/base.html` (bloque de teléfono del header y del footer) ·
+`portal/templates/portal/home.html` (tarjeta «Teléfono» del bloque Ayuda) ·
+`portal/templates/portal/inscripcion/confirmacion.html` ·
+`portal/templates/portal/inscripcion/ya_inscripto.html` ·
+`portal/templates/portal/inscripcion/demasiados_intentos.html` ·
+`portal/templates/portal/sesion_vencida.html` ·
+`portal/templates/portal/inscripcion/email/confirmacion_body.html` y `.txt` ·
+`programas/templates/programas/becas/email/resolucion_body.html` y `.txt` ·
+`.claude/agents/chaco-design-system.md` (contrato de marca del shell del portal).
+
+Sin cambios en Python: ningún test ni vista afirmaba sobre esas frases (se verificó por búsqueda antes
+de tocar).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `grep` del número sobre todo el repo fuera de `docs/` y `.venv/`: **0 coincidencias**.
+- `manage.py check` OK · `compile_templates.py` 335 plantillas, 0 errores ·
+  `design_audit.py --changed` 0 errores / 0 warnings · `check_design_agent.py --changed` OK.
+- `portal` completo: 150 tests, 29 errores. Se corrió el **mismo comando sobre un worktree de HEAD** y
+  dio 29 idénticos: es el baseline conocido del venv local (Python 3.14 + Django 4.2,
+  `Context.__copy__` → `AttributeError: 'super' object has no attribute 'dicts'`). Ningún `FAIL`.
+- `programas.tests.test_becas_revision` (el módulo que renderiza el correo de resolución): 76 tests,
+  23 errores, **todos** el mismo `AttributeError` del baseline; ninguna aserción caída.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. Solo plantillas: no hace falta `migrate`, sí `collectstatic` por el
+flujo habitual del entrypoint. No toca el CSS, así que no requiere `npm run build:tailwind`.
+
+## Pendientes / a definir
+
+- **Si el organismo consigue un teléfono real**, hay que decidir dónde vuelve: no alcanza con reponer
+  la línea del footer, porque el número vivía en ocho lugares. El contrato del agente de diseño ya
+  avisa que no se introduce un teléfono sin dato confirmado por el PM.
+- Sigue abierto el pendiente del Cambio 61: si el mensaje de rechazo del paso 1 tiene que desaparecer
+  del todo o queda la oración corta.
+
+## Reversión
+
+Revertir el commit: vuelven los ocho textos con el teléfono y el contrato de marca anterior.
+
+## Historial
+
+No aplica.
 
 ---

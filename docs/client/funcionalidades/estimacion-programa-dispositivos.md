@@ -23,13 +23,13 @@ salida, traslados con seguimiento, información sensible con acceso diferenciado
 | Etapa | Horas | Estado |
 |---|---:|---|
 | Versión 1 — alcance base | 436 | Aprobada y desarrollada |
-| **Versión 2 — alcance que se agrega** | **558** | **En validación con el Ministerio** |
-| **Total del programa** | **994** | |
+| **Versión 2 — alcance que se agrega** | **628** | **En validación con el Ministerio** |
+| **Total del programa** | **1.064** | |
 
 El detalle de la Versión 2 —los cambios que pidió cada institución, en qué se diferencian de lo ya
 entregado, los módulos, las etapas y los tiempos— está en la **sección 11**.
 
-> Las horas corresponden a esfuerzo técnico neto. No incluyen reuniones de seguimiento ni gestión de proyecto. Los formularios de los tipos aún en relevamiento (UPI, ECA, Residencias Universitarias, Fortalecimiento Familiar) **no requieren desarrollo adicional**: se cargan como configuración cuando el Ministerio los entregue (ver §7).
+> Las horas corresponden a esfuerzo técnico neto. No incluyen reuniones de seguimiento ni gestión de proyecto. Los formularios de los tipos aún en relevamiento (UPI, ECA, Residencias Universitarias, Fortalecimiento Familiar, CDI y las tres instituciones visitadas en septiembre) **no requieren desarrollo adicional**: se cargan como configuración cuando el Ministerio los entregue (ver §7).
 
 ### 1.1 Necesidad de negocio relevada
 
@@ -65,7 +65,7 @@ El sistema debe reemplazar esa dispersión por una gestión operativa única que
 | Ref | Módulo | Descripción | Horas | Perfil |
 |---|---|---|---:|---|
 | D-01 | Modelo de datos | Modelos del dominio: Dispositivo institucional, Tipo de dispositivo, Cama, Admisión/Estadía, campos configurables del formulario de admisión, Registro diario, Merendero, Entrega de mercaderías y Prestación mensual. Vínculo con el legajo ciudadano y membresía al programa (habilita la solapa). Migraciones y admin básico. | 24 | Backend |
-| D-02 | Configuración del programa | ABM del catálogo de **tipos de dispositivo** y de los **campos del formulario de admisión por tipo** (secciones + tipos de campo: texto / número / selector / selector múltiple / fecha / archivo). Carga de la configuración inicial de **Adulto Mayor** (31 campos) y **Abordaje Psicosocial** (45 campos) según los formularios relevados. Catálogo de servicios del merendero. | 34 | Backend + Frontend |
+| D-02 | Configuración del programa | ABM del catálogo de **tipos de dispositivo** y de los **campos del formulario de admisión por tipo** (secciones + tipos de campo: texto / número / selector / selector múltiple / fecha / archivo). Carga de la configuración inicial de **Adulto Mayor** (33 campos) y **Abordaje Psicosocial** (45 campos) según los formularios relevados. Catálogo de servicios del merendero. | 34 | Backend + Frontend |
 | D-03 | Legajo del dispositivo | ABM con búsqueda anti-duplicado, alta en borrador, circuito de validación del área (validar / observar / rechazar), estados del dispositivo, domicilio con geolocalización, responsable y contacto. Pantalla de detalle con información base y configuración de camas. | 26 | Backend + Frontend |
 | D-04 | Gestión de camas | Estado por cama (disponible / reservada / ocupada / fuera de servicio), regla "una cama, una persona", **ocupación y disponibilidad calculadas** a partir de las estadías (nunca carga manual), semáforo de ocupación configurable por tipo. | 16 | Backend + Frontend |
 | D-05 | Admisiones, estadía y egreso | Búsqueda de la persona por DNI en el legajo ciudadano (con pre-completado de identidad vía RENAPER), asignación de cama, **formulario de admisión dinámico según el tipo** (secciones, campos configurables, totales calculados), **detección automática de reingreso**, estados de la admisión, lista de espera, egreso con liberación de cama y traslado con nueva estadía vinculada al mismo legajo. | 40 | Backend + Frontend |
@@ -173,8 +173,8 @@ La presente estimación incluye únicamente indicadores básicos del programa. E
 
 > Los escenarios que surgieron del relevamiento de campo (separación de funciones, una sola plaza
 > activa por persona en toda la red, préstamo de plaza, autorización previa de ingreso y límite de
-> permanencia de 48 horas en UPI/ECA) **no forman parte de esta etapa**: se prueban con la Versión 2
-> y sus horas están en §1.3. La regla de dosis con prescripción previa corresponde al módulo de
+> permanencia de 48 horas en UPI/ECA) **no forman parte de esta etapa**: se prueban con la Versión 2 (§11.6)
+> y sus horas están en §11.3. La regla de dosis con prescripción previa corresponde al módulo de
 > medicación, que sigue fuera de alcance (§7.1).
 
 ---
@@ -203,11 +203,11 @@ La presente estimación incluye únicamente indicadores básicos del programa. E
 
 ---
 
-## 7. Fuera del alcance de esta estimación
+## 7. Versión 1 — fuera del alcance
 
 Las siguientes funcionalidades forman parte del relevamiento y quedan documentadas como necesidades del Sistema de Gestión Operativa Integral, pero no están incluidas en la estimación base de 436 horas. Su alcance funcional debe validarse con el Ministerio antes de calcular el esfuerzo correspondiente.
 
-### 7.1 Funcionalidades relevadas pendientes de estimación
+### 7.1 Funcionalidades relevadas que quedaron fuera de la Versión 1
 
 | Funcionalidad | Alcance funcional relevado | Estimación |
 |---|---|---|
@@ -215,7 +215,7 @@ Las siguientes funcionalidades forman parte del relevamiento y quedan documentad
 | Administración de medicación | Registrar prescripciones, dosis, horarios y entregas. No permitir registrar una dosis sin prescripción previa ni marcar más de una vez la misma dosis por horario y día. | **Pendiente** |
 | Asistencia y gestión de RRHH | Digitalizar asistencia, situación de revista, horarios, guardias, cambios de turno y distribución de personal por institución o área. | **Pendiente** |
 | Historial clínico y legajo de salud | Centralizar el legajo médico, diagnósticos, turnos e intervenciones de Salud/Enfermería, con permisos restringidos y trazabilidad de acceso. | **Pendiente** |
-| Libros institucionales y bitácora de guardia | Reemplazar libros de actas, cuadernos del sereno y registros de operadores por una bitácora digital con traspaso de novedades entre turnos. | **Pendiente** |
+| Libros institucionales y bitácora de guardia | Reemplazar libros de actas, cuadernos del sereno y registros de operadores por una bitácora digital con traspaso de novedades entre turnos. | **Incluida en la Versión 2** (§11.4, módulo de bitácora y pase de guardia: 32 h) |
 | Funcionamiento offline y sincronización | Permitir carga operativa ante cortes momentáneos de conectividad y sincronizar luego con la base central, resolviendo conflictos y conservando la trazabilidad. | **Pendiente** |
 | Control de acceso físico | Integrar huella digital o clave individual para registrar accesos, vincularlos con la estadía y eliminar o desactivar el permiso al finalizarla. | **Pendiente** |
 | Layout de habitaciones y dispositivos móviles | Visualizar habitaciones, camas, tipo de paciente y régimen de comida; ofrecer interfaces móviles simples para Mantenimiento, Cocina y Lavadero. | **Pendiente** |
@@ -227,7 +227,7 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 
 | Ítem | Motivo |
 |---|---|
-| Formularios de UPI, ECA, Residencias Universitarias y Fortalecimiento Familiar | En relevamiento por el Ministerio; **se cargan como configuración sin desarrollo adicional** cuando estén definidos (el mecanismo configurable está incluido en D-02) |
+| Formularios de UPI, ECA, Residencias Universitarias, Fortalecimiento Familiar y CDI, y de las tres instituciones relevadas en septiembre (Albergue Madre Teresa de Calcuta, CIS N.º 3 y Parador Nocturno) | En relevamiento por el Ministerio; **se cargan como configuración sin desarrollo adicional** cuando estén definidos (el mecanismo configurable está incluido en D-02 y se amplía en la Versión 2). El relevamiento de campo de septiembre describió cómo operan estas tres instituciones, no los campos de su ficha |
 | Línea 102, denuncias y derivaciones de casos sensibles | Etapa posterior acordada con el Ministerio |
 | Gestión de personal y dotación por dispositivo | Etapa posterior |
 | Rendiciones de fondos y recursos (más allá del registro de kits) | Etapa posterior |
@@ -237,7 +237,7 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 | App móvil | Esta etapa es de backoffice; no se requiere aplicación de campo |
 | Inventario y stock integral de alimentos, limpieza, fármacos, agua, colchones y kits | Funcionalidad documentada en §7.1; estimación pendiente |
 | Asistencia y situación de revista del personal | Funcionalidad documentada en §7.1; corresponde a Recursos Humanos y su estimación está pendiente |
-| Libros institucionales digitales y bitácora de guardia completa | Funcionalidad documentada en §7.1; el registro diario incluido no equivale a un módulo integral |
+| ~~Libros institucionales digitales y bitácora de guardia completa~~ | **Ya no aplica:** la bitácora de guardia con turnos y pase de novedades está incluida en la Versión 2 (§11.4). Siguen fuera los libros de economato, inventario y limpieza |
 | Administración de fármacos e historial clínico digital | Funcionalidades documentadas en §7.1; requieren definición clínica y estimación pendiente |
 | Control de acceso por huella digital o clave individual | Propuesta del Albergue Calcuta; requiere equipamiento, definición de proveedor e integración |
 | Layout interactivo de habitaciones y dispositivos móviles para Cocina, Lavadero y Mantenimiento | Necesidades de operación e infraestructura; no forman parte del backoffice estimado |
@@ -247,7 +247,7 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 
 ---
 
-## 8. Supuestos y condiciones
+## 8. Versión 1 — supuestos y condiciones
 
 1. El motor de roles (RBAC) y el design system del proyecto están operativos; los módulos los reutilizan sin modificaciones estructurales.
 2. La validación RENAPER reusa el servicio existente sin cambios en su contrato.
@@ -380,30 +380,30 @@ La diferencia, área por área:
 !!! tip "Qué no se vuelve a hacer"
     El motor de roles, la validación de identidad contra la Base de Personas, el legajo ciudadano, las
     solapas del legajo, el sistema de diseño y el constructor de formularios ya están construidos y se
-    reutilizan. Por eso la Versión 2 estima **558 h** y no las **más de 800 h** que costaría el mismo
+    reutilizan. Por eso la Versión 2 estima **628 h** y no las **más de 900 h** que costaría el mismo
     alcance partiendo de cero. Los **ajustes sobre funcionalidad ya entregada** (18 h: paginación del
-    padrón, aviso de código repetido y vocabulario de los indicadores) **no se suman a las 558 h**.
+    padrón, aviso de código repetido y vocabulario de los indicadores) **no se suman a las 628 h**.
 
 ### 11.3 Cómo se compone la estimación
 
 | Concepto | Horas |
 |---|---:|
-| Desarrollo Backend | 250 |
-| Desarrollo Frontend | 166 |
+| Desarrollo Backend | 285 |
+| Desarrollo Frontend | 189 |
 | Análisis funcional y definiciones con el Ministerio | 24 |
-| Pruebas funcionales y QA | 64 |
-| Diseño UX/UI | 24 |
+| Pruebas funcionales y QA | 73 |
+| Diseño UX/UI | 27 |
 | Despliegue a ambiente QA y datos iniciales | 16 |
 | Capacitación | 14 |
-| **Total Versión 2** | **558** |
+| **Total Versión 2** | **628** |
 
 Para comparar con lo ya aprobado:
 
 | Etapa | Horas | Estado |
 |---|---:|---|
 | Versión 1 — alcance base | 436 | Aprobada y desarrollada |
-| Versión 2 — alcance que se agrega | 558 | En validación |
-| **Total del programa** | **994** | |
+| Versión 2 — alcance que se agrega | 628 | En validación |
+| **Total del programa** | **1.064** | |
 
 ### 11.4 Detalle por módulo
 
@@ -413,19 +413,19 @@ son de desarrollo; el análisis, las pruebas, el diseño, el despliegue y la cap
 
 | Ref | Módulo | Qué incorpora | Horas |
 |---|---|---|---:|
-| M1 | Legajo institucional | Base común de dispositivos y merenderos: encuadre jurídico, servicios que brinda, documentación con vigencia, procedencia y confianza del dato, estados de inauguración y suspensión, listado y detalle | 36 |
+| M1 | Legajo institucional | Base común de dispositivos y merenderos: encuadre jurídico, subsecretaría de la que depende, servicios que brinda, documentación con vigencia, procedencia y confianza del dato, estados de inauguración y suspensión, listado, detalle y fusión de instituciones duplicadas | 44 |
 | M2 | Sectores y plazas | Sectores con cupos por servicio, plazas de tipo cama, cupo o turno, préstamo, reubicación asistida y cálculo único de ocupación, disponibilidad y censo | 28 |
-| M3 | Estadías | Solicitud con autorización previa, ingreso guiado con verificación en la red, movimientos (cambio de plaza, préstamo, permiso de salida), traslado en tránsito, egreso con derivación, pantalla de la estadía y avisos | 98 |
-| M4 | Ficha de la persona | Ficha por tipo sobre el constructor de formularios, completado a lo largo de la estadía con avance por sección, sensibilidad por sección, lectura, impresión y exportación | 50 |
+| M3 | Estadías | Solicitud con autorización previa, ingreso guiado con verificación en la red, movimientos (cambio de plaza, préstamo, permiso de salida), traslado en tránsito, egreso con derivación, pantalla de la estadía, avisos, y el historial completo de la persona en su Legajo Ciudadano | 110 |
+| M4 | Formularios de la institución | Configurador donde el Ministerio arma **los formularios de cada tipo de institución** sin depender de desarrollo: ingreso, asignación, bitácora, egreso, traslado y prestación pasan a ser parametría con campos protegidos. Secciones sensibles con acceso por rol, aviso de lectura registrado, bloqueo de copiado y marca de agua. Lectura, impresión y exportación | 88 |
 | M5 | Operación diaria | Bitácora por turno con novedades tipificadas y versiones, pase de guardia, censo automático y regularización | 32 |
 | M6 | Espera y derivaciones | Lista de espera con prioridad y reserva, derivaciones entre instituciones y a organismos externos, y vista de plazas en la red | 28 |
-| M7 | Permisos y configuración | Alcance por institución, área y central; niveles de sensibilidad; separación de funciones; y la configuración de reglas por tipo de dispositivo | 40 |
+| M7 | Permisos y configuración | Alcance por institución, por subsecretaría y total; niveles de sensibilidad; separación de funciones; y la configuración de reglas por tipo de dispositivo | 40 |
 | M8 | Tablero y avisos | Tablero de la red con capacidad, movimientos, permanencia y cobertura, y motor de avisos configurable por regla | 22 |
 | M9 | Reportes | Diez reportes exportables en CSV y Excel, acotados al alcance y a la sensibilidad de cada usuario, con registro de quién exportó | 12 |
 | M10 | Carga inicial y auditoría | Importación de instituciones, sectores, plazas y personas alojadas con nivel de confianza y verificación en campo, y auditoría única del programa | 20 |
 | M11 | Merenderos | Legajo con navegación propia y edición con historial, documentación con vigencia, catálogo de insumos y kits con equivalencia en raciones, y entregas con receptor y remito | 32 |
 | M12 | Prestación y cobertura | Prestación mensual con los servicios y días de cada merendero, cierre del mes y cobertura alimentaria | 18 |
-| | **Subtotal desarrollo** | | **416** |
+| | **Subtotal desarrollo** | | **474** |
 
 > Los 18 h de ajustes sobre funcionalidad ya entregada no figuran en esta tabla ni en el total: se absorben.
 
@@ -436,11 +436,11 @@ aprobarlas por separado y detenerse al final de cualquiera de ellas.
 
 | Etapa | Qué queda operativo al terminarla | Qué cambios solicitados resuelve | Horas | Duración |
 |---|---|---|---:|---|
-| **1** | La institución opera: legajo con encuadre y documentación, permisos por área con separación de funciones, reglas por tipo, sectores y plazas, y el circuito completo de estadías con traslados | Cupos por servicio · préstamo de cama · autorización previa · alta rotación · traslado con seguimiento · seguimiento sin alojamiento · avisar sin bloquear · encuadre real | 277 | 4 semanas |
-| **2** | La ficha y el turno: ficha por tipo con sensibilidad y avance por sección, bitácora por turno con pase de guardia y censo | Dejar de transcribir entre turnos · acceso diferenciado a información médica y psicosocial · historial de intervenciones | 103 | 2 semanas |
+| **1** | La institución opera: legajo con encuadre y documentación, permisos por subsecretaría con separación de funciones, reglas por tipo, sectores y plazas, y el circuito completo de estadías con traslados | Cupos por servicio · préstamo de cama · autorización previa · alta rotación · traslado con seguimiento · seguimiento sin alojamiento · avisar sin bloquear · encuadre real | 302 | 5 semanas |
+| **2** | Los formularios y el turno: configurador de formularios por tipo con secciones sensibles y lectura registrada, bitácora por turno con pase de guardia y censo | Dejar de transcribir entre turnos · acceso diferenciado a información médica y psicosocial · historial de intervenciones · formularios que el Ministerio cambia sin desarrollo | 148 | 3 semanas |
 | **3** | La red y la conducción: derivaciones, lista de espera con prioridad, tablero de la red, reportes y carga inicial del padrón | Derivaciones y organismos externos · visibilidad para la conducción · trazabilidad de admisiones | 98 | 2 semanas |
 | **4** | Merenderos: catálogo de kits, entregas con receptor, prestación mensual y cobertura, más el despliegue final y la capacitación | Registro de entregas con quién recibe | 80 | 2 semanas |
-| | **Total** | | **558** | **10 semanas** |
+| | **Total** | | **628** | **12 semanas** |
 
 **Equipo:** 1 desarrollador backend y 1 desarrollador frontend a tiempo completo, con análisis
 funcional, diseño y QA en paralelo a tiempo parcial.
@@ -470,26 +470,26 @@ relevamiento:
 
 ### 11.7 Horas por perfil y por etapa
 
-Resumen de las 558 h en las dos vistas que se usan para planificar y aprobar.
+Resumen de las 628 h en las dos vistas que se usan para planificar y aprobar.
 
 | Perfil | Horas | Proporción |
 |---|---:|---:|
-| Desarrollador Backend | 250 | 45 % |
-| Desarrollador Frontend | 166 | 30 % |
-| Pruebas funcionales y QA | 64 | 11 % |
+| Desarrollador Backend | 285 | 45 % |
+| Desarrollador Frontend | 189 | 30 % |
+| Pruebas funcionales y QA | 73 | 12 % |
 | Análisis funcional y definiciones | 24 | 4 % |
-| Diseño UX/UI | 24 | 4 % |
+| Diseño UX/UI | 27 | 4 % |
 | Despliegue a ambiente QA | 16 | 3 % |
-| Capacitación | 14 | 3 % |
-| **Total Versión 2** | **558** | **100 %** |
+| Capacitación | 14 | 2 % |
+| **Total Versión 2** | **628** | **100 %** |
 
 | Etapa | Horas | Proporción | Acumulado |
 |---|---:|---:|---:|
-| 1 — Institución, permisos, capacidad y estadías | 277 | 50 % | 277 |
-| 2 — Ficha y operación por turno | 103 | 18 % | 380 |
-| 3 — Red, conducción y carga inicial | 98 | 18 % | 478 |
-| 4 — Merenderos, despliegue y capacitación | 80 | 14 % | 558 |
-| **Total** | **558** | **100 %** | |
+| 1 — Institución, permisos, capacidad y estadías | 302 | 48 % | 302 |
+| 2 — Formularios y operación por turno | 148 | 24 % | 450 |
+| 3 — Red, conducción y carga inicial | 98 | 16 % | 548 |
+| 4 — Merenderos, despliegue y capacitación | 80 | 12 % | 628 |
+| **Total** | **628** | **100 %** | |
 
 El Ministerio puede aprobar por tramos: la columna «acumulado» muestra cuántas horas suma detenerse al
 final de cada etapa.
@@ -502,6 +502,6 @@ Los 18 h de ajustes sobre funcionalidad ya entregada se absorben y no se suman a
 Los módulos de §7.1 —inventario y stock, administración de medicación, asistencia y recursos humanos,
 historial clínico, bitácora de guardia ampliada, funcionamiento sin conexión, control de acceso
 físico, plano de habitaciones, tablero de comando completo, planes de contingencia e integración con
-ECOM— **no están incluidos** en las 558 h y se estiman por separado cuando el Ministerio confirme su
+ECOM— **no están incluidos** en las 628 h y se estiman por separado cuando el Ministerio confirme su
 alcance. Tampoco entran el padrón nominal de niñas, niños y adolescentes de los merenderos ni la
 aplicación móvil.

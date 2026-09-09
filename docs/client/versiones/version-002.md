@@ -35,11 +35,11 @@
 | 1 | Constructor de formularios por convocatoria | Alta | En desarrollo | 270 h | **143 h 30 min (53%)** |
 | 2 | Padrón de habilitados con herencia por relevamiento | Alta | Desarrollado — pendiente de publicación | *(dentro del constructor)* | — |
 | 3 | App de campo con el formulario por convocatoria | Alta | Pendiente — equipo móvil | A estimar | — |
-| 4 | Remediación de interfaz del Programa Dispositivos | Media | En curso | A estimar | — |
+| 4 | Remediación de interfaz del Programa Dispositivos | Media | **Reencuadrada en la Versión 2** del programa | *(dentro de la Versión 2)* | — |
 | 5 | Primera convocatoria con inscripción por link público | Media | **Abierta en producción desde el 01/09** — en acompañamiento | — | 20 h |
 | 6 | Textos de los correos de credenciales — aprobación | Baja | Pendiente del Ministerio | — | — |
 | 7 | Dashboard del Programa Becas | Media | Analizado — a validar por el Ministerio | 86 h *(propuestas)* | 5 h 30 min |
-| 8 | Programa Dispositivos — análisis de la versión 2 | Media | En análisis | A estimar | 9 h |
+| 8 | Programa Dispositivos — Versión 2 del programa | Media | **Estimada — en validación del Ministerio** | 628 h *(propuestas)* | 9 h |
 | 9 | Rendimiento del acceso al sistema | Media | Código listo — pendiente de publicación | — | 9 h 30 min |
 
 !!! note "Criterio de las horas"
@@ -80,7 +80,10 @@ La aplicación móvil pasa a mostrar los formularios diseñados por convocatoria
 
 ### :material-palette-outline: 4. Remediación de interfaz del Programa Dispositivos
 
-Las catorce tareas derivadas de la auditoría funcional y de interfaz del programa, para que sus pantallas queden alineadas al sistema de diseño y al comportamiento esperado.
+Las catorce tareas derivadas de la auditoría funcional y de interfaz del programa quedaron
+**reencuadradas dentro de la Versión 2 del programa** (ítem 8): la revisión del 08/09/2026 mostró que
+casi todas tocaban las mismas pantallas que la Versión 2 rehace, así que se resuelven una sola vez y
+sus horas están contempladas en esa estimación, no aparte.
 
 ### :material-link-variant: 5. Primera convocatoria con inscripción por link público
 

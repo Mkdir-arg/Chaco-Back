@@ -17,7 +17,7 @@ hide:
 | Programa Becas — el sistema construido | Programas | Vigente | [:material-arrow-right: Ver](programa-becas-sistema.md) |
 | Programa Becas — propuesta funcional original (jun-2026) | Programas | Histórico | [:material-arrow-right: Ver](programa-becas.md) |
 | Programa Dispositivos — Legajo institucional, admisiones, camas y merenderos | Programas | Definición aprobada · en desarrollo | [:material-arrow-right: Ver](programa-dispositivos.md) |
-| Programa Dispositivos y Merenderos — Estimación de esfuerzo | Programas | Versión 1 desarrollada (436 h) · Versión 2 en validación (558 h) | [:material-arrow-right: Ver](estimacion-programa-dispositivos.md) |
+| Programa Dispositivos y Merenderos — Estimación de esfuerzo | Programas | Versión 1 desarrollada (436 h) · Versión 2 en validación (628 h) | [:material-arrow-right: Ver](estimacion-programa-dispositivos.md) |
 | Correos de credenciales — alta de usuario y recuperación de contraseña | Usuarios | Implementado · textos en revisión | [:material-arrow-right: Ver](correos-credenciales.md) |
 
 ---
