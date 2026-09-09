@@ -213,6 +213,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
 | 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release 6d3925f, PR #383). La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
 | 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release dc1a900, PR #384); se activa cuando ECOM cargue `GTM_CONTAINER_ID`** | No requiere |
+| 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
 
 **Notas del índice**
 
@@ -7244,5 +7245,203 @@ Quitar `GTM_CONTAINER_ID` del entorno apaga todo sin deploy. Revertir el commit 
 ## Historial
 
 Entrada nueva.
+
+---
+
+# Cambio 69 — Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2)
+
+🟢 **HECHO — 08/09/2026** (propuesta funcional, diseño de referencia y backlog v2; el desarrollo arranca con las tasks)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos y Merenderos · gestión del Project |
+| **Etiquetas** | `#gestion` `#datos` `#ui` `#rbac` |
+| **Solicitante** | PM — en sesión del 08/09/2026, después de leer toda la documentación del programa y de mover las 27 tasks de la v1 a Backlog a su nombre |
+| **Fecha del pedido** | 08/09/2026 |
+| **Issue / épica** | Épica #127 (sección «Versión 2») · análisis #385 a #396 · 45 tasks colgadas de esos análisis · v1 cerrada: #128, #309, #173-#185, #310-#323 |
+| **Partes afectadas** | Ninguna del producto todavía: documentación interna, diseño de referencia y GitHub |
+| **Migración** | No requiere. Las tasks v2 que cambian modelos llevan la suya |
+
+## Pedido original
+
+«Armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos
+ahora, ya que creo que no tiene mucho sentido.» Después: «armame un diseño complejo y todos los flujos
+para ver cómo queda», «la versión del diseño que estás usando no es la actual… misma paleta de colores
+pero distinto diseño, mejorá eso» y, para cerrar: «no crees una nueva, en la épica existente agregá una
+sección de versión 2; los task existentes de la v1 pasalos a terminados y creá todos los task de la v2
+sin importar que se repliquen pasos, tiene que quedar como si fuera desde cero; no hay ningún dato
+existente; vamos a estimar teniendo en cuenta lo ya desarrollado así no se siente que se pasa desde
+cero».
+
+## Alcance acordado
+
+Entra: la propuesta funcional completa del programa (13 módulos), el diseño de referencia con flujos y
+pantallas sobre el shell productivo, la sección «Versión 2» en la épica #127, doce análisis (uno por
+módulo funcional, M1 a M12) en `Definido` con asunciones explícitas, 45 tasks con requisitos, interfaz
+o ejemplo, criterios de aprobación y estimación que descuenta lo reutilizable, y el cierre de la v1
+como terminada.
+
+Queda afuera: M13 (padrón nominal y asistencia de merenderos), los once módulos de la estimación v1.1
+§7.1, Línea 102, el portal para merenderos, y cualquier cambio de código.
+
+## Decisiones tomadas
+
+- **La estadía es el eje, no el formulario.** La v1 modeló una «admisión» con estados de aprobación que
+  la operación nunca usó y un F-00 de una sola carga. La v2 cuelga todo (plaza, ficha, movimientos,
+  novedades, egreso) de la estadía, que puede ser residencial o ambulatoria.
+- **Capacidad = plazas (cama, cupo o turno) agrupadas en sectores**, con estados que incluyen Prestada.
+  Todo cálculo se deriva; el sistema alerta y nunca bloquea un ingreso por capacidad.
+- **Unicidad residencial en la red**, compatible con una estadía ambulatoria (adopta la regla de la
+  estimación v1.1 sobre la de #128, que permitía estar alojado en dos dispositivos).
+- **Traslado con estado En tránsito** visible en las dos puntas; nunca dos estadías alojadas.
+- **Un solo motor de formularios:** la ficha por tipo se define en el constructor de formularios del
+  sistema y se retira `CampoTipoDispositivo`. Sensibilidad por sección (general, social, salud,
+  psicosocial, judicial) con permiso propio.
+- **Bitácora por turno y pase de guardia** reemplazan al parte diario: las entradas se agregan, nunca
+  se pisan.
+- **Alcance en tres niveles** (institución, área del Ministerio, central) y **separación de funciones**
+  en el motor: quien registra no valida ni confirma.
+- **Merenderos sigue siendo programa propio** (decisión del Ministerio del 01/07/2026) pero comparte el
+  legajo institucional común y los transversales, y tiene su propio grupo en el menú.
+- **Épica única.** El PM eligió mantener #127 y agregarle la sección «Versión 2» en vez de abrir otra.
+  Los análisis v2 cuelgan de #127; #128 y #309 se cierran como v1.
+- **La v1 se cierra como terminada, no como descartada.** Las 27 tasks (#173-#185, #310-#323) pasan a
+  Done y se cierran con un comentario que apunta a la v2. Lo construido queda como base reutilizable y
+  se descuenta en la estimación.
+- **Estimación con descuento explícito.** Cada task v2 dice cuántas horas serían desde cero y cuántas
+  se descuentan por lo reutilizable de la v1. Total desarrollo v2: **410 h** (570 h desde cero, 160 h
+  descontadas). UX, QA, despliegue y capacitación se gestionan aparte, como en la estimación v1.
+- **Análisis en `Definido` con asunciones.** Las doce preguntas de la propuesta 006 §12 quedaron como
+  asunciones con decisión por defecto en el análisis que corresponde (precedente de #128). Si el
+  Ministerio define otra cosa, se ajusta la task afectada.
+- **No hay datos productivos que migrar** (confirmado por el PM): las migraciones de la v2 son de esquema.
+- **El diseño de referencia se hizo sobre el frontend real, no sobre el canon escrito.** La primera
+  versión del canvas copiaba el canon del agente de diseño y el PM la rechazó («misma paleta, distinto
+  diseño»). Se levantó la app con SQLite, se capturaron las pantallas productivas con Playwright y se
+  rehizo el canvas con el shell real (sidebar blanco con píldoras, buscador redondeado, Manrope, botones
+  píldora con gradiente, tarjeta de filtros, stat cards con ícono, tabla densa, badges con borde tonal).
+
+## Implementación
+
+- `docs/internal/analisis/006-programa-dispositivos-v2-propuesta-funcional.md` — propuesta funcional
+  completa (13 módulos, 9 principios, 12 preguntas, fuera de alcance, próximos pasos). **Sin commitear**
+  al cierre de la sesión.
+- Diseño de referencia (artefacto): https://claude.ai/code/artifact/54ab2e5b-5371-4e69-a5ad-ee8d576543d7
+  — 7 flujos (módulos, estados del legajo, estadía, tránsito, plazas, turno, merenderos) y 16 pantallas.
+- Épica #127: sección «Versión 2» con motivación, principios, funcionamiento, fuera de alcance,
+  definición de terminado, asunciones a confirmar y tabla de análisis con estimación.
+- Análisis v2 (Backlog, Iteration 7, Modulo, ResponsableFuncional): #385 M1 legajo institucional ·
+  #386 M2 plazas · #387 M3 estadías · #388 M4 ficha · #389 M5 bitácora · #390 M6 espera y derivaciones ·
+  #391 M7 roles, alcance y configuración · #392 M8 tablero · #393 M9 reportes · #394 M10 padrón y
+  auditoría · #395 M11 merenderos · #396 M12 prestación y cobertura.
+- 45 tasks v2 (Backlog, Iteration 7, Prioridad, Modulo, EstimacionHoras, assignee `Mkdir-arg`) con
+  checklist en su análisis. Horas por módulo: M1 50 · M2 28 · M3 86 · M4 46 · M5 30 · M6 28 · M7 38 ·
+  M8 26 · M9 12 · M10 20 · M11 30 · M12 16.
+- v1: #128, #309 y las 27 tasks en Status Done y cerradas con comentario.
+
+## Archivos
+
+- `docs/internal/analisis/006-programa-dispositivos-v2-propuesta-funcional.md` — nuevo.
+- `docs/internal/requerimientos.md` — esta entrada y la fila 69.
+- Ningún archivo de código productivo.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Project #1 verificado con `gh project item-list`: 57 items v2 en Backlog, Iteration 7, assignee
+  `Mkdir-arg`, 410 h de EstimacionHoras; 29 items v1 en Done y cerrados.
+- Épica #127 con la sección «Versión 2» y los doce análisis listados.
+- `scripts/requerimientos.py --check` OK tras esta entrada.
+- `manage.py check` y auditoría de diseño no aplican: no se tocó código ni UI.
+
+## Puesta en marcha en el servidor
+
+No aplica.
+
+## Pendientes / a definir
+
+1. **Casos de QA.** Ninguna task v2 tiene todavía su sección «Casos de prueba (QA)»: sin casos no son
+   Ready (`ESTADOS.md`). Correr `/qa:casos` sobre las 45 antes de moverlas.
+2. **Las doce asunciones** de la propuesta 006 §12 (unicidad residencial, ingreso excepcional,
+   autorización previa, préstamo y disponibilidad neta, sensibilidad y GENACH, Fortalecimiento
+   Familiar, albergues, ventana de regularización, servicios y raciones, catálogo de kits, derivaciones
+   externas, niveles de alcance) hay que llevarlas al Ministerio; cada análisis dice qué task cambia.
+3. **Publicar la versión para el cliente** en `docs/client/funcionalidades/` (hoy `programa-dispositivos.md`
+   describe la v1) y actualizar la estimación v1.1 con las 410 h de desarrollo v2.
+4. **Commitear** la propuesta 006 y esta entrada.
+5. **Orden sugerido de arranque:** M1 y M7 (base y permisos), después M2 y M3, luego M4 y M5.
+
+## Reversión
+
+Los issues no se revierten con git: reabrir #128, #309 y las 27 tasks v1 y cerrar #385-#396 y las 45
+tasks v2; quitar la sección «Versión 2» de #127. Revertir el commit de la propuesta 006 y esta entrada.
+No hay código ni datos involucrados.
+
+## Historial
+
+**09/09/2026 — análisis de horas y estimación unificada de la Versión 2.** El PM pidió cruzar lo
+estimado con lo consumido. Resultado del cruce sobre el financiero: el programa lleva **432 h 45 min
+imputadas** como Dispositivos (julio 283 h 15 min + agosto 140 h 30 min + septiembre 9 h) contra las
+**436 h** aprobadas, o sea el 99 % del presupuesto; además hay **128 h 18 min** de análisis de junio
+que el PM imputó íntegramente a Becas. Por rubro, el desarrollo se pasó unas 70 h y quedaron sin
+ejecutar el despliegue a QA (25 h) y la capacitación (14 h), y a menos de la mitad el diseño y el QA;
+el análisis y la documentación consumieron 57 h que la estimación no preveía.
+
+**Se unificó la nomenclatura.** Lo que hizo Abate en septiembre (relevamiento de campo en las cuatro
+instituciones, 9 h, ítem 8 de la Versión 002 con «A estimar») y lo que se armó el 08/09 (propuesta
+006, diseño, 12 análisis y 45 tasks) son **la misma Versión 2 en dos etapas**: su relevamiento
+identificó las funcionalidades y esta estimación las dimensiona. La entrada original hablaba de la
+estimación como si fuera un tercer concepto; no lo es.
+
+**Dos correcciones a la estimación del 08/09:** (1) las 410 h descontaban por reutilización 24 h en
+diez tasks que no tienen base en el sistema, así que el desarrollo son **434 h**; (2) las 410 h eran
+solo desarrollo, sin análisis, QA, diseño, despliegue ni capacitación.
+
+**Estimación unificada, con criterio de funcionalidad nueva** (decisión del PM: la base consumida
+está cerrada y lo que se suma se cotiza como agregado al sistema, no como rehacer):
+
+| Concepto | Horas |
+|---|---:|
+| Desarrollo · funcionalidad nueva (27 entregables) | 276 |
+| Desarrollo · ampliación de lo existente (15 entregables) | 140 |
+| Desarrollo · ajustes sobre lo entregado (3 entregables) | 18 → sin cargo |
+| Análisis funcional y definiciones | 24 |
+| Pruebas y QA | 64 |
+| Diseño UX/UI | 24 |
+| Despliegue a QA y datos iniciales | 16 |
+| Capacitación | 14 |
+| **Total cotizado de la Versión 2** | **558** |
+
+Total del programa: **994 h** (436 base + 558 adición). La adición es 1,28 veces la base y la mitad
+del desarrollo se concentra en tres módulos: estadías 98 h, ficha por tipo 50 h y legajo institucional
+36 h.
+
+**Publicado en `docs/client/funcionalidades/estimacion-programa-dispositivos.md` (Versión 2.0):** el
+resumen ejecutivo muestra las dos etapas (436 base + 558 adición = 994) y toda la Versión 2 quedó
+consolidada en una sola sección **§11 «Estimación y propuesta»**, a pedido del PM, con el énfasis en
+la diferencia entre lo hecho y lo que hay que hacer: §11.1 los catorce cambios que pidió cada
+institución en las visitas, con qué hace el sistema hoy y qué se agrega; §11.2 el comparativo área por
+área; §11.3 la composición de las 558 h; §11.4 el detalle por módulo; §11.5 las cuatro etapas con la
+duración (10 semanas, 2 desarrolladores a tiempo completo) y qué cambio solicitado resuelve cada una;
+§11.6 los escenarios críticos; §11.7 las horas por perfil y por etapa con el acumulado para aprobar
+por tramos; §11.8 qué no está incluido. Por decisión del PM el documento **no lleva valores
+monetarios**: solo cantidades de horas. Las
+secciones 2 a 10 quedaron rotuladas como Versión 1 para
+que no se confundan con la estimación vigente. Se corrigió además una inconsistencia del documento
+anterior: la sección 4 listaba como «escenarios cubiertos» por la v1 la separación de funciones, la
+unicidad de plaza en la red, el préstamo de plaza, la autorización previa y el límite de 48 h de
+UPI/ECA, que no están construidos; pasaron a §12.1 como escenarios de la Versión 2. La fila del índice
+de funcionalidades quedó actualizada.
+
+**Sin valores monetarios.** La primera versión de la sección traía una tabla de costos con el valor
+hora en blanco (no hay tarifas documentadas en el repo). El PM pidió sacarla: el documento expresa el
+alcance solo en horas, por perfil (backend 250, frontend 166, QA 64, análisis 24, diseño 24,
+despliegue 16, capacitación 14) y por etapa (277, 103, 98, 80), con la columna de acumulado.
+
+**Queda pendiente** actualizar las 45 tasks del Project, que suman 410 h y deberían sumar 434 h con la
+clasificación por tipo de trabajo. No se tocaron porque el total todavía está en revisión del PM.
 
 ---

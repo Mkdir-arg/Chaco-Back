@@ -1,10 +1,10 @@
 # Estimación de esfuerzo — Programa Dispositivos y Programa Merenderos
 ## Sistema de Gestión Operativa Integral — Legajos, admisiones, camas y asistencia alimentaria
 
-**Fecha de la estimación base:** 2026-07-02
-**Versión:** 1.1
-**Alcance estimado:** definición funcional del Programa Dispositivos y Programa Merenderos, complementada con el relevamiento de campo realizado en el Albergue Madre Teresa de Calcuta, CIS N.º 3, Dirección de Abordaje Psicosocial (Programa Mírame/Vedia) y Parador Nocturno.
-**Estado:** estimación base aprobada; relevamiento ampliado en validación con el Ministerio.
+**Fecha de la estimación base:** 2026-07-02 · **Fecha de la Versión 2:** 2026-09-09
+**Versión:** 2.0
+**Alcance estimado:** **Versión 1** — definición funcional del Programa Dispositivos y Programa Merenderos aprobada el 01/07/2026, ya desarrollada. **Versión 2** — las funcionalidades que identificó el relevamiento de campo realizado en el Albergue Madre Teresa de Calcuta, CIS N.º 3, Dirección de Abordaje Psicosocial (Programa Mírame/Vedia) y Parador Nocturno.
+**Estado:** Versión 1 aprobada y desarrollada · Versión 2 en validación con el Ministerio.
 
 > **Base de la estimación:** la definición funcional publicada en [Programa Dispositivos](programa-dispositivos.md), con la conformidad del Ministerio sobre el alcance base, y el documento funcional del Sistema de Gestión Operativa Integral. El relevamiento confirma la necesidad de un legajo digital único, trazabilidad por turnos, ocupación calculada y permisos diferenciados. Esta etapa continúa siendo **100% backoffice** y reutiliza el motor de roles, la validación RENAPER, los formularios configurables y las solapas del legajo ciudadano ya construidos.
 
@@ -14,15 +14,20 @@
 
 ## 1. Resumen ejecutivo
 
-| Concepto | Horas |
-|---|---:|
-| Desarrollo Backend | 154 |
-| Desarrollo Frontend | 103 |
-| Diseño UX/UI | 60 |
-| Pruebas funcionales y QA | 80 |
-| Despliegue a ambiente QA | 25 |
-| Capacitación | 14 |
-| **Total** | **436** |
+El programa se estima en dos etapas. La **Versión 1** es el alcance aprobado en julio de 2026, ya
+desarrollado. La **Versión 2** son las funcionalidades que el relevamiento de campo identificó como
+necesarias para que las instituciones operen con el sistema y que la definición original no
+contemplaba: turnos y pase de guardia, cupos por sector, autorización previa de ingreso, permisos de
+salida, traslados con seguimiento, información sensible con acceso diferenciado y derivaciones.
+
+| Etapa | Horas | Estado |
+|---|---:|---|
+| Versión 1 — alcance base | 436 | Aprobada y desarrollada |
+| **Versión 2 — alcance que se agrega** | **558** | **En validación con el Ministerio** |
+| **Total del programa** | **994** | |
+
+El detalle de la Versión 2 —los cambios que pidió cada institución, en qué se diferencian de lo ya
+entregado, los módulos, las etapas y los tiempos— está en la **sección 11**.
 
 > Las horas corresponden a esfuerzo técnico neto. No incluyen reuniones de seguimiento ni gestión de proyecto. Los formularios de los tipos aún en relevamiento (UPI, ECA, Residencias Universitarias, Fortalecimiento Familiar) **no requieren desarrollo adicional**: se cargan como configuración cuando el Ministerio los entregue (ver §7).
 
@@ -47,9 +52,13 @@ El sistema debe reemplazar esa dispersión por una gestión operativa única que
 | Informe técnico de reingeniería | Sistema integral, tablero central, instituciones y contingencias | Marco de referencia |
 | Relevamiento de campo | Procesos reales, registros en papel, necesidades operativas y reglas específicas | En curso; primeras visitas realizadas |
 
----
+!!! abstract "Cómo leer este documento"
+    Las secciones **2 a 10** son la estimación de la **Versión 1**, ya desarrollada, e incluyen el
+    relevamiento de campo que la Dirección realizó en cuatro instituciones (§2.3 a §2.6) y que motivó
+    la Versión 2. La **estimación y la propuesta de la Versión 2** están completas en la
+    **sección 11**.
 
-## 2. Desarrollo
+## 2. Versión 1 — desarrollo
 
 ### 2.1 Detalle por módulo
 
@@ -126,7 +135,7 @@ La presente estimación incluye únicamente indicadores básicos del programa. E
 
 ---
 
-## 3. Diseño UX/UI
+## 3. Versión 1 — diseño UX/UI
 
 | Concepto | Horas |
 |---|---:|
@@ -140,7 +149,7 @@ La presente estimación incluye únicamente indicadores básicos del programa. E
 
 ---
 
-## 4. Pruebas funcionales y QA
+## 4. Versión 1 — pruebas funcionales y QA
 
 | Concepto | Horas |
 |---|---:|
@@ -161,17 +170,16 @@ La presente estimación incluye únicamente indicadores básicos del programa. E
 - Autorización: operador del dispositivo A intentando operar el dispositivo B; rol de consulta intentando modificar.
 - Pre-completado: datos de identidad y obra social desde el legajo ciudadano / RENAPER, sin re-preguntar.
 - Merenderos: solicitud sin documentación respaldatoria → observada; prestación mensual con totales diarios calculados.
-- Separación de funciones: el usuario que carga un movimiento no puede validarlo en el mismo circuito.
-- Unicidad transversal: una persona no puede tener dos camas activas, aun en dispositivos distintos.
-- Préstamo de cama: asignación excepcional configurable por 12 o 24 horas sin perder el vínculo del residente titular.
-- Fechas y horarios: egreso nunca anterior al ingreso; horarios expresados en horas, sin minutos.
-- CIS N.º 3: dosis solo con prescripción previa y una única marca por horario y día.
-- CIS N.º 3 y Parador Nocturno: autorización previa del Programa Central/Media antes del alta, cuando aplique.
-- UPI/ECA: alerta del límite de permanencia de 48 horas cuando el ingreso proviene de una medida de protección judicial.
+
+> Los escenarios que surgieron del relevamiento de campo (separación de funciones, una sola plaza
+> activa por persona en toda la red, préstamo de plaza, autorización previa de ingreso y límite de
+> permanencia de 48 horas en UPI/ECA) **no forman parte de esta etapa**: se prueban con la Versión 2
+> y sus horas están en §1.3. La regla de dosis con prescripción previa corresponde al módulo de
+> medicación, que sigue fuera de alcance (§7.1).
 
 ---
 
-## 5. Despliegue a ambiente QA
+## 5. Versión 1 — despliegue a ambiente QA
 
 | Concepto | Horas |
 |---|---:|
@@ -183,7 +191,7 @@ La presente estimación incluye únicamente indicadores básicos del programa. E
 
 ---
 
-## 6. Capacitación
+## 6. Versión 1 — capacitación
 
 | Sesión | Destinatarios | Horas |
 |---|---|---:|
@@ -268,7 +276,7 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 
 ---
 
-## 9. Cronograma
+## 9. Versión 1 — cronograma
 
 **Inicio:** a definir con el Ministerio (sujeto a aprobación de esta estimación)
 **Equipo:** 1 Backend, 1 Frontend, 1 Diseñador, 1 QA
@@ -289,7 +297,7 @@ Estas funcionalidades no modifican el subtotal de desarrollo ni el total general
 
 ---
 
-## 10. Resumen por fase
+## 10. Versión 1 — resumen por fase
 
 ```
 Desarrollo Backend ·········· 154 h  ████████████████████████████░░░░░░░░
@@ -311,3 +319,189 @@ Total                        436 h
 | Despliegue | 25 | 6 % |
 | Capacitación | 14 | 3 % |
 | **Total** | **436** | **100 %** |
+
+---
+
+## 11. Estimación y propuesta — Versión 2
+
+Esta sección es la propuesta de la Versión 2 de punta a punta: qué pidió cada institución durante las
+visitas, en qué se diferencia de lo que el sistema ya hace, cuánto cuesta, en qué etapas se entrega y
+en cuánto tiempo.
+
+### 11.1 Los cambios que pidieron las instituciones
+
+Cada fila nace de una visita. La columna «hoy» es lo que hace el sistema entregado en la Versión 1.
+
+| Cambio solicitado | Quién lo pidió | Hoy | Se agrega |
+|---|---|---|---|
+| **Disponibilidad por servicio y cupos por habitación** | Albergue Madre Teresa de Calcuta | Camas planas por institución, sin agrupar | Sectores con cupos por servicio, y plazas de tipo cama, cupo o turno según el dispositivo |
+| **Préstamo de cama con autorización** | Albergue Madre Teresa de Calcuta | No existe | Préstamo de plaza por 12 o 24 horas sin perder el vínculo del residente titular |
+| **Dejar de transcribir entre turnos** | Albergue Calcuta y Parador Nocturno | Un parte por turno que el turno siguiente sobrescribe | Bitácora por turno cuyas novedades se agregan y nunca se sobrescriben, con pase de guardia y censo automático |
+| **Autorización previa antes del alta** | CIS N.º 3 y Parador Nocturno | No existe: el ingreso es directo | Solicitud de ingreso que el programa central autoriza, con vigencia y reserva de plaza |
+| **Acceso diferenciado a la información médica y psicosocial** | CIS N.º 3 y Albergue Calcuta | La ficha se ve completa o no se ve | Secciones con nivel de sensibilidad y permiso propio para salud, situación psicosocial y situación judicial |
+| **Trazabilidad de las admisiones** | CIS N.º 3 | Historial solo del legajo de la institución | Auditoría de estadías, movimientos, bitácora, entregas y prestaciones |
+| **Derivaciones y coordinación con organismos externos** | Dirección de Abordaje Psicosocial (Mírame/Vedia) | No existe | Derivaciones entre instituciones y a organismos externos, con aceptación, rechazo y vencimiento |
+| **Historial de intervenciones y legajo compartido** | Dirección de Abordaje Psicosocial | Formulario de ingreso que se completa una sola vez | Ficha que se completa a lo largo de la estadía, con avance por sección, y su lectura, impresión y exportación |
+| **Seguimiento de personas que no están alojadas** | Dirección de Abordaje Psicosocial | Solo se registra a quien ocupa una cama | Estadía ambulatoria de seguimiento, compatible con una estadía residencial |
+| **Ingreso y egreso de alta rotación** | Parador Nocturno | Alta de una persona por vez, sin movimientos intermedios | Estadía con cambio de plaza, permiso de salida con regreso previsto y traslado con seguimiento |
+| **Registro de entregas con quién recibe** | Parador Nocturno y área de merenderos | Entrega con el servicio en texto libre | Catálogo de insumos y kits con equivalencia en raciones, y entregas con receptor y remito |
+| **Visibilidad de camas y personas para la conducción** | Dirección del programa | Indicadores de cada institución por separado | Tablero de la red con capacidad, movimientos, permanencia y avisos configurables |
+| **Encuadre real de las instituciones** | Albergue Calcuta (edificio de la Iglesia, gestión del Ministerio) | Un solo campo de identidad institucional | Categoría, titularidad del inmueble y dependencia de la gestión por separado, más documentación con vigencia |
+| **Que el sistema avise y no bloquee** | Todas | La admisión exige cama disponible | Ingreso excepcional sobre la capacidad con autorización registrada: el sistema avisa y la decisión queda en el área |
+
+### 11.2 De lo que se hizo a lo que hay que hacer
+
+La Versión 1 se definió sobre los formularios en papel y el esquema del Ministerio. El relevamiento
+mostró **cómo trabajan las instituciones de verdad**: turnos de veinticuatro horas con pase de
+guardia, alta rotación en el parador, habitaciones con cupos por servicio en el albergue,
+autorización previa del programa central antes de un ingreso, préstamos de cama entre residentes,
+seguimiento de personas que no están alojadas, e información de salud y de situación judicial que
+solo puede ver el equipo habilitado.
+
+La diferencia, área por área:
+
+| Área | La Versión 1 hace hoy | La Versión 2 tiene que hacer |
+|---|---|---|
+| **Capacidad** | Camas con estado y ocupación calculada | Sectores con cupos por servicio; plazas de tipo cama, cupo o turno; préstamo de plaza por 12 o 24 horas; disponibilidad neta |
+| **Ingreso** | Admisión con búsqueda por documento y asignación de cama | Solicitud con autorización previa del programa central; verificación de la situación de la persona en toda la red antes de alojarla; ingreso excepcional sobre la capacidad con autorización registrada; estadía ambulatoria sin plaza |
+| **Durante la estadía** | Registro de la admisión y del egreso | Cambio de plaza o de sector con historial; permiso de salida con regreso previsto y aviso si no regresa; y una pantalla de la estadía con su línea de tiempo completa |
+| **Traslado** | Cierre de la estadía en el origen y apertura en el destino | Estado *en tránsito* visible en las dos instituciones, con recepción o rechazo del destino, plazo de vencimiento y aviso |
+| **Ficha de la persona** | Formulario de ingreso por tipo, que se completa al admitir | Ficha que se completa a lo largo de la estadía, con avance por sección y plazo; secciones con nivel de sensibilidad; y lectura, impresión en el formato del papel y exportación |
+| **Operación diaria** | Parte diario por turno con cantidades calculadas | Bitácora por turno con novedades tipificadas que se agregan y nunca se sobrescriben; pase de guardia con constancia de quién entrega y quién recibe; censo automático; y regularización de días anteriores |
+| **Legajo de la institución** | Identidad, domicilio, responsable y circuito de validación | Encuadre jurídico con categoría, titularidad del inmueble y dependencia de la gestión por separado; documentación con vigencia y aviso de vencimiento; estados de *inauguración pendiente* y de *suspensión* con reactivación; y nivel de confianza del dato |
+| **Derivaciones** | No contemplado | Derivaciones entre instituciones y a organismos externos, con aceptación, rechazo y vencimiento; lista de espera con prioridad; y vista de dónde hay plazas disponibles en la red |
+| **Permisos** | Roles con alcance por institución | Alcance por área del Ministerio; niveles de sensibilidad de la información; y separación de funciones: quien registra un movimiento no puede validarlo |
+| **Configuración** | Tipos de dispositivo y campos del formulario | Reglas por tipo administradas desde el sistema: qué plazas admite, si exige autorización previa, si permite préstamo, límite de permanencia, secciones mínimas de la ficha, catálogos de motivos y umbrales de aviso |
+| **Conducción** | Indicadores de cada institución | Tablero de la red con capacidad, movimientos, permanencia y avisos configurables por regla |
+| **Merenderos** | Solicitud, validación, entregas y prestación mensual | Catálogo de insumos y kits con equivalencia en raciones; entregas con quién recibe y remito; prestación con los servicios y los días de funcionamiento de cada merendero; cierre mensual; y cobertura alimentaria |
+| **Trazabilidad** | Historial del legajo institucional | Auditoría única de todo el programa: estadías, movimientos, bitácora, entregas y prestaciones |
+| **Carga inicial** | Importación del padrón de instituciones | Importación de sectores, plazas y personas alojadas, para arrancar con el censo real del día uno |
+
+!!! tip "Qué no se vuelve a hacer"
+    El motor de roles, la validación de identidad contra la Base de Personas, el legajo ciudadano, las
+    solapas del legajo, el sistema de diseño y el constructor de formularios ya están construidos y se
+    reutilizan. Por eso la Versión 2 estima **558 h** y no las **más de 800 h** que costaría el mismo
+    alcance partiendo de cero. Los **ajustes sobre funcionalidad ya entregada** (18 h: paginación del
+    padrón, aviso de código repetido y vocabulario de los indicadores) **no se suman a las 558 h**.
+
+### 11.3 Cómo se compone la estimación
+
+| Concepto | Horas |
+|---|---:|
+| Desarrollo Backend | 250 |
+| Desarrollo Frontend | 166 |
+| Análisis funcional y definiciones con el Ministerio | 24 |
+| Pruebas funcionales y QA | 64 |
+| Diseño UX/UI | 24 |
+| Despliegue a ambiente QA y datos iniciales | 16 |
+| Capacitación | 14 |
+| **Total Versión 2** | **558** |
+
+Para comparar con lo ya aprobado:
+
+| Etapa | Horas | Estado |
+|---|---:|---|
+| Versión 1 — alcance base | 436 | Aprobada y desarrollada |
+| Versión 2 — alcance que se agrega | 558 | En validación |
+| **Total del programa** | **994** | |
+
+### 11.4 Detalle por módulo
+
+Los doce módulos cubren el alcance completo del programa con las funcionalidades relevadas. Las horas
+son de desarrollo; el análisis, las pruebas, el diseño, el despliegue y la capacitación están en
+§11.3 y se reparten por etapa en §11.5.
+
+| Ref | Módulo | Qué incorpora | Horas |
+|---|---|---|---:|
+| M1 | Legajo institucional | Base común de dispositivos y merenderos: encuadre jurídico, servicios que brinda, documentación con vigencia, procedencia y confianza del dato, estados de inauguración y suspensión, listado y detalle | 36 |
+| M2 | Sectores y plazas | Sectores con cupos por servicio, plazas de tipo cama, cupo o turno, préstamo, reubicación asistida y cálculo único de ocupación, disponibilidad y censo | 28 |
+| M3 | Estadías | Solicitud con autorización previa, ingreso guiado con verificación en la red, movimientos (cambio de plaza, préstamo, permiso de salida), traslado en tránsito, egreso con derivación, pantalla de la estadía y avisos | 98 |
+| M4 | Ficha de la persona | Ficha por tipo sobre el constructor de formularios, completado a lo largo de la estadía con avance por sección, sensibilidad por sección, lectura, impresión y exportación | 50 |
+| M5 | Operación diaria | Bitácora por turno con novedades tipificadas y versiones, pase de guardia, censo automático y regularización | 32 |
+| M6 | Espera y derivaciones | Lista de espera con prioridad y reserva, derivaciones entre instituciones y a organismos externos, y vista de plazas en la red | 28 |
+| M7 | Permisos y configuración | Alcance por institución, área y central; niveles de sensibilidad; separación de funciones; y la configuración de reglas por tipo de dispositivo | 40 |
+| M8 | Tablero y avisos | Tablero de la red con capacidad, movimientos, permanencia y cobertura, y motor de avisos configurable por regla | 22 |
+| M9 | Reportes | Diez reportes exportables en CSV y Excel, acotados al alcance y a la sensibilidad de cada usuario, con registro de quién exportó | 12 |
+| M10 | Carga inicial y auditoría | Importación de instituciones, sectores, plazas y personas alojadas con nivel de confianza y verificación en campo, y auditoría única del programa | 20 |
+| M11 | Merenderos | Legajo con navegación propia y edición con historial, documentación con vigencia, catálogo de insumos y kits con equivalencia en raciones, y entregas con receptor y remito | 32 |
+| M12 | Prestación y cobertura | Prestación mensual con los servicios y días de cada merendero, cierre del mes y cobertura alimentaria | 18 |
+| | **Subtotal desarrollo** | | **416** |
+
+> Los 18 h de ajustes sobre funcionalidad ya entregada no figuran en esta tabla ni en el total: se absorben.
+
+### 11.5 Propuesta de etapas y tiempos
+
+El alcance se entrega en **cuatro etapas**, cada una utilizable por sí misma. El Ministerio puede
+aprobarlas por separado y detenerse al final de cualquiera de ellas.
+
+| Etapa | Qué queda operativo al terminarla | Qué cambios solicitados resuelve | Horas | Duración |
+|---|---|---|---:|---|
+| **1** | La institución opera: legajo con encuadre y documentación, permisos por área con separación de funciones, reglas por tipo, sectores y plazas, y el circuito completo de estadías con traslados | Cupos por servicio · préstamo de cama · autorización previa · alta rotación · traslado con seguimiento · seguimiento sin alojamiento · avisar sin bloquear · encuadre real | 277 | 4 semanas |
+| **2** | La ficha y el turno: ficha por tipo con sensibilidad y avance por sección, bitácora por turno con pase de guardia y censo | Dejar de transcribir entre turnos · acceso diferenciado a información médica y psicosocial · historial de intervenciones | 103 | 2 semanas |
+| **3** | La red y la conducción: derivaciones, lista de espera con prioridad, tablero de la red, reportes y carga inicial del padrón | Derivaciones y organismos externos · visibilidad para la conducción · trazabilidad de admisiones | 98 | 2 semanas |
+| **4** | Merenderos: catálogo de kits, entregas con receptor, prestación mensual y cobertura, más el despliegue final y la capacitación | Registro de entregas con quién recibe | 80 | 2 semanas |
+| | **Total** | | **558** | **10 semanas** |
+
+**Equipo:** 1 desarrollador backend y 1 desarrollador frontend a tiempo completo, con análisis
+funcional, diseño y QA en paralelo a tiempo parcial.
+**Supuesto:** 8 horas por día y por persona.
+**Inicio:** a definir con el Ministerio, sujeto a la aprobación de esta estimación.
+
+!!! note "Si hubiera que elegir una sola etapa"
+    La **etapa 1** es la que más cambia la operación: resuelve ocho de los catorce cambios solicitados,
+    incluidos los tres más repetidos en las visitas (cupos por servicio, autorización previa de ingreso
+    y traslado con seguimiento). Las etapas 3 y 4 suman 178 h y ninguna bloquea la operación diaria.
+
+### 11.6 Escenarios críticos que se prueban en esta etapa
+
+Además de los de la Versión 1, las 64 h de pruebas cubren los escenarios que surgieron del
+relevamiento:
+
+- **Separación de funciones:** quien carga un movimiento no puede validarlo en el mismo circuito.
+- **Una sola plaza activa por persona en toda la red**, compatible con un seguimiento ambulatorio.
+- **Préstamo de plaza** por 12 o 24 horas sin perder el vínculo del residente titular.
+- **Autorización previa de ingreso** del programa central en los tipos que la exigen, con vigencia.
+- **Ingreso excepcional sobre la capacidad:** el sistema avisa y nunca bloquea; queda registrado quién autoriza y por qué.
+- **Límite de permanencia de 48 horas** en UPI y ECA cuando el ingreso viene de una medida de protección judicial.
+- **Traslado en tránsito:** la persona nunca queda alojada en dos instituciones a la vez, y el tránsito vencido avisa.
+- **Turno pisado:** una novedad cargada por un operador no puede ser sobrescrita por el del turno siguiente.
+- **Acceso a información sensible:** sin el nivel correspondiente no se ve ni se exporta, tampoco por acceso directo.
+- **Cierre del mes de prestación** por un rol distinto del que cargó, y reapertura con motivo registrado.
+
+### 11.7 Horas por perfil y por etapa
+
+Resumen de las 558 h en las dos vistas que se usan para planificar y aprobar.
+
+| Perfil | Horas | Proporción |
+|---|---:|---:|
+| Desarrollador Backend | 250 | 45 % |
+| Desarrollador Frontend | 166 | 30 % |
+| Pruebas funcionales y QA | 64 | 11 % |
+| Análisis funcional y definiciones | 24 | 4 % |
+| Diseño UX/UI | 24 | 4 % |
+| Despliegue a ambiente QA | 16 | 3 % |
+| Capacitación | 14 | 3 % |
+| **Total Versión 2** | **558** | **100 %** |
+
+| Etapa | Horas | Proporción | Acumulado |
+|---|---:|---:|---:|
+| 1 — Institución, permisos, capacidad y estadías | 277 | 50 % | 277 |
+| 2 — Ficha y operación por turno | 103 | 18 % | 380 |
+| 3 — Red, conducción y carga inicial | 98 | 18 % | 478 |
+| 4 — Merenderos, despliegue y capacitación | 80 | 14 % | 558 |
+| **Total** | **558** | **100 %** | |
+
+El Ministerio puede aprobar por tramos: la columna «acumulado» muestra cuántas horas suma detenerse al
+final de cada etapa.
+
+### 11.8 Qué no está incluido
+
+Las horas son de esfuerzo técnico neto: no incluyen reuniones de seguimiento ni gestión de proyecto.
+Los 18 h de ajustes sobre funcionalidad ya entregada se absorben y no se suman al total.
+
+Los módulos de §7.1 —inventario y stock, administración de medicación, asistencia y recursos humanos,
+historial clínico, bitácora de guardia ampliada, funcionamiento sin conexión, control de acceso
+físico, plano de habitaciones, tablero de comando completo, planes de contingencia e integración con
+ECOM— **no están incluidos** en las 558 h y se estiman por separado cuando el Ministerio confirme su
+alcance. Tampoco entran el padrón nominal de niñas, niños y adolescentes de los merenderos ni la
+aplicación móvil.
