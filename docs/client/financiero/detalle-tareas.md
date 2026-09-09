@@ -676,18 +676,59 @@
 | 05/09 | Matías Fariña | Transversal | Registro del consumo de la semana | Reconstrucción y carga del consumo del 31/08 al 05/09. | 0,5 h | — |
 | | | | **Total 1 al 5/09** | | **164 h** | **96 h** |
 
+
+### :material-package-variant-closed: Consumo del 6 al 9 de septiembre — por entregable
+
+!!! note "Salida a producción de lo pendiente y pase a pruebas del constructor"
+    El sábado 6 salieron a producción del organismo el dashboard con su corrección de rendimiento, la
+    exportación por persona y la mejora de rendimiento del sistema. El lunes 8 se publicaron el apoderado
+    obligatorio y la medición de uso del link, y el Programa Dispositivos versión 2 quedó rearmado en el
+    tablero. El martes 9 el constructor de formularios pasó a pruebas. **Por indicación del PM, el
+    desarrollo de estos días se imputa a Pablo Cao; las pruebas manuales del constructor y la adaptación
+    de la app de campo no se registran todavía.** Techo de 11 h el sábado por trabajo de fin de semana.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 06/09 | Pablo Cao | Becas | Dashboard del Programa Becas — corrección de rendimiento | El tablero deja de demorar y de caerse en producción: alcance por identificadores, una sola consulta agrupada, lectura directa de las respuestas y caché. | 3 h | 6 h |
+| 06/09 | Pablo Cao | Becas | Exportación de respuestas por persona, por convocatoria | Desde el tablero se elige una convocatoria y se descarga un Excel con un caso por fila y una columna por pregunta. | 3 h | 6 h |
+| 06/09 | Pablo Cao | Transversal | Rendimiento del sistema — revisión de casos, listados y costo fijo de cada pantalla | La revisión de un relevamiento pasa de más de tres minutos a menos de un segundo con 40.000 casos; bandejas, detalles y listados más rápidos; una sola consulta de permisos por pantalla. | 5 h | 10 h |
+| 06/09 | Matías Fariña | Transversal | Publicación a producción de los tres cambios del fin de semana | Merge, release y espejo al entorno del organismo (prueba y producción) del dashboard, la exportación y el rendimiento; registro de cada uno en la documentación viva. | 3 h | — |
+| 08/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/09 | Matías Fariña | Transversal | Armado del informe diario | Informe diario del avance para el organismo. | 0,5 h | — |
+| 08/09 | Matías Fariña | Becas | Apoderado obligatorio en la inscripción — definición | Revisión de la regla vigente (solo menores), decisión de exigirlo a toda persona en todas las convocatorias y alcance de los cinco datos. | 1,5 h | — |
+| 08/09 | Matías Fariña | Becas | Medición de uso del formulario público — definición | Relevamiento de lo que hacía falta para Google Tag Manager en el link, decisión de activarlo por ambiente y coordinación con el organismo. | 1 h | — |
+| 08/09 | Matías Fariña | Transversal | Publicación a producción del apoderado obligatorio y la medición | Merge, release y espejo al entorno del organismo (prueba y producción); registro en la documentación viva y comunicación al PM del organismo. | 1,5 h | — |
+| 08/09 | Matías Fariña | Dispositivos | Programa Dispositivos versión 2 — rearmado del alcance | Lectura completa de la documentación del programa, cierre de las tareas de la versión 1 y armado de la versión 2 por módulo: doce análisis y cuarenta y cinco tareas en el tablero. | 3,5 h | — |
+| 08/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/09 | Pablo Cao | Becas | Apoderado obligatorio para todas las personas que se inscriben | El formulario público exige nombre, apellido, DNI, sexo y fecha de nacimiento del apoderado sin importar la edad; la revisión del caso muestra siempre esa sección. | 2 h | 4 h |
+| 08/09 | Pablo Cao | Becas | Google Tag Manager en las pantallas públicas de inscripción | Medición de uso del link por ambiente, con la política de seguridad del sitio abierta solo a Google cuando está activa y un evento de conversión por inscripción enviada. | 3,5 h | 7 h |
+| 08/09 | Pablo Cao | Transversal | Carga de horas por reconstrucción — herramienta interna | Comando que reconstruye el consumo de un período desde la evidencia del repositorio y lo registra con las reglas del método. | 1,5 h | 3 h |
+| 08/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/09 | Matías Abate | Dispositivos | Programa Dispositivos versión 2 — publicación de la estimación | Estimación de la segunda versión publicada en la documentación cliente con el relevamiento ampliado de las instituciones. | 3 h | — |
+| 09/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/09 | Matías Fariña | Transversal | Armado del informe diario | Informe diario del avance para el organismo. | 0,5 h | — |
+| 09/09 | Matías Fariña | Dispositivos | Programa Dispositivos versión 2 — propuesta funcional y documentación | Propuesta funcional por módulo, backlog de la versión 2 y estimación registrados en la documentación interna y cliente. | 4 h | — |
+| 09/09 | Matías Fariña | Becas | Constructor de formularios — pase a pruebas | Las catorce tareas de backoffice y link público pasan a QA con su ambiente de prueba, alcance y asignación; la app de campo queda afuera hasta que Mobile acompañe. | 1,5 h | — |
+| 09/09 | Matías Fariña | Transversal | Ambientes de prueba en el método de QA | Regla nueva: el PM indica en qué ambiente (desarrollo, prueba o producción) se prueba cada tarea y la sección de casos arranca con ese dato. | 0,5 h | — |
+| 09/09 | Matías Fariña | Transversal | Consumo del constructor y registro de horas del 6 al 9/09 | Cálculo del consumo del constructor contra su alcance aprobado y carga del consumo de los días sin registrar. | 1,5 h | — |
+| 09/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 6 al 9/09** | | **48 h** | **36 h** |
+
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 207 h 30 min |
-| Transversal | 51 h 00 min |
-| Dispositivos | 9 h 00 min |
-| **Total septiembre 2026 (al 05/09)** | **267 h 30 min** |
+| Becas | 223 h 00 min |
+| Transversal | 73 h 00 min |
+| Dispositivos | 19 h 30 min |
+| **Total septiembre 2026 (al 09/09)** | **315 h 30 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 05/09 es de **164 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 09/09 es de **212 h**.
 
 ---
 
@@ -717,9 +758,10 @@
 
 
 
-    **116.382 minutos** (1.939 h 42 min)
+    **120.882 minutos** (2.014 h 42 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 164 h 00 min (al 05/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 212 h 00 min (al 09/09).
+    (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
     excedente quedan imputadas a septiembre 2026.
