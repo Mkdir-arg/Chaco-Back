@@ -674,7 +674,10 @@
 | 05/09 | Matías Fariña | Becas | Dashboard del Programa Becas — análisis y tareas derivadas | Análisis funcional con sus nueve tareas ejecutables y su estimación. | 3 h | — |
 | 05/09 | Matías Fariña | Becas | Constructor de formularios — revisión de avance | Revisión funcional del avance del constructor. En desarrollo. | 1,5 h | — |
 | 05/09 | Matías Fariña | Transversal | Registro del consumo de la semana | Reconstrucción y carga del consumo del 31/08 al 05/09. | 0,5 h | — |
-| | | | **Total 1 al 5/09** | | **164 h** | **96 h** |
+| 05/09 | Matías Fariña | Becas | Constructor de formularios — hallazgos de la revisión de la rama | Revisión de la rama completa: coherencia entre catálogo y formulario servido, transacciones, condiciones sobre selectores con buscador; prioridades de corrección. | 1,5 h | — |
+| 05/09 | Juani Portilla | Becas | Constructor — cobertura de la reconciliación y de la huella del formulario | Pruebas automáticas de que el formulario servido sigue al catálogo sin escribir, y de que un cambio a mitad de carga se avisa en vez de validar contra otro formulario. | 5 h | 10 h |
+| 05/09 | Juani Portilla | Becas | Constructor — entorno de pruebas igual al de integración continua y regresión completa | Entorno con la versión de Python y Django de producción y corrida completa de la regresión del constructor y del formulario público. | 4 h | 8 h |
+| | | | **Total 1 al 5/09** | | **174.5 h** | **114 h** |
 
 
 ### :material-package-variant-closed: Consumo del 6 al 9 de septiembre — por entregable
@@ -686,6 +689,8 @@
     tablero. El martes 9 el constructor de formularios pasó a pruebas. **Por indicación del PM, el
     desarrollo de estos días se imputa a Pablo Cao; las pruebas manuales del constructor y la adaptación
     de la app de campo no se registran todavía.** Techo de 11 h el sábado por trabajo de fin de semana.
+    El cierre del desarrollo del constructor (cobertura, banco de pruebas, integración y revisión funcional)
+    se reparte entre Juani Portilla y Matías Fariña en los días con cupo, también por indicación del PM.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -715,20 +720,28 @@
 | 09/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 09/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 09/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
-| | | | **Total 6 al 9/09** | | **48 h** | **36 h** |
+| 06/09 | Matías Fariña | Becas | Constructor de formularios — revisión de punta a punta en desarrollo | Recorrido completo en el entorno de desarrollo: catálogo agrupado, configurar formulario, inscripción por el link y revisión del caso. | 4 h | — |
+| 06/09 | Matías Fariña | Becas | Constructor de formularios — decisiones de cierre | Reconciliación con el catálogo sin abrir el constructor, huella del formulario en la sesión y alcance del apoderado respecto del catálogo. | 4 h | — |
+| 06/09 | Juani Portilla | Becas | Constructor — banco de pruebas con volumen y presupuestos de consultas | Medición de consultas del constructor, del reordenamiento del catálogo y del formulario público con catálogo grande; guardas de presupuesto. | 6 h | 12 h |
+| 06/09 | Juani Portilla | Becas | Constructor — verificación del despliegue en desarrollo | Comprobación del código horneado, los estáticos servidos y la regresión del formulario público sobre el entorno de desarrollo. | 5 h | 10 h |
+| 08/09 | Juani Portilla | Becas | Constructor — análisis de la integración a la línea principal | Migraciones con el mismo número en las dos ramas, archivos tocados en ambos lados y plan de resolución sin pérdida de datos. | 4 h | 8 h |
+| 08/09 | Juani Portilla | Becas | Constructor — robustez del editor de condiciones y del reordenamiento | Cobertura de reglas malformadas (respuesta controlada, no error del servidor) y validación del orden recibido del arrastre. | 4 h | 8 h |
+| 09/09 | Juani Portilla | Becas | Constructor — preparación de la integración | Renumeración de migraciones, recompilación de estilos y plan de resolución de los archivos en conflicto para el merge. | 4 h | 8 h |
+| 09/09 | Juani Portilla | Becas | Constructor — accesibilidad del arrastre por teclado | Pines automáticos de la operación por teclado del catálogo y del constructor: foco, anuncios y guardado con demora. | 4 h | 8 h |
+| | | | **Total 6 al 9/09** | | **83 h** | **90 h** |
 
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 223 h 00 min |
+| Becas | 268 h 30 min |
 | Transversal | 73 h 00 min |
 | Dispositivos | 19 h 30 min |
-| **Total septiembre 2026 (al 09/09)** | **315 h 30 min** |
+| **Total septiembre 2026 (al 09/09)** | **361 h 00 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 09/09 es de **212 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 09/09 es de **257.5 h**.
 
 ---
 
@@ -758,9 +771,9 @@
 
 
 
-    **120.882 minutos** (2.014 h 42 min)
+    **123.612 minutos** (2.060 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 212 h 00 min (al 09/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 257 h 30 min (al 09/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de

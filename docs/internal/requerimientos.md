@@ -5996,9 +5996,12 @@ campo; la app vieja entra por un adaptador y el servidor arma su foto.
 Pendiente. 21 tasks (#336–#356) en seis fases: catálogo → motor → constructor → portal y caso → app de campo → calidad e
 integración. 150 h aprobadas por el PM (134 h en tasks + análisis, casos QA y reunión de definición).
 **31/08/2026 — el PM llevó el alcance aprobado a 270 h** (primero 220 y en el mismo día 270, al armar el informe al
-cliente: en ese momento había 94 h 30 min ejecutadas). Es la cifra comunicada al cliente el 31/08. **Consumo al
-05/09/2026: 143 h 30 min (53 %)**; el detalle del desarrollo vive en la rama `feature/constructor-formularios`, que
-todavía no está mergeada a `development`.
+cliente: en ese momento había 94 h 30 min ejecutadas). Es la cifra comunicada al cliente el 31/08.
+**Consumo al 09/09/2026: 189 h 00 min (70 %).** Medición acordada con el PM el 09/09: de las 270 h, adaptar la
+app pesa 48 h (18 %) y las pruebas 42 h (16 %), por los pesos de las tasks del análisis; el **desarrollo** son 180 h y
+lleva 167 h 00 min (93 %). Las 13 h que le faltan al desarrollo son el merge a `development` (migraciones con el mismo
+número en las dos ramas), el release y el espejo a ECOM, que se registran cuando se hagan. El detalle del desarrollo vive
+en la rama `feature/constructor-formularios`, todavía sin mergear.
 
 ## Archivos
 
