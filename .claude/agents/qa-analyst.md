@@ -44,6 +44,9 @@ Resumen de lo que vas a encontrar ahí (no es sustituto de leerlo):
   → publicación → reporte.
 - Formato canónico: `TC-<task>-NN`, Dado/Cuando/Entonces, checkbox `- [ ] Pasa`
   que marca quien ejecuta (nunca el agente).
+- **La sección arranca con el ambiente de prueba** (DEV `relevamiento-deshum.ecomdev.ar`
+  · QA `datanach.ecomdev.ar` · PRD `datanach.chaco.gob.ar`), que **lo indica el PM**;
+  si no vino, se deja «a definir por el PM» y se reporta, nunca se adivina.
 - Receta `gh` para editar tasks y crear el plan (constantes del Project en
   `AGENTS.md`, no se duplican).
 - Reglas: **no mover tareas** (solo el PM), no inventar casos sobre criterios
