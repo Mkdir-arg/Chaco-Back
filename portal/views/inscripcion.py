@@ -52,12 +52,27 @@ from programas.services.padron import esta_habilitado
 
 logger = logging.getLogger(__name__)
 
-# Un ÚNICO mensaje para los tres rechazos del paso 1 —fuera del padrón, ya
-# inscripto, documento no disponible— porque textos distintos convertían el
-# formulario en un oráculo: barriendo documentos se reconstruía el padrón de
-# habilitados (dato socioeconómico) y se averiguaba quién ya se había inscripto,
-# incluidas las personas relevadas en campo. Revisión de seguridad del 26/08/2026.
-MENSAJE_RECHAZO = "No podés inscribirte con ese documento."
+# Un mensaje por causa de rechazo (pedido del programa, 10/09/2026). Entre el
+# 26/08/2026 y hoy los cuatro caminos compartieron el texto único «No podés
+# inscribirte con ese documento.»: era la decisión de la revisión de seguridad,
+# porque textos distintos convertían el paso 1 en un oráculo —barriendo
+# documentos se reconstruía el padrón de habilitados (dato socioeconómico) y se
+# averiguaba quién ya se había inscripto—. Se vuelve a diferenciar porque la
+# persona quedaba sin saber qué le pasaba ni qué hacer. Lo que sigue conteniendo
+# el barrido masivo es el captcha más la cubeta por documento
+# (`documento_excedido`) y la de IP, que no se tocan.
+MENSAJE_NO_HABILITADO = "Ese documento no figura en el listado de personas habilitadas para esta convocatoria."
+MENSAJE_YA_INSCRIPTO = (
+    "Ya existe una inscripción con ese documento en esta convocatoria. No podés inscribirte dos veces."
+)
+MENSAJE_DOCUMENTO_NO_DISPONIBLE = (
+    "La inscripción no está disponible para ese documento. Revisá que el número y el sexo sean correctos."
+)
+# Paso 2: el padrón cambió entre la identificación y el envío (RN-P14).
+MENSAJE_PADRON_CAMBIO = (
+    "Ese documento ya no figura en el listado de personas habilitadas para esta convocatoria: "
+    "no pudimos registrar la inscripción."
+)
 MENSAJE_DEMASIADOS_INTENTOS = "Realizaste demasiados intentos. Esperá unos minutos y volvé a probar."
 # Cuánto vale la identificación del paso 1 antes de tener que rehacerla.
 IDENTIFICACION_VIGENCIA_SEGUNDOS = 45 * 60
@@ -137,15 +152,15 @@ def inscripcion_paso1(request, token):
                 # se puede quemar en nombre de otro con un script.
                 form.add_error(None, MENSAJE_DEMASIADOS_INTENTOS)
             elif not esta_habilitado(relevamiento, dni, sexo):
-                form.add_error(None, MENSAJE_RECHAZO)
+                form.add_error(None, MENSAJE_NO_HABILITADO)
             elif dni_ya_inscripto(relevamiento.convocatoria, dni):
-                form.add_error(None, MENSAJE_RECHAZO)
+                form.add_error(None, MENSAJE_YA_INSCRIPTO)
             else:
                 # Cascada del Cambio 57: padrón de la convocatoria → Base de
                 # Personas (si está activa) → manual.
                 resultado = identificar(relevamiento.convocatoria, dni, sexo)
                 if resultado["fallecido"]:
-                    form.add_error(None, MENSAJE_RECHAZO)
+                    form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)
                 else:
                     validado = resultado["validado"]
                     request.session[clave_sesion(relevamiento)] = {
@@ -229,7 +244,7 @@ def inscripcion_paso2(request, token):
             )
         except InscripcionNoHabilitada:
             # El padrón cambió entre el paso 1 y el envío (RN-P14).
-            form.add_error(None, MENSAJE_RECHAZO)
+            form.add_error(None, MENSAJE_PADRON_CAMBIO)
         else:
             # Correo de confirmación (#296): solo si el relevamiento lo tiene
             # activo y solo en el envío que creó el formulario; su falla no

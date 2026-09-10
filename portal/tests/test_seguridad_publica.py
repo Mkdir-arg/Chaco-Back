@@ -3,8 +3,9 @@
 Cada clase fija una propiedad que se rompió alguna vez o que un cambio futuro
 podría deshacer sin que nadie lo note:
 
-- los rechazos del paso 1 no distinguen entre padrón, duplicado y documento no
-  disponible (el formulario dejó de ser un oráculo para reconstruir el padrón);
+- los rechazos del paso 1 dicen su causa —padrón, duplicado, documento no
+  disponible— desde el pedido del 10/09/2026, que revirtió el mensaje único de
+  esta misma revisión; lo que contiene el barrido es el captcha y las cubetas;
 - el rate limit no se evade mandando una cabecera, y suma una cubeta por
   documento;
 - el paso 2 —el que escribe y recibe archivos— también tiene techo;
@@ -18,6 +19,7 @@ from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -25,16 +27,12 @@ from django.utils import timezone
 from core.middleware import _path_sin_secretos
 from core.services.throttle import ip_cliente, rate_limit_excedido
 from portal.services import inscripcion as servicio
-from portal.views.inscripcion import MENSAJE_RECHAZO
+from portal.views.inscripcion import (
+    MENSAJE_DOCUMENTO_NO_DISPONIBLE,
+    MENSAJE_NO_HABILITADO,
+    MENSAJE_YA_INSCRIPTO,
+)
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
-
-
-def _normalizar(cuerpo):
-    """Saca lo que cambia entre dos renders legítimos: el token CSRF y el
-    desafío aritmético, que rota a propósito después de cada intento."""
-    cuerpo = re.sub(rb'value="[A-Za-z0-9]{32,}"', b'value="CSRF"', cuerpo)
-    return re.sub(r"¿Cuánto es [0-9]+ \+ [0-9]+\?".encode(), b"<desafio>", cuerpo)
-
 
 PERSONA_OK = {
     "success": True,
@@ -128,20 +126,42 @@ class _BaseFlujoTest(TestCase):
         return self.client.post(self._url(), {"dni": dni, "sexo": sexo, "captcha": "7"})
 
 
-class RechazosIndistinguiblesTests(_BaseFlujoTest):
-    """Los tres rechazos tienen que verse exactamente igual desde afuera."""
+class RechazosDiferenciadosTests(_BaseFlujoTest):
+    """Cada rechazo del paso 1 dice su causa y solo la suya (pedido 10/09/2026).
 
-    def _respuesta_de_rechazo(self):
-        with patch("programas.services.identidad.consultar_persona", return_value=PERSONA_OK):
-            return self._post()
+    Invierte la propiedad que fijaba `RechazosIndistinguiblesTests`: el mensaje
+    único dejaba a la persona sin saber si el problema era el padrón, una
+    inscripción previa o el documento. El costo asumido —que el formulario
+    vuelva a distinguir causas— se contiene con el captcha y las cubetas por
+    documento y por IP, que estos tests siguen cubriendo más abajo.
+    """
+
+    def _errores(self, persona=PERSONA_OK):
+        """Los errores generales con que vuelve el paso 1.
+
+        Se lee el contexto en vez del HTML: `assertContains` instrumenta el
+        render y muere en el baseline del venv local (Python 3.14 + Django 4.2),
+        con lo que el test no probaría nada acá.
+        """
+        capturado = {}
+
+        def fake_render(request, template, context):
+            capturado["template"] = template
+            capturado["context"] = context
+            return HttpResponse("ok")
+
+        with patch("programas.services.identidad.consultar_persona", return_value=persona):
+            with patch("portal.views.inscripcion.render", side_effect=fake_render):
+                resp = self._post()
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(capturado["template"], "portal/inscripcion/paso1.html")
+        return list(capturado["context"]["form"].non_field_errors())
 
     def test_fuera_del_padron(self):
         self.relevamiento.convocatoria.padron.create(dni="99999999", sexo="M")
 
-        resp = self._respuesta_de_rechazo()
-
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, MENSAJE_RECHAZO)
+        self.assertEqual(self._errores(), [MENSAJE_NO_HABILITADO])
 
     def test_ya_inscripto(self):
         Formulario.objects.create(
@@ -151,38 +171,18 @@ class RechazosIndistinguiblesTests(_BaseFlujoTest):
             datos_identificacion={"dni": "30123456"},
         )
 
-        resp = self._respuesta_de_rechazo()
-
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, MENSAJE_RECHAZO)
-        # Lo que antes delataba: plantilla propia, el documento y la convocatoria.
-        self.assertNotContains(resp, "Ya estás inscripto")
-        self.assertNotContains(resp, "ya figura registrado")
+        self.assertEqual(self._errores(), [MENSAJE_YA_INSCRIPTO])
 
     def test_documento_no_disponible(self):
-        with patch(
-            "programas.services.identidad.consultar_persona",
-            return_value={"success": False, "fallecido": True},
-        ):
-            resp = self._post()
+        errores = self._errores(persona={"success": False, "fallecido": True})
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, MENSAJE_RECHAZO)
+        self.assertEqual(errores, [MENSAJE_DOCUMENTO_NO_DISPONIBLE])
 
-    def test_los_tres_casos_dan_el_mismo_cuerpo(self):
-        """Si los cuerpos difieren, el rechazo vuelve a ser un oráculo."""
-        self.relevamiento.convocatoria.padron.create(dni="99999999", sexo="M")
-        fuera_del_padron = self._respuesta_de_rechazo().content
+    def test_los_tres_mensajes_son_distintos_entre_si(self):
+        """Si dos coincidieran, el pedido quedaría a medias sin que nadie lo vea."""
+        mensajes = {MENSAJE_NO_HABILITADO, MENSAJE_YA_INSCRIPTO, MENSAJE_DOCUMENTO_NO_DISPONIBLE}
 
-        cache.clear()
-        self.relevamiento.convocatoria.padron.all().delete()
-        with patch(
-            "programas.services.identidad.consultar_persona",
-            return_value={"success": False, "fallecido": True},
-        ):
-            no_disponible = self._post().content
-
-        self.assertEqual(_normalizar(fuera_del_padron), _normalizar(no_disponible))
+        self.assertEqual(len(mensajes), 3)
 
 
 class LimitePorDocumentoTests(_BaseFlujoTest):
@@ -468,7 +468,6 @@ class SinRecursosDeTercerosTests(TestCase):
     )
 
     def test_ninguna_plantilla_carga_recursos_externos(self):
-        import re
         from pathlib import Path
 
         from django.conf import settings
