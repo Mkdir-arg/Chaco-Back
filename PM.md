@@ -188,10 +188,11 @@ entregable, no día*. El entregable es lo que se le puede contar al cliente
 con evidencia de trabajo fuera de horario (madrugada, fin de semana). Si un día
 se pasa, se rebalancea: no se supera el techo para hacer entrar trabajo.
 
-**Base del PM.** Por pedido del PM (05/09/2026), su jornada hábil trabajada no
-baja de **9 h**. Si la evidencia da menos, se completa con lo que es trabajo real
-y no deja commits: coordinación del equipo, gestión del tablero, revisión
-funcional de lo publicado y atención de consultas del organismo.
+**Base del PM.** Por pedido del PM (05/09/2026, ajustado el 10/09/2026), su jornada
+hábil trabajada queda **entre 9 y 10 h** (10 h cuando hay trabajo real que lo
+sostenga). Si la evidencia da menos, se completa con lo que es trabajo real y no
+deja commits: coordinación del equipo, gestión del tablero, revisión funcional de
+lo publicado y atención de consultas del organismo.
 
 **Equivalente convencional** (columna `Equiv.`). Lo que costaría el mismo
 entregable a paso de desarrollo tradicional: las horas imputadas son el **45-50%**

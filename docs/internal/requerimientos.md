@@ -6620,7 +6620,7 @@ los datos crudos y la configuración propuesta están en
 
 # Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
 
-🟢 **HECHO — en producción de ECOM desde el 05/09/2026; corrección de performance desplegada el 06/09/2026; alcance y 86 h validados por el Ministerio el 10/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 por el PR #376 (squash c59d995), legibilidad por el #377, tres correcciones (#378, #379, #380) · 35 tests en verde · Falta QA funcional formal (#374) y cierre (#375) · Consumo al 10/09: 56 h 00 min de 86 h
+🟢 **HECHO — en producción de ECOM desde el 05/09/2026; corrección de performance desplegada el 06/09/2026; alcance y 86 h validados por el Ministerio el 10/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 por el PR #376 (squash c59d995), legibilidad por el #377, tres correcciones (#378, #379, #380) · 35 tests en verde · Falta QA funcional formal (#374) y cierre (#375) · Consumo al 10/09: 60 h 00 min de 86 h
 
 | | |
 |---|---|
@@ -6806,7 +6806,7 @@ Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
 ## Pendientes / a definir
 
 - ~~Validación de Guido (Ministerio) del alcance y de las 86 h propuestas.~~ **Validado el 10/09/2026**: alcance completo
-  (con el bloque de respuestas) y 86 h. Consumo registrado al 10/09: 56 h 00 min (65 %), con el desarrollo
+  (con el bloque de respuestas) y 86 h. Consumo registrado al 10/09: 60 h 00 min (70 %), con el desarrollo
   imputado a Pablo Cao los días 05, 08 y 09/09 dentro del cupo (el desarrollo real excede lo que el techo dejó registrar),
   el análisis y las pruebas a Matías Abate y la gestión al PM desde el 05/09. Restan la QA funcional formal (#374) y el
   cierre (#375).

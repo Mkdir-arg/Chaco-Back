@@ -760,14 +760,14 @@
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 316 h 00 min |
+| Becas | 320 h 00 min |
 | Transversal | 77 h 30 min |
 | Dispositivos | 19 h 30 min |
-| **Total septiembre 2026 (al 10/09)** | **413 h 00 min** |
+| **Total septiembre 2026 (al 10/09)** | **417 h 00 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 10/09 es de **309,5 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 10/09 es de **313,5 h**.
 
 ---
 
@@ -797,9 +797,9 @@
 
 
 
-    **126.732 minutos** (2.112 h 12 min)
+    **126.972 minutos** (2.116 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 309 h 30 min (al 10/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 313 h 30 min (al 10/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
