@@ -18,7 +18,7 @@ from core.services.throttle import ip_cliente
 from portal.services import inscripcion as servicio
 from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest, _tolerar_render_local
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
-from portal.views.inscripcion import MENSAJE_RECHAZO
+from portal.views.inscripcion import MENSAJE_YA_INSCRIPTO
 from programas.admin import RelevamientoAdmin
 from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
 from programas.services.inscripcion_publica import crear_formulario_publico
@@ -96,9 +96,16 @@ class CaptchaConsumeTests(_BaseInscripcionTest):
         mock_consulta.assert_called_once_with("30123456", "F")
 
 
-class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
+class DuplicadoEnPaso1Tests(_BaseInscripcionTest):
+    """El duplicado se avisa en el mismo paso 1, sin ir a buscar identidad.
+
+    Desde el 10/09/2026 el texto nombra la causa (antes era el mensaje único
+    anti-enumeración); lo que no cambia es que el rechazo corta **antes** de la
+    consulta externa: un documento ya inscripto no debe gastar una llamada.
+    """
+
     @patch("programas.services.identidad.consultar_persona")
-    def test_duplicado_en_paso1_no_revela_que_el_dni_ya_esta_inscripto(self, mock_consulta):
+    def test_duplicado_en_paso1_avisa_que_el_dni_ya_esta_inscripto(self, mock_consulta):
         Formulario.objects.create(
             relevamiento=self.relevamiento,
             celular="1",
@@ -118,7 +125,7 @@ class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
         self.assertEqual(resp.status_code, 200)
         template, context = renders[-1]
         self.assertEqual(template, "portal/inscripcion/paso1.html")
-        self.assertIn(MENSAJE_RECHAZO, context["form"].non_field_errors())
+        self.assertIn(MENSAJE_YA_INSCRIPTO, context["form"].non_field_errors())
         mock_consulta.assert_not_called()
 
 

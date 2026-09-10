@@ -215,6 +215,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release dc1a900, PR #384); se activa cuando ECOM cargue `GTM_CONTAINER_ID`** | No requiere |
 | 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
 | 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
+| 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -7574,5 +7575,122 @@ Revertir el commit: vuelven los ocho textos con el teléfono y el contrato de ma
 ## Historial
 
 No aplica.
+
+---
+
+# Cambio 71 — Los rechazos del paso 1 del link público vuelven a decir su causa
+
+🟢 **HECHO — 10/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en sesión, con la URL del link productivo |
+| **Fecha del pedido** | 10/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Constantes de mensaje del paso 1 y del paso 2 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Cuando me quiero inscribir y ya estoy inscripto me dice "No podés inscribirte con ese documento",
+> o si no estoy en la lista me dice "No podés inscribirte con ese documento". Quiero que vuelvas a
+> implementar los distintos mensajes de errores que teníamos.»
+>
+> Superficie señalada: `https://datanach.chaco.gob.ar/portal/inscripcion/f02de490-f7fa-4dd7-8942-a812b76c1960/`
+> (paso 1 del link público, producción).
+
+## Alcance acordado
+
+- Cada camino de rechazo recupera un texto propio: **fuera del padrón**, **ya inscripto** y
+  **documento no disponible** en el paso 1, más **padrón cambiado entre pasos** en el paso 2.
+- **Afuera:** el resto de los cortes sigue igual. «Demasiados intentos» conserva un solo texto (dos
+  cubetas, una sola causa para el ciudadano), la pantalla «no disponible» mantiene su regla del
+  Cambio 59 (solo distingue «todavía no abrió»), y la pantalla «Ya estás inscripto» del paso 2 no se
+  toca. Ningún mensaje incorpora datos de contacto: eso sigue como lo dejaron los Cambios 60, 61 y 70.
+
+## Decisiones tomadas
+
+- **Se revierte, a pedido, la unificación de la revisión de seguridad del 26/08/2026** (Cambio 41,
+  reafirmada en el Cambio 61). Aquella decisión existía porque textos distintos convierten el paso 1
+  en un oráculo: barriendo documentos se reconstruye el padrón de habilitados —dato socioeconómico— y
+  se averigua quién ya se inscribió, incluidas las personas relevadas en campo. **Se avisó el costo
+  antes de implementar y el pedido se mantuvo**: la persona que no entiende por qué no puede seguir
+  es un problema real y presente; el oráculo es un riesgo que ya está acotado por otras vías.
+- **Lo que contiene el barrido masivo no se toca**: captcha (reCAPTCHA cuando hay claves), cubeta por
+  IP y cubeta por documento consumida después del captcha. Sin ellas, la diferenciación sí sería
+  explotable a escala; con ellas, el atacante necesita resolver un captcha por documento probado.
+- **El duplicado se avisa en el propio paso 1, no con la pantalla completa** que se usaba antes de
+  agosto. Con el mensaje en línea la persona corrige un documento mal tipeado sin volver atrás; la
+  pantalla `ya_inscripto.html` queda para el paso 2, donde el envío ya fue.
+- **El texto nombra «listado de personas habilitadas», no «padrón»**: es la palabra que el ciudadano
+  entiende, y es la que ya usa el resto de las pantallas públicas.
+- **Ningún mensaje reintroduce un teléfono ni una casilla.** El Cambio 70 borró el número fantasma y
+  el Cambio 60 sacó el contacto del paso 1: la alerta informa la causa y nada más.
+
+## Implementación
+
+Cuatro constantes en lugar de la única `MENSAJE_RECHAZO`:
+
+| Situación | Dónde | Texto |
+|---|---|---|
+| El documento no está en el padrón de la convocatoria | Paso 1 | «Ese documento no figura en el listado de personas habilitadas para esta convocatoria.» |
+| Ya hay una inscripción con ese documento | Paso 1 | «Ya existe una inscripción con ese documento en esta convocatoria. No podés inscribirte dos veces.» |
+| RENAPER/Gran Base lo informa fallecido | Paso 1 | «La inscripción no está disponible para ese documento. Revisá que el número y el sexo sean correctos.» |
+| El padrón cambió entre la identificación y el envío | Paso 2 | «Ese documento ya no figura en el listado de personas habilitadas para esta convocatoria: no pudimos registrar la inscripción.» |
+
+El orden de evaluación del paso 1 no cambia: captcha → cubeta por IP → cubeta por documento → padrón
+→ duplicado → identidad. El duplicado sigue cortando **antes** de la consulta externa.
+
+## Archivos
+
+- `portal/views/inscripcion.py` — `MENSAJE_NO_HABILITADO`, `MENSAJE_YA_INSCRIPTO`,
+  `MENSAJE_DOCUMENTO_NO_DISPONIBLE`, `MENSAJE_PADRON_CAMBIO` reemplazan a `MENSAJE_RECHAZO`.
+- `portal/tests/test_seguridad_publica.py` — `RechazosIndistinguiblesTests` pasa a
+  `RechazosDiferenciadosTests` y fija la propiedad inversa: cada causa da su mensaje y solo el suyo.
+  Los tres casos se leen del contexto en vez del HTML, así corren también en el venv local.
+- `portal/tests/test_correcciones_review_2.py` — `MensajeAntiEnumeracionTests` pasa a
+  `DuplicadoEnPaso1Tests`; sigue verificando que el duplicado no gasta una consulta de identidad.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `portal.tests.test_seguridad_publica.RechazosDiferenciadosTests` +
+  `test_correcciones_review_2.DuplicadoEnPaso1Tests`: **5 tests, OK** (corren de verdad en local).
+- Suite `portal` completa: 150 tests, 25 errores, **todos** el `AttributeError` de `Context.__copy__`
+  del baseline conocido (Python 3.14 + Django 4.2). El baseline sin el cambio da 29: bajan cuatro
+  porque los tests de rechazo dejaron de instrumentar el render. Ninguna aserción caída.
+- `manage.py check` OK · `makemigrations --check` sin cambios · `ruff check` y `ruff format` limpios ·
+  `design_audit.py --changed` 0/0 · `compile_templates.py` 335 OK, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. Solo Python: no toca plantillas ni CSS.
+
+## Pendientes / a definir
+
+- **Vigilar el uso del link mientras esté abierto.** Si aparece un barrido de documentos (muchos
+  rechazos «no figura en el listado» desde pocas IPs o en ráfaga), la contención disponible sin
+  volver al mensaje único es bajar `MAX_INTENTOS_DNI` / el techo por IP, no cambiar los textos.
+- Queda **cerrado** el pendiente que arrastraban los Cambios 61 y 70 sobre si el mensaje de rechazo
+  del paso 1 debía desaparecer del todo: ahora hay un texto por causa y ninguno lleva contacto.
+
+## Reversión
+
+Revertir el commit: vuelve `MENSAJE_RECHAZO` con el texto único y los tests de rechazos
+indistinguibles.
+
+## Historial
+
+- **26/08/2026 (Cambio 41)** — la revisión de seguridad unificó los tres mensajes del paso 1 en «No
+  podés inscribirte con ese documento», con un test que comparaba los renders byte a byte.
+- **03/09/2026 (Cambio 61)** — se le sacó la oración de contacto con el teléfono del organismo, sin
+  tocar la unificación.
+- **10/09/2026 (este cambio)** — el programa pide volver a diferenciar por causa; se implementa
+  dejando intactas las defensas anti-abuso.
 
 ---
