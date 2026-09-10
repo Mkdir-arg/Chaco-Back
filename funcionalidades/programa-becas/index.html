@@ -1,0 +1,4068 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://Mkdir-arg.github.io/Chaco-Back/funcionalidades/programa-becas/">
+      
+      
+        <link rel="prev" href="../programa-becas-sistema/">
+      
+      
+        <link rel="next" href="../programa-dispositivos/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Programa Becas (propuesta original) - Chaco — Seguimiento de desarrollo</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#propuesta-funcional-programa-becas-relevamiento-territorial-y-asignacion-de-cupos" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href="../.." title="Chaco — Seguimiento de desarrollo" class="md-header__button md-logo" aria-label="Chaco — Seguimiento de desarrollo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Chaco — Seguimiento de desarrollo
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Programa Becas (propuesta original)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Cambiar a modo oscuro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Cambiar a modo oscuro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Cambiar a modo claro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Cambiar a modo claro" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Pestañas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Inicio
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../kickoff/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Proyecto
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../minutas/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Minutas
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../versiones/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Versiones
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../financiero/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Financiero
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Funcionalidades
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Chaco — Seguimiento de desarrollo" class="md-nav__button md-logo" aria-label="Chaco — Seguimiento de desarrollo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Chaco — Seguimiento de desarrollo
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proyecto
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Proyecto
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../kickoff/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kick Off
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../team/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Equipo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metodología
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitectura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../minutas/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minutas
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Minutas
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../minutas/kickoff-2026-05-20/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kickoff ICORE / Chaco - 2026-05-20
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../minutas/reunion-inicio-proyecto-2026-06-03/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reunión 1 — Inicio de proyecto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../minutas/seguimiento-roles-formularios-2026-06-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reunión 2 — Roles y formularios - 2026-06-08
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../minutas/seguimiento-estadisticas-instituciones-2026-06-10/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reunión 3 — Estadísticas de instituciones - 2026-06-10
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../minutas/seguimiento-becas-dispositivos-2026-06-19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reunión 4 — Becas y Legajo de Dispositivos - 2026-06-19
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../minutas/seguimiento-dispositivos-merenderos-2026-06-26/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reunión 5 — Dispositivos y merenderos - 2026-06-26
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../versiones/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versiones
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Versiones
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../versiones/version-002/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versión 002 — Constructor de formularios (en curso)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../versiones/version-001/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versión 001 — Programa Becas y RBAC (cerrada)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../financiero/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Financiero
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Financiero
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../financiero/mes-2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Septiembre 2026
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../financiero/mes-2026-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agosto 2026
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../financiero/mes-2026-07/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Julio 2026
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../financiero/mes-2026-06/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Junio 2026
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../financiero/detalle-tareas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detalle de tareas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Funcionalidades
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Funcionalidades
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../programa-becas-sistema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Programa Becas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Programa Becas (propuesta original)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Programa Becas (propuesta original)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-objetivo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Objetivo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-concepto-modelo-del-dominio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Concepto / modelo del dominio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-actores-y-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Actores y roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-funcionamiento-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Funcionamiento end-to-end
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-estados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Estados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Estados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#estado-del-relevamiento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado del Relevamiento
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estado-del-formulario-persona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado del Formulario / Persona
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-cupo-validacion-sis-y-lista-de-espera" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Cupo, validación SIS y lista de espera
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Cupo, validación SIS y lista de espera">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-hallazgos-del-documento-del-equipo-ministerio-urd-rq-002-tablero-de-aprobacion-n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Hallazgos del documento del equipo Ministerio (URD RQ-002 — "Tablero de Aprobación N1")
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#62-segmentos-subsegmentos-y-requisitos-de-elegibilidad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Segmentos, subsegmentos y requisitos de elegibilidad
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6.2 Segmentos, subsegmentos y requisitos de elegibilidad">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#segmento-y-subsegmento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Segmento y subsegmento
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#requisitos-ahora-nativos-cambio-de-definicion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requisitos: ahora NATIVOS (cambio de definición)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#requisitos-generales-del-sistema-doc-ministerio-todos-los-segmentos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requisitos generales del sistema (doc Ministerio — todos los segmentos)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cupo-por-segmento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cupo por segmento
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#63-anexo-requisitos-por-segmento-y-cuestionario-social-doc-ministerio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cuestionario-de-relevamiento-social-13-preguntas-requisitos-generales-todos-los-segmentos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuestionario de Relevamiento Social (13 preguntas) = REQUISITOS GENERALES (todos los segmentos)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-pantallas-del-backoffice-mapa-preliminar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Pantallas del backoffice (mapa preliminar)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#71-campos-del-formulario-borrador-preliminar-segun-rq-001" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1. Campos del formulario (borrador preliminar según RQ-001)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7.1. Campos del formulario (borrador preliminar según RQ-001)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bloque-a-datos-personales-precargados-por-escaneorenaper-editables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque A — Datos Personales (precargados por escaneo/RENAPER, editables)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bloque-b-domicilio-precargado-editable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque B — Domicilio (precargado, editable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bloque-c-contacto-ingreso-manual-obligatorio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque C — Contacto (ingreso manual obligatorio)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bloque-d-apoderado-visible-solo-si-rn-22-detecta-menor-de-edad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque D — Apoderado (visible solo si RN-22 detecta menor de edad)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adjuntos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adjuntos
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-integraciones-bloque-diferido-en-relevamiento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Integraciones (bloque diferido — en relevamiento)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Integraciones (bloque diferido — en relevamiento)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#80-renaper-integracion-relevada-cerrada" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.0 RENAPER — integración relevada (cerrada)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#81-sistema-sis-estado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Sistema SIS — estado
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-app-de-campo-integracion-relevada-cerrada" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 App de campo — integración relevada (cerrada)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8.2 App de campo — integración relevada (cerrada)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#flujo-de-carga-de-identidad-en-campo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flujo de carga de identidad en campo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-reglas-de-negocio-consolidadas-preliminares" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Reglas de negocio (consolidadas, preliminares)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-dependencias-e-impacto-critico" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Dependencias e impacto crítico
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagrama-de-flujo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagrama de Flujo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-fuera-de-alcance-por-ahora" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Fuera de alcance (por ahora)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Fuera de alcance (por ahora)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-diferido-a-version-2-acordado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.1 Diferido a Versión 2 (acordado)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-preguntas-abiertas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Preguntas abiertas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-asunciones-a-confirmar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Asunciones a confirmar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-proximos-pasos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Próximos pasos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-preguntas-pendientes-consolidado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Preguntas pendientes (consolidado)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16. Preguntas pendientes (consolidado)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#161-sistema-sis-pendientes-y-diferida" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.1 Sistema SIS (pendientes y diferida)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#162-formulario-y-reglas-de-negocio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.2 Formulario y reglas de negocio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#162-bis-sub-preguntas-derivadas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.2-bis Sub-preguntas derivadas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#163-rq-002-cadena-de-aprobacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.3 RQ-002 / cadena de aprobación
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#164-investigacion-de-codigo-pendiente-responsabilidad-de-icore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.4 Investigación de código pendiente (responsabilidad de ICORE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#165-resumen-del-control-estricto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.5 Resumen del control estricto
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#167-requisitos-de-elegibilidad-general-segmento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.7 Requisitos de elegibilidad (general / segmento)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#166-asunciones-pendientes-de-confirmacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.6 Asunciones pendientes de confirmación
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentos-relacionados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentos relacionados
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../programa-dispositivos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Programa Dispositivos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../correos-credenciales/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Correos de credenciales
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-objetivo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Objetivo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-concepto-modelo-del-dominio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Concepto / modelo del dominio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-actores-y-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Actores y roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-funcionamiento-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Funcionamiento end-to-end
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-estados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Estados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Estados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#estado-del-relevamiento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado del Relevamiento
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estado-del-formulario-persona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado del Formulario / Persona
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-cupo-validacion-sis-y-lista-de-espera" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Cupo, validación SIS y lista de espera
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Cupo, validación SIS y lista de espera">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-hallazgos-del-documento-del-equipo-ministerio-urd-rq-002-tablero-de-aprobacion-n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Hallazgos del documento del equipo Ministerio (URD RQ-002 — "Tablero de Aprobación N1")
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#62-segmentos-subsegmentos-y-requisitos-de-elegibilidad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Segmentos, subsegmentos y requisitos de elegibilidad
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6.2 Segmentos, subsegmentos y requisitos de elegibilidad">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#segmento-y-subsegmento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Segmento y subsegmento
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#requisitos-ahora-nativos-cambio-de-definicion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requisitos: ahora NATIVOS (cambio de definición)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#requisitos-generales-del-sistema-doc-ministerio-todos-los-segmentos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requisitos generales del sistema (doc Ministerio — todos los segmentos)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cupo-por-segmento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cupo por segmento
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#63-anexo-requisitos-por-segmento-y-cuestionario-social-doc-ministerio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cuestionario-de-relevamiento-social-13-preguntas-requisitos-generales-todos-los-segmentos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuestionario de Relevamiento Social (13 preguntas) = REQUISITOS GENERALES (todos los segmentos)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-pantallas-del-backoffice-mapa-preliminar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Pantallas del backoffice (mapa preliminar)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#71-campos-del-formulario-borrador-preliminar-segun-rq-001" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1. Campos del formulario (borrador preliminar según RQ-001)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7.1. Campos del formulario (borrador preliminar según RQ-001)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bloque-a-datos-personales-precargados-por-escaneorenaper-editables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque A — Datos Personales (precargados por escaneo/RENAPER, editables)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bloque-b-domicilio-precargado-editable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque B — Domicilio (precargado, editable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bloque-c-contacto-ingreso-manual-obligatorio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque C — Contacto (ingreso manual obligatorio)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bloque-d-apoderado-visible-solo-si-rn-22-detecta-menor-de-edad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bloque D — Apoderado (visible solo si RN-22 detecta menor de edad)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adjuntos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adjuntos
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-integraciones-bloque-diferido-en-relevamiento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Integraciones (bloque diferido — en relevamiento)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Integraciones (bloque diferido — en relevamiento)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#80-renaper-integracion-relevada-cerrada" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.0 RENAPER — integración relevada (cerrada)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#81-sistema-sis-estado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Sistema SIS — estado
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-app-de-campo-integracion-relevada-cerrada" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 App de campo — integración relevada (cerrada)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8.2 App de campo — integración relevada (cerrada)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#flujo-de-carga-de-identidad-en-campo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flujo de carga de identidad en campo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-reglas-de-negocio-consolidadas-preliminares" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Reglas de negocio (consolidadas, preliminares)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-dependencias-e-impacto-critico" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Dependencias e impacto crítico
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagrama-de-flujo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagrama de Flujo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-fuera-de-alcance-por-ahora" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Fuera de alcance (por ahora)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Fuera de alcance (por ahora)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-diferido-a-version-2-acordado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.1 Diferido a Versión 2 (acordado)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-preguntas-abiertas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Preguntas abiertas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-asunciones-a-confirmar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Asunciones a confirmar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-proximos-pasos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Próximos pasos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-preguntas-pendientes-consolidado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Preguntas pendientes (consolidado)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16. Preguntas pendientes (consolidado)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#161-sistema-sis-pendientes-y-diferida" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.1 Sistema SIS (pendientes y diferida)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#162-formulario-y-reglas-de-negocio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.2 Formulario y reglas de negocio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#162-bis-sub-preguntas-derivadas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.2-bis Sub-preguntas derivadas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#163-rq-002-cadena-de-aprobacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.3 RQ-002 / cadena de aprobación
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#164-investigacion-de-codigo-pendiente-responsabilidad-de-icore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.4 Investigación de código pendiente (responsabilidad de ICORE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#165-resumen-del-control-estricto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.5 Resumen del control estricto
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#167-requisitos-de-elegibilidad-general-segmento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.7 Requisitos de elegibilidad (general / segmento)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#166-asunciones-pendientes-de-confirmacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16.6 Asunciones pendientes de confirmación
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentos-relacionados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentos relacionados
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="propuesta-funcional-programa-becas-relevamiento-territorial-y-asignacion-de-cupos">Propuesta funcional — Programa Becas: Relevamiento territorial y asignación de cupos</h1>
+<p><strong>Tipo:</strong> Propuesta de épica (documento de trabajo interno)
+<strong>Estado:</strong> En análisis (borrador en construcción)
+<strong>Fecha:</strong> 2026-06-04 · <strong>Última actualización:</strong> 2026-06-08
+<strong>Responsable (ICORE):</strong> functional-analyst
+<strong>Programa:</strong> Becas (primer programa sobre el módulo genérico de Programas)
+<strong>Módulos Django candidatos:</strong> <code>apps/programas</code>, <code>apps/legajos</code>, <code>apps/ciudadanos</code>, <code>users</code> (roles/permisos)</p>
+<div class="admonition warning">
+<p class="admonition-title">Documento histórico — superado por la implementación</p>
+<p>Esta es la <strong>propuesta funcional original</strong> del Programa Becas, escrita en junio de 2026
+<strong>antes de construir</strong>. Se conserva como registro de lo que se planteó al inicio de la
+Versión 001, y por eso mantiene sus preguntas abiertas y sus asunciones de entonces.</p>
+<p>Varias de sus definiciones cambiaron durante el desarrollo. <strong>Para saber cómo funciona el
+sistema hoy</strong>, ver <a href="../programa-becas-sistema/">Programa Becas — el sistema construido</a>.</p>
+</div>
+<blockquote>
+<p><strong>Borrador en construcción.</strong> Última ronda: <strong>requisitos nativos</strong> (ya no vienen de SIS),
+<strong>subsegmento</strong>, <strong>Coordinador</strong> (= validador territorial), <strong>control de incompatibilidades</strong>,
+regla <strong>RENAPER/escaneo</strong> y <strong>catálogo oficial</strong> de segmentos. <strong>Permanencia/seguimiento y
+estados extendidos → Versión 2.</strong> Falta cerrar el <strong>contrato técnico de SIS</strong> y varios
+pendientes. Todas las <strong>dudas y preguntas</strong> están al final, en la <strong>Sección 16</strong>.</p>
+</blockquote>
+<hr />
+<h2 id="1-objetivo">1. Objetivo</h2>
+<p>Construir, en el <strong>backoffice</strong>, un módulo del <strong>Programa Becas</strong> que permita a un
+<strong>administrador</strong> configurar convocatorias —cada una asociada a un <strong>segmento</strong> de la beca,
+con sus <strong>requisitos</strong> y <strong>cupo</strong> propios— y <strong>asignar relevamientos</strong> a sus
+<strong>territoriales</strong>. El territorial, desde una <strong>app de campo</strong> (externa, integrada vía
+API), releva ciudadanos en terreno cargando <strong>un formulario por persona</strong>. Al finalizar,
+los formularios llegan al backoffice, donde el administrador los <strong>revisa caso por caso</strong>
+y los <strong>aprueba o rechaza</strong>. Las personas aprobadas pasan por una <strong>validación contra el
+Sistema SIS</strong> y, según disponibilidad de <strong>cupo del segmento</strong>, ocupan una beca o quedan
+en <strong>lista de espera</strong>.</p>
+<hr />
+<h2 id="2-concepto-modelo-del-dominio">2. Concepto / modelo del dominio</h2>
+<p>Jerarquía (actualizada: se agrega <strong>Subsegmento</strong>; los requisitos de segmento pasan a ser nativos):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Programa  (Becas)
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   └─ Convocatoria              (1..N; al crearla se selecciona UN Segmento)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        ├─ Segmento             (sub-modalidad de la beca → cupo propio + requisitos NATIVOS configurables)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        │     └─ Subsegmento    (nivel opcional configurable, ej. Ladrillo / Carbón en Producción Territorial)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        └─ Relevamiento         (campaña de campo, asignada a UN territorial, con fecha y zona)
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>             └─ Formulario       (N por relevamiento; cada uno = 1 persona / legajo)
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Entidad</th>
+<th>Descripción</th>
+<th>Notas clave</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Programa</strong></td>
+<td>Marco genérico. Becas es el primero; Ñachec es otro programa.</td>
+<td>El <strong>cupo</strong> vive a nivel <strong>Segmento</strong> (no a nivel Programa).</td>
+</tr>
+<tr>
+<td><strong>Convocatoria</strong></td>
+<td>Agrupador dentro del programa. Un programa tiene 1..N convocatorias. Al crearla se <strong>selecciona un Segmento</strong>.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Segmento</strong></td>
+<td>Sub-modalidad de la beca (Producción Territorial/Fuego y Barro, Cultura/Mi Pequeño Artista, Futuro Joven, Comunidades Originarias/Mamá Ñachec, Redes de Fe, Deportes/Talento Deportivo, Vivienda/Casa Ñachec — ver §6.2).</td>
+<td>Define <strong>cupo propio</strong> y sus <strong>requisitos específicos NATIVOS</strong> (configurables; <strong>ya no vienen de SIS</strong>).</td>
+</tr>
+<tr>
+<td><strong>Subsegmento</strong></td>
+<td>Nivel <strong>opcional configurable</strong> dentro de un segmento (ej. <strong>Ladrillo / Carbón</strong> en Producción Territorial).</td>
+<td>Configurable; puede tener requisitos propios.</td>
+</tr>
+<tr>
+<td><strong>Relevamiento</strong></td>
+<td>Campaña de campo asignada a <strong>un solo</strong> territorial. Se <strong>auto-nombra</strong> "Relevamiento XXX".</td>
+<td>Tiene territorial, fecha/plazo y zona/localidad. Reasignable.</td>
+</tr>
+<tr>
+<td><strong>Formulario</strong></td>
+<td>Una persona relevada. N por relevamiento.</td>
+<td>Campos: ver <strong>§7.1</strong> + requisitos generales (13 preguntas) y de segmento.</td>
+</tr>
+<tr>
+<td><strong>Persona / Legajo</strong></td>
+<td>El ciudadano relevado. Se busca en <code>legajos</code>: si existe se relaciona, si no se crea.</td>
+<td>El legajo se crea <strong>al enviar</strong> el formulario. Una persona puede estar en <strong>N programas</strong> a la vez. La relación legajo↔programa se visualiza mediante <strong>solapas dinámicas</strong>: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente mostrando el estado (aprobado, rechazado, con cupo, etc.).</td>
+</tr>
+<tr>
+<td><strong>Cupo</strong></td>
+<td>Número de becas disponibles <strong>por Segmento</strong> (parametría: cantidad de segmentos + cupo por segmento).</td>
+<td>Se ocupa <strong>después</strong> de validar con SIS, no al aprobar.</td>
+</tr>
+<tr>
+<td><strong>Lista de espera</strong></td>
+<td>Personas validadas-OK que no entraron por cupo lleno.</td>
+<td>El admin promueve <strong>a mano</strong>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-actores-y-roles">3. Actores y roles</h2>
+<table>
+<thead>
+<tr>
+<th>Actor</th>
+<th>Tipo</th>
+<th>Acceso / permisos</th>
+<th>Qué hace</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Administrador del programa</strong></td>
+<td>Rol <strong>nuevo</strong> (no existe hoy). Se apoya en el esquema de roles/permisos de <code>users</code>.</td>
+<td>Acceso al <strong>módulo del programa Becas</strong>; el acceso por módulo depende de los roles asignados. Ve <strong>todo</strong> el programa.</td>
+<td>Crea convocatorias y relevamientos, asigna/reasigna territoriales, revisa formularios (aprueba/rechaza con motivo), gestiona cupo y lista de espera, da de baja beneficiarios.</td>
+</tr>
+<tr>
+<td><strong>Territorial</strong></td>
+<td>Usuario del sistema con login propio.</td>
+<td>Ve <strong>solo sus</strong> relevamientos y formularios.</td>
+<td>Inicia el relevamiento del día asignado, carga formularios (1 por persona) en la app de campo, finaliza y envía todo junto.</td>
+</tr>
+<tr>
+<td><strong>Coordinador</strong> (= validador territorial)</td>
+<td>Rol <strong>nuevo</strong> (tercero).</td>
+<td>Habilitado para validar a nivel territorial.</td>
+<td><strong>Valida las postulaciones</strong> (referentes/municipios/consorcios/autoridades operan bajo este rol) y <strong>reprograma</strong> relevamientos vencidos (RN-28).</td>
+</tr>
+</tbody>
+</table>
+<p>Hay <strong>tres roles</strong>: Administrador, Territorial y <strong>Coordinador</strong> (= validador territorial).</p>
+<p><strong>Convivencia de perfiles:</strong> un mismo usuario <strong>sí puede tener los dos roles a la vez</strong>
+(Admin de un programa + Territorial de otro). El acceso por módulo/programa depende de los
+roles asignados. Ver <strong>RN-27</strong>.</p>
+<p><strong>Nota de diseño:</strong> el rol "Administrador de programa" es nuevo y se apoya en el esquema de
+permisos existente en <code>users</code>. Hay que revisar cómo Chaco maneja roles hoy para no inventar
+un esquema paralelo.</p>
+<hr />
+<h2 id="4-funcionamiento-end-to-end">4. Funcionamiento end-to-end</h2>
+<ol>
+<li><strong>Configuración (admin).</strong> El administrador configura el <strong>Programa Becas</strong>: define los
+   <strong>segmentos</strong> (y <strong>subsegmentos</strong> si corresponde), el <strong>cupo por segmento</strong> (parametría),
+   los <strong>requisitos generales</strong> (compartidos por todas las convocatorias) y los <strong>requisitos
+   de cada segmento</strong> (<strong>nativos, configurables</strong>; ya no vienen de SIS). Crea una o varias
+   <strong>convocatorias</strong> y, al crear cada una, <strong>selecciona el segmento</strong>; sus requisitos quedan
+   visibles en la convocatoria. Dentro de la convocatoria crea <strong>relevamientos</strong>; al crear un
+   relevamiento define: <strong>territorial asignado</strong>, <strong>fecha/plazo</strong> y <strong>zona/localidad</strong>. El
+   relevamiento se <strong>auto-nombra</strong> "Relevamiento XXX". Puede <strong>reasignarlo</strong> a otro territorial.</li>
+<li><strong>Inicio en campo (territorial).</strong> El territorial entra a la app, ve el <strong>listado de
+   sus relevamientos</strong> asignados y <strong>solo puede iniciar el relevamiento del día</strong>.</li>
+<li><strong>Carga (territorial).</strong> Dentro del relevamiento carga <strong>un formulario tras otro</strong>
+   (1 por persona). Al iniciar cada formulario, el sistema determina la <strong>forma de
+   validar identidad</strong> según conectividad (ver §8.2 para detalle completo): puede
+   <strong>escanear el DNI</strong> (lectura directa del chip/código del documento), <strong>validar con
+   RENAPER</strong> (ingreso manual de DNI + sexo), o <strong>cargar manual</strong> si no hay conexión. Luego
+   completa lo que no autocompleta RENAPER/escaneo: <strong>contacto, estudios, situación laboral,
+   los requisitos generales (13 preguntas), los del segmento, GPS y adjuntos</strong>; si es <strong>menor</strong>,
+   los datos del <strong>apoderado</strong>. <strong>No</strong> puede dejar un formulario a medias.</li>
+<li><strong>Finalización y envío (territorial).</strong> Cuando termina, <strong>finaliza el relevamiento</strong> y
+   <strong>todos los formularios se envían juntos</strong> al backoffice. El territorial <strong>termina su
+   tarea</strong> acá (no participa más). Al enviarse, cada persona se <strong>crea/relaciona como
+   legajo</strong>, se apruebe o no después.</li>
+<li><strong>Revisión caso por caso (admin).</strong> El admin entra al relevamiento finalizado, ve el
+   <strong>listado de formularios enviados</strong>, abre <strong>uno por uno</strong>, ve la información recabada y
+   <strong>aprueba</strong> o <strong>rechaza</strong> (el rechazo requiere <strong>motivo</strong> y es <strong>informativo</strong>: no
+   vuelve al territorial).</li>
+<li><strong>Validación SIS (aprobados y rechazados).</strong> Tanto si el admin <strong>aprueba</strong> como si <strong>rechaza</strong>, el sistema <strong>automáticamente</strong> dispara la validación contra SIS (<strong>síncrona</strong>: el admin espera la respuesta). Resultado de SIS: <strong>Validado-Aprobado</strong> o <strong>Validado-Rechazado</strong>.</li>
+<li><strong>Asignación de cupo.</strong> Si SIS aprueba y <strong>hay cupo</strong> disponible en el <strong>segmento</strong> → la
+   persona <strong>ocupa 1 cupo de ese segmento</strong> en ese momento. Si el cupo del segmento está
+   lleno → va a <strong>lista de espera</strong>. El siguiente caso que se apruebe ya ve el cupo
+   actualizado.</li>
+<li><strong>Gestión de cupo (admin).</strong> Cuando el admin <strong>da de baja</strong> a un beneficiario, se
+  libera un cupo y el sistema muestra una <strong>alerta</strong>: "se liberó un cupo, mover a
+  alguien de la lista de espera". El admin <strong>promueve a mano</strong>.</li>
+<li><strong>Reportes.</strong> El admin <strong>exporta</strong> beneficiarios, lista de espera y avance de
+   relevamientos (requerimiento <strong>clave</strong>).</li>
+</ol>
+<hr />
+<h2 id="5-estados">5. Estados</h2>
+<h3 id="estado-del-relevamiento">Estado del Relevamiento</h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Asignado → En curso → Finalizado → En revisión → Terminado
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Estado</th>
+<th>Significado</th>
+<th>Dónde se ve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Asignado</strong></td>
+<td>El admin lo creó y se lo asignó a un territorial.</td>
+<td>Backoffice y app de campo</td>
+</tr>
+<tr>
+<td><strong>En curso</strong></td>
+<td>El territorial lo inició en campo (el día asignado).</td>
+<td>Backoffice y app de campo</td>
+</tr>
+<tr>
+<td><strong>Sincronizando...</strong></td>
+<td>El territorial presionó "Finalizar" sin conexión; los formularios están pendientes de sincronización.</td>
+<td><strong>Solo app de campo</strong> (el backoffice no lo ve hasta que sincronice)</td>
+</tr>
+<tr>
+<td><strong>Finalizado</strong></td>
+<td>El territorial lo cerró y envió todos los formularios (ya sincronizados con el backoffice).</td>
+<td>Backoffice y app de campo</td>
+</tr>
+<tr>
+<td><strong>En revisión</strong></td>
+<td>El admin está revisando los formularios caso por caso.</td>
+<td>Backoffice (el territorial ya no lo ve activo)</td>
+</tr>
+<tr>
+<td><strong>Terminado</strong></td>
+<td>Revisión completa cerrada.</td>
+<td>Backoffice</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reversibilidad:</strong> el paso a <strong>Finalizado es reversible</strong>. El territorial puede <strong>reabrir el
+operativo</strong> (vuelve de <code>Finalizado</code> a <code>En curso</code>) <strong>para sumar más personas</strong>. Los
+<strong>formularios ya enviados no se tocan</strong>: conservan su estado (en revisión, aprobado,
+rechazado, validado). Al re-finalizar se <strong>envían solo los nuevos</strong>. Ver <strong>RN-26</strong>.</p>
+<h3 id="estado-del-formulario-persona">Estado del Formulario / Persona</h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Enviado → Aprobado / Rechazado            (revisión del admin)
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>   Aprobado → Validando (SIS)
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>       → Validado-Aprobado → Con cupo / En lista de espera
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>       → Validado-Rechazado
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Estado</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enviado</strong></td>
+<td>El territorial lo mandó al finalizar el relevamiento.</td>
+</tr>
+<tr>
+<td><strong>Aprobado</strong></td>
+<td>El admin lo aprobó en la revisión.</td>
+</tr>
+<tr>
+<td><strong>Rechazado</strong></td>
+<td>El admin lo rechazó (con motivo, informativo).</td>
+</tr>
+<tr>
+<td><strong>Validando</strong></td>
+<td>Consultando al Sistema SIS.</td>
+</tr>
+<tr>
+<td><strong>Validado-Aprobado</strong></td>
+<td>SIS respondió OK.</td>
+</tr>
+<tr>
+<td><strong>Validado-Rechazado</strong></td>
+<td>SIS respondió NO.</td>
+</tr>
+<tr>
+<td><strong>Con cupo</strong></td>
+<td>Ocupa una beca (había cupo disponible).</td>
+</tr>
+<tr>
+<td><strong>En lista de espera</strong></td>
+<td>Validado-OK pero sin cupo disponible.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Nota de terminología:</strong> el estado "Enviado" corresponde al "Pendiente de Validación" de
+RQ-001 (documento del equipo Ministerio). Ambos refieren al mismo momento: el formulario
+llegó al backoffice y está esperando revisión del admin.</p>
+<p><strong>Nota:</strong> la validación SIS confirma identidad y hace el <strong>control de incompatibilidades</strong>
+(OKA/negativa). Los <strong>requisitos de elegibilidad</strong> son <strong>nativos</strong> (configurables, §6.2): los
+valida <strong>Nodo</strong> (admin/coordinador); SIS solo hace las <strong>incompatibilidades</strong> (RN-33).</p>
+<hr />
+<h2 id="6-cupo-validacion-sis-y-lista-de-espera">6. Cupo, validación SIS y lista de espera</h2>
+<ul>
+<li>El <strong>cupo es del Segmento</strong> (no del relevamiento ni del programa global). El territorial
+  releva <strong>sin límite</strong>.</li>
+<li>El <strong>consumo de cupo NO ocurre al aprobar</strong>, sino tras la validación <strong>SIS</strong>:
+  admin confirma (OKA en Nodo) → <strong>se dispara automáticamente</strong> la consulta a SIS
+  (<strong>síncrona</strong>: el admin espera la respuesta) → si SIS responde <strong>OKA</strong> y hay cupo →
+  ocupa cupo; si SIS responde OKA y no hay cupo → lista de espera.</li>
+<li><strong>Validación SIS es síncrona y secuencial:</strong> al aprobar un formulario, el sistema
+  consulta SIS y <strong>bloquea</strong> hasta recibir respuesta. Esto garantiza que no hay race
+  condition: el cupo se consume en ese momento y el siguiente caso ya ve el cupo actualizado.</li>
+</ul>
+<p><strong>Flujo de revisión y validación SIS (secuencial):</strong></p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Admin abre formulario 1 → revisa → aprueba/rechaza → dispara validación SIS → espera respuesta de SIS
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  → (SIS responde: asigna cupo / lista de espera / rechazado)
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  → Admin cierra formulario 1
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  → Admin abre formulario 2 → revisa → aprueba/rechaza → dispara validación SIS → espera respuesta de SIS
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  → (SIS responde: asigna cupo / lista de espera / rechazado)
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  → Admin cierra formulario 2
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  → ...
+</span></code></pre></div>
+<p>El proceso es <strong>estrictamente secuencial</strong>: el admin no puede abrir/revisar otro formulario
+hasta que SIS responda al actual. Esto garantiza que el consumo de cupo es atómico y sin
+race conditions.</p>
+<p><strong>Botón manual de revalidación:</strong> además del disparo automático, el backoffice ofrece un
+botón <strong>"Validar contra SIS"</strong> disponible en la pantalla de revisión de formularios para
+casos de reintento (timeout, error de SIS, o necesidad de revalidación posterior).</p>
+<ul>
+<li>Si el admin <strong>rechaza</strong> un formulario (en lugar de aprobar), <strong>SÍ se envía a SIS</strong> (ambos caminos —aprobar y rechazar— disparan validación SIS para verificar el estado en el sistema central).</li>
+<li><strong>Lista de espera:</strong> el admin <strong>promueve a mano</strong>. Al dar de baja a un beneficiario, el
+  sistema dispara una <strong>alerta proactiva</strong> para mover a alguien de la lista.</li>
+<li>Si existe <strong>OKA en Nodo + OKA en SIS</strong>, el caso queda habilitado para pasar al
+  <strong>sistema de liquidacion</strong>.</li>
+</ul>
+<h3 id="61-hallazgos-del-documento-del-equipo-ministerio-urd-rq-002-tablero-de-aprobacion-n1">6.1 Hallazgos del documento del equipo Ministerio (URD RQ-002 — "Tablero de Aprobación N1")</h3>
+<p>El equipo Ministerio entregó el documento <strong>RQ-002</strong> (Tablero de Aprobación de Primer Nivel e
+Integración SIS). <strong>No resuelve el contrato técnico de SIS</strong>, pero aporta encuadre:</p>
+<p><strong>Aporta:</strong>
+- <strong>SIS = Sistema de Inclusión Social</strong>, <strong>segundo nivel de control</strong>, recibe los datos
+  aprobados vía <strong>API REST</strong> y hace su propio control intermedio.
+- Aparece un <strong>tercer sistema: "Sistema de Ayudas Sociales"</strong> (sistema madre de
+  <strong>liquidación</strong>, nivel 3) que graba definitivamente para pagar el beneficio.
+- Cadena real de control: <strong>Aprobación Nivel 1 (nuestro backoffice) → SIS (Nivel 2) →
+  Ayudas Sociales (Nivel 3, liquidación)</strong>.</p>
+<p><strong>NO responde (sigue pendiente):</strong> qué se manda exactamente (sin contrato de campos/API)
+y qué devuelve SIS en detalle (estructura/campos).</p>
+<p><strong>Definiciones acordadas en esta ronda:</strong>
+- SIS responde <strong>OKA</strong> = válido. Se espera confirmación o rechazo con motivo.
+- Para ocupar cupo debe existir <strong>OKA del administrador en Nodo + OKA de SIS</strong>.
+- <strong>Disparo a SIS:</strong> automático y <strong>síncrono</strong> tanto al aprobar como al rechazar (ambas acciones disparan validación SIS). El admin espera la respuesta antes de continuar.
+- Si SIS falla por timeout en Nodo, se muestra alerta en el registro para reintentar.
+- Se mantiene el lenguaje propio: <strong>Administrador/Territorial</strong> =
+  <strong>Supervisor/Operador</strong> del RQ-002.
+- Con <strong>OKA en SIS + OKA en Nodo</strong>, el caso pasa a <strong>liquidacion</strong>.</p>
+<hr />
+<h2 id="62-segmentos-subsegmentos-y-requisitos-de-elegibilidad">6.2 Segmentos, subsegmentos y requisitos de elegibilidad</h2>
+<h3 id="segmento-y-subsegmento">Segmento y subsegmento</h3>
+<p>Un <strong>Segmento</strong> es una <strong>sub-modalidad de la beca</strong>; se <strong>selecciona al crear la
+convocatoria</strong>. Un <strong>Subsegmento</strong> es un nivel <strong>opcional</strong> dentro del segmento. Ambos son
+<strong>configurables</strong> (ABM en Configuración del programa). Catálogo oficial (doc Ministerio):</p>
+<table>
+<thead>
+<tr>
+<th>Segmento</th>
+<th>Subsegmentos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Producción Territorial / Fuego y Barro</td>
+<td><strong>Ladrillo</strong>, <strong>Carbón</strong></td>
+</tr>
+<tr>
+<td>Cultura / Mi Pequeño Artista</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Futuro Joven</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Comunidades Originarias / Mamá Ñachec</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Redes de Fe</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Deportes / Talento Deportivo</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Vivienda / Casa Ñachec</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="requisitos-ahora-nativos-cambio-de-definicion">Requisitos: ahora NATIVOS (cambio de definición)</h3>
+<p>Los <strong>requisitos de segmento ya NO vienen de SIS.</strong> Son <strong>nativos</strong> del sistema: se
+<strong>agregan/configuran al configurar el segmento</strong> (y subsegmento). Los requisitos nativos los
+valida <strong>Nodo</strong> (admin/coordinador); SIS solo hace el <strong>control de incompatibilidades</strong>
+(OKA/negativa).</p>
+<table>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Configuración</th>
+<th>Visibilidad</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Requisitos generales</strong></td>
+<td>Configurables en <strong>Configuración del programa</strong>; aplican a <strong>todos los segmentos</strong>. Son el <strong>Cuestionario social de 13 preguntas</strong> (§6.3).</td>
+<td><strong>Se responden en el formulario</strong> por todo beneficiario.</td>
+</tr>
+<tr>
+<td><strong>Requisitos de segmento / subsegmento</strong></td>
+<td><strong>Nativos, configurables</strong> al configurar el segmento/subsegmento.</td>
+<td>Quedan visibles en la convocatoria; informativos para el territorial.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="requisitos-generales-del-sistema-doc-ministerio-todos-los-segmentos">Requisitos generales del sistema (doc Ministerio — todos los segmentos)</h3>
+<ul>
+<li><strong>Registro único</strong> del beneficiario: datos personales, domicilio, CUIL, <strong>estudios</strong>,
+  <strong>situación laboral</strong>, localidad, <strong>segmento asignado</strong> y <strong>estado del trámite</strong>.</li>
+<li><strong>Documentación obligatoria</strong> (ver §7.1): DNI, certificado de domicilio, CUIL, constancia
+  de estudios, <strong>convenio de confidencialidad / uso de imagen</strong>, + doc específica por segmento.</li>
+<li><strong>Validación territorial</strong> por el <strong>Coordinador</strong> (referentes/municipios/consorcios/autoridades).</li>
+<li><strong>Geolocalización GPS</strong> cuando el segmento lo requiera (ej. Producción, Vivienda).</li>
+<li><strong>Control de incompatibilidades = lo hace SIS</strong> (es el <strong>OKA / negativa</strong> que devuelve la
+  integración): residencia fuera del Chaco, planta/contrato estatal, otros programas
+  incompatibles, relación de dependencia, ingresos &gt; 3 SMVM y otras que defina la autoridad.
+  Una <strong>negativa de SIS = incompatibilidad detectada</strong> (con motivo); sin OKA no ocupa cupo.</li>
+<li><strong>Asignación</strong> por segmento/subsegmento, localidad, referente y estado administrativo.</li>
+<li><em>(Seguimiento administrativo y estados extendidos → Versión 2, ver §11.1.)</em></li>
+</ul>
+<p><strong>Regla de carga (RENAPER/escaneo) — RN-37:</strong> los datos que provee <strong>RENAPER o el escaneo de
+DNI</strong> (apellido, nombre, fecha de nacimiento, CUIL, sexo, domicilio) <strong>no se preguntan</strong> —
+vienen autocompletados. <strong>Solo se cargan a mano si no hay conexión.</strong></p>
+<h3 id="cupo-por-segmento">Cupo por segmento</h3>
+<p>El <strong>cupo se configura por segmento</strong> (parametría: cantidad de segmentos + cupo por segmento;
+RN-01/34). El consumo (post doble-OKA) descuenta del <strong>cupo del segmento</strong>.</p>
+<p>Detalle de <strong>requisitos por segmento</strong> y el <strong>Cuestionario social (13 preguntas)</strong> en el
+<strong>Anexo §6.3</strong>.</p>
+<h2 id="63-anexo-requisitos-por-segmento-y-cuestionario-social-doc-ministerio">6.3 Anexo — Requisitos por segmento y Cuestionario social (doc Ministerio)</h2>
+<ul>
+<li><strong>Producción Territorial / Fuego y Barro</strong> (subsegmentos <strong>Ladrillo / Carbón</strong>): actividad
+  productiva actual/reciente, lugar de trabajo/producción, <strong>fotos del lugar</strong>, <strong>GPS</strong>,
+  validación territorial/institucional/sectorial, sublínea. <em>Permanencia (V2): mantener actividad.</em></li>
+<li><strong>Cultura / Mi Pequeño Artista:</strong> edad 7–16, disciplina artística, aval (docente/escuela/espacio
+  cultural), evidencias (fotos/videos/muestras), validación, <strong>adulto responsable</strong>. <em>Permanencia (V2).</em></li>
+<li><strong>Futuro Joven:</strong> alumno regular del último año secundario, promedio, asistencia, materias
+  aprobadas, validación del establecimiento, adulto responsable si corresponde. <em>Permanencia (V2).</em></li>
+<li><strong>Comunidades Originarias / Mamá Ñachec:</strong> vínculo con comunidad originaria, embarazo desde
+  6.º mes o maternidad de niño ≤ 2 años, constancia médica/carnet sanitario, validación. <em>Permanencia (V2).</em></li>
+<li><strong>Redes de Fe:</strong> datos del espacio religioso/comunitario, <strong>registro de culto provincial</strong>,
+  informe de actividades barriales, estado edilicio/necesidades, acciones con comunidad,
+  validación. Destino: mejoras edilicias/mantenimiento. <em>Permanencia (V2).</em></li>
+<li><strong>Deportes / Talento Deportivo:</strong> disciplina, participación activa, aval (club/profesor/escuela),
+  reconocimiento por desempeño, validación, adulto responsable si corresponde. <em>Permanencia (V2).</em></li>
+<li><strong>Vivienda / Casa Ñachec:</strong> residencia efectiva, necesidad de mejora/reparación, tipo de
+  intervención, <strong>fotos del estado actual</strong>, validación, acreditación del destino. Destino:
+  reparaciones/mejoras habitacionales. <em>Permanencia (V2).</em></li>
+</ul>
+<p><strong>Menores de edad:</strong> los segmentos con menores exigen <strong>adulto responsable, autorización y
+documentación respaldatoria</strong> (alinea con RN-22 / Bloque D del formulario).</p>
+<h3 id="cuestionario-de-relevamiento-social-13-preguntas-requisitos-generales-todos-los-segmentos">Cuestionario de Relevamiento Social (13 preguntas) = REQUISITOS GENERALES (todos los segmentos)</h3>
+<p>Estas 13 preguntas <strong>son los requisitos generales</strong> — las <strong>preguntas que responde todo
+beneficiario</strong> en el formulario (sección general, compartida por todas las convocatorias y
+segmentos).</p>
+<ol>
+<li>Tenencia de la vivienda (propia + acreditación: Escritura/RUBH/RENABAP/Boleto).</li>
+<li>Servicios básicos (luz; agua: red/pozo).</li>
+<li>Saneamiento (baño: interno/externo/no posee).</li>
+<li>Composición del hogar (total + por rangos: menores de 18, 18–59, 60+).</li>
+<li>Documentación del grupo familiar (DNI + partida; cuántos faltan).</li>
+<li>Embarazo en el hogar.</li>
+<li>Discapacidad (tipo, CUD, pensión).</li>
+<li>Educación del hogar (secundario adultos; asistencia de menores 4–17).</li>
+<li>Asistencia médica y vacunas (efector: CAPS/Hospital; carnet completo).</li>
+<li>Situación laboral (formal/informal/ninguno + cantidad).</li>
+<li>Programas sociales (AUH, Tarjeta Alimentar, pensiones/jubilaciones, ninguno).</li>
+<li>Cobertura Caja Ñachec / Operativo Impenetrable.</li>
+<li>Capital social y asistencia comunitaria (club/iglesia/centro; comedor/merendero).</li>
+</ol>
+<h2 id="7-pantallas-del-backoffice-mapa-preliminar">7. Pantallas del backoffice (mapa preliminar)</h2>
+<table>
+<thead>
+<tr>
+<th>Pantalla</th>
+<th>Operaciones principales</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Convocatorias</strong></td>
+<td>ABM + al crear <strong>seleccionar el segmento</strong>; sus requisitos (nativos del segmento) quedan visibles en la convocatoria. Listar, editar, ver, (des)activar.</td>
+</tr>
+<tr>
+<td><strong>Relevamientos</strong></td>
+<td>ABM + <strong>asignar/reasignar</strong> territorial, fecha/plazo, zona. Ver estado.</td>
+</tr>
+<tr>
+<td><strong>Revisión de relevamiento</strong></td>
+<td>Entrar a un relevamiento finalizado → listado de formularios → abrir uno por uno → <strong>aprobar/rechazar</strong> (motivo). Botón <strong>"Validar contra SIS"</strong> disponible para revalidación manual.</td>
+</tr>
+<tr>
+<td><strong>Validación territorial (Coordinador)</strong></td>
+<td>El coordinador <strong>valida las postulaciones</strong> del territorio y <strong>reprograma</strong> relevamientos vencidos.</td>
+</tr>
+<tr>
+<td><strong>Beneficiarios / Cupo</strong></td>
+<td>Ver ocupación de cupo, <strong>lista de espera</strong>, <strong>dar de baja</strong>, <strong>promover</strong> desde lista de espera.</td>
+</tr>
+<tr>
+<td><strong>Configuración del programa</strong></td>
+<td>ABM de <strong>segmentos y subsegmentos</strong>, <strong>cupo por segmento</strong> (parametría), <strong>requisitos generales</strong> y <strong>requisitos por segmento/subsegmento</strong> (nativos).</td>
+</tr>
+<tr>
+<td><strong>Reportes</strong></td>
+<td>Exportar beneficiarios, lista de espera, avance de relevamientos.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="71-campos-del-formulario-borrador-preliminar-segun-rq-001">7.1. Campos del formulario (borrador preliminar según RQ-001)</h2>
+<p>Los campos del formulario están definidos por RQ-001 (Registro de Beneficiarios).</p>
+<p><strong>Regla de carga (RN-37):</strong> los campos del <strong>Bloque A</strong> (salvo Estado Civil) y el <strong>Bloque B</strong>
+los <strong>autocompleta RENAPER/escaneo</strong> → <strong>no se preguntan</strong>; solo se cargan a mano <strong>sin
+conexión</strong>. Del <strong>Registro único</strong> se suman: <strong>estudios</strong>, <strong>situación laboral</strong> y
+<strong>geolocalización GPS</strong> (según segmento).</p>
+<h3 id="bloque-a-datos-personales-precargados-por-escaneorenaper-editables">Bloque A — Datos Personales (precargados por escaneo/RENAPER, editables)</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Características</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Número de DNI</td>
+<td>Texto – Obligatorio – Solo lectura (editable si error de escaneo)</td>
+</tr>
+<tr>
+<td>Apellido</td>
+<td>Texto – Obligatorio – Editable</td>
+</tr>
+<tr>
+<td>Nombre</td>
+<td>Texto – Obligatorio – Editable</td>
+</tr>
+<tr>
+<td>Sexo</td>
+<td>Lista desplegable (M / F / X) – Obligatorio</td>
+</tr>
+<tr>
+<td>Estado Civil</td>
+<td>Lista desplegable – Obligatorio</td>
+</tr>
+<tr>
+<td>Fecha de Nacimiento</td>
+<td>Fecha – Obligatorio – Dispara RN-22 (menor de edad → apoderado)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bloque-b-domicilio-precargado-editable">Bloque B — Domicilio (precargado, editable)</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Características</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provincia</td>
+<td>Lista desplegable – Opcional</td>
+</tr>
+<tr>
+<td>Localidad</td>
+<td>Texto / Lista – Opcional</td>
+</tr>
+<tr>
+<td>Calle</td>
+<td>Texto – Opcional</td>
+</tr>
+<tr>
+<td>Número</td>
+<td>Número – Opcional</td>
+</tr>
+<tr>
+<td>Piso</td>
+<td>Número – Opcional</td>
+</tr>
+<tr>
+<td>Departamento / Depto</td>
+<td>Texto – Opcional</td>
+</tr>
+<tr>
+<td>Barrio</td>
+<td>Texto – Opcional</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bloque-c-contacto-ingreso-manual-obligatorio">Bloque C — Contacto (ingreso manual obligatorio)</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Características</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Número de celular</td>
+<td>Numérico – Obligatorio</td>
+</tr>
+<tr>
+<td>Correo electrónico (Mail)</td>
+<td>Email – Obligatorio – Validar formato</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bloque-d-apoderado-visible-solo-si-rn-22-detecta-menor-de-edad">Bloque D — Apoderado (visible solo si RN-22 detecta menor de edad)</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Características</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nombre del Apoderado</td>
+<td>Texto – Obligatorio si sección visible</td>
+</tr>
+<tr>
+<td>Apellido del Apoderado</td>
+<td>Texto – Obligatorio si sección visible</td>
+</tr>
+<tr>
+<td>Fecha de Nacimiento del Apoderado</td>
+<td>Fecha – Obligatorio si sección visible</td>
+</tr>
+</tbody>
+</table>
+<h3 id="adjuntos">Adjuntos</h3>
+<table>
+<thead>
+<tr>
+<th>Documento</th>
+<th>Obligatoriedad</th>
+<th>Método de Carga</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foto DNI – Frente</td>
+<td>Obligatorio</td>
+<td>Cámara del dispositivo</td>
+</tr>
+<tr>
+<td>Foto DNI – Dorso</td>
+<td>Obligatorio</td>
+<td>Cámara del dispositivo</td>
+</tr>
+<tr>
+<td>Certificado de Domicilio</td>
+<td>Obligatorio</td>
+<td>Adjuntar archivo o <strong>imagen en el formulario</strong></td>
+</tr>
+<tr>
+<td>CUIL</td>
+<td>Obligatorio</td>
+<td>Autocompletado por RENAPER (no se sube si valida)</td>
+</tr>
+<tr>
+<td>Constancia de estudios</td>
+<td>Obligatorio</td>
+<td>Adjuntar archivo o foto</td>
+</tr>
+<tr>
+<td>Convenio de confidencialidad / uso de imagen</td>
+<td>Obligatorio</td>
+<td>Adjuntar archivo o foto</td>
+</tr>
+<tr>
+<td>Comprobante de CBU</td>
+<td>Opcional</td>
+<td>Adjuntar archivo o foto</td>
+</tr>
+<tr>
+<td>Documentación específica del segmento (fotos del lugar, evidencias, etc.)</td>
+<td>Según segmento</td>
+<td><strong>Imágenes capturadas en el formulario</strong> / adjuntar</td>
+</tr>
+</tbody>
+</table>
+<p>Algunos adjuntos por segmento son <strong>imágenes que se capturan dentro del formulario</strong> (fotos
+del lugar de producción, estado de la vivienda, evidencias artísticas/deportivas).</p>
+<hr />
+<h2 id="8-integraciones-bloque-diferido-en-relevamiento">8. Integraciones (bloque diferido — en relevamiento)</h2>
+<table>
+<thead>
+<tr>
+<th>Integración</th>
+<th>Rol en el flujo</th>
+<th>Estado del relevamiento</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sistema SIS</strong></td>
+<td><strong>Dos roles:</strong> (1) al pedir el OKA, <strong>valida a la persona</strong> y hace el <strong>control de incompatibilidades</strong> → devuelve <strong>OKA / negativa</strong>; (2) su <strong>OKA habilita ocupar cupo</strong>. <em>(Los requisitos de elegibilidad son </em><em>nativos</em><em>, NO los provee SIS.)</em></td>
+<td>En análisis (contrato técnico pendiente).</td>
+</tr>
+<tr>
+<td><strong>RENAPER</strong></td>
+<td>Valida la identidad (DNI + sexo) <strong>al cargar</strong> cada persona en campo.</td>
+<td><strong>Relevada y probada</strong> (reusa integración existente).</td>
+</tr>
+<tr>
+<td><strong>App de campo</strong></td>
+<td>App <strong>propia</strong> (la desarrollamos nosotros). Funciona <strong>online/offline</strong>, sincroniza al recuperar señal; al finalizar offline confirma tras sync.</td>
+<td><strong>Relevada</strong> (alcance propio).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impacto crítico:</strong> offline + envío en lote + validación RENAPER en campo es alcance grande
+y depende de las 3 integraciones.</p>
+<h3 id="80-renaper-integracion-relevada-cerrada">8.0 RENAPER — integración relevada (cerrada)</h3>
+<p><strong>Reusa la integración existente</strong> de Chaco (no es nueva). Vive en
+<code>legajos/services/consulta_renaper.py</code> (<code>consultar_datos_renaper(dni, sexo)</code> y el cliente
+de bajo nivel <code>APIClient.consultar_ciudadano</code>). Hoy se usa al crear el legajo de un
+ciudadano. Endpoint configurado: <code>RENAPER_API_URL</code> →
+<code>https://sisoc.secretarianaf.gob.ar/api/renaper/consultar/</code> (POST, con API key /
+credenciales por variables de entorno).</p>
+<table>
+<thead>
+<tr>
+<th>Punto</th>
+<th>Definición</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Datos de entrada (2)</strong></td>
+<td><strong>DNI + sexo</strong>.</td>
+</tr>
+<tr>
+<td><strong>Qué devuelve</strong></td>
+<td>Confirma identidad <strong>y autocompleta</strong> datos: apellido, nombres, fecha de nacimiento, CUIL, domicilio (calle/número/piso/ciudad/municipio/provincia), número de trámite, <strong>aviso de fallecimiento</strong> (<code>mensaf</code>), vencimiento del DNI.</td>
+</tr>
+<tr>
+<td><strong>Si NO valida</strong></td>
+<td>Si los datos no coinciden, RENAPER responde "No se encontró coincidencia" (success=false).</td>
+</tr>
+<tr>
+<td><strong>Si RENAPER no responde / falla</strong></td>
+<td>El sistema <strong>permite cargar el formulario de forma manual</strong> y marca el registro como <strong>"No validado RENAPER"</strong>. Ese registro queda visible en el backoffice para que el admin <strong>lo valide en ese momento</strong> (posteriormente).</td>
+</tr>
+<tr>
+<td><strong>Quién la consume</strong></td>
+<td><strong>Ya existe</strong> en Chaco; se <strong>reusa</strong> el servicio. No se desarrolla de cero.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Regla:</strong> sin respuesta de RENAPER, el formulario se carga manual y queda <strong>"No validado
+RENAPER"</strong> → el backoffice debe ofrecer <strong>validar a posteriori</strong>.</p>
+<p><strong>Ejemplo de respuesta real (DNI de prueba 40732138, sexo M) — para mostrar al equipo Ministerio:</strong></p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">"success"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">"iD_TRAMITE_PRINCIPAL"</span><span class="p">:</span><span class="w"> </span><span class="mi">456510149</span><span class="p">,</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">"ejemplar"</span><span class="p">:</span><span class="w"> </span><span class="s2">"C"</span><span class="p">,</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="nt">"vencimiento"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16/09/2031"</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nt">"emision"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16/09/2016"</span><span class="p">,</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">"apellido"</span><span class="p">:</span><span class="w"> </span><span class="s2">"FARIÑA"</span><span class="p">,</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nt">"nombres"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Matias"</span><span class="p">,</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="nt">"fechaNacimiento"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1997-10-25"</span><span class="p">,</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nt">"cuil"</span><span class="p">:</span><span class="w"> </span><span class="s2">"20407321384"</span><span class="p">,</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="nt">"calle"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MONTIEL"</span><span class="p">,</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">"numero"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2951"</span><span class="p">,</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="nt">"piso"</span><span class="p">:</span><span class="w"> </span><span class="s2">"TIMB"</span><span class="p">,</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nt">"ciudad"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MATADEROS"</span><span class="p">,</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="nt">"municipio"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CIUDAD_DE_BUENOS_AIRES"</span><span class="p">,</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="nt">"provincia"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CIUDAD_DE_BUENOS_AIRES"</span><span class="p">,</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="nt">"pais"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ARGENTINA"</span><span class="p">,</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="nt">"mensaf"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Sin Aviso de Fallecimiento"</span><span class="p">,</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="nt">"idciudadano"</span><span class="p">:</span><span class="w"> </span><span class="s2">"101445173"</span><span class="p">,</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span><span class="nt">"nroError"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">    </span><span class="nt">"descripcionError"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DNI/PAS Firmado"</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="p">}</span>
+</span></code></pre></div>
+<blockquote>
+<p>Nota: el servicio de alto nivel también mapea <code>provincia</code> contra la tabla <code>Provincia</code> y
+detecta fallecimiento (<code>mensaf == "FALLECIDO"</code> ⇒ no continúa).</p>
+</blockquote>
+<h3 id="81-sistema-sis-estado">8.1 Sistema SIS — estado</h3>
+<p>El relevamiento de SIS sigue parcialmente abierto: ya se acordaron reglas de decisión
+(OKA/RECHAZO, doble OKA para cupo, manejo de timeout), pero falta cerrar contrato
+técnico y alcance completo de cadena.</p>
+<p><strong>Estado SIS:</strong> Parcialmente definido (con pendientes técnicos). Las preguntas concretas
+(S-1…S-12) están consolidadas al final, en la <strong>Sección 16</strong>.</p>
+<hr />
+<h3 id="82-app-de-campo-integracion-relevada-cerrada">8.2 App de campo — integración relevada (cerrada)</h3>
+<table>
+<thead>
+<tr>
+<th>Punto</th>
+<th>Definición</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Quién la hace</strong></td>
+<td><strong>La desarrollamos nosotros</strong> (ya la tenemos). Entra en el alcance.</td>
+</tr>
+<tr>
+<td><strong>Online/offline</strong></td>
+<td>Funciona <strong>online y offline</strong>. Guarda local y <strong>sincroniza</strong> al recuperar señal.</td>
+</tr>
+<tr>
+<td><strong>Finalizar offline</strong></td>
+<td>El territorial puede presionar <strong>Finalizar sin conexión</strong>; el sistema <strong>finaliza recién cuando se sincronizó todo</strong> (el envío en lote se encola y la finalización se confirma post-sincronización).</td>
+</tr>
+<tr>
+<td><strong>RENAPER offline</strong></td>
+<td>Si no hay señal, se aplica la regla <strong>"cargar manual + No validado RENAPER"</strong>; el registro se envía al backoffice y el <strong>administrador puede revalidar</strong> ahí.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="flujo-de-carga-de-identidad-en-campo">Flujo de carga de identidad en campo</h4>
+<p>Al iniciar un formulario, el sistema determina el camino según conectividad y elección del territorial:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>¿Hay conexión?
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    SÍ → el territorial elige:
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>           Opción A: Escaneo DNI (cámara — barcode / QR / MRZ)
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>                     → lee datos DIRECTOS del chip/código del documento físico
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>                     → autocompleta todos los campos disponibles
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>                     → NO consulta RENAPER (los datos vienen del DNI real)
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>                     → marca: "Validado por escaneo DNI"
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>           Opción B: Validación RENAPER (ingresa DNI + sexo a mano)
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>                     → consulta API RENAPER
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>                     → RENAPER confirma identidad y autocompleta datos
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>                     → marca: "Validado RENAPER"
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>                     → si RENAPER no responde → carga manual + "No validado RENAPER"
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    NO → carga manual directamente → "No validado RENAPER"
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Camino</th>
+<th>Origen</th>
+<th>Marca de validación</th>
+<th>¿Requiere revalidación?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Escaneo DNI (con conexión)</td>
+<td>Territorial elige opción A</td>
+<td><strong>Validado por escaneo DNI</strong></td>
+<td>No — datos leídos directamente del documento físico</td>
+</tr>
+<tr>
+<td>RENAPER responde OK (con conexión)</td>
+<td>Territorial elige opción B</td>
+<td><strong>Validado RENAPER</strong></td>
+<td>No — confirmado por API RENAPER</td>
+</tr>
+<tr>
+<td>RENAPER no responde (con conexión)</td>
+<td>Opción B fallida → carga manual</td>
+<td><strong>No validado RENAPER</strong></td>
+<td>Sí — backoffice debe revalidar (RN-16)</td>
+</tr>
+<tr>
+<td>Sin conexión</td>
+<td>Automático → carga manual</td>
+<td><strong>No validado RENAPER</strong></td>
+<td>Sí — backoffice debe revalidar (RN-16)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Regla crítica:</strong> el <strong>escaneo DNI NO consulta RENAPER</strong> porque lee los datos directamente
+del chip/código del documento físico que tiene el territorial en la mano. Esto le da el mismo
+nivel de confianza (o mayor) que la validación remota con RENAPER.</p>
+<p><strong>Regla:</strong> "No validado RENAPER" tiene <strong>dos orígenes posibles</strong>: sin conexión (offline) o
+RENAPER caído con conexión. En ambos casos el tratamiento posterior es idéntico: el backoffice
+debe permitir revalidar (RN-16).</p>
+<p><strong>Regla (RN-15):</strong> "Finalizado" del relevamiento es un estado <strong>diferido a la sincronización</strong>:
+si se finaliza offline, el relevamiento muestra <strong>"Sincronizando..."</strong> en la app (estado local)
+y solo aparece en el backoffice con estado <code>Finalizado</code> cuando <strong>todo</strong> se sincronizó. El admin
+no ve el relevamiento antes de la sincronización completa.</p>
+<p><strong>Impacto crítico:</strong> hay <strong>dos momentos de validación RENAPER</strong> — (1) en campo si hay señal;
+(2) en backoffice (revalidación) para los marcados "No validado RENAPER". El backoffice debe
+exponer esa acción de revalidar.</p>
+<hr />
+<h2 id="9-reglas-de-negocio-consolidadas-preliminares">9. Reglas de negocio (consolidadas, preliminares)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Regla</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RN-01</td>
+<td>El cupo es <strong>por Segmento</strong> (parametría: cantidad de segmentos + cupo por segmento); el territorial releva sin límite.</td>
+</tr>
+<tr>
+<td>RN-02</td>
+<td>El cupo se consume <strong>solo</strong> tras SIS = OK y si hay disponibilidad.</td>
+</tr>
+<tr>
+<td>RN-03</td>
+<td>Sin cupo disponible, la persona validada-OK va a <strong>lista de espera</strong>.</td>
+</tr>
+<tr>
+<td>RN-04</td>
+<td>La salida de lista de espera es <strong>manual</strong> (admin promueve).</td>
+</tr>
+<tr>
+<td>RN-05</td>
+<td>Al dar de baja un beneficiario, se libera cupo y el sistema <strong>alerta</strong> para promover.</td>
+</tr>
+<tr>
+<td>RN-06</td>
+<td>El territorial <strong>solo</strong> puede iniciar el relevamiento <strong>del día asignado</strong>.</td>
+</tr>
+<tr>
+<td>RN-07</td>
+<td>Un formulario <strong>no</strong> se puede dejar a medias; se completa entero.</td>
+</tr>
+<tr>
+<td>RN-08</td>
+<td>Los formularios se envían <strong>todos juntos</strong> al finalizar el relevamiento.</td>
+</tr>
+<tr>
+<td>RN-09</td>
+<td>El legajo se crea/relaciona <strong>al enviar</strong> el formulario, se apruebe o no.</td>
+</tr>
+<tr>
+<td>RN-10</td>
+<td>Una persona puede pertenecer a <strong>N programas</strong> a la vez.</td>
+</tr>
+<tr>
+<td>RN-11</td>
+<td>El <strong>rechazo</strong> del admin requiere <strong>motivo</strong> y es <strong>informativo</strong> (no vuelve al territorial).</td>
+</tr>
+<tr>
+<td>RN-12</td>
+<td>El territorial <strong>ve solo lo suyo</strong>; el admin <strong>ve todo</strong> el programa.</td>
+</tr>
+<tr>
+<td>RN-13</td>
+<td>Identidad de la persona se valida al cargar mediante <strong>3 caminos posibles</strong>: (A) escaneo DNI (lectura directa del chip/código del documento → marca "Validado por escaneo DNI"), (B) RENAPER (ingreso manual DNI + sexo → consulta API → marca "Validado RENAPER"), (C) carga manual si no hay conexión o RENAPER falla (marca "No validado RENAPER" → requiere revalidación posterior en backoffice).</td>
+</tr>
+<tr>
+<td>RN-14</td>
+<td>Trazabilidad obligatoria: quién cargó, cuándo, historial de estados (admin/SIS).</td>
+</tr>
+<tr>
+<td>RN-15</td>
+<td>La app funciona <strong>offline</strong>; si el territorial presiona "Finalizar" sin conexión, el relevamiento muestra estado <strong>"Sincronizando..."</strong> en la app (solo visible localmente) hasta recuperar señal y sincronizar. El backoffice <strong>no ve el relevamiento</strong> hasta que se sincronicen todos los formularios; recién ahí aparece con estado <code>Finalizado</code>.</td>
+</tr>
+<tr>
+<td>RN-16</td>
+<td>El backoffice debe permitir <strong>revalidar contra RENAPER</strong> los registros marcados "No validado RENAPER".</td>
+</tr>
+<tr>
+<td>RN-17</td>
+<td>La app de campo <strong>la desarrollamos nosotros</strong> (entra en el alcance).</td>
+</tr>
+<tr>
+<td>RN-18</td>
+<td>SIS responde <strong>OKA</strong> = válido; si SIS rechaza, debe existir motivo de rechazo.</td>
+</tr>
+<tr>
+<td>RN-19</td>
+<td>El cupo se ocupa <strong>solo</strong> con doble confirmación: <strong>OKA en Nodo + OKA en SIS</strong>. Sin alguno de los dos, no ocupa cupo.</td>
+</tr>
+<tr>
+<td>RN-20</td>
+<td>Si SIS falla por <strong>timeout en Nodo</strong>, el sistema marca alerta en el registro para reintento posterior.</td>
+</tr>
+<tr>
+<td>RN-21</td>
+<td>Con <strong>OKA en Nodo + OKA en SIS</strong>, el caso queda habilitado para pasar al <strong>sistema de liquidacion</strong>.</td>
+</tr>
+<tr>
+<td>RN-24</td>
+<td>La validación SIS se <strong>dispara automáticamente</strong> tanto al aprobar como al rechazar un formulario (ambas acciones envían a SIS para verificación). La consulta a SIS es <strong>síncrona</strong>: el admin espera la respuesta antes de poder continuar con otro caso. Esto garantiza que el consumo de cupo es secuencial y sin race conditions.</td>
+</tr>
+<tr>
+<td>RN-25</td>
+<td>Tanto la <strong>aprobación</strong> como el <strong>rechazo</strong> del admin envían el caso a SIS; la diferencia está en el contexto (aprobado vs rechazado en Nodo) que se envía junto con los datos.</td>
+</tr>
+<tr>
+<td>RN-22</td>
+<td>Si la fecha de nacimiento indica que el beneficiario es <strong>menor de edad (&lt; 18 años)</strong>, se habilita obligatoriamente la sección <strong>Apoderado</strong> (Nombre, Apellido, Fecha de Nacimiento). El formulario no puede finalizarse sin esos datos. Si el beneficiario es mayor de edad, la sección permanece oculta.</td>
+</tr>
+<tr>
+<td>RN-23</td>
+<td>El territorial puede <strong>editar los campos precargados</strong> por escaneo o RENAPER en caso de error de lectura o domicilio desactualizado.</td>
+</tr>
+<tr>
+<td>RN-26</td>
+<td><strong>Finalizar un relevamiento es reversible:</strong> el territorial puede <strong>reabrir el operativo</strong> finalizado <strong>para sumar más personas</strong>. Los <strong>formularios ya enviados no se modifican</strong> (conservan estado/revisión/SIS); al re-finalizar se <strong>envían solo los nuevos</strong>.</td>
+</tr>
+<tr>
+<td>RN-27</td>
+<td>Un usuario <strong>puede tener múltiples roles a la vez</strong> (ej. <strong>Administrador</strong> de un programa y <strong>Territorial</strong> de otro). El acceso por módulo/programa depende de los roles asignados.</td>
+</tr>
+<tr>
+<td>RN-28</td>
+<td>El relevamiento que <strong>no se inicia el día asignado vence</strong> y el <strong>Coordinador lo reprograma</strong> (nueva fecha).</td>
+</tr>
+<tr>
+<td>RN-29</td>
+<td>El admin <strong>puede editar los datos del formulario</strong> desde el backoffice <strong>antes de aprobar/rechazar</strong>.</td>
+</tr>
+<tr>
+<td>RN-30</td>
+<td>Un <strong>Segmento</strong> es una sub-modalidad de la beca. La <strong>convocatoria</strong> apunta a un segmento (se selecciona al crearla).</td>
+</tr>
+<tr>
+<td>RN-31</td>
+<td><strong>Requisitos generales:</strong> preguntas <strong>configurables</strong> desde Configuración del programa, <strong>compartidas por todas las convocatorias</strong>; son el <strong>Cuestionario social de 13 preguntas</strong> (§6.3) y <strong>se responden en el formulario</strong>.</td>
+</tr>
+<tr>
+<td>RN-32</td>
+<td><strong>Requisitos de segmento/subsegmento:</strong> son <strong>nativos</strong> del sistema, <strong>configurables</strong> al configurar el segmento (ya <strong>no vienen de SIS</strong>); se muestran <strong>informativos</strong> al territorial al completar el formulario.</td>
+</tr>
+<tr>
+<td>RN-33</td>
+<td>La <strong>evaluación</strong> se reparte: <strong>Nodo</strong> valida los <strong>requisitos nativos</strong> (admin/coordinador en la revisión) y <strong>SIS</strong> hace el <strong>control de incompatibilidades</strong> (devuelve <strong>OKA / negativa</strong>).</td>
+</tr>
+<tr>
+<td>RN-34</td>
+<td>El <strong>cupo se descuenta del segmento</strong> correspondiente, tras doble-OKA (Nodo + SIS).</td>
+</tr>
+<tr>
+<td>RN-35</td>
+<td>Existe el nivel <strong>Subsegmento</strong> (opcional, configurable) dentro de un segmento (ej. Ladrillo/Carbón en Producción Territorial).</td>
+</tr>
+<tr>
+<td>RN-36</td>
+<td>El <strong>Coordinador</strong> (= validador territorial) es un <strong>rol nuevo</strong>: <strong>valida postulaciones</strong> del territorio y <strong>reprograma</strong> relevamientos vencidos.</td>
+</tr>
+<tr>
+<td>RN-37</td>
+<td>Los datos que provee <strong>RENAPER o escaneo de DNI</strong> (personales, CUIL, domicilio) <strong>no se preguntan</strong> en el formulario; <strong>solo se cargan a mano sin conexión</strong>.</td>
+</tr>
+<tr>
+<td>RN-38</td>
+<td>El <strong>control de incompatibilidades lo realiza SIS</strong> (es el <strong>OKA / negativa</strong> de la integración): fuera de Chaco, planta/contrato estatal, otros programas, relación de dependencia, ingresos &gt; 3 SMVM, etc. <strong>Negativa de SIS = incompatibilidad</strong> (con motivo); sin OKA no ocupa cupo.</td>
+</tr>
+<tr>
+<td>RN-39</td>
+<td><strong>Documentación obligatoria</strong> general: DNI, certificado de domicilio, CUIL, constancia de estudios y convenio de confidencialidad/uso de imagen; más la <strong>documentación específica por segmento</strong>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-dependencias-e-impacto-critico">10. Dependencias e impacto crítico</h2>
+<ul>
+<li><strong><code>users</code> / permisos:</strong> rol nuevo "Administrador de programa", acceso por módulo según
+  roles. No inventar esquema paralelo.</li>
+<li><strong><code>legajos</code> / <code>ciudadanos</code>:</strong> la persona = legajo. Reusar identificación existente
+  (DNI/CUIL) y la relación legajo↔programa. Revisar duplicidad de personas. La relación
+  legajo↔programa se visualiza mediante <strong>solapas dinámicas</strong>: si el ciudadano tiene
+  registro en la tabla programas, aparece la solapa correspondiente mostrando el estado
+  (aprobado, rechazado, con cupo, en lista de espera, etc.).</li>
+<li><strong>Integraciones externas:</strong> SIS, RENAPER, App de campo (API).</li>
+<li><strong>Módulo Programas (<code>apps/programas</code>):</strong> base genérica donde se apoya Becas.</li>
+</ul>
+<hr />
+<h2 id="diagrama-de-flujo">Diagrama de Flujo</h2>
+<iframe width="768" height="640" src="https://miro.com/app/live-embed/uXjVJzk5lbQ=/?focusWidget=3458764674758430959&embedMode=view_only_without_ui&embedId=49042054955" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+
+<h2 id="11-fuera-de-alcance-por-ahora">11. Fuera de alcance (por ahora)</h2>
+<ul>
+<li><strong>Notificaciones</strong> a territoriales o ciudadanos.</li>
+<li><strong>Reproceso</strong> de personas rechazadas por el admin (rechazo es informativo).</li>
+<li>Diseñador de formularios dinámicos para el <strong>formulario de la persona</strong> (sus <strong>campos son
+  fijos</strong>, definidos por nosotros). <em>(Distinto de los </em><em>requisitos generales/segmento</em><em>, que
+  sí son configurables — ver §6.2 / RN-31/32.)</em></li>
+</ul>
+<h3 id="111-diferido-a-version-2-acordado">11.1 Diferido a Versión 2 (acordado)</h3>
+<ul>
+<li><strong>Condición de permanencia / seguimiento</strong> de cada segmento (recertificación, mantener
+  actividad/regularidad/controles, instancias de seguimiento).</li>
+<li><strong>Estados administrativos extendidos:</strong> suspensión, documentación faltante, validación
+  pendiente, baja con motivo.</li>
+<li><strong>Seguimiento administrativo</strong> (observaciones y cambios de estado a lo largo del tiempo).</li>
+</ul>
+<hr />
+<h2 id="12-preguntas-abiertas">12. Preguntas abiertas</h2>
+<p>Todas las preguntas pendientes están consolidadas al final del documento, en la
+<strong>Sección 16</strong> (equipo Ministerio, técnicas y de equipo, con su estado).</p>
+<hr />
+<h2 id="13-asunciones-a-confirmar">13. Asunciones a confirmar</h2>
+<p>Asunciones y dudas pendientes consolidadas al final en la <strong>Sección 16.6</strong>.</p>
+<hr />
+<h2 id="14-proximos-pasos">14. Próximos pasos</h2>
+<ol>
+<li><strong>Sistema SIS</strong> — cerrar S-1, S-2, S-4, S-5 y S-12 (contrato técnico del control de incompatibilidades).</li>
+<li><strong>Segmentos / requisitos</strong> — confirmar "Solidaria" (R-1.c), cupo por subsegmento (R-8.b) y si los requisitos/documentación son campos del formulario o informativos (R-13).</li>
+<li><strong>Flujo funcional</strong> — cerrado (reapertura 1.b resuelta). No quedan pendientes funcionales nuestros; el resto depende del <strong>contrato de SIS</strong> (paso 1).</li>
+<li><strong>Investigación de código</strong> — completar C-1 (revisar módulos existentes).</li>
+<li><strong>Control estricto</strong> — cerrar todas las preguntas bloqueantes y verificar consistencia.</li>
+<li><strong>Generación en GitHub</strong> — épica → análisis → sub-issues (recién con todo cerrado).</li>
+</ol>
+<hr />
+<h2 id="16-preguntas-pendientes-consolidado">16. Preguntas pendientes (consolidado)</h2>
+<blockquote>
+<p><strong>Todas las preguntas abiertas del análisis, juntas y al final.</strong> Mientras existan
+pendientes <strong>bloqueantes</strong>, NO se generan issues (control estricto de <code>AGENTS.md</code>).
+Estado de cada una: Bloqueante · No bloq. · Diferida · Cerrada · Pendiente.</p>
+</blockquote>
+<h3 id="161-sistema-sis-pendientes-y-diferida">16.1 Sistema SIS (pendientes y diferida)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Pregunta</th>
+<th>Para</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S-1</td>
+<td><strong>Contrato de API.</strong> ¿SIS expone una API REST? ¿Endpoint, autenticación, ambiente de prueba? ¿Es síncrono o asíncrono?</td>
+<td>Equipo Ministerio/ICORE</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+<tr>
+<td>S-2</td>
+<td><strong>Datos de entrada.</strong> ¿Qué campos se le envían por persona? (DNI/CUIL, datos del beneficio, id de programa, adjuntos)</td>
+<td>Equipo Ministerio/ICORE</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+<tr>
+<td>S-4</td>
+<td><strong>Datos de salida.</strong> ¿Qué devuelve exactamente? (OK/NO, código, motivo de rechazo, datos)</td>
+<td>Equipo Ministerio/ICORE</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+<tr>
+<td>S-5</td>
+<td><strong>Rechazo de SIS.</strong> Si responde NO, ¿la persona queda fuera o el admin corrige y reenvía?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+<tr>
+<td>S-8</td>
+<td><strong>Cadena de 3 niveles.</strong> ¿Becas llega hasta "ocupa cupo" o también hasta Ayudas Sociales / Liquidado (nivel 3)?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">Diferida</td>
+</tr>
+<tr>
+<td>S-11</td>
+<td><del>Requisitos por segmento desde SIS</del> — <strong>ANULADA:</strong> los requisitos son <strong>nativos</strong>, no vienen de SIS (cambio de definición).</td>
+<td>—</td>
+<td style="text-align: center;">Cerrada</td>
+</tr>
+<tr>
+<td>S-12</td>
+<td><strong>Contrato SIS (incompatibilidades).</strong> Ya está claro que SIS = <strong>control de incompatibilidades</strong> (OKA/negativa). Falta el <strong>detalle técnico</strong>: qué campos se le envían y qué devuelve exactamente (se solapa con S-2/S-4).</td>
+<td>Equipo Ministerio/ICORE</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+</tbody>
+</table>
+<h3 id="162-formulario-y-reglas-de-negocio">16.2 Formulario y reglas de negocio</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Pregunta</th>
+<th>Para</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td><strong>Campos exactos del formulario.</strong> RQ-001 define una base: Bloque A (DNI, Apellido, Nombre, Sexo, Estado Civil, Fecha de Nacimiento), Bloque B (Domicilio: Provincia, Localidad, Calle, Número, Piso, Departamento, Barrio), Bloque C (Celular, Mail — manual obligatorio), Bloque D (Apoderado — condicional menor de edad), Adjuntos ampliados (ver §7.1: DNI, cert. domicilio, CUIL, constancia de estudios y convenio <strong>obligatorios</strong>; CBU opcional; + docs por segmento). <strong>Pendiente confirmar con Guido</strong> si hay campos adicionales para Becas.</td>
+<td>Guido (Equipo Ministerio)</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Preguntas cerradas en esta sección:</strong>
+- <strong>Pregunta 3 (Cupo):</strong> Reabierta y reemplazada por R-5. El cupo <strong>ya no es único por programa</strong>: ahora es <strong>por segmento</strong> (parametría: cantidad de segmentos + cupo por segmento). Ver §6.2 y RN-01/34.
+- <strong>Pregunta 10 (Legajo rechazado):</strong> Cerrada. El legajo usa solapas dinámicas: si el ciudadano tiene registro en la tabla programas, aparece la solapa correspondiente; si está rechazado en Becas, la solapa se habilita y muestra el estado "Rechazado".
+- <strong>Pregunta 1 (Reversibilidad del relevamiento):</strong> Cerrada. Finalizar <strong>es reversible</strong>: el territorial <strong>reabre el operativo para sumar más personas</strong>; los formularios ya enviados no se tocan (1.b también cerrada). Ver RN-26.
+- <strong>Pregunta 7 (Doble rol):</strong> Cerrada. Un usuario <strong>sí puede tener los dos roles</strong> simultáneamente (Admin de un programa y Territorial de otro). Ver RN-27.
+- <strong>Pregunta 8 (Relevamiento del día no iniciado):</strong> Cerrada. Si no se inicia el día asignado, <strong>vence</strong> y el <strong>Coordinador lo reprograma</strong> (RN-28). El coordinador = validador territorial, tercer rol (8.b cerrada).
+- <strong>Pregunta 9 (Admin edita formulario):</strong> Cerrada. El admin <strong>sí puede editar los datos del formulario desde el backoffice</strong> antes de aprobar (ver RN-29).</p>
+<h3 id="162-bis-sub-preguntas-derivadas">16.2-bis Sub-preguntas derivadas</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Pregunta</th>
+<th>Para</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.b</td>
+<td>Cerrada: reabrir el relevamiento es <strong>para sumar más personas</strong>. Los formularios <strong>ya enviados no se tocan</strong> (conservan estado/revisión/SIS); al re-finalizar se envían <strong>solo los nuevos</strong> (RN-26).</td>
+<td>—</td>
+<td style="text-align: center;">Cerrada</td>
+</tr>
+<tr>
+<td>8.b</td>
+<td>Cerrada: el <strong>"coordinador" = validador territorial</strong>, rol <strong>nuevo (tercero)</strong>; valida postulaciones y reprograma relevamientos vencidos (RN-36, §3).</td>
+<td>—</td>
+<td style="text-align: center;">Cerrada</td>
+</tr>
+<tr>
+<td>9.b</td>
+<td>Cuando el admin <strong>edita</strong> el formulario antes de aprobar: ¿queda <strong>traza</strong> (quién/cuándo/valor anterior)? ¿Hay campos no editables (ej. DNI validado por RENAPER/escaneo)?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="163-rq-002-cadena-de-aprobacion">16.3 RQ-002 / cadena de aprobación</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Pregunta</th>
+<th>Para</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>13</td>
+<td><strong>Sistema de Ayudas Sociales (nivel 3):</strong> ¿dentro del alcance de Becas o es otro requerimiento?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+<tr>
+<td>14</td>
+<td><strong>Contrato técnico de SIS:</strong> endpoint/API, campos, qué valida, qué devuelve, manejo de rechazo y caída. (= S-1, S-2, S-4, S-5, S-12)</td>
+<td>Equipo Ministerio/ICORE</td>
+<td style="text-align: center;">Bloqueante</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Preguntas cerradas en esta sección:</strong>
+- <strong>Pregunta 12 (Cadena de control):</strong> Cerrada. El cupo se decide en <strong>Becas (nivel 1)</strong>, no en sistemas posteriores.
+- <strong>Pregunta 15 (Disparo a SIS):</strong> Cerrada. El sistema implementa <strong>ambas opciones</strong>: (1) disparo automático y síncrono al aprobar/rechazar (el admin espera respuesta antes de continuar), y (2) botón manual "Validar contra SIS" disponible en Nodo para reintentos o validaciones posteriores.</p>
+<h3 id="164-investigacion-de-codigo-pendiente-responsabilidad-de-icore">16.4 Investigación de código pendiente (responsabilidad de ICORE)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Tarea</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-1</td>
+<td>Revisar duplicidad real en <code>apps/programas</code>, <code>apps/legajos</code>, <code>apps/ciudadanos</code>, <code>users</code> (qué existe hoy).</td>
+<td style="text-align: center;">Pendiente</td>
+</tr>
+</tbody>
+</table>
+<h3 id="165-resumen-del-control-estricto">16.5 Resumen del control estricto</h3>
+<ul>
+<li><strong>No se generan issues</strong> mientras haya bloqueantes sin cerrar: <strong>SIS</strong> (S-1, S-2, S-4, S-5, S-12, 13, 14). Único bloque pendiente: el <strong>contrato técnico de SIS</strong>, depende del equipo Ministerio/ICORE.</li>
+<li>Las <strong>No bloq.</strong> se pueden asumir y documentar como <em>Asunción a confirmar</em> sin frenar.</li>
+<li>Falta cerrar la <strong>investigación de código</strong> (C-1) antes de generar.</li>
+</ul>
+<h3 id="167-requisitos-de-elegibilidad-general-segmento">16.7 Requisitos de elegibilidad (general / segmento)</h3>
+<p><strong>Cerradas en esta ronda</strong> (detalle en §6.2):
+- <strong>R-1 (qué es segmento):</strong> sub-modalidad de la beca; se selecciona al crear la
+  convocatoria. Catálogo oficial: <strong>7 segmentos + subsegmentos</strong> (ver §6.2).
+- <strong>R-2 (requisitos generales):</strong> preguntas compartidas por todas las convocatorias.
+- <strong>R-3 (requisitos de segmento):</strong> CAMBIADA — ya <strong>no vienen de SIS</strong>; son <strong>nativos</strong>
+  y <strong>configurables</strong> al configurar el segmento/subsegmento (RN-32).
+- <strong>R-4 (quién/cuándo evalúa):</strong> Cerrada — <strong>Nodo valida los requisitos nativos</strong>
+  (admin/coordinador en la revisión) y <strong>SIS hace el control de incompatibilidades</strong>
+  (OKA/negativa).
+- <strong>R-10 (control de incompatibilidades):</strong> Cerrada — <strong>lo hace SIS</strong>: su <strong>OKA/negativa</strong> es
+  el resultado (negativa = incompatibilidad, con motivo). Es la misma validación SIS (RN-18/38).
+- <strong>R-5 (cupo):</strong> <strong>cupo por segmento</strong> (reabre y reemplaza la pregunta 3). Parametría:
+  cantidad de segmentos + cupo por segmento.
+- <strong>R-7 (configurabilidad generales):</strong> configurables desde Configuración del programa.
+- <strong>R-1.b (origen del catálogo):</strong> Cerrada — el catálogo de <strong>segmentos/subsegmentos es local
+  y configurable</strong> (ABM en Configuración del programa).
+- <strong>R-9 (requisitos generales en el formulario):</strong> Cerrada — <strong>sí</strong>, son las <strong>13 preguntas</strong>
+  del Cuestionario social, respondidas en el formulario.
+- <strong>R-12 (cuestionario social):</strong> Cerrada — <strong>= requisitos generales</strong>, para <strong>todos</strong> los
+  segmentos, dentro del formulario (§6.3).</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Pregunta abierta</th>
+<th>Para</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R-1.c</td>
+<td>El segmento <strong>"Solidaria"</strong> no figura en el doc del Ministerio. ¿Sigue existiendo?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>R-6</td>
+<td><strong>Asignación persona↔segmento:</strong> ¿queda determinado por la convocatoria (implícito) o se asigna por persona? ¿Puede una persona estar en más de un segmento?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>R-8</td>
+<td><strong>Cardinalidad convocatoria↔segmento:</strong> ¿una convocatoria apunta a <strong>un solo</strong> segmento o puede tener <strong>varios</strong>?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>R-8.b</td>
+<td><strong>¿Cupo por segmento o por subsegmento?</strong> (ej. Ladrillo/Carbón)</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>R-11</td>
+<td><strong>Documentación/adjuntos:</strong> confirmar obligatoriedades por segmento y cuáles son <strong>imágenes cargadas en el formulario</strong>.</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>R-13</td>
+<td><strong>Requisitos y documentación como campos vs informativo:</strong> los requisitos configurables y la documentación (certificado de domicilio, CUIL, constancia de estudios, convenio de confidencialidad) ¿aparecen como <strong>campos del formulario</strong> o son solo <strong>a modo informativo</strong>?</td>
+<td>Equipo Ministerio</td>
+<td style="text-align: center;">Por definir</td>
+</tr>
+</tbody>
+</table>
+<h3 id="166-asunciones-pendientes-de-confirmacion">16.6 Asunciones pendientes de confirmación</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Asunción / duda</th>
+<th style="text-align: center;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A-1</td>
+<td>Jerarquía explícita Programa → Convocatoria/<strong>Segmento</strong> → <strong>Subsegmento</strong> → Relevamiento → Formulario; "Programa" se modela genérico aunque hoy solo se use Becas.</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>A-2</td>
+<td>"Aprobar" en backoffice y "ocupar cupo" son pasos distintos (el cupo se decide después de SIS).</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>A-3</td>
+<td>RENAPER en campo usa la misma API (o equivalente) que backoffice para validar identidad.</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+<tr>
+<td>A-4</td>
+<td>Una persona rechazada por admin conserva legajo creado (sin reproceso en el sistema).</td>
+<td style="text-align: center;">No bloq.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="documentos-relacionados">Documentos relacionados</h2>
+<ul>
+<li><a href="../estimacion-programa-becas/">Estimación de horas — Programa Becas</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Volver al principio
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Mkdir-arg/Chaco" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.expand", "navigation.indexes", "navigation.tracking", "search.highlight", "search.suggest", "toc.follow", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
