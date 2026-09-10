@@ -629,6 +629,7 @@
 | 01/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 01/09 | Matías Abate | Becas | Pruebas de la inscripción en producción y reporte de hallazgos | Recorrido con casos reales sobre el link abierto y reporte de lo encontrado. | 7 h | — |
 | 01/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 01/09 | Matías Abate | Becas | Constructor de formularios — inventario de lo que hay que documentar | Recorrido de las pantallas nuevas y armado del índice de la guía para el organismo. | 1 h | — |
 | 02/09 | Matías Fariña | Transversal | Cierre contable de agosto y método de cierre de mes | Cierre del mes en las páginas de seguimiento y definición del procedimiento de cierre para los meses siguientes. | 1,5 h | — |
 | 02/09 | Matías Fariña | Transversal | Informe ejecutivo de cierre de agosto | Redacción del informe de cierre del mes y su ajuste posterior. | 1,5 h | — |
 | 02/09 | Matías Fariña | Becas | Constructor de formularios — definiciones y revisión | Definiciones funcionales del constructor y revisión del avance. En desarrollo. | 3 h | — |
@@ -683,7 +684,8 @@
 | 05/09 | Pablo Cao | Becas | Dashboard de Becas — legibilidad y correcciones de la serie semanal | Estados en filas, minigráfico y chips de alcance; la serie semanal sin conversión de zona horaria y carga visible con tiempo máximo; tolerancia a datos con formas raras. | 2 h | 4 h |
 | 05/09 | Matías Abate | Becas | Dashboard de Becas — casos de prueba de las nueve tareas | Casos Dado / Cuando / Entonces por task: métricas, filtros, permisos por rol, gráficos, exportación y caché. | 4 h | — |
 | 05/09 | Matías Abate | Becas | Dashboard de Becas — pruebas funcionales por rol en producción | Recorrido del tablero publicado con los cinco perfiles de Becas: alcance por segmento, filtros y lectura de los indicadores. | 4 h | — |
-| | | | **Total 1 al 5/09** | | **194,5 h** | **136 h** |
+| 05/09 | Matías Abate | Becas | Constructor de formularios — guía del catálogo de requisitos agrupado | Cómo se agrupan los requisitos, qué significa el origen de cada uno y en qué canal se pide. | 1 h | — |
+| | | | **Total 1 al 5/09** | | **196,5 h** | **136 h** |
 
 
 ### :material-package-variant-closed: Consumo del 6 al 10 de septiembre — por entregable
@@ -699,7 +701,8 @@
     se reparte entre Juani Portilla y Matías Fariña en los días con cupo, también por indicación del PM.
     El **dashboard de Becas y la exportación por persona** (86 h validadas por el Ministerio el 10/09) se
     imputan desde el viernes 5: el desarrollo a Pablo Cao (5, 8 y 9/09), el análisis y las pruebas a Matías
-    Abate y la gestión al PM, dentro del cupo de cada día.
+    Abate y la gestión al PM, dentro del cupo de cada día. La **documentación cliente del constructor** (8 h)
+    va a Matías Abate repartida en los días con cupo, también por indicación del PM.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -741,9 +744,11 @@
 | 09/09 | Juani Portilla | Becas | Constructor — accesibilidad del arrastre por teclado | Pines automáticos de la operación por teclado del catálogo y del constructor: foco, anuncios y guardado con demora. | 4 h | 8 h |
 | 08/09 | Pablo Cao | Becas | Dashboard de Becas — ajustes de la exportación XLSX, CSV e impresión | Hojas del Excel por bloque, CSV por gráfico y estilos de impresión, tras las pruebas del fin de semana. | 1 h | 2 h |
 | 08/09 | Matías Abate | Becas | Dashboard de Becas — pruebas de la corrección de rendimiento y de la exportación por persona | Verificación de que el tablero responde con el volumen de producción y de que el Excel por convocatoria trae un caso por fila y una columna por pregunta. | 4 h | — |
+| 08/09 | Matías Abate | Becas | Constructor de formularios — guía para armar el formulario de una convocatoria | Paso a paso de la pantalla de configuración: ordenar, agrupar, agregar textos y campos propios. | 1 h | — |
 | 09/09 | Pablo Cao | Becas | Dashboard de Becas — pruebas automatizadas y presupuesto de consultas | Cobertura del servicio con datos de prueba, permisos y alcance por rol, exportaciones y guarda de cantidad de consultas. | 4 h | 8 h |
 | 09/09 | Pablo Cao | Becas | Dashboard de Becas — caché por filtros y alcance, y cierre de la exportación por persona | Caché de cinco minutos por combinación de filtros y alcance; columnas legibles del Excel por persona y ordenamiento por convocatoria. | 4 h | 8 h |
 | 09/09 | Matías Abate | Becas | Dashboard de Becas — regresión de filtros y exportaciones | Nueva pasada sobre filtros combinados, descargas y hallazgos registrados en las tareas. | 4 h | — |
+| 09/09 | Matías Abate | Becas | Constructor de formularios — guía de las condiciones y de la vista previa | Cómo se configura que un campo o un grupo aparezca según lo que la persona responde, y cómo probarlo antes de publicar. | 2 h | — |
 | 10/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Fariña | Transversal | Armado del informe diario | Informe diario del avance para el organismo. | 0,5 h | — |
 | 10/09 | Matías Fariña | Becas | Dashboard de Becas — validación del alcance y las horas con el Ministerio | Cierre de la validación de las 86 h y del alcance con el organismo; revisión funcional del tablero publicado y de la exportación por persona. | 4,5 h | — |
@@ -754,20 +759,21 @@
 | 10/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Abate | Becas | Dashboard de Becas — plan de pruebas y cierre de la QA funcional | Consolidación de los casos en el plan de pruebas y ejecución final sobre producción; lo que no pasa queda como hallazgo. | 4 h | — |
-| | | | **Total 6 al 10/09** | | **119 h** | **108 h** |
+| 10/09 | Matías Abate | Becas | Constructor de formularios — documentación del formulario publicado y de la revisión del caso | Qué ve la persona en el link, cómo queda el caso en Revisión con la versión que respondió, y publicación de la guía en la documentación del cliente. | 3 h | — |
+| | | | **Total 6 al 10/09** | | **125 h** | **108 h** |
 
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 320 h 00 min |
+| Becas | 328 h 00 min |
 | Transversal | 77 h 30 min |
 | Dispositivos | 19 h 30 min |
-| **Total septiembre 2026 (al 10/09)** | **417 h 00 min** |
+| **Total septiembre 2026 (al 10/09)** | **425 h 00 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 10/09 es de **313,5 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 10/09 es de **321,5 h**.
 
 ---
 
@@ -797,9 +803,9 @@
 
 
 
-    **126.972 minutos** (2.116 h 12 min)
+    **127.452 minutos** (2.124 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 313 h 30 min (al 10/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 321 h 30 min (al 10/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
