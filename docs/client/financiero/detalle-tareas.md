@@ -675,6 +675,7 @@
 | 05/09 | Matías Fariña | Becas | Constructor de formularios — revisión de avance | Revisión funcional del avance del constructor. En desarrollo. | 1,5 h | — |
 | 05/09 | Matías Fariña | Transversal | Registro del consumo de la semana | Reconstrucción y carga del consumo del 31/08 al 05/09. | 0,5 h | — |
 | 05/09 | Matías Fariña | Becas | Constructor de formularios — hallazgos de la revisión de la rama | Revisión de la rama completa: coherencia entre catálogo y formulario servido, transacciones, condiciones sobre selectores con buscador; prioridades de corrección. | 1,5 h | — |
+| 05/09 | Matías Fariña | Becas | Dashboard de Becas — presentación de la propuesta al Ministerio | Envío de la propuesta de 86 h con el alcance completo y la variante sin el bloque de respuestas. | 1 h | — |
 | 05/09 | Juani Portilla | Becas | Constructor — cobertura de la reconciliación y de la huella del formulario | Pruebas automáticas de que el formulario servido sigue al catálogo sin escribir, y de que un cambio a mitad de carga se avisa en vez de validar contra otro formulario. | 5 h | 10 h |
 | 05/09 | Juani Portilla | Becas | Constructor — entorno de pruebas igual al de integración continua y regresión completa | Entorno con la versión de Python y Django de producción y corrida completa de la regresión del constructor y del formulario público. | 4 h | 8 h |
 | 05/09 | Pablo Cao | Becas | Dashboard de Becas — servicio de métricas y respuestas de los formularios | Indicadores, serie semanal, estados, embudo, avance por convocatoria, territoriales y localidades con filtros; distribución de respuestas por opción sobre las preguntas de opciones cerradas. | 5 h | 10 h |
@@ -682,7 +683,7 @@
 | 05/09 | Pablo Cao | Becas | Dashboard de Becas — legibilidad y correcciones de la serie semanal | Estados en filas, minigráfico y chips de alcance; la serie semanal sin conversión de zona horaria y carga visible con tiempo máximo; tolerancia a datos con formas raras. | 2 h | 4 h |
 | 05/09 | Matías Abate | Becas | Dashboard de Becas — casos de prueba de las nueve tareas | Casos Dado / Cuando / Entonces por task: métricas, filtros, permisos por rol, gráficos, exportación y caché. | 4 h | — |
 | 05/09 | Matías Abate | Becas | Dashboard de Becas — pruebas funcionales por rol en producción | Recorrido del tablero publicado con los cinco perfiles de Becas: alcance por segmento, filtros y lectura de los indicadores. | 4 h | — |
-| | | | **Total 1 al 5/09** | | **193,5 h** | **136 h** |
+| | | | **Total 1 al 5/09** | | **194,5 h** | **136 h** |
 
 
 ### :material-package-variant-closed: Consumo del 6 al 10 de septiembre — por entregable
@@ -712,6 +713,7 @@
 | 08/09 | Matías Fariña | Becas | Medición de uso del formulario público — definición | Relevamiento de lo que hacía falta para Google Tag Manager en el link, decisión de activarlo por ambiente y coordinación con el organismo. | 1 h | — |
 | 08/09 | Matías Fariña | Transversal | Publicación a producción del apoderado obligatorio y la medición | Merge, release y espejo al entorno del organismo (prueba y producción); registro en la documentación viva y comunicación al PM del organismo. | 1,5 h | — |
 | 08/09 | Matías Fariña | Dispositivos | Programa Dispositivos versión 2 — rearmado del alcance | Lectura completa de la documentación del programa, cierre de las tareas de la versión 1 y armado de la versión 2 por módulo: doce análisis y cuarenta y cinco tareas en el tablero. | 3,5 h | — |
+| 08/09 | Matías Fariña | Becas | Dashboard de Becas — seguimiento de la validación con el Ministerio | Respuesta a las consultas del organismo sobre el alcance y las horas propuestas. | 1 h | — |
 | 08/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 08/09 | Pablo Cao | Becas | Apoderado obligatorio para todas las personas que se inscriben | El formulario público exige nombre, apellido, DNI, sexo y fecha de nacimiento del apoderado sin importar la edad; la revisión del caso muestra siempre esa sección. | 2 h | 4 h |
 | 08/09 | Pablo Cao | Becas | Google Tag Manager en las pantallas públicas de inscripción | Medición de uso del link por ambiente, con la política de seguridad del sitio abierta solo a Google cuando está activa y un evento de conversión por inscripción enviada. | 3,5 h | 7 h |
@@ -725,6 +727,7 @@
 | 09/09 | Matías Fariña | Becas | Constructor de formularios — pase a pruebas | Las catorce tareas de backoffice y link público pasan a QA con su ambiente de prueba, alcance y asignación; la app de campo queda afuera hasta que Mobile acompañe. | 1,5 h | — |
 | 09/09 | Matías Fariña | Transversal | Ambientes de prueba en el método de QA | Regla nueva: el PM indica en qué ambiente (desarrollo, prueba o producción) se prueba cada tarea y la sección de casos arranca con ese dato. | 0,5 h | — |
 | 09/09 | Matías Fariña | Transversal | Consumo del constructor y registro de horas del 6 al 9/09 | Cálculo del consumo del constructor contra su alcance aprobado y carga del consumo de los días sin registrar. | 1,5 h | — |
+| 09/09 | Matías Fariña | Becas | Dashboard de Becas — revisión de lo publicado | Revisión funcional de la corrección de rendimiento y de la exportación por persona en producción. | 1 h | — |
 | 09/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 09/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 09/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
@@ -746,11 +749,12 @@
 | 10/09 | Matías Fariña | Becas | Dashboard de Becas — validación del alcance y las horas con el Ministerio | Cierre de la validación de las 86 h y del alcance con el organismo; revisión funcional del tablero publicado y de la exportación por persona. | 4,5 h | — |
 | 10/09 | Matías Fariña | Becas | Consumo del dashboard y del constructor — análisis y registro | Punteo de estimación, horas hechas y restantes por desarrollo; carga del consumo del dashboard con el reparto acordado. | 2 h | — |
 | 10/09 | Matías Fariña | Becas | Constructor de formularios — seguimiento de la prueba en desarrollo | Acompañamiento de la ejecución de los casos en el entorno de desarrollo y coordinación de la integración pendiente. | 1 h | — |
+| 10/09 | Matías Fariña | Becas | Dashboard de Becas — planificación de la prueba formal | Alcance de la prueba funcional formal y del cierre con el equipo tras la validación. | 1 h | — |
 | 10/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 10/09 | Matías Abate | Becas | Dashboard de Becas — plan de pruebas y cierre de la QA funcional | Consolidación de los casos en el plan de pruebas y ejecución final sobre producción; lo que no pasa queda como hallazgo. | 4 h | — |
-| | | | **Total 6 al 10/09** | | **116 h** | **108 h** |
+| | | | **Total 6 al 10/09** | | **119 h** | **108 h** |
 
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
