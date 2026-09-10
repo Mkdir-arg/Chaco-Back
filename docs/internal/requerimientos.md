@@ -208,7 +208,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
-| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 y con la corrección de performance desde el 06/09/2026 (releases 43ffddf, 55d842e, fc740b8, ea33681 y ac9192b); falta QA formal #374 y la validación de las 86 h por el Ministerio** | No requiere |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (corrección de performance el 06/09); alcance y 86 h validados por el Ministerio el 10/09/2026; falta la QA funcional formal (#374) y el cierre (#375)** | No requiere |
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
 | 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
 | 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release 6d3925f, PR #383). La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
@@ -6620,7 +6620,7 @@ los datos crudos y la configuración propuesta están en
 
 # Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
 
-🟢 **HECHO — en producción de ECOM desde el 05/09/2026; corrección de performance desplegada el 06/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 por el PR #376 (squash c59d995), legibilidad por el #377, tres correcciones (#378, #379, #380) · 35 tests en verde · Falta QA funcional (#374) · Propuesta de 86 h a validación del Ministerio (Versión 002)
+🟢 **HECHO — en producción de ECOM desde el 05/09/2026; corrección de performance desplegada el 06/09/2026; alcance y 86 h validados por el Ministerio el 10/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 por el PR #376 (squash c59d995), legibilidad por el #377, tres correcciones (#378, #379, #380) · 35 tests en verde · Falta QA funcional formal (#374) y cierre (#375) · Consumo al 10/09: 56 h 00 min de 86 h
 
 | | |
 |---|---|
@@ -6805,8 +6805,11 @@ Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
 
 ## Pendientes / a definir
 
-- Validación de Guido (Ministerio) del alcance y de las 86 h propuestas. El análisis y las tasks ya están creados en
-  Backlog: si el Ministerio pide recortar, se ajustan antes de que el PM las mueva a Ready.
+- ~~Validación de Guido (Ministerio) del alcance y de las 86 h propuestas.~~ **Validado el 10/09/2026**: alcance completo
+  (con el bloque de respuestas) y 86 h. Consumo registrado al 10/09: 56 h 00 min (65 %), con el desarrollo
+  imputado a Pablo Cao los días 05, 08 y 09/09 dentro del cupo (el desarrollo real excede lo que el techo dejó registrar),
+  el análisis y las pruebas a Matías Abate y la gestión al PM desde el 05/09. Restan la QA funcional formal (#374) y el
+  cierre (#375).
 - Las tres asunciones del análisis #366 esperan confirmación: el nombre «Dashboard», si el bloque de respuestas entra
   en esta etapa o después del Cambio 58, y si se muestran todas las preguntas de opciones cerradas o una selección.
 - Nombre de la solapa: «Dashboard» (como se pidió) o «Tablero».

@@ -677,10 +677,15 @@
 | 05/09 | Matías Fariña | Becas | Constructor de formularios — hallazgos de la revisión de la rama | Revisión de la rama completa: coherencia entre catálogo y formulario servido, transacciones, condiciones sobre selectores con buscador; prioridades de corrección. | 1,5 h | — |
 | 05/09 | Juani Portilla | Becas | Constructor — cobertura de la reconciliación y de la huella del formulario | Pruebas automáticas de que el formulario servido sigue al catálogo sin escribir, y de que un cambio a mitad de carga se avisa en vez de validar contra otro formulario. | 5 h | 10 h |
 | 05/09 | Juani Portilla | Becas | Constructor — entorno de pruebas igual al de integración continua y regresión completa | Entorno con la versión de Python y Django de producción y corrida completa de la regresión del constructor y del formulario público. | 4 h | 8 h |
-| | | | **Total 1 al 5/09** | | **174.5 h** | **114 h** |
+| 05/09 | Pablo Cao | Becas | Dashboard de Becas — servicio de métricas y respuestas de los formularios | Indicadores, serie semanal, estados, embudo, avance por convocatoria, territoriales y localidades con filtros; distribución de respuestas por opción sobre las preguntas de opciones cerradas. | 5 h | 10 h |
+| 05/09 | Pablo Cao | Becas | Dashboard de Becas — solapa, filtros, indicadores y gráficos | Solapa en el programa con permisos y alcance, formulario de filtros, seis indicadores y siete gráficos con tabla de avance y estados vacíos. | 4 h | 8 h |
+| 05/09 | Pablo Cao | Becas | Dashboard de Becas — legibilidad y correcciones de la serie semanal | Estados en filas, minigráfico y chips de alcance; la serie semanal sin conversión de zona horaria y carga visible con tiempo máximo; tolerancia a datos con formas raras. | 2 h | 4 h |
+| 05/09 | Matías Abate | Becas | Dashboard de Becas — casos de prueba de las nueve tareas | Casos Dado / Cuando / Entonces por task: métricas, filtros, permisos por rol, gráficos, exportación y caché. | 4 h | — |
+| 05/09 | Matías Abate | Becas | Dashboard de Becas — pruebas funcionales por rol en producción | Recorrido del tablero publicado con los cinco perfiles de Becas: alcance por segmento, filtros y lectura de los indicadores. | 4 h | — |
+| | | | **Total 1 al 5/09** | | **193,5 h** | **136 h** |
 
 
-### :material-package-variant-closed: Consumo del 6 al 9 de septiembre — por entregable
+### :material-package-variant-closed: Consumo del 6 al 10 de septiembre — por entregable
 
 !!! note "Salida a producción de lo pendiente y pase a pruebas del constructor"
     El sábado 6 salieron a producción del organismo el dashboard con su corrección de rendimiento, la
@@ -691,6 +696,9 @@
     de la app de campo no se registran todavía.** Techo de 11 h el sábado por trabajo de fin de semana.
     El cierre del desarrollo del constructor (cobertura, banco de pruebas, integración y revisión funcional)
     se reparte entre Juani Portilla y Matías Fariña en los días con cupo, también por indicación del PM.
+    El **dashboard de Becas y la exportación por persona** (86 h validadas por el Ministerio el 10/09) se
+    imputan desde el viernes 5: el desarrollo a Pablo Cao (5, 8 y 9/09), el análisis y las pruebas a Matías
+    Abate y la gestión al PM, dentro del cupo de cada día.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
@@ -728,20 +736,34 @@
 | 08/09 | Juani Portilla | Becas | Constructor — robustez del editor de condiciones y del reordenamiento | Cobertura de reglas malformadas (respuesta controlada, no error del servidor) y validación del orden recibido del arrastre. | 4 h | 8 h |
 | 09/09 | Juani Portilla | Becas | Constructor — preparación de la integración | Renumeración de migraciones, recompilación de estilos y plan de resolución de los archivos en conflicto para el merge. | 4 h | 8 h |
 | 09/09 | Juani Portilla | Becas | Constructor — accesibilidad del arrastre por teclado | Pines automáticos de la operación por teclado del catálogo y del constructor: foco, anuncios y guardado con demora. | 4 h | 8 h |
-| | | | **Total 6 al 9/09** | | **83 h** | **90 h** |
+| 08/09 | Pablo Cao | Becas | Dashboard de Becas — ajustes de la exportación XLSX, CSV e impresión | Hojas del Excel por bloque, CSV por gráfico y estilos de impresión, tras las pruebas del fin de semana. | 1 h | 2 h |
+| 08/09 | Matías Abate | Becas | Dashboard de Becas — pruebas de la corrección de rendimiento y de la exportación por persona | Verificación de que el tablero responde con el volumen de producción y de que el Excel por convocatoria trae un caso por fila y una columna por pregunta. | 4 h | — |
+| 09/09 | Pablo Cao | Becas | Dashboard de Becas — pruebas automatizadas y presupuesto de consultas | Cobertura del servicio con datos de prueba, permisos y alcance por rol, exportaciones y guarda de cantidad de consultas. | 4 h | 8 h |
+| 09/09 | Pablo Cao | Becas | Dashboard de Becas — caché por filtros y alcance, y cierre de la exportación por persona | Caché de cinco minutos por combinación de filtros y alcance; columnas legibles del Excel por persona y ordenamiento por convocatoria. | 4 h | 8 h |
+| 09/09 | Matías Abate | Becas | Dashboard de Becas — regresión de filtros y exportaciones | Nueva pasada sobre filtros combinados, descargas y hallazgos registrados en las tareas. | 4 h | — |
+| 10/09 | Matías Fariña | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/09 | Matías Fariña | Transversal | Armado del informe diario | Informe diario del avance para el organismo. | 0,5 h | — |
+| 10/09 | Matías Fariña | Becas | Dashboard de Becas — validación del alcance y las horas con el Ministerio | Cierre de la validación de las 86 h y del alcance con el organismo; revisión funcional del tablero publicado y de la exportación por persona. | 4,5 h | — |
+| 10/09 | Matías Fariña | Becas | Consumo del dashboard y del constructor — análisis y registro | Punteo de estimación, horas hechas y restantes por desarrollo; carga del consumo del dashboard con el reparto acordado. | 2 h | — |
+| 10/09 | Matías Fariña | Becas | Constructor de formularios — seguimiento de la prueba en desarrollo | Acompañamiento de la ejecución de los casos en el entorno de desarrollo y coordinación de la integración pendiente. | 1 h | — |
+| 10/09 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/09 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/09 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/09 | Matías Abate | Becas | Dashboard de Becas — plan de pruebas y cierre de la QA funcional | Consolidación de los casos en el plan de pruebas y ejecución final sobre producción; lo que no pasa queda como hallazgo. | 4 h | — |
+| | | | **Total 6 al 10/09** | | **116 h** | **108 h** |
 
 ### :material-briefcase-outline: Consumo de septiembre por programa
 
 | Programa | Horas septiembre |
 |---|---:|
-| Becas | 268 h 30 min |
-| Transversal | 73 h 00 min |
+| Becas | 316 h 00 min |
+| Transversal | 77 h 30 min |
 | Dispositivos | 19 h 30 min |
-| **Total septiembre 2026 (al 09/09)** | **361 h 00 min** |
+| **Total septiembre 2026 (al 10/09)** | **413 h 00 min** |
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 09/09 es de **257.5 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 10/09 es de **309,5 h**.
 
 ---
 
@@ -771,9 +793,9 @@
 
 
 
-    **123.612 minutos** (2.060 h 12 min)
+    **126.732 minutos** (2.112 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 257 h 30 min (al 09/09).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 309 h 30 min (al 10/09).
     (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
 
     Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
