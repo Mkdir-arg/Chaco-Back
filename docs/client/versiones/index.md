@@ -16,7 +16,7 @@
     :material-calendar-range: **Período:** 1 sep 2026 → en curso
     :material-bullseye-arrow: **Objetivo:** Que el Ministerio arme sus propios formularios desde el sistema y llevar esa capacidad a la app de campo
     :material-progress-check: **Estado:** En curso
-    :material-clock-outline: **Constructor:** 270 h aprobadas · 175 h 30 min por ejecutar
+    :material-clock-outline: **Constructor:** 270 h aprobadas · 197 h ejecutadas · 73 h por ejecutar
 
     [:octicons-arrow-right-16: Ver detalle de la versión](version-002.md)
 
