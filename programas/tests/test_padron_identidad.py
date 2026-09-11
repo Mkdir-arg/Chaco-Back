@@ -8,7 +8,6 @@ con la Gran Base apagada. Tasks #329, #330, #331, #332, #333.
 from datetime import date, timedelta
 from io import StringIO
 from unittest.mock import patch
-from uuid import uuid4
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
@@ -26,7 +25,13 @@ from programas.tests.test_becas_api import _BaseApiTest
 
 GRAN_BASE = {
     "success": True,
-    "data": {"dni": "36210951", "nombre": "Pamela J.", "apellido": "Romero", "fecha_nacimiento": "2010-03-14", "sexo": "F"},
+    "data": {
+        "dni": "36210951",
+        "nombre": "Pamela J.",
+        "apellido": "Romero",
+        "fecha_nacimiento": "2010-03-14",
+        "sexo": "F",
+    },
 }
 NO_ENCONTRADA = {"success": False, "not_found": True, "error": "El DNI no fue encontrado en Base de Personas."}
 CAIDA = {"success": False, "error": "Servicio no disponible"}
@@ -178,7 +183,13 @@ class OrigenPadronServidorTests(_Base):
             relevamiento=self.relevamiento,
             celular="3624000000",
             email_contacto="a@b.com",
-            datos_identificacion={"dni": "36210951", "sexo": "F", "nombre": "Pame", "apellido": "R", "origen": "padron"},
+            datos_identificacion={
+                "dni": "36210951",
+                "sexo": "F",
+                "nombre": "Pame",
+                "apellido": "R",
+                "origen": "padron",
+            },
         )
         _actualizar_validacion_identidad(caso, caso.datos_identificacion)
         caso.refresh_from_db()
@@ -215,8 +226,17 @@ class OrigenPadronServidorTests(_Base):
 class CruceAutomaticoTests(_Base):
     def test_valida_los_pendientes_y_completa_el_ciudadano(self):
         pendiente = self._caso(nombre="", apellido="")
-        ya_validado = self._caso(dni="20111222", genero="M", nombre="Juan", apellido="Paz", validado_renaper=True, origen_validacion="personas")
-        forzado = self._caso(dni="20111333", genero="F", identidad_forzada=True, validado_renaper=True, origen_validacion="forzada")
+        ya_validado = self._caso(
+            dni="20111222",
+            genero="M",
+            nombre="Juan",
+            apellido="Paz",
+            validado_renaper=True,
+            origen_validacion="personas",
+        )
+        forzado = self._caso(
+            dni="20111333", genero="F", identidad_forzada=True, validado_renaper=True, origen_validacion="forzada"
+        )
         fuera = self._caso(dni="99999999", genero="F")
 
         resumen = cargar_padron(

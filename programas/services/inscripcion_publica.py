@@ -24,15 +24,16 @@ from django.db import transaction
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from programas.models import AdjuntoFormulario, Convocatoria, Formulario, Relevamiento
 from programas.services.becas import (
-    definicion_formulario,
     formulario_por_client_uuid,
     resolver_ciudadano_offline,
 )
 from programas.services.padron import esta_habilitado
 from programas.services.personas import fecha_iso
+from programas.services.respuestas import identidad_desde_respuestas, legacy_desde_respuestas
 from users.services.correo import contexto_pie
 
 
@@ -78,7 +79,14 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
     origen = identificacion.get("origen") or "manual"
     es_validado = origen in ("personas", "padron")
     cleaned = form.cleaned_data
-    pide_gps = bool(definicion_formulario(relevamiento).get("requiere_gps"))
+    pide_gps = bool(form.definicion.get("requiere_gps"))
+    # Cambio 58 (D3): respuestas por clave de ítem + foto de la definición; el
+    # contrato anterior (``data`` por pk y columnas fijas) se sigue escribiendo
+    # como puente para los lectores que todavía no migraron.
+    respuestas = form.respuestas()
+    foto = form.foto
+    data, fijos = legacy_desde_respuestas(respuestas, foto)
+    identidad_respondida = identidad_desde_respuestas(respuestas, foto)
 
     with transaction.atomic():
         rel = Relevamiento.objects.select_for_update().get(pk=relevamiento.pk)
@@ -106,30 +114,30 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
         if es_validado:
             nombre = datos_basicos.get("nombre", "")
             apellido = datos_basicos.get("apellido", "")
-            fecha_nacimiento = fecha_iso(datos_basicos.get("fecha_nacimiento"))
-            if not fecha_nacimiento:
-                fecha = cleaned.get("fecha_nacimiento")
-                fecha_nacimiento = fecha.isoformat() if fecha else ""
+            fecha_nacimiento = fecha_iso(datos_basicos.get("fecha_nacimiento")) or identidad_respondida.get(
+                "fecha_nacimiento", ""
+            )
         else:
-            nombre = cleaned.get("nombre", "")
-            apellido = cleaned.get("apellido", "")
-            fecha = cleaned.get("fecha_nacimiento")
-            fecha_nacimiento = fecha.isoformat() if fecha else ""
+            nombre = identidad_respondida.get("nombre", "")
+            apellido = identidad_respondida.get("apellido", "")
+            fecha_nacimiento = identidad_respondida.get("fecha_nacimiento", "")
 
         formulario = Formulario.objects.create(
             relevamiento=rel,
-            celular=cleaned["celular"],
-            email_contacto=cleaned["email_contacto"],
-            apoderado_nombre=cleaned.get("apoderado_nombre", ""),
-            apoderado_apellido=cleaned.get("apoderado_apellido", ""),
-            apoderado_dni=cleaned.get("apoderado_dni", ""),
-            apoderado_genero=cleaned.get("apoderado_genero", ""),
-            apoderado_fecha_nacimiento=cleaned.get("apoderado_fecha_nacimiento"),
+            celular=fijos.get("celular", ""),
+            email_contacto=fijos.get("email_contacto", ""),
+            apoderado_nombre=fijos.get("apoderado_nombre", ""),
+            apoderado_apellido=fijos.get("apoderado_apellido", ""),
+            apoderado_dni=fijos.get("apoderado_dni", ""),
+            apoderado_genero=fijos.get("apoderado_genero", ""),
+            apoderado_fecha_nacimiento=parse_date(str(fijos.get("apoderado_fecha_nacimiento") or "")) or None,
             # Solo si el segmento pide ubicación: el navegador la manda igual y
             # es el domicilio del ciudadano con precisión de metros.
             gps_lat=cleaned.get("gps_lat") if pide_gps else None,
             gps_lng=cleaned.get("gps_lng") if pide_gps else None,
-            data=form.respuestas(),
+            data=data,
+            respuestas=respuestas,
+            definicion=foto,
             # Mismo contrato que el sync offline de la app: el origen
             # "personas" acredita identidad (validado_renaper); "manual" no.
             datos_identificacion={
@@ -148,11 +156,13 @@ def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid)
             validado_renaper=bool(es_validado and nombre and apellido),
             origen_validacion=(origen if es_validado and nombre and apellido else ""),
         )
-        for alcance, campo_id, archivo in form.archivos():
+        for clave, item, archivo in form.archivos():
+            if not (clave.startswith("pg-") or clave.startswith("rn-")):
+                continue  # un campo propio no puede ser archivo (lo veta el constructor)
             AdjuntoFormulario.objects.create(
                 formulario=formulario,
-                pregunta_global_id=campo_id if alcance == "global" else None,
-                requisito_nativo_id=campo_id if alcance == "requisito" else None,
+                pregunta_global_id=item["id"] if clave.startswith("pg-") else None,
+                requisito_nativo_id=item["id"] if clave.startswith("rn-") else None,
                 archivo=archivo,
             )
         resolver_ciudadano_offline(formulario)

@@ -1,4 +1,10 @@
-"""Tests del paso 2 y la ingesta del formulario público (#294/#295, análisis #289)."""
+"""Paso 2 del link público: el formulario que diseñó la convocatoria, su
+validación y la ingesta del caso (#294, #295; reescrito por el Cambio 58).
+
+Desde el Cambio 58 cada campo se llama por su clave de ítem (``pg-<pk>``,
+``rn-<pk>``, ``cp-…``) y la identidad, el contacto y el apoderado son requisitos
+generales protegidos del catálogo, no columnas sueltas del formulario.
+"""
 
 from datetime import date, timedelta
 from pathlib import Path
@@ -16,16 +22,20 @@ from django.utils import timezone
 from legajos.models import Ciudadano
 from portal.forms.inscripcion import InscripcionPaso2Form
 from portal.services.inscripcion import clave_sesion
+from programas.management.commands.seed_becas import asegurar_catalogo_protegido
 from programas.models import (
     AdjuntoFormulario,
     Convocatoria,
     Formulario,
+    GrupoRequisito,
+    OrigenRequisito,
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
     Segmento,
 )
 from programas.services.becas import definicion_formulario
+from programas.services.diseno import clave_pregunta
 from programas.services.inscripcion_publica import (
     InscripcionDuplicada,
     InscripcionNoDisponible,
@@ -47,9 +57,16 @@ def _identificacion(dni="30123456", origen="personas", **extra):
     return base
 
 
+def _clave_vinculo(origen, vinculo):
+    """La clave del ítem de un campo protegido del catálogo (Cambio 58)."""
+    return clave_pregunta(PreguntaGlobal.objects.get(origen=origen, vinculo=vinculo))
+
+
 class _BasePaso2Test(TestCase):
     def setUp(self):
         cache.clear()
+        # Identidad, contacto y apoderado viven en el catálogo protegido.
+        asegurar_catalogo_protegido()
         self.segmento = Segmento.objects.create(nombre="Seg", cupo_maximo=100)
         self.convocatoria = Convocatoria.objects.create(
             nombre="Becas 2026",
@@ -78,34 +95,57 @@ class _BasePaso2Test(TestCase):
             fecha_hasta=timezone.now() + timedelta(days=10),
         )
         self.definicion = definicion_formulario(self.relevamiento)
-
-    APODERADO = {
-        "apoderado_nombre": "Ana",
-        "apoderado_apellido": "Gómez",
-        "apoderado_dni": "20111222",
-        "apoderado_genero": "F",
-        "apoderado_fecha_nacimiento": "1980-05-05",
-    }
+        self.k_pregunta = clave_pregunta(self.pregunta)
+        self.k_requisito = f"rn-{self.requisito.pk}"
+        self.k_telefono = _clave_vinculo(OrigenRequisito.LEGAJO, "telefono")
+        self.k_email = _clave_vinculo(OrigenRequisito.LEGAJO, "email")
+        self.k_nombre = _clave_vinculo(OrigenRequisito.LEGAJO, "nombre")
+        self.k_apellido = _clave_vinculo(OrigenRequisito.LEGAJO, "apellido")
+        self.k_nacimiento = _clave_vinculo(OrigenRequisito.LEGAJO, "fecha_nacimiento")
+        self.k_apo_nombre = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "nombre")
+        self.k_apo_apellido = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "apellido")
+        self.k_apo_dni = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "dni")
+        self.k_apo_genero = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "genero")
+        self.k_apo_nacimiento = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "fecha_nacimiento")
+        # Cambio 67: el grupo Apoderado nace sin condición y con sus cinco campos
+        # obligatorios, así que todo envío válido los lleva.
+        self.apoderado = {
+            self.k_apo_nombre: "Ana",
+            self.k_apo_apellido: "Gómez",
+            self.k_apo_dni: "20111222",
+            self.k_apo_genero: "F",
+            self.k_apo_nacimiento: "1980-05-05",
+        }
 
     def _data(self, **extra):
         data = {
-            "celular": "3624123456",
-            "email_contacto": "maria@correo.com",
-            f"g_{self.pregunta.pk}": "Sí",
-            # Cambio 67: el apoderado es obligatorio para toda persona.
-            **self.APODERADO,
+            self.k_telefono: "3624123456",
+            self.k_email: "maria@correo.com",
+            self.k_pregunta: "Sí",
+            **self.apoderado,
         }
         data.update(extra)
         return data
 
     def _data_sin_apoderado(self, **extra):
         data = self._data(**extra)
-        for clave in self.APODERADO:
+        for clave in self.apoderado:
             data.pop(clave, None)
         return data
 
+    def _datos_manuales(self, **extra):
+        """Lo que completa quien no pudo validar su identidad en el paso 1."""
+        return self._data(
+            **{
+                self.k_nombre: "Juan",
+                self.k_apellido: "Pérez",
+                self.k_nacimiento: "1990-01-01",
+                **extra,
+            }
+        )
+
     def _files(self, **extra):
-        files = {f"r_{self.requisito.pk}": SimpleUploadedFile("cert.png", b"\x89PNG fake", content_type="image/png")}
+        files = {self.k_requisito: SimpleUploadedFile("cert.png", b"\x89PNG fake", content_type="image/png")}
         files.update(extra)
         return files
 
@@ -119,72 +159,99 @@ class _BasePaso2Test(TestCase):
 
 
 class Paso2FormTests(_BasePaso2Test):
-    def test_construye_los_campos_de_la_definicion(self):
+    def test_construye_los_campos_del_diseno_por_clave(self):
         form = self._form()
-        self.assertIn(f"g_{self.pregunta.pk}", form.fields)
-        self.assertIn(f"r_{self.requisito.pk}", form.fields)
-        self.assertNotIn("nombre", form.fields)  # identidad validada: no se pide
+        self.assertIn(self.k_pregunta, form.fields)
+        self.assertIn(self.k_requisito, form.fields)
+        self.assertIn(self.k_telefono, form.fields)
+        # Identidad validada en el paso 1: se muestra fija, no se pide.
+        self.assertNotIn(self.k_nombre, form.fields)
+        self.assertEqual(form.fijas[self.k_nombre], "María Luján")
+        self.assertEqual(form.fijas[self.k_apellido], "Gómez")
+        self.assertEqual(form.fijas[self.k_nacimiento], "1991-03-14")
+        self.assertEqual(form.fijas[_clave_vinculo(OrigenRequisito.LEGAJO, "dni")], "30123456")
+
+    def test_un_gps_malformado_no_bloquea_la_inscripcion(self):
+        """El GPS viaja en campos ocultos y es best effort: si llega roto se
+        descarta, porque la persona no puede ver ni corregir ese error."""
+        form = self._form(data=self._data(gps_lat="-27,451", gps_lng="-58.98612345678"))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIsNone(form.cleaned_data["gps_lat"])
+        self.assertIsNone(form.cleaned_data["gps_lng"])
+
+    def test_los_grupos_llegan_en_el_orden_del_diseno(self):
+        form = self._form()
+        titulos = [g["titulo"] for g in form.grupos()]
+        self.assertEqual(titulos[:3], ["Datos personales", "Contacto", "Apoderado"])
+        self.assertIn("Cuestionario social", titulos)
 
     def test_origen_manual_pide_identidad(self):
-        form = self._form(
-            identificacion=_identificacion(origen="manual"),
-            data=self._data(nombre="Juan", apellido="Pérez", fecha_nacimiento="1990-01-01"),
-        )
+        form = self._form(identificacion=_identificacion(origen="manual"), data=self._data())
+        self.assertIn(self.k_nombre, form.fields)
+        self.assertFalse(form.is_valid())
+        self.assertIn(self.k_nombre, form.errors)
+        form = self._form(identificacion=_identificacion(origen="manual"), data=self._datos_manuales())
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_obligatorios_dinamicos_se_exigen(self):
         data = self._data()
-        data.pop(f"g_{self.pregunta.pk}")
+        data.pop(self.k_pregunta)
         form = self._form(data=data, files={})
         self.assertFalse(form.is_valid())
-        self.assertIn(f"g_{self.pregunta.pk}", form.errors)
-        self.assertIn(f"r_{self.requisito.pk}", form.errors)
+        self.assertIn(self.k_pregunta, form.errors)
+        self.assertIn(self.k_requisito, form.errors)
+
+    def test_contacto_opcional_no_se_exige(self):
+        """D9: el operador puede aflojar el contacto en el catálogo."""
+        PreguntaGlobal.objects.filter(origen=OrigenRequisito.LEGAJO, vinculo="telefono").update(obligatorio=False)
+        self.definicion = definicion_formulario(self.relevamiento)
+        data = self._data()
+        data.pop(self.k_telefono)
+        form = self._form(data=data)
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_opcion_invalida_de_selector_se_rechaza(self):
-        form = self._form(data=self._data(**{f"g_{self.pregunta.pk}": "Otra cosa"}))
+        form = self._form(data=self._data(**{self.k_pregunta: "Otra cosa"}))
         self.assertFalse(form.is_valid())
-        self.assertIn(f"g_{self.pregunta.pk}", form.errors)
+        self.assertIn(self.k_pregunta, form.errors)
 
-    def test_respuestas_ignoran_ids_ajenos_a_la_definicion(self):
-        form = self._form(data=self._data(g_99999="hack", r_99999="hack"))
+    def test_respuestas_ignoran_claves_ajenas_al_diseno(self):
+        form = self._form(data=self._data(**{"pg-99999": "hack", "rn-99999": "hack"}))
         self.assertTrue(form.is_valid(), form.errors)
-        data = form.respuestas()
-        self.assertNotIn("99999", data["globales"])
-        self.assertNotIn("99999", data["requisitos"])
-        self.assertEqual(data["globales"][str(self.pregunta.pk)], "Sí")
-        self.assertEqual(data["requisitos"][str(self.requisito.pk)], "cert.png")
+        respuestas = form.respuestas()
+        self.assertNotIn("pg-99999", respuestas)
+        self.assertNotIn("rn-99999", respuestas)
+        self.assertEqual(respuestas[self.k_pregunta], "Sí")
+        self.assertEqual(respuestas[self.k_requisito], "cert.png")
+        self.assertEqual(respuestas[self.k_telefono], "3624123456")
 
     def test_archivo_invalido_se_rechaza(self):
         exe = SimpleUploadedFile("virus.exe", b"MZ", content_type="application/octet-stream")
-        form = self._form(files={f"r_{self.requisito.pk}": exe})
+        form = self._form(files={self.k_requisito: exe})
         self.assertFalse(form.is_valid())
-        self.assertIn(f"r_{self.requisito.pk}", form.errors)
+        self.assertIn(self.k_requisito, form.errors)
         gigante = SimpleUploadedFile("foto.png", b"0" * (5 * 1024 * 1024 + 1), content_type="image/png")
-        form = self._form(files={f"r_{self.requisito.pk}": gigante})
+        form = self._form(files={self.k_requisito: gigante})
         self.assertFalse(form.is_valid())
 
     def test_apoderado_obligatorio_para_menores_y_mayores(self):
-        """Cambio 67: los cinco datos del apoderado se exigen a toda persona
-        que se inscribe, sin mirar la edad (antes solo a menores, RN-22)."""
+        """Cambio 67: el grupo Apoderado nace sin condición, así que sus cinco
+        campos se exigen a toda persona que se inscribe, sin mirar la edad."""
         hoy = timezone.localdate()
-        # Mayor (1991) sin apoderado: los cinco campos faltan.
-        form = self._form(data=self._data_sin_apoderado())
-        self.assertFalse(form.is_valid())
-        for campo in self.APODERADO:
-            self.assertIn(campo, form.errors)
-        # Menor sin apoderado: igual.
         menor = _identificacion()
         menor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=17 * 365)).isoformat()
         form = self._form(identificacion=menor, data=self._data_sin_apoderado())
         self.assertFalse(form.is_valid())
-        self.assertIn("apoderado_dni", form.errors)
-        # Mayor con el apoderado completo: pasa.
-        self.assertTrue(self._form().is_valid())
-
-    def test_el_paso_2_marca_el_apoderado_como_obligatorio(self):
-        html = Path(get_template("portal/inscripcion/paso2.html").origin.name).read_text(encoding="utf-8")
-        self.assertNotIn("solo si la persona que se inscribe es menor", html)
-        self.assertIn("se piden a todas las personas", html)
+        self.assertIn(self.k_apo_dni, form.errors)
+        # Un adulto tampoco se salva: los cinco campos se exigen igual.
+        mayor = _identificacion()
+        mayor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=40 * 365)).isoformat()
+        form = self._form(identificacion=mayor, data=self._data_sin_apoderado())
+        self.assertFalse(form.is_valid())
+        for clave in self.apoderado:
+            self.assertIn(clave, form.errors)
+        # Con el apoderado completo, pasa.
+        self.assertTrue(self._form(identificacion=mayor).is_valid())
 
     def test_menor_con_apoderado_completo_pasa(self):
         hoy = timezone.localdate()
@@ -193,15 +260,34 @@ class Paso2FormTests(_BasePaso2Test):
         form = self._form(
             identificacion=menor,
             data=self._data(
-                apoderado_nombre="Ana",
-                apoderado_apellido="Gómez",
-                apoderado_dni="20.111.222",
-                apoderado_genero="F",
-                apoderado_fecha_nacimiento="1980-05-05",
+                **{
+                    _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "nombre"): "Ana",
+                    _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "apellido"): "Gómez",
+                    self.k_apo_dni: "20.111.222",
+                    _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "genero"): "F",
+                    _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "fecha_nacimiento"): "1980-05-05",
+                }
             ),
         )
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data["apoderado_dni"], "20111222")
+        self.assertEqual(form.respuestas()[self.k_apo_dni], "20111222")
+
+    def test_lo_oculto_no_se_exige_ni_se_guarda(self):
+        """D11: un campo cuya condición no se cumple no se pide y lo que llegue
+        para él se descarta."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
+        self.definicion = definicion_formulario(self.relevamiento)
+        hoy = timezone.localdate()
+        mayor = _identificacion()
+        mayor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=30 * 365)).isoformat()
+        form = self._form(identificacion=mayor, data=self._data(**{self.k_apo_dni: "20111222"}))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn(self.k_apo_dni, form.respuestas())
 
 
 class IngestaPublicaTests(_BasePaso2Test):
@@ -223,7 +309,14 @@ class IngestaPublicaTests(_BasePaso2Test):
         ciudadano = Ciudadano.objects.get(dni="30123456")
         self.assertEqual(ciudadano.nombre, "María Luján")
         self.assertEqual(formulario.ciudadano, ciudadano)
+        # Respuestas por clave + foto de la definición (D3).
+        self.assertEqual(formulario.respuestas[self.k_pregunta], "Sí")
+        self.assertEqual(formulario.definicion["version"], self.definicion["version"])
+        self.assertTrue(formulario.definicion["items"])
+        # Puente con el contrato anterior: data por pk y columnas fijas.
         self.assertEqual(formulario.data["globales"][str(self.pregunta.pk)], "Sí")
+        self.assertEqual(formulario.celular, "3624123456")
+        self.assertEqual(formulario.email_contacto, "maria@correo.com")
         adjunto = AdjuntoFormulario.objects.get(formulario=formulario)
         self.assertEqual(adjunto.requisito_nativo_id, self.requisito.pk)
 
@@ -238,10 +331,7 @@ class IngestaPublicaTests(_BasePaso2Test):
 
     def test_origen_manual_queda_no_validado(self):
         ident = _identificacion(origen="manual")
-        form = self._form(
-            identificacion=ident,
-            data=self._data(nombre="Juan", apellido="Pérez", fecha_nacimiento="1990-01-01"),
-        )
+        form = self._form(identificacion=ident, data=self._datos_manuales())
         self.assertTrue(form.is_valid(), form.errors)
         formulario, _ = crear_formulario_publico(
             self.relevamiento, identificacion=ident, form=form, client_uuid=ident["client_uuid"]
@@ -321,6 +411,40 @@ class Paso2VistaTests(_BasePaso2Test):
         self.assertNotIn(clave_sesion(self.relevamiento), self.client.session)
         self.assertEqual(self.client.session[f"inscripcion_ok_{self.relevamiento.pk}"]["numero"], 1)
 
+    def test_el_paso_2_marca_el_apoderado_como_obligatorio(self):
+        """Cambio 67 en el mundo del constructor: el grupo Apoderado llega del
+        catálogo sin condición, con el subtítulo nuevo y sus campos con asterisco."""
+        self._sembrar_sesion(_identificacion())
+        html = self.client.get(self._url()).content.decode()
+        self.assertIn("Necesitamos los datos de un adulto responsable.", html)
+        self.assertNotIn("Como sos menor de 18", html)
+        for clave in self.apoderado:
+            self.assertIn(f'name="{clave}"', html)
+        self.assertRegex(html, r"DNI del apoderado\s*<span[^>]*>\*</span>")
+        self.assertRegex(html, r"Fecha de nacimiento del apoderado\s*<span[^>]*>\*</span>")
+
+    def test_get_renderiza_el_formulario_por_grupos(self):
+        """La pantalla arma los grupos del diseño y publica los ítems con sus
+        condiciones para el motor del navegador."""
+        self._sembrar_sesion(_identificacion())
+        resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="formulario-items"', html)
+        self.assertIn(f'data-item="{self.k_pregunta}"', html)
+        self.assertIn(f'data-item="{self.k_telefono}"', html)
+        self.assertIn("Datos personales", html)
+        self.assertIn("Apoderado", html)
+        # La identidad validada se muestra, no se pide.
+        self.assertIn("María Luján", html)
+        self.assertNotIn(f'name="{self.k_nombre}"', html)
+        # Los ítems planos viajan para el motor del navegador; el Apoderado ya no
+        # lleva condición (Cambio 67: se pide siempre).
+        planos = resp.context["planos"]
+        apoderado = next(p for p in planos if p["clave"] == "g-apoderado")
+        self.assertIsNone(apoderado["condicion"])
+        self.assertTrue(any(p["condicion"] is None and p["tipo"] == "campo" for p in planos))
+
     def test_confirmacion_sin_envio_redirige_al_paso1(self):
         resp = self.client.get(
             reverse("portal:inscripcion_confirmacion", kwargs={"token": self.relevamiento.token_publico})
@@ -338,34 +462,70 @@ class Paso2VistaTests(_BasePaso2Test):
         self.assertIn(reverse("portal:inscripcion_paso1", kwargs={"token": self.relevamiento.token_publico}), resp.url)
         self.assertEqual(self.relevamiento.formularios.count(), 1)
 
+    def test_si_el_formulario_cambio_mientras_se_completaba_avisa_y_no_envia(self):
+        """El constructor guarda en vivo (D8): el GET fija en la sesión la
+        huella del formulario que la persona vio y, si al enviar ya no
+        coincide, se avisa y se vuelve a mostrar con lo vigente; el envío sale
+        en el intento siguiente, ya con lo nuevo exigido."""
+        self._sembrar_sesion(_identificacion())
+        self.assertEqual(self.client.get(self._url()).status_code, 200)
+        nueva = PreguntaGlobal.objects.create(texto="Cantidad de hijos", tipo="INT", obligatorio=True, orden=2)
+        resp = self.client.post(self._url(), {**self._data(), **self._files()})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context["formulario_cambio"])
+        self.assertIn("El formulario cambió", resp.content.decode())
+        self.assertIn(clave_pregunta(nueva), resp.context["form"].errors)  # lo nuevo ya se exige
+        self.assertEqual(self.relevamiento.formularios.count(), 0)
+        # Segundo envío, con el formulario vigente delante.
+        resp = self.client.post(self._url(), {**self._data(**{clave_pregunta(nueva): "2"}), **self._files()})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.relevamiento.formularios.count(), 1)
+
 
 class Paso2PresentacionSelectorTests(_BasePaso2Test):
     """Cambio 56: el mismo campo se rinde como lista o como buscador con
     píldoras según lo configurado, sin tocar qué valores son válidos."""
 
     def _definicion_con(self, tipo, presentacion, opciones=None):
-        """Definición mínima con un solo selector, como la arma el servicio."""
+        campo = {
+            "id": self.pregunta.pk,
+            "clave": self.k_pregunta,
+            "tipo_item": "campo",
+            "texto": "Nivel educativo",
+            "tipo": tipo,
+            "opciones": opciones or ["Primario", "Secundario", "Terciario"],
+            "presentacion": presentacion,
+            "obligatorio": True,
+            "orden": 1,
+            "alcance": "global",
+            "subsegmento_id": None,
+            "origen": "pregunta",
+            "vinculo": "",
+            "condicion": None,
+        }
+        if presentacion is None:
+            del campo["presentacion"]
         return {
             "requiere_gps": False,
-            "globales": [
+            "version": 1,
+            "canal": "link",
+            "items": [
                 {
-                    "id": 1,
-                    "texto": "Nivel educativo",
-                    "tipo": tipo,
-                    "opciones": opciones or ["Primario", "Secundario", "Terciario"],
-                    "presentacion": presentacion,
-                    "obligatorio": True,
-                    "orden": 1,
-                    "alcance": "global",
-                    "subsegmento_id": None,
+                    "tipo": "grupo",
+                    "clave": "g-x",
+                    "titulo": "Grupo",
+                    "subtitulo": "",
+                    "condicion": None,
+                    "items": [campo],
                 }
             ],
+            "globales": [],
             "requisitos": [],
         }
 
     def _widget(self, definicion):
         form = InscripcionPaso2Form(definicion=definicion, identificacion=_identificacion())
-        return form.fields["g_1"].widget
+        return form.fields[self.k_pregunta].widget
 
     def test_selector_con_buscador_usa_select_con_el_engache(self):
         widget = self._widget(self._definicion_con("SELECTOR", "BUSCADOR"))
@@ -388,28 +548,39 @@ class Paso2PresentacionSelectorTests(_BasePaso2Test):
 
     def test_campo_sin_presentacion_se_lee_como_lista(self):
         """Una definición vieja —o un cliente que no manda la clave— no explota."""
-        definicion = self._definicion_con("SELECTOR", "LISTA")
-        del definicion["globales"][0]["presentacion"]
-        widget = self._widget(definicion)
+        widget = self._widget(self._definicion_con("SELECTOR", None))
         self.assertNotIn("data-buscador", widget.attrs)
+
+    def test_el_multiple_apilado_marca_su_contenedor(self):
+        """La fila lleva `es_checks` solo para el múltiple apilado: el template
+        pone .nodo-checks en el contenedor y el estilo vive en nodo-forms.css
+        (cierra la deuda visual del Cambio 56). El buscador no lo lleva."""
+
+        def fila_de(presentacion):
+            form = InscripcionPaso2Form(
+                definicion=self._definicion_con("SELECTOR_MULTIPLE", presentacion),
+                identificacion=_identificacion(),
+            )
+            return next(i for g in form.grupos() for i in g["items"] if i["clave"] == self.k_pregunta)
+
+        self.assertTrue(fila_de("LISTA")["es_checks"])
+        self.assertFalse(fila_de("BUSCADOR")["es_checks"])
 
     def test_el_buscador_no_cambia_que_valores_son_validos(self):
         definicion = self._definicion_con("SELECTOR", "BUSCADOR")
-        base = {"celular": "3624123456", "email_contacto": "maria@correo.com", **self.APODERADO}
-
         valido = InscripcionPaso2Form(
-            {**base, "g_1": "Secundario"}, definicion=definicion, identificacion=_identificacion()
+            {self.k_pregunta: "Secundario"}, definicion=definicion, identificacion=_identificacion()
         )
         self.assertTrue(valido.is_valid(), valido.errors)
 
         invalido = InscripcionPaso2Form(
-            {**base, "g_1": "Universitario"}, definicion=definicion, identificacion=_identificacion()
+            {self.k_pregunta: "Universitario"}, definicion=definicion, identificacion=_identificacion()
         )
         self.assertFalse(invalido.is_valid())
-        self.assertIn("g_1", invalido.errors)
+        self.assertIn(self.k_pregunta, invalido.errors)
 
 
-class Paso2AssetsBuscadorTests(TestCase):
+class Paso2AssetsBuscadorTests(_BasePaso2Test):
     """El control necesita su CSS y su JS en la pantalla; sin ellos el campo
     sigue funcionando como desplegable nativo, pero no habría buscador.
 
@@ -420,48 +591,46 @@ class Paso2AssetsBuscadorTests(TestCase):
     def _template(self, nombre):
         return Path(get_template(nombre).origin.name).read_text(encoding="utf-8")
 
-    def test_el_paso_2_carga_el_buscador(self):
+    def test_el_paso_2_carga_el_buscador_y_el_motor_de_condiciones(self):
         html = self._template("portal/inscripcion/paso2.html")
         self.assertIn("custom/css/nodo-buscador.css", html)
         self.assertIn("custom/js/nodo-buscador.js", html)
+        self.assertIn("custom/js/nodo-condiciones.js", html)
+        self.assertIn("custom/js/nodo-formulario.js", html)
 
     def test_el_shell_deja_el_hueco_para_el_css(self):
         html = self._template("portal/inscripcion/base_inscripcion.html")
         self.assertIn("{% block extra_css %}", html)
 
     def test_los_assets_existen_en_el_repo(self):
-        for ruta in ("custom/css/nodo-buscador.css", "custom/js/nodo-buscador.js"):
+        rutas = (
+            "custom/css/nodo-buscador.css",
+            "custom/js/nodo-buscador.js",
+            "custom/js/nodo-condiciones.js",
+            "custom/js/nodo-formulario.js",
+        )
+        for ruta in rutas:
             with self.subTest(ruta=ruta):
                 self.assertIsNotNone(finders.find(ruta), f"falta {ruta}")
 
     def test_el_select_configurado_se_renderiza_con_el_enganche(self):
-        pregunta = PreguntaGlobal.objects.create(
-            texto="Nivel educativo",
-            tipo="SELECTOR",
-            opciones=["Primario", "Secundario"],
-            presentacion="BUSCADOR",
-            orden=1,
-        )
-        segmento = Segmento.objects.create(nombre="SegB", cupo_maximo=10)
-        convocatoria = Convocatoria.objects.create(
-            nombre="C",
-            segmento=segmento,
-            fecha_inicio=date(2026, 1, 1),
-            fecha_fin=date(2026, 12, 31),
-        )
-        relevamiento = Relevamiento.objects.create(
-            convocatoria=convocatoria,
-            tipo=Relevamiento.Tipo.PUBLICO,
-            fecha_asignada=timezone.now() - timedelta(days=1),
-            fecha_hasta=timezone.now() + timedelta(days=10),
-        )
+        PreguntaGlobal.objects.filter(pk=self.pregunta.pk).update(presentacion="BUSCADOR")
         form = InscripcionPaso2Form(
-            definicion=definicion_formulario(relevamiento),
+            definicion=definicion_formulario(self.relevamiento),
             identificacion=_identificacion(),
         )
-        html = str(form[f"g_{pregunta.pk}"])
+        html = str(form[self.k_pregunta])
         self.assertIn('data-buscador="1"', html)
         self.assertIn("<select", html)
+
+    def test_el_motor_del_navegador_lee_el_select_antes_que_el_input_del_buscador(self):
+        """El buscador monta su input de búsqueda antes del <select> y lo vacía
+        al elegir: si el motor tomara el primer control de la caja, un selector
+        con buscador contaría siempre como vacío y lo que depende de él nunca
+        aparecería en el navegador (el servidor sí lo exigiría)."""
+        js = Path(finders.find("custom/js/nodo-formulario.js")).read_text(encoding="utf-8")
+        self.assertIn("caja.querySelector('select') ||", js)
+        self.assertIn(":not(.nodo-buscador__input)", js)
 
 
 class IngestaConOrigenPadronTests(_BasePaso2Test):
@@ -496,10 +665,7 @@ class IngestaConOrigenPadronTests(_BasePaso2Test):
 
     def test_origen_manual_sigue_sin_validar(self):
         ident = _identificacion(origen="manual")
-        form = self._form(
-            identificacion=ident,
-            data=self._data(nombre="Juan", apellido="Pérez", fecha_nacimiento="1990-01-01"),
-        )
+        form = self._form(identificacion=ident, data=self._datos_manuales())
         self.assertTrue(form.is_valid(), form.errors)
         formulario, _ = crear_formulario_publico(
             self.relevamiento, identificacion=ident, form=form, client_uuid=str(uuid4())

@@ -856,9 +856,7 @@ class AdjuntoValidacionTests(_BaseApiTest):
             celular="3624111222",
             email_contacto="x@y.com",
         )
-        self.pregunta = PreguntaGlobal.objects.create(
-            texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900
-        )
+        self.pregunta = PreguntaGlobal.objects.create(texto="Foto del DNI", tipo=TipoCampo.ARCHIVO, orden=900)
         self.autenticar(self.terri)
 
     def _subir(self, archivo):

@@ -152,6 +152,9 @@ def build_targets(worker_id=None):
             },
         )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
+    # Cambio 58: el detalle de un caso arma las respuestas desde la foto de la
+    # definición, así que entra al presupuesto como cualquier otra ruta pesada.
+    formulario = relevamiento.formularios.order_by("numero").first()
     localidad = Localidad.objects.get(pk=ciudadano.localidad_id)
     login_username = (
         PERF_LOGIN_USERNAME
@@ -290,6 +293,12 @@ def build_targets(worker_id=None):
                 "key": "conversacion_detalle",
                 "route": "conversaciones:detalle",
                 "url": reverse("conversaciones:detalle", kwargs={"conversacion_id": conversacion.pk}),
+                "actor": "backoffice",
+            },
+            {
+                "key": "becas_formulario_detalle",
+                "route": "becas:formulario_detalle",
+                "url": reverse("becas:formulario_detalle", kwargs={"pk": formulario.pk}),
                 "actor": "backoffice",
             },
             {"key": "portal_home", "route": "portal:home", "url": reverse("portal:home"), "actor": "anonymous"},

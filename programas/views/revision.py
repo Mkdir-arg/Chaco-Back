@@ -39,8 +39,9 @@ from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.becas import registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_aprobacion
 from programas.services.identidad import gran_base_activa
-from programas.services.padron import fila_padron
+from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
+from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
 
@@ -387,6 +388,22 @@ def _respuestas_resueltas(formulario):
     return globales_list, requisitos_segmento, requisitos_subsegmento
 
 
+def _sin_vinculados(bloques):
+    """Los campos vinculados al legajo y al apoderado ya tienen su sección en
+    el detalle (identidad, contacto, apoderado): en «Respuestas» quedan solo
+    las preguntas y los textos. Un grupo que se queda sin nada no se muestra."""
+    if bloques is None:
+        return None
+    filtrados = []
+    for bloque in bloques:
+        items = [
+            i for i in bloque["items"] if i.get("tipo") != "campo" or not i.get("origen") or i["origen"] == "pregunta"
+        ]
+        if items:
+            filtrados.append({**bloque, "items": items})
+    return filtrados
+
+
 @login_required
 @requiere(CAP_REVISION_VER, CAP_REVISION_EDITAR)
 def formulario_detalle(request, pk):
@@ -421,6 +438,7 @@ def formulario_detalle(request, pk):
                 if anteriores[campo] != nuevo:
                     cambios.append((FormularioRevisionForm.LABELS[campo], anteriores[campo], nuevo))
             form.save()
+            sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
             resolver_ciudadano_offline(formulario)
             n = registrar_traza(formulario, request.user, cambios)
             if n:
@@ -431,10 +449,16 @@ def formulario_detalle(request, pk):
     else:
         form = FormularioRevisionForm(instance=formulario)
 
-    globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
-    # Cambio 67: el apoderado se pide a toda persona que se inscribe, así que
-    # la sección editable se muestra siempre (también en los casos anteriores,
-    # que pueden completarse desde acá).
+    # Cambio 58 (#347): un caso con foto se lee desde la foto; uno anterior, por pk.
+    bloques = _sin_vinculados(respuestas_legibles(formulario))
+    if bloques is None:
+        globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
+    else:
+        globales_list, requisitos_segmento, requisitos_subsegmento = [], [], []
+    # Cambio 67: el apoderado se pide a toda persona que se inscribe, así que la
+    # sección editable se muestra siempre (también en los casos anteriores, que se
+    # pueden completar desde acá). Reemplaza la regla por condición de la foto del
+    # Cambio 58: ya no hay caso en que el apoderado no se pida.
     mostrar_apoderado = True
     mapa = None
     if formulario.gps_lat is not None and formulario.gps_lng is not None:
@@ -471,6 +495,9 @@ def formulario_detalle(request, pk):
                 initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
             ),
             "mostrar_apoderado": mostrar_apoderado,
+            # Cambio 58 (#347): con foto, un solo listado en el orden del formulario
+            # que respondio; sin foto, las tres listas historicas por alcance.
+            "bloques": bloques,
             "globales_list": globales_list,
             "requisitos_segmento": requisitos_segmento,
             "requisitos_subsegmento": requisitos_subsegmento,
@@ -480,7 +507,7 @@ def formulario_detalle(request, pk):
             # Cambio 57: con la Gran Base apagada, «Revalidar» se deshabilita y
             # se ofrece validar contra el padrón de la convocatoria.
             "gran_base_activa": gran_base_activa(),
-            "convocatoria_tiene_padron": formulario.relevamiento.convocatoria.padron.exists(),
+            "convocatoria_tiene_padron": padron_de(formulario.relevamiento).exists(),
             "forzar_identidad_form": ForzarIdentidadForm(),
             "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
             "validacion_sis": validacion_sis,
@@ -785,7 +812,7 @@ def formulario_validar_padron(request, pk):
     if ciudadano is None or not ciudadano.dni:
         messages.error(request, "El caso necesita un ciudadano con DNI para buscarlo en el padrón.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)
-    fila = fila_padron(formulario.relevamiento.convocatoria, ciudadano.dni, ciudadano.genero)
+    fila = fila_padron(formulario.relevamiento, ciudadano.dni, ciudadano.genero)
     if fila is None:
         messages.error(request, f"El DNI {ciudadano.dni} no figura en el padrón de la convocatoria con ese sexo.")
         return redirect("becas:formulario_detalle", pk=formulario.pk)

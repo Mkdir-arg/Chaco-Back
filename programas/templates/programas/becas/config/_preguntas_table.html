@@ -6,6 +6,7 @@
       <tr class="bg-secondary border-b border-base">
         <th class="px-4 py-[11px] text-right font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Orden</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Texto</th>
+        <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Grupo</th>
         <th class="px-4 py-[11px] text-left font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Tipo</th>
         <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Obligatorio</th>
         <th class="px-4 py-[11px] text-center font-bold uppercase tracking-[.05em] text-body-subtle" style="font-size:11px;">Estado</th>
@@ -13,59 +14,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for p in preguntas %}
-      <tr class="hover:bg-secondary">
-        <td class="px-4 py-[13px] text-sm border-t border-light text-body-subtle text-right font-semibold">{{ p.orden }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-heading font-medium">{{ p.texto }}</td>
-        <td class="px-4 py-[13px] text-sm border-t border-light">
-          <span class="badge badge-white">{{ p.get_tipo_display }}</span>
-        </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-center">
-          {% if p.obligatorio %}
-            <span class="badge badge-brand">Obligatorio</span>
-          {% else %}
-            <span class="badge badge-gray">Opcional</span>
-          {% endif %}
-        </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-center">
-          {% if p.activo %}
-            <span class="badge badge-success badge-dot">Activa</span>
-          {% else %}
-            <span class="badge badge-danger badge-dot">Inactiva</span>
-          {% endif %}
-        </td>
-        <td class="px-4 py-[13px] text-sm border-t border-light text-right">
-          <div class="flex items-center justify-end gap-2">
-            {% if request.user|puede:"becas.pregunta.editar" %}
-            <button type="button" class="text-body-subtle hover:text-heading p-1" title="Editar"
-              @click="openEdit(
-                '{% url 'becas:pregunta_editar' p.pk %}',
-                '{{ p.texto|escapejs }}',
-                '{{ p.tipo }}',
-                '{{ p.obligatorio|yesno:'True,False' }}',
-                '{{ p.activo|yesno:'True,False' }}',
-                {{ p.orden }},
-                [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
-                '{{ p.presentacion }}'
-              )">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button type="button" class="text-body-subtle hover:text-fg-warning p-1" title="Activar/Desactivar"
-                    data-confirm-url="{% url 'becas:pregunta_toggle' p.pk %}"
-                    data-confirm-title="{% if p.activo %}¿Desactivar pregunta?{% else %}¿Activar pregunta?{% endif %}"
-                    data-confirm-text="{{ p.texto }}" data-confirm-icon="question" data-confirm-ok="Sí">
-              <i class="fas fa-power-off"></i>
-            </button>
-            <button type="button" class="text-body-subtle hover:text-fg-danger p-1" title="Eliminar"
-                    data-confirm-url="{% url 'becas:pregunta_eliminar' p.pk %}"
-                    data-confirm-title="¿Eliminar pregunta?" data-confirm-text="{{ p.texto }}" data-confirm-ok="Sí, eliminar">
-              <i class="fas fa-trash"></i>
-            </button>
-            {% endif %}
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
+      {% for p in preguntas %}{% include "programas/becas/config/_pregunta_row.html" with p=p con_grip=False %}{% endfor %}
     </tbody>
   </table>
 </div>

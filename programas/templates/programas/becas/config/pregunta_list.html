@@ -1,36 +1,110 @@
 {% extends "includes/base.html" %}
-{% load rbac %}
+{% load rbac static %}
 {% block title %}Becas · Requisitos generales{% endblock %}
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
+<link rel="stylesheet" href="{% static 'custom/css/nodo-constructor.css' %}">
 <div class="mb-8"
      x-data="{
        modalCrear: false,
        modalEdit: false,
        createTipo: 'STRING',
        createPresentacion: 'LISTA',
+       createGrupo: '', createCanal: 'ambos',
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
-       editPresentacion: 'LISTA',
-       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion) {
+       editPresentacion: 'LISTA', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
+       modalGrupo: false, grupoUrl: '', grupoNombre: '', grupoSubtitulo: '', grupoCanal: 'ambos', grupoEsNuevo: true,
+       grupoCond: {modo: 'todas', reglas: []}, grupoFuentes: [],
+       openGrupo(url, nombre, subtitulo, canal, pk) {
+         this.grupoUrl = url; this.grupoNombre = nombre || ''; this.grupoSubtitulo = subtitulo || '';
+         this.grupoCanal = canal || 'ambos'; this.grupoEsNuevo = !nombre;
+         var datos = this.datosCondicion(pk || 'nuevo');
+         this.grupoFuentes = datos.fuentes || [];
+         this.grupoCond = this.condicionEditable(datos.condicion);
+         this.modalGrupo = true;
+       },
+       datosCondicion(pk) {
+         var el = document.getElementById('catalogo-condicion-datos');
+         if (!el) { return {fuentes: [], condicion: null}; }
+         try { return (JSON.parse(el.textContent) || {})[pk] || {fuentes: [], condicion: null}; }
+         catch (e) { return {fuentes: [], condicion: null}; }
+       },
+       condicionEditable(condicion) {
+         var reglas = ((condicion && condicion.reglas) || []).map(function (r) {
+           var valor = Array.isArray(r.valor) ? r.valor.join(', ') : (r.valor === null || r.valor === undefined ? '' : String(r.valor));
+           return {fuente: r.fuente || '', op: r.op || '', valor: valor};
+         });
+         return {modo: (condicion && condicion.modo) || 'todas', reglas: reglas};
+       },
+       vocabOp() {
+         if (!this._vocab) {
+           var el = document.getElementById('catalogo-operadores');
+           this._vocab = el ? JSON.parse(el.textContent) : {por_tipo: {}, etiquetas: {}, sin_valor: [], con_lista: []};
+         }
+         return this._vocab;
+       },
+       fuenteDe(clave) {
+         for (var i = 0; i < this.grupoFuentes.length; i++) { if (this.grupoFuentes[i].clave === clave) { return this.grupoFuentes[i]; } }
+         return null;
+       },
+       operadoresDe(clave) { var fu = this.fuenteDe(clave); return fu ? (this.vocabOp().por_tipo[fu.tipo_campo] || []) : []; },
+       etiquetaOp(op) { return this.vocabOp().etiquetas[op] || op; },
+       necesitaValor(r) { return !!r.op && this.vocabOp().sin_valor.indexOf(r.op) === -1; },
+       conLista(op) { return this.vocabOp().con_lista.indexOf(op) !== -1; },
+       opcionesDe(clave) { var fu = this.fuenteDe(clave); return fu ? (fu.opciones || []) : []; },
+       tipoInputR(r) {
+         var fu = this.fuenteDe(r.fuente);
+         if (!fu || this.conLista(r.op)) { return 'text'; }
+         if (fu.tipo_campo === 'INT' || /^edad_/.test(r.op)) { return 'number'; }
+         if (fu.tipo_campo === 'DATE') { return 'date'; }
+         return 'text';
+       },
+       grupoCondicionJson() {
+         var reglas = [];
+         for (var i = 0; i < this.grupoCond.reglas.length; i++) {
+           var r = this.grupoCond.reglas[i];
+           if (!r.fuente && !r.op && !r.valor) { continue; }
+           var valor = r.valor;
+           if (this.conLista(r.op)) {
+             valor = String(valor || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+             if (/^edad_/.test(r.op)) { valor = valor.map(Number); }
+           } else if (this.necesitaValor(r) && this.tipoInputR(r) === 'number') {
+             valor = valor === '' ? '' : Number(valor);
+           }
+           reglas.push({fuente: r.fuente, op: r.op, valor: this.necesitaValor(r) ? valor : null});
+         }
+         return reglas.length ? JSON.stringify({modo: this.grupoCond.modo, reglas: reglas}) : '';
+       },
+       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
          this.editPresentacion = presentacion || 'LISTA';
+         this.editGrupo = grupo || ''; this.editCanal = canal || 'ambos';
+         this.editProtegido = !!protegido; this.editIdentidad = !!identidad;
          this.modalEdit = true;
        }
      }"
-     @becas-saved.window="modalCrear=false; modalEdit=false">
+     @keydown.escape.window="modalCrear=false; modalEdit=false; modalGrupo=false"
+     @becas-saved.window="modalCrear=false; modalEdit=false; modalGrupo=false">
 
   <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
     <div>
       <h1 class="text-3xl font-extrabold text-heading tracking-tight">Requisitos generales</h1>
-      <p class="text-sm text-body-subtle mt-1">Preguntas globales que aparecen en todos los formularios</p>
+      <p class="text-sm text-body-subtle mt-1">Catálogo agrupado que alimenta todos los formularios. Arrastrá desde la manija para ordenar grupos y preguntas; se guarda al soltar.</p>
     </div>
-    {% if request.user|puede:"becas.pregunta.crear" %}
-    <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
-      <i class="fas fa-plus"></i> Nueva pregunta
-    </button>
-    {% endif %}
+    <div class="flex items-center gap-2 flex-wrap">
+      {% if request.user|puede:"becas.pregunta.editar" %}
+      <button type="button" @click="openGrupo('{% url 'becas:grupo_crear' %}', '', '', 'ambos')" class="btn-nodo btn-secondary btn-base">
+        <i class="fas fa-layer-group"></i> Nuevo grupo
+      </button>
+      {% endif %}
+      {% if request.user|puede:"becas.pregunta.crear" %}
+      <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-plus"></i> Nueva pregunta
+      </button>
+      {% endif %}
+    </div>
   </div>
 
   <form method="get" data-dynamic-list-filters class="mb-4">
@@ -61,7 +135,11 @@
   </form>
 
   <div id="preguntas-table" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-    {% include "programas/becas/config/_preguntas_table.html" %}
+    {% if grupos_con_preguntas is not None %}
+      {% include "programas/becas/config/_preguntas_grupos.html" %}
+    {% else %}
+      {% include "programas/becas/config/_preguntas_table.html" %}
+    {% endif %}
   </div>
 
   {# Modal: Nueva pregunta #}
@@ -130,6 +208,20 @@
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Grupo</label>
+            <select name="grupo" x-model="createGrupo" class="nodo-field">
+              <option value="">Sin grupo (Cuestionario social)</option>
+              {% for g in grupos %}<option value="{{ g.pk }}">{{ g.nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select name="canal" x-model="createCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
+          </div>
         </div>
 
         {% comment %}FOOTER{% endcomment %}
@@ -177,20 +269,20 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
-              <select name="tipo" x-model="editTipo" class="nodo-field">
+              <select name="tipo" x-model="editTipo" :disabled="editProtegido" class="nodo-field">
                 {% for val, label in tipo_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
-              <select name="obligatorio" x-model="editObl" class="nodo-field">
+              <select name="obligatorio" x-model="editObl" :disabled="editIdentidad" class="nodo-field">
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Estado</label>
-              <select name="activo" x-model="editActivo" class="nodo-field">
+              <select name="activo" x-model="editActivo" :disabled="editIdentidad" class="nodo-field">
                 <option value="True">Activa</option>
                 <option value="False">Inactiva</option>
               </select>
@@ -203,7 +295,8 @@
           </div>
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
             <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
-            <textarea name="opciones_texto" x-model="editOpciones" rows="4" class="nodo-field"></textarea>
+            <textarea name="opciones_texto" x-model="editOpciones" :disabled="editProtegido" rows="4" class="nodo-field"></textarea>
+            <p x-show="editProtegido" class="text-xs text-body-subtle mt-1">El tipo y las opciones de un campo del legajo los dicta el legajo.</p>
           </div>
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
             <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
@@ -211,6 +304,20 @@
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Grupo</label>
+            <select name="grupo" x-model="editGrupo" class="nodo-field">
+              <option value="">Sin grupo (Cuestionario social)</option>
+              {% for g in grupos %}<option value="{{ g.pk }}">{{ g.nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select name="canal" x-model="editCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
         </div>
 
@@ -222,7 +329,105 @@
       </form>
     </div>
   </div>
+
+  {# Modal: Nuevo / editar grupo (Cambio 58, task 337; condición por defecto editable) #}
+  {{ operadores|json_script:"catalogo-operadores" }}
+  {% if hay_filtros_activos %}
+    {# Con filtros no se rinde el partial agrupado (que trae este json_script): #}
+    {# va acá para que «Nuevo grupo» tenga sus fuentes igual. Nunca se duplica. #}
+    {{ condicion_datos|json_script:"catalogo-condicion-datos" }}
+  {% endif %}
+  <div x-show="modalGrupo" x-cloak @click="modalGrupo=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background:rgba(0,0,0,.5)">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" @click.stop>
+      <div class="flex items-center justify-between px-6 py-5 border-b" style="border-color:var(--border-light)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--bg-brand-soft);color:var(--text-fg-brand)">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <h3 class="text-lg font-bold text-heading" x-text="grupoEsNuevo ? 'Nuevo grupo' : 'Editar grupo'"></h3>
+        </div>
+        <button type="button" @click="modalGrupo=false" aria-label="Cerrar"
+                class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form method="post" :action="grupoUrl" data-ajax data-reset="false">
+        {% csrf_token %}
+        <div class="p-6 space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="grupo-nombre">Nombre <span class="text-fg-danger">*</span></label>
+            <input id="grupo-nombre" type="text" name="nombre" x-model="grupoNombre" required maxlength="120" class="nodo-field" placeholder="Ej.: Situación habitacional">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="grupo-subtitulo">Subtítulo</label>
+            <input id="grupo-subtitulo" type="text" name="subtitulo" x-model="grupoSubtitulo" maxlength="200" class="nodo-field" placeholder="Texto de ayuda debajo del título del grupo">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="subtitulo"></p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="grupo-canal">Se pide en</label>
+            <select id="grupo-canal" name="canal" x-model="grupoCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">El canal del grupo acota a todas sus preguntas.</p>
+          </div>
+          <div class="pt-4 border-t" style="border-color:var(--border-light)">
+            <p class="block text-sm font-medium text-heading mb-1">Condición por defecto</p>
+            <p class="text-xs text-body-subtle mb-2">Con esta condición entra el grupo a cada formulario <strong>nuevo</strong>; cada convocatoria la ajusta después en su constructor. Los formularios ya diseñados no cambian.</p>
+            <template x-if="!grupoFuentes.length">
+              <div class="rounded-lg bg-warning-soft border border-warning-subtle px-4 py-3 text-sm text-body" role="alert">
+                No hay campos en grupos anteriores del catálogo que puedan condicionar este grupo.
+              </div>
+            </template>
+            <div class="space-y-2" x-show="grupoFuentes.length">
+              <div class="flex items-center gap-2 text-sm text-body flex-wrap" x-show="grupoCond.reglas.length > 1">
+                <span>Se muestra cuando se cumple</span>
+                <select x-model="grupoCond.modo" class="nodo-field" style="width:auto;height:34px;padding-top:0;padding-bottom:0" aria-label="Modo de la condición por defecto">
+                  <option value="todas">todas las reglas</option>
+                  <option value="alguna">alguna de las reglas</option>
+                </select>
+              </div>
+              <template x-for="(r, i) in grupoCond.reglas" :key="i">
+                <div class="grid grid-cols-1 cons-regla-grid gap-2 items-center">
+                  <select x-model="r.fuente" @change="r.op = ''; r.valor = ''" class="nodo-field" aria-label="Campo fuente">
+                    <option value="">Campo…</option>
+                    <template x-for="fu in grupoFuentes" :key="fu.clave"><option :value="fu.clave" :selected="fu.clave === r.fuente" x-text="fu.titulo"></option></template>
+                  </select>
+                  <select x-model="r.op" class="nodo-field" aria-label="Operador" :disabled="!r.fuente">
+                    <option value="">Operador…</option>
+                    <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
+                  </select>
+                  <div>
+                    <select x-show="necesitaValor(r) && opcionesDe(r.fuente).length && !conLista(r.op)" x-model="r.valor" class="nodo-field" aria-label="Valor">
+                      <option value="">Valor…</option>
+                      <template x-for="o in opcionesDe(r.fuente)" :key="o"><option :value="o" :selected="String(o) === String(r.valor)" x-text="o"></option></template>
+                    </select>
+                    <input x-show="necesitaValor(r) && (!opcionesDe(r.fuente).length || conLista(r.op))" x-model="r.valor" :type="tipoInputR(r)" class="nodo-field" aria-label="Valor" :placeholder="conLista(r.op) ? 'valores separados por coma' : ''">
+                    <span x-show="!necesitaValor(r)" class="text-xs text-body-subtle">Sin valor</span>
+                  </div>
+                  <button type="button" @click="grupoCond.reglas.splice(i, 1)" class="text-body-subtle hover:text-fg-danger p-2" aria-label="Quitar regla"><i class="fas fa-times"></i></button>
+                </div>
+              </template>
+              <button type="button" @click="grupoCond.reglas.push({fuente: '', op: '', valor: ''})" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-plus"></i> Regla</button>
+            </div>
+            <input type="hidden" name="condicion_defecto" :value="grupoCondicionJson()">
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="condicion_defecto"></p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 py-4 border-t bg-secondary" style="border-color:var(--border-light)">
+          <button type="button" @click="modalGrupo=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check"></i> <span x-text="grupoEsNuevo ? 'Crear grupo' : 'Guardar cambios'"></span></button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_ajax_js.html" %}{% endblock %}
+{% block customJS %}
+{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
+<script src="{% static 'custom/js/nodo-catalogo-grupos.js' %}"></script>
+{% endblock %}

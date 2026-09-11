@@ -216,6 +216,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
 | 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
 | 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
+| 72 | Padrón con herencia: el de la convocatoria se hereda y un relevamiento puede tener el suyo | Becas · convocatorias → Portal · App | `#relevamientos` `#datos` `#rbac` | PM — «si se configura en el relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente» | 31/08/2026 | 🟢 **Hecho** | `programas.0065` |
 
 **Notas del índice**
 
@@ -6014,32 +6015,265 @@ Pendiente. Previstos: `programas/models/__init__.py`, `programas/services/diseno
 
 ## Base de datos
 
-Pendiente. `GrupoRequisito`; `PreguntaGlobal` (grupo, origen, vinculo, protegido, canal); `RequisitoNativo.canal`;
-`DisenoFormulario` + `ItemDiseno`; `Formulario.respuestas` + `definicion`, eliminación de `data`, `celular`,
-`email_contacto`, `apoderado_*`. Migración destructiva viable solo sin carga real (confirmado 28/08/2026).
+`GrupoRequisito`; `PreguntaGlobal` (grupo, origen, vinculo, protegido, canal); `RequisitoNativo.canal`
+(`programas.0060`). `DisenoFormulario` + `ItemDiseno` (`programas.0061`). `Formulario.respuestas` +
+`Formulario.definicion` (`programas.0062`); siembra del catálogo protegido (`programas.0063`, datos).
+**Las cuatro migraciones son aditivas.** `data`, `celular`,
+`email_contacto` y `apoderado_*` **se conservan y se siguen escribiendo** como puente para la app móvil y
+los lectores que todavía no migraron: la eliminación destructiva que preveía el análisis se descartó al
+implementar (no hacía falta y obligaba a coordinar una ventana con ECOM). Borrarlas queda como deuda para
+cuando ningún lector las use — el adaptador `programas/services/respuestas.py` es el único punto a tocar.
 
 ## Validación
 
-Pendiente. Criterios en #326; casos QA por task; plan de pruebas de la épica al cierre.
+Criterios en #326; casos QA por task; plan de pruebas de la épica al cierre. Tests propios:
+`test_catalogo_grupos` (19), `test_condiciones` (24), `test_diseno` (21), `test_catalogo_drag` (13),
+`test_constructor` (19), `test_respuestas` (14) y `test_inscripcion_envio` reescrito (32). Regresión de
+`programas`, `portal`, `core`, `users` y `legajos` en verde con Python 3.12 / Django 5.2 (el mismo par que
+el CI); el `.venv` del repo no sirve para medir esto (ver `docs/internal/venv-setup.md`).
 
 ## Puesta en marcha en el servidor
 
-Por fase, a `test` de ECOM; `main` (producción) una sola vez al cierre, con la migración destructiva coordinada.
+A `test` de ECOM y después a `main` (producción) cuando el PM lo indique. **Sin ventana de
+coordinación**: las tres migraciones son aditivas y el contrato anterior se sigue escribiendo, así que la
+app móvil actual sigue funcionando sin cambios mientras el equipo móvil hace #348.
 
 ## Pendientes / a definir
 
-- La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el formulario plano.
+- La app de campo la implementa el equipo móvil en su repo (#348); hasta entonces sigue con el
+  formulario plano y el backend traduce lo que manda (`sincronizar_desde_legacy`).
+- Borrar `data` y las columnas fijas del caso cuando ningún lector las use (deuda, no bloquea).
+- ~~La **condición por defecto** de un grupo del catálogo no tiene editor en la pantalla del catálogo.~~
+  **Hecho el 31/08/2026** (ver Historial): se edita en el modal del grupo, con el mismo editor de reglas
+  del constructor. Rige para los diseños **nuevos**; los existentes la siguen ajustando en su constructor.
+- ~~Las manijas de arrastre no tienen alternativa de teclado.~~ **Hecho el 31/08/2026** (ver Historial):
+  en el catálogo y en el constructor las manijas son focusables y las flechas mueven grupos, preguntas e
+  ítems (cruzando de grupo en los bordes), con anuncio en `aria-live` y guardado con demora.
+- Las exportaciones y los reportes de Becas no incluyen respuestas del formulario (solo identidad, estado y
+  fechas), así que los campos propios y las condiciones no los afectan; si algún día exportan respuestas,
+  tienen que leer `respuestas` + la foto (`respuestas_legibles`), no `data`.
+- **Borrador y publicación del formulario.** Cada guardado del constructor rige al instante para quien
+  esté completando el link (D8, guardado en vivo). El 04/09/2026 se fijó la **huella** del formulario en la
+  sesión del paso 2 (ver Historial) para que un cambio a mitad de carga avise en vez de validar en silencio
+  contra otro formulario; un flujo borrador → publicar contradice D8 y queda como decisión del PM.
 
 ## Reversión
 
-Por fase; la última (caso) es la única con migración destructiva.
+Por fase, y ninguna es destructiva: revertir el código deja las columnas nuevas sin usar y el caso
+sigue legible por `data`. Un caso cargado con el constructor y leído con el código anterior pierde los
+campos propios y las condiciones (no viajan en `data`), no los requisitos del catálogo.
 
 ## Historial
 
-No aplica: entrada nueva. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de formularios
-propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
+- **28/08/2026 — Fase 1 (catálogo) hecha, tasks #336 y #338.** `GrupoRequisito` (clave, nombre, subtítulo,
+  orden, protegido, condición por defecto, canal); `PreguntaGlobal` con `grupo`, `origen` (pregunta / legajo /
+  persona_vinculada), `vinculo`, `protegido` y `canal`; `RequisitoNativo.canal`; `Formulario.celular` y
+  `email_contacto` ahora `blank=True` (D9). `VINCULOS_LEGAJO` dicta tipo y opciones de los campos vinculados.
+  `seed_becas` siembra los grupos protegidos —Datos personales, Contacto, Apoderado (condición por defecto
+  `edad_menor 18`)— con sus doce campos, y manda al «Cuestionario social» toda pregunta sin grupo
+  (`PreguntaGlobal.save` también lo hace). El form bloquea tipo/opciones de los protegidos y obligatorio/estado de
+  la identidad; las vistas rechazan borrar protegidos y desactivar identidad. Los modales de los cuatro
+  configuradores ofrecen «Se pide en» y la lista de generales muestra grupo, origen y protegido.
+  `definicion_formulario` filtra por el canal del relevamiento (`CanalFormulario.del_relevamiento`) y expone
+  `canal`, `origen`, `vinculo` y `grupo` por campo; **excluye los campos vinculados** hasta que el diseño por
+  convocatoria los consuma (si entraran hoy se pedirían dos veces). Migración `programas.0060`. Tests:
+  `programas/tests/test_catalogo_grupos.py` (19). Pendiente de esta fase: la pantalla agrupada con drag & drop (#337).
+- **28/08/2026 — Fase 2 (motor) hecha, tasks #339, #340 y #341.** `DisenoFormulario` (uno por convocatoria,
+  `version`, `actualizado_por`) e `ItemDiseno` (grupo / campo / texto; clave estable `g-…`, `pg-<pk>`, `rn-<pk>`,
+  `cp-…`, `t-…`; padre, orden, etiqueta, subtítulo, texto, condición JSON, canal; referencia a `PreguntaGlobal` /
+  `RequisitoNativo` / `GrupoRequisito` o definición `propio`). `programas/services/diseno.py`: `plan_por_defecto`
+  (los grupos del catálogo con sus preguntas activas + un grupo por nivel de requisitos, **sin escribir**),
+  `obtener_o_crear_diseno` (persiste el plan la primera vez, reconcilia después), `reconciliar` (agrega al final
+  de su grupo lo nuevo, quita lo borrado o inactivo, elimina con aviso las condiciones cuya fuente ya no está,
+  sube la versión), `items_ordenados`, `items_planos`, `serializar`. Las condiciones por defecto del catálogo
+  usan fuentes simbólicas (`legajo:fecha_nacimiento`) que se resuelven a la clave real del ítem.
+  `programas/services/condiciones.py`: operadores por tipo (RN-7), `evaluar` con «todas/alguna», `aplicar` (recorre
+  en orden: hijo de grupo oculto está oculto, fuente oculta cuenta como vacía, descarta respuestas de ocultos),
+  `validar_coherencia` (fuente existe y está antes, es campo, operador compatible, valor requerido/lista) y
+  `fuentes_disponibles`. `definicion_formulario` v2: suma `version` e `items` (grupos → campos y textos con
+  condiciones, filtrados por canal) desde el diseño guardado o desde el plan por defecto; **las listas planas
+  `globales`/`requisitos` siguen iguales** para la app vieja y el paso 2 actual; los campos vinculados viajan solo
+  en `items`. Migración `programas.0061`. Tests: `test_condiciones.py` (24), `test_diseno.py` (21); presupuesto de
+  consultas sin cambios. Sin espejo JS del motor todavía (va con la vista previa, #344).
+- **30/08/2026 — Fase 3 (constructor) hecha, tasks #337, #342, #343 y #344.** Catálogo agrupado con drag & drop
+  (`pregunta_list.html` + `_preguntas_grupos.html` + `_pregunta_row.html`, `nodo-catalogo-grupos.js`, SortableJS
+  1.15.6 vendorizado): sin filtros la lista se ve por grupos y se arrastra desde la manija —grupos entre sí,
+  preguntas dentro de un grupo o a otro—; `preguntas_reordenar` renumera el orden único del catálogo en el orden
+  recibido (los que no vienen quedan detrás); con filtros vuelve la tabla plana. Grupos: `GrupoRequisitoForm`
+  (nombre único, subtítulo, canal), alta/edición por modal AJAX, eliminación solo si no es protegido y está vacío.
+  Constructor «Configurar formulario» (`becas:convocatoria_formulario`, enlazado desde las tabs del detalle de la
+  convocatoria para admin del programa o coordinador del segmento, D7): dos columnas —diseño con drag & drop a la
+  izquierda, vista previa en vivo a la derecha con toggle de canal—. `programas/views/diseno.py`: cada mutación
+  (`mover`, grupo/texto/campo propio nuevos, editar, condición, eliminar, restablecer) corre en transacción, valida
+  `validar_coherencia` sobre el diseño resultante y **deshace con 400** si una condición queda apuntando a una fuente
+  posterior (RN-6); en éxito responde `{ok, target, html, datos}` y sube la versión (D8). RN-2 en la edición: grupo →
+  título/subtítulo/canal; texto → texto/canal; propio → todo; requisito del catálogo → solo la etiqueta (vacía =
+  texto del catálogo). Los requisitos del catálogo no se eliminan del diseño; los grupos solo vacíos. Editor de
+  condiciones (modal Alpine): fuentes = campos anteriores, operadores por tipo desde `OPERADORES_POR_TIPO`, valor
+  por opciones cuando la fuente es selector, «todas/alguna», quitar condición. `nodo-condiciones.js` es el espejo del
+  motor (mismos operadores y semántica) y alimenta la vista previa: se responde en la vista previa y se ve qué se
+  oculta. `nodo-constructor.css` (manija `.grip`, estados Sortable, `.cons-*`, `.pv-*`), inventariado en el agente de
+  diseño. Tests: `test_catalogo_drag.py` (13), `test_constructor.py` (19). Pendiente: fase 4 (#345 paso 2 con
+  `items`, #346 caso con `respuestas` + foto y migración destructiva, #347 revisión desde la foto).
+- **30/08/2026 — Fase 4 (portal y caso) hecha, tasks #345, #346 y #347.** El caso guarda `respuestas`
+  (por clave de ítem: `pg-<pk>`, `rn-<pk>`, `cp-…`) y `definicion`, la **foto** de lo que respondió
+  (`{version, canal, items}`, D3): un caso viejo no se reinterpreta con un diseño posterior.
+  Migración `programas.0062`, **aditiva**: `data` y las columnas fijas (celular, correo, apoderado)
+  se siguen escribiendo como puente, así que **no** hay migración destructiva ni coordinación con
+  ECOM en esta fase; borrarlas queda para cuando ningún lector las use.
+  `programas/services/respuestas.py` es la pieza única: `foto_definicion`, `campos_de`, `planos_de`,
+  `aplicar` (condiciones sobre la foto), `respuestas_desde_legacy` / `legacy_desde_respuestas` /
+  `identidad_desde_respuestas` (traducción en los dos sentidos, ignorando lo que no está en la foto),
+  `sincronizar_desde_legacy` (un caso que entra o se edita por el contrato anterior actualiza sus
+  respuestas sin pisar los campos propios ni la foto) y `respuestas_legibles` (bloques en orden, con
+  lo oculto marcado). Paso 2 del link (#345): `InscripcionPaso2Form` se arma desde los `items` —cada
+  campo se llama por su clave—, la identidad que validó el paso 1 se muestra fija y viaja igual, las
+  condiciones se evalúan en el navegador (`nodo-formulario.js` sobre `nodo-condiciones.js`) y **otra
+  vez en el servidor**: un campo oculto no se exige y lo respondido para él se descarta (D11); la
+  obligatoriedad la decide `clean()` con las condiciones ya aplicadas. La URL del paso 2 no cambia.
+  Ingesta (#346): `crear_formulario_publico` guarda respuestas + foto y deriva `data`, las columnas
+  fijas y `datos_identificacion` desde ellas; los adjuntos se atan por la clave del ítem. La API de
+  la app (#346, adaptador): al crear y al editar un caso, `sincronizar_desde_legacy` traduce lo que
+  manda la app vieja, así el caso queda completo aunque el móvil no haya migrado (#348).
+  Revisión (#347): el detalle lee la foto y muestra un solo listado en el orden del formulario que
+  respondió esa persona, con badge de versión y «No se pidió» en lo que ocultó una condición; un caso
+  anterior al Cambio 58 (sin foto) sigue por el camino de siempre. Editar contacto/apoderado también
+  actualiza las respuestas. Un campo propio no puede ser ARCHIVO (los adjuntos referencian catálogo).
+  `programas.0063` siembra el catálogo protegido en las bases que ya existían: hasta ahora solo lo creaba
+  `seed_becas`, y sin esos campos el portal no pediría identidad, contacto ni apoderado. Es un snapshot
+  idempotente que no pisa lo renombrado ni lo reordenado. Tests: `test_respuestas.py` (14),
+  `test_migracion_catalogo.py` (5) y `test_inscripcion_envio.py` reescrito al contrato nuevo (33).
+- **30/08/2026 — Revisión visual y el build de Tailwind.** El constructor **nunca se vio a dos columnas**:
+  `static/custom/css/tailwind.css` está committeado y se genera con `npm run build:tailwind`, y las clases
+  nuevas de estas pantallas (`xl:grid-cols-2`, `max-h-[…]`, `text-[15px]`, `gap-0.5`, `space-y-0.5`, `-mt-2`,
+  el grid del editor de condiciones) no estaban en el build. El template compila, la auditoría pasa y la
+  pantalla se ve mal en silencio. Se recompiló (diff puramente aditivo: 12 reglas, ninguna quitada) y donde
+  había un valor equivalente ya compilado se reutilizó (`xl:top-6`, `max-h-[82vh]`, `style="font-size:…"`,
+  la clase de componente `cons-regla-grid`). Para que no vuelva a pasar, `scripts/design_audit.py` suma la
+  regla **TWBUILD**: marca como error toda utilidad con variante (`xl:`, `hover:`) o valor arbitrario
+  (`[82vh]`) que un template use y el build no declare. Corriéndola sobre todo el repo aparecen 35 casos
+  preexistentes ajenos a este cambio —`hover:bg-gray-*` y `focus:ring-brand` que no hacen nada porque el
+  config reemplaza la escala `gray`—; como el auditor se usa por archivo tocado, no bloquean a nadie hasta
+  que se editen esas pantallas. También se desempató `ValidacionSIS.Meta.ordering` (`programas.0064`): con
+  `-creado` sola, dos validaciones del mismo instante quedaban en orden aleatorio y el historial de la
+  revisión —y un test— fallaban de a ratos.
+- **30/08/2026 — Revisión visual en navegador real.** Se recorrieron las cuatro pantallas con Chromium
+  (Playwright, servidor local con SQLite) en escritorio y móvil, y se corrigió lo que se vio: el modal de
+  condición **no mostraba la regla guardada** (los `<option>` nacen después de que `x-model` fija el valor;
+  ahora llevan `:selected`); una pregunta con texto largo empujaba las acciones del catálogo fuera de la
+  pantalla (`td.pregunta-texto` parte el texto); Escape no cerraba los modales; el sexo se mostraba como
+  «F» y las fechas en ISO al ciudadano y al revisor (`respuestas.legible`: «Femenino», dd/mm/aaaa; el valor
+  crudo viaja en `data-valor` para las condiciones); la revisión repetía identidad, contacto y apoderado en
+  «Respuestas» cuando ya tienen sección propia (`_sin_vinculados`); los textos no detectaban links (D13:
+  `urlize` en paso 2 y revisión); la vista previa pedía DNI y sexo que el paso 2 real toma del paso 1; los
+  cinco modales del constructor sin `max-h-[90vh] overflow-y-auto` como el resto de Becas; «Configurar
+  formulario» se veía como una quinta tab en vez de un enlace a otra pantalla; foco recortado en el toggle
+  de canal; doble scroll de la vista previa bajo 1280px; el subtítulo «Tomamos estos datos de tu
+  identificación» aparecía cuando la persona los tiene que escribir (ahora «Los datos de la persona que se
+  inscribe»). Deuda visible que no es de este cambio: `CheckboxSelectMultiple` del portal se rinde sin
+  estilo (desde el Cambio 56); la vista previa ahora lo imita apilado para no prometer otra cosa. Las
+  manijas de arrastre no tienen alternativa de teclado (limitación del patrón, a priorizar por el PM).
+- **30/08/2026 — Revisión integral de desarrollo (segunda pasada).** Dos bugs graves que las pasadas
+  anteriores no vieron: (1) el drag & drop del catálogo mandaba el **CSRF vacío** —en `nodo-catalogo-grupos.js`
+  el patrón de la cookie tenía `\s` con una sola barra, que en un string JS es la letra «s»; solo funcionaba
+  si `csrftoken` era la primera cookie, en producción el reordenamiento fallaba con 403— y (2) `reconciliar`
+  **borraba un grupo del catálogo que el operador vaciaba a mano** (p. ej. mover los campos del Apoderado a
+  otro grupo) y con él su condición `edad < 18`, dejando esos campos pedidos siempre; ahora solo se borra el
+  grupo automático que el catálogo dejó sin campos en esa misma pasada, y el vaciado a mano se conserva (no
+  se muestra mientras esté vacío, RN-3). Además: el bloque editable «Apoderado» de la revisión sigue la
+  condición real de la foto y no la regla fija de 18 (D10; sin foto cae a `es_menor`); **volcado al legajo
+  (RN-10)**: el celular y el correo respondidos completan `Ciudadano.telefono/email` si estaban vacíos, nunca
+  pisan; `DisenoFormulario.tocar` incrementa la versión en la base (`F`) para que dos pestañas no pierdan una;
+  el placeholder `{"pendiente_upload": true}` de la app no se muestra como valor; los textos dentro de un grupo
+  protegido siguen visibles en «Respuestas»; la vista previa muestra el sexo del apoderado con nombre. Tests:
+  `GruposVaciosTests`, `JsCatalogoTests`, `VolcadoAlLegajoTests`, `ApoderadoSegunLaFotoTests`,
+  `PlaceholderArchivoTests`. Se quitó el endpoint `formulario_datos`, que nada llamaba.
+- **31/08/2026 — Editor de la condición por defecto en el catálogo** (cierra la mejora pendiente; el
+  mockup del catálogo la mostraba editable). El modal del grupo gana la sección «Condición por defecto»
+  con el mismo editor de reglas del constructor (mismo markup, vocabulario de operadores servido por
+  `_operadores()`); guarda con claves **simbólicas** (`legajo:x` / `apoderado:x`, como el seed) o `pg-<pk>`,
+  que `_resolver_condicion` traduce al entrar a cada diseño nuevo — los diseños existentes no cambian.
+  Fuentes: solo preguntas activas de grupos **anteriores** del catálogo (`fuentes_condicion_defecto`,
+  RN-6 por construcción; un grupo nuevo entra al final y ve todo); valida el servidor
+  (`validar_condicion_defecto` sobre `validar_condicion`) vía `GrupoRequisitoForm.condicion_defecto`
+  (hidden JSON). Los datos del editor viajan en un `json_script` del partial (siempre frescos tras cada
+  cambio ajax). Tests `CondicionDefectoTests` (4) y verificación en navegador real (editar, persistir,
+  dos reglas con modo, fuentes posteriores excluidas; cero errores de consola). También en esta pasada de
+  revisión por fases: el reordenamiento del catálogo responde 400 (no 500) ante ids malformados, y un GPS
+  malformado del paso 2 se descarta en vez de trabar la inscripción con un error invisible.
+- **31/08/2026 — Alternativa de teclado para el drag & drop del catálogo** (cierra el pendiente de
+  accesibilidad para esta pantalla). Las manijas (`.grip`) pasan a `role="button"` + `tabindex="0"` con
+  `aria-label` que explica el uso; las flechas ↑/↓ mueven el grupo o la pregunta (una pregunta cruza al
+  grupo vecino en los bordes), cada movimiento se anuncia en una región `aria-live` y el guardado va con
+  demora de 700 ms reusando el POST del drag; el foco vuelve a la manija tras el re-render y
+  `.grip:focus-visible` marca el foco con anillo por token. Guardas: un guardado demorado sobre un root ya
+  reemplazado se descarta (`isConnected`) y el listener no se duplica si `init()` re-corre. Inventario del
+  agente de diseño actualizado en el mismo diff. Verificado en navegador real (mover, cruzar, foco,
+  anuncio; cero errores de consola) y con pines en `JsCatalogoTests`/`VistaAgrupadaTests`. El mismo día se
+  extendió al **constructor** (`nodo-constructor.js`): como su guardado es por mutación, una ráfaga de
+  flechas viaja como **un solo** `mover` con la posición final (700 ms sin pulsaciones; cambiar de ítem a
+  mitad de ráfaga la despacha antes); un movimiento que rompe una condición se rechaza, restaura el
+  snapshot y el foco vuelve a la manija (`aplicarRespuesta` restaura el foco también para el drag).
+  Verificado en navegador: ráfaga de 2 flechas = 1 POST, cruce de grupo, movimiento de grupo y el rechazo
+  por RN-6 con restauración.
+- **31/08/2026 — Cerrada la deuda visual del `CheckboxSelectMultiple`** (venía del Cambio 56: el múltiple
+  apilado del paso 2 se rendía con los checkboxes crudos del navegador). El contenedor del campo lleva
+  `.nodo-checks` (`portal/forms` marca la fila con `es_checks`; solo el apilado, no el buscador) y el
+  estilo vive en `nodo-forms.css`: grilla de filas clickeables, caja de 18px con `accent-color` de marca
+  y `:focus-visible` con anillo. `.pv-checks` de la vista previa del constructor espeja el mismo look
+  (deja de imitar el render crudo). Inventario del agente actualizado; verificado en navegador (paso 2 y
+  vista previa con estilos computados idénticos) y con test del flag en `Paso2PresentacionSelectorTests`.
+- **04/09/2026 — Revisión de la rama: cuatro errores y la huella del formulario en el paso 2.**
+  (1) La definición que consumen el portal y la API leía el diseño guardado **sin reconciliarlo**: una
+  pregunta nueva del catálogo no llegaba al paso 2 y una desactivada se seguía pidiendo hasta que alguien
+  abriera el constructor (contra RN-1). `definicion_formulario` ahora sirve `items_vigentes`, la
+  reconciliación **en memoria** sin escribir en un GET: lo quitado sale, lo nuevo entra al final de su
+  grupo por defecto (creado en memoria si el diseño no lo tenía, con la condición por defecto del
+  catálogo) y una condición con fuente ausente se ignora; `reconciliar` sigue persistiendo y avisando
+  desde el constructor, y ambas comparten `_catalogo_esperado` y `_datos_grupo_para_*`. (2)
+  `resolver_ciudadano_offline` había perdido su `@transaction.atomic` (quedó pegado a
+  `_completar_contacto` al extraerlo): la edición de contacto en revisión y el `perform_update` de la API
+  escribían sin transacción; se restauró. (3) En el paso 2, una condición cuya fuente era un selector con
+  **buscador** nunca se cumplía en el navegador: `nodo-formulario.js` tomaba el primer control de la caja,
+  que es el input de búsqueda (el buscador lo monta antes del `<select>` y lo vacía al elegir), así que el
+  dependiente quedaba oculto y el servidor lo exigía igual; ahora lee el `<select>` primero. (4)
+  `test_migracion_catalogo` pasaba en CI solo porque el job arma el esquema sin migraciones
+  (`DJANGO_SYNCDB_PROJECT_APPS`); con la cadena real fallaba porque la 0060 ya había sembrado; el setUp
+  parte de una base sin catálogo. Menores: una regla de condición que no es un dict (o con fuente u
+  operador que no son textos) responde 400 y no 500; el payload de `preguntas_reordenar` se valida sin
+  `assert`. **Mejora, huella del formulario (fija lo que la persona vio):** el constructor guarda en vivo
+  (D8) y el catálogo cambia sin aviso, así que el POST del paso 2 podía validarse contra un formulario
+  distinto del que la persona tenía delante. `huella_definicion(foto)` (sha256 corto de versión, canal e
+  ítems) se guarda en la sesión del paso 2 al mostrar el formulario; si al enviar no coincide, la vista no
+  crea el caso: vuelve a mostrar el formulario vigente con un aviso (`formulario_cambio`), marca lo que
+  falta y el envío sale en el intento siguiente. Una sesión sin huella (anterior al cambio, o un POST sin
+  GET) no se frena. Tests: `DefinicionV2Tests` (+3: sigue al catálogo sin escribir, grupo nuevo con su
+  condición, condición con fuente desactivada), `CoherenciaTests` (+1),
+  `test_payload_invalido_o_ids_inexistentes` (ampliado), `Paso2VistaTests` (+1, huella) y
+  `Paso2AssetsBuscadorTests` (+1, pin del JS). Verificado con Python 3.12 / Django 5.2 (el par del CI) y
+  `test_migracion_catalogo` también con migraciones reales. Queda como decisión del PM el flujo
+  borrador → publicar (ver Pendientes).
+- **11/09/2026 — `development` mergeado en la rama y la rama al ambiente QA de ECOM.** Por pedido del PM, la
+  rama se puso al día con los 55 commits de `development` (Cambios 59 a 71) para probar el constructor en QA
+  (`datanach.ecomdev.ar`, rama `test` de ECOM) en vez de en DEV. Lo que hubo que resolver: (1) **migraciones con
+  el mismo número**: development ocupó `programas.0057` a `0059` con índices (Cambio 66); las seis de la rama
+  pasan a `0060` a `0065` y cuelgan de `0059_formulario_renaper_idx_con_relevamiento`. **DEV (icore-srv) tiene
+  aplicadas las seis con los nombres viejos**: antes de redesplegarlo hay que renombrar esas filas en
+  `django_migrations` (o marcarlas con `--fake`), si no Django intenta crear columnas que ya existen. (2) **Cambio
+  67 trasladado al catálogo**: el grupo Apoderado se siembra sin condición por defecto y con sus cinco campos
+  obligatorios (seed y `programas.0063`); la revisión muestra siempre el bloque. Los tests que usaban la condición
+  «edad < 18» como banco del motor la vuelven a poner a mano, así el motor sigue cubierto. (3) **Cambio 71**
+  (rechazos diferenciados del paso 1) portado al test que asumía el mensaje único. (4) **Dashboard (Cambio 64)**:
+  `preguntas_graficables` excluye los campos vinculados (`origen != pregunta`); sin eso ofrecía «Sexo» y «Sexo del
+  apoderado» como preguntas graficables, con series vacías porque su respuesta va al legajo. (5) **Colisión de
+  numeración**: el padrón con herencia de la rama era el Cambio 59 y development ya tenía otro 59; pasa a ser el
+  **Cambio 72**, con las referencias del código renumeradas. (6) Tailwind recompilado; el `.gitlab-ci.yml` es el de
+  development, byte a byte. Suite completa: 1.305 tests OK con Python 3.12 / Django 5.2. Los tres avisos de
+  `design_audit` (`ciudadano_detail`, `home`, `formulario_list`) y los tres archivos sin formatear de ruff son
+  preexistentes de development, no de este merge.
 
----
+Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
+formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
 
 # Cambio 59 — El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió
 
@@ -7154,7 +7388,8 @@ abierto en ese momento ve el error de campos obligatorios al enviar y completa.
 - **Cambio 58**: cuando el constructor llegue a `main`, esta regla pasa a ser configuración. El equivalente es: sin
   condición en el grupo Apoderado (en el catálogo, como condición por defecto, y en el constructor de cada
   convocatoria) y `obligatorio` tildado en «Sexo del apoderado» y «Fecha de nacimiento del apoderado» (nombre,
-  apellido y DNI ya lo son). El seed y la migración `programas.0060` de esa rama siembran hoy la condición `edad < 18`
+  apellido y DNI ya lo son). **Hecho el 11/09/2026 al mergear `development` en la rama** (ver Cambio 58, Historial): el seed y
+  `programas.0063` ya siembran el grupo sin condición y con los cinco campos obligatorios. Antes sembraban `edad < 18`
   y sexo/fecha opcionales: hay que alinearlos antes del merge para no volver atrás.
 
 ## Reversión
@@ -7692,5 +7927,63 @@ indistinguibles.
   tocar la unificación.
 - **10/09/2026 (este cambio)** — el programa pide volver a diferenciar por causa; se implementa
   dejando intactas las defensas anti-abuso.
+
+---
+
+# Cambio 72 — Padrón con herencia: convocatoria → relevamientos, con padrón propio por relevamiento
+
+**Pedido (PM, 31/08/2026):** «el padrón puede ser solo para un relevamiento o no: si se configura en el
+relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente». Supersede
+parcialmente la decisión A1 del Cambio 57 («un solo Excel por convocatoria»): la convocatoria sigue siendo el
+lugar principal, pero deja de ser el único.
+
+## Decisiones tomadas
+
+- **Herencia con override, no fusión.** El padrón de la convocatoria rige para todos sus relevamientos; un
+  relevamiento con padrón **propio** habilita e identifica **solo** con el suyo (no se combinan). Quitar el
+  propio vuelve a heredar en el acto.
+- El padrón **efectivo** de un relevamiento decide todo: habilitación del paso 1 y de la app, identificación
+  (cascada del Cambio 57), «Validar contra el padrón» en revisión y el cruce automático de pendientes (RN-5).
+- El cruce automático respeta el alcance de la carga: subir el de la convocatoria valida los casos de los
+  relevamientos que la heredan (los que tienen propio no se tocan); subir el propio valida solo sus casos.
+- Permisos: los mismos del padrón de la convocatoria (`becas.convocatoria.editar` + alcance del segmento vía
+  `_assert_scope`). La plantilla es la misma.
+- Sin migración de datos: todas las filas existentes quedan como nivel convocatoria (relevamiento NULL) y el
+  comportamiento previo no cambia hasta que alguien cargue un padrón propio.
+
+## Cómo quedó
+
+- `PadronHabilitado.relevamiento` (FK nullable, `related_name="padron_propio"`): NULL = nivel convocatoria.
+  Única `(convocatoria, relevamiento, dni)` + índice por relevamiento; la unicidad del nivel convocatoria la
+  garantiza la carga (reemplazo total + dedupe del parser), porque MySQL no aplica únicos con NULL.
+  `Relevamiento.padron_archivo` guarda el Excel propio (trazabilidad). Migración `programas.0065`, aditiva.
+- `services/padron.py`: `padron_de(objetivo)` (queryset efectivo), `origen_padron(relevamiento)`
+  (`propio`/`convocatoria`/None), `cargar_padron(objetivo, …)` escribe en el alcance del objetivo,
+  `quitar_padron_propio(relevamiento)`, `esta_habilitado`/`fila_padron` sobre el efectivo,
+  `objetivo_con_identidad(relevamientos, …)` reemplaza a `convocatoria_con_identidad` (la app elige entre sus
+  relevamientos vigentes por padrón efectivo), `validar_casos_pendientes(objetivo, …)` con el alcance descrito.
+- `identidad.identificar(objetivo, …)` acepta relevamiento o convocatoria; el paso 1 del portal y la API de la
+  app pasan el relevamiento. `_relevamientos_para_identificar` reemplaza a `_convocatorias_para_identificar`.
+- UI: el detalle del relevamiento muestra el origen del padrón (propio N / heredado N / sin padrón), permite
+  cargar el propio y quitarlo (con confirmación); el detalle de la convocatoria aclara la herencia y cuántos
+  relevamientos usan padrón propio. Vistas `relevamiento_padron` / `relevamiento_padron_quitar`.
+
+## Validación
+
+`test_padron.py`: `PadronPorRelevamientoTests` (herencia, override, quitar, identificación efectiva, cruce por
+alcance, elección multi-relevamiento) y `PadronRelevamientoViewTests` (carga/quita/permisos); los tests del
+Cambio 57 siguen en verde con la semántica nueva. Regresión de padrón + identidad + API + portal en verde.
+
+## Reversión
+
+Revertir el commit y `migrate programas 0061`. Las filas propias y los Excel propios se pierden; el nivel
+convocatoria no se toca.
+
+## Historial
+
+- **31/08/2026 — Implementado completo** en la rama única `feature/constructor-formularios` (sin mergear).
+- **11/09/2026 — Renumerado de 59 a 72.** Al mergear `development` en la rama, el número 59 ya lo ocupaba «El
+  link público muestra el contacto del programa». Esta entrada y las referencias del código (`Cambio 72`) se
+  renumeraron; la migración es ahora `programas.0065_padron_relevamiento_herencia`.
 
 ---

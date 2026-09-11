@@ -396,9 +396,11 @@ class PreguntaGlobalTests(_BaseConfigTest):
             texto="Fecha de inscripción", tipo=TipoCampo.DATE, obligatorio=True, activo=True
         )
         PreguntaGlobal.objects.create(texto="Observaciones", tipo=TipoCampo.STRING, obligatorio=False, activo=True)
+        # El catálogo protegido (Cambio 58) trae «Fecha de nacimiento», también DATE y
+        # obligatoria: el texto acota a la creada acá.
         respuesta = self.client.get(
             reverse("becas:preguntas"),
-            {"q": "Fecha", "tipo": TipoCampo.DATE, "obligatorio": "1", "activo": "1"},
+            {"q": "Fecha de inscripción", "tipo": TipoCampo.DATE, "obligatorio": "1", "activo": "1"},
         )
         self.assertEqual(list(respuesta.context["preguntas"]), [esperada])
         self.assertContains(respuesta, "data-dynamic-list-filters")

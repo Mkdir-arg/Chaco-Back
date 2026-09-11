@@ -44,6 +44,7 @@ from programas.models import (
     Convocatoria,
     Formulario,
     ListaEspera,
+    OrigenRequisito,
     PreguntaGlobal,
     Relevamiento,
     RequisitoNativo,
@@ -667,7 +668,13 @@ def _origen_requisito(requisito):
 def preguntas_graficables(user, programa):
     """Catálogo de preguntas de opciones cerradas del programa (RN-13): generales
     activas y requisitos del programa, de sus segmentos y subsegmentos en alcance.
-    El sistema no tiene tipo sí/no: es un selector de dos opciones."""
+    El sistema no tiene tipo sí/no: es un selector de dos opciones.
+
+    Solo entran las preguntas de origen *pregunta*: desde el Cambio 58 el
+    catálogo también tiene campos vinculados al legajo y al apoderado (Sexo,
+    por ejemplo), que son selectores pero cuya respuesta va a la ficha de la
+    persona y no a las respuestas del caso. Graficarlos daría series vacías.
+    """
     selectores = TipoCampo.selectores()
     segmentos = segmentos_visibles(user).filter(programa=programa)
     subsegmentos = subsegmentos_visibles(user).filter(segmento__in=segmentos)
@@ -680,7 +687,9 @@ def preguntas_graficables(user, programa):
             opciones=_opciones_texto(p.opciones),
             multiple=p.tipo == TipoCampo.SELECTOR_MULTIPLE,
         )
-        for p in PreguntaGlobal.objects.filter(activo=True, tipo__in=selectores).order_by("orden", "id")
+        for p in PreguntaGlobal.objects.filter(
+            activo=True, tipo__in=selectores, origen=OrigenRequisito.PREGUNTA
+        ).order_by("orden", "id")
     ]
     requisitos = (
         RequisitoNativo.objects.filter(tipo__in=selectores)
