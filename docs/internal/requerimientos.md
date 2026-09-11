@@ -210,7 +210,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
 | 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (corrección de performance el 06/09); alcance y 86 h validados por el Ministerio el 10/09/2026; falta la QA funcional formal (#374) y el cierre (#375)** | No requiere |
 | 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
-| 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0061`, `programas.0062`, `legajos.0008` (solo índices) |
+| 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0058`, `programas.0059`, `legajos.0008` (solo índices) |
 | 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release 6d3925f, PR #383). La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
 | 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release dc1a900, PR #384); se activa cuando ECOM cargue `GTM_CONTAINER_ID`** | No requiere |
 | 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
@@ -6866,7 +6866,7 @@ los datos crudos y la configuración propuesta están en
 | **Fecha del pedido** | 05/09/2026 |
 | **Issue / épica** | Análisis #366 (épica #69) · tasks #367–#375 · mock up: https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb |
 | **Partes afectadas** | Backoffice |
-| **Migración** | `programas.0060` (índice, 06/09/2026) |
+| **Migración** | `programas.0057` (índice, 06/09/2026) |
 
 ## Pedido original
 
@@ -6979,7 +6979,7 @@ Nuevos: `programas/services/dashboard_becas.py`, `programas/views/dashboard_beca
 
 ## Base de datos
 
-`programas.0060_formulario_indice_relevamiento_creado`: índice `prog_formulario_rel_creado_idx` sobre `Formulario(relevamiento, creado)`
+`programas.0057_formulario_indice_relevamiento_creado`: índice `prog_formulario_rel_creado_idx` sobre `Formulario(relevamiento, creado)`
 (06/09/2026, corrección de performance). Sin cambios de columnas. El presupuesto de consultas del servicio no crece con la cantidad de
 formularios (test `test_presupuesto_de_consultas_no_crece_con_los_formularios`).
 
@@ -7031,7 +7031,7 @@ clave numérica como índice de arreglo y devuelve NULL, por eso la expresión e
 la caché degrada a «sin caché» con aviso en el log si Redis falla; `celda_segura` elimina los caracteres de control que
 openpyxl rechaza y la exportación entera queda dentro del `try`; fechas cero y FK colgadas ya no tiran el tablero.
 Resultado en el mismo banco de 40.000 filas: 1,2–2,4 s y 22 consultas en frío, 40–60 ms con caché. Migración
-`programas.0060` con el índice `(relevamiento, creado)` para la ventana de fechas: solo agrega un índice, no toca ni borra datos.
+`programas.0057` con el índice `(relevamiento, creado)` para la ventana de fechas: solo agrega un índice, no toca ni borra datos.
 PR #380 (squash d5ef079, release ac9192b). Espejado a `test` el 06/09/2026 (merge f2e86f0) y a `main` el mismo día,
 dentro del push del release 2b3f271 (avance directo ea33681..2b3f271), que llevó también el Cambio 65. El entrypoint
 corre las migraciones al levantar, así que no hubo pasos manuales.
@@ -7173,7 +7173,7 @@ resumen por opción y no la base por persona que el PM esperaba.
 | **Fecha del pedido** | 05/09/2026 |
 | **Issue / épica** | Sin issue propio: continuación del Cambio 64 (dashboard) hacia el resto del sistema |
 | **Partes afectadas** | Backoffice y portal (shell) |
-| **Migración** | `programas.0061`, `programas.0062`, `legajos.0008` — solo índices |
+| **Migración** | `programas.0058`, `programas.0059`, `legajos.0008` — solo índices |
 
 ## Pedido original
 
@@ -7246,8 +7246,8 @@ pared, tiempo de SQL, cantidad de consultas y consultas repetidas, y se leyó el
 ## Implementación
 
 Cinco commits, uno por frente: revisión de casos, presupuestos de CI, pantallas y exports de Becas, RBAC y costo fijo
-por request, legajos y home, y carga en el navegador. Migraciones: `programas.0061` (índices `creado` y
-`(validado_renaper, creado)`), `programas.0062` (ese índice extendido con `relevamiento`) y `legajos.0008` (índice de
+por request, legajos y home, y carga en el navegador. Migraciones: `programas.0058` (índices `creado` y
+`(validado_renaper, creado)`), `programas.0059` (ese índice extendido con `relevamiento`) y `legajos.0008` (índice de
 cobertura del listado de ciudadanos). Ninguna toca datos.
 
 ## Archivos
@@ -7388,7 +7388,8 @@ abierto en ese momento ve el error de campos obligatorios al enviar y completa.
 - **Cambio 58**: cuando el constructor llegue a `main`, esta regla pasa a ser configuración. El equivalente es: sin
   condición en el grupo Apoderado (en el catálogo, como condición por defecto, y en el constructor de cada
   convocatoria) y `obligatorio` tildado en «Sexo del apoderado» y «Fecha de nacimiento del apoderado» (nombre,
-  apellido y DNI ya lo son). El seed y la migración `programas.0063` de esa rama siembran hoy la condición `edad < 18`
+  apellido y DNI ya lo son). **Hecho el 11/09/2026 al mergear `development` en la rama** (ver Cambio 58, Historial): el seed y
+  `programas.0063` ya siembran el grupo sin condición y con los cinco campos obligatorios. Antes sembraban `edad < 18`
   y sexo/fecha opcionales: hay que alinearlos antes del merge para no volver atrás.
 
 ## Reversión

@@ -411,6 +411,18 @@ class Paso2VistaTests(_BasePaso2Test):
         self.assertNotIn(clave_sesion(self.relevamiento), self.client.session)
         self.assertEqual(self.client.session[f"inscripcion_ok_{self.relevamiento.pk}"]["numero"], 1)
 
+    def test_el_paso_2_marca_el_apoderado_como_obligatorio(self):
+        """Cambio 67 en el mundo del constructor: el grupo Apoderado llega del
+        catálogo sin condición, con el subtítulo nuevo y sus campos con asterisco."""
+        self._sembrar_sesion(_identificacion())
+        html = self.client.get(self._url()).content.decode()
+        self.assertIn("Necesitamos los datos de un adulto responsable.", html)
+        self.assertNotIn("Como sos menor de 18", html)
+        for clave in self.apoderado:
+            self.assertIn(f'name="{clave}"', html)
+        self.assertRegex(html, r"DNI del apoderado\s*<span[^>]*>\*</span>")
+        self.assertRegex(html, r"Fecha de nacimiento del apoderado\s*<span[^>]*>\*</span>")
+
     def test_get_renderiza_el_formulario_por_grupos(self):
         """La pantalla arma los grupos del diseño y publica los ítems con sus
         condiciones para el motor del navegador."""
