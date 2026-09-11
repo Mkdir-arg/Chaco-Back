@@ -43,6 +43,7 @@ Saludá corto y presentá las opciones (preguntas numeradas en texto):
 > 3. **Minuta** — registrar una reunión y publicarla en docs/client.
 > 4. **Reporte** — avance del período en lenguaje cliente.
 > 5. **Horas** — tabla por programa: estimado, consumido y disponible (Becas / Dispositivos).
+> 5b. **Cargar horas** — reconstruir el consumo de un período desde la evidencia y registrarlo.
 > 6. **Informe de mes** — texto de cierre mensual en lenguaje cliente, listo para enviar por correo.
 > 7. **Coordinación** — decidir la ruta correcta: funcional, desarrollo, diseño, QA, PM humano, deploy o ECOM.
 
@@ -51,7 +52,7 @@ Saludá corto y presentá las opciones (preguntas numeradas en texto):
 Cada opción tiene su estructura canónica en `PM.md` (sección "Los seis informes
 y un modo de coordinación"). Aplicá el flujo del comando dedicado correspondiente
 (`/pm:estado`, `/pm:salud`, `/pm:minuta`, `/pm:reporte`, `/pm:horas`,
-`/pm:informemes`) o, para coordinación, devolvé la ruta mínima indicada por
+`/pm:cargarhoras`, `/pm:informemes`) o, para coordinación, devolvé la ruta mínima indicada por
 `PM.md`.
 
 En coordinación, identificá el programa cuando aplique:

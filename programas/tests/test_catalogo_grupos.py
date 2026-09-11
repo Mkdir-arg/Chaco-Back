@@ -38,8 +38,12 @@ class SeedCatalogoProtegidoTests(TestCase):
         self.assertEqual(claves, ["datos_personales", "contacto", "apoderado", "cuestionario"])
         self.assertEqual(GrupoRequisito.objects.filter(protegido=True).count(), 3)
         apoderado = GrupoRequisito.objects.get(clave="apoderado")
-        self.assertEqual(apoderado.condicion_defecto["reglas"][0]["op"], "edad_menor")
-        self.assertEqual(apoderado.condicion_defecto["reglas"][0]["valor"], 18)
+        # Cambio 67: el apoderado se pide siempre, así que el grupo se siembra
+        # sin condición y con sus cinco campos obligatorios.
+        self.assertIsNone(apoderado.condicion_defecto)
+        self.assertTrue(
+            all(p.obligatorio for p in PreguntaGlobal.objects.filter(origen=OrigenRequisito.PERSONA_VINCULADA))
+        )
 
         legajo = PreguntaGlobal.objects.filter(origen=OrigenRequisito.LEGAJO)
         self.assertEqual(

@@ -96,7 +96,8 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 
 | Variable | Valor | Para qué |
 |---|---|---|
-| `APP_RUNTIME` | `daphne` \| `runserver` | `daphne` es el único que habilita WebSockets (chat en vivo) |
+| `APP_RUNTIME` | `daphne` \| `gunicorn` \| `runserver` | `daphne`: HTTP y WebSockets en un solo proceso (un núcleo). `gunicorn`: HTTP en varios procesos; los WebSockets van en otro contenedor con `daphne` y hay que declarar `WEBSOCKETS_ENABLED=True`. `runserver`: solo desarrollo |
+| `GUNICORN_WORKERS` · `GUNICORN_THREADS` · `GUNICORN_TIMEOUT` | `3` / `2` / `120` | tamaño del pool HTTP con `APP_RUNTIME=gunicorn` (~150–200 MB por worker) |
 | `APP_BIND` · `APP_PORT` | `0.0.0.0` / `8000` | interfaz y puerto donde escucha |
 | `RUN_MIGRATIONS` | `true` | aplica `migrate` en cada arranque |
 | `RUN_COLLECTSTATIC` | `true` | recolecta estáticos en cada arranque |
@@ -104,7 +105,7 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 | `LOCAL_OPTIONAL_BOOTSTRAP_COMMANDS` | vacío | comandos extra que pueden fallar sin abortar el arranque |
 | `DJANGO_ENV_FILE` | p. ej. `.env.local` | archivo de entorno a cargar. Se carga **sin sobreescribir** lo que ya viene en el entorno |
 | `SERVE_MEDIA` | `True` cuando no hay un nginx sirviendo `/media/` | archivos adjuntos accesibles |
-| `WEBSOCKETS_ENABLED` | se deduce de `APP_RUNTIME` | forzar el chat en vivo con otro runtime |
+| `WEBSOCKETS_ENABLED` | se deduce de `APP_RUNTIME` (`True` solo con `daphne`) | con `gunicorn` hay que ponerla en `True` si otro contenedor daphne atiende `/ws/` |
 | `DJANGO_SYNCDB_PROJECT_APPS` | `False` | solo para CI |
 
 #### Opcionales con default sano (se toca solo si hace falta)

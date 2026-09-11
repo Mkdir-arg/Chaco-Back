@@ -226,7 +226,7 @@ def _es_relevamiento(objetivo):
 
 
 def padron_de(objetivo):
-    """El padrón **efectivo** (Cambio 59): el propio del relevamiento si cargó
+    """El padrón **efectivo** (Cambio 72): el propio del relevamiento si cargó
     uno; si no, el de su convocatoria. Para una convocatoria, el suyo (las
     filas de nivel convocatoria, sin las propias de sus relevamientos)."""
     if _es_relevamiento(objetivo):
@@ -284,7 +284,7 @@ def cargar_padron(objetivo, archivo, entradas, usuario=None):
     no merge), guarda el Excel original para trazabilidad y **valida los casos
     pendientes** que ahora figuren con nombre y apellido (RN-5).
 
-    Cambio 59: con una convocatoria, es el padrón que heredan sus
+    Cambio 72: con una convocatoria, es el padrón que heredan sus
     relevamientos sin padrón propio; con un relevamiento, es el padrón propio
     de **ese** relevamiento y deja de heredar. Devuelve el ``ResumenPadron``.
     """
@@ -413,7 +413,7 @@ def validar_casos_pendientes(objetivo, usuario=None):
     """Cruce automático (RN-5): los casos **sin validar** que figuran en el
     padrón efectivo con nombre y apellido pasan a validados por padrón.
 
-    Cambio 59: al cargar el padrón de un relevamiento se cruzan solo sus
+    Cambio 72: al cargar el padrón de un relevamiento se cruzan solo sus
     casos; al cargar el de la convocatoria, los de sus relevamientos que lo
     heredan (los que tienen padrón propio no se tocan). Solo casos pendientes
     y no forzados; nunca desvalida. Completa en el ciudadano lo vacío (no pisa)

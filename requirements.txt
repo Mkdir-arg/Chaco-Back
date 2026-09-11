@@ -1,6 +1,9 @@
 # Django Core
 Django==5.2.17
 djangorestframework==3.16.1
+# Hash de contraseñas del login (PASSWORD_HASHERS): Argon2id cuesta ~90 ms por
+# verificación contra ~1 s del PBKDF2 por defecto de Django 5.2.
+argon2-cffi==25.1.0
 
 # Database
 mysqlclient==2.1.1
@@ -15,7 +18,7 @@ django-health-check==3.17.0
 
 # Estaticos servidos por la propia app (clave en Kubernetes, donde no hay nginx
 # adelante; en la VM nginx los intercepta antes y el middleware queda inerte)
-whitenoise==6.8.2
+whitenoise[brotli]==6.8.2
 
 # Environment & Config
 python-dotenv==1.2.2

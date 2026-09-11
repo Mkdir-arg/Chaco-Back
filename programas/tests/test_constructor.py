@@ -14,6 +14,7 @@ from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
 from programas.models import (
     Convocatoria,
     DisenoFormulario,
+    GrupoRequisito,
     ItemDiseno,
     PreguntaGlobal,
     RequisitoNativo,
@@ -178,6 +179,12 @@ class MoverTests(_Base):
         """RN-6: el Apoderado depende de la fecha de nacimiento (Datos
         personales). Mover Datos personales al final rompe la condición → 400
         y no cambia nada."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
         diseno = self._diseno()
         version = diseno.version
         orden_antes = self._claves()
@@ -360,9 +367,15 @@ class CondicionTests(_Base):
         self.assertEqual(resp.status_code, 400)
 
     def test_quitar_la_condicion(self):
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
         self._diseno()
         apoderado = self._item("g-apoderado")
-        self.assertIsNotNone(apoderado.condicion)  # nace con edad < 18 desde el catálogo
+        self.assertIsNotNone(apoderado.condicion)  # la heredó del catálogo
         resp = self._json("formulario_condicion", {"condicion": None}, "g-apoderado")
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertIsNone(self._item("g-apoderado").condicion)

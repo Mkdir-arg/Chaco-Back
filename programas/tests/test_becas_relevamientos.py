@@ -3,12 +3,14 @@
 from datetime import date, timedelta
 from io import StringIO
 
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core import rbac
 from core.models import Localidad, Municipio, Provincia
 from programas.forms import RelevamientoForm, ReprogramarForm
 from programas.management.commands.seed_becas import (
@@ -24,6 +26,7 @@ from programas.models import (
     Relevamiento,
     Segmento,
 )
+from users.models import Capacidad
 
 
 class _BaseRelevTest(TestCase):
@@ -721,3 +724,62 @@ class ZonaDesdeCatalogoTests(_BaseRelevTest):
         con_municipio = str(RelevamientoForm(self._datos(fecha_asignada=""))["zona"])
         self.assertIn(self.localidad.nombre, con_municipio)
         self.assertNotIn(self.localidad_otro_municipio.nombre, con_municipio)
+
+
+class ConvocatoriaDetalleAlcanceTests(_BaseRelevTest):
+    """Los casos del detalle de convocatoria se recortan por los relevamientos visibles.
+
+    La lista se filtra por los ids de los relevamientos que ya se resolvieron para la
+    pantalla, en vez de por el join más la exclusión por tipo. Tiene que dar el mismo
+    conjunto: el coordinador sin la capacidad de relevamientos públicos no puede ver
+    los casos cargados por el link público.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rel_publico = Relevamiento.objects.create(
+            convocatoria=self.conv_a,
+            tipo=Relevamiento.Tipo.PUBLICO,
+            fecha_asignada=date(2026, 6, 1),
+            zona="Zona A",
+        )
+        self.caso_territorial = Formulario.objects.create(relevamiento=self.rel_a, celular="3624100100")
+        self.caso_publico = Formulario.objects.create(relevamiento=self.rel_publico, celular="3624200200")
+
+    def _detalle(self, usuario):
+        self.client.force_login(usuario)
+        return self.client.get(reverse("becas:convocatoria_detalle", args=[self.conv_a.pk]))
+
+    def test_con_la_capacidad_de_publico_se_ven_los_casos_de_los_dos_canales(self):
+        # El seed no le da ``becas.relevamiento.publico`` a nadie (RN-P13): se enciende
+        # desde Roles, igual que en producción.
+        content_type = ContentType.objects.get_for_model(Capacidad)
+        permiso, _ = Permission.objects.get_or_create(
+            content_type=content_type,
+            codename=rbac.codename_de("becas.relevamiento.publico"),
+            defaults={"name": "Formulario público"},
+        )
+        Group.objects.get(name=ROL_ADMIN).permissions.add(permiso)
+
+        resp = self._detalle(self.admin)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            {f.pk for f in resp.context["beneficiarios"]},
+            {self.caso_territorial.pk, self.caso_publico.pk},
+        )
+        self.assertEqual(resp.context["n_beneficiarios"], 2)
+
+    def test_sin_la_capacidad_el_admin_tampoco_ve_los_casos_del_link_publico(self):
+        resp = self._detalle(self.admin)
+
+        self.assertEqual({f.pk for f in resp.context["beneficiarios"]}, {self.caso_territorial.pk})
+        self.assertEqual(resp.context["n_beneficiarios"], 1)
+
+    def test_el_coordinador_sin_la_capacidad_no_ve_los_casos_del_link_publico(self):
+        resp = self._detalle(self.coord_a)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual({f.pk for f in resp.context["beneficiarios"]}, {self.caso_territorial.pk})
+        self.assertEqual(resp.context["n_beneficiarios"], 1)
+        self.assertNotIn(self.rel_publico, resp.context["relevamientos"])

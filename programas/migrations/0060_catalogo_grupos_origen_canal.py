@@ -19,9 +19,8 @@ def preguntas_al_cuestionario(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("programas", "0056_padron_convocatoria_identidad"),
+        ("programas", "0059_formulario_renaper_idx_con_relevamiento"),
     ]
 
     operations = [
@@ -40,7 +39,11 @@ class Migration(migrations.Migration):
                 (
                     "canal",
                     models.CharField(
-                        choices=[("ambos", "Ambos canales"), ("app", "Solo app de campo"), ("link", "Solo link público")],
+                        choices=[
+                            ("ambos", "Ambos canales"),
+                            ("app", "Solo app de campo"),
+                            ("link", "Solo link público"),
+                        ],
                         default="ambos",
                         max_length=10,
                         verbose_name="Se pide en",

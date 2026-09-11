@@ -1,9 +1,13 @@
 # Instrucciones para GitHub Copilot — Chaco
 
-`Chaco` es un monorepo Django (Python 3.12, Django 4.2, MySQL 8, Tailwind, Alpine.js,
-Docker). Apps frecuentes: `core`, `legajos`, `configuracion`, `conversaciones`,
-`dashboard`, `portal`, `users`, `tramites`, `healthcheck`. Trabajá **code-first**:
-leé el código real antes de asumir comportamiento.
+`Chaco` es un monorepo Django (Python 3.12, **Django 5.2**, MySQL 8, Redis 7, Channels,
+Tailwind, Alpine.js, Docker). Apps frecuentes: **`programas`** (la más grande: Becas,
+Dispositivos y Merenderos), `core`, `users`, `legajos`, `portal`, `conversaciones`,
+`configuracion`, `dashboard`. Trabajá **code-first**: leé el código real antes de asumir
+comportamiento.
+
+El detalle de comandos, arquitectura y gotchas está en **`CLAUDE.md`** (raíz), que se
+mantiene al día con el código; este archivo solo resume el método de trabajo.
 
 ## Análisis funcional
 

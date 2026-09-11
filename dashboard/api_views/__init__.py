@@ -202,17 +202,19 @@ def tendencias_datos(request):
     try:
         fecha_inicio = timezone.now().date() - timedelta(days=dias)
 
-        from django.db.models.functions import TruncDate
-
+        # ``fecha_inscripcion`` ya es un DateField: ``TruncDate`` no aportaba nada y
+        # generaba ``DATE(CONVERT_TZ(...))``. Sin tablas de zona horaria —el MySQL de
+        # ECOM no las tiene— CONVERT_TZ devuelve NULL, todo caía en un único bucket y el
+        # gráfico salía en cero. Además la expresión no es indexable; agrupando por la
+        # columna, la consulta se resuelve con el índice de la fecha.
         legajos_por_fecha = (
             InscripcionPrograma.objects.filter(fecha_inscripcion__gte=fecha_inicio)
-            .annotate(fecha=TruncDate("fecha_inscripcion"))
-            .values("fecha")
+            .values("fecha_inscripcion")
             .annotate(count=Count("id"))
-            .order_by("fecha")
+            .order_by("fecha_inscripcion")
         )
 
-        datos_dict = {item["fecha"]: item["count"] for item in legajos_por_fecha}
+        datos_dict = {item["fecha_inscripcion"]: item["count"] for item in legajos_por_fecha}
 
         datos = []
         labels = []

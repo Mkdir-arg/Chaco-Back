@@ -345,6 +345,20 @@ def build_targets(worker_id=None):
                 "actor": "backoffice",
             },
             {
+                # Bandeja de personas: llegó a dar 500 por timeout con 40.000 casos.
+                "key": "becas_revision",
+                "route": "becas:revision",
+                "url": reverse("becas:revision"),
+                "actor": "backoffice",
+            },
+            {
+                # Revisión de un relevamiento: no paginaba y tardaba 206 s con 40.000 casos.
+                "key": "becas_revision_formularios",
+                "route": "becas:revision_formularios",
+                "url": reverse("becas:revision_formularios", kwargs={"relevamiento_pk": relevamiento.pk}),
+                "actor": "backoffice",
+            },
+            {
                 "key": "becas_reportes",
                 "route": "becas:reportes",
                 "url": reverse("becas:reportes"),

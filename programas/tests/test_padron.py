@@ -300,7 +300,7 @@ class PadronConvocatoriaViewTests(_BasePadronTest):
         self.assertEqual(resp.status_code, 405)
 
     def test_la_url_por_relevamiento_es_el_padron_propio(self):
-        """Cambio 59: la ruta por relevamiento volvió, pero como padrón PROPIO
+        """Cambio 72: la ruta por relevamiento volvió, pero como padrón PROPIO
         (pisa al de la convocatoria), y solo por POST."""
         url = reverse("becas:relevamiento_padron", args=[self.relevamiento.pk])
         self.client.force_login(self.admin)
@@ -347,7 +347,7 @@ class PadronConvocatoriaViewTests(_BasePadronTest):
 
 
 class PadronPorRelevamientoTests(_BasePadronTest):
-    """Cambio 59: el padrón de la convocatoria se hereda; el propio de un
+    """Cambio 72: el padrón de la convocatoria se hereda; el propio de un
     relevamiento lo pisa solo para ese relevamiento."""
 
     def setUp(self):

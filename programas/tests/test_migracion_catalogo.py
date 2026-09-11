@@ -13,7 +13,7 @@ from django.test import TestCase
 
 from programas.models import GrupoRequisito, OrigenRequisito, PreguntaGlobal, TipoCampo
 
-MIGRACION = import_module("programas.migrations.0060_sembrar_catalogo_protegido")
+MIGRACION = import_module("programas.migrations.0063_sembrar_catalogo_protegido")
 
 
 class SembrarCatalogoProtegidoTests(TestCase):
@@ -38,7 +38,11 @@ class SembrarCatalogoProtegidoTests(TestCase):
         self.assertTrue(genero.protegido)
         self.assertEqual(PreguntaGlobal.objects.filter(origen=OrigenRequisito.PERSONA_VINCULADA).count(), 5)
         apoderado = GrupoRequisito.objects.get(clave="apoderado")
-        self.assertEqual(apoderado.condicion_defecto["reglas"][0]["valor"], 18)
+        # Cambio 67: sin condición y con los cinco campos obligatorios.
+        self.assertIsNone(apoderado.condicion_defecto)
+        self.assertTrue(
+            all(p.obligatorio for p in PreguntaGlobal.objects.filter(origen=OrigenRequisito.PERSONA_VINCULADA))
+        )
         email = PreguntaGlobal.objects.get(origen=OrigenRequisito.LEGAJO, vinculo="email")
         self.assertFalse(email.obligatorio)  # D9: el contacto puede ser opcional
 

@@ -14,10 +14,11 @@ movido o reordenado no se pisa.
 
 from django.db import migrations
 
-CONDICION_APODERADO = {
-    "modo": "todas",
-    "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
-}
+# Cambio 67: el apoderado se le pide a **toda** persona que se inscribe, sin
+# mirar la edad, así que el grupo nace sin condición por defecto y con sus cinco
+# campos obligatorios. Antes nacía con «edad < 18» (RN-22 del Cambio 41). Una
+# convocatoria puede volver a condicionarlo desde su constructor.
+CONDICION_APODERADO = None
 
 # (clave, nombre, subtítulo, orden, condición, [(origen, vínculo, etiqueta, obligatorio)])
 CATALOGO_PROTEGIDO = [
@@ -49,15 +50,15 @@ CATALOGO_PROTEGIDO = [
     (
         "apoderado",
         "Apoderado",
-        "Como sos menor de 18, necesitamos los datos de un adulto responsable.",
+        "Necesitamos los datos de un adulto responsable.",
         2,
         CONDICION_APODERADO,
         [
             ("persona_vinculada", "nombre", "Nombre del apoderado", True),
             ("persona_vinculada", "apellido", "Apellido del apoderado", True),
             ("persona_vinculada", "dni", "DNI del apoderado", True),
-            ("persona_vinculada", "genero", "Sexo del apoderado", False),
-            ("persona_vinculada", "fecha_nacimiento", "Fecha de nacimiento del apoderado", False),
+            ("persona_vinculada", "genero", "Sexo del apoderado", True),
+            ("persona_vinculada", "fecha_nacimiento", "Fecha de nacimiento del apoderado", True),
         ],
     ),
 ]
@@ -134,6 +135,6 @@ def revertir(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("programas", "0059_formulario_respuestas_definicion")]
+    dependencies = [("programas", "0062_formulario_respuestas_definicion")]
 
     operations = [migrations.RunPython(sembrar, revertir)]

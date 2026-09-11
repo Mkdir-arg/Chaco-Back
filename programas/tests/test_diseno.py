@@ -99,11 +99,26 @@ class PlanPorDefectoTests(_Base):
         self.assertIn(clave_requisito(self.nivel), self._claves(items))
         self.assertIn(clave_requisito(self.localidad), self._claves(items))
 
-    def test_el_apoderado_nace_con_la_condicion_por_defecto(self):
+    def test_el_apoderado_nace_sin_condicion(self):
+        """Cambio 67: el apoderado se le pide a toda persona, así que su grupo
+        entra al diseño sin condición. La convocatoria puede volver a ponérsela."""
         apoderado = next(i for i in plan_por_defecto(self.convocatoria) if i.clave == "g-apoderado")
-        self.assertEqual(apoderado.condicion["reglas"][0]["op"], "edad_menor")
+        self.assertIsNone(apoderado.condicion)
         self.assertEqual(apoderado.titulo, "Apoderado")
         self.assertTrue(apoderado.subtitulo)
+
+    def test_una_condicion_por_defecto_del_catalogo_entra_al_diseno(self):
+        """El mecanismo sigue vivo: si el catálogo le pone condición a un grupo,
+        el diseño la hereda con la fuente simbólica ya resuelta."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
+        apoderado = next(i for i in plan_por_defecto(self.convocatoria) if i.clave == "g-apoderado")
+        self.assertEqual(apoderado.condicion["reglas"][0]["op"], "edad_menor")
+        self.assertTrue(apoderado.condicion["reglas"][0]["fuente"].startswith("pg-"))
 
     def test_no_escribe_nada(self):
         plan_por_defecto(self.convocatoria)
@@ -203,6 +218,12 @@ class GruposVaciosTests(_Base):
     uno que el catálogo dejó sin campos desaparece (RN-3)."""
 
     def test_vaciar_a_mano_conserva_el_grupo_y_su_condicion(self):
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
         diseno, _ = obtener_o_crear_diseno(self.convocatoria)
         apoderado = diseno.items.get(clave="g-apoderado")
         self.assertIsNotNone(apoderado.condicion)
@@ -232,6 +253,12 @@ class GruposVaciosTests(_Base):
 
 class SerializacionTests(_Base):
     def test_grupos_con_campos_y_condiciones(self):
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
         grupos = serializar(plan_por_defecto(self.convocatoria), CanalFormulario.LINK)
         claves = [g["clave"] for g in grupos]
         self.assertEqual(claves[:3], ["g-datos_personales", "g-contacto", "g-apoderado"])

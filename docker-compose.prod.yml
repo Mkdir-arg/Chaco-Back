@@ -59,7 +59,13 @@ services:
       - REDIS_SSL=False
       - APP_BIND=0.0.0.0
       - APP_PORT=8001
-      - APP_RUNTIME=daphne
+      # HTTP en 3 procesos x 2 hilos: usa los 4 nucleos de la VM. Con daphne era un
+      # solo proceso y el GIL lo limitaba a un nucleo para todos los usuarios.
+      - APP_RUNTIME=gunicorn
+      - GUNICORN_WORKERS=3
+      - GUNICORN_THREADS=2
+      # El chat en vivo lo sirve el contenedor `websocket` (daphne); nginx enruta /ws/ ahi.
+      - WEBSOCKETS_ENABLED=True
     command: ["/app/docker-entrypoint.sh"]
     restart: unless-stopped
     networks:
@@ -69,8 +75,10 @@ services:
         condition: service_healthy
       mysql:
         condition: service_healthy
-    mem_limit: 350m
-    memswap_limit: 500m
+    # ~150-200 MB por worker de gunicorn. Sin swap: paginar hacia el respaldo
+    # volvia erratica la latencia con el limite anterior de 350m.
+    mem_limit: 900m
+    memswap_limit: 900m
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health/"]
       interval: 30s

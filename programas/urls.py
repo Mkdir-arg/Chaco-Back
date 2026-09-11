@@ -4,6 +4,7 @@ from django.urls import path
 
 from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
+from programas.views import dashboard_becas as dsh
 from programas.views import diseno as dis
 from programas.views import pausas as pau
 from programas.views import relevamientos as rel
@@ -22,6 +23,18 @@ urlpatterns = [
     path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),
     path("config/programas/nuevo/", cfg.ProgramaSiisCreateView.as_view(), name="programa_crear"),
     path("config/programas/<int:pk>/", cfg.ProgramaSiisDetailView.as_view(), name="programa_detalle"),
+    # --- Solapa Dashboard del programa (análisis #366) ---
+    path("config/programas/<int:pk>/dashboard/datos/", dsh.programa_dashboard_datos, name="programa_dashboard_datos"),
+    path(
+        "config/programas/<int:pk>/dashboard/export/<str:formato>/",
+        dsh.programa_dashboard_exportar,
+        name="programa_dashboard_exportar",
+    ),
+    path(
+        "config/programas/<int:pk>/dashboard/respuestas/<int:convocatoria_pk>/xlsx/",
+        dsh.programa_dashboard_respuestas_xlsx,
+        name="programa_dashboard_respuestas_xlsx",
+    ),
     path(
         "config/programas/<int:programa_pk>/requisitos/nuevo/",
         cfg.requisito_programa_crear,

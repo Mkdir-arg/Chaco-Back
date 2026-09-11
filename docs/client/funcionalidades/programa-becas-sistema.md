@@ -10,7 +10,7 @@ hide:
 
     Es la **evolución de la [propuesta funcional de junio](programa-becas.md)**, que se conserva como registro de lo que se planteó al inicio de la Versión 001. Aquel documento describía lo que se iba a construir; éste describe lo que se construyó.
 
-**Versión:** 001 · **Actualizado:** 26/08/2026 · **Módulo:** Programas
+**Versión:** 001 (cerrada) · **Actualizado:** 30/08/2026 · **Módulo:** Programas
 
 ---
 

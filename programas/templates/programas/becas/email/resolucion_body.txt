@@ -16,7 +16,7 @@ Motivo: {{ motivo }}
 {% elif resultado == "lista_espera" %}Qué sigue: tu inscripción queda en lista de espera. Si se libera un lugar te avisamos por este mismo medio. No hace falta que vuelvas a inscribirte.
 {% else %}Si creés que se trata de un error o querés más información, comunicate con el programa.
 {% endif %}
-Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier consulta, comunicate al +54 362 430-0002.
+Este mensaje se envió automáticamente y no hace falta responderlo.
 
 --
 Gobierno de la Provincia del Chaco

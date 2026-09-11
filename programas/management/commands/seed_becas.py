@@ -187,10 +187,11 @@ def asegurar_adjuntos_obligatorios():
 # Cada grupo: (clave, nombre, subtítulo, orden, condición por defecto, campos);
 # cada campo: (origen, vínculo, etiqueta, obligatorio). El tipo y las opciones
 # salen de VINCULOS_LEGAJO, nunca de acá.
-CONDICION_APODERADO = {
-    "modo": "todas",
-    "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
-}
+# Cambio 67: el apoderado se le pide a **toda** persona que se inscribe, sin
+# mirar la edad, así que el grupo nace sin condición por defecto y con sus cinco
+# campos obligatorios. Antes nacía con «edad < 18» (RN-22 del Cambio 41). Una
+# convocatoria puede volver a condicionarlo desde su constructor.
+CONDICION_APODERADO = None
 CATALOGO_PROTEGIDO = [
     (
         "datos_personales",
@@ -220,15 +221,15 @@ CATALOGO_PROTEGIDO = [
     (
         "apoderado",
         "Apoderado",
-        "Como sos menor de 18, necesitamos los datos de un adulto responsable.",
+        "Necesitamos los datos de un adulto responsable.",
         2,
         CONDICION_APODERADO,
         [
             (OrigenRequisito.PERSONA_VINCULADA, "nombre", "Nombre del apoderado", True),
             (OrigenRequisito.PERSONA_VINCULADA, "apellido", "Apellido del apoderado", True),
             (OrigenRequisito.PERSONA_VINCULADA, "dni", "DNI del apoderado", True),
-            (OrigenRequisito.PERSONA_VINCULADA, "genero", "Sexo del apoderado", False),
-            (OrigenRequisito.PERSONA_VINCULADA, "fecha_nacimiento", "Fecha de nacimiento del apoderado", False),
+            (OrigenRequisito.PERSONA_VINCULADA, "genero", "Sexo del apoderado", True),
+            (OrigenRequisito.PERSONA_VINCULADA, "fecha_nacimiento", "Fecha de nacimiento del apoderado", True),
         ],
     ),
 ]

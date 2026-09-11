@@ -27,6 +27,7 @@ from programas.models import (
     AdjuntoFormulario,
     Convocatoria,
     Formulario,
+    GrupoRequisito,
     OrigenRequisito,
     PreguntaGlobal,
     Relevamiento,
@@ -101,15 +102,35 @@ class _BasePaso2Test(TestCase):
         self.k_nombre = _clave_vinculo(OrigenRequisito.LEGAJO, "nombre")
         self.k_apellido = _clave_vinculo(OrigenRequisito.LEGAJO, "apellido")
         self.k_nacimiento = _clave_vinculo(OrigenRequisito.LEGAJO, "fecha_nacimiento")
+        self.k_apo_nombre = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "nombre")
+        self.k_apo_apellido = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "apellido")
         self.k_apo_dni = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "dni")
+        self.k_apo_genero = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "genero")
+        self.k_apo_nacimiento = _clave_vinculo(OrigenRequisito.PERSONA_VINCULADA, "fecha_nacimiento")
+        # Cambio 67: el grupo Apoderado nace sin condición y con sus cinco campos
+        # obligatorios, así que todo envío válido los lleva.
+        self.apoderado = {
+            self.k_apo_nombre: "Ana",
+            self.k_apo_apellido: "Gómez",
+            self.k_apo_dni: "20111222",
+            self.k_apo_genero: "F",
+            self.k_apo_nacimiento: "1980-05-05",
+        }
 
     def _data(self, **extra):
         data = {
             self.k_telefono: "3624123456",
             self.k_email: "maria@correo.com",
             self.k_pregunta: "Sí",
+            **self.apoderado,
         }
         data.update(extra)
+        return data
+
+    def _data_sin_apoderado(self, **extra):
+        data = self._data(**extra)
+        for clave in self.apoderado:
+            data.pop(clave, None)
         return data
 
     def _datos_manuales(self, **extra):
@@ -213,20 +234,24 @@ class Paso2FormTests(_BasePaso2Test):
         form = self._form(files={self.k_requisito: gigante})
         self.assertFalse(form.is_valid())
 
-    def test_menor_exige_apoderado_y_mayor_no(self):
-        """La condición por defecto del grupo Apoderado (edad < 18) se evalúa en
-        el servidor: para un menor el grupo se muestra y sus campos se exigen."""
+    def test_apoderado_obligatorio_para_menores_y_mayores(self):
+        """Cambio 67: el grupo Apoderado nace sin condición, así que sus cinco
+        campos se exigen a toda persona que se inscribe, sin mirar la edad."""
         hoy = timezone.localdate()
         menor = _identificacion()
         menor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=17 * 365)).isoformat()
-        form = self._form(identificacion=menor)
+        form = self._form(identificacion=menor, data=self._data_sin_apoderado())
         self.assertFalse(form.is_valid())
         self.assertIn(self.k_apo_dni, form.errors)
-        # Cumple 18 exactamente hoy: se trata como mayor (RN-22).
-        cumple_hoy = _identificacion()
-        cumple_hoy["datos"]["fecha_nacimiento"] = hoy.replace(year=hoy.year - 18).isoformat()
-        form = self._form(identificacion=cumple_hoy)
-        self.assertTrue(form.is_valid(), form.errors)
+        # Un adulto tampoco se salva: los cinco campos se exigen igual.
+        mayor = _identificacion()
+        mayor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=40 * 365)).isoformat()
+        form = self._form(identificacion=mayor, data=self._data_sin_apoderado())
+        self.assertFalse(form.is_valid())
+        for clave in self.apoderado:
+            self.assertIn(clave, form.errors)
+        # Con el apoderado completo, pasa.
+        self.assertTrue(self._form(identificacion=mayor).is_valid())
 
     def test_menor_con_apoderado_completo_pasa(self):
         hoy = timezone.localdate()
@@ -250,6 +275,13 @@ class Paso2FormTests(_BasePaso2Test):
     def test_lo_oculto_no_se_exige_ni_se_guarda(self):
         """D11: un campo cuya condición no se cumple no se pide y lo que llegue
         para él se descarta."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
+        self.definicion = definicion_formulario(self.relevamiento)
         hoy = timezone.localdate()
         mayor = _identificacion()
         mayor["datos"]["fecha_nacimiento"] = (hoy - timedelta(days=30 * 365)).isoformat()
@@ -394,10 +426,12 @@ class Paso2VistaTests(_BasePaso2Test):
         # La identidad validada se muestra, no se pide.
         self.assertIn("María Luján", html)
         self.assertNotIn(f'name="{self.k_nombre}"', html)
-        # Los ítems planos llevan la condición del grupo Apoderado.
+        # Los ítems planos viajan para el motor del navegador; el Apoderado ya no
+        # lleva condición (Cambio 67: se pide siempre).
         planos = resp.context["planos"]
         apoderado = next(p for p in planos if p["clave"] == "g-apoderado")
-        self.assertEqual(apoderado["condicion"]["reglas"][0]["op"], "edad_menor")
+        self.assertIsNone(apoderado["condicion"])
+        self.assertTrue(any(p["condicion"] is None and p["tipo"] == "campo" for p in planos))
 
     def test_confirmacion_sin_envio_redirige_al_paso1(self):
         resp = self.client.get(

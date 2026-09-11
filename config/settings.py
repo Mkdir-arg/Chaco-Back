@@ -195,6 +195,7 @@ TEMPLATES = [
                 "conversaciones.context_processors.user_groups",
                 "core.context_processors.sidebar_badges",
                 "core.context_processors.session_idle_config",
+                "portal.context_processors.gtm",
             ],
         },
     },
@@ -448,6 +449,16 @@ RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "").strip()
 RECAPTCHA_VERIFY_URL = os.environ.get("RECAPTCHA_VERIFY_URL", "https://www.google.com/recaptcha/api/siteverify")
 RECAPTCHA_TIMEOUT = int(os.environ.get("RECAPTCHA_TIMEOUT", "10"))
 
+# Google Tag Manager en las pantallas públicas de inscripción (Cambio 68). Sin
+# contenedor no se renderiza nada ni se abre la CSP a Google: así test, dev e
+# icore-srv no ensucian las métricas de producción.
+GTM_CONTAINER_ID = os.environ.get("GTM_CONTAINER_ID", "").strip()
+# Hosts extra para la CSP, para las etiquetas que se sumen en GTM además de GA4
+# (Meta, Google Ads…): "connect-src=https://a.com https://b.com;img-src=https://c.com".
+from config.middlewares.security_headers import parsear_fuentes_extra  # noqa: E402
+
+CSP_EXTRA_SOURCES = parsear_fuentes_extra(os.environ.get("CSP_EXTRA_SOURCES", ""))
+
 PERSONAS_API_URL = os.getenv("PERSONAS_API_URL", "https://personas.ecomdev.ar/api/v1").strip().rstrip("/")
 PERSONAS_API_CLIENT_ID = os.getenv("PERSONAS_API_CLIENT_ID", "")
 PERSONAS_API_CLIENT_SECRET = os.getenv("PERSONAS_API_CLIENT_SECRET", "")
@@ -537,6 +548,17 @@ LOGGING = {
         "core.requests": {"handlers": [], "level": "INFO", "propagate": True},
     },
 }
+
+# Argon2 primero: verificar una contraseña con el PBKDF2 por defecto de Django 5.2
+# (1.000.000 de iteraciones) cuesta ~1 s de CPU por login, con el GIL tomado;
+# Argon2id ronda los 90 ms con seguridad equivalente. PBKDF2 se conserva para
+# leer los hashes ya guardados: Django los re-hashea a Argon2 en el siguiente
+# login exitoso, sin migración ni reseteo de claves.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

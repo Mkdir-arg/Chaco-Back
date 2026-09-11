@@ -27,14 +27,14 @@ class SolapasService:
     ]
 
     @classmethod
-    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None):
+    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None, alertas_activas=None):
         solapas = [dict(s) for s in cls.SOLAPAS_ESTATICAS]
 
+        # Por el manager relacionado: deja cada fila apuntando al ciudadano que ya está en
+        # memoria, así ``InscripcionPrograma.__str__`` no vuelve a leerlo de la base al
+        # renderizar la solapa.
         inscripciones_activas = (
-            InscripcionPrograma.objects.filter(
-                ciudadano=ciudadano,
-                estado__in=["ACTIVO", "EN_SEGUIMIENTO"],
-            )
+            ciudadano.inscripciones_programas.filter(estado__in=["ACTIVO", "EN_SEGUIMIENTO"])
             .select_related("programa", "responsable")
             .annotate(
                 tiene_admision_alojada=Exists(
@@ -72,7 +72,7 @@ class SolapasService:
                 }
             )
 
-        badges = cls.obtener_badges_ciudadano(ciudadano)
+        badges = cls.obtener_badges_ciudadano(ciudadano, alertas_activas=alertas_activas)
         solapas_final = []
         for s in solapas:
             if s["id"] in badges and "badge" not in s:
@@ -125,10 +125,14 @@ class SolapasService:
         )
 
     @classmethod
-    def obtener_badges_ciudadano(cls, ciudadano):
+    def obtener_badges_ciudadano(cls, ciudadano, alertas_activas=None):
         badges = {}
 
-        alertas_count = ciudadano.alertas.filter(activa=True).count()
+        # Con ``alertas_activas`` (el queryset que la pantalla va a listar igual), ``len()``
+        # lo materializa y evita el COUNT sobre las mismas filas. Sin él, todo sigue igual.
+        alertas_count = (
+            len(alertas_activas) if alertas_activas is not None else ciudadano.alertas.filter(activa=True).count()
+        )
         if alertas_count:
             badges["alertas"] = {"tipo": "numero", "valor": alertas_count, "color_hex": "#EF4444"}
 
@@ -265,12 +269,15 @@ class SolapasService:
         from programas.models import Formulario
         from programas.services.cupo import estado_relevante_becas
 
+        # Por el manager relacionado: deja el ciudadano ya apuntado en cada fila, así
+        # ``Formulario.__str__`` (que lo interpola) no lo relee. Y sin los dos JSON, que
+        # ninguna de las dos pantallas que consumen este resumen abre.
         formularios = list(
-            Formulario.objects.filter(ciudadano=ciudadano)
-            .select_related(
+            ciudadano.formularios_becas.select_related(
                 "relevamiento__convocatoria__segmento",
                 "relevamiento__convocatoria__subsegmento",
             )
+            .defer("data", "datos_identificacion")
             .prefetch_related("lista_espera")
             .order_by("-creado")
         )

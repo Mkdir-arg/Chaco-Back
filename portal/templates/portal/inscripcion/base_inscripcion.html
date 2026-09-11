@@ -3,6 +3,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    {% if gtm_container_id %}{% include "portal/inscripcion/_gtm_head.html" %}{% endif %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}DATAÑACH — Portal Ciudadano{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'custom/css/tailwind.css' %}">
@@ -150,6 +151,7 @@
     </style>
 </head>
 <body>
+    {% if gtm_container_id %}{% include "portal/inscripcion/_gtm_body.html" %}{% endif %}
     <div class="di-shell">
         <aside class="di-panel-head">
             <div class="di-brand">
@@ -187,9 +189,12 @@
             </div>
         </main>
 
+        {% comment %}El pie va en las seis pantallas del link (Cambio 59), pero el WhatsApp
+        no se muestra en el paso 1: esa pantalla se abre con solo tener el link y ahí queda
+        la casilla sola. `paso1.html` vacía `pie_whatsapp` (Cambio 62).{% endcomment %}
         <footer class="di-panel-foot">
-            <p class="di-help">¿Necesitás ayuda? <a href="tel:+543624300002">+54 362 430-0002</a> · <a href="mailto:datanach@chaco.gob.ar">datanach@chaco.gob.ar</a></p>
-            <p class="di-copy">&copy; {% now "Y" %} DATAÑACH — Gobierno del Chaco</p>
+            <p class="di-help"><a href="mailto:consultasincentivojunvetud@gmail.com">consultasincentivojunvetud@gmail.com</a>{% block pie_whatsapp %} · WhatsApp 3625153720{% endblock %}</p>
+            <p class="di-copy">Solo en caso de problemas técnicos.</p>
         </footer>
     </div>
 

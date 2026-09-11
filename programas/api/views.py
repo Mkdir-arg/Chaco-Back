@@ -161,7 +161,7 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
 
 def _relevamientos_para_identificar(user, relevamiento_id):
     """Con qué padrones se identifica a una persona desde la app (Cambio 57;
-    con herencia por relevamiento desde el Cambio 59).
+    con herencia por relevamiento desde el Cambio 72).
 
     Si la app manda el relevamiento, ese; si no, todos los vigentes del
     territorial (la app vieja no manda nada).

@@ -1632,7 +1632,7 @@ class Relevamiento(PausableMixin, TimeStamped):
         editable=False,
         verbose_name="Token del link público",
     )
-    # Cambio 59: padrón PROPIO de este relevamiento (Excel original, para
+    # Cambio 72: padrón PROPIO de este relevamiento (Excel original, para
     # trazabilidad). Con filas propias en PadronHabilitado, este relevamiento
     # no hereda el padrón de la convocatoria.
     padron_archivo = models.FileField(
@@ -1882,7 +1882,7 @@ class PadronHabilitado(TimeStamped):
         related_name="padron",
         verbose_name="Convocatoria",
     )
-    # Cambio 59: con valor, la fila pertenece SOLO a ese relevamiento (padron
+    # Cambio 72: con valor, la fila pertenece SOLO a ese relevamiento (padron
     # propio, pisa al de la convocatoria); en NULL, es el padron de la
     # convocatoria y lo heredan los relevamientos sin padron propio.
     relevamiento = models.ForeignKey(
@@ -2388,6 +2388,19 @@ class Formulario(TimeStamped):
         indexes = [
             models.Index(fields=["relevamiento", "estado"]),
             models.Index(fields=["estado"]),
+            # Dashboard del programa (Cambio 64): el recorte es siempre
+            # relevamiento IN (...) AND creado BETWEEN ..., y la serie semanal lee
+            # solo ``creado`` de esas filas.
+            models.Index(fields=["relevamiento", "creado"], name="prog_formulario_rel_creado_idx"),
+            # Bandeja de revisión: ordena por ``creado`` descendente sobre toda la
+            # tabla y corta en la página. Sin este índice MySQL ordena las 40.000
+            # filas antes de recortar (3,7 s medidos); con él hace un recorrido del
+            # índice hacia atrás y frena en la página.
+            models.Index(fields=["creado"], name="prog_formulario_creado_idx"),
+            # Bandeja de RENAPER pendientes: ``validado_renaper = 0`` ordenado por
+            # ``creado`` descendente. ``relevamiento`` va tercero para que el selector de
+            # territoriales de esa pantalla se resuelva sin bajar a la fila (74 ms -> 9 ms).
+            models.Index(fields=["validado_renaper", "creado", "relevamiento"], name="prog_formulario_renaper_idx"),
         ]
         constraints = [
             models.UniqueConstraint(fields=["relevamiento", "numero"], name="uniq_formulario_numero_relevamiento"),

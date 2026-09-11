@@ -177,10 +177,10 @@ location / {                              # upstream: nodo-web:8001
 | `APP_RUNTIME` | Proceso lanzado | Uso |
 |---|---|---|
 | `runserver` | `python manage.py runserver` | Desarrollo local |
-| `gunicorn` | `gunicorn -k gevent config.wsgi:application` | Producción HTTP |
-| `daphne` | `daphne -b 0.0.0.0 -p $APP_PORT config.asgi:application` | Producción WebSocket |
+| `gunicorn` | `gunicorn config.wsgi:application --workers $GUNICORN_WORKERS --threads $GUNICORN_THREADS` | Producción HTTP en varios procesos |
+| `daphne` | `daphne -b 0.0.0.0 -p $APP_PORT config.asgi:application` | Producción WebSocket (o HTTP + WebSocket en un solo proceso) |
 
-La variable `WEBSOCKETS_ENABLED` se infiere automáticamente: es `True` cuando `APP_RUNTIME=daphne`, salvo override explícito.
+La variable `WEBSOCKETS_ENABLED` se infiere automáticamente: es `True` cuando `APP_RUNTIME=daphne`, salvo override explícito. Con `gunicorn` no se infiere: se declara `WEBSOCKETS_ENABLED=True` cuando un proceso daphne aparte atiende `/ws/`.
 
 ### 4.2 Cadena de middlewares (orden importa)
 
@@ -244,7 +244,7 @@ graph TD
     end
 
     subgraph Ciudadano
-        P[portal<br/>auth · perfil · consultas<br/>self-service]
+        P[portal<br/>auth · perfil · consultas<br/>inscripción pública]
     end
 
     subgraph Transversal
@@ -272,7 +272,7 @@ graph TD
 | `legajos` | Ciudadanos, derivaciones, programas sociales y módulo NACHEC | `Ciudadano`, `Derivacion`, `Programa`, `Contacto` |
 | `configuracion` | Instituciones, secretarías, dispositivos, programas y geografía | `Institucion`, `Secretaria`, `Provincia`, `Localidad` |
 | `conversaciones` | Chat operador↔ciudadano, colas de atención, métricas | `Conversacion`, `Mensaje`, `Cola` |
-| `portal` | Portal ciudadano: registro, login, perfil, consultas self-service | `PerfilCiudadano` |
+| `portal` | Portal ciudadano: registro, login, perfil, consultas self-service e **inscripción pública** por link (sin login) | `PerfilCiudadano` |
 | `users` | Usuarios del backoffice, grupos y roles | `User`, `Grupo`, `Permiso` |
 | `dashboard` | Métricas, KPIs y home segmentado por rol | (lectura sobre otras apps) |
 | `tramites` | Seguimiento de trámites institucionales | `Tramite`, `EstadoTramite` |
@@ -397,6 +397,14 @@ OPENAI_API_KEY=…                     # asistencia IA en módulos puntuales
 - `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` para detectar HTTPS detrás de Nginx
 - Validadores de contraseña: `MinimumLengthValidator(min_length=8)`, `CommonPasswordValidator`, `NumericPasswordValidator`, `UserAttributeSimilarityValidator`
 
+Sobre la **superficie pública sin login** (inscripción por link) se aplica además, desde la auditoría de agosto de 2026:
+
+- Verificación anti-bot (reCAPTCHA v2 con desafío propio de respaldo) antes de cualquier consulta a servicios externos
+- Límites de intentos por IP y por documento, y techo de envíos del formulario
+- Mensaje único de rechazo, para no revelar quién figura en el padrón de habilitados
+- Adjuntos con nombre no adivinable, servidos detrás de sesión y validados por tipo y tamaño
+- `Content-Security-Policy` y `Permissions-Policy` propias, con las librerías servidas desde el mismo dominio
+
 ---
 
 ## 8. APIs
@@ -438,11 +446,11 @@ flowchart LR
 
 | Integración | Proveedor | Qué aporta al sistema | Estado |
 |---|---|---|---|
-| **SIIS** — Sistema Integrado de Información Social | ECOM | Catálogo maestro de programas sociales (el nivel «Programa» de Becas se vincula a él) y validación de compatibilidad de cada postulante antes de asignar el beneficio | :material-check-circle: Activa en entorno de prueba · producción en preparación (ECOM) |
-| **Base de Personas** («Gran Base») | ECOM | Consulta del padrón unificado provincial por DNI para validar los datos de las personas relevadas | :material-progress-check: Accesos de desarrollo entregados · fuente de datos predeterminada a confirmar |
+| **SIIS** — Sistema Integrado de Información Social | ECOM | Catálogo maestro de programas sociales (el nivel «Programa» de Becas se vincula a él) y validación de compatibilidad de cada postulante antes de asignar el beneficio | :material-check-circle: Activa · catálogo configurado y verificado en el entorno del organismo (27/08/2026) |
+| **Base de Personas** («Gran Base») | ECOM | Consulta del padrón unificado provincial por DNI para validar los datos de las personas relevadas y para autocompletar la inscripción pública | :material-check-circle: Activa · configurada y verificada en el entorno del organismo (27/08/2026) |
 | **RENAPER** | Padrón nacional | Validación de identidad (DNI) durante el relevamiento en campo y revalidación en el backoffice | :material-check-circle: Activa |
 | **OpenAI** | — | Asistencia con IA en módulos puntuales | :material-check-circle: Activa |
-| **Correo saliente (SMTP)** | A definir con ECOM | Envío de credenciales de acceso al crear usuarios y restablecimiento de contraseña por correo | :material-clock-outline: En preparación |
+| **Correo saliente (SMTP)** | Correo institucional | Credenciales de acceso al crear usuarios, restablecimiento de contraseña, comprobante de inscripción pública y aviso de resolución al ciudadano | :material-check-circle: Activa · configurada y verificada en el entorno del organismo (27/08/2026). El envío real ocurre solo con `ENVIRONMENT=prd` |
 
 ### 9.1 SIIS — Sistema Integrado de Información Social
 
@@ -590,17 +598,17 @@ flowchart TD
     ```bash
     gunicorn config.wsgi:application \
       --bind 0.0.0.0:8001 \
-      --workers 4 \
-      --worker-class gevent \
-      --worker-connections 1000 \
-      --timeout 60 \
-      --max-requests 5000 \
-      --max-requests-jitter 500
+      --workers 3 \
+      --threads 2 \
+      --timeout 120 \
+      --max-requests 1000 \
+      --max-requests-jitter 100
     ```
 
-    - **4 workers**: regla general `(2 × CPU) + 1` para I/O-bound
-    - **1000 conexiones/worker**: gevent permite atender múltiples requests por worker sin bloqueo
-    - **Capacidad efectiva**: ~4000 conexiones simultáneas
+    - **3 workers × 2 hilos**: cada worker es un proceso con su propio GIL, así el HTTP usa los 4 vCPU de la VM (con un solo proceso, todo el sistema corre en un núcleo)
+    - **Hilos, no gevent**: el código usa `mysqlclient` y `requests` bloqueantes; gevent exigiría monkey-patching y el parche de `config/gevent_patch.py` queda inactivo
+    - **Memoria**: ~150–200 MB por worker; el límite del contenedor `web` es 900 MB sin swap
+    - Es lo que arranca `docker-entrypoint.sh` con `APP_RUNTIME=gunicorn` (valores por `GUNICORN_WORKERS`, `GUNICORN_THREADS`, `GUNICORN_TIMEOUT`)
 
 === "Daphne (WebSocket)"
 

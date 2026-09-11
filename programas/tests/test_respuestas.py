@@ -15,6 +15,7 @@ from programas.management.commands.seed_becas import ROL_ADMIN, ROL_TERRITORIAL
 from programas.models import (
     Convocatoria,
     Formulario,
+    GrupoRequisito,
     OrigenRequisito,
     PreguntaGlobal,
     Relevamiento,
@@ -220,6 +221,12 @@ class LecturaRevisionTests(_Base):
     def test_lo_que_no_se_pidio_se_marca_oculto(self):
         """El grupo Apoderado depende de la edad: para una persona mayor queda
         oculto y la revisión lo muestra como «no se pidió», no como vacío."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
         formulario = self._caso_con_foto()
         clave_nacimiento = self._clave(OrigenRequisito.LEGAJO, "fecha_nacimiento")
         formulario.respuestas[clave_nacimiento] = (timezone.localdate() - timedelta(days=30 * 365)).isoformat()
@@ -341,20 +348,11 @@ class ApoderadoSegunLaFotoTests(_Base):
         formulario.save(update_fields=["respuestas"])
         return formulario
 
-    def test_adulto_con_la_condicion_por_defecto_no_ve_el_bloque(self):
+    def test_el_bloque_del_apoderado_se_muestra_siempre(self):
+        """Cambio 67: el apoderado se le pide a toda persona, así que el revisor
+        ve su bloque también en el caso de un adulto y en los casos anteriores."""
         resp = self._detalle(self._caso_adulto())
         self.assertEqual(resp.status_code, 200)
-        self.assertFalse(resp.context["mostrar_apoderado"])
-
-    def test_la_condicion_configurada_manda_sobre_la_regla_fija(self):
-        """La convocatoria pidió apoderado hasta los 40: el revisor lo ve aunque
-        la regla legacy (menor de 18) diga que no (D10)."""
-        formulario = self._caso_adulto()
-        for grupo in formulario.definicion["items"]:
-            if grupo["clave"] == "g-apoderado":
-                grupo["condicion"]["reglas"][0]["valor"] = 40
-        formulario.save(update_fields=["definicion"])
-        resp = self._detalle(formulario)
         self.assertTrue(resp.context["mostrar_apoderado"])
 
 

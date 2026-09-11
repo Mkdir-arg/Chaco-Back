@@ -6,9 +6,23 @@
 | | |
 |---|---|
 | **Módulo** | Programas |
-| **Estado** | Definición aprobada por el Ministerio — lista para desarrollo |
+| **Estado** | **Versión 1 desarrollada** (legajo institucional, admisiones, camas, registro diario y reportes, entregados en la [Versión 001](../versiones/version-001.md)) · **Versión 2 en validación** con el Ministerio |
 | **Programas** | Dispositivos y Merenderos (sobre la base de Programas, después de Becas) |
-| **Última actualización** | 2026-07-03 |
+| **Última actualización** | 2026-09-09 |
+
+!!! info "Novedad — Versión 2 del programa (09/09/2026)"
+    Todo lo que sigue en esta página describe la **Versión 1**, la que está desarrollada. El
+    relevamiento de campo en el Albergue Madre Teresa de Calcuta, el CIS N.º 3, la Dirección de
+    Abordaje Psicosocial y el Parador Nocturno mostró que la operación real necesita bastante más, y
+    de ahí salió la **Versión 2**: la estadía como eje en lugar de la admisión, capacidad por sectores
+    y plazas en lugar de camas planas, la ficha de la persona completándose a lo largo de la estadía,
+    bitácora por turnos con pase de guardia, secciones con información sensible restringidas por rol,
+    y un configurador donde el Ministerio arma los formularios de cada tipo de institución sin
+    depender de desarrollo.
+
+    Su alcance y sus horas están en la
+    [estimación del programa](estimacion-programa-dispositivos.md), sección 11. Esta página se
+    reescribe cuando el Ministerio valide esa versión.
 
 !!! success "Novedad — Conformidad del Ministerio (01/07/2026)"
     El Ministerio revisó la propuesta y **confirmó su conformidad para avanzar con el desarrollo**, con estas definiciones:

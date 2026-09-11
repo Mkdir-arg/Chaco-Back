@@ -260,6 +260,16 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
+        # Solapa Dashboard (análisis #366, RN-1): la pestaña solo existe con la
+        # capacidad de reportes. Acá van únicamente las opciones de los filtros; los
+        # números los pide el JS al abrir la solapa (RNF-1).
+        from programas.forms_reportes import DashboardBecasFiltroForm
+        from programas.views.dashboard_becas import puede_exportar_dashboard, puede_ver_dashboard
+
+        ctx["puede_dashboard"] = puede_ver_dashboard(self.request.user)
+        if ctx["puede_dashboard"]:
+            ctx["puede_exportar_dashboard"] = puede_exportar_dashboard(self.request.user)
+            ctx["dashboard_form"] = DashboardBecasFiltroForm(user=self.request.user, programa=programa)
         return ctx
 
 
@@ -375,8 +385,15 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
             seg.programa.requisitos.order_by("orden", "id") if seg.programa_id else RequisitoNativo.objects.none()
         )
         ctx["form_segmento"] = SegmentoForm(instance=seg)
-        ctx["form_subsegmento"] = SubsegmentoForm(segmento=seg)
-        ctx["form_coordinador"] = AsignacionCoordinadorForm(segmento=seg)
+        # Las opciones se congelan a lista, como en ``RelevamientoListView``: al renderizar
+        # el select, ModelChoiceIterator pide len() como length hint y eso agrega un COUNT
+        # envolvente sobre un SELECT DISTINCT de todas las columnas de auth_user.
+        form_subsegmento = SubsegmentoForm(segmento=seg)
+        form_subsegmento.fields["referente"].choices = list(form_subsegmento.fields["referente"].choices)
+        ctx["form_subsegmento"] = form_subsegmento
+        form_coordinador = AsignacionCoordinadorForm(segmento=seg)
+        form_coordinador.fields["coordinador"].choices = list(form_coordinador.fields["coordinador"].choices)
+        ctx["form_coordinador"] = form_coordinador
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices

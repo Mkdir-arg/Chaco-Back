@@ -18,9 +18,10 @@ from core.services.throttle import ip_cliente
 from portal.services import inscripcion as servicio
 from portal.tests.test_inscripcion import DATOS_GRAN_BASE, _BaseInscripcionTest, _tolerar_render_local
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _clave_vinculo, _identificacion
-from portal.views.inscripcion import MENSAJE_RECHAZO
+from portal.views.inscripcion import MENSAJE_YA_INSCRIPTO
 from programas.admin import RelevamientoAdmin
-from programas.models import Convocatoria, Formulario, OrigenRequisito, Relevamiento, Segmento
+from programas.models import Convocatoria, Formulario, GrupoRequisito, OrigenRequisito, Relevamiento, Segmento
+from programas.services.becas import definicion_formulario
 from programas.services.inscripcion_publica import crear_formulario_publico
 from programas.views import relevamientos as vistas_rel
 from programas.views import revision as vistas_rev
@@ -96,9 +97,16 @@ class CaptchaConsumeTests(_BaseInscripcionTest):
         mock_consulta.assert_called_once_with("30123456", "F")
 
 
-class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
+class DuplicadoEnPaso1Tests(_BaseInscripcionTest):
+    """El duplicado se avisa en el mismo paso 1, sin ir a buscar identidad.
+
+    Desde el 10/09/2026 el texto nombra la causa (antes era el mensaje único
+    anti-enumeración); lo que no cambia es que el rechazo corta **antes** de la
+    consulta externa: un documento ya inscripto no debe gastar una llamada.
+    """
+
     @patch("programas.services.identidad.consultar_persona")
-    def test_duplicado_en_paso1_no_revela_que_el_dni_ya_esta_inscripto(self, mock_consulta):
+    def test_duplicado_en_paso1_avisa_que_el_dni_ya_esta_inscripto(self, mock_consulta):
         Formulario.objects.create(
             relevamiento=self.relevamiento,
             celular="1",
@@ -118,7 +126,7 @@ class MensajeAntiEnumeracionTests(_BaseInscripcionTest):
         self.assertEqual(resp.status_code, 200)
         template, context = renders[-1]
         self.assertEqual(template, "portal/inscripcion/paso1.html")
-        self.assertIn(MENSAJE_RECHAZO, context["form"].non_field_errors())
+        self.assertIn(MENSAJE_YA_INSCRIPTO, context["form"].non_field_errors())
         mock_consulta.assert_not_called()
 
 
@@ -167,10 +175,17 @@ class FechaProveedorYApoderadoTests(_BasePaso2Test):
     def test_personas_sin_fecha_normalizada_exige_fecha_y_apoderado_si_es_menor(self):
         """Si el proveedor manda una fecha que no se entiende, se le pide a la
         persona y la condición del apoderado se evalúa con la que responde."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
+        self.definicion = definicion_formulario(self.relevamiento)
         hoy = timezone.localdate()
         ident = _identificacion()
         ident["datos"]["fecha_nacimiento"] = "texto raro"
-        data = self._data(**{self.k_nacimiento: (hoy - timedelta(days=16 * 365)).isoformat()})
+        data = self._data_sin_apoderado(**{self.k_nacimiento: (hoy - timedelta(days=16 * 365)).isoformat()})
         form = self._form(identificacion=ident, data=data)
         self.assertFalse(form.is_valid())
         self.assertIn(self.k_nacimiento, form.fields)  # no vino validada: se pide
@@ -206,9 +221,16 @@ class FechaProveedorYApoderadoTests(_BasePaso2Test):
         self.assertFalse(invalido.is_valid())
         self.assertIn(self.k_apo_dni, invalido.errors)
 
-    def test_para_un_adulto_el_apoderado_ni_se_pide_ni_se_guarda(self):
-        """D11: el grupo Apoderado está oculto por su condición, así que lo que
-        llegue para él se descarta en vez de guardarse."""
+    def test_un_grupo_oculto_por_su_condicion_ni_se_pide_ni_se_guarda(self):
+        """D11: con el Apoderado condicionado a la edad, un adulto no lo ve y lo
+        que llegue para él se descarta en vez de guardarse."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
+        self.definicion = definicion_formulario(self.relevamiento)
         form = self._form(data=self._data(**{self.k_apo_dni: "30.123.456"}))
         self.assertTrue(form.is_valid(), form.errors)
         self.assertNotIn(self.k_apo_dni, form.respuestas())

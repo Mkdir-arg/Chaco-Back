@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from core.rbac import puede
 
@@ -54,10 +54,12 @@ class FiltrosUsuarioService:
     def obtener_estadisticas_usuario(usuario):
         alertas_usuario = FiltrosUsuarioService.obtener_alertas_usuario(usuario)
 
-        return {
-            "total": alertas_usuario.count(),
-            "criticas": alertas_usuario.filter(prioridad="CRITICA").count(),
-            "altas": alertas_usuario.filter(prioridad="ALTA").count(),
-            "medias": alertas_usuario.filter(prioridad="MEDIA").count(),
-            "bajas": alertas_usuario.filter(prioridad="BAJA").count(),
-        }
+        # Un solo aggregate: los cinco COUNT repetían el filtro de alcance del usuario,
+        # que para quien no es superusuario arrastra subconsultas.
+        return alertas_usuario.aggregate(
+            total=Count("id"),
+            criticas=Count("id", filter=Q(prioridad="CRITICA")),
+            altas=Count("id", filter=Q(prioridad="ALTA")),
+            medias=Count("id", filter=Q(prioridad="MEDIA")),
+            bajas=Count("id", filter=Q(prioridad="BAJA")),
+        )

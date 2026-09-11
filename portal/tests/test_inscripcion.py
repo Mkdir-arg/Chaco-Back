@@ -285,3 +285,59 @@ class Paso1FlujoTests(_BaseInscripcionTest):
             _tolerar_render_local(exc)
             return
         self.assertTemplateUsed(resp, "portal/inscripcion/no_disponible.html")
+        self.assertContains(resp, "ya no admite inscripciones")
+        self.assertNotContains(resp, "todavía no está abierto")
+
+    def test_no_disponible_distingue_aun_no_abierto(self):
+        """Si lo único que falta es la fecha de inicio se dice eso; el resto de
+        los motivos (vencido, pausado, cupo, cerrado) comparte el texto genérico."""
+        futuro = self._rel_publico(
+            fecha_asignada=timezone.now() + timedelta(days=3), fecha_hasta=timezone.now() + timedelta(days=10)
+        )
+        try:
+            resp = self.client.get(self._url(futuro))
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertTemplateUsed(resp, "portal/inscripcion/no_disponible.html")
+        self.assertContains(resp, "todavía no está abierto")
+        self.assertNotContains(resp, "ya no admite inscripciones")
+
+    def test_aun_no_abierto_pausado_muestra_el_generico(self):
+        """La pausa no revela motivo aunque la fecha de inicio esté en el futuro (RN-P4)."""
+        pausado = self._rel_publico(
+            fecha_asignada=timezone.now() + timedelta(days=3),
+            fecha_hasta=timezone.now() + timedelta(days=10),
+            pausado=True,
+        )
+        self.assertFalse(servicio.relevamiento_aun_no_abierto(pausado))
+
+
+class PieDeContactoTests(_BaseInscripcionTest):
+    """En el paso 1 el pie muestra solo la casilla; el WhatsApp va del paso 2 en adelante."""
+
+    CONTACTO = "consultasincentivojunvetud@gmail.com"
+
+    def test_paso1_muestra_la_casilla_pero_no_el_whatsapp(self):
+        try:
+            resp = self.client.get(self._url())
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertTemplateUsed(resp, "portal/inscripcion/paso1.html")
+        self.assertContains(resp, self.CONTACTO)
+        self.assertNotContains(resp, "3625153720")
+
+    @patch("programas.services.identidad.consultar_persona", return_value=DATOS_GRAN_BASE)
+    def test_paso2_si_lo_muestra(self, mock_consulta):
+        self._post_paso1()
+        try:
+            resp = self.client.get(
+                reverse("portal:inscripcion_paso2", kwargs={"token": self.relevamiento.token_publico})
+            )
+        except AttributeError as exc:
+            _tolerar_render_local(exc)
+            return
+        self.assertTemplateUsed(resp, "portal/inscripcion/paso2.html")
+        self.assertContains(resp, self.CONTACTO)
+        self.assertContains(resp, "3625153720")

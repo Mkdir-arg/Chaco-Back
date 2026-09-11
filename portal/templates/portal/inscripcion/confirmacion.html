@@ -22,6 +22,21 @@
         {% endif %}
     </div>
 
-    <p class="mt-6 text-xs" style="color: var(--text-body-subtle);">Podés cerrar esta página. Ante cualquier consulta, comunicate al +54 362 430-0002.</p>
+    <p class="mt-6 text-xs" style="color: var(--text-body-subtle);">Podés cerrar esta página.</p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if gtm_container_id and emitir_conversion %}
+{% comment %}Conversión para Google Tag Manager (Cambio 68): programa y convocatoria, sin datos de la persona.{% endcomment %}
+<script>
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    "event": "inscripcion_enviada",
+    "programa": "{{ convocatoria.segmento.programa.nombre|default:''|escapejs }}",
+    "convocatoria": "{{ convocatoria.nombre|default:''|escapejs }}",
+    "convocatoria_id": "{{ convocatoria.pk|escapejs }}"
+  });
+</script>
+{% endif %}
 {% endblock %}

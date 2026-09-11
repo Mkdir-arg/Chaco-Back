@@ -1,0 +1,26 @@
+{% comment %}
+Tarjeta de un bloque del dashboard (análisis 366): título, subtítulo que completa el
+JS, alternador gráfico/tabla, descarga CSV del bloque, canvas, tabla y estado vacío.
+Parámetros: bloque · titulo · ancho (clase de columnas) · alto (clase de alto del canvas).
+{% endcomment %}
+<section class="{{ ancho }} bg-white rounded-xl border border-base shadow-sm" aria-labelledby="dash-titulo-{{ bloque }}" data-dash-card="{{ bloque }}">
+  <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-light">
+    <div class="min-w-0">
+      <h3 id="dash-titulo-{{ bloque }}" class="text-heading font-bold" style="font-size:16px">{{ titulo }}</h3>
+      <p class="text-xs text-body-subtle mt-0.5" data-dash-sub="{{ bloque }}"></p>
+    </div>
+    <div class="flex items-center gap-1 flex-shrink-0 dash-no-print">
+      <button type="button" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-toggle="{{ bloque }}" aria-pressed="false" aria-label="Ver como tabla"><i class="fas fa-table" aria-hidden="true"></i></button>
+      {% if puede_exportar_dashboard %}<a href="#" class="text-body-subtle hover:text-heading p-1.5 rounded-lg hover:bg-secondary" data-dash-exportar="csv" data-bloque="{{ bloque }}" aria-label="Descargar {{ titulo|lower }} en CSV"><i class="fas fa-download" aria-hidden="true"></i></a>{% endif %}
+    </div>
+  </div>
+  <div class="p-5">
+    <div class="relative {{ alto }}" data-dash-grafico="{{ bloque }}"><canvas role="img" aria-label="{{ titulo }}"></canvas></div>
+    <div class="overflow-x-auto hidden" data-dash-tabla="{{ bloque }}"></div>
+    <div class="py-10 px-6 text-center flex flex-col items-center gap-3 hidden" data-dash-vacio="{{ bloque }}">
+      <div class="text-fg-brand"><i class="fas fa-chart-bar text-4xl" aria-hidden="true"></i></div>
+      <p class="text-[17px] font-bold text-heading">Sin datos</p>
+      <p class="text-sm text-body max-w-xs">No hay información para los filtros elegidos.</p>
+    </div>
+  </div>
+</section>

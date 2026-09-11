@@ -38,7 +38,7 @@ def gran_base_activa():
 
 def identificar(objetivo, dni, sexo):
     """Resuelve la identidad de ``dni`` + ``sexo`` contra el padrón efectivo de
-    ``objetivo`` (un relevamiento o una convocatoria, Cambio 59) y la Gran Base.
+    ``objetivo`` (un relevamiento o una convocatoria, Cambio 72) y la Gran Base.
 
     Devuelve un dict con:
 

@@ -4,6 +4,9 @@
 
 {% block stepper %}{% include "portal/inscripcion/_stepper.html" with paso_activo=1 %}{% endblock %}
 
+{% comment %}En el paso 1 el pie muestra solo la casilla: el WhatsApp queda del paso 2 en adelante.{% endcomment %}
+{% block pie_whatsapp %}{% endblock %}
+
 {% block content %}
 <div>
     <div class="mb-6">

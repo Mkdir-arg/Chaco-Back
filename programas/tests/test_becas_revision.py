@@ -288,7 +288,9 @@ class EdicionTrazaTests(_BaseRevisionTest):
             },
         )
 
-    def test_detalle_adulto_sin_apoderado_oculta_sus_campos(self):
+    def test_detalle_adulto_sin_apoderado_muestra_la_seccion_para_completarla(self):
+        """Cambio 67: el apoderado se pide a toda persona, así que la sección
+        editable está siempre, también en un caso anterior sin datos."""
         self.form_a.ciudadano = Ciudadano.objects.create(
             dni="60600601",
             nombre="Persona",
@@ -300,8 +302,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
         resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
 
         self.assertContains(resp, "Datos de contacto")
-        self.assertNotContains(resp, "Datos del apoderado")
-        self.assertNotContains(resp, 'name="apoderado_fecha_nacimiento"')
+        self.assertContains(resp, "Datos del apoderado")
+        self.assertContains(resp, 'name="apoderado_fecha_nacimiento"')
 
     def test_detalle_menor_muestra_fecha_apoderado_en_formato_html(self):
         self.form_a.ciudadano = Ciudadano.objects.create(
@@ -1075,3 +1077,103 @@ class ForzarIdentidadTests(_BaseRevisionTest):
         self.form_a.refresh_from_db()
         motivo = motivo_bloqueo_aprobacion(self.form_a)
         self.assertTrue(motivo is None or "identidad" not in motivo.lower())
+
+
+class BandejasPaginadasTests(_BaseRevisionTest):
+    """Las bandejas de revisión traen solo la página visible.
+
+    Antes, la revisión de un relevamiento renderizaba todos sus casos y la marca de
+    carga duplicada se anotaba con un ``Exists`` correlacionado que MySQL resolvía
+    escaneando la tabla entera por cada fila: 206 s medidos contra 40.000 casos, muy
+    por encima del ``read_timeout`` de 10 s de producción.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin)
+        # 60 casos para que la primera página (50) no los cubra a todos.
+        self.casos = [
+            Formulario.objects.create(relevamiento=self.rel_a, celular=f"36241{numero:05d}") for numero in range(60)
+        ]
+
+    def test_la_revision_de_un_relevamiento_pagina(self):
+        resp = self.client.get(reverse("becas:revision_formularios", args=[self.rel_a.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context["is_paginated"])
+        self.assertEqual(len(resp.context["formularios"]), 50)
+        # 61 = los 60 de este test más el que crea la base.
+        self.assertEqual(resp.context["page_obj"].paginator.count, 61)
+
+    def test_la_segunda_pagina_trae_el_resto(self):
+        resp = self.client.get(reverse("becas:revision_formularios", args=[self.rel_a.pk]), {"page": 2})
+
+        self.assertEqual(len(resp.context["formularios"]), 11)
+        self.assertEqual(resp.context["page_obj"].number, 2)
+
+    def test_el_filtro_por_estado_pagina_sobre_lo_filtrado(self):
+        for caso in self.casos[:3]:
+            caso.estado = Formulario.Estado.APROBADO
+            caso.save(update_fields=["estado"])
+
+        resp = self.client.get(
+            reverse("becas:revision_formularios", args=[self.rel_a.pk]),
+            {"estado": Formulario.Estado.APROBADO},
+        )
+
+        self.assertEqual(resp.context["page_obj"].paginator.count, 3)
+        self.assertFalse(resp.context["is_paginated"])
+
+    def test_la_marca_de_carga_duplicada_sigue_llegando_a_la_plantilla(self):
+        original = self.casos[0]
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="3624999999",
+            duplicado_de=original,
+            conflicto_duplicado=True,
+            conflicto_resuelto=False,
+        )
+
+        resp = self.client.get(reverse("becas:revision_formularios", args=[self.rel_a.pk]))
+
+        marcados = {f.pk for f in resp.context["formularios"] if f.tiene_carga_duplicada_pendiente}
+        self.assertEqual(marcados, {original.pk})
+
+    def test_la_marca_no_aparece_si_el_conflicto_ya_se_resolvio(self):
+        original = self.casos[0]
+        Formulario.objects.create(
+            relevamiento=self.rel_a,
+            celular="3624999998",
+            duplicado_de=original,
+            conflicto_duplicado=True,
+            conflicto_resuelto=True,
+        )
+
+        resp = self.client.get(reverse("becas:revision_formularios", args=[self.rel_a.pk]))
+
+        self.assertEqual([f for f in resp.context["formularios"] if f.tiene_carga_duplicada_pendiente], [])
+
+    def test_la_bandeja_de_personas_pagina_y_respeta_el_alcance(self):
+        resp = self.client.get(reverse("becas:revision"))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context["formularios"]), 25)
+        # El admin ve los dos segmentos: 61 de rel_a más 1 de rel_b.
+        self.assertEqual(resp.context["page_obj"].paginator.count, 62)
+
+    def test_el_coordinador_solo_ve_su_segmento_en_la_bandeja(self):
+        self.client.force_login(self.coord_a)
+
+        resp = self.client.get(reverse("becas:revision"))
+
+        self.assertEqual(resp.context["page_obj"].paginator.count, 61)
+        self.assertNotIn(self.form_b.pk, {f.pk for f in resp.context["formularios"]})
+
+    def test_la_pagina_llega_ordenada_como_la_bandeja(self):
+        """La página se elige con una consulta liviana y se rehidrata después:
+        el orden tiene que ser el mismo en las dos."""
+        resp = self.client.get(reverse("becas:revision"))
+
+        pks = [f.pk for f in resp.context["formularios"]]
+        esperado = sorted(pks, key=lambda pk: (-Formulario.objects.get(pk=pk).creado.timestamp(), -pk))
+        self.assertEqual(pks, esperado)

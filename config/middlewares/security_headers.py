@@ -17,7 +17,10 @@ y el repo ya tiene sus propios middlewares.
 
 El único tercero permitido es el reCAPTCHA de Google, y solo porque el
 formulario público lo necesita: el resto de las librerías se autoalojan en
-``static/vendor/``.
+``static/vendor/``. Con ``GTM_CONTAINER_ID`` configurado (Cambio 68) se suman
+los hosts de Google Tag Manager y GA4, que es una decisión explícita: abre a
+Google el canal que ``connect-src 'self'`` cerraba. Otras etiquetas de GTM
+declaran sus hosts en ``CSP_EXTRA_SOURCES``.
 """
 
 from django.conf import settings
@@ -49,12 +52,43 @@ POLITICA_BASE = {
 
 PERMISSIONS_POLICY = "geolocation=(self), camera=(self), microphone=(), payment=(), usb=()"
 
+# Lo que Google Tag Manager y GA4 necesitan (Cambio 68), según la guía de Google
+# «Using Google Tag Manager with a Content Security Policy». Solo entra con el
+# contenedor configurado. Google Signals / Ads piden además doubleclick.net y
+# google.com en connect-src: van por CSP_EXTRA_SOURCES si se activan.
+GTM_SOURCES = {
+    "script-src": ["https://*.googletagmanager.com"],
+    "img-src": ["https://*.google-analytics.com", "https://*.googletagmanager.com"],
+    "connect-src": [
+        "https://*.google-analytics.com",
+        "https://*.analytics.google.com",
+        "https://*.googletagmanager.com",
+    ],
+    # El <noscript> del contenedor es un iframe.
+    "frame-src": ["https://www.googletagmanager.com"],
+}
+
+
+def parsear_fuentes_extra(texto):
+    """``"connect-src=https://a https://b;img-src=https://c"`` →
+    ``{"connect-src": [...], "img-src": [...]}``. Lo malformado se ignora."""
+    fuentes = {}
+    for parte in (texto or "").split(";"):
+        directiva, _, hosts = parte.partition("=")
+        if directiva.strip() and hosts.split():
+            fuentes[directiva.strip()] = hosts.split()
+    return fuentes
+
 
 def _politica():
-    extra = getattr(settings, "CSP_EXTRA_SOURCES", {}) or {}
+    extras = [getattr(settings, "CSP_EXTRA_SOURCES", {}) or {}]
+    if getattr(settings, "GTM_CONTAINER_ID", ""):
+        extras.insert(0, GTM_SOURCES)
     partes = []
     for directiva, valores in POLITICA_BASE.items():
-        completos = list(valores) + [v for v in extra.get(directiva, []) if v not in valores]
+        completos = list(valores)
+        for extra in extras:
+            completos += [v for v in extra.get(directiva, []) if v not in completos]
         partes.append(f"{directiva} {' '.join(completos)}" if completos else directiva)
     return "; ".join(partes)
 

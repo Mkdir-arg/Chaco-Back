@@ -54,6 +54,7 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 | `#mobile` | Impacta la APK de territoriales |
 | `#api` | Impacta el servidor/API consumido por Mobile |
 | `#infra` | Requiere algo del ambiente: cron, SMTP, despliegue, ECOM |
+| `#performance` | Tiempo de respuesta y de carga: consultas, índices, caché y peso de las pantallas |
 | `#gestion` | Tablero del Project, trazabilidad de issues y planes de prueba: qué se entregó y dónde figura |
 | `#metodo` | Método de trabajo de los agentes: `AGENTS.md`, `QA.md`, `PM.md` y las convenciones que deben cumplir al crear issues |
 
@@ -201,8 +202,21 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 55 | Validar la identidad a mano cuando Base de Personas no puede validar | Becas / revisión | `#siis` `#rbac` `#ui` `#datos` | PM — «hoy en día no puedo validar; podemos agregar una funcionalidad para, aunque no valide, poder forzar la validación» | 27/08/2026 | 🟢 **Hecho** | `programas.0054` |
 | 56 | Los selectores se pueden mostrar como buscador con píldoras | Becas · configuración → Portal | `#ui` `#relevamientos` `#datos` | PM — «cuando el campo es alguno de los dos tipo de selector, quiero poder configurar cuándo se ve como buscador con selector y el valor seleccionado se ve en píldora» | 28/08/2026 | 🟢 **Hecho** | `programas.0055` |
 | 57 | Padrón de la convocatoria como fuente de identidad (Base de Personas apagada por configuración) | Becas · identificación | `#relevamientos` `#siis` `#datos` `#infra` | PM — «la Gran Base no está funcionando; vamos a agregar esos datos al Excel y autocompletar de ahí» | 28/08/2026 | 🟢 **Hecho — desarrollo de #327–#333 (28/08/2026); quedan las pruebas #334/#335** | `programas.0056` |
-| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟢 **Hecho — las cuatro fases (catálogo #336/#338, motor #339-#341, constructor #337/#342-#344, portal y caso #345-#347); pendientes fuera de este repo: app móvil #348/#349** | `programas.0057`, `programas.0058`, `programas.0059`, `programas.0060`, `programas.0061` |
-| 59 | Padrón con herencia: el de la convocatoria se hereda y un relevamiento puede tener el suyo | Becas · convocatorias → Portal · App | `#relevamientos` `#datos` `#rbac` | PM — «si se configura en el relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente» | 31/08/2026 | 🟢 **Hecho** | `programas.0062` |
+| 58 | Constructor de formularios por convocatoria: grupos, textos, condiciones y campos del legajo | Becas · configuración → Portal · App | `#relevamientos` `#ui` `#datos` `#rbac` | PM — «al configurar la convocatoria, Configurar formulario: el diseño y al lado cómo quedaría publicado; los requisitos son campos que se arrastran» | 28/08/2026 | 🟡 **En pruebas — backoffice y link público desplegados en DEV y en QA desde el 09/09/2026 (tasks #336–#347, #350 y #351); app de campo pendiente (#348). Alcance aprobado: 270 h (era 150 h; el PM lo llevó a 220 y a 270 el 31/08/2026)** | Pendiente (catálogo, diseño, caso) |
+| 59 | El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de problemas técnicos» y «opción A que todavía no está abierto, opción B que está cerrado: que se vea un texto o el otro» | 31/08/2026 | 🟢 **Hecho** | No requiere |
+| 60 | El contacto del programa sale del paso 1 del link público | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «en la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720: eliminá esos datos; en la página 2 dejalos» | 03/09/2026 | 🟢 **Hecho** | No requiere |
+| 61 | El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «también borrá ese mensaje», sobre la alerta roja «No podés inscribirte con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002» | 03/09/2026 | 🟢 **Hecho** | No requiere |
+| 62 | El paso 1 vuelve a mostrar el pie, pero solo con la casilla | Portal / inscripción pública | `#textos` `#ui` `#relevamientos` | PM — «volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo agregá el correo» | 03/09/2026 | 🟢 **Hecho** | No requiere |
+| 63 | El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso | Transversal / login e infraestructura de ejecución | `#sesion` `#infra` | PM — en sesión: «noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login» y «vamos con tema desarrollo y armá una rama para este cambio» | 03/09/2026 | 🟡 **Parcial — código listo en la rama `perf/login-argon2-gunicorn`; falta desplegar en icore-srv y que ECOM decida el modo gunicorn** | No requiere |
+| 64 | Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación | Becas / configuración del programa | `#ui` `#convocatorias` `#relevamientos` `#datos` | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 05/09/2026 (corrección de performance el 06/09); alcance y 86 h validados por el Ministerio el 10/09/2026; falta la QA funcional formal (#374) y el cierre (#375)** | No requiere |
+| 65 | Exportar las respuestas de los formularios por persona, eligiendo la convocatoria | Becas / dashboard del programa | `#ui` `#datos` `#convocatorias` | PM — en sesión: «quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con… una columna por cada pregunta y un registro por caso enviado» | 06/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release 2b3f271, PR #381)** | No requiere |
+| 66 | Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla | Transversal (Becas, Legajos, home, RBAC) | `#performance` `#datos` `#ui` | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema… quiero mejorar el código para que funcione y después vemos el tema de la infra» | 05/09/2026 | 🟢 **Hecho — en producción de ECOM desde el 06/09/2026 (release afdb661, PR #382)** | `programas.0061`, `programas.0062`, `legajos.0008` (solo índices) |
+| 67 | El apoderado es obligatorio para todas las personas que se inscriben por el link | Becas / link público de inscripción y revisión | `#relevamientos` `#ui` `#mobile` | PM — en sesión: «tengo la sección Apoderado y no es obligatorio, quiero que lo sea… para todas las personas, incluidas las mayores de edad, todas las convocatorias, los cinco campos» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release 6d3925f, PR #383). La app de campo conserva la regla de menores hasta que Mobile la cambie** | No requiere |
+| 68 | Google Tag Manager en las pantallas públicas de inscripción | Portal / link público de inscripción | `#ui` `#infra` | PM — en sesión: «son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo» | 08/09/2026 | 🟢 **Hecho — en test y producción de ECOM desde el 08/09/2026 (release dc1a900, PR #384); se activa cuando ECOM cargue `GTM_CONTAINER_ID`** | No requiere |
+| 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
+| 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
+| 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
+| 72 | Padrón con herencia: el de la convocatoria se hereda y un relevamiento puede tener el suyo | Becas · convocatorias → Portal · App | `#relevamientos` `#datos` `#rbac` | PM — «si se configura en el relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente» | 31/08/2026 | 🟢 **Hecho** | `programas.0065` |
 
 **Notas del índice**
 
@@ -5983,10 +5997,14 @@ campo; la app vieja entra por un adaptador y el servidor arma su foto.
 
 Pendiente. 21 tasks (#336–#356) en seis fases: catálogo → motor → constructor → portal y caso → app de campo → calidad e
 integración. 150 h aprobadas por el PM (134 h en tasks + análisis, casos QA y reunión de definición).
-**31/08/2026 — el PM llevó el alcance aprobado a 270 h** (primero 220 y en el mismo día 270, al armar el
-informe al cliente: al ajustarlo había 94 h 30 min ejecutadas —fin de semana 29-30 con equipo completo + la
-mañana del lunes del PM— y quedaban mejoras, validaciones y la etapa de la app de campo por delante). Es la
-cifra comunicada al cliente el 31/08.
+**31/08/2026 — el PM llevó el alcance aprobado a 270 h** (primero 220 y en el mismo día 270, al armar el informe al
+cliente: en ese momento había 94 h 30 min ejecutadas). Es la cifra comunicada al cliente el 31/08.
+**Consumo al 10/09/2026: 197 h 00 min (73 %).** Medición acordada con el PM el 09/09: de las 270 h, adaptar la
+app pesa 48 h (18 %) y las pruebas 42 h (16 %), por los pesos de las tasks del análisis; el **desarrollo** son 180 h y
+lleva 167 h 00 min (93 %). La **documentación cliente** (task #353, 8 h) quedó imputada a Matías Abate el 10/09,
+repartida en los días con cupo. Las 13 h que le faltan al desarrollo son el merge a `development` (migraciones con el mismo
+número en las dos ramas), el release y el espejo a ECOM, que se registran cuando se hagan. El detalle del desarrollo vive
+en la rama `feature/constructor-formularios`, todavía sin mergear.
 
 ## Archivos
 
@@ -5998,8 +6016,8 @@ Pendiente. Previstos: `programas/models/__init__.py`, `programas/services/diseno
 ## Base de datos
 
 `GrupoRequisito`; `PreguntaGlobal` (grupo, origen, vinculo, protegido, canal); `RequisitoNativo.canal`
-(`programas.0057`). `DisenoFormulario` + `ItemDiseno` (`programas.0058`). `Formulario.respuestas` +
-`Formulario.definicion` (`programas.0059`); siembra del catálogo protegido (`programas.0060`, datos).
+(`programas.0060`). `DisenoFormulario` + `ItemDiseno` (`programas.0061`). `Formulario.respuestas` +
+`Formulario.definicion` (`programas.0062`); siembra del catálogo protegido (`programas.0063`, datos).
 **Las cuatro migraciones son aditivas.** `data`, `celular`,
 `email_contacto` y `apoderado_*` **se conservan y se siguen escribiendo** como puente para la app móvil y
 los lectores que todavía no migraron: la eliminación destructiva que preveía el análisis se descartó al
@@ -6058,7 +6076,7 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   configuradores ofrecen «Se pide en» y la lista de generales muestra grupo, origen y protegido.
   `definicion_formulario` filtra por el canal del relevamiento (`CanalFormulario.del_relevamiento`) y expone
   `canal`, `origen`, `vinculo` y `grupo` por campo; **excluye los campos vinculados** hasta que el diseño por
-  convocatoria los consuma (si entraran hoy se pedirían dos veces). Migración `programas.0057`. Tests:
+  convocatoria los consuma (si entraran hoy se pedirían dos veces). Migración `programas.0060`. Tests:
   `programas/tests/test_catalogo_grupos.py` (19). Pendiente de esta fase: la pantalla agrupada con drag & drop (#337).
 - **28/08/2026 — Fase 2 (motor) hecha, tasks #339, #340 y #341.** `DisenoFormulario` (uno por convocatoria,
   `version`, `actualizado_por`) e `ItemDiseno` (grupo / campo / texto; clave estable `g-…`, `pg-<pk>`, `rn-<pk>`,
@@ -6075,7 +6093,7 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   `fuentes_disponibles`. `definicion_formulario` v2: suma `version` e `items` (grupos → campos y textos con
   condiciones, filtrados por canal) desde el diseño guardado o desde el plan por defecto; **las listas planas
   `globales`/`requisitos` siguen iguales** para la app vieja y el paso 2 actual; los campos vinculados viajan solo
-  en `items`. Migración `programas.0058`. Tests: `test_condiciones.py` (24), `test_diseno.py` (21); presupuesto de
+  en `items`. Migración `programas.0061`. Tests: `test_condiciones.py` (24), `test_diseno.py` (21); presupuesto de
   consultas sin cambios. Sin espejo JS del motor todavía (va con la vista previa, #344).
 - **30/08/2026 — Fase 3 (constructor) hecha, tasks #337, #342, #343 y #344.** Catálogo agrupado con drag & drop
   (`pregunta_list.html` + `_preguntas_grupos.html` + `_pregunta_row.html`, `nodo-catalogo-grupos.js`, SortableJS
@@ -6100,7 +6118,7 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
 - **30/08/2026 — Fase 4 (portal y caso) hecha, tasks #345, #346 y #347.** El caso guarda `respuestas`
   (por clave de ítem: `pg-<pk>`, `rn-<pk>`, `cp-…`) y `definicion`, la **foto** de lo que respondió
   (`{version, canal, items}`, D3): un caso viejo no se reinterpreta con un diseño posterior.
-  Migración `programas.0059`, **aditiva**: `data` y las columnas fijas (celular, correo, apoderado)
+  Migración `programas.0062`, **aditiva**: `data` y las columnas fijas (celular, correo, apoderado)
   se siguen escribiendo como puente, así que **no** hay migración destructiva ni coordinación con
   ECOM en esta fase; borrarlas queda para cuando ningún lector las use.
   `programas/services/respuestas.py` es la pieza única: `foto_definicion`, `campos_de`, `planos_de`,
@@ -6121,7 +6139,7 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   respondió esa persona, con badge de versión y «No se pidió» en lo que ocultó una condición; un caso
   anterior al Cambio 58 (sin foto) sigue por el camino de siempre. Editar contacto/apoderado también
   actualiza las respuestas. Un campo propio no puede ser ARCHIVO (los adjuntos referencian catálogo).
-  `programas.0060` siembra el catálogo protegido en las bases que ya existían: hasta ahora solo lo creaba
+  `programas.0063` siembra el catálogo protegido en las bases que ya existían: hasta ahora solo lo creaba
   `seed_becas`, y sin esos campos el portal no pediría identidad, contacto ni apoderado. Es un snapshot
   idempotente que no pisa lo renombrado ni lo reordenado. Tests: `test_respuestas.py` (14),
   `test_migracion_catalogo.py` (5) y `test_inscripcion_envio.py` reescrito al contrato nuevo (33).
@@ -6136,7 +6154,7 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   (`[82vh]`) que un template use y el build no declare. Corriéndola sobre todo el repo aparecen 35 casos
   preexistentes ajenos a este cambio —`hover:bg-gray-*` y `focus:ring-brand` que no hacen nada porque el
   config reemplaza la escala `gray`—; como el auditor se usa por archivo tocado, no bloquean a nadie hasta
-  que se editen esas pantallas. También se desempató `ValidacionSIS.Meta.ordering` (`programas.0061`): con
+  que se editen esas pantallas. También se desempató `ValidacionSIS.Meta.ordering` (`programas.0064`): con
   `-creado` sola, dos validaciones del mismo instante quedaban en orden aleatorio y el historial de la
   revisión —y un test— fallaban de a ratos.
 - **30/08/2026 — Revisión visual en navegador real.** Se recorrieron las cuatro pantallas con Chromium
@@ -6235,11 +6253,1683 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
   `Paso2AssetsBuscadorTests` (+1, pin del JS). Verificado con Python 3.12 / Django 5.2 (el par del CI) y
   `test_migracion_catalogo` también con migraciones reales. Queda como decisión del PM el flujo
   borrador → publicar (ver Pendientes).
+- **11/09/2026 — `development` mergeado en la rama y la rama al ambiente QA de ECOM.** Por pedido del PM, la
+  rama se puso al día con los 55 commits de `development` (Cambios 59 a 71) para probar el constructor en QA
+  (`datanach.ecomdev.ar`, rama `test` de ECOM) en vez de en DEV. Lo que hubo que resolver: (1) **migraciones con
+  el mismo número**: development ocupó `programas.0057` a `0059` con índices (Cambio 66); las seis de la rama
+  pasan a `0060` a `0065` y cuelgan de `0059_formulario_renaper_idx_con_relevamiento`. **DEV (icore-srv) tiene
+  aplicadas las seis con los nombres viejos**: antes de redesplegarlo hay que renombrar esas filas en
+  `django_migrations` (o marcarlas con `--fake`), si no Django intenta crear columnas que ya existen. (2) **Cambio
+  67 trasladado al catálogo**: el grupo Apoderado se siembra sin condición por defecto y con sus cinco campos
+  obligatorios (seed y `programas.0063`); la revisión muestra siempre el bloque. Los tests que usaban la condición
+  «edad < 18» como banco del motor la vuelven a poner a mano, así el motor sigue cubierto. (3) **Cambio 71**
+  (rechazos diferenciados del paso 1) portado al test que asumía el mensaje único. (4) **Dashboard (Cambio 64)**:
+  `preguntas_graficables` excluye los campos vinculados (`origen != pregunta`); sin eso ofrecía «Sexo» y «Sexo del
+  apoderado» como preguntas graficables, con series vacías porque su respuesta va al legajo. (5) **Colisión de
+  numeración**: el padrón con herencia de la rama era el Cambio 59 y development ya tenía otro 59; pasa a ser el
+  **Cambio 72**, con las referencias del código renumeradas. (6) Tailwind recompilado; el `.gitlab-ci.yml` es el de
+  development, byte a byte. Suite completa: 1.305 tests OK con Python 3.12 / Django 5.2. Los tres avisos de
+  `design_audit` (`ciudadano_detail`, `home`, `formulario_list`) y los tres archivos sin formatear de ruff son
+  preexistentes de development, no de este merge.
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
 
-# Cambio 59 — Padrón con herencia: convocatoria → relevamientos, con padrón propio por relevamiento
+# Cambio 59 — El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió
+
+🟢 **HECHO — 31/08/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (el link productivo es del programa Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, sobre el link productivo `/portal/inscripcion/f02de490-…/formulario/` |
+| **Fecha del pedido** | 31/08/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Pie del shell de inscripción (todas las pantallas del link) · pantalla «Formulario no disponible» |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «¿Necesitás ayuda? +54 362 430-0002 · datanach@chaco.gob.ar / © 2026 DATAÑACH — Gobierno del Chaco:
+> cambiale los datos por consultasincentivojunvetud@gmail.com - Whatsapp 3625153720. Solo en caso de
+> problemas técnicos.» Y sobre la pantalla de no disponible: «tenemos la opción A que todavía no está
+> abierto y la opción B que está cerrado; quiero que en base a esas opciones se vea un texto o el otro».
+
+## Alcance acordado
+
+- El **pie del shell de inscripción** (visible en las seis pantallas del link) reemplaza teléfono, mail
+  institucional y línea de copyright por: casilla de Gmail + WhatsApp 3625153720 + «Solo en caso de
+  problemas técnicos.».
+- La pantalla **«Formulario no disponible»** gana dos textos: **A** — «todavía no está abierto», con la
+  fecha en que comienzan las inscripciones; **B** — «ya no admite inscripciones» (el texto que ya
+  existía). La línea de contacto de esa pantalla también pasa a los datos nuevos.
+- **Afuera:** el resto de las menciones del teléfono viejo (+54 362 430-0002): el mensaje de rechazo del
+  paso 1 (`MENSAJE_RECHAZO`), «ya estás inscripto», «demasiados intentos», el comprobante y su correo,
+  «sesión vencida», y el home y el pie del portal ciudadano. Quedan como pendiente a decidir.
+
+## Decisiones tomadas
+
+- **Matiza RN-P4 del Cambio 41** (pantalla única «sin motivo»): solo «todavía no abrió» gana texto
+  propio, porque no revela nada sensible y le dice al ciudadano algo accionable (volvé tal fecha).
+  Pausado, cupo lleno, vencido y cerrado **siguen compartiendo el genérico**: comunicar cupo o motivo de
+  cierre sigue explícitamente fuera, como se decidió en el Cambio 41. `relevamiento_aun_no_abierto()`
+  exige público + EN_CURSO + sin pausa + con cupo + `fecha_asignada` en el futuro; cualquier otra
+  combinación cae al texto B.
+- **El WhatsApp va como texto plano, sin deep-link `wa.me`**: `SinRecursosDeTercerosTests` prohíbe
+  cualquier `href` `http(s)://` en plantillas servidas y no vale la pena agujerear esa red por un link de
+  cortesía. El email sí es `mailto:` (no es http y pasa).
+- **El contacto queda hardcodeado en el shell**, compartido por todos los links públicos. Hoy el único
+  link vivo es el de Incentivo Juventud; si otro programa publica un link y necesita contacto propio, el
+  paso siguiente es un campo por relevamiento (evolutivo, no pedido).
+- **El email se transcribió tal cual lo pasó el cliente**, con «junvetud» (sic). Ver Pendientes.
+
+## Implementación
+
+- `portal/services/inscripcion.py` — `relevamiento_aun_no_abierto()`, al lado de
+  `relevamiento_disponible()` que ya concentraba la disponibilidad (RN-P4).
+- `portal/views/inscripcion.py` — `_no_disponible()` pasa `aun_no_abierto` al template.
+- `portal/templates/portal/inscripcion/no_disponible.html` — las dos variantes; la A muestra
+  `fecha_asignada` como `d/m/Y`.
+- `portal/templates/portal/inscripcion/base_inscripcion.html` — el pie nuevo.
+
+## Archivos
+
+`portal/services/inscripcion.py` · `portal/views/inscripcion.py` ·
+`portal/templates/portal/inscripcion/no_disponible.html` ·
+`portal/templates/portal/inscripcion/base_inscripcion.html` · tests: `portal/tests/test_inscripcion.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos: el vencido muestra el texto B y no el A; un link con `fecha_asignada` futura muestra el A
+  y no el B; un link pausado con fecha futura **no** califica como «aún no abierto» (RN-P4). Suite
+  `portal.tests.test_inscripcion` 18/18 en verde (SQLite en memoria).
+- `SinRecursosDeTercerosTests` en verde (el pie nuevo no introduce URLs externas).
+- `manage.py check` OK · `design_audit.py --changed` 0 errores / 0 warnings · `compile_templates.py`
+  331 plantillas, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. El servidor está sobre la rama `feature/constructor-formularios`.
+
+## Pendientes / a definir
+
+- Decidir si el teléfono +54 362 430-0002 que sigue en el resto de las superficies (mensaje de rechazo
+  del paso 1, «ya estás inscripto», «demasiados intentos», comprobante y correo de confirmación, «sesión
+  vencida», home y pie del portal) también se reemplaza, y por qué dato (es contacto del organismo, no
+  del programa).
+
+## Reversión
+
+Revertir el commit; no hay migraciones ni datos involucrados.
+
+## Historial
+
+No aplica: entrada nueva. Matiza una decisión del Cambio 41 («Formulario no disponible» única para
+vencido/pausado/cupo/cerrado, sin motivo): el caso «todavía no abrió» se separa por pedido del PM; el
+resto sigue sin revelar motivo.
+
+**31/08/2026 — El PM confirmó la casilla:** `consultasincentivojunvetud@gmail.com` es correcta tal
+cual, no es un typo de «juventud».
+
+**03/09/2026 — El pie ya no se ve en las seis pantallas:** el Cambio 60 lo saca del **paso 1**
+(la pantalla que se abre con solo tener el link) y lo deja del paso 2 en adelante. El resto de lo
+acordado acá sigue igual.
+
+---
+
+# Cambio 60 — El contacto del programa sale del paso 1 del link público
+
+🟢 **HECHO — 03/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo, sobre el link productivo `/portal/inscripcion/f02de490-…/` |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Pie del shell de inscripción · paso 1 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «En la página 1 tenemos consultasincentivojunvetud@gmail.com · WhatsApp 3625153720. Eliminá esos
+> datos; en la página 2 dejalos.»
+
+## Alcance acordado
+
+- El **paso 1** (identificación: DNI, sexo y captcha) deja de mostrar el pie con la casilla y el
+  WhatsApp del programa. No queda un pie recortado: la franja entera desaparece de esa pantalla.
+- El **paso 2** (formulario) lo sigue mostrando tal cual quedó en el Cambio 59.
+- **Afuera:** las otras cuatro pantallas del link —confirmación, «formulario no disponible», «ya estás
+  inscripto» y «demasiados intentos»— conservan el pie; el PM habló de la página 1 y la página 2, y no
+  hay motivo para tocar el resto. La línea de contacto que el Cambio 59 puso **dentro** del cuerpo de
+  «formulario no disponible» tampoco se toca.
+
+## Decisiones tomadas
+
+- **Se saca el pie completo, no solo el mail y el teléfono.** La segunda línea («Solo en caso de
+  problemas técnicos.») es la aclaración de ese contacto: sola no dice nada. El pie del paso 1 tampoco
+  vuelve a la línea de copyright que había antes del Cambio 59, porque eso sería reponer un texto que
+  el PM ya había mandado sacar.
+- **Se resuelve con un bloque de plantilla (`{% block pie %}`), no con un `if` sobre el paso.** El
+  shell no sabe en qué paso está —cada pantalla es su propia plantilla—, y un condicional obligaría a
+  inventar una variable de contexto en todas las vistas. Con el bloque, la pantalla que quiera ocultar
+  el pie lo declara vacío en una línea y las demás no cambian.
+- **El contacto sigue hardcodeado en el shell.** Vale lo decidido en el Cambio 59: si otro programa
+  publica un link y necesita contacto propio, recién ahí se justifica un campo por relevamiento.
+- **Queda un hueco de ~136 px al pie del panel de marca en escritorio.** Ese padding está para que el
+  pie fijo no tape el stepper; sin pie es aire de más sobre el degradado, que no molesta. Se prefirió
+  eso a duplicar el CSS del panel para el único caso del paso 1.
+
+## Implementación
+
+Al abrir el link público, la primera pantalla (identificación) ya no muestra ninguna franja de
+contacto. Al pasar al formulario, el pie con la casilla y el WhatsApp aparece como hasta ahora, igual
+que en el comprobante y en las pantallas de aviso.
+
+## Archivos
+
+`portal/templates/portal/inscripcion/base_inscripcion.html` (el pie pasa a `{% block pie %}`) ·
+`portal/templates/portal/inscripcion/paso1.html` (lo declara vacío) · tests:
+`portal/tests/test_inscripcion.py` (`PieDeContactoTests`).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos (`PieDeContactoTests`): el paso 1 no contiene ni la casilla ni el número; el paso 2 sí.
+  Suite `portal.tests.test_inscripcion` 20/20 en verde (SQLite en memoria). **Ojo:** en el venv local
+  (Python 3.14 + Django 4.2) los dos casos caen en `_tolerar_render_local` —el bug conocido de
+  `Context.__copy__`— y no llegan a afirmar nada; las afirmaciones corren de verdad en CI.
+- Verificación local equivalente sin test client: se renderizaron las seis plantillas del link con
+  `render_to_string`. Solo `paso1.html` sale sin `<footer>` y sin los dos datos; paso 2, confirmación,
+  no disponible, ya inscripto y demasiados intentos los conservan.
+- `manage.py check` OK · `compile_templates.py` 331 plantillas, 0 errores ·
+  `design_audit.py --changed` 0 errores / 0 warnings.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. El servidor está sobre la rama `feature/constructor-formularios`.
+
+## Pendientes / a definir
+
+- Sigue abierto lo del Cambio 59: qué se hace con el teléfono +54 362 430-0002 que todavía aparece en
+  el mensaje de rechazo del paso 1, «ya estás inscripto», «demasiados intentos», el comprobante y su
+  correo, «sesión vencida», y el home y el pie del portal ciudadano.
+
+## Reversión
+
+Revertir el commit: el `{% block pie %}` vuelve a ser un `<footer>` fijo y el paso 1 lo muestra de
+nuevo. No hay migraciones ni datos involucrados.
+
+## Historial
+
+No aplica: entrada nueva. Acota el alcance del Cambio 59 —que había puesto el pie en las seis
+pantallas del link—; esa entrada queda con su nota de historial fechada.
+
+**03/09/2026 — Media vuelta atrás, el mismo día:** el PM pidió que el pie **vuelva** al paso 1, pero
+solo con la casilla. Lo que sigue en pie de esta entrada es que el **WhatsApp** no se muestra ahí; la
+decisión de sacar la franja entera quedó sin efecto. Ver Cambio 62.
+
+---
+
+# Cambio 61 — El mensaje de rechazo del paso 1 deja de mostrar el teléfono del organismo
+
+🟢 **HECHO — 03/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en la misma sesión del Cambio 60, con una captura de la alerta roja del paso 1 |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | `MENSAJE_RECHAZO` del paso 1 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «También borrá ese mensaje» — con una captura de la alerta roja del paso 1: «No podés inscribirte
+> con ese documento. Si creés que es un error, comunicate con el programa al +54 362 430-0002.»
+
+## Alcance acordado
+
+- La alerta de rechazo del paso 1 pierde la segunda oración completa. Queda: **«No podés inscribirte
+  con ese documento.»**
+- **Afuera:** el mismo teléfono sigue en «ya estás inscripto», «demasiados intentos», el comprobante y
+  su correo, «sesión vencida», y el home y el pie del portal ciudadano. El pedido fue sobre esta
+  alerta; el resto sigue en el pendiente que abrió el Cambio 59.
+
+## Decisiones tomadas
+
+- **Se saca la oración de contacto, no la alerta entera.** «Borrá ese mensaje» se leyó sobre el dato de
+  contacto —es el tema de toda la sesión (Cambios 59 y 60)— y no sobre el aviso: `MENSAJE_RECHAZO` es
+  lo único que le dice al ciudadano que ese documento no pasa. Sin él, los cuatro caminos de rechazo
+  del paso 1 dejarían el formulario en rojo sin texto, y la persona reintentaría sin saber por qué.
+  **Queda pendiente de confirmación del PM** (ver Pendientes).
+- **No se reemplaza por el contacto nuevo del programa** (la casilla y el WhatsApp del Cambio 59):
+  sería contradecir el Cambio 60, que acaba de sacar ese contacto justamente del paso 1.
+- **Sigue siendo un único mensaje para los cuatro rechazos** —fuera del padrón, ya inscripto,
+  fallecido y padrón cambiado entre pasos—. Es la decisión de la revisión de seguridad del 26/08/2026:
+  textos distintos convertían el formulario en un oráculo para reconstruir el padrón. Acortar el texto
+  no toca esa propiedad, y `RechazosIndistinguiblesTests` la sigue cubriendo.
+
+## Implementación
+
+Cuando el paso 1 rechaza un documento, la alerta roja dice solo «No podés inscribirte con ese
+documento.», sin teléfono ni invitación a comunicarse.
+
+## Archivos
+
+`portal/views/inscripcion.py` (constante `MENSAJE_RECHAZO`). Los tests que la verifican
+—`portal/tests/test_seguridad_publica.py`, `portal/tests/test_correcciones_review_2.py`— importan la
+constante, así que no hubo que tocarlos.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `portal.tests.test_seguridad_publica` + `test_correcciones_review_2` + `test_inscripcion`: 69 tests,
+  11 errores, **exactamente los mismos 11 con y sin el cambio** (baseline conocido del venv local:
+  Python 3.14 + Django 4.2, `Context.__copy__`). Se corrió el baseline a propósito para compararlo.
+- `manage.py check` OK. No tocó plantillas: no aplica `design_audit` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. El servidor está sobre la rama `feature/constructor-formularios`.
+
+## Pendientes / a definir
+
+- **Confirmar con el PM** si además hay que sacar la primera oración, es decir, dejar el rechazo sin
+  ningún mensaje visible. Se preguntó al entregar el cambio; hasta la respuesta queda la oración corta.
+- Sigue abierto el pendiente del Cambio 59 sobre las otras seis superficies donde aparece el
+  +54 362 430-0002.
+
+## Reversión
+
+Revertir el commit: la constante vuelve a su texto largo con el teléfono.
+
+## Historial
+
+No aplica: entrada nueva. Cierra una parte del pendiente que dejó abierto el Cambio 59 (el teléfono
+viejo en el mensaje de rechazo del paso 1) y acompaña al Cambio 60, del mismo pedido en sesión.
+
+---
+
+# Cambio 62 — El paso 1 vuelve a mostrar el pie, pero solo con la casilla
+
+🟢 **HECHO — 03/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en la misma sesión, después de ver desplegado el Cambio 60 |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Pie del shell de inscripción · paso 1 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Volvé a agregar en la primera página el mensaje donde estaba el correo y el número, pero solo
+> agregá el correo consultasincentivojunvetud@gmail.com.»
+
+## Alcance acordado
+
+- El **paso 1** vuelve a mostrar el pie completo —la casilla y la línea «Solo en caso de problemas
+  técnicos.»— **sin el WhatsApp**.
+- El **paso 2** y las otras cuatro pantallas del link siguen con la casilla **y** el WhatsApp, como
+  quedó en el Cambio 59.
+- **Afuera:** todo lo demás. En particular no se toca el mensaje de rechazo del Cambio 61, que sigue
+  sin contacto.
+
+## Decisiones tomadas
+
+- **Se revierte el mecanismo del Cambio 60, no se le agrega otra capa.** Aquel bloque `pie` —que el
+  paso 1 vaciaba entero— desaparece; en su lugar el pie es fijo otra vez y lo único opcional es el
+  WhatsApp, en un bloque `pie_whatsapp` que el paso 1 declara vacío. Así el mail no queda escrito en
+  dos plantillas: una sola línea del shell lo define para las seis pantallas.
+- **La línea «Solo en caso de problemas técnicos.» vuelve también al paso 1.** Es la aclaración de la
+  casilla; separarlas dejaría un contacto sin contexto, que es lo contrario de lo que pidió el Cambio 59.
+- **Queda una diferencia real entre el paso 1 y el resto:** solo esa pantalla oculta el WhatsApp. No es
+  un efecto colateral del mecanismo, es lo pedido; el test lo fija en las dos direcciones.
+
+## Implementación
+
+El pie del link vuelve a verse en las seis pantallas. En el paso 1 dice solo la casilla; del paso 2 en
+adelante, casilla y WhatsApp.
+
+## Archivos
+
+`portal/templates/portal/inscripcion/base_inscripcion.html` (el pie vuelve a ser fijo; el WhatsApp
+pasa a `{% block pie_whatsapp %}`) · `portal/templates/portal/inscripcion/paso1.html` (lo vacía) ·
+tests: `portal/tests/test_inscripcion.py` (`PieDeContactoTests`).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `PieDeContactoTests` actualizado: el paso 1 **contiene** la casilla y **no** el número; el paso 2
+  tiene los dos. Suite `portal.tests.test_inscripcion` 20/20 en verde. Vale la misma advertencia del
+  Cambio 60: en el venv local esos dos casos caen en `_tolerar_render_local` y afirman de verdad en CI.
+- Verificación local equivalente con `render_to_string` sobre las seis plantillas: `paso1` sale con
+  `<footer>` y con la casilla, sin el número; las otras cinco, con los dos datos.
+- `manage.py check` OK · `compile_templates.py` 331 plantillas, 0 errores ·
+  `design_audit.py --changed` 0 errores / 0 warnings.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración.
+
+## Pendientes / a definir
+
+- Sigue abierto el pendiente del Cambio 59 sobre el +54 362 430-0002 en las otras superficies, y el del
+  Cambio 61 sobre si el mensaje de rechazo del paso 1 tiene que desaparecer del todo.
+
+## Reversión
+
+Revertir el commit: el paso 1 vuelve a quedarse sin pie, como lo dejó el Cambio 60.
+
+## Historial
+
+No aplica: entrada nueva. Deja sin efecto la mitad del Cambio 60 —sacar el pie entero del paso 1— y
+conserva la otra mitad: el WhatsApp sigue sin mostrarse ahí. El Cambio 60 queda con su nota fechada.
+
+---
+
+# Cambio 63 — El login tarda por el hash de la contraseña y el HTTP corre en un solo proceso
+
+🟡 **PARCIAL — código listo el 03/09/2026 en la rama `perf/login-argon2-gunicorn`; falta desplegar en `icore-srv` y que ECOM decida si activa el modo gunicorn**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — login e infraestructura de ejecución |
+| **Etiquetas** | `#sesion` `#infra` |
+| **Solicitante** | PM — en sesión: «quiero que analices la perfo del sistema, si se puede mejorar; noto que la carga de algunas pantallas tardan más de lo común, ejemplo el login», y después «vamos con tema desarrollo y armá una rama para este cambio» |
+| **Fecha del pedido** | 03/09/2026 |
+| **Issue / épica** | Sin issue. Antecedente: épica de performance #222 (relevamientos #219, #262, #264) |
+| **Partes afectadas** | Backoffice (login) · Infra/ECOM (runtime HTTP de la imagen, compose de `icore-srv`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero que analices la perfo del sistema, si se puede mejorar. Noto que la carga de algunas pantallas
+> tardan más de lo común, ejemplo el login.» → punteo de mejoras de código → «Bien, vamos con tema
+> desarrollo y armá una rama para este cambio.»
+
+## Alcance acordado
+
+Entra lo que el análisis ([analisis-performance-login-2026-09.md](analisis-performance-login-2026-09.md))
+ubicó como las dos causas de mayor impacto y menor riesgo:
+
+1. **El hash de la contraseña** (H-1): Argon2 en lugar del PBKDF2 por defecto.
+2. **Un solo proceso Python para todo el HTTP** (H-2): la imagen gana el modo `APP_RUNTIME=gunicorn`
+   y el compose de `icore-srv` lo adopta para el contenedor `web`.
+
+**Queda afuera** (punteo entregado al PM, cada punto con su entrada cuando se haga): nginx con
+`gzip_static` y HTTP/2 en `icore-srv` (H-4), timeouts más cortos hacia RENAPER/Personas/SIIS (H-6),
+caché del contador de alertas del navbar (H-9), concatenación de las hojas de estilo (H-5), presupuesto
+de CI para el POST de login, rotación real del log diario (H-8), middlewares async-capable (H-3, solo si
+se sigue con Daphne para HTTP) y la fijación de sesión única en menos consultas (H-10).
+
+## Decisiones tomadas
+
+- **Argon2id primero; PBKDF2 se conserva detrás.** Medido en la máquina de desarrollo: verificar una
+  contraseña con el PBKDF2 de Django 5.2 (1.000.000 de iteraciones, el que corre producción) cuesta
+  **952 ms** de CPU; Argon2id con los parámetros por defecto de Django, **89 ms**. Ese segundo se paga
+  con el GIL tomado, así que un login frenaba a los demás usuarios. PBKDF2 queda en la lista para leer
+  los hashes ya guardados: Django los **re-hashea a Argon2 en el siguiente login exitoso**, sin
+  migración ni reseteo de claves. **No se bajan las iteraciones de PBKDF2** como atajo: sería perder
+  seguridad para ganar lo que Argon2 da sin perderla.
+- **gunicorn con hilos (`gthread`), no gevent.** El código usa `mysqlclient` y `requests` bloqueantes;
+  gevent exigiría monkey-patching y el parche de `config/gevent_patch.py` queda inactivo (solo se activa
+  con `GUNICORN_WORKER_CLASS=gevent`). La documentación pública en `docs/client/architecture.md` decía
+  `gunicorn -k gevent` para un modo que **el entrypoint nunca había implementado**: se corrige para que
+  describa lo que la imagen hace.
+- **Con gunicorn, `WEBSOCKETS_ENABLED` no se deduce: se declara.** Gunicorn no sirve websockets; deducir
+  `True` mentiría en un despliegue sin Daphne y el navegador intentaría conectar a un `/ws/` que no
+  existe. El entrypoint avisa al arrancar si la variable falta. En `icore-srv` se declara `True` porque
+  el contenedor `websocket` (Daphne) sigue atendiendo `/ws/` y nginx ya lo enruta ahí.
+- **Defaults 3 workers × 2 hilos, timeout 120 s, `max-requests` 1000 con jitter.** Tres procesos usan los
+  4 vCPU de la VM dejando aire a MySQL y Redis. El timeout de 120 s es solo el techo a partir del cual
+  gunicorn mataría un worker colgado: **el límite efectivo para el cliente lo pone nginx**, que corta a
+  los 60 s (`proxy_read_timeout`), y la cadena RENAPER (10 s conexión + 20 s lectura) entra dentro de ese
+  margen; con `gthread` una request larga tampoco mata al worker, porque el latido al maestro lo da el
+  hilo principal, no el que atiende la request. El reciclado por cantidad de requests mantiene la memoria
+  acotada bajo el límite del contenedor. Todo ajustable por variables `GUNICORN_*`.
+- **`web` de `icore-srv` pasa a gunicorn en el compose del repo, con 900 MB sin swap.** El límite anterior
+  (350 MB con 150 MB de swap permitido) hacía errática la latencia si el proceso paginaba; con tres
+  workers de 150–200 MB hace falta subirlo. `websocket` sigue igual (Daphne, 300 MB).
+- **Daphne sigue siendo el default de la imagen.** ECOM corre un solo Deployment con Daphne para HTTP y
+  `/ws/` (Cambio 31, historial del 13/08/2026); si no cambia nada, su despliegue arranca exactamente
+  igual. El modo gunicorn en Kubernetes exige dos Deployments (web con gunicorn, ws con Daphne), ingress
+  enrutando `/ws/` y `WEBSOCKETS_ENABLED=True` en el web. Quedó documentado en `docker/k8s/README.md`,
+  sección *HTTP en varios procesos*, junto con la alternativa sin cambios (más réplicas).
+- **En ECOM se arranca subiendo réplicas, no con gunicorn; en `icore-srv`, gunicorn.** La forma de
+  repartir la carga es **decisión nuestra, no de la plataforma**: DevOps aplica la configuración y aporta
+  los datos del ambiente. En Kubernetes, más réplicas es un número en el manifiesto —no toca el ingress
+  ni el enrutamiento del chat— y ya da un núcleo por réplica; gunicorn queda como segundo paso si las
+  métricas lo piden. En `icore-srv` se elige gunicorn porque nginx **ya** separa `/ws/` hacia el
+  contenedor `websocket` y no hay nada nuevo que enrutar. El pedido de datos a DevOps de ECOM, con el
+  motivo de cada uno, está en
+  [pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md).
+
+## Implementación
+
+- Las contraseñas nuevas y las que se cambian se guardan con Argon2id; las existentes siguen
+  funcionando y se actualizan solas la primera vez que el usuario entra.
+- La imagen acepta `APP_RUNTIME=gunicorn`: levanta `gunicorn config.wsgi:application` con
+  `GUNICORN_WORKERS` × `GUNICORN_THREADS` (3 × 2), `GUNICORN_TIMEOUT` (120) y `GUNICORN_MAX_REQUESTS`
+  (1000), después del mismo bootstrap de siempre. `runserver` y `daphne` no cambian.
+- En `icore-srv`, `web` arranca con gunicorn y `WEBSOCKETS_ENABLED=True`; `websocket` y `nginx` siguen
+  igual.
+- Documentación alineada: `.env.qa.example`, `docker/k8s/README.md`, `docs/internal/processes.md`,
+  `docs/client/architecture.md` (tabla de runtime y bloque de recursos) y la guía de la versión 001.
+
+## Archivos
+
+- `requirements.txt` (`argon2-cffi==25.1.0`)
+- `config/settings.py` (`PASSWORD_HASHERS`)
+- `users/tests/test_password_hashers.py` (nuevo)
+- `docker-entrypoint.sh`
+- `docker-compose.prod.yml`
+- `.env.qa.example`
+- `docker/k8s/README.md`
+- `docs/internal/processes.md`
+- `docs/client/architecture.md`
+- `docs/client/versiones/version-001.md`
+- `docs/internal/analisis-performance-login-2026-09.md` (el análisis de origen, nuevo)
+
+## Base de datos
+
+No requiere migración. La columna `auth_user.password` ya admite el formato de Argon2; el contenido se
+actualiza fila a fila cuando cada usuario inicia sesión.
+
+## Validación
+
+- `manage.py check`: sin observaciones.
+- `users.tests.test_password_hashers` (nuevo): **3/3 OK** — las contraseñas nuevas salen en Argon2, un
+  hash PBKDF2 existente sigue autenticando y el POST de login lo migra a Argon2.
+- `test_usuarios_abm` + `test_credenciales` + `test_password_reset` + `test_logout`: 57 tests, **10
+  errores idénticos con y sin el cambio** (lista comparada con `diff`; baseline conocido del venv local:
+  Python 3.14 + Django 4.2, `'super' object has no attribute 'dicts'`). La corrida pasó de 27,9 s a 8,0 s:
+  los usuarios de prueba también se crean con Argon2.
+- Medición del hash en la máquina de desarrollo (mediana de 5): PBKDF2 600k (venv, Django 4.2) 332 ms ·
+  PBKDF2 1.000k (Django 5.2, producción) 952 ms · Argon2id 89 ms.
+- `sh -n docker-entrypoint.sh` OK; `docker-compose.prod.yml` parseado y verificadas las variables nuevas;
+  `ruff check` y `ruff format --check` OK; `mkdocs build --strict` OK.
+- `pip-audit` sobre `argon2-cffi==25.1.0` y `argon2-cffi-bindings==26.1.0` (el gate de `pr-security.yml`):
+  sin vulnerabilidades conocidas. `bandit` excluye `tests/`, así que las contraseñas literales del test
+  nuevo no lo disparan.
+- Revisión de `chaco-dev-reviewer` sobre el commit: **sin hallazgos bloqueantes ni importantes**, «listo
+  para QA». Verificó con evidencia que nada del multiproceso se rompe: `CHANNEL_LAYERS`, caché, sesiones
+  y throttle van por Redis en `prd`; la sesión única vive en la base; los hilos de `core/performance/*`
+  solo arrancan por comando; `channels_redis` limpia su capa al cerrarse cada event loop de
+  `async_to_sync`, así que bajo WSGI no acumula conexiones. Dos observaciones bajas sobre `nginx.conf`,
+  preexistentes y fuera del diff, quedaron en Pendientes.
+- No tocó plantillas ni estilos: no aplica `design_audit` ni `compile_templates`.
+- **No se midió producción**: el acceso a `icore-srv` desde la sesión fue bloqueado por el clasificador
+  de permisos. La confirmación queda para después del deploy (ver abajo).
+
+## Puesta en marcha en el servidor
+
+**`icore-srv`:** cambia `requirements.txt`, así que es rebuild: `git pull` de la rama → `docker compose -f
+docker-compose.prod.yml up -d --build web websocket` → esperar `web` healthy → `docker restart
+chaco-nginx-1`. No hace falta tocar `.env.production`: las variables nuevas van en el `environment:` del
+compose. Verificar: en el log de `web` la línea `Iniciando gunicorn (3 workers x 2 hilos)`, `/health/`
+200, que el chat en vivo siga conectando (indicador de WebSocket en el navbar), `docker stats` con `web`
+por debajo de 900 MB, y en `logs/<fecha>/info.log` el `duration=` del `POST /` de un login real (antes
+del cambio debería rondar el segundo; después, decenas de milisegundos más la ida a la base).
+
+**ECOM:** nada obligatorio; el próximo espejo trae Argon2 y la imagen sigue arrancando con Daphne. Si
+quieren repartir el HTTP, la receta está en `docker/k8s/README.md`.
+
+## Pendientes / a definir
+
+- Desplegar en `icore-srv` y confirmar con datos reales (`warning.log` de requests > 3 s antes/después,
+  `docker stats`). Recién ahí la entrada pasa a 🟢.
+- **Respuesta de DevOps de ECOM al pedido de datos del 03/09/2026**
+  ([pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md)): réplicas y `resources`, nodo,
+  runtime, ingress, Redis, motor de base y métricas. Con eso se les pasa la configuración concreta
+  (réplicas y recursos) y se contrasta la línea de base contra la medición posterior al despliegue.
+- Revisar el `maxmemory` de Redis **también en `icore-srv`**: hoy son 350 MB con `allkeys-lru`, y ahí
+  viven las sesiones; si se llena, expulsa sesiones y desloguea usuarios sin causa aparente.
+- El resto del punteo (ver *Alcance acordado*), cada uno con su propia entrada. El primero en la cola
+  por relación ganancia/esfuerzo es nginx con `gzip_static` y HTTP/2 en `icore-srv`. En esa misma pasada
+  sobre `nginx.conf`, dos observaciones de la revisión (preexistentes, no las introduce este cambio): el
+  `keepalive 32` del upstream `web` no se aprovecha porque `proxy_set_header Connection
+  $connection_upgrade` manda `close` en todo el HTTP normal (cada request abre una conexión nueva hacia
+  gunicorn), y los timeouts de nginx (60 s) y gunicorn (120 s) conviene dejarlos alineados a propósito.
+
+## Reversión
+
+1. `APP_RUNTIME=daphne` en el `web` del compose (o revertir el commit): vuelve al proceso único. El
+   `mem_limit` puede volver a 350m, aunque conviene dejarlo en 900m.
+2. **Ojo con Argon2:** una vez desplegado, los usuarios que se hayan logueado tienen su hash en Argon2.
+   Si se quita `argon2-cffi` o se saca `Argon2PasswordHasher` de `PASSWORD_HASHERS`, esos usuarios **no
+   pueden entrar** hasta resetear la clave. Para volver a PBKDF2 como hasher principal, basta con poner
+   PBKDF2 primero **dejando Argon2 en la lista**; Django re-hashea de vuelta en el siguiente login. No
+   hay datos que se pierdan.
+
+## Historial
+
+No aplica: entrada nueva. Se apoya en el entrypoint del **Cambio 31** (modos `runserver`/`daphne` y
+`bootstrap`) y en los relevamientos de la épica #222, cuyo dato de concurrencia (×3,6 con 8 clientes)
+es lo que este cambio ataca.
+
+**03/09/2026 — renumerada de 62 a 63.** Nació como «Cambio 62» en la rama
+`perf/login-argon2-gunicorn` y así la nombran sus tres commits (`c1a9cbc`, `8a3129a`, `dc0f14f`). Al
+traer `development` apareció otro Cambio 62 ya registrado en el tronco —el pie del paso 1 del link
+público—, así que esta entrada tomó el número siguiente, que es el que vale. El texto no cambió.
+
+**04/09/2026 — DevOps de ECOM respondió, y aparece una causa que no estaba en el análisis: el pod
+tiene `limits.cpu: 500m`.** Medio núcleo por réplica, con `requests` de apenas `100m`, sobre nodos de
+32 CPU. A ese techo, los ~950 ms de CPU que cuesta hoy verificar una contraseña se convierten en
+**~1,9 s de reloj** por el frenado del planificador (50 ms de cada 100 ms), y con Daphne en proceso
+único la capacidad total del sistema es **1 núcleo** (2 réplicas × 0,5). Es decir que en producción el
+H-1 y el H-2 del análisis se potencian con un límite que nosotros no veíamos.
+
+**Consecuencia para el plan: en ECOM el primer movimiento es subir `limits.cpu`, no las réplicas.**
+Corrige el síntoma en cada request y no cuesta capacidad —los `limits` no reservan nada—, mientras que
+sumar réplicas multiplica medios núcleos. La decisión anterior (réplicas antes que gunicorn) no cambia
+para lo que venga después. Se detectaron además dos riesgos de configuración que no son de este cambio
+pero sí de este ambiente: `limits.ephemeral-storage: 100Mi` con los logs escribiendo a la capa del
+contenedor (riesgo de desalojo del pod, emparentado con el H-8) y Redis con `noeviction` sin `maxmemory`
+confirmado (si no está fijado, el contenedor muere por memoria y caen todas las sesiones). El detalle,
+los datos crudos y la configuración propuesta están en
+[pedido-datos-prd-ecom-2026-09.md](pedido-datos-prd-ecom-2026-09.md).
+
+---
+
+# Cambio 64 — Solapa «Dashboard» en el programa Becas: métricas, filtros y exportación
+
+🟢 **HECHO — en producción de ECOM desde el 05/09/2026; corrección de performance desplegada el 06/09/2026; alcance y 86 h validados por el Ministerio el 10/09/2026** · Análisis #366 `Definido` · Tasks #367–#375 en Backlog, Iteration 7 (70 h) · Fases 1 a 6 por el PR #376 (squash c59d995), legibilidad por el #377, tres correcciones (#378, #379, #380) · 35 tests en verde · Falta QA funcional formal (#374) y cierre (#375) · Consumo al 10/09: 60 h 00 min de 86 h
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración → detalle del programa (`/becas/config/programas/<pk>/`) |
+| **Etiquetas** | `#ui` `#convocatorias` `#relevamientos` `#datos` |
+| **Solicitante** | PM — en sesión: «vamos a armar un dashboard en el programa Becas… al lado de Requisitos del programa quiero agregar una solapa de dashboard, tiene que ser a nivel visual y poder exportar; vamos a analizar cuántas horas consume y armemos un mock up; la idea es que tenga métricas generales, puedan filtrar sus convocatorias, relevamientos y data de formularios enviados, también se debe exportar» |
+| **Fecha del pedido** | 05/09/2026 |
+| **Issue / épica** | Análisis #366 (épica #69) · tasks #367–#375 · mock up: https://claude.ai/code/artifact/672365a4-39ae-4ef9-895d-3664a99e77fb |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `programas.0060` (índice, 06/09/2026) |
+
+## Pedido original
+
+> «Vamos a armar un dashboard en el programa Becas, en `/becas/config/programas/1/`, al lado de Requisitos del programa
+> quiero agregar una solapa de dashboard. Tiene que ser a nivel visual y poder exportar. Vamos a analizar cuántas horas
+> consume y armemos un mock up. La idea es que tenga métricas generales, puedan filtrar sus convocatorias, relevamientos
+> y data de formularios enviados. También se debe exportar.»
+
+## Alcance acordado
+
+Propuesto en el mock up; queda a aprobación del PM:
+
+- **Tercera solapa «Dashboard»** en `programa_detail.html`, a la derecha de «Requisitos del programa». Las otras dos
+  solapas no cambian.
+- **Una fila de filtros** que alcanza a todos los bloques y a la exportación: período (últimos 30 / 90 días, este año,
+  todo, personalizado), segmento, convocatoria, relevamiento (dependiente de la convocatoria) y canal (territorial /
+  link público).
+- **Bloques:** seis indicadores (convocatorias activas, relevamientos en curso, formularios recibidos con variación
+  contra el período anterior, aprobados y tasa, cupo ocupado, lista de espera); formularios recibidos por semana;
+  estado de los formularios y canal de carga; avance por convocatoria (tabla con medidores de revisado y cupo);
+  relevamientos por estado; embudo de revisión; producción por territorial; **respuestas de los formularios** por
+  pregunta (selector, sí/no y selector múltiple); formularios por localidad.
+- **Exportación:** cada gráfico tiene vista de tabla y CSV propio; botón general «Exportar» con planilla XLSX de una
+  hoja por bloque, CSV de la tabla de convocatorias, CSV de respuestas, e imprimir / guardar PDF desde el navegador.
+  Todo respeta los filtros aplicados.
+- **Permisos:** `becas.reportes.ver` para ver la solapa y `becas.reportes.exportar` para exportar, con el alcance
+  visible del usuario (admin del programa, coordinador, coordinador regional), igual que el módulo de reportes.
+
+**Queda afuera:** PDF generado en el servidor (WeasyPrint u otro, sumaría una dependencia a la imagen de ECOM),
+comparativas entre programas, un tablero para el portal ciudadano.
+
+## Decisiones tomadas
+
+- **Se reutiliza el módulo de reportes, no se crea uno paralelo.** `programas/services/reportes_becas.py` ya calcula
+  avance por convocatoria, cupos, embudo y producción territorial, y `exportacion_reportes.py` ya escribe CSV/XLSX.
+  El dashboard es una vista agregada por programa de esos mismos datos; solo se agregan la serie semanal, las
+  localidades y las respuestas.
+- **Chart.js 4.4.6 ya vendorizado** (`static/vendor/chartjs/`) con carga diferida como hace `templates/inicio.html`.
+  Sin librerías nuevas.
+- **Totales cacheados 5 minutos** por (programa, filtros, alcance del usuario), con leyenda «Datos al …» y botón
+  «Actualizar ahora». Es la forma de que la solapa no cueste una consulta pesada por cada apertura.
+- **El cupo se mide sobre el total aprobado histórico**, no sobre el período filtrado: el cupo es del segmento y no
+  depende de la ventana de fechas. El mock up lo aclara en la tabla.
+- **Un solo color por serie de magnitud; colores de estado solo donde significan estado** (aprobado / rechazado /
+  baja). La paleta se validó para daltonismo con los tokens de Chaco (`#5059bc`, `#ff5a1f`, `#009966`, `#bf57c4`).
+- **Respuestas de los formularios detrás de una lectura única.** Hoy salen de `Formulario.data`
+  (`{"globales": {...}, "requisitos": {...}}`); con el Cambio 58 pasan a `respuestas` + `definicion`. Se implementa
+  contra una función de lectura para no rehacer el bloque cuando entre el constructor.
+- **«Avance por convocatoria» es una tabla, no un gráfico:** el usuario compara filas, y el canon del backoffice
+  prefiere tabla densa a cards repetidas.
+
+## Implementación
+
+**Mergeado en `development` el 05/09/2026 (PR #376, squash c59d995). Fases 1 a 6 del diseño técnico
+[2026-09-05-dashboard-becas-design.md](../plans/2026-09-05-dashboard-becas-design.md):**
+
+- Servicio `programas/services/dashboard_becas.py`: `metricas()` con los ocho bloques y los seis indicadores, caché de
+  5 minutos con huella de alcance, `preguntas_graficables()` / `distribuciones_respuestas()` en una sola pasada detrás
+  de la lectura única `respuesta_de()`, y `bloques_exportacion()`.
+- `DashboardBecasFiltroForm` en `forms_reportes.py` (período → fechas, limpieza dependiente RN-5/RN-6).
+- Vistas `programa_dashboard_datos` (JSON) y `programa_dashboard_exportar` (XLSX de varias hojas / CSV por bloque) con
+  permisos `becas.reportes.ver` / `becas.reportes.exportar` y programa visible; `respuesta_libro()` en
+  `exportacion_reportes.py`.
+- Solapa en `programa_detail.html` (solo con la capacidad, deep link `?tab=dash`), panel `_dashboard_panel.html` +
+  `_dashboard_card.html`, JS `static/custom/js/becas-dashboard.js` con Chart.js diferido y colores desde tokens.
+- 27 tests en `programas/tests/test_dashboard_becas.py`, en verde con Django 5.2 (venv 3.12 igual al CI). Revisión
+  visual con servidor SQLite local + Playwright en 1440 y 390 px, sin errores de consola ni de red.
+
+Pasada de legibilidad (05/09/2026, después del merge): la tarjeta «Estado de los formularios» se rearmó sin canvas
+(barra apilada, una fila por estado con cantidad y porcentaje, corte por canal con medidores); el indicador de
+formularios lleva un minigráfico de doce semanas; el alcance se muestra como chips; la cabecera de la solapa queda
+en una fila; las tarjetas de barras fijan su alto según las filas y los números de las tablas usan dígitos tabulares.
+
+Gotcha aprendido: las funciones de `autorizacion` reciben el `Programa` del RBAC, no el `ProgramaSiis`; pasarles el
+ProgramaSiis vacía el alcance en silencio. El servicio las llama sin ese argumento y filtra por ProgramaSiis después.
+
+Estimación entregada al PM el 05/09/2026, con el mismo criterio de horas que las 150 h del Cambio 58:
+
+| N.º | Bloque | Qué incluye | Horas |
+|---|---|---|---|
+| 1 | Servicio de métricas | Agregados por programa con filtros: indicadores, serie semanal, estados, embudo, avance por convocatoria, territoriales, localidades. Reusa `reportes_becas` y las funciones de alcance. | 10 |
+| 2 | Respuestas de los formularios | Catálogo de preguntas del programa (globales + requisitos) de tipo selector / sí-no / múltiple; distribución por opción sobre el JSON de respuestas; lectura única compatible con el Cambio 58. | 10 |
+| 3 | Vista y endpoint | Solapa en `programa_detail`, form de filtros validado, endpoint JSON para recalcular con filtros, permisos y alcance. | 5 |
+| 4 | Interfaz | Filtros, seis stat cards, siete gráficos Chart.js con tooltips, leyendas y vista de tabla, tabla de avance, estados vacíos, responsive, stat-card a CSS compartido, build de Tailwind, `design_audit` en 0. | 14 |
+| 5 | Exportación | XLSX de varias hojas (extiende `exportacion_reportes`), CSV por bloque, impresión / PDF con CSS de impresión. | 6 |
+| 6 | Performance | Caché de 5 minutos por filtros y alcance, índices si hacen falta, presupuesto de consultas en tests. | 4 |
+| 7 | Tests automáticos | Servicio (conteos con fixtures), permisos y alcance por rol, exportaciones, presupuesto de consultas. | 8 |
+| 8 | Análisis, QA y pruebas | Épica, análisis y tasks en GitHub; casos QA por task; plan de pruebas; pruebas manuales de los cinco roles. | 10 |
+| 9 | Puesta en marcha | Deploy a `test` y a producción de ECOM, registro y ajustes después de QA. | 3 |
+| | **Total técnico** | | **70** |
+
+Variantes técnicas: sin el bloque de respuestas de formularios (si se prefiere esperar al Cambio 58) baja a **56 h**; con
+PDF generado en el servidor sube unas **6 h** y agrega una dependencia a la imagen.
+
+**Propuesta enviada al Ministerio (05/09/2026, mail del PM a Guido):** **86 h** para el desarrollo completo, o **70 h**
+si el bloque de respuestas se posterga hasta terminar el constructor. La diferencia con el total técnico (16 h y 14 h)
+es gestión, reuniones de definición y coordinación, que el PM sumó al presentar. Es la cifra que figura en
+[docs/client/versiones/version-002.md](../client/versiones/version-002.md) como frente 7 de la Versión 002.
+
+## Archivos
+
+Nuevos: `programas/services/dashboard_becas.py`, `programas/views/dashboard_becas.py`,
+`programas/templates/programas/becas/config/_dashboard_panel.html`, `_dashboard_card.html`,
+`static/custom/js/becas-dashboard.js`, `programas/tests/test_dashboard_becas.py`,
+`docs/plans/2026-09-05-dashboard-becas-design.md`. Modificados: `programas/forms_reportes.py`,
+`programas/services/exportacion_reportes.py`, `programas/views/configuracion.py`, `programas/urls.py`,
+`programas/templates/programas/becas/config/programa_detail.html`, `static/custom/css/tailwind.css` (build),
+`.claude/agents/chaco-design-system.md` (inventario: fila del dashboard y deep link de tabs). No se movió el CSS
+`.stat-card` de `inicio.html`: la stat card canónica es el patrón Tailwind de `convocatoria_detail.html`.
+
+## Base de datos
+
+`programas.0060_formulario_indice_relevamiento_creado`: índice `prog_formulario_rel_creado_idx` sobre `Formulario(relevamiento, creado)`
+(06/09/2026, corrección de performance). Sin cambios de columnas. El presupuesto de consultas del servicio no crece con la cantidad de
+formularios (test `test_presupuesto_de_consultas_no_crece_con_los_formularios`).
+
+## Validación
+
+Automática (05/09/2026): 27 tests en verde con Django 5.2 — conteos a mano, coherencia entre bloques (CA-3), alcance
+del coordinador regional (CA-4), cupo insensible al período (RN-9), variación `None` sin período anterior (RN-8),
+respuestas simple/múltiple con base y opción fuera de catálogo (RN-14/15), caché por alcance (RN-18), 403 sin
+capacidad de ver y de exportar (CA-1, CA-6), XLSX con una hoja por bloque y fórmula neutralizada, CSV por bloque,
+presupuesto de consultas. `manage.py check`, `design_audit --changed` 0/0, `compile_templates` 0,
+`check_design_agent --changed` OK, ruff OK. Revisión visual en 1440 y 390 px sin errores.
+
+Pendiente: QA funcional por rol (#374) y contraste de un mismo recorte contra el hub de reportes.
+
+## Puesta en marcha en el servidor
+
+05/09/2026: espejado al GitLab de ECOM con `/pushGitLabecom`, primero `test` (merge 1e37076, testing en datanach.ecomdev.ar)
+y después `main` (release 43ffddf, producción, avance directo 17dc060..43ffddf). Sin migraciones ni variables nuevas; el mismo
+push llevó el Cambio 63 (Argon2 + gunicorn opcional), que no se había espejado. La pasada de legibilidad (PR #377, squash ef284bc) se
+desplegó el mismo día: release 55d842e a `test` (merge e7732b8) y a `main` (avance directo 43ffddf..55d842e), también sin
+migraciones ni dependencias nuevas.
+
+**Incidente en producción (05/09/2026, misma noche):** con 4.000 inscriptos la solapa quedaba vacía («Sin calcular
+todavía», indicadores en guion, sin alerta). Causa más probable: la serie semanal usaba `TruncWeek` sobre un
+`DateTimeField` con `USE_TZ`, que en MySQL se traduce a `CONVERT_TZ`; sin tablas de zona horaria en el servidor devuelve
+NULL y Django corta con «Database returned an invalid datetime value» (SQLite y los tests no lo reproducen). Corrección
+PR #378 (squash f866d05, release fc740b8): las semanas se agrupan en Python, y el JS muestra «Calculando…», cancela a
+los 60 s y expone toda falla en la alerta inline con `console.error`. Espejado a `test` (merge dffce4d) y a `main`
+(55d842e..fc740b8). Con el JS nuevo en producción el navegador mostró la causa real: el endpoint responde **500**. Contra un MySQL 8.0
+local con 2.455 formularios sintéticos todo responde 200, así que depende de la forma de los datos reales. Segunda
+corrección (PR #379): la lectura del JSON de respuestas y de las opciones de las preguntas tolera filas con `data` como
+string, bolsas que no son dict, valores y opciones con forma `{valor, etiqueta}`; y el endpoint degrada por etapas: si
+fallan las métricas responde 500 con la etapa y el tipo de error, si falla solo la pregunta devuelve el resto con `avisos`,
+y en los dos casos el traceback completo va al log del servidor con `logger.exception`. Si vuelve a fallar, el mensaje
+dirá la etapa y el tipo, y el log de ECOM tendrá el detalle. Desplegado el 05/09/2026: release ea33681 a `test`
+(merge 4e66424) y a `main` (avance directo fc740b8..ea33681).
+
+**Causa más probable, encontrada el 06/09/2026, y corrección de performance (tercera corrección):** producción conecta a
+MySQL con `read_timeout = 10 s` (`config/settings.py`), y el servicio disparaba ~21 consultas con `IN` anidados en tres
+niveles sobre `programas_formulario`, más la lectura y decodificación en Python de los 4.000 JSON de respuestas en cada
+cambio de filtro, sin caché. Medido en un MySQL 8.0 local con 40.000 formularios y las OPTIONS exactas de producción: 9,2 s
+y 29 consultas por carga fría, con consultas de hasta 1,5 s; en una base más cargada una sola que pase los 10 s corta la
+conexión (`OperationalError 2013`) y produce el 500. Reescritura del servicio: el alcance se resuelve una vez a listas de
+ids (`resolver_alcance`) y todo filtra por `relevamiento_id IN (...)` plano; una única consulta agrupada por
+(relevamiento, estado) alimenta estados, canales, tabla de convocatorias y territoriales; el SIIS OK se calcula con un
+anti-join en vez de una subconsulta correlacionada por formulario; las respuestas se extraen en SQL con
+`JSON_EXTRACT(data, '$."globales"."13"')` en vez de decodificar cada documento (ojo: `KeyTransform` de Django trata una
+clave numérica como índice de arreglo y devuelve NULL, por eso la expresión es explícita) y también se cachean 5 minutos;
+la caché degrada a «sin caché» con aviso en el log si Redis falla; `celda_segura` elimina los caracteres de control que
+openpyxl rechaza y la exportación entera queda dentro del `try`; fechas cero y FK colgadas ya no tiran el tablero.
+Resultado en el mismo banco de 40.000 filas: 1,2–2,4 s y 22 consultas en frío, 40–60 ms con caché. Migración
+`programas.0060` con el índice `(relevamiento, creado)` para la ventana de fechas: solo agrega un índice, no toca ni borra datos.
+PR #380 (squash d5ef079, release ac9192b). Espejado a `test` el 06/09/2026 (merge f2e86f0) y a `main` el mismo día,
+dentro del push del release 2b3f271 (avance directo ea33681..2b3f271), que llevó también el Cambio 65. El entrypoint
+corre las migraciones al levantar, así que no hubo pasos manuales.
+El CI del PR quedó con los cinco checks que ya estaban rojos en `development` desde el 30/08/2026 (presupuesto de
+`relevamiento_detalle`, ruff lint/format en archivos ajenos y las CVE de djangorestframework 3.16.1); el único propio,
+Bandit por sha1 en la clave de caché, se corrigió antes de mergear.
+
+## Pendientes / a definir
+
+- ~~Validación de Guido (Ministerio) del alcance y de las 86 h propuestas.~~ **Validado el 10/09/2026**: alcance completo
+  (con el bloque de respuestas) y 86 h. Consumo registrado al 10/09: 60 h 00 min (70 %), con el desarrollo
+  imputado a Pablo Cao los días 05, 08 y 09/09 dentro del cupo (el desarrollo real excede lo que el techo dejó registrar),
+  el análisis y las pruebas a Matías Abate y la gestión al PM desde el 05/09. Restan la QA funcional formal (#374) y el
+  cierre (#375).
+- Las tres asunciones del análisis #366 esperan confirmación: el nombre «Dashboard», si el bloque de respuestas entra
+  en esta etapa o después del Cambio 58, y si se muestran todas las preguntas de opciones cerradas o una selección.
+- Nombre de la solapa: «Dashboard» (como se pidió) o «Tablero».
+- Si el bloque «Respuestas de los formularios» entra ahora o después del Cambio 58.
+- Qué preguntas se muestran en «Respuestas»: todas las de tipo selector / sí-no / múltiple del programa, o una
+  selección que haga el admin.
+
+## Reversión
+
+No aplica hasta implementar. La solapa se podrá ocultar quitando la capacidad, sin tocar datos.
+
+## Historial
+
+Entrada nueva. Antecedentes: el módulo de reportes de Becas (agosto de 2026: hub con cinco reportes y CSV/XLSX, que
+este dashboard reutiliza) y el Cambio 58 (constructor de formularios, que cambia el origen de las respuestas).
+
+---
+
+# Cambio 65 — Exportar las respuestas de los formularios por persona, eligiendo la convocatoria
+
+🟢 **HECHO — en producción de ECOM desde el 06/09/2026** · PR #381 (squash dea6f34), release 2b3f271 · 35 tests en verde · Sin migración
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración → detalle del programa → solapa Dashboard → tarjeta «Respuestas de los formularios» |
+| **Etiquetas** | `#ui` `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «la funcionalidad respuestas de los formularios quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un excel con las columnas id relevamiento, nombre relevamiento, si es público, id ciudadano o no y una columna por cada pregunta, y un registro por caso enviado; hoy no sé qué me exporta, no se entiende; el resultado final tiene que ser un excel con todas las respuestas por persona» |
+| **Fecha del pedido** | 06/09/2026 |
+| **Issue / épica** | Sin issue propio: extiende el Cambio 64 (análisis #366, task #371 de exportación) · PR #381 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero que cuando lo toco me aparezca un pop up donde tenga que seleccionar una convocatoria y me exporte un Excel con
+> las columnas id relevamiento, nombre relevamiento, si es público, id ciudadano o no, y una columna por cada pregunta, y un
+> registro por caso enviado. Hoy no sé qué me exporta, no se entiende. El resultado final tiene que ser un Excel con todas
+> las respuestas por persona.»
+
+## Alcance acordado
+
+- En la tarjeta «Respuestas de los formularios», el botón **Exportar por persona** abre un pop up que pide la
+  **convocatoria** (obligatoria, heredada del filtro del tablero si hay una elegida) y descarga un Excel.
+- El Excel tiene **un registro por caso** (formulario enviado, en cualquier estado) de esa convocatoria, sin el filtro de
+  período del tablero, con estas columnas fijas: ID relevamiento · Relevamiento · Canal (Territorial / Link público) ·
+  Territorial · ID caso · N.º en el relevamiento · Estado del caso · Fecha de envío · ID ciudadano (vacío si el caso no
+  tiene legajo) · DNI · Apellido y nombre · Identidad validada · Celular · Correo electrónico · Apoderado · GPS; y después
+  **una columna por cada pregunta** del formulario de la convocatoria (generales y requisitos, de todos los tipos), más las
+  preguntas que ya no están en el formulario pero fueron respondidas («… (ya no está en el formulario)»).
+- Las respuestas de selección múltiple se unen con « | »; los adjuntos muestran el nombre del archivo.
+- El mismo pop up se abre desde el menú **Exportar** («Respuestas por persona (XLSX)»). El CSV agregado existente pasa a
+  llamarse «Resumen de respuestas por opción (CSV)» para que no se confunda con este.
+- Permisos: `becas.reportes.exportar` y convocatoria dentro del alcance del usuario; fuera del alcance, 404.
+
+## Decisiones tomadas
+
+- **Se exporta la convocatoria completa, no el recorte del tablero.** El pedido es la base cruda «todas las respuestas por
+  persona»; el período del tablero es una vista, no un recorte de la base. El pop up lo dice.
+- **Las columnas de preguntas salen de la misma definición que usan la app de campo y el link público**
+  (`get_campos_formulario`): lo que la persona vio es lo que aparece como columna. Las preguntas eliminadas o inactivas
+  que tengan respuestas se agregan al final para no perder datos.
+- **Identificación:** si el caso tiene legajo, DNI y nombre salen del ciudadano; si no (caso offline sin resolver), de
+  `datos_identificacion`. Se incluyen DNI y nombre además del ID porque sin ellos el Excel no sirve para trabajar; el
+  acceso queda gateado por la misma capacidad que el resto de las exportaciones con beneficiarios.
+- **Se reusa `respuesta_libro`** (una hoja, con la fila de alcance) y `celda_segura`, que ya neutraliza fórmulas y
+  caracteres de control.
+
+## Implementación
+
+`respuestas_por_persona(convocatoria)` en `programas/services/dashboard_becas.py` devuelve un `Reporte` con las
+columnas fijas + una por pregunta y el texto de alcance. Vista `programa_dashboard_respuestas_xlsx` en
+`programas/views/dashboard_becas.py`, ruta `config/programas/<pk>/dashboard/respuestas/<convocatoria_pk>/xlsx/`.
+Pop up en `_dashboard_panel.html` con el patrón de modal Alpine de `programa_detail.html`; el JS hereda la convocatoria
+del filtro y navega a la URL de descarga. Tres tests nuevos (servicio, permisos y alcance del endpoint, pantalla).
+
+## Archivos
+
+`programas/services/dashboard_becas.py`, `programas/views/dashboard_becas.py`, `programas/urls.py`,
+`programas/templates/programas/becas/config/_dashboard_panel.html`, `static/custom/js/becas-dashboard.js`,
+`programas/tests/test_dashboard_becas.py`, `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+35 tests en verde con Django 5.2 (3 nuevos: un registro por caso y una columna por pregunta con múltiple, adjunto y
+pregunta eliminada; 200/404/403 del endpoint por alcance y capacidad; la pantalla muestra el botón y la URL). Revisión con
+Playwright: el pop up hereda la convocatoria del filtro, valida la selección vacía y descarga un Excel que abre con
+`openpyxl`.
+
+## Puesta en marcha en el servidor
+
+06/09/2026: sin pasos especiales, no hay migración ni variables nuevas. Viajó junto con la corrección de performance
+del Cambio 64 en el release 2b3f271: espejado a `test` de ECOM (merge e952bb2) y después a `main` (producción,
+avance directo ea33681..2b3f271). El CI del PR #381 quedó con los cinco checks que ya estaban rojos en
+`development` desde el 30/08/2026; la única falla de tests es el presupuesto de `relevamiento_detalle`, ajena al
+cambio.
+
+## Pendientes / a definir
+
+- Si el Ministerio quiere además el resumen agregado por opción en el mismo Excel (segunda hoja), es un agregado menor.
+
+## Reversión
+
+Quitar la ruta y el botón; no hay datos ni migraciones involucrados.
+
+## Historial
+
+Entrada nueva. Nace de la primera prueba del Cambio 64 en producción: el CSV «Respuestas de los formularios» era el
+resumen por opción y no la base por persona que el PM esperaba.
+
+---
+
+# Cambio 66 — Performance del sistema: la revisión de casos, los listados y el costo fijo de cada pantalla
+
+🟢 **HECHO — en producción de ECOM desde el 06/09/2026** · PR #382 (squash c0fe6c9), release afdb661 · 1.146 tests en verde · El guard de presupuestos de consultas del CI volvió a verde en el propio PR
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal: Becas (revisión, convocatorias, cupo, exports), Legajos, home, RBAC y shells de UI |
+| **Etiquetas** | `#performance` `#datos` `#ui` |
+| **Solicitante** | PM — en sesión: «quiero mejorar la performance de respuesta y de carga del sistema, el dashboard que hicimos tarda, quiero mejorar el código para que funcione y después vemos el tema de la infra» |
+| **Fecha del pedido** | 05/09/2026 |
+| **Issue / épica** | Sin issue propio: continuación del Cambio 64 (dashboard) hacia el resto del sistema |
+| **Partes afectadas** | Backoffice y portal (shell) |
+| **Migración** | `programas.0061`, `programas.0062`, `legajos.0008` — solo índices |
+
+## Pedido original
+
+> «Quiero mejorar la performance de respuesta y de carga del sistema. El dashboard que hicimos tarda, quiero mejorar el
+> código para que funcione y después vemos el tema de la infra.»
+
+La primera parte del pedido —el dashboard— se resolvió en el Cambio 64. Esta entrada cubre el resto del sistema.
+
+## Cómo se relevó
+
+Se armó un banco de medición con **MySQL 8.0 local y las OPTIONS exactas de producción** (`read_timeout`,
+`write_timeout` y `connect_timeout` en 10 s, `STRICT_TRANS_TABLES`, aislamiento *read committed*), cargado con
+**40.455 formularios, 42.394 ciudadanos y 19.730 validaciones SIIS** repartidos en 13 relevamientos. Se midió cada
+ruta del backoffice de punta a punta —request autenticado completo, con render de plantilla— registrando tiempo de
+pared, tiempo de SQL, cantidad de consultas y consultas repetidas, y se leyó el plan de las consultas caras con
+`EXPLAIN` contra ese mismo motor.
+
+## Lo que se encontró
+
+**Dos pantallas ya devolvían 500 en ese volumen y una tercera tardaba más de tres minutos.**
+
+| Ruta | Antes | Después |
+|---|---|---|
+| Revisión de un relevamiento | **206.585 ms** | 292 ms |
+| Bandeja de personas (revisión) | **500 por timeout a los 11 s** | 129 ms |
+| Detalle de convocatoria | 2.727 ms | 290 ms |
+| RENAPER pendientes | 1.253 ms | 150 ms |
+| Home | 925 ms | 155 ms |
+| Detalle de relevamiento | 757 ms | 159 ms |
+| Detalle de ciudadano | 702 ms · 20 consultas | 147 ms · 16 consultas |
+| Detalle de programa | 508 ms | 101 ms |
+| Listado de ciudadanos | 188 ms | 60 ms |
+| Búsqueda de ciudadanos | 422 ms | 104 ms |
+| Página 2100 del listado | 2.088 ms | 58 ms |
+
+## Decisiones tomadas
+
+- **La causa raíz de la revisión no era el volumen sino un `Exists` correlacionado.** La marca «Duplicado por
+  resolver» se anotaba con `Exists(duplicado_de_id=OuterRef("pk"))`. Como `duplicado_de_id` es casi siempre NULL,
+  MySQL le asigna cardinalidad 1, descarta el índice y resuelve la subconsulta **con un scan completo de la tabla por
+  cada fila**: 3.291 × 39.895 = 131 millones de filas leídas. Se resuelve por lote sobre los ids de la página.
+  **No se agregó un índice compuesto `(duplicado_de, conflicto_resuelto)`**: se midió y aun con él la consulta tarda
+  381 ms, además de tapar el índice de la clave foránea.
+- **Las bandejas eligen la página con una consulta liviana y recién después pagan los `select_related`.** Con los
+  joins de presentación puestos en la consulta paginada, MySQL arranca el plan por `programas_relevamiento`,
+  materializa las 40.000 filas y recién ahí recorta.
+- **Nunca por `relevamiento.formularios` cuando la consulta difiere columnas.** El manager relacionado empareja cada
+  fila con el relevamiento leyendo `relevamiento_id`; si está diferido, dispara una consulta por fila. Al revés, en el
+  legajo el manager relacionado **conviene**: deja el ciudadano apuntado y los `__str__` de los modelos no lo releen.
+- **Una sola consulta de permisos por request.** `core/rbac.py` lanzaba una por alcance evaluado (el sidebar fuerza el
+  de Dispositivos en toda pantalla). Ahora trae `(codename, programa del rol)` de una vez; cada fila sigue emparejando
+  la capacidad con el programa de **su propio** rol, que es la regla que evita que se cuele una capacidad ajena.
+- **El memo de `programa_becas()` es por request, no de módulo.** Un memo de módulo sobrevive a `cache.clear()` y
+  filtraría un Programa de un test anterior; se copió el patrón de `programa_dispositivos`.
+- **La búsqueda de ciudadanos sigue con `icontains`.** Pasarla a `startswith` la deja en ~2 ms pero cambia lo que
+  encuentra: buscar «perez» dejaría de traer «Gómez Perez». Con el índice de cobertura queda en 104 ms sin tocar la
+  semántica. **Queda a decisión del Ministerio.**
+
+## Bugs encontrados de paso
+
+- **`/legajos/alertas/` respondía 500** para todo usuario con `conversacion.operar`: `select_related` sobre
+  `conversacion__usuario`, un campo que `Conversacion` no tiene. La pantalla está enlazada dos veces desde el navbar.
+- **`/api/tendencias/` devolvía todo en cero en producción.** Anotaba `TruncDate` sobre un `DateField`, que Django
+  traduce a `DATE(CONVERT_TZ(...))`; sin tablas de zona horaria —el MySQL de ECOM no las tiene— CONVERT_TZ devuelve
+  NULL y todo cae en un bucket. Es el mismo gotcha del Cambio 64, en otro lugar.
+- **`/api/legajos/contactos/vinculos-familiares/` no existe**: el router de `legajos/urls/api_contactos.py` no está
+  incluido en ninguna parte, así que la solapa «Red familiar» del legajo hace un fetch que siempre da 404.
+  **No se tocó**: montar un router que nunca estuvo montado expone una superficie de API y es una decisión aparte.
+
+## Implementación
+
+Cinco commits, uno por frente: revisión de casos, presupuestos de CI, pantallas y exports de Becas, RBAC y costo fijo
+por request, legajos y home, y carga en el navegador. Migraciones: `programas.0061` (índices `creado` y
+`(validado_renaper, creado)`), `programas.0062` (ese índice extendido con `relevamiento`) y `legajos.0008` (índice de
+cobertura del listado de ciudadanos). Ninguna toca datos.
+
+## Archivos
+
+`programas/views/revision.py`, `programas/views/relevamientos.py`, `programas/views/cupo.py`,
+`programas/views/configuracion.py`, `programas/services/solapas.py`, `programas/services/cupo.py`,
+`programas/services/autorizacion.py`, `programas/models/__init__.py`, `core/rbac.py`, `core/views/public.py`,
+`conversaciones/selectors/conversaciones.py`, `legajos/selectors/ciudadanos.py`, `legajos/services/filtros_usuario.py`,
+`legajos/views/alertas.py`, `legajos/models/base.py`, `dashboard/api_views/__init__.py`, `scripts/perf_audit.py`,
+`scripts/perf_budgets.json`, `requirements.txt`, los dos `base.html`, `formulario_list.html`, `espera.html`,
+`ciudadano_detail.html` y `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+Tres migraciones de índices. No modifican ni borran datos. El entrypoint las corre al levantar.
+
+## Validación
+
+1.146 tests en verde con Django 5.2. **El guard de presupuestos de consultas del CI vuelve a verde**: venía rojo en
+`development` desde el 30/08/2026 por `legajo_detalle` y `becas_relevamiento_detalle`. Las dos pantallas de revisión
+se agregaron al manifiesto auditado, que no las cubría. `design_audit` y `check_design_agent` en 0 errores,
+`compile_templates` en 0. Recorrido con Playwright de las nueve pantallas tocadas contra el banco de 40.000 casos:
+todas responden 200, la revisión pagina de a 50 con «Página 1 de 66 · 3291 casos» y el salto a la página 2 funciona.
+
+## Puesta en marcha en el servidor
+
+Sin pasos especiales más allá de las migraciones, que corre el entrypoint. 06/09/2026: espejado a `test` de ECOM
+(merge a7bc090, árbol del release afdb661) tras verificar que el único commit ajeno era nuestro merge anterior y que
+`.gitlab-ci.yml` es idéntico. El CI del PR quedó con Tests & Coverage, el contrato MySQL/Redis y el guard de
+performance en verde; los tres rojos restantes (Ruff Lint en 6 archivos ajenos, Ruff Format en 8, pip-audit por las
+CVE de djangorestframework) son los preexistentes y no bloquean. Después se espejó a `main` (producción, avance directo 2b3f271..afdb661) por pedido del PM, con testing ya verificado: el portal de datanach.ecomdev.ar servía el shell nuevo antes del push.
+
+## Pendientes / a definir
+
+- **Búsqueda por prefijo en el listado de ciudadanos** (~2 ms contra 104 ms), a cambio de que deje de encontrar
+  coincidencias en el medio del apellido. Decisión del Ministerio.
+- **Concatenar las 22 hojas de estilo del `<head>`**: el bundle da 93 errores en `design_audit` porque
+  `chaco-tokens.css` solo está exento por nombre de archivo, y hace falta un gate que impida que el bundle quede viejo.
+- **Diferir los 13 scripts del shell**: cambia el orden de ejecución respecto de los bloques `customJS` de 37
+  plantillas; hay que verificarlas una por una.
+- **Paginación por keyset** en las bandejas si el padrón llega a cientos de miles: el OFFSET sigue siendo O(offset).
+- **El fetch muerto de vínculos familiares** del legajo (arriba).
+- Infra, que el PM dejó para después: `read_timeout` de 10 s, Redis, las CVE de djangorestframework 3.16.1.
+
+## Reversión
+
+Cada frente es un commit independiente. Las tres migraciones se revierten con `migrate` hacia atrás; son índices.
+
+## Historial
+
+Entrada nueva. Nace del pedido del PM tras el incidente de producción del Cambio 64, y del relevamiento que ese
+incidente motivó: el mismo banco de medición que se armó para el dashboard se usó para el resto del sistema.
+
+---
+
+# Cambio 67 — El apoderado es obligatorio para todas las personas que se inscriben por el link
+
+🟢 **HECHO — en test y producción de ECOM desde el 08/09/2026** · PR #383 (squash 40935ef), release 6d3925f · La
+app de campo conserva la regla de menores hasta que Mobile la cambie
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · link público de inscripción (paso 2) y detalle del caso en revisión |
+| **Etiquetas** | `#relevamientos` `#ui` `#mobile` |
+| **Solicitante** | PM — en sesión del 08/09/2026, sobre la convocatoria abierta en `datanach.chaco.gob.ar` |
+| **Fecha del pedido** | 08/09/2026 |
+| **Issue / épica** | Sin issue propio: corrección de regla sobre el Cambio 41 |
+| **Partes afectadas** | `InscripcionPaso2Form`, `paso2.html`, `formulario_detalle` (revisión) y sus tests |
+| **Migración** | No requiere: las columnas `apoderado_*` del caso ya admiten vacío |
+
+## Pedido original
+
+> «Tengo la sección Apoderado y no es obligatorio, quiero que lo sea.» Consultado el alcance: **para todas las
+> personas, incluidas las mayores de edad; todas las convocatorias; los cinco campos** (nombre, apellido, DNI, sexo y
+> fecha de nacimiento).
+
+## Cómo se relevó
+
+Se verificó primero qué versión corre en `datanach.chaco.gob.ar`: es `main`, sin el Cambio 58 (el constructor no está
+en `main` ni en `development`). Ahí el Apoderado es el bloque fijo del Cambio 41: se mostraba siempre con el texto
+«Completalo solo si la persona que se inscribe es menor de 18 años», sus campos eran opcionales y el servidor los
+exigía únicamente si la persona era menor (RN-22). La misma regla vive en el serializer de la API que valida lo que
+manda la app de campo, en la vista de revisión (que mostraba la sección solo a menores o si había datos) y en la app
+móvil (repo aparte).
+
+## Decisiones tomadas
+
+- **Se reemplaza la RN-22 en el link público**: los cinco datos del apoderado son obligatorios para toda persona que
+  se inscribe, sin mirar la edad. La RN-22 del Cambio 41 queda registrada como histórica; esta decisión la manda el PM.
+- **La app de campo mantiene, por ahora, la regla de menores.** Exigir el apoderado a los adultos en la API sin que la
+  app lo pida los dejaría con casos que el servidor rechaza al sincronizar. El cambio en Mobile y en el serializer
+  (`programas/api/serializers.py`, validación bajo `es_menor`) va junto, cuando el equipo móvil lo tenga; queda en
+  Pendientes.
+- **La revisión muestra siempre la sección del apoderado**, también en casos anteriores, para poder completarla.
+- **Global, no por convocatoria.** No se agregó un interruptor por convocatoria en `main`: eso ya existe en el Cambio 58
+  (condición del grupo Apoderado en el constructor y obligatoriedad en el catálogo) y duplicarlo con una migración
+  quedaría obsoleto al llegar esa rama.
+
+## Implementación
+
+- `portal/forms/inscripcion.py`: los cinco campos `apoderado_*` pasan a requeridos; `clean()` conserva solo la
+  normalización y validación del DNI; se quitan `fecha_nacimiento_efectiva` y la dependencia de `es_menor`.
+- `portal/templates/portal/inscripcion/paso2.html`: el subtítulo pasa a «Completá los datos del apoderado: se piden a
+  todas las personas que se inscriben» y las etiquetas llevan el asterisco de obligatorio.
+- `programas/views/revision.py`: `mostrar_apoderado` es siempre verdadero.
+
+## Archivos
+
+`portal/forms/inscripcion.py` · `portal/templates/portal/inscripcion/paso2.html` · `programas/views/revision.py` ·
+`portal/tests/test_inscripcion_envio.py` · `portal/tests/test_correcciones_review.py` ·
+`portal/tests/test_correcciones_review_2.py`.
+
+## Base de datos
+
+Sin cambios. `Formulario.apoderado_*` ya admiten vacío; los casos anteriores sin apoderado quedan como están y se
+pueden completar desde la revisión.
+
+## Validación
+
+`test_apoderado_obligatorio_para_menores_y_mayores` (mayor sin apoderado: los cinco campos en error; menor igual;
+mayor con apoderado completo pasa), `test_el_paso_2_marca_el_apoderado_como_obligatorio`, y los tests de fecha no ISO
+y de fecha de proveedor rota se ajustaron para seguir probando lo suyo con el apoderado ausente. Suite de `portal`,
+`test_becas_revision` y `test_becas_api` con Python 3.12 / Django 5.2. `manage.py check`, ruff, `design_audit`,
+`compile_templates` y `check_design_agent` en 0.
+
+## Puesta en marcha en el servidor
+
+Merge del PR a `development` → release automático a `main` (`publish-main.yml`) → espejo al GitLab de ECOM con
+`/pushGitLabecom` (`test` primero, después `main`, que despliega producción en 5 a 7 minutos). Sin migraciones ni
+coordinación con ECOM. La convocatoria abierta empieza a exigir el apoderado desde el deploy; quien tenga el paso 2
+abierto en ese momento ve el error de campos obligatorios al enviar y completa.
+
+## Pendientes / a definir
+
+- **App de campo**: cuando Mobile pida el apoderado a todos, cambiar en el mismo PR la validación del serializer
+  (`programas/api/serializers.py`, bloque bajo `es_menor`) y su test `test_menor_sin_apoderado_falla`. Hasta entonces
+  los dos canales exigen distinto.
+- **Cambio 58**: cuando el constructor llegue a `main`, esta regla pasa a ser configuración. El equivalente es: sin
+  condición en el grupo Apoderado (en el catálogo, como condición por defecto, y en el constructor de cada
+  convocatoria) y `obligatorio` tildado en «Sexo del apoderado» y «Fecha de nacimiento del apoderado» (nombre,
+  apellido y DNI ya lo son). El seed y la migración `programas.0063` de esa rama siembran hoy la condición `edad < 18`
+  y sexo/fecha opcionales: hay que alinearlos antes del merge para no volver atrás.
+
+## Reversión
+
+Revertir el commit del PR. No hay datos que deshacer.
+
+## Historial
+
+Entrada nueva. Modifica la RN-22 registrada en el Cambio 41 («los menores pueden inscribirse; el paso 2 exige apoderado,
+misma regla que la app») por decisión del PM del 08/09/2026, solo para el link público hasta que Mobile acompañe.
+# Cambio 68 — Google Tag Manager en las pantallas públicas de inscripción
+
+🟢 **HECHO — en test y producción de ECOM desde el 08/09/2026** · PR #384 (squash 4c3e169), release dc1a900 · Se activa
+con `GTM_CONTAINER_ID` en el entorno; sin la variable no cambia nada
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal · link público de inscripción (paso 1, paso 2, comprobante y pantallas de corte) |
+| **Etiquetas** | `#ui` `#infra` |
+| **Solicitante** | PM — en sesión del 08/09/2026, con los snippets del contenedor `GTM-MQNGV4R5` («Inscripción Programa Futuro Chaco») |
+| **Fecha del pedido** | 08/09/2026 |
+| **Issue / épica** | Sin issue propio |
+| **Partes afectadas** | `base_inscripcion.html`, `confirmacion.html`, `portal/views/inscripcion.py`, `config/settings.py`, `config/middlewares/security_headers.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Son para Google Tag Manager, quiero configurarlo para los formularios públicos, no sé si hay que configurar algo.»
+> Dos archivos con los snippets estándar del contenedor: el script del `<head>` y el `<noscript>` del `<body>`.
+
+## Cómo se relevó
+
+Pegar los snippets no alcanzaba: la CSP de `SecurityHeadersMiddleware` (revisión de seguridad del 26/08/2026) solo
+permite scripts propios y de reCAPTCHA, `connect-src 'self'` y frames propios, así que `gtm.js`, el iframe del
+`<noscript>` y los envíos de GA4 quedaban bloqueados en silencio. El middleware ya leía `CSP_EXTRA_SOURCES` pero
+settings no lo definía. No había analítica previa en el sistema.
+
+## Decisiones tomadas
+
+- **Un solo contenedor para todo el flujo público**, con programa y convocatoria en el `dataLayer`. Un snippet por
+  programa multiplicaría templates y la CSP; con las variables, GTM segmenta solo.
+- **Activación por entorno**: `GTM_CONTAINER_ID`. Sin la variable no se renderiza el snippet ni se abre la CSP, así
+  test de ECOM, icore-srv y el desarrollo local no ensucian las métricas de producción.
+- **La CSP se abre a Google solo con el contenedor activo**, con los hosts de la guía oficial de GTM y GA4
+  (`*.googletagmanager.com`, `*.google-analytics.com`, `*.analytics.google.com`, y `www.googletagmanager.com` en
+  `frame-src` por el `<noscript>`). Es una decisión explícita: `connect-src 'self'` existía para que la página del
+  DNI no pudiera mandar datos a terceros; ahora puede mandárselos a Google. Otras etiquetas (Meta, Google Ads, Google
+  Signals) declaran sus hosts en `CSP_EXTRA_SOURCES` (`"connect-src=https://a https://b;img-src=https://c"`), sin
+  código.
+- **Evento de conversión `inscripcion_enviada` en el comprobante**, con programa, convocatoria e id, emitido **una
+  sola vez por envío** (marca en la sesión: un refresh no lo duplica). El `dataLayer` inicial lleva `pantalla`
+  (nombre de la URL), `programa`, `convocatoria` y `convocatoria_id`. **Nunca datos de la persona.**
+- **Solo el shell de inscripción pública**: ni el portal ciudadano con login ni el backoffice.
+
+## Implementación
+
+`portal/context_processors.py` (`gtm`) expone el contenedor; `_gtm_head.html` y `_gtm_body.html` llevan los snippets
+con el ID por variable y el `dataLayer` inicial; `base_inscripcion.html` los incluye si hay contenedor;
+`confirmacion.html` emite la conversión bajo `emitir_conversion`, que la vista marca en la sesión;
+`security_headers.py` suma `GTM_SOURCES` con contenedor activo y `parsear_fuentes_extra` para la variable;
+`settings.py` define `GTM_CONTAINER_ID` y `CSP_EXTRA_SOURCES`. Los `.txt` con los snippets no se versionan: el ID va
+al entorno.
+
+## Archivos
+
+`config/settings.py` · `config/middlewares/security_headers.py` · `portal/context_processors.py` ·
+`portal/templates/portal/inscripcion/{base_inscripcion,confirmacion,_gtm_head,_gtm_body}.html` ·
+`portal/views/inscripcion.py` · `portal/tests/test_gtm.py`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`portal/tests/test_gtm.py`: con contenedor, el paso 1 lleva el script, el `<noscript>` y el `dataLayer` con pantalla y
+convocatoria; la CSP abre solo los hosts de Google y conserva `frame-ancestors 'none'` y `form-action 'self'`; el
+comprobante emite la conversión una vez y no en el refresh; las pantallas de corte lo llevan; el portal ciudadano no.
+Sin contenedor, nada se renderiza ni se abre la CSP. Parser de `CSP_EXTRA_SOURCES` y su entrada a la política.
+
+## Puesta en marcha en el servidor
+
+1. Merge a `development` → release a `main` → espejo a ECOM (`/pushGitLabecom`).
+2. ECOM carga en el entorno de producción `GTM_CONTAINER_ID=GTM-MQNGV4R5`. Opcional para probar sin bloquear:
+   `CSP_REPORT_ONLY=True` un rato y mirar la consola del navegador.
+3. En GTM: **no** activar la medición mejorada de interacciones de formulario ni la recolección de datos provistos
+   por el usuario (los campos llevan DNI, celular y correo). Alcanza con páginas vistas y el evento
+   `inscripcion_enviada`; las rutas llevan el token del relevamiento, así que un embudo por URL se arma con
+   expresión regular o, mejor, con las variables `pantalla`, `programa` y `convocatoria` del `dataLayer`.
+4. Si suman Meta, Ads o Signals, agregar sus hosts a `CSP_EXTRA_SOURCES`.
+
+## Pendientes / a definir
+
+- Aviso de medición en el pie del portal (hoy cita la Ley 25.326): prudente, no obligatorio; a definir con el PM.
+- Si quieren medir también en test o icore-srv, un contenedor aparte para no mezclar.
+
+## Reversión
+
+Quitar `GTM_CONTAINER_ID` del entorno apaga todo sin deploy. Revertir el commit elimina el código.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+# Cambio 69 — Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2)
+
+🟢 **HECHO — 08/09/2026** (propuesta funcional, diseño de referencia y backlog v2; el desarrollo arranca con las tasks)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos y Merenderos · gestión del Project |
+| **Etiquetas** | `#gestion` `#datos` `#ui` `#rbac` |
+| **Solicitante** | PM — en sesión del 08/09/2026, después de leer toda la documentación del programa y de mover las 27 tasks de la v1 a Backlog a su nombre |
+| **Fecha del pedido** | 08/09/2026 |
+| **Issue / épica** | Épica #127 (sección «Versión 2») · análisis #385 a #396 · 45 tasks colgadas de esos análisis · v1 cerrada: #128, #309, #173-#185, #310-#323 |
+| **Partes afectadas** | Ninguna del producto todavía: documentación interna, diseño de referencia y GitHub |
+| **Migración** | No requiere. Las tasks v2 que cambian modelos llevan la suya |
+
+## Pedido original
+
+«Armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos
+ahora, ya que creo que no tiene mucho sentido.» Después: «armame un diseño complejo y todos los flujos
+para ver cómo queda», «la versión del diseño que estás usando no es la actual… misma paleta de colores
+pero distinto diseño, mejorá eso» y, para cerrar: «no crees una nueva, en la épica existente agregá una
+sección de versión 2; los task existentes de la v1 pasalos a terminados y creá todos los task de la v2
+sin importar que se repliquen pasos, tiene que quedar como si fuera desde cero; no hay ningún dato
+existente; vamos a estimar teniendo en cuenta lo ya desarrollado así no se siente que se pasa desde
+cero».
+
+## Alcance acordado
+
+Entra: la propuesta funcional completa del programa (13 módulos), el diseño de referencia con flujos y
+pantallas sobre el shell productivo, la sección «Versión 2» en la épica #127, doce análisis (uno por
+módulo funcional, M1 a M12) en `Definido` con asunciones explícitas, 45 tasks con requisitos, interfaz
+o ejemplo, criterios de aprobación y estimación que descuenta lo reutilizable, y el cierre de la v1
+como terminada.
+
+Queda afuera: M13 (padrón nominal y asistencia de merenderos), los once módulos de la estimación v1.1
+§7.1, Línea 102, el portal para merenderos, y cualquier cambio de código.
+
+## Decisiones tomadas
+
+- **La estadía es el eje, no el formulario.** La v1 modeló una «admisión» con estados de aprobación que
+  la operación nunca usó y un F-00 de una sola carga. La v2 cuelga todo (plaza, ficha, movimientos,
+  novedades, egreso) de la estadía, que puede ser residencial o ambulatoria.
+- **Capacidad = plazas (cama, cupo o turno) agrupadas en sectores**, con estados que incluyen Prestada.
+  Todo cálculo se deriva; el sistema alerta y nunca bloquea un ingreso por capacidad.
+- **Unicidad residencial en la red**, compatible con una estadía ambulatoria (adopta la regla de la
+  estimación v1.1 sobre la de #128, que permitía estar alojado en dos dispositivos).
+- **Traslado con estado En tránsito** visible en las dos puntas; nunca dos estadías alojadas.
+- **Un solo motor de formularios:** la ficha por tipo se define en el constructor de formularios del
+  sistema y se retira `CampoTipoDispositivo`. Sensibilidad por sección (general, social, salud,
+  psicosocial, judicial) con permiso propio.
+- **Bitácora por turno y pase de guardia** reemplazan al parte diario: las entradas se agregan, nunca
+  se pisan.
+- **Alcance en tres niveles** (institución, área del Ministerio, central) y **separación de funciones**
+  en el motor: quien registra no valida ni confirma.
+- **Merenderos sigue siendo programa propio** (decisión del Ministerio del 01/07/2026) pero comparte el
+  legajo institucional común y los transversales, y tiene su propio grupo en el menú.
+- **Épica única.** El PM eligió mantener #127 y agregarle la sección «Versión 2» en vez de abrir otra.
+  Los análisis v2 cuelgan de #127; #128 y #309 se cierran como v1.
+- **La v1 se cierra como terminada, no como descartada.** Las 27 tasks (#173-#185, #310-#323) pasan a
+  Done y se cierran con un comentario que apunta a la v2. Lo construido queda como base reutilizable y
+  se descuenta en la estimación.
+- **Estimación con descuento explícito.** Cada task v2 dice cuántas horas serían desde cero y cuántas
+  se descuentan por lo reutilizable de la v1. Total desarrollo v2: **410 h** (570 h desde cero, 160 h
+  descontadas). UX, QA, despliegue y capacitación se gestionan aparte, como en la estimación v1.
+- **Análisis en `Definido` con asunciones.** Las doce preguntas de la propuesta 006 §12 quedaron como
+  asunciones con decisión por defecto en el análisis que corresponde (precedente de #128). Si el
+  Ministerio define otra cosa, se ajusta la task afectada.
+- **No hay datos productivos que migrar** (confirmado por el PM): las migraciones de la v2 son de esquema.
+- **El diseño de referencia se hizo sobre el frontend real, no sobre el canon escrito.** La primera
+  versión del canvas copiaba el canon del agente de diseño y el PM la rechazó («misma paleta, distinto
+  diseño»). Se levantó la app con SQLite, se capturaron las pantallas productivas con Playwright y se
+  rehizo el canvas con el shell real (sidebar blanco con píldoras, buscador redondeado, Manrope, botones
+  píldora con gradiente, tarjeta de filtros, stat cards con ícono, tabla densa, badges con borde tonal).
+
+## Implementación
+
+- `docs/internal/analisis/006-programa-dispositivos-v2-propuesta-funcional.md` — propuesta funcional
+  completa (13 módulos, 9 principios, 12 preguntas, fuera de alcance, próximos pasos). **Sin commitear**
+  al cierre de la sesión.
+- Diseño de referencia (artefacto): https://claude.ai/code/artifact/54ab2e5b-5371-4e69-a5ad-ee8d576543d7
+  — 7 flujos (módulos, estados del legajo, estadía, tránsito, plazas, turno, merenderos) y 16 pantallas.
+- Épica #127: sección «Versión 2» con motivación, principios, funcionamiento, fuera de alcance,
+  definición de terminado, asunciones a confirmar y tabla de análisis con estimación.
+- Análisis v2 (Backlog, Iteration 7, Modulo, ResponsableFuncional): #385 M1 legajo institucional ·
+  #386 M2 plazas · #387 M3 estadías · #388 M4 ficha · #389 M5 bitácora · #390 M6 espera y derivaciones ·
+  #391 M7 roles, alcance y configuración · #392 M8 tablero · #393 M9 reportes · #394 M10 padrón y
+  auditoría · #395 M11 merenderos · #396 M12 prestación y cobertura.
+- 45 tasks v2 (Backlog, Iteration 7, Prioridad, Modulo, EstimacionHoras, assignee `Mkdir-arg`) con
+  checklist en su análisis. Horas por módulo: M1 50 · M2 28 · M3 86 · M4 46 · M5 30 · M6 28 · M7 38 ·
+  M8 26 · M9 12 · M10 20 · M11 30 · M12 16.
+- v1: #128, #309 y las 27 tasks en Status Done y cerradas con comentario.
+
+## Archivos
+
+- `docs/internal/analisis/006-programa-dispositivos-v2-propuesta-funcional.md` — nuevo.
+- `docs/internal/requerimientos.md` — esta entrada y la fila 69.
+- Ningún archivo de código productivo.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Project #1 verificado con `gh project item-list`: 57 items v2 en Backlog, Iteration 7, assignee
+  `Mkdir-arg`, 410 h de EstimacionHoras; 29 items v1 en Done y cerrados.
+- Épica #127 con la sección «Versión 2» y los doce análisis listados.
+- `scripts/requerimientos.py --check` OK tras esta entrada.
+- `manage.py check` y auditoría de diseño no aplican: no se tocó código ni UI.
+
+## Puesta en marcha en el servidor
+
+No aplica.
+
+## Pendientes / a definir
+
+1. **Casos de QA.** Ninguna task v2 tiene todavía su sección «Casos de prueba (QA)»: sin casos no son
+   Ready (`ESTADOS.md`). Correr `/qa:casos` sobre las 45 antes de moverlas.
+2. **Las doce asunciones** de la propuesta 006 §12 (unicidad residencial, ingreso excepcional,
+   autorización previa, préstamo y disponibilidad neta, sensibilidad y GENACH, Fortalecimiento
+   Familiar, albergues, ventana de regularización, servicios y raciones, catálogo de kits, derivaciones
+   externas, niveles de alcance) hay que llevarlas al Ministerio; cada análisis dice qué task cambia.
+3. **Publicar la versión para el cliente** en `docs/client/funcionalidades/` (hoy `programa-dispositivos.md`
+   describe la v1) y actualizar la estimación v1.1 con las 410 h de desarrollo v2.
+4. **Commitear** la propuesta 006 y esta entrada.
+5. **Orden sugerido de arranque:** M1 y M7 (base y permisos), después M2 y M3, luego M4 y M5.
+
+## Reversión
+
+Los issues no se revierten con git: reabrir #128, #309 y las 27 tasks v1 y cerrar #385-#396 y las 45
+tasks v2; quitar la sección «Versión 2» de #127. Revertir el commit de la propuesta 006 y esta entrada.
+No hay código ni datos involucrados.
+
+## Historial
+
+**09/09/2026 — análisis de horas y estimación unificada de la Versión 2.** El PM pidió cruzar lo
+estimado con lo consumido. Resultado del cruce sobre el financiero: el programa lleva **432 h 45 min
+imputadas** como Dispositivos (julio 283 h 15 min + agosto 140 h 30 min + septiembre 9 h) contra las
+**436 h** aprobadas, o sea el 99 % del presupuesto; además hay **128 h 18 min** de análisis de junio
+que el PM imputó íntegramente a Becas. Por rubro, el desarrollo se pasó unas 70 h y quedaron sin
+ejecutar el despliegue a QA (25 h) y la capacitación (14 h), y a menos de la mitad el diseño y el QA;
+el análisis y la documentación consumieron 57 h que la estimación no preveía.
+
+**Se unificó la nomenclatura.** Lo que hizo Abate en septiembre (relevamiento de campo en las cuatro
+instituciones, 9 h, ítem 8 de la Versión 002 con «A estimar») y lo que se armó el 08/09 (propuesta
+006, diseño, 12 análisis y 45 tasks) son **la misma Versión 2 en dos etapas**: su relevamiento
+identificó las funcionalidades y esta estimación las dimensiona. La entrada original hablaba de la
+estimación como si fuera un tercer concepto; no lo es.
+
+**Dos correcciones a la estimación del 08/09:** (1) las 410 h descontaban por reutilización 24 h en
+diez tasks que no tienen base en el sistema, así que el desarrollo son **434 h**; (2) las 410 h eran
+solo desarrollo, sin análisis, QA, diseño, despliegue ni capacitación.
+
+**Estimación unificada, con criterio de funcionalidad nueva** (decisión del PM: la base consumida
+está cerrada y lo que se suma se cotiza como agregado al sistema, no como rehacer):
+
+| Concepto | Horas |
+|---|---:|
+| Desarrollo · funcionalidad nueva (27 entregables) | 276 |
+| Desarrollo · ampliación de lo existente (15 entregables) | 140 |
+| Desarrollo · ajustes sobre lo entregado (3 entregables) | 18 → sin cargo |
+| Análisis funcional y definiciones | 24 |
+| Pruebas y QA | 64 |
+| Diseño UX/UI | 24 |
+| Despliegue a QA y datos iniciales | 16 |
+| Capacitación | 14 |
+| **Total cotizado de la Versión 2** | **558** |
+
+Total del programa: **994 h** (436 base + 558 adición). La adición es 1,28 veces la base y la mitad
+del desarrollo se concentra en tres módulos: estadías 98 h, ficha por tipo 50 h y legajo institucional
+36 h.
+
+**Publicado en `docs/client/funcionalidades/estimacion-programa-dispositivos.md` (Versión 2.0):** el
+resumen ejecutivo muestra las dos etapas (436 base + 558 adición = 994) y toda la Versión 2 quedó
+consolidada en una sola sección **§11 «Estimación y propuesta»**, a pedido del PM, con el énfasis en
+la diferencia entre lo hecho y lo que hay que hacer: §11.1 los catorce cambios que pidió cada
+institución en las visitas, con qué hace el sistema hoy y qué se agrega; §11.2 el comparativo área por
+área; §11.3 la composición de las 558 h; §11.4 el detalle por módulo; §11.5 las cuatro etapas con la
+duración (10 semanas, 2 desarrolladores a tiempo completo) y qué cambio solicitado resuelve cada una;
+§11.6 los escenarios críticos; §11.7 las horas por perfil y por etapa con el acumulado para aprobar
+por tramos; §11.8 qué no está incluido. Por decisión del PM el documento **no lleva valores
+monetarios**: solo cantidades de horas. Las
+secciones 2 a 10 quedaron rotuladas como Versión 1 para
+que no se confundan con la estimación vigente. Se corrigió además una inconsistencia del documento
+anterior: la sección 4 listaba como «escenarios cubiertos» por la v1 la separación de funciones, la
+unicidad de plaza en la red, el préstamo de plaza, la autorización previa y el límite de 48 h de
+UPI/ECA, que no están construidos; pasaron a §12.1 como escenarios de la Versión 2. La fila del índice
+de funcionalidades quedó actualizada.
+
+**Sin valores monetarios.** La primera versión de la sección traía una tabla de costos con el valor
+hora en blanco (no hay tarifas documentadas en el repo). El PM pidió sacarla: el documento expresa el
+alcance solo en horas, por perfil (backend 250, frontend 166, QA 64, análisis 24, diseño 24,
+despliegue 16, capacitación 14) y por etapa (277, 103, 98, 80), con la columna de acumulado.
+
+**Queda pendiente** actualizar las 45 tasks del Project, que suman 410 h y deberían sumar 434 h con la
+clasificación por tipo de trabajo. No se tocaron porque el total todavía está en revisión del PM.
+
+---
+
+# Cambio 70 — Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma
+
+🟢 **HECHO — 09/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal (ciudadano e inscripción pública) · Becas (correo de resolución) |
+| **Etiquetas** | `#textos` `#ui` `#correo` `#relevamientos` |
+| **Solicitante** | PM — en sesión, con la captura del pie del correo de comprobante |
+| **Fecha del pedido** | 09/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Backoffice (plantilla del correo de resolución) · Portal ciudadano · link público de inscripción · correos salientes |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma.
+> Ejemplo esto: "Este mensaje se envió automáticamente y no hace falta responderlo. Ante cualquier
+> consulta, comunicate al +54 362 430-0002."»
+
+## Alcance acordado
+
+- El teléfono **desaparece de todo el código**: las siete superficies que quedaban abiertas desde el
+  Cambio 59 más el correo de resolución de Becas, que no estaba en aquel inventario.
+- **Se borra el teléfono y la invitación a llamarlo, no el mensaje entero.** El texto útil que lo
+  acompañaba se conserva; lo que se va es la oración de contacto.
+- **Afuera:** la casilla `datanach@chaco.gob.ar`, que sigue en el header y el footer del portal, y la
+  casilla `consultasincentivojuventud@gmail.com` del pie del link público (Cambios 59 y 62). El pedido
+  fue sobre el teléfono; los correos son datos reales.
+- **Afuera también:** este archivo. Las menciones históricas del número en los Cambios 42, 43, 51, 59,
+  60, 61 y 62 se conservan, porque el registro no se reescribe.
+
+## Decisiones tomadas
+
+- **Cierra el pendiente que abrió el Cambio 59** y arrastraron los Cambios 60, 61 y 62: «qué se hace
+  con el +54 362 430-0002 en las otras superficies». La respuesta del PM es que el número nunca
+  existió, así que no se reemplaza por otro: se elimina.
+- **No se deja el marcado vacío.** Cuando el teléfono era el único contenido de un elemento —la tarjeta
+  «Teléfono» de la home, los bloques de contacto del header y el footer, los párrafos de «ya estás
+  inscripto», «demasiados intentos» y «sesión vencida»— se borra el elemento completo. En el working
+  tree había tres ediciones previas a medias que dejaban `<span></span>` y `<p></p>`: quedaban un icono
+  de teléfono suelto en el footer y dos párrafos vacíos ocupando margen. Se limpiaron acá.
+- **Cuando el teléfono era la segunda oración, se corta la oración.** El aviso de los dos correos queda
+  «Este mensaje se envió automáticamente y no hace falta responderlo.» —la parte que le dice al
+  ciudadano que no responda ese mail sigue siendo necesaria— y el comprobante en pantalla queda «Podés
+  cerrar esta página.».
+- **El bloque «Ayuda» de la home se queda con el horario y el chat.** Sacada la tarjeta del teléfono,
+  la ayuda de la home son «Lunes a Viernes, 9–17 hs» y el botón «Chatear con un operador», que es un
+  canal que sí funciona. No se inventó un contacto de reemplazo.
+- **`ya_inscripto` pierde la línea de contacto y no gana otra.** Es la misma lógica del Cambio 61 en la
+  alerta del paso 1: el aviso principal ya explica qué pasó, y el único contacto que quedaba era el
+  número inexistente.
+- **El correo de resolución de Becas entra aunque no estaba en el inventario del Cambio 59.** Es el
+  aviso de aprobado/rechazado/lista de espera, y tenía el mismo pie. El pedido fue «todos los
+  mensajes».
+- **El contrato de marca del agente de diseño cambia con el mismo diff.** El shell del portal es pieza
+  canónica: `.claude/agents/chaco-design-system.md` decía «datos de contacto únicos +54 362 430-0002 /
+  datanach@chaco.gob.ar». Ahora declara un solo dato de contacto —la casilla— y deja escrito que el
+  teléfono era ficticio, para que nadie lo reponga desde el material histórico.
+
+## Implementación
+
+Ni el portal ciudadano, ni las seis pantallas del link público, ni el correo de comprobante, ni el
+correo de resolución de Becas muestran un teléfono. El único dato de contacto del portal es la casilla
+`datanach@chaco.gob.ar`; el del link público, `consultasincentivojuventud@gmail.com`.
+
+## Archivos
+
+`portal/templates/portal/base.html` (bloque de teléfono del header y del footer) ·
+`portal/templates/portal/home.html` (tarjeta «Teléfono» del bloque Ayuda) ·
+`portal/templates/portal/inscripcion/confirmacion.html` ·
+`portal/templates/portal/inscripcion/ya_inscripto.html` ·
+`portal/templates/portal/inscripcion/demasiados_intentos.html` ·
+`portal/templates/portal/sesion_vencida.html` ·
+`portal/templates/portal/inscripcion/email/confirmacion_body.html` y `.txt` ·
+`programas/templates/programas/becas/email/resolucion_body.html` y `.txt` ·
+`.claude/agents/chaco-design-system.md` (contrato de marca del shell del portal).
+
+Sin cambios en Python: ningún test ni vista afirmaba sobre esas frases (se verificó por búsqueda antes
+de tocar).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `grep` del número sobre todo el repo fuera de `docs/` y `.venv/`: **0 coincidencias**.
+- `manage.py check` OK · `compile_templates.py` 335 plantillas, 0 errores ·
+  `design_audit.py --changed` 0 errores / 0 warnings · `check_design_agent.py --changed` OK.
+- `portal` completo: 150 tests, 29 errores. Se corrió el **mismo comando sobre un worktree de HEAD** y
+  dio 29 idénticos: es el baseline conocido del venv local (Python 3.14 + Django 4.2,
+  `Context.__copy__` → `AttributeError: 'super' object has no attribute 'dicts'`). Ningún `FAIL`.
+- `programas.tests.test_becas_revision` (el módulo que renderiza el correo de resolución): 76 tests,
+  23 errores, **todos** el mismo `AttributeError` del baseline; ninguna aserción caída.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. Solo plantillas: no hace falta `migrate`, sí `collectstatic` por el
+flujo habitual del entrypoint. No toca el CSS, así que no requiere `npm run build:tailwind`.
+
+## Pendientes / a definir
+
+- **Si el organismo consigue un teléfono real**, hay que decidir dónde vuelve: no alcanza con reponer
+  la línea del footer, porque el número vivía en ocho lugares. El contrato del agente de diseño ya
+  avisa que no se introduce un teléfono sin dato confirmado por el PM.
+- Sigue abierto el pendiente del Cambio 61: si el mensaje de rechazo del paso 1 tiene que desaparecer
+  del todo o queda la oración corta.
+
+## Reversión
+
+Revertir el commit: vuelven los ocho textos con el teléfono y el contrato de marca anterior.
+
+## Historial
+
+No aplica.
+
+---
+
+# Cambio 71 — Los rechazos del paso 1 del link público vuelven a decir su causa
+
+🟢 **HECHO — 10/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Incentivo Juventud) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en sesión, con la URL del link productivo |
+| **Fecha del pedido** | 10/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Constantes de mensaje del paso 1 y del paso 2 del formulario público |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Cuando me quiero inscribir y ya estoy inscripto me dice "No podés inscribirte con ese documento",
+> o si no estoy en la lista me dice "No podés inscribirte con ese documento". Quiero que vuelvas a
+> implementar los distintos mensajes de errores que teníamos.»
+>
+> Superficie señalada: `https://datanach.chaco.gob.ar/portal/inscripcion/f02de490-f7fa-4dd7-8942-a812b76c1960/`
+> (paso 1 del link público, producción).
+
+## Alcance acordado
+
+- Cada camino de rechazo recupera un texto propio: **fuera del padrón**, **ya inscripto** y
+  **documento no disponible** en el paso 1, más **padrón cambiado entre pasos** en el paso 2.
+- **Afuera:** el resto de los cortes sigue igual. «Demasiados intentos» conserva un solo texto (dos
+  cubetas, una sola causa para el ciudadano), la pantalla «no disponible» mantiene su regla del
+  Cambio 59 (solo distingue «todavía no abrió»), y la pantalla «Ya estás inscripto» del paso 2 no se
+  toca. Ningún mensaje incorpora datos de contacto: eso sigue como lo dejaron los Cambios 60, 61 y 70.
+
+## Decisiones tomadas
+
+- **Se revierte, a pedido, la unificación de la revisión de seguridad del 26/08/2026** (Cambio 41,
+  reafirmada en el Cambio 61). Aquella decisión existía porque textos distintos convierten el paso 1
+  en un oráculo: barriendo documentos se reconstruye el padrón de habilitados —dato socioeconómico— y
+  se averigua quién ya se inscribió, incluidas las personas relevadas en campo. **Se avisó el costo
+  antes de implementar y el pedido se mantuvo**: la persona que no entiende por qué no puede seguir
+  es un problema real y presente; el oráculo es un riesgo que ya está acotado por otras vías.
+- **Lo que contiene el barrido masivo no se toca**: captcha (reCAPTCHA cuando hay claves), cubeta por
+  IP y cubeta por documento consumida después del captcha. Sin ellas, la diferenciación sí sería
+  explotable a escala; con ellas, el atacante necesita resolver un captcha por documento probado.
+- **El duplicado se avisa en el propio paso 1, no con la pantalla completa** que se usaba antes de
+  agosto. Con el mensaje en línea la persona corrige un documento mal tipeado sin volver atrás; la
+  pantalla `ya_inscripto.html` queda para el paso 2, donde el envío ya fue.
+- **El texto nombra «listado de personas habilitadas», no «padrón»**: es la palabra que el ciudadano
+  entiende, y es la que ya usa el resto de las pantallas públicas.
+- **Ningún mensaje reintroduce un teléfono ni una casilla.** El Cambio 70 borró el número fantasma y
+  el Cambio 60 sacó el contacto del paso 1: la alerta informa la causa y nada más.
+
+## Implementación
+
+Cuatro constantes en lugar de la única `MENSAJE_RECHAZO`:
+
+| Situación | Dónde | Texto |
+|---|---|---|
+| El documento no está en el padrón de la convocatoria | Paso 1 | «Ese documento no figura en el listado de personas habilitadas para esta convocatoria.» |
+| Ya hay una inscripción con ese documento | Paso 1 | «Ya existe una inscripción con ese documento en esta convocatoria. No podés inscribirte dos veces.» |
+| RENAPER/Gran Base lo informa fallecido | Paso 1 | «La inscripción no está disponible para ese documento. Revisá que el número y el sexo sean correctos.» |
+| El padrón cambió entre la identificación y el envío | Paso 2 | «Ese documento ya no figura en el listado de personas habilitadas para esta convocatoria: no pudimos registrar la inscripción.» |
+
+El orden de evaluación del paso 1 no cambia: captcha → cubeta por IP → cubeta por documento → padrón
+→ duplicado → identidad. El duplicado sigue cortando **antes** de la consulta externa.
+
+## Archivos
+
+- `portal/views/inscripcion.py` — `MENSAJE_NO_HABILITADO`, `MENSAJE_YA_INSCRIPTO`,
+  `MENSAJE_DOCUMENTO_NO_DISPONIBLE`, `MENSAJE_PADRON_CAMBIO` reemplazan a `MENSAJE_RECHAZO`.
+- `portal/tests/test_seguridad_publica.py` — `RechazosIndistinguiblesTests` pasa a
+  `RechazosDiferenciadosTests` y fija la propiedad inversa: cada causa da su mensaje y solo el suyo.
+  Los tres casos se leen del contexto en vez del HTML, así corren también en el venv local.
+- `portal/tests/test_correcciones_review_2.py` — `MensajeAntiEnumeracionTests` pasa a
+  `DuplicadoEnPaso1Tests`; sigue verificando que el duplicado no gasta una consulta de identidad.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `portal.tests.test_seguridad_publica.RechazosDiferenciadosTests` +
+  `test_correcciones_review_2.DuplicadoEnPaso1Tests`: **5 tests, OK** (corren de verdad en local).
+- Suite `portal` completa: 150 tests, 25 errores, **todos** el `AttributeError` de `Context.__copy__`
+  del baseline conocido (Python 3.14 + Django 4.2). El baseline sin el cambio da 29: bajan cuatro
+  porque los tests de rechazo dejaron de instrumentar el render. Ninguna aserción caída.
+- `manage.py check` OK · `makemigrations --check` sin cambios · `ruff check` y `ruff format` limpios ·
+  `design_audit.py --changed` 0/0 · `compile_templates.py` 335 OK, 0 errores.
+
+## Puesta en marcha en el servidor
+
+Deploy estándar sin migración. Solo Python: no toca plantillas ni CSS.
+
+## Pendientes / a definir
+
+- **Vigilar el uso del link mientras esté abierto.** Si aparece un barrido de documentos (muchos
+  rechazos «no figura en el listado» desde pocas IPs o en ráfaga), la contención disponible sin
+  volver al mensaje único es bajar `MAX_INTENTOS_DNI` / el techo por IP, no cambiar los textos.
+- Queda **cerrado** el pendiente que arrastraban los Cambios 61 y 70 sobre si el mensaje de rechazo
+  del paso 1 debía desaparecer del todo: ahora hay un texto por causa y ninguno lleva contacto.
+
+## Reversión
+
+Revertir el commit: vuelve `MENSAJE_RECHAZO` con el texto único y los tests de rechazos
+indistinguibles.
+
+## Historial
+
+- **26/08/2026 (Cambio 41)** — la revisión de seguridad unificó los tres mensajes del paso 1 en «No
+  podés inscribirte con ese documento», con un test que comparaba los renders byte a byte.
+- **03/09/2026 (Cambio 61)** — se le sacó la oración de contacto con el teléfono del organismo, sin
+  tocar la unificación.
+- **10/09/2026 (este cambio)** — el programa pide volver a diferenciar por causa; se implementa
+  dejando intactas las defensas anti-abuso.
+
+---
+
+# Cambio 72 — Padrón con herencia: convocatoria → relevamientos, con padrón propio por relevamiento
 
 **Pedido (PM, 31/08/2026):** «el padrón puede ser solo para un relevamiento o no: si se configura en el
 relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente». Supersede
@@ -6265,7 +7955,7 @@ lugar principal, pero deja de ser el único.
 - `PadronHabilitado.relevamiento` (FK nullable, `related_name="padron_propio"`): NULL = nivel convocatoria.
   Única `(convocatoria, relevamiento, dni)` + índice por relevamiento; la unicidad del nivel convocatoria la
   garantiza la carga (reemplazo total + dedupe del parser), porque MySQL no aplica únicos con NULL.
-  `Relevamiento.padron_archivo` guarda el Excel propio (trazabilidad). Migración `programas.0062`, aditiva.
+  `Relevamiento.padron_archivo` guarda el Excel propio (trazabilidad). Migración `programas.0065`, aditiva.
 - `services/padron.py`: `padron_de(objetivo)` (queryset efectivo), `origen_padron(relevamiento)`
   (`propio`/`convocatoria`/None), `cargar_padron(objetivo, …)` escribe en el alcance del objetivo,
   `quitar_padron_propio(relevamiento)`, `esta_habilitado`/`fila_padron` sobre el efectivo,
@@ -6291,5 +7981,8 @@ convocatoria no se toca.
 ## Historial
 
 - **31/08/2026 — Implementado completo** en la rama única `feature/constructor-formularios` (sin mergear).
+- **11/09/2026 — Renumerado de 59 a 72.** Al mergear `development` en la rama, el número 59 ya lo ocupaba «El
+  link público muestra el contacto del programa». Esta entrada y las referencias del código (`Cambio 72`) se
+  renumeraron; la migración es ahora `programas.0065_padron_relevamiento_herencia`.
 
 ---

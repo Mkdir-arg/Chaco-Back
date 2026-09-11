@@ -28,9 +28,9 @@ aditiva: no reemplaza ni modifica los informes existentes, en especial
 | Fuente | Qué da | Cómo se accede |
 |--------|--------|----------------|
 | **Project #1** (`Mkdir-arg`, "Proyect Chaco") | Items, Status, Prioridad, Modulo, EstimacionHoras | GitHub MCP (lectura) o `gh project item-list 1 --owner Mkdir-arg --format json` |
-| **Issues del repo** (`Mkdir-arg/Chaco`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view` |
+| **Issues del repo** (`Mkdir-arg/Chaco-Back`) | Épicas, análisis, tasks, `[REQUERIMIENTO]`, `[PLAN DE PRUEBAS]`, cuerpos y vínculos | GitHub MCP (lectura) o `gh issue list/view --repo Mkdir-arg/Chaco-Back` |
 | **Etiqueta de programa** (labels del repo) | A qué programa pertenece cada issue: `becas` · `dispositivos` · `transversal` | `gh api "repos/Mkdir-arg/Chaco-Back/issues?labels=becas&state=all&per_page=100" --paginate` (ver nota abajo) |
-| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo`) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
+| **Consumo de horas** | Horas reales por persona/día (desde jul-2026 con columna `Programa`) | `docs/client/financiero/` — `detalle-tareas.md` (día por día; lo alimentan `/inicio-de-trabajo` y `/fin-de-trabajo` en vivo, y `/pm:cargarhoras` por reconstrucción) + `mes-AAAA-MM.md` (resumen mensual: presupuesto, consumido, saldo) |
 | **Estimaciones por programa** | Horas estimadas por programa (resumen ejecutivo, desglose por concepto, estado de aprobación) | `docs/client/funcionalidades/estimacion-programa-*.md` |
 
 > **Eje de programa.** Todo issue lleva, además de su label de nivel (`epica`,
@@ -40,9 +40,15 @@ aditiva: no reemplaza ni modifica los informes existentes, en especial
 > están en `AGENTS.md` → "Etiqueta de programa"; el PM Assistant los **lee**, no
 > los asigna: quien crea el issue lo etiqueta.
 >
-> **Gotcha:** `gh issue list --label <programa>` puede devolver vacío durante un
-> rato después de una edición masiva (índice de búsqueda de GitHub). Para contar
-> en firme, usá `gh api repos/.../issues?labels=<programa>&state=all --paginate`,
+> **Gotcha 1 — el nombre del repo.** Va `--repo Mkdir-arg/Chaco-Back` **explícito en
+> todo comando `gh`**. El repo se renombró (antes `Mkdir-arg/Chaco`) y el remoto
+> `origin` sigue apuntando al viejo, así que sin `--repo` la consulta **devuelve
+> vacío en silencio**, sin error. Un listado vacío que no tiene sentido es esto.
+>
+> **Gotcha 2 — el índice de búsqueda.** `gh issue list --label <programa>` puede
+> devolver vacío durante un rato después de una edición masiva (índice de búsqueda
+> de GitHub). Para contar en firme, usá
+> `gh api repos/Mkdir-arg/Chaco-Back/issues?labels=<programa>&state=all --paginate`,
 > que lee del dato y no del índice.
 
 ### GitHub MCP y fallback `gh`
@@ -56,7 +62,7 @@ EstimacionHoras) la receta canónica sigue siendo `gh project item-edit` de
 `AGENTS.md` — pero el PM Assistant no escribe al Project, así que esto le aplica
 al Analista y a QA.
 
-## Los seis informes y un modo de coordinación
+## Los seis informes, la carga de horas y un modo de coordinación
 
 ### 1. Estado (`/pm:estado`) — la foto del sprint
 
@@ -91,7 +97,8 @@ chequeo, cada una con la lista concreta de issues que fallan (o "✔ OK"):
    el de su análisis de origen (síntoma de épica equivocada):
    ```bash
    # issues abiertos sin ninguna de las tres etiquetas de programa
-   gh issue list --state open --limit 300 --json number,title,labels \
+   gh issue list --repo Mkdir-arg/Chaco-Back --state open --limit 300 \
+     --json number,title,labels \
      --jq '.[] | select([.labels[].name] | any(. == "becas" or . == "dispositivos"
             or . == "transversal") | not) | "#\(.number) \(.title)"'
    ```
@@ -111,7 +118,8 @@ exacto para solucionarlo (listo para copiar y pegar):
 - Épica consolidable sin `[REQUERIMIENTO]` → `/analisis:issue #NN` (Analista).
 - Task sin casos de prueba → `/qa:casos #NN`; 3+ tasks sin cubrir → `/qa:revision`.
 - Épica cubierta sin `[PLAN DE PRUEBAS]` → `/qa:plan #NN`.
-- Issue sin etiqueta de programa → `gh issue edit #NN --add-label <programa>`,
+- Issue sin etiqueta de programa → `gh issue edit #NN --repo Mkdir-arg/Chaco-Back
+  --add-label <programa>`,
   a cargo de quien lo creó (Analista o QA).
 - Campos/estados/assignees/iteraciones/Blocked → acción manual del PM humano en
   el Project (sin comando; el informe indica qué campo o estado tocar en qué issue).
@@ -164,6 +172,80 @@ los labels. La **etiqueta de programa** del issue sirve de control cruzado: si u
 programa acumula horas y casi no tiene issues etiquetados (o al revés), hay algo
 mal imputado o mal etiquetado, y va como nota.
 
+### 5.b Carga de horas por reconstrucción (`/pm:cargarhoras`) — cuantificar y registrar
+
+Es el único informe que **escribe** el registro de consumo. Reconstruye lo
+trabajado en un período a partir de la evidencia del repositorio y lo carga en
+`docs/client/financiero/`. Se usa cuando hay días sin registrar, que es lo
+habitual: el equipo trabaja y nadie carga horas hasta que el PM lo pide.
+
+**Unidad de registro.** Una fila por **(día, persona, entregable)** — *fila =
+entregable, no día*. El entregable es lo que se le puede contar al cliente
+(«padrón de habilitados por Excel»), no la tarea técnica («refactor de
+`services/padron.py`»).
+
+**Techo por persona y por día.** 9 h en una jornada hábil; hasta **11 h** solo
+con evidencia de trabajo fuera de horario (madrugada, fin de semana). Si un día
+se pasa, se rebalancea: no se supera el techo para hacer entrar trabajo.
+
+**Base del PM.** Por pedido del PM (05/09/2026, ajustado el 10/09/2026), su jornada
+hábil trabajada queda **entre 9 y 10 h** (10 h cuando hay trabajo real que lo
+sostenga). Si la evidencia da menos, se completa con lo que es trabajo real y no
+deja commits: coordinación del equipo, gestión del tablero, revisión funcional de
+lo publicado y atención de consultas del organismo.
+
+**Equivalente convencional** (columna `Equiv.`). Lo que costaría el mismo
+entregable a paso de desarrollo tradicional: las horas imputadas son el **45-50%**
+de él, así que en una fila de desarrollo con código `Equiv. ≈ 2 × horas`. **No
+llevan equivalente** (`—`) las reuniones, el análisis funcional, la gestión y las
+pruebas manuales: su duración no depende de las herramientas. Es referencia de
+alcance y **no se factura**.
+
+**Reunión diaria e informe.** Desde el 24/08/2026, cada día hábil: **1 h de
+«Reunión de seguimiento diaria» por cada integrante activo** y **0,5 h de armado
+del informe diario** para el PM. Las dos van como `Transversal`.
+
+**Equipo activo y reparto por frente.** Los commits salen todos de una sola
+cuenta, así que la evidencia **no distingue personas**: el reparto se hace por rol
+y se confirma con el PM antes de escribir.
+
+| Persona | Frentes que se le imputan |
+|---|---|
+| Matías Fariña | Análisis funcional, definiciones, versiones, informes, despliegues, espejo a producción y gestión |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo |
+| Juani Portilla | Rendimiento, cobertura automatizada, entornos y pipeline |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación funcional |
+
+**Agostina Coppola** salió del proyecto el 20/08/2026: **no se le imputan horas
+nuevas** (sus filas históricas no se tocan).
+
+**El commit es el aterrizaje, no el día.** Un commit grande puede representar
+varios días de trabajo, y un día entero puede no dejar ningún commit (soporte,
+monitoreo, apertura de una convocatoria, reuniones, análisis en el tablero). La
+evidencia acota el volumen; no determina el calendario.
+
+**Zona horaria.** Los commits llevan la hora local de quien los hizo, y el PM
+trabaja desde Europa (+5 h respecto de Argentina): un commit de la madrugada
+europea es trabajo de la tarde anterior para el equipo en Argentina, y a las 08:00
+de Argentina el equipo recién arranca. Verificar a qué jornada corresponde cada
+commit antes de asignarle un día.
+
+**Frontera de mes.** Un día pertenece al mes de su fecha, aunque ese mes ya esté
+cerrado. Si el mes cerrado tiene **traslado de excedente** (§6), la imputación no
+cambia —sigue en el 100% del presupuesto— pero el excedente trasladado crece, y
+se actualiza en la página del mes cerrado y en la del mes que lo recibe.
+
+**Nada se da por terminado.** Las filas de un frente en curso lo dicen («En
+desarrollo»). El registro no declara cerrado lo que sigue abierto.
+
+**Días sin evidencia.** Se preguntan, no se rellenan. Un día sin un solo commit
+pudo ser de soporte, apertura, reuniones o análisis: lo confirma el PM.
+
+**Verificación antes de commitear.** La suma de las filas de cada día y de cada
+sección tiene que dar **exactamente** el total declarado, y los totales por
+programa, por persona y el contador acumulado tienen que cerrar contra las filas.
+Se verifica con un script, nunca a ojo.
+
 ### 6. Informe de mes (`/pm:informemes`) — cierre mensual para enviar al cliente
 
 Texto de **correo listo para pegar** (formato carta: empieza con "Estimados," y
@@ -193,6 +275,21 @@ mes para contar el desarrollo. Estructura (calcada del informe de junio 2026):
 4. **Cierre** — el texto queda en pantalla para enviar por correo; solo se
    publica en `docs/client/` si el usuario lo pide (reglas de `AGENTS.md`,
    confirmando antes del deploy).
+
+**Referencia de formato:** los informes ya enviados viven en
+`docs/internal/informes-mes/` (registro interno: no se publican, el `docs_dir`
+del sitio es `docs/client`). El más reciente manda; `2026-06.md` es el que fijó
+la estructura. El informe nuevo se guarda ahí como `AAAA-MM.md`.
+
+**Traslado de excedente (decisión del PM, 02/09/2026).** Si el esfuerzo real del
+mes **supera** el presupuesto mensual, el mes se **imputa al presupuesto** (100%,
+nunca más) y el excedente se **traslada al mes siguiente** como consumo inicial:
+así no se le factura de más al cliente y el esfuerzo real sigue visible y
+trazable. El informe y las páginas del mes declaran **las dos cifras** —esfuerzo
+real del mes y horas imputadas— con el traslado explícito. El detalle día por día
+**no se toca**: el traslado es de imputación, no de registro. El flujo completo de
+cierre (páginas del mes, índice, nav de mkdocs y contador) está en
+`.claude/commands/pm/informemes.md`.
 
 ### 7. Coordinación de producción (`/pm`, opción coordinación)
 
