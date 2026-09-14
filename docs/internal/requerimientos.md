@@ -7700,7 +7700,7 @@ indistinguibles.
 
 # Cambio 72 — Propuesta funcional completa de la Versión 2 para el cliente
 
-🟢 **HECHO — 14/09/2026** · Publicada en `docs/client/funcionalidades/propuesta-dispositivos-v2.md` · Mockup: https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28
+🟢 **HECHO — 14/09/2026** · Publicada en `docs/client/funcionalidades/propuesta-dispositivos-v2.md` · Mockup en el mismo sitio: `docs/client/mockups/dispositivos-v2.html'
 
 | | |
 |---|---|
@@ -7740,8 +7740,14 @@ y se amplió a **dieciocho pantallas**:
   avance y el equipo que la completa; la compuerta de aviso antes de leer; y la tabla de auditoría de
   quién leyó qué.
 
-El canvas publicado antes usaba un formato de URL que ya no figura en el listado de artefactos, así
-que se republicó y **la URL nueva es la que va en el documento**.
+**El mockup se sirve desde el propio sitio público, no desde un artefacto.** Un artefacto de Claude
+es privado y exige cuenta, así que no sirve para mandarle un link al Ministerio. El canvas es un HTML
+autocontenido —su única dependencia externa es la tipografía Manrope de Google Fonts—, así que se lo
+envolvió en un documento HTML completo y se lo dejó en `docs/client/mockups/dispositivos-v2.html`.
+MkDocs copia los archivos que no son Markdown tal cual, de modo que queda publicado en GitHub Pages
+junto con el resto de la documentación y los enlaces del documento son relativos. Verificado con
+Playwright sobre el sitio construido: 25 tableros (7 flujos + 18 pantallas), las 18 barras laterales
+que genera el JS, los anclajes de cada sección y cero errores de consola.
 
 **Qué contiene el documento.** Nueve secciones: por qué hay una Versión 2 (lo que mostró el
 relevamiento en las cuatro instituciones, y los catorce cambios que pidieron); qué queda de la Versión
@@ -7764,6 +7770,7 @@ la tabla del índice de funcionalidades. `mkdocs build --strict` en verde. Publi
 - `docs/client/funcionalidades/propuesta-dispositivos-v2.md` (nuevo)
 - `docs/client/funcionalidades/index.md` — fila nueva en la tabla
 - `mkdocs.yml` — entrada en el menú de Funcionalidades
+- `docs/client/mockups/dispositivos-v2.html` (nuevo) — el mockup navegable, servido desde el sitio
 
 ## Base de datos
 

@@ -12,7 +12,7 @@
 | **Última actualización** | 2026-09-14 |
 
 !!! success "Mockup navegable"
-    Todo lo que describe este documento está dibujado sobre el sistema real: **[siete flujos y dieciocho pantallas](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28)**. Cada sección enlaza a la pantalla que le corresponde.
+    Todo lo que describe este documento está dibujado sobre el sistema real: **[siete flujos y dieciocho pantallas](../mockups/dispositivos-v2.html)**. Cada sección enlaza a la pantalla que le corresponde.
 
 ---
 
@@ -104,7 +104,7 @@ Cada dato guarda además **de dónde salió**: fuente, fecha, responsable y nive
 
 El legajo se carga, pasa a validación y lo valida **una persona distinta de la que lo cargó**. Además de activo, observado y rechazado, ahora tiene dos estados que faltaban: **inauguración pendiente**, para la institución que está lista pero todavía no abrió, y **suspendida**, que no admite ingresos nuevos pero conserva a quienes ya están alojados, con vuelta a activa. Cerrar una institución con gente alojada obliga primero a egresarla o trasladarla, y el sistema lo resuelve en bloque con un asistente.
 
-*Ver: [flujo de estados](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f2) · [listado](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p2) · [alta con control de duplicados](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p3) · [detalle](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p4)*
+*Ver: [flujo de estados](../mockups/dispositivos-v2.html#f2) · [listado](../mockups/dispositivos-v2.html#p2) · [alta con control de duplicados](../mockups/dispositivos-v2.html#p3) · [detalle](../mockups/dispositivos-v2.html#p4)*
 
 ### 4.2 La capacidad: sectores y plazas
 
@@ -116,7 +116,7 @@ Una plaza puede estar disponible, reservada, ocupada, **prestada** —cedida a o
 
 Y todo lo demás **se calcula solo**: operativas, ocupadas, reservadas, disponibles, ocupación por sector y el censo del día. Nadie tipea un número.
 
-*Ver: [flujo de plazas y cálculo](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f5) · [sectores y plazas](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p5)*
+*Ver: [flujo de plazas y cálculo](../mockups/dispositivos-v2.html#f5) · [sectores y plazas](../mockups/dispositivos-v2.html#p5)*
 
 ### 4.3 La estadía de la persona
 
@@ -134,7 +134,7 @@ Es el corazón del cambio. Todo lo que le pasa a una persona en una institución
 
 **Los avisos** de la estadía son automáticos: límite de permanencia por tipo —las 48 horas de UPI y ECA cuando el ingreso viene de una medida judicial—, permiso de salida vencido, formulario incompleto pasados los días configurados y tránsito vencido.
 
-*Ver: [estadía de punta a punta](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f3) · [traslado en tránsito](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f4) · [ingreso](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p6) · [detalle de la estadía](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p7) · [recepción del traslado](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p8) · [egreso](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p9)*
+*Ver: [estadía de punta a punta](../mockups/dispositivos-v2.html#f3) · [traslado en tránsito](../mockups/dispositivos-v2.html#f4) · [ingreso](../mockups/dispositivos-v2.html#p6) · [detalle de la estadía](../mockups/dispositivos-v2.html#p7) · [recepción del traslado](../mockups/dispositivos-v2.html#p8) · [egreso](../mockups/dispositivos-v2.html#p9)*
 
 ### 4.4 Los formularios de cada tipo de institución
 
@@ -148,7 +148,7 @@ Sobre cada formulario, el Ministerio decide sus secciones, sus campos y el orden
 
 Los formularios de Adultos Mayores y de Abordaje Psicosocial quedan cargados campo por campo, como están hoy. Los tipos que todavía están en relevamiento —UPI, ECA, Residencias Universitarias, Fortalecimiento Familiar, CDI y las tres instituciones visitadas en septiembre— **no necesitan desarrollo**: se cargan desde esta pantalla cuando el Ministerio entregue sus formularios.
 
-*Ver: [formularios del tipo](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p17) · [reglas por tipo](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p14)*
+*Ver: [formularios del tipo](../mockups/dispositivos-v2.html#p17) · [reglas por tipo](../mockups/dispositivos-v2.html#p14)*
 
 ### 4.5 La operación diaria: bitácora por turno
 
@@ -162,7 +162,7 @@ El **censo es automático**: plazas totales, ingresos, egresos, ocupación noctu
 
 Se pueden **regularizar** días anteriores dentro de una ventana configurable, y queda marcado que se cargó fuera de término.
 
-*Ver: [flujo del turno](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f6) · [bitácora y pase de guardia](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p10)*
+*Ver: [flujo del turno](../mockups/dispositivos-v2.html#f6) · [bitácora y pase de guardia](../mockups/dispositivos-v2.html#p10)*
 
 ### 4.6 Lista de espera y derivaciones
 
@@ -172,7 +172,7 @@ Las **derivaciones** van entre instituciones y también a organismos externos. Q
 
 Y hay una **vista de red** que muestra dónde hay plazas disponibles por tipo, sector y localidad, para poder decidir la derivación.
 
-*Ver: [espera y derivaciones](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p11)*
+*Ver: [espera y derivaciones](../mockups/dispositivos-v2.html#p11)*
 
 ### 4.7 Quién ve qué: alcance y sensibilidad
 
@@ -193,7 +193,7 @@ Y si **sí** tenés el nivel, tampoco alcanza con tenerlo. Al abrir la sección 
 
 Por último, **separación de funciones**: quien registra un movimiento no puede validarlo ni confirmar su cierre. No es una recomendación, lo rechaza el sistema.
 
-*Ver: [roles, alcance y sensibilidad](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p15) · [sección sensible y aviso de lectura](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p18)*
+*Ver: [roles, alcance y sensibilidad](../mockups/dispositivos-v2.html#p15) · [sección sensible y aviso de lectura](../mockups/dispositivos-v2.html#p18)*
 
 ### 4.8 El tablero de la red y los avisos
 
@@ -203,7 +203,7 @@ Los **avisos** se configuran por regla, no vienen fijos: tránsito vencido, perm
 
 Cada institución tiene además su propia franja de indicadores, con vocabulario operativo: normal, exigida, crítica, sin datos.
 
-*Ver: [tablero de la red](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p1)*
+*Ver: [tablero de la red](../mockups/dispositivos-v2.html#p1)*
 
 ### 4.9 Reportes, carga inicial y auditoría
 
@@ -221,7 +221,7 @@ Lo que se agrega: un **catálogo de insumos y kits** con qué contiene cada kit 
 
 Se suma un indicador de **cobertura alimentaria**: raciones servidas contra raciones entregadas y contra la capacidad declarada, con aviso cuando la demanda supera la entrega.
 
-*Ver: [flujo de merenderos](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f7) · [detalle del merendero](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p12) · [prestación mensual](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p13)*
+*Ver: [flujo de merenderos](../mockups/dispositivos-v2.html#f7) · [detalle del merendero](../mockups/dispositivos-v2.html#p12) · [prestación mensual](../mockups/dispositivos-v2.html#p13)*
 
 ### 4.11 La persona en su legajo ciudadano
 
@@ -229,7 +229,7 @@ Desde el legajo de cualquier ciudadano, la solapa **Dispositivos** muestra **tod
 
 Esa solapa **no se filtra por alcance**: cualquiera del programa que abra el legajo ve la trayectoria completa, porque el legajo es el dato único de la persona. Lo que decide qué se ve adentro es la sensibilidad de cada sección. Y es una vista **de lectura**: para operar sobre una estadía hay que entrar al programa, donde sí manda el alcance.
 
-*Ver: [solapa en el legajo ciudadano](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p16)*
+*Ver: [solapa en el legajo ciudadano](../mockups/dispositivos-v2.html#p16)*
 
 ---
 
@@ -239,13 +239,13 @@ Los siete circuitos completos, dibujados de punta a punta:
 
 | | Flujo | Qué muestra |
 |---|---|---|
-| **F1** | [Mapa de módulos y navegación](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f1) | Cómo se ordena el programa y desde dónde se llega a cada cosa |
-| **F2** | [Legajo institucional: estados](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f2) | El camino del legajo desde el borrador hasta el cierre, con quién valida |
-| **F3** | [Estadía de punta a punta](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f3) | Solicitud, ingreso, movimientos y egreso |
-| **F4** | [Traslado en tránsito](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f4) | Qué ve el origen y qué ve el destino mientras la persona viaja |
-| **F5** | [Plazas: estados y cálculo](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f5) | Cómo se derivan ocupación y disponibilidad desde los movimientos |
-| **F6** | [Turno, bitácora y pase de guardia](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f6) | El día de una institución de veinticuatro horas |
-| **F7** | [Merenderos: de la solicitud a la prestación](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#f7) | El circuito completo del programa hermano |
+| **F1** | [Mapa de módulos y navegación](../mockups/dispositivos-v2.html#f1) | Cómo se ordena el programa y desde dónde se llega a cada cosa |
+| **F2** | [Legajo institucional: estados](../mockups/dispositivos-v2.html#f2) | El camino del legajo desde el borrador hasta el cierre, con quién valida |
+| **F3** | [Estadía de punta a punta](../mockups/dispositivos-v2.html#f3) | Solicitud, ingreso, movimientos y egreso |
+| **F4** | [Traslado en tránsito](../mockups/dispositivos-v2.html#f4) | Qué ve el origen y qué ve el destino mientras la persona viaja |
+| **F5** | [Plazas: estados y cálculo](../mockups/dispositivos-v2.html#f5) | Cómo se derivan ocupación y disponibilidad desde los movimientos |
+| **F6** | [Turno, bitácora y pase de guardia](../mockups/dispositivos-v2.html#f6) | El día de una institución de veinticuatro horas |
+| **F7** | [Merenderos: de la solicitud a la prestación](../mockups/dispositivos-v2.html#f7) | El circuito completo del programa hermano |
 
 ## 6. Las pantallas
 
@@ -253,15 +253,15 @@ Dieciocho pantallas dibujadas sobre el sistema real, con su menú, su tipografí
 
 | | Pantalla | | Pantalla |
 |---|---|---|---|
-| **P1** | [Tablero de la red](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p1) | **P10** | [Bitácora del turno y pase de guardia](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p10) |
-| **P2** | [Instituciones: listado](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p2) | **P11** | [Lista de espera y derivaciones](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p11) |
-| **P3** | [Alta con control de duplicados](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p3) | **P12** | [Merendero: detalle](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p12) |
-| **P4** | [Detalle del dispositivo](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p4) | **P13** | [Prestación alimentaria mensual](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p13) |
-| **P5** | [Sectores y plazas](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p5) | **P14** | [Configuración: reglas por tipo](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p14) |
-| **P6** | [Ingreso de una persona](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p6) | **P15** | [Roles, alcance y sensibilidad](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p15) |
-| **P7** | [Detalle de la estadía](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p7) | **P16** | [Solapa en el Legajo Ciudadano](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p16) |
-| **P8** | [Traslado visto desde el destino](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p8) | **P17** | [Formularios del tipo de institución](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p17) |
-| **P9** | [Egreso](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p9) | **P18** | [Sección sensible y aviso de lectura](https://claude.ai/artifact/KFJfne5spx15u4HgUqJk28#p18) |
+| **P1** | [Tablero de la red](../mockups/dispositivos-v2.html#p1) | **P10** | [Bitácora del turno y pase de guardia](../mockups/dispositivos-v2.html#p10) |
+| **P2** | [Instituciones: listado](../mockups/dispositivos-v2.html#p2) | **P11** | [Lista de espera y derivaciones](../mockups/dispositivos-v2.html#p11) |
+| **P3** | [Alta con control de duplicados](../mockups/dispositivos-v2.html#p3) | **P12** | [Merendero: detalle](../mockups/dispositivos-v2.html#p12) |
+| **P4** | [Detalle del dispositivo](../mockups/dispositivos-v2.html#p4) | **P13** | [Prestación alimentaria mensual](../mockups/dispositivos-v2.html#p13) |
+| **P5** | [Sectores y plazas](../mockups/dispositivos-v2.html#p5) | **P14** | [Configuración: reglas por tipo](../mockups/dispositivos-v2.html#p14) |
+| **P6** | [Ingreso de una persona](../mockups/dispositivos-v2.html#p6) | **P15** | [Roles, alcance y sensibilidad](../mockups/dispositivos-v2.html#p15) |
+| **P7** | [Detalle de la estadía](../mockups/dispositivos-v2.html#p7) | **P16** | [Solapa en el Legajo Ciudadano](../mockups/dispositivos-v2.html#p16) |
+| **P8** | [Traslado visto desde el destino](../mockups/dispositivos-v2.html#p8) | **P17** | [Formularios del tipo de institución](../mockups/dispositivos-v2.html#p17) |
+| **P9** | [Egreso](../mockups/dispositivos-v2.html#p9) | **P18** | [Sección sensible y aviso de lectura](../mockups/dispositivos-v2.html#p18) |
 
 ---
 
