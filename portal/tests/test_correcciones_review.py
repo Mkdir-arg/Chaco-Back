@@ -15,8 +15,9 @@ from django.utils import timezone
 from portal.forms.inscripcion import InscripcionPaso2Form
 from portal.tests.test_inscripcion import _BaseInscripcionTest, _tolerar_render_local
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
-from programas.models import Convocatoria, Formulario, Relevamiento, Segmento
+from programas.models import Convocatoria, Formulario, GrupoRequisito, Relevamiento, Segmento
 from programas.services import reportes_becas
+from programas.services.becas import definicion_formulario
 from programas.services.inscripcion_publica import InscripcionNoHabilitada, crear_formulario_publico
 from programas.services.padron import cargar_padron, parsear_padron
 from programas.services.personas import fecha_iso, normalizar_persona
@@ -111,7 +112,17 @@ class FechaNoIsoTests(_BasePaso2Test):
             normalizar_persona({"data": {"fechaNacimiento": "15/03/2010"}}, "1")["fecha_nacimiento"], "2010-03-15"
         )
 
-    def test_menor_con_fecha_dd_mm_aaaa_exige_apoderado(self):
+    def test_una_fecha_dd_mm_aaaa_del_proveedor_se_entiende_y_condiciona(self):
+        """La fecha que llega como 16/03/2010 se normaliza antes de evaluar las
+        condiciones: si no, `parse_date` devolvía None y la regla se salteaba.
+        El grupo Apoderado vuelve a condicionarse a propósito para probarlo."""
+        GrupoRequisito.objects.filter(clave="apoderado").update(
+            condicion_defecto={
+                "modo": "todas",
+                "reglas": [{"fuente": "legajo:fecha_nacimiento", "op": "edad_menor", "valor": 18}],
+            }
+        )
+        self.definicion = definicion_formulario(self.relevamiento)
         hoy = timezone.localdate()
         nacimiento = hoy - timedelta(days=16 * 365)
         ident = _identificacion()
@@ -119,8 +130,8 @@ class FechaNoIsoTests(_BasePaso2Test):
         form = InscripcionPaso2Form(
             self._data_sin_apoderado(), self._files(), definicion=self.definicion, identificacion=ident
         )
-        self.assertFalse(form.is_valid())  # Cambio 67: el apoderado se exige a toda persona
-        self.assertIn("apoderado_dni", form.errors)
+        self.assertFalse(form.is_valid())
+        self.assertIn(self.k_apo_dni, form.errors)
 
 
 class GateEnScopesTests(TestCase):

@@ -24,6 +24,11 @@ Reglas mecánicas complementarias del agente canónico de diseño:
   GRADLEG    Gradientes legacy: FF0080/7928CA (NODO magenta) y 3B82F6/8B5CF6
              (azul→púrpura NODO) en templates/CSS.
   ICONHEX    fill=/stroke= con hex en SVG (color por token/currentColor).
+  TWBUILD    Utilidad de Tailwind con variante (sm:/xl:/hover:...) o valor
+             arbitrario ([82vh], [15px]) usada en un template pero ausente de
+             static/custom/css/tailwind.css. El build está committeado: si se
+             agrega una clase nueva hay que correr `npm run build:tailwind` y
+             commitear el CSS, o la pantalla se ve mal sin ningún error.
   ZINDEX     z-index 9999 (escala del kit: topbar 20 · modal 50 · toast 80).
   OUTLINE    outline:none / outline-none (nunca sin reemplazo de ring).
   OPACITY    opacity como estado disabled (usar --bg-disabled/--text-disabled).
@@ -158,6 +163,79 @@ def changed_files() -> list[Path]:
     return [REPO / line for line in out.splitlines() if line.strip()]
 
 
+# --- TWBUILD: utilidades de Tailwind que el build no tiene -------------------
+# El build está committeado, así que una clase nueva no existe hasta que alguien
+# corre `npm run build:tailwind`. El template compila, la auditoría pasa y la
+# pantalla se ve mal en silencio (pasó con `xl:grid-cols-2` en el Cambio 58).
+#
+# Se verifican solo las que fallan así: las que llevan variante (`xl:`, `hover:`)
+# o valor arbitrario (`max-h-[82vh]`). Una clase suelta sin variante puede venir
+# del CSS legacy (Bootstrap/AdminLTE) o de un componente propio, y no se puede
+# distinguir de una utilidad sin falsos positivos.
+
+TAILWIND_CSS = REPO / "static" / "custom" / "css" / "tailwind.css"
+# `class="..."` literal: `:class="..."` de Alpine lleva una expresión JS.
+CLASS_ATTR_RE = re.compile(r'(?<![-:\w])class="([^"]*)"')
+VARIANTES = (
+    "sm:",
+    "md:",
+    "lg:",
+    "xl:",
+    "2xl:",
+    "hover:",
+    "focus:",
+    "focus-visible:",
+    "active:",
+    "disabled:",
+    "group-hover:",
+    "peer-",
+    "dark:",
+    "print:",
+)
+# Solo utilidades: descarta lo que trae sintaxis de plantilla o comillas.
+UTILIDAD_RE = re.compile(r"^-?[a-z0-9]+[-a-zA-Z0-9_:/\[\]().,%!.-]*$")
+_CLASES_TW: set[str] | None = None
+_CLASES_TW_LEIDO = False
+
+
+def _clases_del_build() -> set[str] | None:
+    """Las clases que declara `tailwind.css`, des-escapadas. ``None`` si falta."""
+    global _CLASES_TW, _CLASES_TW_LEIDO
+    if _CLASES_TW_LEIDO:
+        return _CLASES_TW
+    _CLASES_TW_LEIDO = True
+    try:
+        css = TAILWIND_CSS.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    limpias = set()
+    # El CSS escapa lo que no es alfanumerico: `.xl\:top-6` es la clase
+    # `xl:top-6`, y un hex seguido de espacio (coma, punto) es ese caracter.
+    for cruda in re.findall(r"\.((?:[-a-zA-Z0-9_]|\\.|\\[0-9a-f]{1,6} ?)+)", css):
+        sin_hex = re.sub(r"\\([0-9a-f]{1,6}) ?", lambda m: chr(int(m.group(1), 16)), cruda)
+        limpias.add(sin_hex.replace("\\", ""))
+    _CLASES_TW = limpias
+    return limpias
+
+
+def clases_sin_build(text: str) -> list[tuple[int, str]]:
+    """``(línea, clase)`` de cada utilidad verificable que el build no declara."""
+    compiladas = _clases_del_build()
+    if not compiladas:
+        return []
+    faltantes, vistas = [], set()
+    for m in CLASS_ATTR_RE.finditer(text):
+        bloque = DYNAMIC_RE.sub(" ", m.group(1))
+        for clase in bloque.split():
+            verificable = clase.startswith(VARIANTES) or ("[" in clase and clase.endswith("]"))
+            if not verificable or clase in vistas or not UTILIDAD_RE.match(clase):
+                continue
+            vistas.add(clase)
+            if clase not in compiladas:
+                faltantes.append((text[: m.start()].count(chr(10)) + 1, clase))
+    return faltantes
+
+
 def audit_file(path: Path) -> list[tuple[str, int, str, str, str]]:
     """Devuelve (severidad, línea, regla, mensaje, extracto)."""
     findings = []
@@ -195,6 +273,17 @@ def audit_file(path: Path) -> list[tuple[str, int, str, str, str]]:
             ln = text[: m.start()].count("\n") + 1
             findings.append(
                 ("ERROR", ln, "DJCOMMENT", "{# #} multilínea se renderiza como texto — usar {% comment %}", "")
+            )
+
+        for ln, clase in clases_sin_build(text):
+            findings.append(
+                (
+                    "ERROR",
+                    ln,
+                    "TWBUILD",
+                    f"«{clase}» no está en el CSS compilado — correr `npm run build:tailwind` y commitear",
+                    "",
+                )
             )
 
     return findings

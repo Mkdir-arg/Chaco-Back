@@ -15,8 +15,8 @@
        editReqObligatorio: 'True',
        editReqOrden: 0,
        editReqOpciones: '',
-       editReqPresentacion: 'LISTA',
-       openReqEdit(url, texto, tipo, obligatorio, orden, opciones, presentacion) {
+       editReqPresentacion: 'LISTA', editReqCanal: 'ambos',
+       openReqEdit(url, texto, tipo, obligatorio, orden, opciones, presentacion, canal) {
          this.editReqUrl = url;
          this.editReqTexto = texto;
          this.editReqTipo = tipo;
@@ -24,6 +24,7 @@
          this.editReqOrden = orden;
          this.editReqOpciones = (opciones || []).join('\n');
          this.editReqPresentacion = presentacion || 'LISTA';
+         this.editReqCanal = canal || 'ambos';
          this.modalReqEdit = true;
        }
      }"
@@ -195,6 +196,12 @@
             <p class="text-xs text-body-subtle mt-1">{{ form_requisito.presentacion.help_text }}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="presentacion"></p>
           </div>
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">{{ form_requisito.canal.label }}</label>
+            {{ form_requisito.canal }}
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="canal"></p>
+          </div>
 
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>
         </div>
@@ -287,6 +294,13 @@
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
+          <div>
+            <label class="block text-[13px] font-semibold text-heading mb-1.5">Se pide en</label>
+            <select name="canal" x-model="editReqCanal" class="nodo-field w-full">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
 
           <p class="text-xs text-fg-danger hidden" data-error="__all__"></p>

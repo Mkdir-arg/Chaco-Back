@@ -1,0 +1,84 @@
+/* Constructor de formularios y catálogo agrupado (Cambio 58).
+   Manijas de arrastre y estados de SortableJS. Solo tokens semánticos. */
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-body-subtle);
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+.grip:hover { background: var(--bg-secondary); color: var(--text-heading); }
+.grip:active { cursor: grabbing; }
+/* La manija también se opera por teclado (flechas): foco visible con anillo
+   por token, mismo criterio que .pv-canal-btn (Cambio 58). */
+.grip:focus-visible {
+  outline: 2px solid var(--border-brand);
+  outline-offset: 2px;
+  color: var(--text-heading);
+}
+
+.sortable-ghost { opacity: .35; background: var(--bg-brand-soft); }
+.sortable-chosen { background: var(--bg-brand-softer); }
+.sortable-drag { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+
+[data-sortable-grupos].is-saving { opacity: .6; pointer-events: none; }
+tbody[data-sortable-preguntas]:empty { display: block; min-height: 44px; }
+
+/* Constructor: columna del diseño */
+.cons-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-body-subtle);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.cons-item.sortable-chosen { background: var(--bg-brand-softer); }
+/* Separadores entre hermanos: Tailwind no compila `divide-light`. */
+.cons-hijos > li + li { border-top: 1px solid var(--border-light); }
+.grupo-card + .grupo-card { border-top: 1px solid var(--border-light); }
+.cons-hijos:empty { min-height: 40px; }
+
+/* Vista previa (imita la densidad del paso 2 del portal sin cargar su shell) */
+.pv-grupo { border: 1px solid var(--border-base); border-radius: var(--radius-xl); padding: 16px 18px 18px; margin: 0 0 16px; min-width: 0; }
+.pv-legend { font-weight: var(--font-weight-bold, 700); color: var(--text-heading); font-size: 15px; padding: 0 6px; }
+.pv-subtitulo { margin: -4px 0 12px; font-size: 12px; color: var(--text-body-subtle); }
+.pv-campos { display: grid; gap: 14px; }
+.pv-campo { min-width: 0; }
+.pv-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-heading); margin-bottom: 4px; }
+.pv-texto { font-size: 13px; color: var(--text-body); line-height: 1.5; margin: 0; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-lg); }
+/* Igual que el paso 2 (.nodo-checks de nodo-forms.css): apilado con caja de
+   18px y acento de marca — la vista previa promete lo que el portal muestra. */
+.pv-checks { display: grid; gap: 8px; font-size: 13px; color: var(--text-body); }
+.pv-checks label, .pv-archivo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-body); cursor: pointer; }
+.pv-checks input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--bg-brand); }
+.pv-ayuda { margin: 4px 0 0; font-size: 11px; color: var(--text-body-subtle); }
+.pv-ocultos { margin-top: 8px; padding: 10px 12px; font-size: 12px; color: var(--text-body-subtle); background: var(--bg-secondary); border-radius: var(--radius-lg); }
+
+/* Fila de regla del modal de condiciones: 4 columnas fuente/operador/valor/quitar
+   desde `sm` (640px). Tailwind no compila el grid-template-columns arbitrario. */
+@media (min-width: 640px) {
+  .cons-regla-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+}
+
+/* Toggle de canal de la vista previa: el wrapper lleva `overflow-hidden` para
+   recortar las esquinas redondeadas del grupo, lo que también recorta el foco
+   por defecto del navegador en los botones de los extremos. Anillo hacia
+   adentro para que el foco de teclado siga siendo visible (Cambio 58). */
+.pv-canal-btn:focus-visible {
+  outline: 2px solid var(--border-brand);
+  outline-offset: -2px;
+}
+
+/* Catálogo: el texto de una pregunta larga se parte en líneas en vez de empujar
+   las demás columnas fuera de la pantalla. */
+td.pregunta-texto { white-space: normal; overflow-wrap: anywhere; max-width: 28rem; }

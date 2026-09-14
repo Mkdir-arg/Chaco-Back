@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('programas', '0059_formulario_renaper_idx_con_relevamiento'),
+        ('programas', '0065_padron_relevamiento_herencia'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
