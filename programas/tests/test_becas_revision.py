@@ -1409,7 +1409,10 @@ class UiEnvioSiisTests(_BaseAprobacionTest):
     def test_sin_capacidad_de_editar_se_ve_el_estado_pero_no_las_acciones(self):
         self._aprobar()
         EnvioSIIS.objects.create(
-            formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni, codigo_error="ERROR_BD_LEGACY"
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.ERROR,
+            documento=self.ciudadano.dni,
+            codigo_error="ERROR_BD_LEGACY",
         )
         self.client.force_login(self._coordinador_solo_lectura())
 
