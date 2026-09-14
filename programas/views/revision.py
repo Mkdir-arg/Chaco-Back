@@ -8,6 +8,7 @@ para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcanc
 por segmento. La validación SIIS conserva y presenta el detalle auditable de ECOM.
 """
 
+import logging
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
@@ -41,8 +42,11 @@ from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_ap
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
+from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
+
+logger = logging.getLogger(__name__)
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
@@ -185,6 +189,24 @@ def _sin_formularios_publicos_si_no_puede(qs, user):
     if puede(user, CAP_RELEVAMIENTO_PUBLICO):
         return qs
     return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
+
+
+def _informar_a_siis(request, formulario):
+    """Alta del beneficiario en SIIS tras la aprobación.
+
+    Va afuera de la transacción del servicio y **nunca deshace la aprobación**:
+    un fallo acá se registra (o se loguea) y el coordinador reintenta desde el
+    caso. Devuelve el ``EnvioSIIS`` o ``None`` si ni siquiera se pudo registrar.
+    """
+    try:
+        envio = enviar_beneficiario_a_siis(formulario, request.user)
+    except Exception:  # noqa: BLE001 — la aprobación ya está confirmada
+        logger.exception("Fallo inesperado al informar el beneficiario %s a SIIS", formulario.pk)
+        messages.error(request, "No se pudo informar el beneficiario a SIIS; reintentá desde el caso.")
+        return None
+    nivel, texto = mensaje_envio(envio)
+    getattr(messages, nivel)(request, texto)
+    return envio
 
 
 def _tiene_conflicto_duplicado_pendiente(formulario):
@@ -577,6 +599,9 @@ def formulario_aprobar(request, pk):
         else:
             if resultado == "aprobado":
                 messages.success(request, "Caso aprobado.")
+                # Alta del beneficiario en SIIS: solo quien quedó APROBADO con cupo.
+                # Quien cae en lista de espera todavía no es beneficiario.
+                _informar_a_siis(request, formulario)
             else:
                 segmento = formulario.relevamiento.convocatoria.segmento
                 messages.warning(

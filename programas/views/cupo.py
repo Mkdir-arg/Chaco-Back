@@ -6,6 +6,8 @@ mutación (baja, promoción, agregar a lista de espera): ``becas.beneficiario.ed
 también scoped al segmento.
 """
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -25,9 +27,29 @@ from programas.services.cupo import (
     get_cupo_stats,
     promover_lista_espera,
 )
+from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
+
+logger = logging.getLogger(__name__)
 
 CAP_CUPO_VER = "becas.cupo.ver"
 CAP_BENEFICIARIO_VER = "becas.beneficiario.ver"
+
+
+def _informar_a_siis(request, formulario):
+    """Alta del beneficiario en SIIS tras la promoción (mismo helper que en
+    ``views/revision.py``: son diez líneas y evita un import cruzado entre vistas).
+    Nunca deshace la promoción: un fallo se registra y se reintenta desde el caso."""
+    try:
+        envio = enviar_beneficiario_a_siis(formulario, request.user)
+    except Exception:  # noqa: BLE001 — la promoción ya está confirmada
+        logger.exception("Fallo inesperado al informar el beneficiario %s a SIIS", formulario.pk)
+        messages.error(request, "No se pudo informar el beneficiario a SIIS; reintentá desde el caso.")
+        return None
+    nivel, texto = mensaje_envio(envio)
+    getattr(messages, nivel)(request, texto)
+    return envio
+
+
 CAP_BENEFICIARIO_EDITAR = "becas.beneficiario.editar"
 CUPO_PAGE_SIZE = 50
 
@@ -171,6 +193,7 @@ def promover_lista_espera_view(request, pk):
             # ``promover_lista_espera``, que es ``@transaction.atomic``, y afuera
             # del ``try``, para no confundir una falla del correo con una
             # promoción rechazada.
+            _informar_a_siis(request, lista.formulario)
             enviar_aviso_resolucion(
                 lista.formulario,
                 "promovido",

@@ -22,6 +22,7 @@ from programas.models import (
     AdjuntoFormulario,
     AsignacionCoordinador,
     Convocatoria,
+    EnvioSIIS,
     Formulario,
     ListaEspera,
     PreguntaGlobal,
@@ -1177,3 +1178,60 @@ class BandejasPaginadasTests(_BaseRevisionTest):
         pks = [f.pk for f in resp.context["formularios"]]
         esperado = sorted(pks, key=lambda pk: (-Formulario.objects.get(pk=pk).creado.timestamp(), -pk))
         self.assertEqual(pks, esperado)
+
+
+class EnvioSiisAlAprobarTests(_BaseAprobacionTest):
+    """Alta del beneficiario en SIIS: se dispara en las dos puertas a APROBADO y
+    nunca revierte la aprobación."""
+
+    def setUp(self):
+        super().setUp()
+        self.programa.siis_programa_datos = {"id": 41, "jurisdiccion_id": 28}
+        self.programa.siis_funcion_id = 4
+        self.programa.save()
+        self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
+        self.enviar_cupo = patch("programas.views.cupo.enviar_beneficiario_a_siis").start()
+        self.addCleanup(patch.stopall)
+        for mock in (self.enviar, self.enviar_cupo):
+            mock.return_value = EnvioSIIS(
+                formulario=self.form_a, estado=EnvioSIIS.Estado.INCOMPLETO, detalles={"loc_actual": "x"}
+            )
+
+    def test_aprobar_con_cupo_dispara_el_envio(self):
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.enviar.assert_called_once()
+        self.assertEqual(self.enviar.call_args.args[0].pk, self.form_a.pk)
+
+    def test_aprobar_a_lista_de_espera_no_dispara(self):
+        self.seg_a.cupo_maximo = 0
+        self.seg_a.save(update_fields=["cupo_maximo"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        self.enviar.assert_not_called()
+
+    def test_promover_dispara_el_envio(self):
+        self.seg_a.cupo_maximo = 0
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+        lista = ListaEspera.objects.get(formulario=self.form_a)
+        self.seg_a.cupo_maximo = 10
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self.client.force_login(self.admin)
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[lista.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.enviar_cupo.assert_called_once()
+
+    def test_una_falla_del_envio_no_revierte_la_aprobacion(self):
+        self.enviar.side_effect = RuntimeError("boom")
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
