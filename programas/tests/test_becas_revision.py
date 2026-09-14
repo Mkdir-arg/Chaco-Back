@@ -35,6 +35,7 @@ from programas.models import (
 )
 from programas.views.cupo import promover_lista_espera_view
 from programas.views.revision import formulario_aprobar, formulario_rechazar
+from users.models import RolMeta
 
 
 class _BaseRevisionTest(TestCase):
@@ -1318,3 +1319,113 @@ class ReenvioYDatosSiisTests(_BaseAprobacionTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json(), {"localidades": [{"id": 37, "nombre": "Juan José Castelli"}]})
+
+
+class UiEnvioSiisTests(_BaseAprobacionTest):
+    """La sección "Envío a SIIS" del detalle: solo en casos aprobados, con el
+    desenlace del último intento, el detalle por campo y las acciones."""
+
+    def setUp(self):
+        super().setUp()
+        patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        self.addCleanup(patch.stopall)
+
+    def _aprobar(self):
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+
+    def test_la_seccion_no_aparece_en_casos_no_aprobados(self):
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertNotContains(resp, "Envío a SIIS")
+
+    def test_sin_intentos_invita_a_informar(self):
+        self._aprobar()
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Envío a SIIS")
+        self.assertContains(resp, "todavía no fue informado a SIIS")
+        self.assertContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+    def test_muestra_estado_detalles_y_acciones(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.INCOMPLETO,
+            documento=self.ciudadano.dni,
+            detalles={"loc_actual": "La localidad no coincide con el catálogo de SIIS: elegila de la lista."},
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Datos incompletos")
+        self.assertContains(resp, "elegila de la lista")
+        self.assertContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+        self.assertContains(resp, reverse("becas:formulario_datos_siis", args=[self.form_a.pk]))
+
+    def test_el_rechazo_de_siis_lista_los_mensajes_por_campo(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.RECHAZADO,
+            documento=self.ciudadano.dni,
+            codigo_error="DATOS_INVALIDOS",
+            detalles={"barrio_actual": ["El campo barrio_actual debe contener al menos 4 caracteres."]},
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Rechazado por SIIS")
+        self.assertContains(resp, "al menos 4 caracteres")
+
+    def test_enviado_muestra_el_id_y_oculta_las_acciones(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.ENVIADO,
+            documento=self.ciudadano.dni,
+            siis_id=26,
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "ID SIIS")
+        self.assertContains(resp, "#26")
+        self.assertNotContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+    def _coordinador_solo_lectura(self):
+        """Mismo alcance que ``coord_a`` pero sin ``becas.revision.editar``."""
+        base = Group.objects.get(name=ROL_COORDINADOR)
+        grupo = Group.objects.create(name="Coordinador solo lectura")
+        grupo.permissions.set(base.permissions.exclude(codename="becas_revision_editar"))
+        meta = base.meta
+        RolMeta.objects.create(grupo=grupo, categoria=meta.categoria, programa=meta.programa, activo=True)
+        lector = User.objects.create_user("lector_a", password="x")
+        lector.groups.add(grupo)
+        AsignacionCoordinador.objects.create(segmento=self.seg_a, coordinador=lector)
+        return lector
+
+    def test_sin_capacidad_de_editar_se_ve_el_estado_pero_no_las_acciones(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni, codigo_error="ERROR_BD_LEGACY"
+        )
+        self.client.force_login(self._coordinador_solo_lectura())
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Error técnico")
+        self.assertNotContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+    def test_el_historial_aparece_con_mas_de_un_intento(self):
+        self._aprobar()
+        for codigo in ("ERROR_BD_LEGACY", "ERROR_INTERNO"):
+            EnvioSIIS.objects.create(
+                formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni, codigo_error=codigo
+            )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Historial de envíos (2)")
+        self.assertContains(resp, "ERROR_BD_LEGACY")

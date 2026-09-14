@@ -184,6 +184,18 @@ def _assert_scope_relevamiento(request, relevamiento):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
 
 
+def _detalles_envio_siis(envio):
+    """``[(campo, mensaje)]`` del intento: SIIS devuelve una lista por campo y
+    los faltantes locales una frase suelta."""
+    if envio is None:
+        return []
+    detalles = envio.detalles if isinstance(envio.detalles, dict) else {}
+    return [
+        (campo, " ".join(str(m) for m in valor) if isinstance(valor, (list, tuple)) else str(valor))
+        for campo, valor in detalles.items()
+    ]
+
+
 def _assert_scope_formulario(request, formulario):
     if formulario.relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
         raise PermissionDenied("No tiene acceso a este formulario.")
@@ -491,6 +503,18 @@ def formulario_detalle(request, pk):
     historial_validaciones_sis = [
         {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)} for validacion in validaciones_sis
     ]
+    # Alta del beneficiario en SIIS: solo tiene sentido en un caso aprobado.
+    puede_enviar_siis = puede(request.user, CAP_REVISION_EDITAR)
+    envios_sis = []
+    envio_siis = None
+    datos_siis_form = None
+    if formulario.estado == Formulario.Estado.APROBADO:
+        envios_sis = list(formulario.envios_sis.select_related("solicitado_por"))
+        envio_siis = envios_sis[0] if envios_sis else None
+        ya_enviado = envio_siis is not None and envio_siis.estado == EnvioSIIS.Estado.ENVIADO
+        if puede_enviar_siis and not ya_enviado:
+            datos_siis_form = DatosSiisForm(initial=formulario.datos_siis or {})
+    detalles_envio_siis = _detalles_envio_siis(envio_siis)
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
@@ -522,6 +546,11 @@ def formulario_detalle(request, pk):
             "tiene_conflicto_duplicado_pendiente": conflicto_pendiente is not None,
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
+            "envio_siis": envio_siis,
+            "historial_envios_sis": envios_sis,
+            "datos_siis_form": datos_siis_form,
+            "puede_enviar_siis": puede_enviar_siis,
+            "detalles_envio_siis": detalles_envio_siis,
         },
     )
 
