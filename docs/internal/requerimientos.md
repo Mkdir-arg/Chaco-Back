@@ -194,7 +194,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 47 | El tablero no reflejaba que el formulario público ya estaba entregado | Becas · Gestión | `#gestion` `#relevamientos` | PM — «las épicas y los task sobre el formulario público de los relevamientos de becas en qué estado están?» | 27/08/2026 | 🟡 **Parcial — tablero al día; plan de pruebas redactado sin publicar** | No |
 | 48 | Analizar todo el diseño de Dispositivos, funcional y sobre todo front | Dispositivos | `#ui` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo: «quiero analizar todo el diseño a nivel funcional y más que nada a diseño front del programa de dispositivos» | 26/08/2026 | 🟢 **Hecho — diagnóstico entregado; la remediación queda en #310-#323** | No requiere |
 | 49 | Etiquetar en GitHub a qué programa pertenece cada tarea | Transversal / gestión | `#gestion` `#metodo` | PM — pedido directo en sesión de trabajo | 27/08/2026 | 🟢 **Hecho** | No |
-| 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; el endpoint de salida de SIIS se implementó en el Cambio 72** | No requiere |
+| 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; el endpoint de salida de SIIS se implementó en el Cambio 73** | No requiere |
 | 51 | El panel de marca del formulario de inscripción se estiraba con el formulario | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «si el form es muy extenso se agranda y eso tendría que ser fijo… cuando escroleás el form eso está fijo y el form solo va para abajo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 52 | El formulario público moría en un 403 de CSRF si el backoffice estaba abierto | Portal / inscripción pública | `#ui` `#sesion` `#relevamientos` | PM — reportó el 403 en producción sobre un link real: «el link es público, tiene que ser indistinto si es backoffice» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 53 | «Relevamiento» y «caso» son dos cosas y la UI usaba la misma palabra para las dos | Becas / textos · revisión | `#textos` `#ui` `#metodo` | PM — fijó el vocabulario en sesión de trabajo: «relevamiento = parametría con sus estados; casos = personas que completaron el formulario» | 27/08/2026 | 🟢 **Hecho** | No requiere |
@@ -216,7 +216,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
 | 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
 | 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
-| 72 | Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia) | Becas / revisión e integraciones | `#siis` `#relevamientos` `#datos` `#ui` | PM — en sesión: «vamos a integrarnos a SIIS en otro punto, una vez que se valida a nivel SIIS y a nivel técnico, en los casos de revisión» | 14/09/2026 | 🟢 **Hecho** | `programas.0060` |
+| 73 | Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia) | Becas / revisión e integraciones | `#siis` `#relevamientos` `#datos` `#ui` | PM — en sesión: «vamos a integrarnos a SIIS en otro punto, una vez que se valida a nivel SIIS y a nivel técnico, en los casos de revisión» | 14/09/2026 | 🟢 **Hecho** | `programas.0060` |
 
 **Notas del índice**
 
@@ -4926,7 +4926,7 @@ No aplica: entrada nueva.
 
 # Cambio 50 — ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue
 
-🟡 **PARCIAL — 27/08/2026 · ocho dependencias externas cerradas; el endpoint de salida de SIIS llegó y se implementó en el Cambio 72 (14/09/2026); falta verificar los envíos de correo**
+🟡 **PARCIAL — 27/08/2026 · ocho dependencias externas cerradas; el endpoint de salida de SIIS llegó y se implementó en el Cambio 73 (14/09/2026); falta verificar los envíos de correo**
 
 | | |
 |---|---|
@@ -5034,7 +5034,7 @@ Nada de este lado. Lo que el desbloqueo habilita y conviene correr cuanto antes:
 
 1. ~~**Endpoint de salida de SIIS: informar los beneficiarios confirmados con beca.**~~ 🟢
    **Hecho (14/09/2026)**: ECOM entregó el *Manual de Integración M2M v4.2* y la mitad de
-   escritura quedó implementada en el **Cambio 72**.
+   escritura quedó implementada en el **Cambio 73**.
 2. **Verificar el envío real de correo** con `diagnosticar_correo` en QA y producción (task
    **#245**). Desbloquea los Cambios 37 y 44 y la verificación del correo de confirmación
    (**#296**).
@@ -5061,7 +5061,7 @@ un historial nuevo en la entrada afectada, sin borrar este.
 ## Historial
 
 - **27/08/2026** — entrada nueva.
-- **14/09/2026 (Cambio 72)** — se cierra el pendiente 1: ECOM entregó el contrato del endpoint
+- **14/09/2026 (Cambio 73)** — se cierra el pendiente 1: ECOM entregó el contrato del endpoint
   de salida (manual M2M v4.2) y el alta de beneficiarios quedó implementada. El estado de esta
   entrada sigue 🟡 **Parcial** por los otros siete puntos.
 
@@ -7699,7 +7699,7 @@ indistinguibles.
 
 ---
 
-# Cambio 72 — Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia)
+# Cambio 73 — Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia)
 
 🟢 **HECHO — 14/09/2026**
 
