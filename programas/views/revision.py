@@ -19,14 +19,22 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm, ForzarIdentidadForm
+from programas.forms import (
+    CiudadanoGeneroRevisionForm,
+    DatosSiisForm,
+    FormularioRevisionForm,
+    ForzarIdentidadForm,
+)
 from programas.models import (
+    EnvioSIIS,
     Formulario,
     PreguntaGlobal,
     Relevamiento,
@@ -42,6 +50,7 @@ from programas.services.cupo import aprobar_o_poner_en_espera, motivo_bloqueo_ap
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
+from programas.services.siis import SiisCatalogError, catalogo
 from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
@@ -539,6 +548,73 @@ def formulario_validar_sis(request, pk):
     else:
         messages.error(request, validacion.motivo or "No se pudo validar contra SIIS.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_POST
+def formulario_enviar_siis(request, pk):
+    """Reenvío manual del alta del beneficiario (tras corregir datos o una caída de SIIS)."""
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano"), pk=pk
+    )
+    _assert_scope_formulario(request, formulario)
+    if formulario.estado != Formulario.Estado.APROBADO:
+        messages.error(request, "Solo se informan a SIIS los casos aprobados.")
+    else:
+        _informar_a_siis(request, formulario)
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_POST
+def formulario_datos_siis(request, pk):
+    """Guarda las correcciones para SIIS en ``datos_siis`` con traza. **No envía**:
+    el coordinador revisa el resultado y después reenvía."""
+    formulario = get_object_or_404(Formulario, pk=pk)
+    _assert_scope_formulario(request, formulario)
+    form = DatosSiisForm(request.POST)
+    if not form.is_valid():
+        for campo, errores in form.errors.items():
+            etiqueta = form.fields[campo].label if campo in form.fields else "Datos SIIS"
+            messages.error(request, f"{etiqueta}: {' '.join(errores)}")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    anteriores = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
+    nuevos = form.como_datos_siis()
+    cambios = [
+        (f"Datos SIIS · {form.fields[campo].label}", str(anteriores.get(campo, "")), str(valor))
+        for campo, valor in nuevos.items()
+        if anteriores.get(campo) != valor
+    ]
+    with transaction.atomic():
+        formulario.datos_siis = {**anteriores, **nuevos}
+        formulario.save(update_fields=["datos_siis", "modificado"])
+        registrar_traza(formulario, request.user, cambios)
+    if cambios:
+        messages.success(request, "Datos para SIIS guardados. Reenviá el caso para informarlo.")
+    else:
+        messages.info(request, "No hubo cambios para guardar.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_GET
+def siis_localidades_json(request):
+    """Localidades del catálogo de SIIS para el select dependiente de provincia."""
+    try:
+        provincia = int(request.GET.get("provincia") or 0)
+    except ValueError:
+        provincia = 0
+    try:
+        items = catalogo("localidades")
+    except SiisCatalogError as exc:
+        return JsonResponse({"localidades": [], "error": str(exc)}, status=503)
+    if provincia:
+        items = [i for i in items if str(i.get("id_provincia") or i.get("provincia_id") or provincia) == str(provincia)]
+    localidades = [{"id": i["id"], "nombre": i["nombre"]} for i in sorted(items, key=lambda i: i["nombre"])]
+    return JsonResponse({"localidades": localidades})
 
 
 @login_required

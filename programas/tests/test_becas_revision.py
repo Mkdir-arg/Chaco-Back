@@ -16,7 +16,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from legajos.models import Ciudadano
-from programas.forms import FormularioRevisionForm
+from programas.forms import DatosSiisForm, FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     AdjuntoFormulario,
@@ -1235,3 +1235,86 @@ class EnvioSiisAlAprobarTests(_BaseAprobacionTest):
 
         self.form_a.refresh_from_db()
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+
+def _catalogo_siis_falso(nombre):
+    return {
+        "provincias": [{"id": 22, "nombre": "Chaco"}],
+        "localidades": [{"id": 37, "nombre": "Juan José Castelli", "id_provincia": 22}],
+        "estados-civiles": [{"id": 1, "nombre": "Soltero/a"}],
+    }[nombre]
+
+
+class ReenvioYDatosSiisTests(_BaseAprobacionTest):
+    """Reenvío manual del alta y corrección de datos para SIIS desde el caso."""
+
+    def setUp(self):
+        super().setUp()
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+        self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
+        patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.views.revision.catalogo", side_effect=_catalogo_siis_falso).start()
+        self.addCleanup(patch.stopall)
+        self.enviar.return_value = EnvioSIIS(formulario=self.form_a, estado=EnvioSIIS.Estado.ENVIADO, siis_id=26)
+
+    def test_reenviar_requiere_post_y_capacidad(self):
+        resp = self.client.get(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+        self.assertEqual(resp.status_code, 405)
+
+        self.client.force_login(self.territorial)
+        resp = self.client.post(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn(reverse("becas:formulario_detalle", args=[self.form_a.pk]), resp["Location"])
+        self.enviar.assert_not_called()
+
+    def test_reenviar_llama_al_servicio(self):
+        resp = self.client.post(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+        self.assertRedirects(
+            resp, reverse("becas:formulario_detalle", args=[self.form_a.pk]), fetch_redirect_response=False
+        )
+        self.enviar.assert_called_once()
+
+    def test_reenviar_no_aplica_a_casos_no_aprobados(self):
+        self.form_a.estado = Formulario.Estado.ENVIADO
+        self.form_a.save(update_fields=["estado"])
+
+        self.client.post(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+        self.enviar.assert_not_called()
+
+    def test_guardar_datos_siis_con_traza_y_sin_enviar(self):
+        resp = self.client.post(
+            reverse("becas:formulario_datos_siis", args=[self.form_a.pk]),
+            {
+                "prov_actual": "22",
+                "loc_actual": "37",
+                "barrio_actual": "Barrio 108",
+                "calle_actual": "Los Alamos",
+                "nro_actual": "15",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.datos_siis["loc_actual"], 37)
+        self.assertEqual(self.form_a.datos_siis["nro_actual"], 15)
+        self.assertEqual(self.form_a.datos_siis["barrio_actual"], "Barrio 108")
+        self.assertNotIn("piso_actual", self.form_a.datos_siis)
+        self.assertTrue(self.form_a.trazas.filter(campo__startswith="Datos SIIS").exists())
+        self.enviar.assert_not_called()
+
+    def test_datos_siis_valida_barrio_corto_y_localidad_fuera_del_catalogo(self):
+        form = DatosSiisForm({"barrio_actual": "Sur", "loc_actual": "999", "prov_actual": "22"})
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("barrio_actual", form.errors)
+        self.assertIn("loc_actual", form.errors)
+
+    def test_localidades_json_filtra_por_provincia(self):
+        resp = self.client.get(reverse("becas:siis_localidades") + "?provincia=22")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {"localidades": [{"id": 37, "nombre": "Juan José Castelli"}]})
