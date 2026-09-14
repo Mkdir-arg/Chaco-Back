@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 # persona quedaba sin saber qué le pasaba ni qué hacer. Lo que sigue conteniendo
 # el barrido masivo es el captcha más la cubeta por documento
 # (`documento_excedido`) y la de IP, que no se tocan.
-MENSAJE_NO_HABILITADO = "Ese documento no figura en el listado de personas habilitadas para esta convocatoria."
+MENSAJE_NO_HABILITADO = "Tu documento no figura como habilitado. Si creés que es un error, contactá a Soporte Técnico."
 MENSAJE_YA_INSCRIPTO = (
     "Ya existe una inscripción con ese documento en esta convocatoria. No podés inscribirte dos veces."
 )

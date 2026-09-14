@@ -165,14 +165,12 @@
             </div>
 
             <div class="di-panel-mid">
+                {% comment %}Título fijo del programa (pedido del programa, 14/09/2026): antes
+                el panel mostraba el segmento y el nombre de la convocatoria; ahora el flujo público
+                se presenta siempre con la marca del programa y la preinscripción vigente.{% endcomment %}
                 {% block panel_titulo %}
-                {% if convocatoria %}
-                <p class="di-panel-label">Programa de Becas · {{ convocatoria.segmento.nombre }}</p>
-                <h1 class="di-panel-title">Inscripción a {{ convocatoria.nombre }}</h1>
-                {% else %}
-                <p class="di-panel-label">Programa de Becas</p>
-                <h1 class="di-panel-title">Portal Ciudadano</h1>
-                {% endif %}
+                <p class="di-panel-label">Programa +Más Futuro, Incentivo al Mérito</p>
+                <h1 class="di-panel-title">Preinscripción alumnos del último año</h1>
                 <p class="di-panel-lead">Completá la inscripción en tres pasos. Solo necesitás tu DNI.</p>
                 {% endblock %}
 
