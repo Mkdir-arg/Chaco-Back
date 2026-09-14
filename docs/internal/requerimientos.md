@@ -218,6 +218,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
 | 72 | Propuesta funcional completa de la Versión 2 de Dispositivos para el cliente, con los mockups | Dispositivos · Merenderos · documentación | `#gestion` `#ui` `#datos` `#rbac` | PM — en sesión: «armá una propuesta funcional completa con todos los mockups que se hizo, la explicación de cada cambio, qué queda de la V1, qué se suma de la v2, funcionalidades, proceso, flujos, todo, así se lo mando al cliente» | 14/09/2026 | 🟢 **Hecho — publicada** | No requiere |
 | 73 | Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia) | Becas / revisión e integraciones | `#siis` `#relevamientos` `#datos` `#ui` | PM — en sesión: «vamos a integrarnos a SIIS en otro punto, una vez que se valida a nivel SIIS y a nivel técnico, en los casos de revisión» | 14/09/2026 | 🟢 **Hecho** | `programas.0060` |
+| 74 | El link público se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte Técnico | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «vamos con unos cambios estéticos de los form públicos» | 14/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -7944,5 +7945,90 @@ SIIS **no se revierte**: el contrato no expone baja.
 
 - **14/09/2026 (este cambio)** — primera versión: alta de beneficiarios sobre el manual
   M2M v4.2. Cierra el pendiente 1 del Cambio 50 (el endpoint de salida de SIIS).
+
+---
+
+# Cambio 74 — El link público se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte Técnico
+
+🟢 **HECHO — 14/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Portal / inscripción pública (link productivo de Becas) |
+| **Etiquetas** | `#textos` `#ui` `#relevamientos` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 14/09/2026 |
+| **Issue / épica** | Sin issue (ajuste de textos pedido en sesión) |
+| **Partes afectadas** | Panel de marca del shell de inscripción (las seis pantallas) y el mensaje de rechazo por padrón del paso 1 |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Vamos con unos cambios estéticos de los form públicos.
+> Texto 1: Programa de Becas — se saca. Cambiamos a PROGRAMA +MÁS FUTURO, INCENTIVO AL MERITO.
+> Texto 2: PREINSCRIPCIÓN ALUMNOS DEL ULTIMO AÑO.
+> Sección central. Texto 3: al momento de cargar el DNI y da error. Actualmente está "Ese documento
+> no figura en el listado de personas habilitadas para esta convocatoria", quiero que aparezca esto
+> "Tu documento no figura como habilitado. Si creés que es un error, contactá a Soporte Técnico."»
+
+## Alcance acordado
+
+- **Panel de marca** (columna izquierda del shell del Cambio 43, visible en las seis pantallas del
+  flujo): la volanta pasa a «Programa +Más Futuro, Incentivo al Mérito» y el título a
+  «Preinscripción alumnos del último año».
+- **Paso 1**: el rechazo por documento fuera del padrón cambia de texto y deriva a Soporte Técnico.
+- **Afuera:** los otros tres mensajes de rechazo del Cambio 71 (ya inscripto, documento no
+  disponible, padrón cambiado en el paso 2), el orden de evaluación, la bajada «Completá la
+  inscripción en tres pasos…», el pie con la casilla y el WhatsApp, y la marca DATAÑACH del logo.
+
+## Decisiones tomadas
+
+- **El panel deja de ser dinámico.** Antes mostraba `Programa de Becas · <segmento>` y
+  «Inscripción a <convocatoria>»; ahora los dos textos son fijos, porque los textos pedidos son la
+  identidad del programa y de esta preinscripción, no de una convocatoria en particular. **Costo
+  asumido y avisado:** cualquier otra convocatoria que se abra con un link público mostrará este
+  mismo encabezado hasta que se decida volver a parametrizarlo. El nombre de la convocatoria ya no
+  aparece en el panel; el formulario y el comprobante sí lo siguen identificando.
+- **Se escriben en capitalización normal, no en mayúsculas.** El pedido llegó en mayúsculas, pero la
+  volanta ya las aplica por CSS (`text-transform: uppercase`) y el título sigue la convención del
+  resto de los títulos del shell («Portal Ciudadano», «La página venció»). El acento de «Mérito» se
+  conserva.
+- **«Soporte Técnico» va sin datos de contacto en el mensaje.** El pie de la pantalla ya lleva la
+  casilla y el WhatsApp (Cambios 59 y 62): repetirlos en la alerta reabriría lo que cerraron los
+  Cambios 60, 61 y 70 (ningún mensaje del paso 1 incorpora un teléfono ni una casilla).
+- **No se reabre la discusión del oráculo del Cambio 71.** El texto nuevo dice menos que el anterior
+  —no nombra el listado de habilitados ni la convocatoria—, así que el riesgo de enumeración no
+  crece; sigue conteniéndolo el captcha más las cubetas por documento y por IP.
+
+## Implementación
+
+| Lugar | Antes | Ahora |
+|---|---|---|
+| Volanta del panel | `Programa de Becas · {{ convocatoria.segmento.nombre }}` / `Programa de Becas` | `Programa +Más Futuro, Incentivo al Mérito` |
+| Título del panel | `Inscripción a {{ convocatoria.nombre }}` / `Portal Ciudadano` | `Preinscripción alumnos del último año` |
+| Rechazo por padrón (paso 1) | «Ese documento no figura en el listado de personas habilitadas para esta convocatoria.» | «Tu documento no figura como habilitado. Si creés que es un error, contactá a Soporte Técnico.» |
+
+El `{% if convocatoria %}` del bloque `panel_titulo` desaparece: ya no hay dos variantes que elegir.
+El bloque sigue siendo sobreescribible, y `portal/templates/portal/sesion_vencida.html` lo sigue
+pisando con su propio título.
+
+## Archivos
+
+- `portal/templates/portal/inscripcion/base_inscripcion.html` — bloque `panel_titulo`.
+- `portal/views/inscripcion.py` — constante `MENSAJE_NO_HABILITADO`.
+
+## Verificación
+
+`manage.py check` sin issues; `scripts/compile_templates.py` 335 templates y 0 errores;
+`scripts/design_audit.py --changed` 0 errores y 0 warnings; `ruff check` y `ruff format` limpios.
+`portal.tests.test_seguridad_publica.RechazosDiferenciadosTests` en verde (4 tests): los tests leen
+las constantes, así que el texto nuevo no rompe la propiedad «cada causa, su mensaje». Los 7 errores
+restantes de ese módulo en el venv local son el baseline conocido de Python 3.14 + Django 4.2
+(`AttributeError: 'super' object has no attribute 'dicts'`), ajenos al cambio.
+
+## Cómo se revierte
+
+Restaurar el `{% if convocatoria %}` del bloque `panel_titulo` y el texto anterior de
+`MENSAJE_NO_HABILITADO`. No hay datos involucrados.
 
 ---
