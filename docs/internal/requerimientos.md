@@ -6280,6 +6280,9 @@ campos propios y las condiciones (no viajan en `data`), no los requisitos del ca
 
 Entrada nueva el 28/08/2026. Es la fase 2 explícita de lo que el Cambio 41 dejó fuera («configurador de
 formularios propio»). El Cambio 56 (presentación de selectores) queda absorbido como atributo del catálogo.
+- **15/09/2026 — Mergeado en `development`** (merge `749544a`, PR #360 cerrado como *merged*; release `main` `efd368d`). La rama única deja de existir como línea aparte: lo que corría solo en testing de ECOM y en DEV pasa a ser el código de `development`. Único conflicto del merge: este archivo (dos «Cambio 74», ver Cambio 75). La migración del Cambio 73 queda como `programas.0066` en todas las ramas.
+
+---
 
 # Cambio 59 — El link público muestra el contacto del programa y «no disponible» distingue si todavía no abrió
 
@@ -8247,8 +8250,7 @@ convocatoria no se toca.
   propuesta funcional de Dispositivos v2 y el 73 el alta de beneficiarios en SIIS. Esta entrada y las
   referencias del código (`Cambio 74`) se renumeraron; la migración sigue siendo
   `programas.0065_padron_relevamiento_herencia`.
-
----
+- **15/09/2026 — Mergeado en `development`** (merge `749544a`, PR #360 cerrado como *merged*; release `main` `efd368d`). La rama única deja de existir como línea aparte: lo que corría solo en testing de ECOM y en DEV pasa a ser el código de `development`. Único conflicto del merge: este archivo (dos «Cambio 74», ver Cambio 75). La migración del Cambio 73 queda como `programas.0066` en todas las ramas.
 
 ---
 
