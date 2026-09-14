@@ -9,12 +9,14 @@
        modalCrear: false,
        modalEdit: false,
        createSeg: '{{ seg_actual }}',
-       createTipo: 'STRING',
+       createTipo: 'STRING', createPresentacion: 'LISTA', createCanal: 'ambos',
        segUrls: { {% for s in segmentos %}'{{ s.pk }}': '{% url 'becas:requisito_crear' s.pk %}'{% if not forloop.last %},{% endif %}{% endfor %} },
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editOrden: 0, editOpciones: '',
-       openEdit(url, texto, tipo, obl, orden, opc) {
+       editPresentacion: 'LISTA', editCanal: 'ambos',
+       openEdit(url, texto, tipo, obl, orden, opc, presentacion, canal) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
+         this.editPresentacion = presentacion || 'LISTA'; this.editCanal = canal || 'ambos';
          this.modalEdit = true;
        }
      }"
@@ -131,6 +133,20 @@
             <textarea name="opciones_texto" rows="4" class="nodo-field"></textarea>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
+          <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
+            <select name="presentacion" x-model="createPresentacion" class="nodo-field">
+              {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select name="canal" x-model="createCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
+          </div>
         </div>
 
         {% comment %}FOOTER{% endcomment %}
@@ -201,6 +217,21 @@
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
             <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
             <textarea name="opciones_texto" x-model="editOpciones" rows="4" class="nodo-field"></textarea>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
+          </div>
+          <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
+            <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
+            <select name="presentacion" x-model="editPresentacion" class="nodo-field">
+              {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Cómo elige la persona entre las opciones.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Se pide en</label>
+            <select name="canal" x-model="editCanal" class="nodo-field">
+              {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
         </div>
 
