@@ -24,12 +24,13 @@ from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, ListView, UpdateView
 from django.views.generic.detail import DetailView
 
-from core.rbac import CapacidadRequeridaMixin, puede_alguna, requiere
+from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
 from programas.forms import (
     AsignacionCoordinadorForm,
     GrupoRequisitoForm,
     PreguntaGlobalForm,
     ProgramaSiisCreateForm,
+    ProgramaSiisFuncionForm,
     RequisitoNativoForm,
     SegmentoCreateForm,
     SegmentoForm,
@@ -60,6 +61,7 @@ from programas.services.autorizacion import (
 )
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
+CAP_PROGRAMA_ADMINISTRAR = "becas.programa.administrar"
 CAP_SEGMENTO_VER = "becas.segmento.ver"
 CAP_SEGMENTO_CREAR = "becas.segmento.crear"
 CAP_SEGMENTO_EDITAR = "becas.segmento.editar"
@@ -270,7 +272,29 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         if ctx["puede_dashboard"]:
             ctx["puede_exportar_dashboard"] = puede_exportar_dashboard(self.request.user)
             ctx["dashboard_form"] = DashboardBecasFiltroForm(user=self.request.user, programa=programa)
+        # Alta de beneficiarios en SIIS: la función del programa (``id_fun_x_plan``)
+        # la configura el administrador del programa; el resto solo la ve.
+        ctx["puede_administrar_programa"] = puede(self.request.user, CAP_PROGRAMA_ADMINISTRAR)
+        if ctx["puede_administrar_programa"]:
+            ctx["form_funcion_siis"] = ProgramaSiisFuncionForm(instance=programa)
         return ctx
+
+
+@login_required
+@requiere(CAP_PROGRAMA_ADMINISTRAR)
+@require_POST
+def programa_funcion_siis(request, pk):
+    """Guarda la función SIIS del programa, elegida del catálogo de funciones."""
+    programa = get_object_or_404(ProgramaSiis, pk=pk)
+    if not _programas_qs(request.user).filter(pk=programa.pk).exists():
+        raise PermissionDenied("No tiene acceso a este programa.")
+    form = ProgramaSiisFuncionForm(request.POST, instance=programa)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f"Función SIIS guardada: {programa.siis_funcion_nombre}.")
+    else:
+        messages.error(request, " ".join(" ".join(errores) for errores in form.errors.values()))
+    return redirect("becas:programa_detalle", pk=programa.pk)
 
 
 # ---------------------------------------------------------------------------
@@ -917,6 +941,7 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["tipo_choices"] = TipoCampo.choices
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
+        ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
         ctx["hay_filtros_activos"] = any(
             self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
         )

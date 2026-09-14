@@ -530,3 +530,99 @@ class OrdenPreguntasGlobalesTests(_BaseConfigTest):
         self.assertEqual(resp.status_code, 302)
         pregunta.refresh_from_db()
         self.assertEqual((pregunta.texto, pregunta.orden), ("Renombrada", 3))
+
+
+class DestinoSiisPreguntaTests(TestCase):
+    """Las preguntas globales declaran qué campo del alta en SIIS alimentan."""
+
+    def setUp(self):
+        call_command("seed_becas", stdout=StringIO())
+        self.admin = User.objects.create_user("admin_cfg_siis", password="x")
+        self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(self.admin)
+
+    def _post(self, texto, destino, activo="on"):
+        datos = {"texto": texto, "tipo": TipoCampo.STRING, "orden": "", "obligatorio": "on", "destino_siis": destino}
+        if activo:
+            datos["activo"] = activo
+        return self.client.post(reverse("becas:pregunta_crear"), datos)
+
+    def test_crea_pregunta_con_destino(self):
+        self._post("Localidad", "loc_actual")
+        self.assertEqual(PreguntaGlobal.objects.get(texto="Localidad").destino_siis, "loc_actual")
+
+    def test_rechaza_dos_activas_con_el_mismo_destino(self):
+        self._post("Localidad", "loc_actual")
+        form = PreguntaGlobalForm(
+            {
+                "texto": "Otra",
+                "tipo": TipoCampo.STRING,
+                "orden": "",
+                "obligatorio": "on",
+                "activo": "on",
+                "destino_siis": "loc_actual",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("destino_siis", form.errors)
+        self.assertIn("Localidad", form.errors["destino_siis"][0])
+
+    def test_permite_repetir_destino_si_la_otra_esta_inactiva(self):
+        self._post("Vieja", "loc_actual", activo="")
+        resp = self._post("Nueva", "loc_actual")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(PreguntaGlobal.objects.filter(destino_siis="loc_actual").count(), 2)
+
+    def test_la_lista_muestra_el_destino(self):
+        self._post("Localidad", "loc_actual")
+        resp = self.client.get(reverse("becas:preguntas"))
+        self.assertContains(resp, "SIIS: Localidad del domicilio")
+
+
+class FuncionSiisProgramaTests(TestCase):
+    """La función del programa (``id_fun_x_plan``) se elige del catálogo de SIIS."""
+
+    def setUp(self):
+        call_command("seed_becas", stdout=StringIO())
+        self.admin = User.objects.create_user("admin_cfg_funcion", password="x")
+        self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))
+        self.client.force_login(self.admin)
+        self.programa = ProgramaSiis.objects.create(nombre="Ñachec", siis_programa_id=79)
+        self.funciones = patch("programas.forms.funciones_programa").start()
+        self.addCleanup(patch.stopall)
+        self.funciones.return_value = [{"id": 4, "nombre": "Nivel Operativo", "id_programa": 79}]
+
+    def test_guarda_la_funcion_elegida(self):
+        resp = self.client.post(
+            reverse("becas:programa_funcion_siis", args=[self.programa.pk]), {"siis_funcion_id": "4"}
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.programa.refresh_from_db()
+        self.assertEqual(self.programa.siis_funcion_id, 4)
+        self.assertEqual(self.programa.siis_funcion_nombre, "Nivel Operativo")
+        self.funciones.assert_called_with(79)
+
+    def test_rechaza_una_funcion_fuera_del_catalogo(self):
+        self.client.post(reverse("becas:programa_funcion_siis", args=[self.programa.pk]), {"siis_funcion_id": "99"})
+        self.programa.refresh_from_db()
+        self.assertIsNone(self.programa.siis_funcion_id)
+
+    def test_requiere_administrar_programa(self):
+        coord = User.objects.create_user("coord_cfg_funcion", password="x")
+        coord.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        self.client.force_login(coord)
+        resp = self.client.post(
+            reverse("becas:programa_funcion_siis", args=[self.programa.pk]), {"siis_funcion_id": "4"}
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.programa.refresh_from_db()
+        self.assertIsNone(self.programa.siis_funcion_id)
+
+    def test_el_detalle_muestra_la_funcion_y_el_form(self):
+        self.programa.siis_funcion_id = 4
+        self.programa.siis_funcion_nombre = "Nivel Operativo"
+        self.programa.save()
+        resp = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
+        self.assertContains(resp, "Alta de beneficiarios en SIIS")
+        self.assertContains(resp, "Nivel Operativo (#4)")
+        self.assertContains(resp, reverse("becas:programa_funcion_siis", args=[self.programa.pk]))

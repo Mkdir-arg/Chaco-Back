@@ -8,6 +8,7 @@ para iniciar revisión, editar contacto, aprobar/rechazar y terminar. Con alcanc
 por segmento. La validación SIIS conserva y presenta el detalle auditable de ECOM.
 """
 
+import logging
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
@@ -18,14 +19,22 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
-from programas.forms import CiudadanoGeneroRevisionForm, FormularioRevisionForm, ForzarIdentidadForm
+from programas.forms import (
+    CiudadanoGeneroRevisionForm,
+    DatosSiisForm,
+    FormularioRevisionForm,
+    ForzarIdentidadForm,
+)
 from programas.models import (
+    EnvioSIIS,
     Formulario,
     PreguntaGlobal,
     Relevamiento,
@@ -42,8 +51,12 @@ from programas.services.identidad import gran_base_activa
 from programas.services.padron import fila_padron, padron_de
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
+from programas.services.siis import SiisCatalogError, catalogo
+from programas.services.siis_envio import enviar_beneficiario_a_siis, mensaje_envio
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.relevamientos import CAP_RELEVAMIENTO_PUBLICO
+
+logger = logging.getLogger(__name__)
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
@@ -172,6 +185,18 @@ def _assert_scope_relevamiento(request, relevamiento):
         raise PermissionDenied("No tiene acceso a este relevamiento.")
 
 
+def _detalles_envio_siis(envio):
+    """``[(campo, mensaje)]`` del intento: SIIS devuelve una lista por campo y
+    los faltantes locales una frase suelta."""
+    if envio is None:
+        return []
+    detalles = envio.detalles if isinstance(envio.detalles, dict) else {}
+    return [
+        (campo, " ".join(str(m) for m in valor) if isinstance(valor, (list, tuple)) else str(valor))
+        for campo, valor in detalles.items()
+    ]
+
+
 def _assert_scope_formulario(request, formulario):
     if formulario.relevamiento.es_publico and not puede(request.user, CAP_RELEVAMIENTO_PUBLICO):
         raise PermissionDenied("No tiene acceso a este formulario.")
@@ -186,6 +211,24 @@ def _sin_formularios_publicos_si_no_puede(qs, user):
     if puede(user, CAP_RELEVAMIENTO_PUBLICO):
         return qs
     return qs.exclude(relevamiento__tipo=Relevamiento.Tipo.PUBLICO)
+
+
+def _informar_a_siis(request, formulario):
+    """Alta del beneficiario en SIIS tras la aprobación.
+
+    Va afuera de la transacción del servicio y **nunca deshace la aprobación**:
+    un fallo acá se registra (o se loguea) y el coordinador reintenta desde el
+    caso. Devuelve el ``EnvioSIIS`` o ``None`` si ni siquiera se pudo registrar.
+    """
+    try:
+        envio = enviar_beneficiario_a_siis(formulario, request.user)
+    except Exception:  # noqa: BLE001 — la aprobación ya está confirmada
+        logger.exception("Fallo inesperado al informar el beneficiario %s a SIIS", formulario.pk)
+        messages.error(request, "No se pudo informar el beneficiario a SIIS; reintentá desde el caso.")
+        return None
+    nivel, texto = mensaje_envio(envio)
+    getattr(messages, nivel)(request, texto)
+    return envio
 
 
 def _tiene_conflicto_duplicado_pendiente(formulario):
@@ -484,6 +527,18 @@ def formulario_detalle(request, pk):
     historial_validaciones_sis = [
         {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)} for validacion in validaciones_sis
     ]
+    # Alta del beneficiario en SIIS: solo tiene sentido en un caso aprobado.
+    puede_enviar_siis = puede(request.user, CAP_REVISION_EDITAR)
+    envios_sis = []
+    envio_siis = None
+    datos_siis_form = None
+    if formulario.estado == Formulario.Estado.APROBADO:
+        envios_sis = list(formulario.envios_sis.select_related("solicitado_por"))
+        envio_siis = envios_sis[0] if envios_sis else None
+        ya_enviado = envio_siis is not None and envio_siis.estado == EnvioSIIS.Estado.ENVIADO
+        if puede_enviar_siis and not ya_enviado:
+            datos_siis_form = DatosSiisForm(initial=formulario.datos_siis or {})
+    detalles_envio_siis = _detalles_envio_siis(envio_siis)
     return render(
         request,
         "programas/becas/revision/formulario_detalle.html",
@@ -518,6 +573,11 @@ def formulario_detalle(request, pk):
             "tiene_conflicto_duplicado_pendiente": conflicto_pendiente is not None,
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
+            "envio_siis": envio_siis,
+            "historial_envios_sis": envios_sis,
+            "datos_siis_form": datos_siis_form,
+            "puede_enviar_siis": puede_enviar_siis,
+            "detalles_envio_siis": detalles_envio_siis,
         },
     )
 
@@ -544,6 +604,73 @@ def formulario_validar_sis(request, pk):
     else:
         messages.error(request, validacion.motivo or "No se pudo validar contra SIIS.")
     return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_POST
+def formulario_enviar_siis(request, pk):
+    """Reenvío manual del alta del beneficiario (tras corregir datos o una caída de SIIS)."""
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano"), pk=pk
+    )
+    _assert_scope_formulario(request, formulario)
+    if formulario.estado != Formulario.Estado.APROBADO:
+        messages.error(request, "Solo se informan a SIIS los casos aprobados.")
+    else:
+        _informar_a_siis(request, formulario)
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_POST
+def formulario_datos_siis(request, pk):
+    """Guarda las correcciones para SIIS en ``datos_siis`` con traza. **No envía**:
+    el coordinador revisa el resultado y después reenvía."""
+    formulario = get_object_or_404(Formulario, pk=pk)
+    _assert_scope_formulario(request, formulario)
+    form = DatosSiisForm(request.POST)
+    if not form.is_valid():
+        for campo, errores in form.errors.items():
+            etiqueta = form.fields[campo].label if campo in form.fields else "Datos SIIS"
+            messages.error(request, f"{etiqueta}: {' '.join(errores)}")
+        return redirect("becas:formulario_detalle", pk=formulario.pk)
+    anteriores = formulario.datos_siis if isinstance(formulario.datos_siis, dict) else {}
+    nuevos = form.como_datos_siis()
+    cambios = [
+        (f"Datos SIIS · {form.fields[campo].label}", str(anteriores.get(campo, "")), str(valor))
+        for campo, valor in nuevos.items()
+        if anteriores.get(campo) != valor
+    ]
+    with transaction.atomic():
+        formulario.datos_siis = {**anteriores, **nuevos}
+        formulario.save(update_fields=["datos_siis", "modificado"])
+        registrar_traza(formulario, request.user, cambios)
+    if cambios:
+        messages.success(request, "Datos para SIIS guardados. Reenviá el caso para informarlo.")
+    else:
+        messages.info(request, "No hubo cambios para guardar.")
+    return redirect("becas:formulario_detalle", pk=formulario.pk)
+
+
+@login_required
+@requiere(CAP_REVISION_EDITAR)
+@require_GET
+def siis_localidades_json(request):
+    """Localidades del catálogo de SIIS para el select dependiente de provincia."""
+    try:
+        provincia = int(request.GET.get("provincia") or 0)
+    except ValueError:
+        provincia = 0
+    try:
+        items = catalogo("localidades")
+    except SiisCatalogError as exc:
+        return JsonResponse({"localidades": [], "error": str(exc)}, status=503)
+    if provincia:
+        items = [i for i in items if str(i.get("id_provincia") or i.get("provincia_id") or provincia) == str(provincia)]
+    localidades = [{"id": i["id"], "nombre": i["nombre"]} for i in sorted(items, key=lambda i: i["nombre"])]
+    return JsonResponse({"localidades": localidades})
 
 
 @login_required
@@ -604,6 +731,9 @@ def formulario_aprobar(request, pk):
         else:
             if resultado == "aprobado":
                 messages.success(request, "Caso aprobado.")
+                # Alta del beneficiario en SIIS: solo quien quedó APROBADO con cupo.
+                # Quien cae en lista de espera todavía no es beneficiario.
+                _informar_a_siis(request, formulario)
             else:
                 segmento = formulario.relevamiento.convocatoria.segmento
                 messages.warning(

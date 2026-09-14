@@ -13,7 +13,7 @@
        createPresentacion: 'LISTA',
        createGrupo: '', createCanal: 'ambos',
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
-       editPresentacion: 'LISTA', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
+       editPresentacion: 'LISTA', editDestino: '', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
        modalGrupo: false, grupoUrl: '', grupoNombre: '', grupoSubtitulo: '', grupoCanal: 'ambos', grupoEsNuevo: true,
        grupoCond: {modo: 'todas', reglas: []}, grupoFuentes: [],
        openGrupo(url, nombre, subtitulo, canal, pk) {
@@ -76,12 +76,13 @@
          }
          return reglas.length ? JSON.stringify({modo: this.grupoCond.modo, reglas: reglas}) : '';
        },
-       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad) {
+       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad, destino) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
          this.editPresentacion = presentacion || 'LISTA';
          this.editGrupo = grupo || ''; this.editCanal = canal || 'ambos';
          this.editProtegido = !!protegido; this.editIdentidad = !!identidad;
+         this.editDestino = destino || '';
          this.modalEdit = true;
        }
      }"
@@ -222,6 +223,15 @@
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
+            <select name="destino_siis" class="nodo-field">
+              <option value="">No alimenta a SIIS</option>
+              {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Una pregunta activa por destino.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
+          </div>
         </div>
 
         {% comment %}FOOTER{% endcomment %}
@@ -318,6 +328,15 @@
               {% for val, label in canal_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
+            <select name="destino_siis" x-model="editDestino" class="nodo-field">
+              <option value="">No alimenta a SIIS</option>
+              {% for val, label in destino_siis_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Una pregunta activa por destino.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
           </div>
         </div>
 

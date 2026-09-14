@@ -240,7 +240,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
         ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
         ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
-        # Padrón de habilitados (Cambio 57; herencia por relevamiento, Cambio 72):
+        # Padrón de habilitados (Cambio 57; herencia por relevamiento, Cambio 74):
         # acá se administra el de la convocatoria, que heredan los relevamientos
         # sin padrón propio. Un solo aggregate trae los dos niveles.
         nivel_convocatoria = Q(relevamiento__isnull=True)
@@ -648,7 +648,7 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
     # El template y _assert_scope recorren convocatoria/segmento/territorial.
     # El padrón es de la convocatoria (Cambio 57): su tamaño viaja anotado en
     # la misma consulta para no sumar una lectura al presupuesto de la ruta.
-    # Los dos niveles del padrón en la misma consulta (Cambio 72): el propio
+    # Los dos niveles del padrón en la misma consulta (Cambio 74): el propio
     # del relevamiento y el de la convocatoria que heredaría si no tiene.
     queryset = Relevamiento.objects.select_related(
         "convocatoria__segmento", "convocatoria__subsegmento", "territorial"
@@ -857,7 +857,7 @@ def convocatoria_padron(request, pk):
 @requiere(CAP_CONVOCATORIA_EDITAR)
 @require_POST
 def relevamiento_padron(request, pk):
-    """Carga o reemplaza el padrón **propio** de un relevamiento (Cambio 72).
+    """Carga o reemplaza el padrón **propio** de un relevamiento (Cambio 74).
 
     Con padrón propio, el relevamiento deja de heredar el de la convocatoria:
     habilita e identifica solo con el suyo. Al cargar, se cruzan y validan los

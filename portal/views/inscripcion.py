@@ -158,7 +158,7 @@ def inscripcion_paso1(request, token):
                 form.add_error(None, MENSAJE_YA_INSCRIPTO)
             else:
                 # Cascada del Cambio 57 sobre el padrón efectivo del
-                # relevamiento (propio o heredado, Cambio 72) → Gran Base → manual.
+                # relevamiento (propio o heredado, Cambio 74) → Gran Base → manual.
                 resultado = identificar(relevamiento, dni, sexo)
                 if resultado["fallecido"]:
                     form.add_error(None, MENSAJE_DOCUMENTO_NO_DISPONIBLE)

@@ -40,7 +40,7 @@ from programas.models import (
 )
 from programas.services.becas import es_menor
 from programas.services.dispositivos import normalizar_codigo_institucional
-from programas.services.siis import SiisCatalogError, listar_programas
+from programas.services.siis import SiisCatalogError, catalogo, funciones_programa, listar_programas
 from users.presentation import etiqueta_usuario
 
 # Clase reutilizable del design system para inputs/selects/textareas.
@@ -120,6 +120,163 @@ class ProgramaSiisCreateForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class ProgramaSiisFuncionForm(forms.ModelForm):
+    """Función/nivel del programa que viaja en ``id_fun_x_plan`` al dar de alta
+    beneficiarios en SIIS. Se elige del catálogo de funciones del programa; no se tipea."""
+
+    siis_funcion_id = forms.ChoiceField(
+        label="Función SIIS", choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+
+    class Meta:
+        model = ProgramaSiis
+        fields = ["siis_funcion_id"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        funciones, error = _cargar_catalogo(lambda: funciones_programa(self.instance.siis_programa_id))
+        self._funciones = {f["id"]: f for f in funciones}
+        self.fields["siis_funcion_id"].choices = _catalogo_choices(funciones, "Seleccioná una función…")
+        if self.instance.siis_funcion_id:
+            self.fields["siis_funcion_id"].initial = str(self.instance.siis_funcion_id)
+        if error:
+            self.fields["siis_funcion_id"].help_text = error
+
+    def clean_siis_funcion_id(self):
+        try:
+            funcion_id = int(self.cleaned_data["siis_funcion_id"])
+        except (TypeError, ValueError) as exc:
+            raise forms.ValidationError("Elegí una función del catálogo.") from exc
+        if funcion_id not in self._funciones:
+            raise forms.ValidationError("Esa función no está en el catálogo de SIIS para este programa.")
+        return funcion_id
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.siis_funcion_nombre = self._funciones[instance.siis_funcion_id]["nombre"]
+        if commit:
+            instance.save(update_fields=["siis_funcion_id", "siis_funcion_nombre", "modificado"])
+        return instance
+
+
+class DatosSiisForm(forms.Form):
+    """Correcciones del coordinador para el alta del beneficiario en SIIS.
+
+    Todos los campos son opcionales: solo lo completado pisa lo que salió del
+    relevamiento (``Formulario.datos_siis``). Las validaciones espejan las del
+    manual (barrio de 4 caracteres como mínimo, altura entera, dpto de 2).
+    """
+
+    CAMPOS_TEXTO = ("barrio_actual", "calle_actual", "dpto_actual")
+    CAMPOS = (
+        "prov_actual",
+        "loc_actual",
+        "barrio_actual",
+        "calle_actual",
+        "nro_actual",
+        "piso_actual",
+        "dpto_actual",
+        "est_civil",
+        "prov_nacim",
+        "loc_nacim",
+    )
+
+    prov_actual = forms.ChoiceField(
+        label="Provincia del domicilio", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    loc_actual = forms.IntegerField(
+        label="Localidad del domicilio", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    barrio_actual = forms.CharField(
+        label="Barrio", required=False, max_length=50, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    calle_actual = forms.CharField(
+        label="Calle", required=False, max_length=50, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    nro_actual = forms.IntegerField(
+        label="Altura / número",
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+    )
+    piso_actual = forms.IntegerField(
+        label="Piso", required=False, min_value=0, widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0})
+    )
+    dpto_actual = forms.CharField(
+        label="Departamento",
+        required=False,
+        max_length=2,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "maxlength": 2}),
+    )
+    est_civil = forms.ChoiceField(
+        label="Estado civil", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    prov_nacim = forms.ChoiceField(
+        label="Provincia de nacimiento", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    loc_nacim = forms.IntegerField(
+        label="Localidad de nacimiento", required=False, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        provincias, error_prov = _cargar_catalogo(lambda: catalogo("provincias"))
+        estados, error_est = _cargar_catalogo(lambda: catalogo("estados-civiles"))
+        self.error_catalogo = error_prov or error_est
+        opciones_prov = _catalogo_choices(provincias, "Sin cambios")
+        self.fields["prov_actual"].choices = opciones_prov
+        self.fields["prov_nacim"].choices = opciones_prov
+        self.fields["est_civil"].choices = _catalogo_choices(estados, "Sin cambios")
+        # Los selects de localidad se llenan en el navegador según la provincia
+        # (``becas:siis_localidades``); el valor inicial se conserva en ``data-actual``.
+        for campo in ("loc_actual", "loc_nacim"):
+            actual = (self.initial or {}).get(campo)
+            if actual not in (None, ""):
+                self.fields[campo].widget.attrs["data-actual"] = str(actual)
+
+    def _validar_localidad(self, campo, campo_provincia):
+        loc = self.cleaned_data.get(campo)
+        if loc is None:
+            return
+        prov = self.cleaned_data.get(campo_provincia)
+        localidades, error = _cargar_catalogo(lambda: catalogo("localidades"))
+        if error:
+            self.add_error(campo, error)
+            return
+        item = next((i for i in localidades if i["id"] == loc), None)
+        if item is None:
+            self.add_error(campo, "La localidad no está en el catálogo de SIIS.")
+            return
+        prov_item = item.get("id_provincia") or item.get("provincia_id")
+        if prov and prov_item is not None and str(prov_item) != str(prov):
+            self.add_error(campo, "La localidad no pertenece a la provincia elegida.")
+
+    def clean_barrio_actual(self):
+        barrio = " ".join((self.cleaned_data.get("barrio_actual") or "").split())
+        if barrio and len(barrio) < 4:
+            raise forms.ValidationError("El barrio debe tener al menos 4 caracteres.")
+        return barrio
+
+    def clean_dpto_actual(self):
+        return (self.cleaned_data.get("dpto_actual") or "").strip().upper()
+
+    def clean(self):
+        cleaned = super().clean()
+        self._validar_localidad("loc_actual", "prov_actual")
+        self._validar_localidad("loc_nacim", "prov_nacim")
+        return cleaned
+
+    def como_datos_siis(self):
+        """Solo lo completado, con los tipos que espera la API (enteros para ids y números)."""
+        datos = {}
+        for campo in self.CAMPOS:
+            valor = self.cleaned_data.get(campo)
+            if valor in (None, ""):
+                continue
+            datos[campo] = valor if campo in self.CAMPOS_TEXTO else int(valor)
+        return datos
 
 
 class SegmentoForm(forms.ModelForm):
@@ -886,7 +1043,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     class Meta:
         model = PreguntaGlobal
-        fields = ["texto", "tipo", "presentacion", "grupo", "canal", "obligatorio", "orden", "activo"]
+        fields = ["texto", "tipo", "presentacion", "grupo", "canal", "obligatorio", "orden", "activo", "destino_siis"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
@@ -896,6 +1053,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
             "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "destino_siis": forms.Select(attrs={"class": INPUT_CLASS}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -928,11 +1086,25 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
             if self.instance.es_identidad:
                 cleaned["obligatorio"] = True
                 cleaned["activo"] = True
+        # Una sola pregunta **activa** por destino SIIS: si hubiera dos, el payload
+        # no sabría cuál respuesta tomar. MySQL no soporta constraints condicionales,
+        # así que la regla vive acá.
+        destino = cleaned.get("destino_siis") or ""
+        if destino and cleaned.get("activo", True):
+            otras = PreguntaGlobal.objects.filter(activo=True, destino_siis=destino)
+            if self.instance.pk:
+                otras = otras.exclude(pk=self.instance.pk)
+            otra = otras.first()
+            if otra is not None:
+                etiqueta = PreguntaGlobal.DestinoSiis(destino).label
+                self.add_error(
+                    "destino_siis",
+                    f"Ya hay una pregunta activa que alimenta «{etiqueta}»: «{otra.texto}».",
+                )
         return cleaned
 
     def hermanos_orden(self):
         return PreguntaGlobal.objects.all()
-
 
 class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """El ancla (programa, segmento o subsegmento) se fija desde la vista."""

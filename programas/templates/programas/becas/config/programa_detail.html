@@ -85,6 +85,30 @@
   </div>
   {% endif %}
 
+  {# Alta de beneficiarios en SIIS: función del programa (id_fun_x_plan) #}
+  <section class="bg-white rounded-xl border border-base shadow-sm p-5" aria-labelledby="titulo-funcion-siis">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div class="min-w-0">
+        <h2 id="titulo-funcion-siis" class="text-heading font-bold" style="font-size:16px;">Alta de beneficiarios en SIIS</h2>
+        <p class="text-sm text-body-subtle mt-1">
+          Los casos aprobados se informan a SIIS con la función
+          {% if programa.siis_funcion_id %}<strong class="text-heading">{{ programa.siis_funcion_nombre }} (#{{ programa.siis_funcion_id }})</strong>.{% else %}<span class="badge badge-warning">sin configurar</span>: hasta elegirla, los envíos quedan incompletos.{% endif %}
+        </p>
+      </div>
+      {% if puede_administrar_programa %}
+      <form method="post" action="{% url 'becas:programa_funcion_siis' programa.pk %}" class="flex items-end gap-2 flex-wrap">
+        {% csrf_token %}
+        <div>
+          <label for="{{ form_funcion_siis.siis_funcion_id.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Función SIIS</label>
+          {{ form_funcion_siis.siis_funcion_id }}
+          {% if form_funcion_siis.siis_funcion_id.help_text %}<p class="mt-1 text-xs text-fg-danger">{{ form_funcion_siis.siis_funcion_id.help_text }}</p>{% endif %}
+        </div>
+        <button type="submit" class="btn-nodo btn-brand btn-base">Guardar</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+
   {% if programa.pausado %}
   <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
     <strong class="text-heading">Programa pausado</strong>

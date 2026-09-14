@@ -1289,6 +1289,15 @@ class ProgramaSiis(PausableMixin, TimeStamped):
     )
     siis_vinculado_en = models.DateTimeField(null=True, blank=True, verbose_name="Programa SIIS vinculado el")
     siis_verificado_en = models.DateTimeField(null=True, blank=True, verbose_name="Última verificación con SIIS")
+    # Alta de beneficiarios (tabla intermedia): función/nivel dentro del programa,
+    # elegida del catálogo ``GET /api/v1/auth/catalogos/funciones?id_programa=``.
+    # Viaja en ``id_fun_x_plan``; sin ella el envío queda incompleto.
+    siis_funcion_id = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="Función SIIS para el alta de beneficiarios"
+    )
+    siis_funcion_nombre = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="Nombre de la función SIIS"
+    )
 
     class Meta:
         verbose_name = "Programa SIIS"
@@ -1632,7 +1641,7 @@ class Relevamiento(PausableMixin, TimeStamped):
         editable=False,
         verbose_name="Token del link público",
     )
-    # Cambio 72: padrón PROPIO de este relevamiento (Excel original, para
+    # Cambio 74: padrón PROPIO de este relevamiento (Excel original, para
     # trazabilidad). Con filas propias en PadronHabilitado, este relevamiento
     # no hereda el padrón de la convocatoria.
     padron_archivo = models.FileField(
@@ -1882,7 +1891,7 @@ class PadronHabilitado(TimeStamped):
         related_name="padron",
         verbose_name="Convocatoria",
     )
-    # Cambio 72: con valor, la fila pertenece SOLO a ese relevamiento (padron
+    # Cambio 74: con valor, la fila pertenece SOLO a ese relevamiento (padron
     # propio, pisa al de la convocatoria); en NULL, es el padron de la
     # convocatoria y lo heredan los relevamientos sin padron propio.
     relevamiento = models.ForeignKey(
@@ -2025,6 +2034,36 @@ class PreguntaGlobal(TimeStamped):
     )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
     obligatorio = models.BooleanField(default=True, verbose_name="Obligatorio")
+
+    class DestinoSiis(models.TextChoices):
+        """Campo del alta de beneficiarios en SIIS que alimenta la respuesta.
+
+        Las preguntas del constructor no tienen semántica: solo texto y tipo. Este
+        rol es lo que permite armar el payload sin depender del texto de la
+        pregunta. Los valores son los nombres de campo del manual v4.2, salvo
+        ``calle_altura``, que se parte en calle/número/piso/dpto.
+        """
+
+        PROVINCIA_ACTUAL = "prov_actual", "Provincia del domicilio"
+        LOCALIDAD_ACTUAL = "loc_actual", "Localidad del domicilio"
+        BARRIO = "barrio_actual", "Barrio"
+        CALLE_ALTURA = "calle_altura", "Calle y altura (piso, dpto)"
+        ESTADO_CIVIL = "est_civil", "Estado civil"
+        PROVINCIA_NACIMIENTO = "prov_nacim", "Provincia de nacimiento"
+        LOCALIDAD_NACIMIENTO = "loc_nacim", "Localidad de nacimiento"
+
+    destino_siis = models.CharField(
+        max_length=20,
+        choices=DestinoSiis.choices,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="Este dato alimenta a SIIS como",
+        help_text=(
+            "Con qué campo del alta de beneficiarios en SIIS se corresponde la respuesta. "
+            "Una sola pregunta activa por destino."
+        ),
+    )
 
     class Meta:
         verbose_name = "Pregunta global"
@@ -2372,6 +2411,11 @@ class Formulario(TimeStamped):
         help_text="dni, nombre, apellido, fecha_nacimiento, origen. Se limpia al resolver el ciudadano.",
     )
 
+    # Correcciones del coordinador para el alta en SIIS (claves = campos de la
+    # API: loc_actual, nro_actual, est_civil…). Pisan lo derivado de las
+    # respuestas; nunca tocan ``data``, que es lo que la persona declaró.
+    datos_siis = models.JSONField(default=dict, blank=True, verbose_name="Datos corregidos para SIIS")
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -2423,6 +2467,15 @@ class Formulario(TimeStamped):
         if self.ciudadano_id:
             return f"Formulario {self.numero} - {self.ciudadano}"
         return f"Formulario {self.numero} (sin ciudadano)"
+
+    @property
+    def envio_siis_vigente(self):
+        """Último intento de alta en SIIS (o ``None``)."""
+        return self.envios_sis.order_by("-creado", "-pk").first()
+
+    @property
+    def informado_a_siis(self):
+        return self.envios_sis.filter(estado=EnvioSIIS.Estado.ENVIADO).exists()
 
 
 class AdjuntoFormulario(TimeStamped):
@@ -2551,6 +2604,54 @@ class ValidacionSIS(models.Model):
         if not self.codigo_motivo:
             return ""
         return etiquetas.get(self.codigo_motivo, self.codigo_motivo)
+
+
+class EnvioSIIS(models.Model):
+    """Intento inmutable de alta de un beneficiario en la tabla intermedia de SIIS.
+
+    Hermano de :class:`ValidacionSIS`: un registro por intento, nunca se edita.
+    Un caso con un envío ``ENVIADO`` no se vuelve a mandar (la API no deduplica).
+    """
+
+    class Estado(models.TextChoices):
+        ENVIADO = "ENVIADO", "Enviado"
+        INCOMPLETO = "INCOMPLETO", "Datos incompletos"
+        RECHAZADO = "RECHAZADO", "Rechazado por SIIS"
+        ERROR = "ERROR", "Error técnico"
+
+    formulario = models.ForeignKey(
+        Formulario, on_delete=models.CASCADE, related_name="envios_sis", verbose_name="Formulario"
+    )
+    estado = models.CharField(max_length=15, choices=Estado.choices, db_index=True)
+    siis_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="ID asignado por SIIS")
+    id_programa = models.PositiveIntegerField(null=True, blank=True)
+    id_funcion = models.PositiveIntegerField(null=True, blank=True)
+    documento = models.CharField(max_length=20)
+    # DATOS_INCOMPLETOS (local) o el ``error`` del manual: DATOS_INVALIDOS,
+    # UNAUTHORIZED, ERROR_BD_LEGACY, ERROR_INTERNO; ERROR_TECNICO para red/catálogo.
+    codigo_error = models.CharField(max_length=40, blank=True, default="")
+    # ``{campo: [mensajes]}`` de SIIS (400) o ``{campo: motivo}`` local (INCOMPLETO).
+    detalles = models.JSONField(default=dict, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    respuesta = models.JSONField(default=dict, blank=True)
+    solicitado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="envios_sis_solicitados"
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # ``-pk`` desempata dos intentos en el mismo segundo (reintento inmediato).
+        ordering = ["-creado", "-pk"]
+        verbose_name = "Envío a SIIS"
+        verbose_name_plural = "Envíos a SIIS"
+
+    def __str__(self):
+        return f"Formulario #{self.formulario_id} · {self.estado}"
+
+    @property
+    def reintentable(self):
+        """Solo los errores técnicos se reintentan solos; el resto pide corrección."""
+        return self.estado == self.Estado.ERROR
 
 
 class ListaEspera(TimeStamped):

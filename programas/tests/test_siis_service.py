@@ -187,3 +187,119 @@ class SiisClientTests(SimpleTestCase):
 
         with self.assertRaisesMessage(SiisCatalogError, "tardó demasiado en responder"):
             SiisAPIClient().listar_programas()
+
+    # ------------------------------------------------------------------
+    # Alta de beneficiarios (tabla intermedia) y catálogos maestros
+    # ------------------------------------------------------------------
+    @patch("programas.services.siis.requests.post")
+    def test_cargar_beneficiario_201_devuelve_el_id(self, post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=201)
+        respuesta.json.return_value = {
+            "status": "OK",
+            "total_insertados": 1,
+            "ids_generados": [26],
+            "registros": [{"id": 26}],
+        }
+        post.return_value = respuesta
+
+        r = SiisAPIClient().cargar_beneficiario({"dni": 1, "tdoc": 1})
+
+        self.assertTrue(r["success"])
+        self.assertEqual(r["siis_id"], 26)
+        self.assertTrue(post.call_args.args[0].endswith("/api/v1/auth/tab-intermedia"))
+        self.assertEqual(post.call_args.kwargs["json"], {"dni": 1, "tdoc": 1})
+
+    @patch("programas.services.siis.requests.post")
+    def test_cargar_beneficiario_201_sin_ids_generados_lee_registros(self, post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=201)
+        respuesta.json.return_value = {"registros": [{"id": 31, "dni": 1}]}
+        post.return_value = respuesta
+
+        self.assertEqual(SiisAPIClient().cargar_beneficiario({})["siis_id"], 31)
+
+    @patch("programas.services.siis.requests.post")
+    def test_cargar_beneficiario_400_trae_detalles_por_campo(self, post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=400)
+        respuesta.json.return_value = {
+            "error": "DATOS_INVALIDOS",
+            "mensaje": "Uno o más campos no superaron las validaciones.",
+            "detalles": {"barrio_actual": ["mínimo 4 caracteres"]},
+        }
+        post.return_value = respuesta
+
+        r = SiisAPIClient().cargar_beneficiario({})
+
+        self.assertFalse(r["success"])
+        self.assertEqual(r["codigo"], "DATOS_INVALIDOS")
+        self.assertFalse(r["reintentable"])
+        self.assertEqual(r["detalles"], {"barrio_actual": ["mínimo 4 caracteres"]})
+
+    @patch("programas.services.siis.requests.post")
+    def test_cargar_beneficiario_401_invalida_el_token(self, post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=401)
+        respuesta.json.return_value = {"error": "UNAUTHORIZED"}
+        post.return_value = respuesta
+
+        r = SiisAPIClient().cargar_beneficiario({})
+
+        self.assertEqual(r["codigo"], "UNAUTHORIZED")
+        self.assertTrue(r["reintentable"])
+        self.assertIsNone(cache.get(TOKEN_CACHE_KEY))
+
+    @patch("programas.services.siis.requests.post")
+    def test_cargar_beneficiario_503_es_reintentable(self, post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=503)
+        respuesta.json.return_value = {"error": "ERROR_BD_LEGACY"}
+        post.return_value = respuesta
+
+        r = SiisAPIClient().cargar_beneficiario({})
+
+        self.assertEqual(r["codigo"], "ERROR_BD_LEGACY")
+        self.assertTrue(r["reintentable"])
+
+    @patch("programas.services.siis.requests.post", side_effect=requests.Timeout())
+    def test_cargar_beneficiario_timeout_es_error_tecnico(self, _post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+
+        r = SiisAPIClient().cargar_beneficiario({})
+
+        self.assertFalse(r["success"])
+        self.assertEqual(r["codigo"], "ERROR_TECNICO")
+        self.assertTrue(r["reintentable"])
+
+    @patch("programas.services.siis.requests.get")
+    def test_catalogo_normaliza_y_cachea(self, get):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {"data": [{"id": 22, "nombre": "Chaco"}, {"id": "x", "nombre": "Mal"}, {"id": 2}]}
+        respuesta.raise_for_status.return_value = None
+        get.return_value = respuesta
+
+        items = SiisAPIClient().catalogo("provincias")
+        SiisAPIClient().catalogo("provincias")
+
+        self.assertEqual(items, [{"id": 22, "nombre": "Chaco"}])
+        self.assertEqual(get.call_count, 1)
+        self.assertTrue(get.call_args.args[0].endswith("/api/v1/auth/catalogos/provincias"))
+
+    @patch("programas.services.siis.requests.get")
+    def test_funciones_programa_pide_por_id_programa(self, get):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = [{"id": 4, "nombre": "Nivel Operativo", "id_programa": 79}]
+        respuesta.raise_for_status.return_value = None
+        get.return_value = respuesta
+
+        items = SiisAPIClient().funciones_programa(79)
+
+        self.assertEqual(items[0]["id"], 4)
+        self.assertIn("id_programa=79", get.call_args.args[0])
+
+    def test_catalogo_nombre_desconocido(self):
+        with self.assertRaises(ValueError):
+            SiisAPIClient().catalogo("otra-cosa")

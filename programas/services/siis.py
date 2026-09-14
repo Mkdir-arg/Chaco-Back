@@ -18,6 +18,16 @@ ESTADO_ACTIVO = "ACTIVO"
 ESTADO_INACTIVO = "INACTIVO"
 ESTADO_DESCONOCIDO = "DESCONOCIDO"
 
+# Alta de beneficiarios y catálogos maestros (manual M2M v4.2, septiembre 2026).
+# Los catálogos cambian casi nunca: se cachean un día.
+CATALOGO_CACHE_KEY = "siis_api:catalogo:{}"
+CATALOGO_CACHE_LARGO = 24 * 60 * 60
+CATALOGOS_MAESTROS = ("provincias", "localidades", "estados-civiles", "tipos-documento", "jurisdicciones")
+TAB_INTERMEDIA_PATH = "/api/v1/auth/tab-intermedia"
+# Códigos de la matriz de respuestas (sección 6) que se resuelven reintentando;
+# DATOS_INVALIDOS pide corregir datos. ERROR_TECNICO es nuestro: red o JSON roto.
+CODIGOS_REINTENTABLES = {"UNAUTHORIZED", "ERROR_BD_LEGACY", "ERROR_INTERNO", "ERROR_TECNICO"}
+
 # Campos informativos del programa que conservamos del contrato de ECOM. Se
 # congelan en el segmento al vincularlo y son los que muestra el detalle.
 CAMPOS_DETALLE_PROGRAMA = (
@@ -240,6 +250,139 @@ class SiisAPIClient:
             logger.exception("Error técnico al validar compatibilidad en SIIS")
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
 
+    # ------------------------------------------------------------------
+    # Alta de beneficiarios (tabla intermedia) y catálogos maestros
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _normalizar_items(items):
+        """Ítems con ``id`` entero y ``nombre``; conserva el resto de las claves
+        (las localidades pueden traer su provincia, las funciones su programa)."""
+        resultado = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            nombre = item.get("nombre") or item.get("descripcion") or item.get("denominacion")
+            try:
+                item_id = int(item.get("id"))
+            except (TypeError, ValueError):
+                continue
+            if not nombre:
+                continue
+            normalizado = dict(item)
+            normalizado["id"] = item_id
+            normalizado["nombre"] = str(nombre).strip()
+            resultado.append(normalizado)
+        return resultado
+
+    def catalogo(self, nombre):
+        """Catálogo maestro (sección 2 del manual), cacheado un día."""
+        if nombre not in CATALOGOS_MAESTROS:
+            raise ValueError(f"Catálogo SIIS desconocido: {nombre}")
+        clave = CATALOGO_CACHE_KEY.format(nombre)
+        cached = cache.get(clave)
+        if cached is not None:
+            return cached
+        body = self._cargar_catalogo(
+            f"/api/v1/auth/catalogos/{nombre}",
+            f"SIIS no encontró el catálogo de {nombre.replace('-', ' ')}.",
+        )
+        items = self._normalizar_items(self._items(body, nombre, "items", "results"))
+        cache.set(clave, items, CATALOGO_CACHE_LARGO)
+        return items
+
+    def funciones_programa(self, id_programa):
+        """Funciones/niveles de un programa: el ``id`` viaja en ``id_fun_x_plan``."""
+        clave = CATALOGO_CACHE_KEY.format(f"funciones:{int(id_programa)}")
+        cached = cache.get(clave)
+        if cached is not None:
+            return cached
+        body = self._cargar_catalogo(
+            f"/api/v1/auth/catalogos/funciones?id_programa={int(id_programa)}",
+            "SIIS no encontró las funciones del programa.",
+        )
+        items = self._normalizar_items(self._items(body, "funciones", "items", "results"))
+        cache.set(clave, items, CATALOGO_CACHE_LARGO)
+        return items
+
+    @staticmethod
+    def _siis_id_de(body):
+        """``ids_generados[0]`` o ``registros[0].id``: el manual muestra las dos."""
+        if not isinstance(body, dict):
+            return None
+        ids = body.get("ids_generados")
+        if isinstance(ids, list) and ids:
+            try:
+                return int(ids[0])
+            except (TypeError, ValueError):
+                pass
+        registros = body.get("registros")
+        if isinstance(registros, list) and registros and isinstance(registros[0], dict):
+            try:
+                return int(registros[0].get("id"))
+            except (TypeError, ValueError):
+                pass
+        return None
+
+    def cargar_beneficiario(self, payload):
+        """Alta individual en la tabla intermedia (Modalidad A del manual).
+
+        Nunca lanza: el resultado dice si hay que **corregir datos** (400,
+        ``reintentable=False``, con ``detalles`` por campo) o **reintentar**
+        (401/5xx/red, ``reintentable=True``).
+        """
+        try:
+            response = instrument_external_call(
+                "siis",
+                requests.post,
+                f"{self.base_url}{TAB_INTERMEDIA_PATH}",
+                json=payload,
+                headers={"Authorization": f"Bearer {self._token()}"},
+                timeout=self.timeout,
+            )
+        except (requests.RequestException, TypeError, ValueError, _SiisConfigurationError) as exc:
+            # Sin ``logger.exception``: el traceback de requests arrastra el payload
+            # con datos personales. El tipo de error alcanza para diagnosticar.
+            logger.error("Error técnico al cargar un beneficiario en SIIS (%s)", type(exc).__name__)
+            return {
+                "success": False,
+                "codigo": "ERROR_TECNICO",
+                "reintentable": True,
+                "error": "No se pudo conectar con SIIS.",
+                "detalles": {},
+                "data": {},
+            }
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not isinstance(body, dict):
+            body = {"respuesta": body}
+        if response.status_code == 401:
+            cache.delete(TOKEN_CACHE_KEY)
+        if response.status_code in (200, 201):
+            return {
+                "success": True,
+                "siis_id": self._siis_id_de(body),
+                "codigo": "",
+                "reintentable": False,
+                "detalles": {},
+                "data": body,
+            }
+        codigo = str(body.get("error") or "").strip().upper()
+        if not codigo:
+            codigo = {400: "DATOS_INVALIDOS", 401: "UNAUTHORIZED", 503: "ERROR_BD_LEGACY"}.get(
+                response.status_code, "ERROR_INTERNO"
+            )
+        detalles = body.get("detalles") if isinstance(body.get("detalles"), dict) else {}
+        return {
+            "success": False,
+            "codigo": codigo,
+            "reintentable": codigo in CODIGOS_REINTENTABLES or response.status_code >= 500,
+            "error": body.get("mensaje") or body.get("detail") or f"SIIS respondió HTTP {response.status_code}.",
+            "detalles": detalles,
+            "data": body,
+        }
+
 
 def validar_compatibilidad(dni, id_programa, fecha_nacimiento=None):
     return SiisAPIClient().validar_compatibilidad(dni, id_programa, fecha_nacimiento)
@@ -251,6 +394,18 @@ def listar_programas():
 
 def listar_programas_todos():
     return SiisAPIClient().listar_programas_todos()
+
+
+def cargar_beneficiario(payload):
+    return SiisAPIClient().cargar_beneficiario(payload)
+
+
+def catalogo(nombre):
+    return SiisAPIClient().catalogo(nombre)
+
+
+def funciones_programa(id_programa):
+    return SiisAPIClient().funciones_programa(id_programa)
 
 
 def motivos_de_rechazo(validaciones):
