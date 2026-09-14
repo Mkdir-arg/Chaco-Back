@@ -22,6 +22,7 @@ urlpatterns = [
     path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),
     path("config/programas/nuevo/", cfg.ProgramaSiisCreateView.as_view(), name="programa_crear"),
     path("config/programas/<int:pk>/", cfg.ProgramaSiisDetailView.as_view(), name="programa_detalle"),
+    path("config/programas/<int:pk>/funcion-siis/", cfg.programa_funcion_siis, name="programa_funcion_siis"),
     # --- Solapa Dashboard del programa (análisis #366) ---
     path("config/programas/<int:pk>/dashboard/datos/", dsh.programa_dashboard_datos, name="programa_dashboard_datos"),
     path(
@@ -143,6 +144,10 @@ urlpatterns = [
         rev.formulario_validar_padron,
         name="formulario_validar_padron",
     ),
+    # --- Alta del beneficiario en SIIS (tabla intermedia) ---
+    path("revision/formulario/<int:pk>/enviar-siis/", rev.formulario_enviar_siis, name="formulario_enviar_siis"),
+    path("revision/formulario/<int:pk>/datos-siis/", rev.formulario_datos_siis, name="formulario_datos_siis"),
+    path("revision/siis/localidades/", rev.siis_localidades_json, name="siis_localidades"),
     # --- Cupo y lista de espera (#78) ---
     path("cupo/segmento/<int:pk>/", cpo.CupoSegmentoDetailView.as_view(), name="cupo_segmento"),
     path("cupo/beneficiario/<int:pk>/baja/", cpo.dar_baja_beneficiario_view, name="beneficiario_dar_baja"),

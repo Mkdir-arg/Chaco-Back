@@ -16,12 +16,13 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from legajos.models import Ciudadano
-from programas.forms import FormularioRevisionForm
+from programas.forms import DatosSiisForm, FormularioRevisionForm
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_TERRITORIAL
 from programas.models import (
     AdjuntoFormulario,
     AsignacionCoordinador,
     Convocatoria,
+    EnvioSIIS,
     Formulario,
     ListaEspera,
     PreguntaGlobal,
@@ -34,6 +35,7 @@ from programas.models import (
 )
 from programas.views.cupo import promover_lista_espera_view
 from programas.views.revision import formulario_aprobar, formulario_rechazar
+from users.models import RolMeta
 
 
 class _BaseRevisionTest(TestCase):
@@ -1177,3 +1179,256 @@ class BandejasPaginadasTests(_BaseRevisionTest):
         pks = [f.pk for f in resp.context["formularios"]]
         esperado = sorted(pks, key=lambda pk: (-Formulario.objects.get(pk=pk).creado.timestamp(), -pk))
         self.assertEqual(pks, esperado)
+
+
+class EnvioSiisAlAprobarTests(_BaseAprobacionTest):
+    """Alta del beneficiario en SIIS: se dispara en las dos puertas a APROBADO y
+    nunca revierte la aprobación."""
+
+    def setUp(self):
+        super().setUp()
+        self.programa.siis_programa_datos = {"id": 41, "jurisdiccion_id": 28}
+        self.programa.siis_funcion_id = 4
+        self.programa.save()
+        self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
+        self.enviar_cupo = patch("programas.views.cupo.enviar_beneficiario_a_siis").start()
+        self.addCleanup(patch.stopall)
+        for mock in (self.enviar, self.enviar_cupo):
+            mock.return_value = EnvioSIIS(
+                formulario=self.form_a, estado=EnvioSIIS.Estado.INCOMPLETO, detalles={"loc_actual": "x"}
+            )
+
+    def test_aprobar_con_cupo_dispara_el_envio(self):
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.enviar.assert_called_once()
+        self.assertEqual(self.enviar.call_args.args[0].pk, self.form_a.pk)
+
+    def test_aprobar_a_lista_de_espera_no_dispara(self):
+        self.seg_a.cupo_maximo = 0
+        self.seg_a.save(update_fields=["cupo_maximo"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
+        self.enviar.assert_not_called()
+
+    def test_promover_dispara_el_envio(self):
+        self.seg_a.cupo_maximo = 0
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+        lista = ListaEspera.objects.get(formulario=self.form_a)
+        self.seg_a.cupo_maximo = 10
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self.client.force_login(self.admin)
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[lista.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.enviar_cupo.assert_called_once()
+
+    def test_una_falla_del_envio_no_revierte_la_aprobacion(self):
+        self.enviar.side_effect = RuntimeError("boom")
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+
+
+def _catalogo_siis_falso(nombre):
+    return {
+        "provincias": [{"id": 22, "nombre": "Chaco"}],
+        "localidades": [{"id": 37, "nombre": "Juan José Castelli", "id_provincia": 22}],
+        "estados-civiles": [{"id": 1, "nombre": "Soltero/a"}],
+    }[nombre]
+
+
+class ReenvioYDatosSiisTests(_BaseAprobacionTest):
+    """Reenvío manual del alta y corrección de datos para SIIS desde el caso."""
+
+    def setUp(self):
+        super().setUp()
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+        self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
+        patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.views.revision.catalogo", side_effect=_catalogo_siis_falso).start()
+        self.addCleanup(patch.stopall)
+        self.enviar.return_value = EnvioSIIS(formulario=self.form_a, estado=EnvioSIIS.Estado.ENVIADO, siis_id=26)
+
+    def test_reenviar_requiere_post_y_capacidad(self):
+        resp = self.client.get(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+        self.assertEqual(resp.status_code, 405)
+
+        self.client.force_login(self.territorial)
+        resp = self.client.post(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn(reverse("becas:formulario_detalle", args=[self.form_a.pk]), resp["Location"])
+        self.enviar.assert_not_called()
+
+    def test_reenviar_llama_al_servicio(self):
+        resp = self.client.post(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+        self.assertRedirects(
+            resp, reverse("becas:formulario_detalle", args=[self.form_a.pk]), fetch_redirect_response=False
+        )
+        self.enviar.assert_called_once()
+
+    def test_reenviar_no_aplica_a_casos_no_aprobados(self):
+        self.form_a.estado = Formulario.Estado.ENVIADO
+        self.form_a.save(update_fields=["estado"])
+
+        self.client.post(reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+        self.enviar.assert_not_called()
+
+    def test_guardar_datos_siis_con_traza_y_sin_enviar(self):
+        resp = self.client.post(
+            reverse("becas:formulario_datos_siis", args=[self.form_a.pk]),
+            {
+                "prov_actual": "22",
+                "loc_actual": "37",
+                "barrio_actual": "Barrio 108",
+                "calle_actual": "Los Alamos",
+                "nro_actual": "15",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.datos_siis["loc_actual"], 37)
+        self.assertEqual(self.form_a.datos_siis["nro_actual"], 15)
+        self.assertEqual(self.form_a.datos_siis["barrio_actual"], "Barrio 108")
+        self.assertNotIn("piso_actual", self.form_a.datos_siis)
+        self.assertTrue(self.form_a.trazas.filter(campo__startswith="Datos SIIS").exists())
+        self.enviar.assert_not_called()
+
+    def test_datos_siis_valida_barrio_corto_y_localidad_fuera_del_catalogo(self):
+        form = DatosSiisForm({"barrio_actual": "Sur", "loc_actual": "999", "prov_actual": "22"})
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("barrio_actual", form.errors)
+        self.assertIn("loc_actual", form.errors)
+
+    def test_localidades_json_filtra_por_provincia(self):
+        resp = self.client.get(reverse("becas:siis_localidades") + "?provincia=22")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {"localidades": [{"id": 37, "nombre": "Juan José Castelli"}]})
+
+
+class UiEnvioSiisTests(_BaseAprobacionTest):
+    """La sección "Envío a SIIS" del detalle: solo en casos aprobados, con el
+    desenlace del último intento, el detalle por campo y las acciones."""
+
+    def setUp(self):
+        super().setUp()
+        patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        self.addCleanup(patch.stopall)
+
+    def _aprobar(self):
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+
+    def test_la_seccion_no_aparece_en_casos_no_aprobados(self):
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertNotContains(resp, "Envío a SIIS")
+
+    def test_sin_intentos_invita_a_informar(self):
+        self._aprobar()
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Envío a SIIS")
+        self.assertContains(resp, "todavía no fue informado a SIIS")
+        self.assertContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+    def test_muestra_estado_detalles_y_acciones(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.INCOMPLETO,
+            documento=self.ciudadano.dni,
+            detalles={"loc_actual": "La localidad no coincide con el catálogo de SIIS: elegila de la lista."},
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Datos incompletos")
+        self.assertContains(resp, "elegila de la lista")
+        self.assertContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+        self.assertContains(resp, reverse("becas:formulario_datos_siis", args=[self.form_a.pk]))
+
+    def test_el_rechazo_de_siis_lista_los_mensajes_por_campo(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.RECHAZADO,
+            documento=self.ciudadano.dni,
+            codigo_error="DATOS_INVALIDOS",
+            detalles={"barrio_actual": ["El campo barrio_actual debe contener al menos 4 caracteres."]},
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Rechazado por SIIS")
+        self.assertContains(resp, "al menos 4 caracteres")
+
+    def test_enviado_muestra_el_id_y_oculta_las_acciones(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.ENVIADO,
+            documento=self.ciudadano.dni,
+            siis_id=26,
+        )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "ID SIIS")
+        self.assertContains(resp, "#26")
+        self.assertNotContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+    def _coordinador_solo_lectura(self):
+        """Mismo alcance que ``coord_a`` pero sin ``becas.revision.editar``."""
+        base = Group.objects.get(name=ROL_COORDINADOR)
+        grupo = Group.objects.create(name="Coordinador solo lectura")
+        grupo.permissions.set(base.permissions.exclude(codename="becas_revision_editar"))
+        meta = base.meta
+        RolMeta.objects.create(grupo=grupo, categoria=meta.categoria, programa=meta.programa, activo=True)
+        lector = User.objects.create_user("lector_a", password="x")
+        lector.groups.add(grupo)
+        AsignacionCoordinador.objects.create(segmento=self.seg_a, coordinador=lector)
+        return lector
+
+    def test_sin_capacidad_de_editar_se_ve_el_estado_pero_no_las_acciones(self):
+        self._aprobar()
+        EnvioSIIS.objects.create(
+            formulario=self.form_a,
+            estado=EnvioSIIS.Estado.ERROR,
+            documento=self.ciudadano.dni,
+            codigo_error="ERROR_BD_LEGACY",
+        )
+        self.client.force_login(self._coordinador_solo_lectura())
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Error técnico")
+        self.assertNotContains(resp, reverse("becas:formulario_enviar_siis", args=[self.form_a.pk]))
+
+    def test_el_historial_aparece_con_mas_de_un_intento(self):
+        self._aprobar()
+        for codigo in ("ERROR_BD_LEGACY", "ERROR_INTERNO"):
+            EnvioSIIS.objects.create(
+                formulario=self.form_a, estado=EnvioSIIS.Estado.ERROR, documento=self.ciudadano.dni, codigo_error=codigo
+            )
+
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+
+        self.assertContains(resp, "Historial de envíos (2)")
+        self.assertContains(resp, "ERROR_BD_LEGACY")
