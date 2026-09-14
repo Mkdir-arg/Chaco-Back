@@ -216,6 +216,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 69 | Rearmar el Programa Dispositivos y Merenderos desde cero por módulo (Versión 2) | Dispositivos · Merenderos · gestión | `#gestion` `#datos` `#ui` `#rbac` | PM — en sesión: «armame una propuesta a nivel funcional que cierre con todo el programa sin importar lo que tenemos ahora… los task existentes de la v1 pasalos a terminados y creá todos los task de la v2… vamos a estimar teniendo en cuenta lo ya desarrollado» | 08/09/2026 | 🟢 **Hecho — propuesta, diseño y backlog v2 creados (12 análisis #385-#396, 45 tasks, 410 h); v1 cerrada como Done** | No requiere (las tasks v2 sí) |
 | 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
 | 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
+| 72 | Propuesta funcional completa de la Versión 2 de Dispositivos para el cliente, con los mockups | Dispositivos · Merenderos · documentación | `#gestion` `#ui` `#datos` `#rbac` | PM — en sesión: «armá una propuesta funcional completa con todos los mockups que se hizo, la explicación de cada cambio, qué queda de la V1, qué se suma de la v2, funcionalidades, proceso, flujos, todo, así se lo mando al cliente» | 14/09/2026 | 🟢 **Hecho — publicada** | No requiere |
 | 73 | Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia) | Becas / revisión e integraciones | `#siis` `#relevamientos` `#datos` `#ui` | PM — en sesión: «vamos a integrarnos a SIIS en otro punto, una vez que se valida a nivel SIIS y a nivel técnico, en los casos de revisión» | 14/09/2026 | 🟢 **Hecho** | `programas.0060` |
 
 **Notas del índice**
@@ -7696,6 +7697,97 @@ indistinguibles.
   tocar la unificación.
 - **10/09/2026 (este cambio)** — el programa pide volver a diferenciar por causa; se implementa
   dejando intactas las defensas anti-abuso.
+
+---
+
+# Cambio 72 — Propuesta funcional completa de la Versión 2 para el cliente
+
+🟢 **HECHO — 14/09/2026** · Publicada en `docs/client/funcionalidades/propuesta-dispositivos-v2.md` · Mockup en el mismo sitio: `docs/client/mockups/dispositivos-v2.html'
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos y Merenderos · documentación para el cliente |
+| **Etiquetas** | `#gestion` `#ui` `#datos` `#rbac` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 14/09/2026 |
+| **Issue / épica** | Épica #127 · continúa los Cambios 69 y 63 |
+| **Partes afectadas** | `docs/client/funcionalidades/propuesta-dispositivos-v2.md` (nuevo), `funcionalidades/index.md`, `mkdocs.yml`, canvas de mockups |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Quiero que armes una propuesta funcional completa con todos los mockups que se hizo, la explicación
+> de cada cambio, qué queda de la V1, qué se suma de la v2, funcionalidades, proceso, flujos, todo,
+> así se lo mando al cliente.»
+
+## Alcance acordado
+
+Un solo documento público que el PM pueda mandar al Ministerio, con el mockup navegable como anexo
+visual enlazado sección por sección.
+
+## Decisiones tomadas
+
+**El mockup se republicó actualizado.** El canvas del 08/09 (siete flujos y dieciséis pantallas) era
+**anterior a las definiciones del 09/09**, así que tres piezas quedaban desactualizadas. Se corrigió
+y se amplió a **dieciocho pantallas**:
+
+- **P15** — el nivel intermedio de alcance dice ahora **subsecretaría**, no «área del Ministerio», con
+  el texto explicativo de los tres niveles reescrito.
+- **P14** — la solapa «Ficha (formulario)» pasó a **«Formularios · 6»**; se sacó la referencia al
+  constructor de Becas y se sumó el CDI a los tipos sin ficha.
+- **P17 (nueva)** — *Formularios del tipo de institución*: la lista de los seis formularios base con
+  qué acción llama a cada uno, las secciones con su nivel de sensibilidad, los campos protegidos y las
+  reglas del configurador (baja lógica de campos respondidos, los base no se borran).
+- **P18 (nueva)** — *Sección sensible*: el estado bloqueado que muestra que la sección existe, su
+  avance y el equipo que la completa; la compuerta de aviso antes de leer; y la tabla de auditoría de
+  quién leyó qué.
+
+**El mockup se sirve desde el propio sitio público, no desde un artefacto.** Un artefacto de Claude
+es privado y exige cuenta, así que no sirve para mandarle un link al Ministerio. El canvas es un HTML
+autocontenido —su única dependencia externa es la tipografía Manrope de Google Fonts—, así que se lo
+envolvió en un documento HTML completo y se lo dejó en `docs/client/mockups/dispositivos-v2.html`.
+MkDocs copia los archivos que no son Markdown tal cual, de modo que queda publicado en GitHub Pages
+junto con el resto de la documentación y los enlaces del documento son relativos. Verificado con
+Playwright sobre el sitio construido: 25 tableros (7 flujos + 18 pantallas), las 18 barras laterales
+que genera el JS, los anclajes de cada sección y cero errores de consola.
+
+**Qué contiene el documento.** Nueve secciones: por qué hay una Versión 2 (lo que mostró el
+relevamiento en las cuatro instituciones, y los catorce cambios que pidieron); qué queda de la Versión
+1 y se reutiliza; qué cambia área por área; cómo funciona la v2 módulo por módulo, cada uno con su
+proceso y el enlace a su pantalla; los siete flujos; las dieciocho pantallas; lo que queda fuera; lo
+que necesitamos del Ministerio (los cinco entregables pendientes y las doce definiciones de arranque);
+y el esfuerzo con sus cuatro etapas.
+
+**Se dice por escrito lo de las capturas de pantalla.** El documento aclara al cliente que
+«inhabilitar capturas o copias», como quedó en la minuta del 19/06, **no es técnicamente posible** en
+ningún sistema web, y enumera las cinco medidas que sí se implementan en su lugar.
+
+## Implementación
+
+Documento nuevo de 9 secciones en `docs/client/funcionalidades/`, sumado al menú de `mkdocs.yml` y a
+la tabla del índice de funcionalidades. `mkdocs build --strict` en verde. Publicado a GitHub Pages.
+
+## Archivos
+
+- `docs/client/funcionalidades/propuesta-dispositivos-v2.md` (nuevo)
+- `docs/client/funcionalidades/index.md` — fila nueva en la tabla
+- `mkdocs.yml` — entrada en el menú de Funcionalidades
+- `docs/client/mockups/dispositivos-v2.html` (nuevo) — el mockup navegable, servido desde el sitio
+
+## Base de datos
+
+No requiere.
+
+## Pendientes
+
+Lo que quedó del Cambio 69 y no se hizo todavía: sincronizar las 45 tasks con las horas corregidas y
+los cambios de alcance de M4; crear las tasks que faltan (solapa del Legajo Ciudadano, fusión de
+duplicados, las de M4 que se rehacen); crear las tasks de las 154 h que no son desarrollo; abrir el
+issue de definiciones pendientes del Ministerio; y generar los casos de prueba de las 45 tasks.
+
+## Historial
+
+Entrada nueva.
 
 ---
 
