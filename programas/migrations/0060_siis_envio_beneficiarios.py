@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
             options={
                 'verbose_name': 'Envío a SIIS',
                 'verbose_name_plural': 'Envíos a SIIS',
-                'ordering': ['-creado'],
+                'ordering': ['-creado', '-pk'],
             },
         ),
     ]

@@ -2289,7 +2289,7 @@ class Formulario(TimeStamped):
     @property
     def envio_siis_vigente(self):
         """Último intento de alta en SIIS (o ``None``)."""
-        return self.envios_sis.order_by("-creado").first()
+        return self.envios_sis.order_by("-creado", "-pk").first()
 
     @property
     def informado_a_siis(self):
@@ -2456,7 +2456,8 @@ class EnvioSIIS(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-creado"]
+        # ``-pk`` desempata dos intentos en el mismo segundo (reintento inmediato).
+        ordering = ["-creado", "-pk"]
         verbose_name = "Envío a SIIS"
         verbose_name_plural = "Envíos a SIIS"
 
