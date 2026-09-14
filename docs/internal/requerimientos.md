@@ -194,7 +194,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 47 | El tablero no reflejaba que el formulario público ya estaba entregado | Becas · Gestión | `#gestion` `#relevamientos` | PM — «las épicas y los task sobre el formulario público de los relevamientos de becas en qué estado están?» | 27/08/2026 | 🟡 **Parcial — tablero al día; plan de pruebas redactado sin publicar** | No |
 | 48 | Analizar todo el diseño de Dispositivos, funcional y sobre todo front | Dispositivos | `#ui` `#datos` `#rbac` | PM — pedido directo en sesión de trabajo: «quiero analizar todo el diseño a nivel funcional y más que nada a diseño front del programa de dispositivos» | 26/08/2026 | 🟢 **Hecho — diagnóstico entregado; la remediación queda en #310-#323** | No requiere |
 | 49 | Etiquetar en GitHub a qué programa pertenece cada tarea | Transversal / gestión | `#gestion` `#metodo` | PM — pedido directo en sesión de trabajo | 27/08/2026 | 🟢 **Hecho** | No |
-| 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; falta el endpoint de salida de SIIS** | No requiere |
+| 50 | ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue | Transversal · Becas / integraciones | `#infra` `#correo` `#siis` `#gestion` | PM — reporte punto por punto sobre la lista de pendientes de este archivo | 27/08/2026 | 🟡 **Parcial — ocho dependencias cerradas; el endpoint de salida de SIIS se implementó en el Cambio 73** | No requiere |
 | 51 | El panel de marca del formulario de inscripción se estiraba con el formulario | Portal / inscripción pública | `#ui` `#relevamientos` | PM — «si el form es muy extenso se agranda y eso tendría que ser fijo… cuando escroleás el form eso está fijo y el form solo va para abajo» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 52 | El formulario público moría en un 403 de CSRF si el backoffice estaba abierto | Portal / inscripción pública | `#ui` `#sesion` `#relevamientos` | PM — reportó el 403 en producción sobre un link real: «el link es público, tiene que ser indistinto si es backoffice» | 27/08/2026 | 🟢 **Hecho** | No requiere |
 | 53 | «Relevamiento» y «caso» son dos cosas y la UI usaba la misma palabra para las dos | Becas / textos · revisión | `#textos` `#ui` `#metodo` | PM — fijó el vocabulario en sesión de trabajo: «relevamiento = parametría con sus estados; casos = personas que completaron el formulario» | 27/08/2026 | 🟢 **Hecho** | No requiere |
@@ -217,6 +217,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 70 | Borrar el teléfono +54 362 430-0002 de todas las superficies: era un número fantasma | Portal · Becas / correos | `#textos` `#ui` `#correo` `#relevamientos` | PM — en sesión: «todo los mensajes con este teléfono: +54 362 430-0002, borralos, porque ese teléfono es fantasma» | 09/09/2026 | 🟢 **Hecho** | No requiere |
 | 71 | Los rechazos del paso 1 del link público vuelven a decir su causa | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «cuando me quiero inscribir y ya estoy inscripto me dice «No podés inscribirte con ese documento», o si no estoy en la lista me dice lo mismo; quiero que vuelvas a implementar los distintos mensajes de error» | 10/09/2026 | 🟢 **Hecho** | No requiere |
 | 72 | Propuesta funcional completa de la Versión 2 de Dispositivos para el cliente, con los mockups | Dispositivos · Merenderos · documentación | `#gestion` `#ui` `#datos` `#rbac` | PM — en sesión: «armá una propuesta funcional completa con todos los mockups que se hizo, la explicación de cada cambio, qué queda de la V1, qué se suma de la v2, funcionalidades, proceso, flujos, todo, así se lo mando al cliente» | 14/09/2026 | 🟢 **Hecho — publicada** | No requiere |
+| 73 | Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia) | Becas / revisión e integraciones | `#siis` `#relevamientos` `#datos` `#ui` | PM — en sesión: «vamos a integrarnos a SIIS en otro punto, una vez que se valida a nivel SIIS y a nivel técnico, en los casos de revisión» | 14/09/2026 | 🟢 **Hecho** | `programas.0060` |
 
 **Notas del índice**
 
@@ -4926,7 +4927,7 @@ No aplica: entrada nueva.
 
 # Cambio 50 — ECOM desbloqueó las dependencias externas: SMTP, Gran Base, SIIS y despliegue
 
-🟡 **PARCIAL — 27/08/2026 · ocho dependencias externas cerradas; falta el endpoint de salida de SIIS y verificar los envíos**
+🟡 **PARCIAL — 27/08/2026 · ocho dependencias externas cerradas; el endpoint de salida de SIIS llegó y se implementó en el Cambio 73 (14/09/2026); falta verificar los envíos de correo**
 
 | | |
 |---|---|
@@ -5032,10 +5033,9 @@ Nada de este lado. Lo que el desbloqueo habilita y conviene correr cuanto antes:
 
 ## Pendientes / a definir
 
-1. **Endpoint de salida de SIIS: informar los beneficiarios confirmados con beca.** ECOM no lo
-   entregó. Es la mitad faltante de la integración, lo que mantiene el análisis **#72** en *En
-   análisis* y lo que impide consolidar la épica **#69**. Hasta que exista el contrato no hay
-   nada que implementar.
+1. ~~**Endpoint de salida de SIIS: informar los beneficiarios confirmados con beca.**~~ 🟢
+   **Hecho (14/09/2026)**: ECOM entregó el *Manual de Integración M2M v4.2* y la mitad de
+   escritura quedó implementada en el **Cambio 73**.
 2. **Verificar el envío real de correo** con `diagnosticar_correo` en QA y producción (task
    **#245**). Desbloquea los Cambios 37 y 44 y la verificación del correo de confirmación
    (**#296**).
@@ -5061,7 +5061,11 @@ un historial nuevo en la entrada afectada, sin borrar este.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **27/08/2026** — entrada nueva.
+- **14/09/2026 (Cambio 73)** — se cierra el pendiente 1: ECOM entregó el contrato del endpoint
+  de salida (manual M2M v4.2) y el alta de beneficiarios quedó implementada. El estado de esta
+  entrada sigue 🟡 **Parcial** por los otros siete puntos.
+
 # Cambio 51 — El panel de marca del formulario de inscripción se estiraba con el formulario
 
 🟢 **HECHO — 27/08/2026**
@@ -7696,8 +7700,6 @@ indistinguibles.
 
 ---
 
----
-
 # Cambio 72 — Propuesta funcional completa de la Versión 2 para el cliente
 
 🟢 **HECHO — 14/09/2026** · Publicada en `docs/client/funcionalidades/propuesta-dispositivos-v2.md` · Mockup en el mismo sitio: `docs/client/mockups/dispositivos-v2.html'
@@ -7786,5 +7788,161 @@ issue de definiciones pendientes del Ministerio; y generar los casos de prueba d
 ## Historial
 
 Entrada nueva.
+
+---
+
+# Cambio 73 — Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia)
+
+🟢 **HECHO — 14/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#siis` `#relevamientos` `#datos` `#ui` |
+| **Solicitante** | PM — en sesión de trabajo |
+| **Fecha del pedido** | 14/09/2026 |
+| **Issue / épica** | Épica #69 · Análisis #72 (integración SIIS) |
+| **Partes afectadas** | Backoffice · Servidor/API (SIIS de ECOM) |
+| **Migración** | `programas.0060_siis_envio_beneficiarios` |
+
+## Pedido original
+
+«Vamos a integrarnos a SIIS en otro punto: una vez que se valida a nivel SIIS y a nivel
+técnico, en los casos de revisión.» El insumo formal es el *Manual de Integración M2M —
+Carga de Beneficiarios y Catálogos, SIIS API v4.2* (ECOM, septiembre 2026).
+
+## Alcance acordado
+
+**Entra:** el alta del beneficiario en la tabla intermedia de SIIS
+(`POST /api/v1/auth/tab-intermedia`) para cada caso que queda APROBADO, con registro
+auditable por intento, corrección de datos y reintento desde la pantalla del caso; los
+catálogos maestros para normalizar los ids; el destino SIIS de las preguntas del
+relevamiento; la función SIIS del programa.
+
+**Queda afuera:** la carga retroactiva de los casos ya aprobados en producción; la
+Modalidad B (lote) del manual; la baja y la modificación de beneficiarios (el manual no
+las expone).
+
+## Decisiones tomadas
+
+| Tema | Decisión | Por qué |
+|---|---|---|
+| ¿La falta de datos SIIS bloquea la aprobación? | **No.** El caso se aprueba igual y el envío queda incompleto o con error, para corregir y reintentar. | El envío es un paso administrativo posterior: un 503 del legacy de SIIS no puede deshacer una aprobación que ya cumplió sus gates (identidad, compatibilidad, cupo). |
+| Cuándo se dispara | En las **dos** puertas a APROBADO: aprobación con cupo desde revisión y promoción desde lista de espera. Nunca para quien cae en lista de espera. | Recién ahí la persona es beneficiaria. Quien espera todavía no lo es. |
+| Dónde corre | En la vista, **después** de que el servicio atómico de aprobación retornó. | Mismo criterio que el aviso de resolución (Cambio 44): no hay `ATOMIC_REQUESTS`, así que la aprobación ya está confirmada en la base y el envío no la puede revertir. |
+| De dónde salen provincia, localidad, barrio, calle y estado civil | **Del relevamiento**: ya son preguntas del formulario. Se marcan con un «destino SIIS» en el ABM de preguntas globales. | Las preguntas del constructor no tienen semántica propia; el destino es lo que le da significado a la respuesta sin cambiar cómo se pregunta ni cómo se guarda. |
+| Correcciones del coordinador | Viven en `Formulario.datos_siis` y **pisan** lo derivado de las respuestas. | No se toca lo que la persona declaró: queda la traza de quién corrigió qué y para qué. |
+| `id_fun_x_plan` | **Una sola función por programa**, elegida del catálogo de funciones del programa SIIS vinculado (en testing: 4 para Ñachec). | Es la forma en que SIIS modela el rol dentro del plan y no varía por caso. |
+| Idempotencia | Con un envío en `ENVIADO` no se vuelve a mandar. | La API **no deduplica**: un reintento ciego daría de alta dos veces al mismo beneficiario. |
+| Reintentos automáticos | Solo los `ERROR` técnicos, por comando. Los `INCOMPLETO` y `RECHAZADO` esperan corrección humana. | Reintentar un dato inválido repite el mismo rechazo; lo que falta es una persona que lo corrija. |
+| Casos ya aprobados en producción | **No se envían retroactivamente** por ahora. | Decisión del PM: primero se valida el circuito con los casos nuevos. |
+| URL y credenciales | La `SIIS_API_URL` y las credenciales que ya existen; solo cambia la ruta. | Es la misma API M2M con el mismo token: no agrega variables de entorno. |
+
+**Cuestión abierta — lugar de nacimiento.** `prov_nacim` y `loc_nacim` son obligatorios en
+SIIS y **hoy no se preguntan** en el relevamiento. La respuesta del PM fue «siempre
+Argentina», que resuelve el país pero no la provincia ni la localidad. El sistema **no
+asume nada**: si el cliente agrega esas preguntas al formulario se toman de ahí, y si no,
+el coordinador las carga en «Completar datos para SIIS». Hasta entonces el envío queda
+incompleto por esos dos campos. Igualarlos al domicilio actual sería inventar un dato que
+va a un registro provincial: se hace solo con confirmación explícita.
+
+## Implementación
+
+Cuando un caso queda aprobado, el sistema arma los 30 campos que pide el manual y los
+manda a la tabla intermedia de SIIS. Cada intento queda registrado con su desenlace:
+**Enviado** (con el ID que devolvió SIIS), **Datos incompletos** (faltó algo de nuestro
+lado y no se llegó a llamar), **Rechazado por SIIS** (validación del organismo) o **Error
+técnico** (token, caída del legacy, red).
+
+En la pantalla del caso aprobado aparece la sección **«Envío a SIIS»** con el estado del
+último intento, el ID cuando existe y —cuando algo falla— qué campo lo frena y por qué,
+con el texto de SIIS o el nuestro. Desde ahí el coordinador **completa los datos** en un
+pop up (provincia y localidad salen del catálogo de SIIS, la localidad filtrada por
+provincia) y **reenvía**. Guardar no envía: primero se revisa.
+
+Los datos salen del ciudadano (DNI, nombre, sexo, fecha de nacimiento, con el CUIL
+calculado), del programa SIIS vinculado (programa, jurisdicción y función) y de las
+respuestas del relevamiento marcadas con su destino SIIS. Si la persona es menor de 18
+años, los siete campos del apoderado pasan a ser obligatorios.
+
+Para las caídas del legacy hay un comando de reintento por lote
+(`manage.py reenviar_siis_pendientes`), pensado para un cron o para correr a mano.
+
+## Archivos
+
+- `programas/services/siis.py` — `cargar_beneficiario`, `catalogo`, `funciones_programa`.
+- `programas/services/siis_envio.py` (nuevo) — `calcular_cuil`, `parsear_direccion`, `Catalogos`, `armar_payload`, `enviar_beneficiario_a_siis`, `mensaje_envio`.
+- `programas/models/__init__.py` — `EnvioSIIS`, `PreguntaGlobal.destino_siis`, `ProgramaSiis.siis_funcion_id/_nombre`, `Formulario.datos_siis`.
+- `programas/migrations/0060_siis_envio_beneficiarios.py`.
+- `programas/forms.py` — `DatosSiisForm`, `destino_siis` en el form de pregunta global, `ProgramaSiisFuncionForm`.
+- `programas/views/revision.py` — disparo al aprobar, `formulario_enviar_siis`, `formulario_datos_siis`, `siis_localidades_json`, contexto del detalle.
+- `programas/views/cupo.py` — disparo al promover de la lista de espera.
+- `programas/views/configuracion.py` — `programa_funcion_siis`.
+- `programas/urls.py` — cuatro rutas nuevas.
+- `programas/management/commands/reenviar_siis_pendientes.py` (nuevo).
+- `programas/templates/programas/becas/revision/formulario_detalle.html` — sección «Envío a SIIS» y pop up de corrección.
+- `programas/templates/programas/becas/config/programa_detail.html`, `pregunta_list.html`, `_preguntas_table.html`.
+- `.claude/agents/chaco-design-system.md` — patrón del panel de integración (evidencia canónica).
+- `docs/internal/temas/siis-api.md` — endpoints 5 a 7 y la sección «Alta de beneficiarios».
+- Tests: `programas/tests/test_siis_envio.py` (nuevo), `test_siis_service.py`, `test_becas_revision.py`, `test_becas_config.py`.
+
+## Base de datos
+
+Migración `programas.0060_siis_envio_beneficiarios`: tabla nueva `EnvioSIIS`, más cuatro
+columnas (`PreguntaGlobal.destino_siis` con constraint condicional de unicidad por destino
+activo, `ProgramaSiis.siis_funcion_id` y `siis_funcion_nombre`, `Formulario.datos_siis`).
+**Sin backfill**: todas las columnas nuevas son opcionales o con default, así que es segura
+sobre los datos existentes.
+
+## Validación
+
+- `manage.py check` — sin problemas. `makemigrations --check --dry-run` — limpio.
+- Suites `test_siis_envio`, `test_siis_service`, `test_becas_revision`, `test_becas_config`
+  y `test_becas_rbac`: **217 tests OK** sobre Python 3.12 + Django 5.2.17, el entorno del
+  CI. (El `.venv` de la máquina, con Python 3.14 + Django 4.2, arrastra ~33 errores de
+  baseline al renderizar templates que no existen en el CI.)
+- UI: `scripts/design_audit.py --changed` 0 errores y 0 warnings,
+  `scripts/compile_templates.py` 0 errores sobre 185 templates,
+  `scripts/check_design_agent.py --changed` OK.
+- `ruff check` limpio sobre los archivos del cambio.
+
+## Puesta en marcha en el servidor
+
+Además del deploy y el `migrate`, hay dos pasos de configuración **manuales**, sin los
+cuales el envío queda incompleto:
+
+1. **Función SIIS de cada programa** — en el detalle del programa, tarjeta «Alta de
+   beneficiarios en SIIS», elegir la función del catálogo (en testing: *Nivel Operativo*,
+   id 4, para Ñachec).
+2. **Destino SIIS de las preguntas** — en el ABM de preguntas globales, marcar qué
+   pregunta alimenta cada campo (provincia, localidad, barrio, calle y altura, estado
+   civil y, si existen, lugar de nacimiento). Una sola pregunta activa por destino.
+
+Opcional: cron para `manage.py reenviar_siis_pendientes` (pendiente 6 del Cambio 27).
+
+## Pendientes / a definir
+
+- **Lugar de nacimiento**: decidir si se agregan las preguntas al relevamiento o si el
+  coordinador lo carga caso por caso (ver la cuestión abierta de arriba).
+- **`S/N` en la altura**: SIIS exige `nro_actual` entero; falta preguntarle a ECOM qué
+  valor espera para domicilios sin numeración.
+- **Baja y modificación de beneficiarios**: el manual no las expone. Límite externo, igual
+  que la RN-25 del Cambio 34.
+- **`jurisdiccion_id`**: sale del detalle congelado del programa; si SIIS no lo informa hay
+  que re-vincular o pedírselo a ECOM.
+- **Carga retroactiva** de los casos ya aprobados en producción, si el PM la pide.
+- **Cron** del comando de reintentos.
+
+## Reversión
+
+Revertir los commits de la rama y aplicar la migración inversa de `programas.0060`: se
+pierden los registros de envío (`EnvioSIIS`), las correcciones de `datos_siis`, los
+destinos marcados en las preguntas y la función SIIS de los programas. Lo dado de alta en
+SIIS **no se revierte**: el contrato no expone baja.
+
+## Historial
+
+- **14/09/2026 (este cambio)** — primera versión: alta de beneficiarios sobre el manual
+  M2M v4.2. Cierra el pendiente 1 del Cambio 50 (el endpoint de salida de SIIS).
 
 ---
