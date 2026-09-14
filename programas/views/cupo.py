@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 
 CAP_CUPO_VER = "becas.cupo.ver"
 CAP_BENEFICIARIO_VER = "becas.beneficiario.ver"
+CAP_BENEFICIARIO_EDITAR = "becas.beneficiario.editar"
+CUPO_PAGE_SIZE = 50
 
 
 def _informar_a_siis(request, formulario):
@@ -48,10 +50,6 @@ def _informar_a_siis(request, formulario):
     nivel, texto = mensaje_envio(envio)
     getattr(messages, nivel)(request, texto)
     return envio
-
-
-CAP_BENEFICIARIO_EDITAR = "becas.beneficiario.editar"
-CUPO_PAGE_SIZE = 50
 
 
 def _paginate(request, queryset, page_param):
