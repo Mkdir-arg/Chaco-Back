@@ -8337,4 +8337,19 @@ restantes de ese módulo en el venv local son el baseline conocido de Python 3.1
 Restaurar el `{% if convocatoria %}` del bloque `panel_titulo` y el texto anterior de
 `MENSAJE_NO_HABILITADO`. No hay datos involucrados.
 
+## Historial
+
+- **14/09/2026 (este cambio)** — primera versión, registrada como Cambio 74; pasó a 75 al mergear
+  `feature/constructor-formularios` (que traía su propio Cambio 74, más viejo) en `development`.
+- **15/09/2026 — Desplegado en QA con el release completo.** `ecom/test` se alineó con el release
+  `main` `efd368d` (commit de alineación `ca7bddd`), que ya incluye el constructor.
+- **15/09/2026 — Desplegado en PRODUCCIÓN como hotfix aislado, fuera del release.** El PM eligió
+  llevar a producción **solo los textos** y no el release `efd368d`, que además del constructor (Cambio
+  58) trae el padrón con herencia (74) y el alta de beneficiarios en SIIS (73), sin pase de QA cerrado.
+  Se construyó el commit `305f460` = árbol exacto de `ecom/main` (`2e53a4c`, release del 10/09) + los dos
+  archivos de este cambio (diff idéntico a `development@54abc41`), y se pusheó como avance directo. **Costo
+  registrado:** `ecom/main` dejó de ser ancestro de nuestro `main`; el próximo espejo a producción va con
+  el commit de alineación que ya se usa para `test` (ver `docs/internal/branching.md`), nunca con `--force`.
+  Producción queda en Cambio 71 + estos textos; todo lo demás posterior al 10/09 sigue pendiente de PRD.
+
 ---

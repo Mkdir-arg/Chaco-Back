@@ -92,6 +92,19 @@ Del otro lado **no** es un repo pasivo: tiene CI/CD propio.
   Es un avance directo, así que entra sin `--force` y conserva su historial. La
   contra: `test` queda con un commit que `main` no tiene, así que la próxima
   actualización repite la maniobra.
+- **`main` de ECOM también puede quedar divergida, por un hotfix aislado.** Pasó el
+  15/09/2026: el release traía el constructor completo (Cambio 58) y el PM quiso
+  llevar a producción solo dos archivos de texto (Cambio 75). Se armó un commit
+  cuyo árbol es el de `ecom/main` más esos archivos y se pusheó como avance directo
+  (`305f460`). Es una **excepción**, no el camino normal —la regla sigue siendo
+  «`ecom/main` = release»—, y deja la misma contra que `test`: hasta el próximo
+  espejo, `ecom/main` no es ancestro de nuestra `main`, así que ese espejo se hace
+  con el commit de alineación de arriba (con `-p <ecom/main>`), nunca forzando.
+  Receta del hotfix, sin tocar el checkout: índice temporal con `GIT_INDEX_FILE`,
+  `git read-tree <ecom/main>`, `git update-index --cacheinfo 100644,<blob>,<ruta>`
+  por archivo, `git write-tree`, `git commit-tree <tree> -p <ecom/main> -m …` y
+  `git push ecom <sha>:refs/heads/main`. Antes de pushear, verificar que el diff
+  contra `ecom/main` sea exactamente el commit que se quiere llevar.
 - Un cambio de **código fuente** se despliega solo. Un cambio de **configuración**
   —variables de entorno, secretos, un CronJob— lo hace su equipo de devops. Por
   eso el SMTP y la sincronización periódica de SIIS dependen de ellos en esos
