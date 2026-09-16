@@ -1243,7 +1243,16 @@ def _catalogo_siis_falso(nombre):
         "provincias": [{"id": 22, "nombre": "Chaco"}],
         "localidades": [{"id": 37, "nombre": "Juan José Castelli", "id_provincia": 22}],
         "estados-civiles": [{"id": 1, "nombre": "Soltero/a"}],
+        "jurisdicciones": [{"id": 28, "nombre": "Ministerio de Desarrollo Humano"}],
     }[nombre]
+
+
+def _programas_siis_falsos():
+    return [{"id": 79, "nombre": "Ñachec", "estado": "ACTIVO"}]
+
+
+def _funciones_siis_falsas(id_programa):
+    return [{"id": 4, "nombre": "Ñachec Colaboradores nivel 4", "id_programa": id_programa}]
 
 
 class ReenvioYDatosSiisTests(_BaseAprobacionTest):
@@ -1255,6 +1264,7 @@ class ReenvioYDatosSiisTests(_BaseAprobacionTest):
         self.form_a.save(update_fields=["estado"])
         self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
         patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.forms.listar_programas", side_effect=_programas_siis_falsos).start()
         patch("programas.views.revision.catalogo", side_effect=_catalogo_siis_falso).start()
         self.addCleanup(patch.stopall)
         self.enviar.return_value = EnvioSIIS(formulario=self.form_a, estado=EnvioSIIS.Estado.ENVIADO, siis_id=26)
@@ -1314,6 +1324,35 @@ class ReenvioYDatosSiisTests(_BaseAprobacionTest):
         self.assertIn("barrio_actual", form.errors)
         self.assertIn("loc_actual", form.errors)
 
+    def test_guardar_los_ids_de_la_integracion_desde_el_caso(self):
+        """Los tres ids del programa se pueden completar acá cuando el vínculo
+        con SIIS no los informa, sin frenar el caso."""
+        resp = self.client.post(
+            reverse("becas:formulario_datos_siis", args=[self.form_a.pk]),
+            {"id_plan_soc": "79", "jurid": "28", "id_fun_x_plan": "4"},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.datos_siis["id_plan_soc"], 79)
+        self.assertEqual(self.form_a.datos_siis["jurid"], 28)
+        self.assertEqual(self.form_a.datos_siis["id_fun_x_plan"], 4)
+        self.enviar.assert_not_called()
+
+    def test_funciones_json_lista_las_del_programa(self):
+        with patch("programas.views.revision.funciones_programa", side_effect=_funciones_siis_falsas):
+            resp = self.client.get(reverse("becas:siis_funciones") + "?programa=79")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {"funciones": [{"id": 4, "nombre": "Ñachec Colaboradores nivel 4"}]})
+
+    def test_funciones_json_sin_programa_no_consulta_a_siis(self):
+        with patch("programas.views.revision.funciones_programa") as funciones:
+            resp = self.client.get(reverse("becas:siis_funciones"))
+
+        self.assertEqual(resp.json(), {"funciones": []})
+        funciones.assert_not_called()
+
     def test_localidades_json_filtra_por_provincia(self):
         resp = self.client.get(reverse("becas:siis_localidades") + "?provincia=22")
 
@@ -1328,6 +1367,7 @@ class UiEnvioSiisTests(_BaseAprobacionTest):
     def setUp(self):
         super().setUp()
         patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.forms.listar_programas", side_effect=_programas_siis_falsos).start()
         self.addCleanup(patch.stopall)
 
     def _aprobar(self):

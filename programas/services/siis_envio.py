@@ -250,6 +250,14 @@ def _resolver_catalogo(correcciones, respuestas, campo, resolver):
     return None
 
 
+def _primero_con_valor(*valores):
+    """El primero que no sea ``None`` ni cadena vacía. El 0 es un valor válido."""
+    for valor in valores:
+        if _con_valor(valor):
+            return valor
+    return None
+
+
 def armar_payload(formulario, catalogos=None, hoy=None):
     """``(payload, faltantes)``: el payload solo se manda si ``faltantes`` está vacío.
 
@@ -365,21 +373,30 @@ def armar_payload(formulario, catalogos=None, hoy=None):
         payload["correo_electron"] = str(formulario.email_contacto).strip()[:LARGO_TEXTO]
 
     # --- Programa ---
-    if programa is None:
-        faltantes["id_plan_soc"] = "El segmento no tiene un programa SIIS configurado."
-    else:
-        payload["id_plan_soc"] = programa.siis_programa_id
-        jurid = (programa.siis_programa_datos or {}).get("jurisdiccion_id")
+    # Los tres ids salen del programa vinculado, pero la corrección del caso los
+    # pisa: un programa mal configurado no puede dejar a la persona sin salida.
+    datos_programa = (programa.siis_programa_datos or {}) if programa else {}
+    for campo, valor_programa, motivo in (
+        (
+            "id_plan_soc",
+            programa.siis_programa_id if programa else None,
+            "El segmento no tiene un programa SIIS configurado.",
+        ),
+        (
+            "jurid",
+            datos_programa.get("jurisdiccion_id"),
+            "El programa vinculado no informa jurisdicción; verificá el vínculo con SIIS.",
+        ),
+        (
+            "id_fun_x_plan",
+            programa.siis_funcion_id if programa else None,
+            "El programa no tiene configurada la función SIIS para el alta de beneficiarios.",
+        ),
+    ):
         try:
-            payload["jurid"] = int(jurid)
+            payload[campo] = int(_primero_con_valor(correcciones.get(campo), valor_programa))
         except (TypeError, ValueError):
-            faltantes["jurid"] = "El programa vinculado no informa jurisdicción; verificá el vínculo con SIIS."
-        if programa.siis_funcion_id:
-            payload["id_fun_x_plan"] = programa.siis_funcion_id
-        else:
-            faltantes["id_fun_x_plan"] = (
-                "El programa no tiene configurada la función SIIS para el alta de beneficiarios."
-            )
+            faltantes[campo] = f"{motivo} Podés completarlo en «Completar datos para SIIS»."
 
     # --- Apoderado (condicional: menor de 18 a la fecha del envío) ---
     if nacimiento and _edad(nacimiento, hoy) < MAYORIA_DE_EDAD:
