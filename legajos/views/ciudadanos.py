@@ -53,7 +53,7 @@ def ciudadanos_exportar_csv(request):
     response.write("\ufeff")
 
     writer = csv.writer(response)
-    writer.writerow(["DNI", "Apellido", "Nombre", "Fecha de alta"])
+    writer.writerow(["DNI", "Apellido", "Nombre", "Sexo", "Fecha de alta"])
     ciudadanos = get_ciudadanos_queryset(request.GET.get("search", ""))
     for ciudadano in ciudadanos.iterator():
         writer.writerow(
@@ -61,6 +61,7 @@ def ciudadanos_exportar_csv(request):
                 ciudadano.dni,
                 ciudadano.apellido,
                 ciudadano.nombre,
+                ciudadano.get_genero_display(),
                 ciudadano.creado.strftime("%d/%m/%Y") if ciudadano.creado else "",
             ]
         )

@@ -220,6 +220,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 73 | Informar a SIIS los beneficiarios aprobados (alta en la tabla intermedia) | Becas / revisión e integraciones | `#siis` `#relevamientos` `#datos` `#ui` | PM — en sesión: «vamos a integrarnos a SIIS en otro punto, una vez que se valida a nivel SIIS y a nivel técnico, en los casos de revisión» | 14/09/2026 | 🟢 **Hecho** | `programas.0066` |
 | 74 | Padrón con herencia: el de la convocatoria se hereda y un relevamiento puede tener el suyo | Becas · convocatorias → Portal · App | `#relevamientos` `#datos` `#rbac` | PM — «si se configura en el relevamiento es de ese solo, si se configura en la convocatoria se hereda automáticamente» | 31/08/2026 | 🟢 **Hecho** | `programas.0065` |
 | 75 | El link público se presenta como «Programa +Más Futuro» y el rechazo por padrón deriva a Soporte Técnico | Portal / link público de inscripción | `#textos` `#ui` `#relevamientos` | PM — en sesión: «vamos con unos cambios estéticos de los form públicos» | 14/09/2026 | 🟢 **Hecho** | No requiere |
+| 76 | El CSV de Ciudadanos exporta también el sexo | Legajos / ciudadanos | `#ui` `#datos` `#performance` | PM — en sesión: «al export que está en /legajos/ciudadanos/ sumale la columna sexo» | 16/09/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -8355,5 +8356,93 @@ Restaurar el `{% if convocatoria %}` del bloque `panel_titulo` y el texto anteri
   registrado:** `ecom/main` dejó de ser ancestro de nuestro `main`; el próximo espejo a producción va con
   el commit de alineación que ya se usa para `test` (ver `docs/internal/branching.md`), nunca con `--force`.
   Producción queda en Cambio 71 + estos textos; todo lo demás posterior al 10/09 sigue pendiente de PRD.
+
+---
+
+# Cambio 76 — El CSV de Ciudadanos exporta también el sexo
+
+🟢 **HECHO — 16/09/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Legajos / listado de Ciudadanos |
+| **Etiquetas** | `#ui` `#datos` `#performance` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 16/09/2026 |
+| **Issue / épica** | Sin issue (ajuste pedido en sesión) |
+| **Partes afectadas** | Backoffice — botón «Exportar» de `/legajos/ciudadanos/` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Al export que está en https://datanach.chaco.gob.ar/legajos/ciudadanos/ sumale la columna sexo.»
+
+## Alcance acordado
+
+- El CSV de ciudadanos pasa de cuatro columnas a cinco: **DNI, Apellido, Nombre, Sexo, Fecha de alta**.
+- **Afuera:** el listado en pantalla —que sigue con sus mismas columnas—, los otros exports del
+  sistema (reportes de legajos, respuestas de formularios de Becas) y cualquier cambio sobre el
+  campo `genero` del ciudadano, que ya existía.
+
+## Decisiones tomadas
+
+- **La columna va entre «Nombre» y «Fecha de alta»**, no al final: agrupa los datos de la persona y
+  deja la fecha administrativa como última columna, que es como se lee hoy el archivo.
+- **Se exporta la etiqueta, no la letra.** El campo guarda `M`/`F`/`X`; el CSV escribe «Masculino»,
+  «Femenino» o «No binario» vía `get_genero_display()`, igual que la ficha del ciudadano y el
+  portal. Quien abre el CSV no tiene que conocer el código interno. Un ciudadano sin sexo cargado
+  deja la celda vacía (el campo es `blank=True`), no escribe «Sin informar».
+- **Se encabeza «Sexo» y no «Género»** aunque el campo del modelo se llame `genero`: es la palabra
+  del pedido y la que ya usan los formularios de alta (`ConsultaRenaperForm.sexo`) y la ficha.
+- **`genero` se suma al `only()` del selector compartido.** Sin eso el campo quedaba diferido y
+  leerlo dentro del `iterator()` disparaba **una consulta por ciudadano** en un export que recorre
+  el padrón entero. La columna extra que ahora pide el listado es un `varchar(1)` ya indexado: el
+  costo es nulo frente al N+1 que evita.
+
+## Implementación
+
+El botón «Exportar» del listado de Ciudadanos descarga el mismo archivo de siempre —respetando la
+búsqueda activa y los ciudadanos activos—, ahora con el sexo de cada persona en una columna propia.
+
+| | Antes | Ahora |
+|---|---|---|
+| Encabezado | `DNI, Apellido, Nombre, Fecha de alta` | `DNI, Apellido, Nombre, Sexo, Fecha de alta` |
+| Fila | `30111222, Alvarez, Ana, 16/09/2026` | `30111222, Alvarez, Ana, Femenino, 16/09/2026` |
+
+## Archivos
+
+- `legajos/views/ciudadanos.py` — `ciudadanos_exportar_csv`: encabezado y fila.
+- `legajos/selectors/ciudadanos.py` — `get_ciudadanos_queryset`: `genero` en el `only()`.
+- `legajos/tests/test_ciudadanos_export.py` — nuevo.
+
+## Base de datos
+
+No requiere. El campo `legajos_ciudadano.genero` ya existía; no se crean ni se migran columnas.
+
+## Validación
+
+`manage.py check` sin issues; `ruff check` y `ruff format` limpios;
+`scripts/design_audit.py --changed` 0 errores y 0 warnings (el cambio no toca templates).
+`legajos.tests.test_ciudadanos_export` en verde (2 tests): uno verifica el encabezado y las dos
+filas —con sexo cargado y sin cargar—, y el otro fija en **1 consulta** la lectura del sexo sobre
+todo el queryset, que es la regresión de performance que este cambio podía introducir.
+
+## Puesta en marcha en el servidor
+
+No requiere: no hay migración, comando ni variable nueva. Alcanza con el deploy.
+
+## Pendientes / a definir
+
+Ninguno. Si más adelante se pide exportar otros datos del ciudadano (contacto, domicilio,
+localidad), hay que sumarlos al mismo `only()` junto con la columna, por el mismo motivo del N+1.
+
+## Reversión
+
+Quitar la columna del encabezado y de la fila en `ciudadanos_exportar_csv`, sacar `genero` del
+`only()` y borrar el test. No hay datos involucrados.
+
+## Historial
+
+- **16/09/2026 (este cambio)** — primera versión.
 
 ---
