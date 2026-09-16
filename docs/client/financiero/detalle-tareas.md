@@ -839,7 +839,34 @@
 
 !!! note "Qué incluye"
     Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre al 10/09 es de **321,5 h**.
+    en las secciones de ese mes. El trabajo propio de septiembre al 16/09 es de **480 h**.
+
+---
+
+## :material-account-group: Consumo por persona — acumulado del proyecto
+
+| Persona | Rol | Junio | Julio | Agosto | Septiembre *(al 16/09)* | **Total** |
+|---|---|---:|---:|---:|---:|---:|
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 123,0 | **697 h 13 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 125,5 | **614 h 01 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 124,5 | **479 h 47 min** |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 107,0 | **314 h 30 min** |
+| Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | **112 h 17 min** |
+| Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | **65 h 00 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **480 h 00 min** | **2.282 h 42 min** |
+
+!!! note "Cómo leer esta tabla"
+    Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
+    por persona van en horas y minutos. La suma por persona difiere en **6 minutos** del total del proyecto
+    por el redondeo del registro de julio. Agosto es **esfuerzo real** (803 h 30 min): al cliente se le
+    imputaron 700 h y el resto se trasladó a septiembre.
+
+### :material-clipboard-text-outline: En qué trabajó cada uno en septiembre
+
+- **Matías Fariña** — apertura de la inscripción por link público, definiciones y revisión del constructor, dashboard del programa, propuesta de la Versión 2 de Dispositivos, publicaciones a producción y gestión del equipo.
+- **Pablo Cao** — dashboard del Programa Becas de punta a punta, integración del constructor con lo publicado, rendimiento del sistema, apoderado obligatorio y textos del link público.
+- **Juani Portilla** — cobertura automatizada e integración del constructor, **alta de beneficiarios en SIIS** (diseño, envío auditable, reintento y reenvío manual) y rendimiento del acceso al sistema.
+- **Matías Abate** — pruebas del flujo público, del dashboard, del constructor integrado y del envío a SIIS, más el análisis de la Versión 2 de Dispositivos.
 
 ---
 
